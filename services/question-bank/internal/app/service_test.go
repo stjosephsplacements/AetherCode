@@ -3,8 +3,11 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"reflect"
+	"strings"
 	"testing"
+	"time"
 
 	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
 	"github.com/jackc/pgx/v5"
@@ -403,5 +406,91 @@ func validVersionContent() VersionContent {
 			EncryptionKeyReference: "kms:question-bank/evaluation",
 		},
 		Tags: []Tag{{Name: "arrays"}},
+	}
+}
+
+// fakeStorage is a minimal storage.Object implementation for unit tests.
+type fakeStorage struct{ called bool }
+
+func (s *fakeStorage) Put(_ context.Context, _ string, _ io.Reader, _ int64, _ string) error {
+	return nil
+}
+func (s *fakeStorage) Get(_ context.Context, _ string) (io.ReadCloser, int64, error) {
+	s.called = true
+	return io.NopCloser(strings.NewReader("test content")), 12, nil
+}
+func (s *fakeStorage) Delete(_ context.Context, _ string) error { return nil }
+func (s *fakeStorage) Exists(_ context.Context, _ string) (bool, error) {
+	return true, nil
+}
+func (s *fakeStorage) PresignGet(_ context.Context, _ string, _ time.Duration) (string, error) {
+	return "https://example.com/presigned", nil
+}
+
+// fakeKMS is a transparent kms.KeyManager: Decrypt returns the ciphertext unchanged.
+type fakeKMS struct{}
+
+func (k *fakeKMS) Encrypt(_ context.Context, p []byte) ([]byte, string, error) {
+	return p, "local:test", nil
+}
+func (k *fakeKMS) Decrypt(_ context.Context, c []byte, _ string) ([]byte, error) {
+	return c, nil
+}
+
+// TestGetAssetDecryptsEncryptedContent verifies that encrypted asset kinds
+// (attachment, starter_code, reference_solution) pass kind validation. The full
+// decryption path requires a live database; here we confirm the service reaches
+// the capability check rather than failing on kind validation.
+func TestGetAssetDecryptsEncryptedContent(t *testing.T) {
+	t.Parallel()
+	for _, kind := range []string{"attachment", "starter_code", "reference_solution"} {
+		t.Run(kind, func(t *testing.T) {
+			t.Parallel()
+			svc := &Service{pool: nil, store: &panicStore{}, storage: &fakeStorage{}, kms: &fakeKMS{}}
+			_, err := svc.GetAsset(context.TODO(), centralauthz.Capability{}, GetAssetCmd{
+				QuestionVersionID: "01920a4d-1234-7abc-9876-543210fedcba",
+				AssetKind:         kind,
+			})
+			if err == nil {
+				t.Fatal("expected capability error")
+			}
+			if strings.Contains(err.Error(), "asset_kind must be") {
+				t.Fatalf("kind %q was rejected by validation: %v", kind, err)
+			}
+		})
+	}
+}
+
+// TestGetAssetReturnsPresignedURLForTestCases verifies that test_cases is a
+// valid asset kind accepted by validation.  The presign path requires a live
+// database; here we confirm the kind passes validation by checking that the
+// resulting error is from the capability check, not the kind-validation guard.
+func TestGetAssetReturnsPresignedURLForTestCases(t *testing.T) {
+	svc := &Service{pool: nil, store: &panicStore{}, storage: &fakeStorage{}, kms: nil}
+	_, err := svc.GetAsset(context.TODO(), centralauthz.Capability{}, GetAssetCmd{
+		QuestionVersionID: "01920a4d-1234-7abc-9876-543210fedcba",
+		AssetKind:         "test_cases",
+	})
+	if err == nil {
+		t.Fatal("expected capability error")
+	}
+	if strings.Contains(err.Error(), "asset_kind must be") {
+		t.Fatalf("test_cases was rejected by kind validation: %v", err)
+	}
+}
+
+// TestGetBundleDecryptsContent verifies that a correctly-wired service passes
+// bundle validation and reaches the capability check rather than failing on
+// storage availability.
+func TestGetBundleDecryptsContent(t *testing.T) {
+	svc := &Service{pool: nil, store: &panicStore{}, storage: &fakeStorage{}, kms: &fakeKMS{}}
+	_, err := svc.GetBundle(context.TODO(), centralauthz.Capability{}, GetBundleCmd{
+		QuestionVersionID: "01920a4d-1234-7abc-9876-543210fedcba",
+	})
+	if err == nil {
+		t.Fatal("expected capability error")
+	}
+	if strings.Contains(err.Error(), "content storage is not configured") {
+		t.Fatalf("storage was not wired correctly: %v", err)
 	}
 }

@@ -42,13 +42,19 @@ func (c *Client) Put(ctx context.Context, key string, r io.Reader, size int64, c
 	return err
 }
 
-// Get returns a reader for the object at key. The caller must close it.
-func (c *Client) Get(ctx context.Context, key string) (io.ReadCloser, error) {
+// Get returns a reader and the exact byte size for the object at key.
+// The caller must close the reader.
+func (c *Client) Get(ctx context.Context, key string) (io.ReadCloser, int64, error) {
 	obj, err := c.client.GetObject(ctx, c.bucket, key, miniogo.GetObjectOptions{})
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return obj, nil
+	info, err := obj.Stat()
+	if err != nil {
+		_ = obj.Close()
+		return nil, 0, err
+	}
+	return obj, info.Size, nil
 }
 
 // Delete removes the object at key. Missing objects are not an error.

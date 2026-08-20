@@ -74,10 +74,14 @@ type Store interface {
 	Ping(context.Context) error
 }
 
-// AssetContent is the decrypted content of a question asset or bundle.
+// AssetContent is the result of a question asset retrieval.
+// For encrypted asset kinds (attachment, starter_code, reference_solution), Data
+// and ContentType are populated.  For test_cases, PresignURL is populated
+// instead and Data is nil — the caller should redirect or return the URL.
 type AssetContent struct {
 	Data        []byte
 	ContentType string
+	PresignURL  string
 }
 
 // GetAssetCmd identifies one asset to retrieve.
@@ -94,7 +98,7 @@ type GetBundleCmd struct {
 type ObjectReference struct {
 	ObjectKey              string `json:"object_key"`
 	Checksum               string `json:"checksum"`
-	EncryptionKeyReference string `json:"encryption_key_reference"`
+	EncryptionKeyReference string `json:"-"`
 }
 
 // Tag is the normalized global tag associated with a version. It deliberately
@@ -768,18 +772,20 @@ func (service *Service) HardDeleteQuestionVersion(contextValue context.Context, 
 	})
 }
 
-// GetAsset fetches, decrypts, and returns a named asset for a question version.
-// Returns CodeUnavailable when storage or KMS is not configured.
+// GetAsset fetches a named asset for a question version.
+// For test_cases: returns a presigned URL valid for 15 minutes (no KMS decryption).
+// For other kinds: decrypts with KMS and returns the plaintext bytes.
+// Returns CodeUnavailable when storage (or KMS, for encrypted kinds) is not configured.
 func (service *Service) GetAsset(contextValue context.Context, capability centralauthz.Capability, cmd GetAssetCmd) (AssetContent, error) {
-	if service.storage == nil || service.kms == nil {
+	if service.storage == nil {
 		return AssetContent{}, apperrors.New(apperrors.CodeUnavailable, "content storage is not configured on this instance")
 	}
 	if !isUUID(cmd.QuestionVersionID) {
 		return AssetContent{}, apperrors.New(apperrors.CodeInvalidArgument, "question version ID must be a UUID")
 	}
 	cmd.AssetKind = strings.TrimSpace(cmd.AssetKind)
-	if cmd.AssetKind != "attachment" && cmd.AssetKind != "starter_code" && cmd.AssetKind != "reference_solution" {
-		return AssetContent{}, apperrors.New(apperrors.CodeInvalidArgument, "asset_kind must be attachment, starter_code, or reference_solution")
+	if cmd.AssetKind != "attachment" && cmd.AssetKind != "starter_code" && cmd.AssetKind != "reference_solution" && cmd.AssetKind != "test_cases" {
+		return AssetContent{}, apperrors.New(apperrors.CodeInvalidArgument, "asset_kind must be attachment, starter_code, reference_solution, or test_cases")
 	}
 
 	var objectKey, encKeyRef, contentType string
@@ -792,7 +798,20 @@ func (service *Service) GetAsset(contextValue context.Context, capability centra
 		return AssetContent{}, err
 	}
 
-	reader, err := service.storage.Get(contextValue, objectKey)
+	if cmd.AssetKind == "test_cases" {
+		// Test cases are stored unencrypted; issue a presigned URL for direct download.
+		url, err := service.storage.PresignGet(contextValue, objectKey, 15*time.Minute)
+		if err != nil {
+			return AssetContent{}, fmt.Errorf("presign test cases: %w", err)
+		}
+		return AssetContent{PresignURL: url}, nil
+	}
+
+	if service.kms == nil {
+		return AssetContent{}, apperrors.New(apperrors.CodeUnavailable, "content decryption is not configured on this instance")
+	}
+
+	reader, _, err := service.storage.Get(contextValue, objectKey)
 	if err != nil {
 		return AssetContent{}, fmt.Errorf("storage get asset: %w", err)
 	}
@@ -830,7 +849,7 @@ func (service *Service) GetBundle(contextValue context.Context, capability centr
 		return nil, err
 	}
 
-	reader, err := service.storage.Get(contextValue, objectKey)
+	reader, _, err := service.storage.Get(contextValue, objectKey)
 	if err != nil {
 		return nil, fmt.Errorf("storage get bundle: %w", err)
 	}

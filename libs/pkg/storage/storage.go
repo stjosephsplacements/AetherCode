@@ -15,9 +15,9 @@ type Object interface {
 	// only when unknown (streaming). contentType is stored as object metadata.
 	Put(ctx context.Context, key string, r io.Reader, size int64, contentType string) error
 
-	// Get returns a reader for the object identified by key. The caller is
-	// responsible for closing the reader.
-	Get(ctx context.Context, key string) (io.ReadCloser, error)
+	// Get returns a reader and the exact byte size for the object identified by
+	// key. The caller is responsible for closing the reader.
+	Get(ctx context.Context, key string) (io.ReadCloser, int64, error)
 
 	// Delete removes the object at key. No error is returned when the object
 	// does not exist.

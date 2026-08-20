@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -582,6 +583,7 @@ func (handler *Handler) getConfigurationPayload(writer http.ResponseWriter, requ
 		return
 	}
 	writer.Header().Set("Content-Type", "application/octet-stream")
+	writer.Header().Set("Content-Length", strconv.Itoa(len(payload)))
 	writer.WriteHeader(http.StatusOK)
 	_, _ = writer.Write(payload)
 }

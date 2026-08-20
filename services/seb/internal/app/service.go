@@ -42,7 +42,7 @@ type Configuration struct {
 	ConfigurationVersion int       `json:"configuration_version"`
 	ConfigObjectKey      string    `json:"config_object_key"`
 	ConfigChecksum       string    `json:"config_checksum"`
-	EncryptionKeyRef     string    `json:"encryption_key_reference"`
+	EncryptionKeyRef     string    `json:"-"`
 	LifecycleState       string    `json:"lifecycle_state"`
 	CreatedBy            string    `json:"created_by"`
 	CreatedAt            time.Time `json:"created_at"`
@@ -736,7 +736,7 @@ func (service *Service) GetConfigurationPayload(ctx context.Context, capability 
 		return nil, err
 	}
 
-	reader, err := service.storage.Get(ctx, objectKey)
+	reader, _, err := service.storage.Get(ctx, objectKey)
 	if err != nil {
 		return nil, fmt.Errorf("storage get configuration: %w", err)
 	}

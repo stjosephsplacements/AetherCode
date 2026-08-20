@@ -11,6 +11,7 @@ import (
 
 	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
 	"github.com/aethercode/aethercode/libs/pkg/database"
+	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
 	"github.com/aethercode/aethercode/libs/pkg/httpauth"
 	"github.com/aethercode/aethercode/services/seb/internal/app"
 )
@@ -27,6 +28,9 @@ type fakeSEBService struct {
 	sessionResult       app.Session
 	issuedResult        app.IssuedSession
 	mutationCalls       int
+	payloadResult       []byte
+	payloadErr          error
+	payloadReady        bool
 }
 
 func (service *fakeSEBService) CreateConfiguration(_ context.Context, _ centralauthz.Capability, command app.CreateConfiguration) (app.Configuration, error) {
@@ -76,8 +80,11 @@ func (service *fakeSEBService) DeleteConfiguration(context.Context, centralauthz
 func (service *fakeSEBService) HardDeleteConfiguration(context.Context, centralauthz.Capability, app.DeleteConfiguration) error {
 	return nil
 }
-func (service *fakeSEBService) GetConfigurationPayload(context.Context, centralauthz.Capability, app.GetConfigurationPayload) ([]byte, error) {
-	panic("unexpected GetConfigurationPayload")
+func (service *fakeSEBService) GetConfigurationPayload(_ context.Context, _ centralauthz.Capability, _ app.GetConfigurationPayload) ([]byte, error) {
+	if !service.payloadReady {
+		panic("unexpected GetConfigurationPayload")
+	}
+	return service.payloadResult, service.payloadErr
 }
 
 type fakeAuthorizer struct {
@@ -248,5 +255,66 @@ func TestValidateSessionRequiresGatewayFingerprint(t *testing.T) {
 	}
 	if authorizer.selfCalls != 0 || authorizer.regularCall != 0 {
 		t.Fatal("invalid input must be rejected before central authorization")
+	}
+}
+
+// forbiddenAuthorizer always returns a CodeForbidden error for any authorization
+// decision, used to verify that handlers propagate authorization failures correctly.
+type forbiddenAuthorizer struct{}
+
+func (a *forbiddenAuthorizer) AuthorizeHTTP(_ context.Context, _ *http.Request, _, _, _, _ string) (httpauth.Decision, error) {
+	return httpauth.Decision{}, apperrors.New(apperrors.CodeForbidden, "forbidden")
+}
+func (a *forbiddenAuthorizer) AuthorizeSelfHTTP(_ context.Context, _ *http.Request, _, _, _ string) (httpauth.Decision, error) {
+	return httpauth.Decision{}, apperrors.New(apperrors.CodeForbidden, "forbidden")
+}
+
+func TestGetConfigurationPayloadReturnsDecryptedPayload(t *testing.T) {
+	const decrypted = "decrypted-seb-config"
+	svc := &fakeSEBService{
+		payloadResult: []byte(decrypted),
+		payloadReady:  true,
+	}
+	authorizer := &fakeAuthorizer{}
+	handler, err := NewHandler("seb", svc, func(context.Context) error { return nil }, authorizer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodGet,
+		"/v1/tenants/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/configurations/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/payload",
+		nil)
+	recorder := httptest.NewRecorder()
+
+	handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	if got := recorder.Body.String(); got != decrypted {
+		t.Fatalf("body = %q, want %q", got, decrypted)
+	}
+	if ct := recorder.Header().Get("Content-Type"); ct != "application/octet-stream" {
+		t.Fatalf("Content-Type = %q, want application/octet-stream", ct)
+	}
+	if authorizer.regularCall != 1 {
+		t.Fatalf("authorization calls = %d, want 1", authorizer.regularCall)
+	}
+}
+
+func TestGetConfigurationPayloadRequiresAuthorization(t *testing.T) {
+	svc := &fakeSEBService{}
+	handler, err := NewHandler("seb", svc, func(context.Context) error { return nil }, &forbiddenAuthorizer{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodGet,
+		"/v1/tenants/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/configurations/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/payload",
+		nil)
+	recorder := httptest.NewRecorder()
+
+	handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403", recorder.Code)
 	}
 }

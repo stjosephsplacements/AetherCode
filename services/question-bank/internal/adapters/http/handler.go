@@ -4,6 +4,7 @@ package httpadapter
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/aethercode/aethercode/libs/pkg/database"
@@ -599,7 +600,12 @@ func (handler *Handler) getAsset(writer http.ResponseWriter, request *http.Reque
 		httpx.WriteError(writer, err)
 		return
 	}
+	if content.PresignURL != "" {
+		http.Redirect(writer, request, content.PresignURL, http.StatusFound)
+		return
+	}
 	writer.Header().Set("Content-Type", content.ContentType)
+	writer.Header().Set("Content-Length", strconv.Itoa(len(content.Data)))
 	writer.WriteHeader(http.StatusOK)
 	_, _ = writer.Write(content.Data)
 }
@@ -625,6 +631,7 @@ func (handler *Handler) getBundle(writer http.ResponseWriter, request *http.Requ
 		return
 	}
 	writer.Header().Set("Content-Type", "application/octet-stream")
+	writer.Header().Set("Content-Length", strconv.Itoa(len(data)))
 	writer.WriteHeader(http.StatusOK)
 	_, _ = writer.Write(data)
 }
