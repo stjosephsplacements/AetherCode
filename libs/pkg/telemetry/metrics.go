@@ -1,33 +1,42 @@
-// Package telemetry provides the baseline service metrics endpoint.
+// Package telemetry provides OpenTelemetry tracing, HTTP middleware,
+// and Prometheus metrics for AetherCode services.
 package telemetry
 
 import (
-	"fmt"
 	"net/http"
-	"strconv"
-	"sync/atomic"
-	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-// Registry exposes minimal process metrics without coupling domain code to a
-// vendor. OpenTelemetry exporters can collect and enrich these at deployment.
+// Registry exposes the Prometheus metrics endpoint for a service.
 type Registry struct {
-	service   string
-	startedAt time.Time
-	requests  atomic.Uint64
+	service string
 }
 
 // NewRegistry creates a service-scoped metrics registry.
 func NewRegistry(service string) *Registry {
-	return &Registry{service: service, startedAt: time.Now().UTC()}
+	return &Registry{service: service}
 }
 
-// Handler returns Prometheus text exposition for baseline availability metrics.
+// Handler returns the Prometheus metrics HTTP endpoint.
 func (registry *Registry) Handler() http.Handler {
-	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		registry.requests.Add(1)
-		writer.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
-		_, _ = fmt.Fprintf(writer, "aethercode_service_requests_total{service=%q} %d\n", registry.service, registry.requests.Load())
-		_, _ = fmt.Fprintf(writer, "aethercode_service_started_unix{service=%q} %s\n", registry.service, strconv.FormatInt(registry.startedAt.Unix(), 10))
-	})
+	return promhttp.Handler()
+}
+
+var (
+	httpRequestsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "http_requests_total",
+		Help: "Total number of HTTP requests by method, path, and status.",
+	}, []string{"method", "path", "status"})
+
+	httpRequestDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "http_request_duration_seconds",
+		Help:    "HTTP request latency in seconds by method and path.",
+		Buckets: prometheus.DefBuckets,
+	}, []string{"method", "path"})
+)
+
+func init() {
+	prometheus.MustRegister(httpRequestsTotal, httpRequestDuration)
 }
