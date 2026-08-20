@@ -617,7 +617,7 @@ func (repository *Postgres) ListCandidateAssignments(ctx context.Context, transa
 		SELECT assessment.list_candidate_assignments($1, $2, $3, $4, $5)
 	`,
 		command.TenantID, command.Limit,
-		nullableTimestamp(command.CursorSort), nullableUUID(command.CursorID),
+		nullableTimestamp(command.CursorSort), nullableText(command.CursorID),
 		nullableText(command.LifecycleState),
 	).Scan(&raw)
 	if err != nil {
@@ -647,7 +647,7 @@ func (repository *Postgres) ListExams(ctx context.Context, transaction pgx.Tx, c
 		LIMIT $5
 	`,
 		command.TenantID, nullableText(command.LifecycleState),
-		nullableTimestamp(command.CursorSort), nullableUUID(command.CursorID),
+		nullableTimestamp(command.CursorSort), nullableText(command.CursorID),
 		command.Limit,
 	)
 	if err != nil {
@@ -672,8 +672,9 @@ func (repository *Postgres) ListExams(ctx context.Context, transaction pgx.Tx, c
 
 func (repository *Postgres) ListExamVersions(ctx context.Context, transaction pgx.Tx, command app.ListExamVersions) ([]app.ExamVersion, error) {
 	rows, err := transaction.Query(ctx, `
-		SELECT id::text, tenant_id::text, exam_id::text, version_number, status,
-		       published_at, created_at
+		SELECT id::text, tenant_id::text, exam_id::text, version_number, content_version, attempt_limit,
+		       title, instructions_markdown, opens_at, closes_at, duration_seconds,
+		       proctor_policy_version_id::text, status, published_at, created_at
 		FROM assessment.exam_versions
 		WHERE tenant_id = $1
 		  AND exam_id = $2::uuid
@@ -684,7 +685,7 @@ func (repository *Postgres) ListExamVersions(ctx context.Context, transaction pg
 		LIMIT $6
 	`,
 		command.TenantID, command.ExamID, nullableText(command.Status),
-		nullableInt(command.CursorSort), nullableUUID(command.CursorID),
+		nullableInt(command.CursorSort), nullableText(command.CursorID),
 		command.Limit,
 	)
 	if err != nil {
@@ -695,8 +696,13 @@ func (repository *Postgres) ListExamVersions(ctx context.Context, transaction pg
 	versions := make([]app.ExamVersion, 0, command.Limit)
 	for rows.Next() {
 		var version app.ExamVersion
-		if err := rows.Scan(&version.ID, &version.TenantID, &version.ExamID,
-			&version.VersionNumber, &version.Status, &version.PublishedAt, &version.CreatedAt); err != nil {
+		if err := rows.Scan(
+			&version.ID, &version.TenantID, &version.ExamID, &version.VersionNumber,
+			&version.ContentVersion, &version.AttemptLimit, &version.Title,
+			&version.InstructionsMarkdown, &version.OpensAt, &version.ClosesAt,
+			&version.DurationSeconds, &version.ProctorPolicyVersionID, &version.Status,
+			&version.PublishedAt, &version.CreatedAt,
+		); err != nil {
 			return nil, fmt.Errorf("scan exam version row: %w", err)
 		}
 		versions = append(versions, version)
@@ -705,13 +711,6 @@ func (repository *Postgres) ListExamVersions(ctx context.Context, transaction pg
 		return nil, fmt.Errorf("read exam version rows: %w", err)
 	}
 	return versions, nil
-}
-
-func nullableUUID(value string) any {
-	if strings.TrimSpace(value) == "" {
-		return nil
-	}
-	return value
 }
 
 func nullableText(value string) any {
