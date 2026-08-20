@@ -52,7 +52,7 @@ func run(ctx context.Context, identityURL, userURL, email, displayName string) e
 	if err != nil {
 		return fmt.Errorf("connect to identity database: %w", err)
 	}
-	defer identityConn.Close(ctx)
+	defer func() { _ = identityConn.Close(ctx) }()
 
 	var returnedPrincipalID string
 	err = identityConn.QueryRow(ctx,
@@ -67,7 +67,7 @@ func run(ctx context.Context, identityURL, userURL, email, displayName string) e
 	if err != nil {
 		return fmt.Errorf("connect to user database: %w", err)
 	}
-	defer userConn.Close(ctx)
+	defer func() { _ = userConn.Close(ctx) }()
 
 	var returnedAssignmentID string
 	err = userConn.QueryRow(ctx,
