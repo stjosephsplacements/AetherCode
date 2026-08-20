@@ -93,6 +93,23 @@ items when available; a legacy revoked assignment with incomplete historical
 bundle references emits an empty `items` array, which is valid only for the
 `revoked` lifecycle state.
 
+## Collection endpoints
+
+Three keyset-paginated list endpoints are available. All accept `limit`
+(1–100, default 20) and `cursor` query parameters. An absent `next_cursor`
+field in the response indicates the final page.
+
+| Method | Path | Scope | Filter |
+|--------|------|-------|--------|
+| GET | `/v1/tenants/{tenant_id}/candidate-assignments` | Candidate (bearer subject bound in DB) | `lifecycle_state` |
+| GET | `/v1/tenants/{tenant_id}/exams` | Staff | `lifecycle_state` |
+| GET | `/v1/tenants/{tenant_id}/exams/{exam_id}/versions` | Staff | `status` |
+
+`candidate-assignments` is candidate-scoped: the database function
+`assessment.list_candidate_assignments` binds rows to
+`authz.current_context_actor_id()` so a tenant staff token cannot read another
+user's assignments through this endpoint.
+
 The public operational and workflow contract is in
 [api/openapi.yaml](api/openapi.yaml).
 

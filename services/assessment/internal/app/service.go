@@ -17,6 +17,7 @@ import (
 	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
 	"github.com/aethercode/aethercode/libs/pkg/database"
 	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
+	"github.com/aethercode/aethercode/libs/pkg/pagination"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -56,7 +57,45 @@ type Store interface {
 	GetExamIncludeDeleted(context.Context, pgx.Tx, string, string) (Exam, error)
 	SoftDeleteExam(context.Context, pgx.Tx, DeleteExam) error
 	HardDeleteExam(context.Context, pgx.Tx, DeleteExam) error
+	ListCandidateAssignments(context.Context, pgx.Tx, ListCandidateAssignments) ([]CandidateAssignment, error)
+	ListExams(context.Context, pgx.Tx, ListExams) ([]Exam, error)
+	ListExamVersions(context.Context, pgx.Tx, ListExamVersions) ([]ExamVersion, error)
 	Ping(context.Context) error
+}
+
+// Page is one keyset page. NextCursor is empty on the final page.
+type Page[T any] struct {
+	Items      []T    `json:"items"`
+	NextCursor string `json:"next_cursor,omitempty"`
+}
+
+// ListCandidateAssignments is candidate-scoped; the database binds rows to the
+// signed context actor.
+type ListCandidateAssignments struct {
+	TenantID       string
+	Limit          int
+	CursorSort     string
+	CursorID       string
+	LifecycleState string
+}
+
+// ListExams is staff-scoped and relies on tenant RLS.
+type ListExams struct {
+	TenantID       string
+	Limit          int
+	CursorSort     string
+	CursorID       string
+	LifecycleState string
+}
+
+// ListExamVersions is staff-scoped and relies on tenant RLS.
+type ListExamVersions struct {
+	TenantID   string
+	ExamID     string
+	Limit      int
+	CursorSort string
+	CursorID   string
+	Status     string
 }
 
 type ProctorPolicy struct {
@@ -722,6 +761,82 @@ func (service *Service) HardDeleteExam(ctx context.Context, capability centralau
 		}
 		return service.store.HardDeleteExam(ctx, transaction, command)
 	})
+}
+
+// ListCandidateAssignments returns a keyset page of the calling candidate's
+// assignments. Database RLS binds rows to the signed actor.
+func (service *Service) ListCandidateAssignments(ctx context.Context, capability centralauthz.Capability, command ListCandidateAssignments) (Page[CandidateAssignment], error) {
+	var page Page[CandidateAssignment]
+	err := service.withTenantTx(ctx, capability, command.TenantID, func(transaction pgx.Tx) error {
+		probe := command
+		probe.Limit = command.Limit + 1
+		assignments, err := service.store.ListCandidateAssignments(ctx, transaction, probe)
+		if err != nil {
+			return err
+		}
+		page = Page[CandidateAssignment]{Items: []CandidateAssignment{}}
+		if len(assignments) > command.Limit {
+			assignments = assignments[:command.Limit]
+			last := assignments[len(assignments)-1]
+			page.NextCursor = pagination.Encode(pagination.EncodeTime(last.AvailableFrom), last.ID)
+		}
+		page.Items = append(page.Items, assignments...)
+		return nil
+	})
+	if err != nil {
+		return Page[CandidateAssignment]{}, err
+	}
+	return page, nil
+}
+
+// ListExams returns a keyset page of exams for the tenant.
+func (service *Service) ListExams(ctx context.Context, capability centralauthz.Capability, command ListExams) (Page[Exam], error) {
+	var page Page[Exam]
+	err := service.withTenantTx(ctx, capability, command.TenantID, func(transaction pgx.Tx) error {
+		probe := command
+		probe.Limit = command.Limit + 1
+		exams, err := service.store.ListExams(ctx, transaction, probe)
+		if err != nil {
+			return err
+		}
+		page = Page[Exam]{Items: []Exam{}}
+		if len(exams) > command.Limit {
+			exams = exams[:command.Limit]
+			last := exams[len(exams)-1]
+			page.NextCursor = pagination.Encode(pagination.EncodeTime(last.CreatedAt), last.ID)
+		}
+		page.Items = append(page.Items, exams...)
+		return nil
+	})
+	if err != nil {
+		return Page[Exam]{}, err
+	}
+	return page, nil
+}
+
+// ListExamVersions returns a keyset page of versions for the given exam.
+func (service *Service) ListExamVersions(ctx context.Context, capability centralauthz.Capability, command ListExamVersions) (Page[ExamVersion], error) {
+	var page Page[ExamVersion]
+	err := service.withTenantTx(ctx, capability, command.TenantID, func(transaction pgx.Tx) error {
+		probe := command
+		probe.Limit = command.Limit + 1
+		versions, err := service.store.ListExamVersions(ctx, transaction, probe)
+		if err != nil {
+			return err
+		}
+		page = Page[ExamVersion]{Items: []ExamVersion{}}
+		if len(versions) > command.Limit {
+			versions = versions[:command.Limit]
+			last := versions[len(versions)-1]
+			page.NextCursor = pagination.Encode(pagination.FormatInt(int64(last.VersionNumber)), last.ID)
+		}
+		page.Items = append(page.Items, versions...)
+		return nil
+	})
+	if err != nil {
+		return Page[ExamVersion]{}, err
+	}
+	return page, nil
 }
 
 func invalid(message string) error { return apperrors.New(apperrors.CodeInvalidArgument, message) }

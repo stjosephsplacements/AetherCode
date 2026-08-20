@@ -73,6 +73,24 @@ paths:
         default: {$ref: '#/components/responses/Problem'}
   /v1/tenants/{tenant_id}/exams:
     parameters: [{$ref: '#/components/parameters/TenantID'}]
+    get:
+      summary: List exams for the tenant
+      description: >-
+        Staff-scoped. Returns non-deleted exams ordered by created_at DESC,
+        id DESC. Pagination uses keyset cursors.
+      parameters:
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+        - name: cursor
+          in: query
+          schema: {type: string}
+        - name: lifecycle_state
+          in: query
+          schema: {enum: [draft, published, archived]}
+      responses:
+        '200': {$ref: '#/components/responses/ExamPage'}
+        default: {$ref: '#/components/responses/Problem'}
     post:
       summary: Create an exam aggregate
       parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
@@ -92,6 +110,24 @@ paths:
     parameters:
       - {$ref: '#/components/parameters/TenantID'}
       - {$ref: '#/components/parameters/ExamID'}
+    get:
+      summary: List versions of an exam
+      description: >-
+        Staff-scoped. Returns non-deleted exam versions ordered by
+        version_number DESC, id DESC. Pagination uses keyset cursors.
+      parameters:
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+        - name: cursor
+          in: query
+          schema: {type: string}
+        - name: status
+          in: query
+          schema: {enum: [draft, published, retired]}
+      responses:
+        '200': {$ref: '#/components/responses/ExamVersionPage'}
+        default: {$ref: '#/components/responses/Problem'}
     post:
       summary: Create the next draft exam version from a published proctor policy
       parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
@@ -203,6 +239,27 @@ paths:
                 candidate_id: {$ref: '#/components/schemas/UUID'}
       responses:
         '201': {$ref: '#/components/responses/CandidateAssignment'}
+        default: {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/candidate-assignments:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    get:
+      summary: List candidate assignments for the calling candidate
+      description: >-
+        Candidate-scoped. Returns only assignments where the bearer subject
+        matches the candidate_id. Pagination uses keyset cursors ordered by
+        available_from DESC, id DESC.
+      parameters:
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+        - name: cursor
+          in: query
+          schema: {type: string}
+        - name: lifecycle_state
+          in: query
+          schema: {enum: [assigned, revoked, started, completed, expired]}
+      responses:
+        '200': {$ref: '#/components/responses/CandidateAssignmentPage'}
         default: {$ref: '#/components/responses/Problem'}
   /v1/tenants/{tenant_id}/candidate-assignments/{candidate_assignment_id}:
     parameters:
@@ -316,6 +373,15 @@ components:
     CandidateAssignment:
       description: Candidate assignment
       content: {application/json: {schema: {$ref: '#/components/schemas/CandidateAssignment'}}}
+    CandidateAssignmentPage:
+      description: Keyset page of candidate assignments
+      content: {application/json: {schema: {$ref: '#/components/schemas/CandidateAssignmentPage'}}}
+    ExamPage:
+      description: Keyset page of exams
+      content: {application/json: {schema: {$ref: '#/components/schemas/ExamPage'}}}
+    ExamVersionPage:
+      description: Keyset page of exam versions
+      content: {application/json: {schema: {$ref: '#/components/schemas/ExamVersionPage'}}}
     Problem:
       description: Stable application error
       content: {application/json: {schema: {$ref: '#/components/schemas/Problem'}}}
@@ -332,6 +398,30 @@ components:
       properties:
         code: {type: string}
         message: {type: string}
+    CandidateAssignmentPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/CandidateAssignment'}
+        next_cursor: {type: string}
+    ExamPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/Exam'}
+        next_cursor: {type: string}
+    ExamVersionPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/ExamVersion'}
+        next_cursor: {type: string}
     ProctorPolicy:
       type: object
       required: [id, tenant_id, name, lifecycle_state, version, created_at]

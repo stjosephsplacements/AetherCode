@@ -41,6 +41,9 @@ func NewHandler(serviceName string, service *app.Service, readiness httpx.Readin
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/assignment-rules/{assignment_rule_id}/candidate-assignments", handler.materializeDirectCandidateAssignment)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/candidate-assignments/{candidate_assignment_id}/revoke", handler.revokeCandidateAssignment)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/candidate-assignments/{candidate_assignment_id}", handler.getCandidateAssignment)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/candidate-assignments", handler.listCandidateAssignments)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/exams", handler.listExams)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/exams/{exam_id}/versions", handler.listExamVersions)
 	return mux, nil
 }
 

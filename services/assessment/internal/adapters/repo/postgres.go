@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/aethercode/aethercode/libs/pkg/database"
@@ -607,6 +609,138 @@ func (repository *Postgres) HardDeleteExam(ctx context.Context, transaction pgx.
 		return err
 	}
 	return nil
+}
+
+func (repository *Postgres) ListCandidateAssignments(ctx context.Context, transaction pgx.Tx, command app.ListCandidateAssignments) ([]app.CandidateAssignment, error) {
+	var raw json.RawMessage
+	err := transaction.QueryRow(ctx, `
+		SELECT assessment.list_candidate_assignments($1, $2, $3, $4, $5)
+	`,
+		command.TenantID, command.Limit,
+		nullableTimestamp(command.CursorSort), nullableUUID(command.CursorID),
+		nullableText(command.LifecycleState),
+	).Scan(&raw)
+	if err != nil {
+		var postgresError *pgconn.PgError
+		if errors.As(err, &postgresError) && (postgresError.Code == "42501" || postgresError.Code == "28000") {
+			return nil, apperrors.New(apperrors.CodeForbidden, "list candidate assignments: authorization denied")
+		}
+		return nil, fmt.Errorf("list candidate assignments: %w", err)
+	}
+	var assignments []app.CandidateAssignment
+	if err := json.Unmarshal(raw, &assignments); err != nil {
+		return nil, fmt.Errorf("decode candidate assignment list: %w", err)
+	}
+	return assignments, nil
+}
+
+func (repository *Postgres) ListExams(ctx context.Context, transaction pgx.Tx, command app.ListExams) ([]app.Exam, error) {
+	rows, err := transaction.Query(ctx, `
+		SELECT id::text, tenant_id::text, COALESCE(external_reference, ''), lifecycle_state,
+		       version, created_at, updated_at
+		FROM assessment.exams
+		WHERE tenant_id = $1
+		  AND deleted_at IS NULL
+		  AND ($2::text IS NULL OR lifecycle_state = $2)
+		  AND ($3::timestamptz IS NULL OR (created_at, id) < ($3, $4))
+		ORDER BY created_at DESC, id DESC
+		LIMIT $5
+	`,
+		command.TenantID, nullableText(command.LifecycleState),
+		nullableTimestamp(command.CursorSort), nullableUUID(command.CursorID),
+		command.Limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list exams: %w", err)
+	}
+	defer rows.Close()
+
+	exams := make([]app.Exam, 0, command.Limit)
+	for rows.Next() {
+		var exam app.Exam
+		if err := rows.Scan(&exam.ID, &exam.TenantID, &exam.ExternalRef, &exam.LifecycleState,
+			&exam.Version, &exam.CreatedAt, &exam.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("scan exam row: %w", err)
+		}
+		exams = append(exams, exam)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read exam rows: %w", err)
+	}
+	return exams, nil
+}
+
+func (repository *Postgres) ListExamVersions(ctx context.Context, transaction pgx.Tx, command app.ListExamVersions) ([]app.ExamVersion, error) {
+	rows, err := transaction.Query(ctx, `
+		SELECT id::text, tenant_id::text, exam_id::text, version_number, status,
+		       published_at, created_at
+		FROM assessment.exam_versions
+		WHERE tenant_id = $1
+		  AND exam_id = $2::uuid
+		  AND deleted_at IS NULL
+		  AND ($3::text IS NULL OR status = $3)
+		  AND ($4::bigint IS NULL OR (version_number, id) < ($4, $5::uuid))
+		ORDER BY version_number DESC, id DESC
+		LIMIT $6
+	`,
+		command.TenantID, command.ExamID, nullableText(command.Status),
+		nullableInt(command.CursorSort), nullableUUID(command.CursorID),
+		command.Limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list exam versions: %w", err)
+	}
+	defer rows.Close()
+
+	versions := make([]app.ExamVersion, 0, command.Limit)
+	for rows.Next() {
+		var version app.ExamVersion
+		if err := rows.Scan(&version.ID, &version.TenantID, &version.ExamID,
+			&version.VersionNumber, &version.Status, &version.PublishedAt, &version.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan exam version row: %w", err)
+		}
+		versions = append(versions, version)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read exam version rows: %w", err)
+	}
+	return versions, nil
+}
+
+func nullableUUID(value string) any {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	return value
+}
+
+func nullableText(value string) any {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	return value
+}
+
+func nullableTimestamp(value string) any {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	parsed, err := time.Parse(time.RFC3339Nano, value)
+	if err != nil {
+		return nil
+	}
+	return parsed.UTC()
+}
+
+func nullableInt(value string) any {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	parsed, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return nil
+	}
+	return parsed
 }
 
 func mapWriteError(err error, message string) error {
