@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"regexp"
 	"strings"
 	"time"
@@ -18,7 +19,9 @@ import (
 	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
 	"github.com/aethercode/aethercode/libs/pkg/database"
 	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
+	"github.com/aethercode/aethercode/libs/pkg/kms"
 	"github.com/aethercode/aethercode/libs/pkg/pagination"
+	"github.com/aethercode/aethercode/libs/pkg/storage"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -218,9 +221,20 @@ type Service struct {
 	store       Store
 	idempotency *database.IdempotencyStore
 	now         func() time.Time
+	storage     storage.Object
+	kms         kms.KeyManager
 }
 
-func NewService(pool *pgxpool.Pool, store Store) (*Service, error) {
+// GetConfigurationPayload identifies a SEB configuration whose payload to
+// decrypt and return.
+type GetConfigurationPayload struct {
+	TenantID        string
+	ConfigurationID string
+}
+
+// NewService creates a new SEB service. storage and kms may both be nil;
+// the payload endpoint returns 503 Unavailable until they are wired.
+func NewService(pool *pgxpool.Pool, store Store, storage storage.Object, kms kms.KeyManager) (*Service, error) {
 	if pool == nil || store == nil {
 		return nil, fmt.Errorf("SEB database pool and store are required")
 	}
@@ -228,7 +242,7 @@ func NewService(pool *pgxpool.Pool, store Store) (*Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Service{pool: pool, store: store, idempotency: idempotency, now: time.Now}, nil
+	return &Service{pool: pool, store: store, idempotency: idempotency, now: time.Now, storage: storage, kms: kms}, nil
 }
 
 func (service *Service) CreateConfiguration(ctx context.Context, capability centralauthz.Capability, command CreateConfiguration) (Configuration, error) {
@@ -695,6 +709,49 @@ func validateConfiguration(id, tenantID, examID, examVersionID string, version i
 		return invalid("configuration fields are invalid")
 	}
 	return nil
+}
+
+// GetConfigurationPayload fetches, decrypts, and returns the raw SEB
+// configuration object for the identified tenant configuration.
+// Returns CodeUnavailable when storage or KMS is not configured.
+func (service *Service) GetConfigurationPayload(ctx context.Context, capability centralauthz.Capability, cmd GetConfigurationPayload) ([]byte, error) {
+	if service.storage == nil || service.kms == nil {
+		return nil, apperrors.New(apperrors.CodeUnavailable, "content storage is not configured on this instance")
+	}
+	if !isUUID(cmd.TenantID) || !isUUID(cmd.ConfigurationID) {
+		return nil, invalid("tenant or configuration ID is invalid")
+	}
+
+	var objectKey, encKeyRef string
+	err := database.WithTenantTx(ctx, service.pool, capability, func(tx pgx.Tx) error {
+		cfg, err := service.store.GetConfiguration(ctx, tx, cmd.TenantID, cmd.ConfigurationID)
+		if err != nil {
+			return err
+		}
+		objectKey = cfg.ConfigObjectKey
+		encKeyRef = cfg.EncryptionKeyRef
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	reader, err := service.storage.Get(ctx, objectKey)
+	if err != nil {
+		return nil, fmt.Errorf("storage get configuration: %w", err)
+	}
+	defer func() { _ = reader.Close() }()
+
+	ciphertext, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, fmt.Errorf("read configuration: %w", err)
+	}
+
+	plaintext, err := service.kms.Decrypt(ctx, ciphertext, encKeyRef)
+	if err != nil {
+		return nil, fmt.Errorf("decrypt configuration: %w", err)
+	}
+	return plaintext, nil
 }
 
 func validHeaderKind(value string) bool {

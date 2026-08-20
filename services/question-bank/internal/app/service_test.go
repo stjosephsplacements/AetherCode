@@ -379,6 +379,12 @@ func (s *panicStore) SoftDeleteQuestionVersion(context.Context, pgx.Tx, DeleteQu
 func (s *panicStore) HardDeleteQuestionVersion(context.Context, pgx.Tx, DeleteQuestionVersion) error {
 	panic("store method called before validation")
 }
+func (s *panicStore) GetAssetObjectRef(context.Context, pgx.Tx, string, string) (string, string, string, error) {
+	panic("store method called before validation")
+}
+func (s *panicStore) GetBundleObjectRef(context.Context, pgx.Tx, string) (string, string, error) {
+	panic("store method called before validation")
+}
 func (s *panicStore) Ping(context.Context) error {
 	panic("store method called before validation")
 }

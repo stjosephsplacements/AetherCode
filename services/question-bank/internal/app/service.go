@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"regexp"
 	"sort"
 	"strconv"
@@ -19,7 +20,9 @@ import (
 	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
 	"github.com/aethercode/aethercode/libs/pkg/database"
 	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
+	"github.com/aethercode/aethercode/libs/pkg/kms"
 	"github.com/aethercode/aethercode/libs/pkg/pagination"
+	"github.com/aethercode/aethercode/libs/pkg/storage"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -62,7 +65,30 @@ type Store interface {
 	HardDeleteQuestion(context.Context, pgx.Tx, DeleteQuestion) error
 	SoftDeleteQuestionVersion(context.Context, pgx.Tx, DeleteQuestionVersion) error
 	HardDeleteQuestionVersion(context.Context, pgx.Tx, DeleteQuestionVersion) error
+	// GetAssetObjectRef returns the storage key, encryption key reference, and
+	// content-type for a specific asset attached to a question version.
+	GetAssetObjectRef(context.Context, pgx.Tx, string, string) (objectKey, encKeyRef, contentType string, err error)
+	// GetBundleObjectRef returns the storage key and encryption key reference for
+	// the evaluation bundle of a question version.
+	GetBundleObjectRef(context.Context, pgx.Tx, string) (objectKey, encKeyRef string, err error)
 	Ping(context.Context) error
+}
+
+// AssetContent is the decrypted content of a question asset or bundle.
+type AssetContent struct {
+	Data        []byte
+	ContentType string
+}
+
+// GetAssetCmd identifies one asset to retrieve.
+type GetAssetCmd struct {
+	QuestionVersionID string
+	AssetKind         string
+}
+
+// GetBundleCmd identifies the evaluation bundle to retrieve.
+type GetBundleCmd struct {
+	QuestionVersionID string
 }
 
 type ObjectReference struct {
@@ -237,15 +263,19 @@ type IdempotencyClaim struct {
 }
 
 type Service struct {
-	pool  *pgxpool.Pool
-	store Store
+	pool    *pgxpool.Pool
+	store   Store
+	storage storage.Object
+	kms     kms.KeyManager
 }
 
-func NewService(pool *pgxpool.Pool, store Store) (*Service, error) {
+// NewService creates a new Question Bank service. storage and kms may both be
+// nil; content retrieval endpoints return 503 Unavailable until they are wired.
+func NewService(pool *pgxpool.Pool, store Store, storage storage.Object, kms kms.KeyManager) (*Service, error) {
 	if pool == nil || store == nil {
 		return nil, fmt.Errorf("question-bank database pool and store are required")
 	}
-	return &Service{pool: pool, store: store}, nil
+	return &Service{pool: pool, store: store, storage: storage, kms: kms}, nil
 }
 
 func (service *Service) CreateQuestion(contextValue context.Context, capability centralauthz.Capability, command CreateQuestion) (QuestionDetail, error) {
@@ -736,6 +766,86 @@ func (service *Service) HardDeleteQuestionVersion(contextValue context.Context, 
 
 		return nil
 	})
+}
+
+// GetAsset fetches, decrypts, and returns a named asset for a question version.
+// Returns CodeUnavailable when storage or KMS is not configured.
+func (service *Service) GetAsset(contextValue context.Context, capability centralauthz.Capability, cmd GetAssetCmd) (AssetContent, error) {
+	if service.storage == nil || service.kms == nil {
+		return AssetContent{}, apperrors.New(apperrors.CodeUnavailable, "content storage is not configured on this instance")
+	}
+	if !isUUID(cmd.QuestionVersionID) {
+		return AssetContent{}, apperrors.New(apperrors.CodeInvalidArgument, "question version ID must be a UUID")
+	}
+	cmd.AssetKind = strings.TrimSpace(cmd.AssetKind)
+	if cmd.AssetKind != "attachment" && cmd.AssetKind != "starter_code" && cmd.AssetKind != "reference_solution" {
+		return AssetContent{}, apperrors.New(apperrors.CodeInvalidArgument, "asset_kind must be attachment, starter_code, or reference_solution")
+	}
+
+	var objectKey, encKeyRef, contentType string
+	err := database.WithTenantTx(contextValue, service.pool, capability, func(tx pgx.Tx) error {
+		var err error
+		objectKey, encKeyRef, contentType, err = service.store.GetAssetObjectRef(contextValue, tx, cmd.QuestionVersionID, cmd.AssetKind)
+		return err
+	})
+	if err != nil {
+		return AssetContent{}, err
+	}
+
+	reader, err := service.storage.Get(contextValue, objectKey)
+	if err != nil {
+		return AssetContent{}, fmt.Errorf("storage get asset: %w", err)
+	}
+	defer func() { _ = reader.Close() }()
+
+	ciphertext, err := io.ReadAll(reader)
+	if err != nil {
+		return AssetContent{}, fmt.Errorf("read asset: %w", err)
+	}
+
+	plaintext, err := service.kms.Decrypt(contextValue, ciphertext, encKeyRef)
+	if err != nil {
+		return AssetContent{}, fmt.Errorf("decrypt asset: %w", err)
+	}
+	return AssetContent{Data: plaintext, ContentType: contentType}, nil
+}
+
+// GetBundle fetches, decrypts, and returns the evaluation bundle for a question version.
+// Returns CodeUnavailable when storage or KMS is not configured.
+func (service *Service) GetBundle(contextValue context.Context, capability centralauthz.Capability, cmd GetBundleCmd) ([]byte, error) {
+	if service.storage == nil || service.kms == nil {
+		return nil, apperrors.New(apperrors.CodeUnavailable, "content storage is not configured on this instance")
+	}
+	if !isUUID(cmd.QuestionVersionID) {
+		return nil, apperrors.New(apperrors.CodeInvalidArgument, "question version ID must be a UUID")
+	}
+
+	var objectKey, encKeyRef string
+	err := database.WithTenantTx(contextValue, service.pool, capability, func(tx pgx.Tx) error {
+		var err error
+		objectKey, encKeyRef, err = service.store.GetBundleObjectRef(contextValue, tx, cmd.QuestionVersionID)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	reader, err := service.storage.Get(contextValue, objectKey)
+	if err != nil {
+		return nil, fmt.Errorf("storage get bundle: %w", err)
+	}
+	defer func() { _ = reader.Close() }()
+
+	ciphertext, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, fmt.Errorf("read bundle: %w", err)
+	}
+
+	plaintext, err := service.kms.Decrypt(contextValue, ciphertext, encKeyRef)
+	if err != nil {
+		return nil, fmt.Errorf("decrypt bundle: %w", err)
+	}
+	return plaintext, nil
 }
 
 func isUUID(value string) bool {

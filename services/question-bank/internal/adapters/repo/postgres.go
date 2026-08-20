@@ -417,6 +417,38 @@ func (repository *Postgres) HardDeleteQuestionVersion(contextValue context.Conte
 	return nil
 }
 
+func (repository *Postgres) GetAssetObjectRef(contextValue context.Context, transaction pgx.Tx, questionVersionID, assetKind string) (objectKey, encKeyRef, contentType string, err error) {
+	err = transaction.QueryRow(contextValue, `
+		SELECT object_key, encryption_key_reference, content_type
+		FROM qbank.question_assets
+		WHERE question_version_id = $1 AND asset_kind = $2
+		ORDER BY created_at DESC
+		LIMIT 1
+	`, questionVersionID, assetKind).Scan(&objectKey, &encKeyRef, &contentType)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", "", "", apperrors.New(apperrors.CodeNotFound, "question asset was not found")
+	}
+	if err != nil {
+		return "", "", "", fmt.Errorf("get asset object ref: %w", err)
+	}
+	return objectKey, encKeyRef, contentType, nil
+}
+
+func (repository *Postgres) GetBundleObjectRef(contextValue context.Context, transaction pgx.Tx, questionVersionID string) (objectKey, encKeyRef string, err error) {
+	err = transaction.QueryRow(contextValue, `
+		SELECT evaluation_bundle_object_key, encryption_key_reference
+		FROM qbank.question_versions
+		WHERE id = $1
+	`, questionVersionID).Scan(&objectKey, &encKeyRef)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", "", apperrors.New(apperrors.CodeNotFound, "question version was not found")
+	}
+	if err != nil {
+		return "", "", fmt.Errorf("get bundle object ref: %w", err)
+	}
+	return objectKey, encKeyRef, nil
+}
+
 func decodeQuestionDetail(raw json.RawMessage) (app.QuestionDetail, error) {
 	var detail app.QuestionDetail
 	if err := json.Unmarshal(raw, &detail); err != nil {

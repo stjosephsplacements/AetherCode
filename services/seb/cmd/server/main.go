@@ -14,8 +14,12 @@ import (
 	"github.com/aethercode/aethercode/libs/pkg/database"
 	"github.com/aethercode/aethercode/libs/pkg/httpauth"
 	"github.com/aethercode/aethercode/libs/pkg/httpx"
+	"github.com/aethercode/aethercode/libs/pkg/kms"
+	localkms "github.com/aethercode/aethercode/libs/pkg/kms/local"
 	"github.com/aethercode/aethercode/libs/pkg/logging"
 	"github.com/aethercode/aethercode/libs/pkg/messaging"
+	"github.com/aethercode/aethercode/libs/pkg/storage"
+	minioclient "github.com/aethercode/aethercode/libs/pkg/storage/minio"
 	httpadapter "github.com/aethercode/aethercode/services/seb/internal/adapters/http"
 	"github.com/aethercode/aethercode/services/seb/internal/adapters/projection"
 	"github.com/aethercode/aethercode/services/seb/internal/adapters/repo"
@@ -197,7 +201,30 @@ func run(contextValue context.Context) error {
 			return assignmentRevokedConsumer.Ready(readinessContext)
 		}
 	}
-	sebService, err := app.NewService(pool, store)
+	// NOTE: Storage and KMS are optional. Set SEB_STORAGE_ENDPOINT and
+	// SEB_KMS_LOCAL_KEY to enable the configuration payload endpoint. It
+	// returns 503 Unavailable when these variables are absent.
+	var storageClient storage.Object
+	var kmsClient kms.KeyManager
+	if os.Getenv("SEB_STORAGE_ENDPOINT") != "" {
+		storageCfg, storageErr := minioclient.LoadConfig("SEB_STORAGE")
+		if storageErr != nil {
+			return storageErr
+		}
+		storageClient, storageErr = minioclient.New(storageCfg)
+		if storageErr != nil {
+			return storageErr
+		}
+	}
+	if os.Getenv("SEB_KMS_LOCAL_KEY") != "" {
+		kmsCfg, kmsErr := localkms.LoadConfig("SEB")
+		if kmsErr != nil {
+			return kmsErr
+		}
+		kmsClient = localkms.New(kmsCfg)
+	}
+
+	sebService, err := app.NewService(pool, store, storageClient, kmsClient)
 	if err != nil {
 		return err
 	}

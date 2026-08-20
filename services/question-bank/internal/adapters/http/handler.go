@@ -38,6 +38,8 @@ func NewHandler(serviceName string, service *app.Service, readiness httpx.Readin
 	mux.HandleFunc("POST /v1/question-versions/{question_version_id}/publish", handler.publishQuestionVersion)
 	mux.HandleFunc("DELETE /v1/questions/{question_id}", handler.deleteQuestion)
 	mux.HandleFunc("DELETE /v1/questions/{question_id}/hard", handler.hardDeleteQuestion)
+	mux.HandleFunc("GET /v1/question-versions/{question_version_id}/assets/{asset_kind}", handler.getAsset)
+	mux.HandleFunc("GET /v1/question-versions/{question_version_id}/bundle", handler.getBundle)
 	return mux, nil
 }
 
@@ -573,4 +575,56 @@ func (handler *Handler) hardDeleteQuestion(writer http.ResponseWriter, request *
 		return
 	}
 	writer.WriteHeader(http.StatusNoContent)
+}
+
+// getAsset decrypts and streams one named asset for a question version.
+// Requires read authorization on the question_versions resource.
+func (handler *Handler) getAsset(writer http.ResponseWriter, request *http.Request) {
+	questionVersionID, err := httpx.ParseUUIDPathValue(request, "question_version_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	assetKind := strings.TrimSpace(request.PathValue("asset_kind"))
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "question_versions", questionVersionID, "")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	content, err := handler.service.GetAsset(request.Context(), decision.Capability, app.GetAssetCmd{
+		QuestionVersionID: questionVersionID,
+		AssetKind:         assetKind,
+	})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.Header().Set("Content-Type", content.ContentType)
+	writer.WriteHeader(http.StatusOK)
+	_, _ = writer.Write(content.Data)
+}
+
+// getBundle decrypts and streams the evaluation bundle for a question version.
+// Requires read authorization on the question_versions resource.
+func (handler *Handler) getBundle(writer http.ResponseWriter, request *http.Request) {
+	questionVersionID, err := httpx.ParseUUIDPathValue(request, "question_version_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "question_versions", questionVersionID, "")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	data, err := handler.service.GetBundle(request.Context(), decision.Capability, app.GetBundleCmd{
+		QuestionVersionID: questionVersionID,
+	})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.Header().Set("Content-Type", "application/octet-stream")
+	writer.WriteHeader(http.StatusOK)
+	_, _ = writer.Write(data)
 }

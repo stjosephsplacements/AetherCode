@@ -38,6 +38,7 @@ type service interface {
 	ListConfigurations(context.Context, centralauthz.Capability, app.ListConfigurations) (app.Page[app.Configuration], error)
 	DeleteConfiguration(context.Context, centralauthz.Capability, app.DeleteConfiguration) error
 	HardDeleteConfiguration(context.Context, centralauthz.Capability, app.DeleteConfiguration) error
+	GetConfigurationPayload(context.Context, centralauthz.Capability, app.GetConfigurationPayload) ([]byte, error)
 }
 
 type authorizer interface {
@@ -63,6 +64,7 @@ func NewHandler(serviceName string, service service, readiness httpx.ReadinessFu
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/configurations", handler.listConfigurations)
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/configurations/{configuration_id}", handler.deleteConfiguration)
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/configurations/{configuration_id}/hard", handler.hardDeleteConfiguration)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/configurations/{configuration_id}/payload", handler.getConfigurationPayload)
 	return mux, nil
 }
 
@@ -555,4 +557,31 @@ func (handler *Handler) hardDeleteConfiguration(writer http.ResponseWriter, requ
 		return
 	}
 	writer.WriteHeader(http.StatusNoContent)
+}
+
+// getConfigurationPayload decrypts and streams the raw SEB configuration
+// object. Authorization requires a read capability on the configuration
+// resource scoped to the tenant.
+func (handler *Handler) getConfigurationPayload(writer http.ResponseWriter, request *http.Request) {
+	tenantID, configID, err := tenantAndResourceID(request, "configuration_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "configurations", configID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	payload, err := handler.service.GetConfigurationPayload(request.Context(), decision.Capability, app.GetConfigurationPayload{
+		TenantID:        tenantID,
+		ConfigurationID: configID,
+	})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.Header().Set("Content-Type", "application/octet-stream")
+	writer.WriteHeader(http.StatusOK)
+	_, _ = writer.Write(payload)
 }

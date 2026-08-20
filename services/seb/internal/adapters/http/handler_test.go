@@ -76,6 +76,9 @@ func (service *fakeSEBService) DeleteConfiguration(context.Context, centralauthz
 func (service *fakeSEBService) HardDeleteConfiguration(context.Context, centralauthz.Capability, app.DeleteConfiguration) error {
 	return nil
 }
+func (service *fakeSEBService) GetConfigurationPayload(context.Context, centralauthz.Capability, app.GetConfigurationPayload) ([]byte, error) {
+	panic("unexpected GetConfigurationPayload")
+}
 
 type fakeAuthorizer struct {
 	selfCalls   int
