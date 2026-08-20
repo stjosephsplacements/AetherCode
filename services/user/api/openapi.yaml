@@ -406,6 +406,7 @@ components:
     RoleAssignment:
       type: object
       additionalProperties: false
+      # created_at added in feat/list-endpoints-cursor-pagination: needed for cursor pagination on list endpoints
       required: [id, principal_id, role_name, scope_kind, status, version, created_at]
       properties:
         id: {$ref: '#/components/schemas/UUID'}
@@ -438,6 +439,7 @@ components:
     MentorBatchAssignment:
       type: object
       additionalProperties: false
+      # created_at added in feat/list-endpoints-cursor-pagination: needed for cursor pagination on list endpoints
       required: [id, mentor_principal_id, tenant_id, batch_id, status, version, created_at]
       properties:
         id: {$ref: '#/components/schemas/UUID'}
