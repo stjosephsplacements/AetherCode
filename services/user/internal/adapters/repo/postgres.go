@@ -908,6 +908,7 @@ func (repository *Postgres) ListStudents(contextValue context.Context, transacti
 		            SELECT 1 FROM users.student_department_memberships AS membership
 		            WHERE membership.student_id = student.id
 		              AND membership.department_id = $5
+		              AND membership.status = 'active'
 		              AND membership.deleted_at IS NULL
 		        )
 		      )
