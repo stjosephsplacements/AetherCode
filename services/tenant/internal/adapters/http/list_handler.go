@@ -1,5 +1,5 @@
-// Package httpadapter collection routes, kept separate from the mutation
-// surface in handler.go.
+// Package httpadapter implements collection routes, kept separate from the
+// mutation surface in handler.go.
 package httpadapter
 
 import (
@@ -78,7 +78,14 @@ func (handler *Handler) listBatches(writer http.ResponseWriter, request *http.Re
 		httpx.WriteError(writer, err)
 		return
 	}
-	departmentID := request.URL.Query().Get("department_id")
+	departmentIDRaw := request.URL.Query().Get("department_id")
+	var departmentID string
+	if departmentIDRaw != "" {
+		if departmentID, err = httpx.ParseUUIDValue(departmentIDRaw, "department_id"); err != nil {
+			httpx.WriteError(writer, err)
+			return
+		}
+	}
 	academicYear := request.URL.Query().Get("academic_year")
 	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "batches", tenantID, tenantID)
 	if err != nil {
