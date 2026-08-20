@@ -90,6 +90,29 @@ delivery, analytics-export storage, a platform-side **admission** adapter, and
 the Judge0 dispatcher require their separate approved external integrations.
 They must not be replaced with local mock behavior in a production deployment.
 
+## First run
+
+A fresh deployment has no principals and no role assignments, so there is no way
+to call any authenticated endpoint. Run the one-time bootstrap command to create
+the first platform administrator after migrations are applied:
+
+```sh
+export IDENTITY_DATABASE_URL="postgres://..."
+export USER_DATABASE_URL="postgres://..."
+make bootstrap EMAIL=admin@college.edu NAME="Platform Admin"
+```
+
+The command creates the principal in the identity database and a self-granted
+`super_admin` role assignment in the user database. **The created account has no
+password.** Activate it by triggering the password-reset flow for the supplied
+email address. No password is ever written, printed, or accepted by this
+command.
+
+The command is safe to re-run. A crash between the two database writes is
+repaired by running it again — each half independently no-ops if its row already
+exists. Once the platform has any principal or any `super_admin`, both functions
+permanently refuse further calls.
+
 ## Local prerequisites
 
 Install Go, Docker, GNU Make, Buf, and golangci-lint. The pinned

@@ -4,10 +4,10 @@ SHELL := /usr/bin/env bash
 SERVICES := gateway identity tenant user question-bank assessment submission judge seb notification analytics
 MODULES := libs/pkg $(addprefix services/,$(SERVICES))
 
-.PHONY: help dev-up dev-down dev-judge-up dev-judge-down build test test-integration test-migrations lint proto migrate fmt fmt-check vet vuln verify-workspace
+.PHONY: help dev-up dev-down dev-judge-up dev-judge-down build test test-integration test-migrations lint proto migrate bootstrap fmt fmt-check vet vuln verify-workspace
 
 help:
-	@printf '%s\n' 'Targets: dev-up dev-down dev-judge-up dev-judge-down build test test-integration test-migrations lint proto migrate fmt fmt-check vet vuln'
+	@printf '%s\n' 'Targets: dev-up dev-down dev-judge-up dev-judge-down build test test-integration test-migrations lint proto migrate bootstrap fmt fmt-check vet vuln'
 
 verify-workspace:
 	@go work sync
@@ -50,6 +50,16 @@ migrate:
 
 test-migrations: verify-workspace
 	@scripts/verify-migrations
+
+bootstrap:
+	@test -n "$(EMAIL)" || { echo "EMAIL is required"; exit 1; }
+	@test -n "$(NAME)" || { echo "NAME is required"; exit 1; }
+	@test -n "$$IDENTITY_DATABASE_URL" || { echo "IDENTITY_DATABASE_URL is required"; exit 1; }
+	@test -n "$$USER_DATABASE_URL" || { echo "USER_DATABASE_URL is required"; exit 1; }
+	@(cd libs/pkg && go run ./cmd/bootstrap \
+		--identity-database-url "$$IDENTITY_DATABASE_URL" \
+		--user-database-url "$$USER_DATABASE_URL" \
+		--email "$(EMAIL)" --display-name "$(NAME)")
 
 fmt:
 	@for module in $(MODULES); do (cd $$module && gofmt -w $$(find . -name '*.go' -type f)); done
