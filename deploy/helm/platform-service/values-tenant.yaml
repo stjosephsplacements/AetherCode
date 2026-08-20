@@ -1,0 +1,12 @@
+nameOverride: "tenant"
+
+image:
+  repository: ghcr.io/Shreesh-Sree/CoderQX/tenant
+  tag: ""
+
+service:
+  port: 8080
+
+envFrom:
+  - secretRef:
+      name: tenant-secrets

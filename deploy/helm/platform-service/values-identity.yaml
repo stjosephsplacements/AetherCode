@@ -1,0 +1,12 @@
+nameOverride: "identity"
+
+image:
+  repository: ghcr.io/Shreesh-Sree/CoderQX/identity
+  tag: ""
+
+service:
+  port: 8080
+
+envFrom:
+  - secretRef:
+      name: identity-secrets

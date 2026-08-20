@@ -1,0 +1,12 @@
+nameOverride: "user"
+
+image:
+  repository: ghcr.io/Shreesh-Sree/CoderQX/user
+  tag: ""
+
+service:
+  port: 8080
+
+envFrom:
+  - secretRef:
+      name: user-secrets

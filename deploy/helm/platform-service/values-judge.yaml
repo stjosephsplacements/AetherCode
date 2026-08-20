@@ -1,0 +1,12 @@
+nameOverride: "judge"
+
+image:
+  repository: ghcr.io/Shreesh-Sree/CoderQX/judge
+  tag: ""
+
+service:
+  port: 8080
+
+envFrom:
+  - secretRef:
+      name: judge-secrets

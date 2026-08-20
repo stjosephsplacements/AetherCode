@@ -1,0 +1,12 @@
+nameOverride: "assessment"
+
+image:
+  repository: ghcr.io/Shreesh-Sree/CoderQX/assessment
+  tag: ""
+
+service:
+  port: 8080
+
+envFrom:
+  - secretRef:
+      name: assessment-secrets

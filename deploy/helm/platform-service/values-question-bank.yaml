@@ -1,0 +1,12 @@
+nameOverride: "question-bank"
+
+image:
+  repository: ghcr.io/Shreesh-Sree/CoderQX/question-bank
+  tag: ""
+
+service:
+  port: 8080
+
+envFrom:
+  - secretRef:
+      name: question-bank-secrets

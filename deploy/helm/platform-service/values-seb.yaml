@@ -1,0 +1,12 @@
+nameOverride: "seb"
+
+image:
+  repository: ghcr.io/Shreesh-Sree/CoderQX/seb
+  tag: ""
+
+service:
+  port: 8080
+
+envFrom:
+  - secretRef:
+      name: seb-secrets

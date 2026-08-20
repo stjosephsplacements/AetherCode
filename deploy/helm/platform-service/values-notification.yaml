@@ -1,0 +1,12 @@
+nameOverride: "notification"
+
+image:
+  repository: ghcr.io/Shreesh-Sree/CoderQX/notification
+  tag: ""
+
+service:
+  port: 8080
+
+envFrom:
+  - secretRef:
+      name: notification-secrets
