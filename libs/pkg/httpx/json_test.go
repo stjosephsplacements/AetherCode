@@ -56,3 +56,36 @@ func TestBearerToken(t *testing.T) {
 		t.Fatalf("BearerToken() = %q, %v", token, err)
 	}
 }
+
+func TestParseEnumQuery(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name      string
+		query     string
+		want      string
+		wantError bool
+	}{
+		{name: "absent is allowed", query: "", want: ""},
+		{name: "allowed value", query: "?state=active", want: "active"},
+		{name: "rejected value", query: "?state=nonsense", wantError: true},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			request := httptest.NewRequest(http.MethodGet, "/v1/things"+testCase.query, nil)
+			got, err := ParseEnumQuery(request, "state", "active", "closed")
+			if testCase.wantError {
+				if err == nil {
+					t.Fatalf("ParseEnumQuery(%q) error = nil, want an error", testCase.query)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ParseEnumQuery(%q) error = %v", testCase.query, err)
+			}
+			if got != testCase.want {
+				t.Fatalf("ParseEnumQuery(%q) = %q, want %q", testCase.query, got, testCase.want)
+			}
+		})
+	}
+}

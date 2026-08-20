@@ -135,3 +135,20 @@ func ParseUUIDValue(raw, name string) (string, error) {
 	}
 	return value, nil
 }
+
+// ParseEnumQuery validates an optional enumerated query filter. An absent
+// parameter is not an error and returns "". A present value outside the allowed
+// set is rejected, so a mistyped filter never silently returns an empty page.
+func ParseEnumQuery(request *http.Request, name string, allowed ...string) (string, error) {
+	raw := strings.TrimSpace(request.URL.Query().Get(name))
+	if raw == "" {
+		return "", nil
+	}
+	for _, candidate := range allowed {
+		if raw == candidate {
+			return raw, nil
+		}
+	}
+	return "", apperrors.New(apperrors.CodeInvalidArgument,
+		fmt.Sprintf("%s must be one of: %s", name, strings.Join(allowed, ", ")))
+}
