@@ -221,7 +221,7 @@ func parseJudgeCompleted(event messaging.Event) (judgeCompleted, error) {
 		(payload.ResultChecksum != nil && !validSHA256(*payload.ResultChecksum)) ||
 		(payload.ResultObjectKey != nil && strings.TrimSpace(*payload.ResultObjectKey) == "") ||
 		(payload.EncryptionKeyReference != nil && strings.TrimSpace(*payload.EncryptionKeyReference) == "") {
-		return judgeCompleted{}, fmt.Errorf("Judge completion fields are invalid")
+		return judgeCompleted{}, fmt.Errorf("judge completion fields are invalid")
 	}
 	return payload, nil
 }
@@ -283,6 +283,7 @@ func validSHA256(value string) bool {
 		return false
 	}
 	for _, character := range value {
+		//nolint:staticcheck // QF1001: the negated-range form reads more clearly for character validation
 		if !(character >= '0' && character <= '9') && !(character >= 'a' && character <= 'f') {
 			return false
 		}

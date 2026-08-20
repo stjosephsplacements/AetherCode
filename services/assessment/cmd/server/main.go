@@ -57,7 +57,7 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer connection.Close()
+	defer func() { _ = connection.Close() }()
 	authorizer, err := httpauth.New(authzClient, "assessment")
 	if err != nil {
 		return err

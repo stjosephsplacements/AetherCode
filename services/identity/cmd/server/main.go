@@ -214,7 +214,7 @@ func serveIntrospection(
 	if err != nil {
 		return fmt.Errorf("listen for Identity introspection: %w", err)
 	}
-	defer listener.Close()
+	defer func() { _ = listener.Close() }()
 	if runtime.RequireIntrospectionMTLS {
 		tlsConfig, err := config.LoadMTLSServerConfig(
 			runtime.IntrospectionCertificateFile, runtime.IntrospectionKeyFile, runtime.IntrospectionClientCAFile,
@@ -223,7 +223,7 @@ func serveIntrospection(
 			return fmt.Errorf("load Identity introspection mTLS configuration: %w", err)
 		}
 		if tlsConfig.MinVersion != tls.VersionTLS13 {
-			return fmt.Errorf("Identity introspection must require TLS 1.3")
+			return fmt.Errorf("identity introspection must require TLS 1.3")
 		}
 		listener = tls.NewListener(listener, tlsConfig)
 	}

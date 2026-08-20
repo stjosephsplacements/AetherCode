@@ -59,7 +59,7 @@ func run(contextValue context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer connection.Close()
+	defer func() { _ = connection.Close() }()
 	authorizer, err := httpauth.New(authzClient, "submission")
 	if err != nil {
 		return err
@@ -116,7 +116,7 @@ func run(contextValue context.Context) error {
 			if judgeClientErr != nil {
 				return judgeClientErr
 			}
-			defer judgeClient.Close()
+			defer func() { _ = judgeClient.Close() }()
 			judgeCompletionWorker, judgeWorkerErr := judgecompletion.NewWorker(
 				judgeClient, adapterStore, judgeCompletionRuntime, logger,
 			)

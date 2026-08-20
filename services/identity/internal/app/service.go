@@ -595,6 +595,7 @@ func isUUID(value string) bool {
 			}
 			continue
 		}
+		//nolint:staticcheck // QF1001: the negated-range form reads more clearly for character validation
 		if !(character >= '0' && character <= '9') && !(character >= 'a' && character <= 'f') {
 			return false
 		}

@@ -165,10 +165,10 @@ func loadIntrospectionRuntime(environment string) (introspectionRuntime, error) 
 		}
 	}
 	if runtime.requireMTLS && configuredFiles != 3 {
-		return introspectionRuntime{}, fmt.Errorf("Identity introspection TLS certificate, key, and client CA are required in %s", environment)
+		return introspectionRuntime{}, fmt.Errorf("identity introspection TLS certificate, key, and client CA are required in %s", environment)
 	}
 	if !runtime.requireMTLS && configuredFiles != 0 && configuredFiles != 3 {
-		return introspectionRuntime{}, fmt.Errorf("Identity introspection TLS certificate, key, and client CA must be configured together")
+		return introspectionRuntime{}, fmt.Errorf("identity introspection TLS certificate, key, and client CA must be configured together")
 	}
 	if configuredFiles == 3 {
 		runtime.requireMTLS = true

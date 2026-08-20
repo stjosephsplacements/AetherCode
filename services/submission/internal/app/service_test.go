@@ -81,6 +81,7 @@ func TestSubmitAttemptRejectsMissingIdempotencyKeyBeforeTransaction(t *testing.T
 }
 
 func TestChecksumIsStableAndDomainSeparated(t *testing.T) {
+	//nolint:staticcheck // SA4000: the two calls are intentionally identical, to verify checksum() is deterministic across invocations, not a copy-paste mistake.
 	if checksum("attempt.start.v1", "tenant", "assignment") != checksum("attempt.start.v1", "tenant", "assignment") {
 		t.Fatal("checksum must be deterministic")
 	}

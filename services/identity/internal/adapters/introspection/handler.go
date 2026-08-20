@@ -31,7 +31,7 @@ type Handler struct {
 
 func NewHandler(service SessionValidator, accessVerifier AccessVerifier, trustedSPIFFEID string, requireMTLS bool) (http.Handler, error) {
 	if service == nil || accessVerifier == nil {
-		return nil, fmt.Errorf("Identity session validator and access-token verifier are required")
+		return nil, fmt.Errorf("identity session validator and access-token verifier are required")
 	}
 	if requireMTLS && strings.TrimSpace(trustedSPIFFEID) == "" {
 		return nil, fmt.Errorf("trusted Identity introspection SPIFFE ID is required with mTLS")

@@ -453,7 +453,7 @@ func (service *Service) claimIdempotency(
 	if service == nil || service.idempotency == nil {
 		return database.IdempotencyRecord{}, fmt.Errorf("SEB idempotency store is not initialized")
 	}
-	if strings.ToLower(strings.TrimSpace(capability.TenantID)) != strings.ToLower(strings.TrimSpace(commandTenantID)) {
+	if !strings.EqualFold(strings.TrimSpace(capability.TenantID), strings.TrimSpace(commandTenantID)) {
 		return database.IdempotencyRecord{}, apperrors.New(apperrors.CodeForbidden, "authorization tenant scope does not match request")
 	}
 	return service.idempotency.Claim(
@@ -473,7 +473,7 @@ func (service *Service) completeIdempotency(
 	if service == nil || service.idempotency == nil {
 		return fmt.Errorf("SEB idempotency store is not initialized")
 	}
-	if strings.ToLower(strings.TrimSpace(capability.TenantID)) != strings.ToLower(strings.TrimSpace(commandTenantID)) {
+	if !strings.EqualFold(strings.TrimSpace(capability.TenantID), strings.TrimSpace(commandTenantID)) {
 		return apperrors.New(apperrors.CodeForbidden, "authorization tenant scope does not match request")
 	}
 	encoded, err := marshalSafeIdempotencyResponse(response)
@@ -488,7 +488,7 @@ func scopedIdempotencyOperation(capability centralauthz.Capability, tenantID, op
 	if !isUUID(actorID) {
 		return "", apperrors.New(apperrors.CodeForbidden, "authorization actor is invalid")
 	}
-	if strings.ToLower(strings.TrimSpace(capability.TenantID)) != strings.ToLower(strings.TrimSpace(tenantID)) {
+	if !strings.EqualFold(strings.TrimSpace(capability.TenantID), strings.TrimSpace(tenantID)) {
 		return "", apperrors.New(apperrors.CodeForbidden, "authorization tenant scope does not match request")
 	}
 	operation = strings.TrimSpace(operation) + ":" + actorID

@@ -133,14 +133,14 @@ func loadIdentityIntrospectionRuntime(environment string) (IdentityIntrospection
 		}
 	}
 	if runtime.RequireMTLS && configuredFiles != 3 {
-		return IdentityIntrospectionRuntime{}, fmt.Errorf("Identity introspection client TLS certificate, key, and CA are required in %s", environment)
+		return IdentityIntrospectionRuntime{}, fmt.Errorf("identity introspection client TLS certificate, key, and CA are required in %s", environment)
 	}
 	if !runtime.RequireMTLS && configuredFiles != 0 && configuredFiles != 3 {
-		return IdentityIntrospectionRuntime{}, fmt.Errorf("Identity introspection client TLS certificate, key, and CA must be configured together")
+		return IdentityIntrospectionRuntime{}, fmt.Errorf("identity introspection client TLS certificate, key, and CA must be configured together")
 	}
 	if configuredFiles == 3 {
 		if parsed.Scheme != "https" {
-			return IdentityIntrospectionRuntime{}, fmt.Errorf("Identity introspection TLS credentials require an https URL")
+			return IdentityIntrospectionRuntime{}, fmt.Errorf("identity introspection TLS credentials require an https URL")
 		}
 		runtime.RequireMTLS = true
 	}

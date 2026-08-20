@@ -132,7 +132,7 @@ func TestPublishQuestionVersionRequiresValidQuestionAndVersionIDs(t *testing.T) 
 				EventID:                 testCase.eventID,
 				ExpectedQuestionVersion: 1,
 			}
-			_, err := service.PublishQuestionVersion(nil, centralauthz.Capability{}, command)
+			_, err := service.PublishQuestionVersion(context.TODO(), centralauthz.Capability{}, command)
 			if testCase.expectInvalidArg {
 				if err == nil {
 					t.Fatal("PublishQuestionVersion() expected invalid argument error, got nil")
@@ -178,7 +178,7 @@ func TestAddQuestionAssetRejectsTraversalObjectKeys(t *testing.T) {
 					EncryptionKeyReference: "kms:question-bank/assets",
 				},
 			}
-			_, err := service.AddQuestionAsset(nil, centralauthz.Capability{}, command)
+			_, err := service.AddQuestionAsset(context.TODO(), centralauthz.Capability{}, command)
 			if testCase.expectInvalidArg {
 				if err == nil {
 					t.Fatal("AddQuestionAsset() expected invalid argument error, got nil")
@@ -224,7 +224,7 @@ func TestObjectReferenceRequiresBothChecksumAndEncryptionKey(t *testing.T) {
 					EncryptionKeyReference: testCase.encryptKey,
 				},
 			}
-			_, err := service.UpsertTestCaseManifest(nil, centralauthz.Capability{}, command)
+			_, err := service.UpsertTestCaseManifest(context.TODO(), centralauthz.Capability{}, command)
 			if testCase.expectInvalidArg {
 				if err == nil {
 					t.Fatal("UpsertTestCaseManifest() expected invalid argument error, got nil")
@@ -260,7 +260,7 @@ func TestUpsertTestCaseManifestRejectsOversizePayload(t *testing.T) {
 			EncryptionKeyReference: "kms:question-bank/manifests",
 		},
 	}
-	if _, err := service.UpsertTestCaseManifest(nil, centralauthz.Capability{}, command); err == nil {
+	if _, err := service.UpsertTestCaseManifest(context.TODO(), centralauthz.Capability{}, command); err == nil {
 		t.Fatal("UpsertTestCaseManifest() accepted oversize object key")
 	}
 
@@ -277,7 +277,7 @@ func TestUpsertTestCaseManifestRejectsOversizePayload(t *testing.T) {
 			EncryptionKeyReference: "kms:question-bank/manifests",
 		},
 	}
-	if _, err := service.UpsertTestCaseManifest(nil, centralauthz.Capability{}, validCommand); err == nil {
+	if _, err := service.UpsertTestCaseManifest(context.TODO(), centralauthz.Capability{}, validCommand); err == nil {
 		t.Log("validation passes before transaction as expected")
 	}
 }
@@ -306,7 +306,7 @@ func TestCreateDraftQuestionVersionRejectsWithoutExpectedParentVersion(t *testin
 				ExpectedQuestionRevision: testCase.expectedVersion,
 				Content:                  validVersionContent(),
 			}
-			_, err := service.CreateDraftQuestionVersion(nil, centralauthz.Capability{}, command)
+			_, err := service.CreateDraftQuestionVersion(context.TODO(), centralauthz.Capability{}, command)
 			if testCase.expectInvalidArg {
 				if err == nil {
 					t.Fatal("CreateDraftQuestionVersion() expected invalid argument error, got nil")

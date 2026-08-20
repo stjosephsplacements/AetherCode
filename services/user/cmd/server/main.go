@@ -92,7 +92,7 @@ func run(contextValue context.Context) error {
 	if err != nil {
 		return fmt.Errorf("listen for authorization gRPC: %w", err)
 	}
-	defer listener.Close()
+	defer func() { _ = listener.Close() }()
 	grpcOptions, err := grpcOptionsFor(runtime)
 	if err != nil {
 		return err
@@ -121,7 +121,7 @@ func run(contextValue context.Context) error {
 		grpcServer.Stop()
 		return err
 	}
-	defer connection.Close()
+	defer func() { _ = connection.Close() }()
 	authorizer, err := httpauth.New(client, "user")
 	if err != nil {
 		grpcServer.Stop()

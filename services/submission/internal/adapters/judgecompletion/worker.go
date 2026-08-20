@@ -79,7 +79,7 @@ func (worker *Worker) Run(contextValue context.Context) {
 // could be stranded and this service fails readiness closed.
 func (worker *Worker) Ready(contextValue context.Context) error {
 	if worker == nil {
-		return fmt.Errorf("Judge completion worker is not initialized")
+		return fmt.Errorf("judge completion worker is not initialized")
 	}
 	if err := worker.store.Ping(contextValue); err != nil {
 		return err
@@ -88,7 +88,7 @@ func (worker *Worker) Ready(contextValue context.Context) error {
 	lastGood := worker.lastGood
 	worker.mu.RUnlock()
 	if lastGood.IsZero() || time.Since(lastGood) > worker.runtime.ReadyWindow() {
-		return fmt.Errorf("Judge completion bridge has not completed a recent pull")
+		return fmt.Errorf("judge completion bridge has not completed a recent pull")
 	}
 	return nil
 }

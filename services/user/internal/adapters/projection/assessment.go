@@ -27,14 +27,14 @@ type AssessmentProjection struct {
 
 func NewAssessmentProjection(pool *pgxpool.Pool) (*AssessmentProjection, error) {
 	if pool == nil {
-		return nil, fmt.Errorf("User Assessment projection database pool is required")
+		return nil, fmt.Errorf("user assessment projection database pool is required")
 	}
 	return &AssessmentProjection{pool: pool}, nil
 }
 
 func (projection *AssessmentProjection) Ping(ctx context.Context) error {
 	if projection == nil || projection.pool == nil {
-		return fmt.Errorf("User Assessment projection is not initialized")
+		return fmt.Errorf("user assessment projection is not initialized")
 	}
 	if err := projection.pool.Ping(ctx); err != nil {
 		return fmt.Errorf("ping User Assessment projection database: %w", err)
@@ -68,7 +68,7 @@ type assignmentSnapshotItem struct {
 // trustworthy.
 func (projection *AssessmentProjection) Apply(ctx context.Context, event messaging.Event) error {
 	if projection == nil || projection.pool == nil {
-		return fmt.Errorf("User Assessment projection is not initialized")
+		return fmt.Errorf("user assessment projection is not initialized")
 	}
 	payload, err := parseAssignmentSnapshot(event)
 	if err != nil {
@@ -145,20 +145,20 @@ func parseAssignmentSnapshot(event messaging.Event) (assignmentSnapshot, error) 
 		return assignmentSnapshot{}, fmt.Errorf("decode Assessment candidate assignment snapshot: %w", err)
 	}
 	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
-		return assignmentSnapshot{}, fmt.Errorf("Assessment candidate assignment snapshot must contain exactly one JSON value")
+		return assignmentSnapshot{}, fmt.Errorf("assessment candidate assignment snapshot must contain exactly one JSON value")
 	}
 	if !validUUID(payload.TenantID) || !validUUID(payload.CandidateAssignmentID) || !validUUID(payload.CandidateID) ||
 		!validUUID(payload.ExamID) || !validUUID(payload.ExamVersionID) || payload.AttemptLimit < 1 || payload.AttemptLimit > 20 ||
 		payload.Version < 1 || (payload.LifecycleState != "active" && payload.LifecycleState != "revoked") {
-		return assignmentSnapshot{}, fmt.Errorf("Assessment candidate assignment snapshot has invalid fields")
+		return assignmentSnapshot{}, fmt.Errorf("assessment candidate assignment snapshot has invalid fields")
 	}
 	availableFrom, err := time.Parse(time.RFC3339Nano, payload.AvailableFrom)
 	if err != nil {
-		return assignmentSnapshot{}, fmt.Errorf("Assessment snapshot available_from is invalid")
+		return assignmentSnapshot{}, fmt.Errorf("assessment snapshot available_from is invalid")
 	}
 	availableUntil, err := time.Parse(time.RFC3339Nano, payload.AvailableUntil)
 	if err != nil || !availableUntil.After(availableFrom) {
-		return assignmentSnapshot{}, fmt.Errorf("Assessment snapshot availability window is invalid")
+		return assignmentSnapshot{}, fmt.Errorf("assessment snapshot availability window is invalid")
 	}
 	if payload.LifecycleState == "active" && len(payload.Items) == 0 {
 		return assignmentSnapshot{}, fmt.Errorf("active Assessment snapshot requires evaluation items")
@@ -167,15 +167,15 @@ func parseAssignmentSnapshot(event messaging.Event) (assignmentSnapshot, error) 
 	for _, item := range payload.Items {
 		if !validUUID(item.ExamItemID) || strings.TrimSpace(item.EvaluationBundleObjectKey) == "" ||
 			len(item.EvaluationBundleObjectKey) > 1024 || !checksum(item.EvaluationBundleChecksum) {
-			return assignmentSnapshot{}, fmt.Errorf("Assessment snapshot evaluation item is invalid")
+			return assignmentSnapshot{}, fmt.Errorf("assessment snapshot evaluation item is invalid")
 		}
 		if _, exists := seenItems[item.ExamItemID]; exists {
-			return assignmentSnapshot{}, fmt.Errorf("Assessment snapshot contains duplicate evaluation items")
+			return assignmentSnapshot{}, fmt.Errorf("assessment snapshot contains duplicate evaluation items")
 		}
 		seenItems[item.ExamItemID] = struct{}{}
 		maximumScore, err := item.MaximumScore.Float64()
 		if err != nil || math.IsNaN(maximumScore) || math.IsInf(maximumScore, 0) || maximumScore <= 0 {
-			return assignmentSnapshot{}, fmt.Errorf("Assessment snapshot maximum score is invalid")
+			return assignmentSnapshot{}, fmt.Errorf("assessment snapshot maximum score is invalid")
 		}
 	}
 	return payload, nil
@@ -187,6 +187,7 @@ func checksum(value string) bool {
 		return false
 	}
 	for _, character := range value {
+		//nolint:staticcheck // QF1001: the negated-range form reads more clearly for character validation
 		if !(character >= '0' && character <= '9') && !(character >= 'a' && character <= 'f') {
 			return false
 		}

@@ -28,7 +28,7 @@ type SessionValidator struct {
 func NewSessionValidator(runtime userconfig.IdentityIntrospectionRuntime) (*SessionValidator, error) {
 	endpoint, err := url.Parse(strings.TrimSpace(runtime.URL))
 	if err != nil || endpoint == nil || endpoint.Scheme == "" || endpoint.Host == "" {
-		return nil, fmt.Errorf("Identity introspection URL is invalid")
+		return nil, fmt.Errorf("identity introspection URL is invalid")
 	}
 	transport := &http.Transport{
 		Proxy:                 nil,
@@ -62,7 +62,7 @@ func NewSessionValidator(runtime userconfig.IdentityIntrospectionRuntime) (*Sess
 
 func (validator *SessionValidator) Validate(contextValue context.Context, token string) error {
 	if validator == nil || validator.client == nil || validator.endpoint == nil {
-		return fmt.Errorf("Identity session validator is not initialized")
+		return fmt.Errorf("identity session validator is not initialized")
 	}
 	payload, err := json.Marshal(struct {
 		AccessToken string `json:"access_token"`
@@ -80,9 +80,9 @@ func (validator *SessionValidator) Validate(contextValue context.Context, token 
 	if err != nil {
 		return fmt.Errorf("call Identity introspection: %w", err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("Identity introspection rejected the access token")
+		return fmt.Errorf("identity introspection rejected the access token")
 	}
 	return nil
 }
@@ -98,7 +98,7 @@ func loadMTLSClientConfig(runtime userconfig.IdentityIntrospectionRuntime) (*tls
 	}
 	rootCAs := x509.NewCertPool()
 	if !rootCAs.AppendCertsFromPEM(caPEM) {
-		return nil, fmt.Errorf("Identity introspection client CA contains no certificates")
+		return nil, fmt.Errorf("identity introspection client CA contains no certificates")
 	}
 	return &tls.Config{
 		MinVersion:   tls.VersionTLS13,

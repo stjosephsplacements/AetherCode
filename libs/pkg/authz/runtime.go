@@ -76,13 +76,14 @@ func DialClient(contextValue context.Context, runtime ClientRuntime) (*Client, *
 	}
 	dialContext, cancel := context.WithTimeout(contextValue, 5*time.Second)
 	defer cancel()
+	//nolint:staticcheck // SA1019: blocking dial is load-bearing for startup readiness; every caller treats a failed dial here as a fatal startup error, so services fail fast instead of starting without central authorization. Migrate alongside a readiness rework.
 	connection, err := grpc.DialContext(dialContext, runtime.Endpoint, grpc.WithTransportCredentials(transportCredentials), grpc.WithBlock())
 	if err != nil {
 		return nil, nil, fmt.Errorf("dial central authorization service: %w", err)
 	}
 	client, err := NewClient(authzv1.NewAuthorizationServiceClient(connection))
 	if err != nil {
-		connection.Close()
+		_ = connection.Close()
 		return nil, nil, err
 	}
 	return client, connection, nil

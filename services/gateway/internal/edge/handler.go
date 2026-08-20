@@ -450,6 +450,7 @@ func isUUID(value string) bool {
 			}
 			continue
 		}
+		//nolint:staticcheck // QF1001: the negated-range form reads more clearly for character validation
 		if !((character >= '0' && character <= '9') || (character >= 'a' && character <= 'f') || (character >= 'A' && character <= 'F')) {
 			return false
 		}
@@ -502,7 +503,7 @@ func (handler *Handler) validateSEBSession(parentContext context.Context, assert
 	if err != nil {
 		return "", fmt.Errorf("call SEB validation: %w", err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode != http.StatusOK {
 		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, maxSEBResponseBytes))
 		return "", fmt.Errorf("SEB validation returned %d", response.StatusCode)
@@ -530,7 +531,7 @@ func (handler *Handler) forward(writer http.ResponseWriter, request *http.Reques
 		writeError(writer, http.StatusBadGateway, "upstream service is unavailable")
 		return
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	copyResponseHeaders(writer.Header(), response.Header)
 	writer.WriteHeader(response.StatusCode)
 	_, _ = io.Copy(writer, response.Body)

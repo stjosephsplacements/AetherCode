@@ -112,7 +112,7 @@ func (handler *Handler) createQuestion(writer http.ResponseWriter, request *http
 	}
 	question, err := handler.service.CreateQuestion(request.Context(), decision.Capability, app.CreateQuestion{
 		WriteCommand: app.WriteCommand{IdempotencyKey: key}, ID: questionID, VersionID: versionID,
-		EventID: eventID, Slug: body.Slug, Content: body.versionContentRequest.commandContent(),
+		EventID: eventID, Slug: body.Slug, Content: body.commandContent(),
 	})
 	if err != nil {
 		httpx.WriteError(writer, err)
@@ -160,7 +160,7 @@ func (handler *Handler) createDraftQuestionVersion(writer http.ResponseWriter, r
 	question, err := handler.service.CreateDraftQuestionVersion(request.Context(), decision.Capability, app.CreateDraftQuestionVersion{
 		WriteCommand: app.WriteCommand{IdempotencyKey: key}, ID: versionID, EventID: eventID,
 		QuestionID: questionID, ExpectedQuestionRevision: body.ExpectedQuestionRevision,
-		Content: body.versionContentRequest.commandContent(),
+		Content: body.commandContent(),
 	})
 	if err != nil {
 		httpx.WriteError(writer, err)

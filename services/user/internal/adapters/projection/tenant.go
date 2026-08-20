@@ -17,22 +17,20 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const tenantProjectionConsumer = "user.tenant-projection.v1"
-
 type TenantProjection struct {
 	pool *pgxpool.Pool
 }
 
 func NewTenantProjection(pool *pgxpool.Pool) (*TenantProjection, error) {
 	if pool == nil {
-		return nil, fmt.Errorf("User projection database pool is required")
+		return nil, fmt.Errorf("user projection database pool is required")
 	}
 	return &TenantProjection{pool: pool}, nil
 }
 
 func (projection *TenantProjection) Ping(contextValue context.Context) error {
 	if projection == nil || projection.pool == nil {
-		return fmt.Errorf("User tenant projection is not initialized")
+		return fmt.Errorf("user tenant projection is not initialized")
 	}
 	if err := projection.pool.Ping(contextValue); err != nil {
 		return fmt.Errorf("ping User projection database: %w", err)
@@ -44,7 +42,7 @@ func (projection *TenantProjection) Ping(contextValue context.Context) error {
 // record, materialized projection, and processed marker commit together.
 func (projection *TenantProjection) Apply(contextValue context.Context, event messaging.Event) error {
 	if projection == nil || projection.pool == nil {
-		return fmt.Errorf("User tenant projection is not initialized")
+		return fmt.Errorf("user tenant projection is not initialized")
 	}
 	if event.SchemaVersion != 1 {
 		return messaging.Permanent(fmt.Errorf("unsupported Tenant event schema version %d", event.SchemaVersion))
@@ -55,7 +53,7 @@ func (projection *TenantProjection) Apply(contextValue context.Context, event me
 		return messaging.Permanent(fmt.Errorf("unsupported Tenant event type %q", event.Type))
 	}
 	if !validUUID(event.ID) {
-		return messaging.Permanent(fmt.Errorf("Tenant event ID is not a UUID"))
+		return messaging.Permanent(fmt.Errorf("tenant event ID is not a UUID"))
 	}
 	transaction, err := projection.pool.BeginTx(contextValue, pgx.TxOptions{})
 	if err != nil {

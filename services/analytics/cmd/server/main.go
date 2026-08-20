@@ -56,7 +56,7 @@ func run(contextValue context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer connection.Close()
+	defer func() { _ = connection.Close() }()
 	authorizer, err := httpauth.New(authzClient, "analytics")
 	if err != nil {
 		return err
@@ -69,7 +69,7 @@ func run(contextValue context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer analyticsORM.Close()
+	defer func() { _ = analyticsORM.Close() }()
 	analyticsService, err := app.NewService(pool, analyticsORM, reportStore)
 	if err != nil {
 		return err

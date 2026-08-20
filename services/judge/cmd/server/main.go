@@ -79,7 +79,7 @@ func run(contextValue context.Context) error {
 	if err != nil {
 		return fmt.Errorf("listen for Judge gRPC: %w", err)
 	}
-	defer listener.Close()
+	defer func() { _ = listener.Close() }()
 
 	grpcOptions, err := grpcOptionsFor(runtime)
 	if err != nil {
@@ -133,7 +133,7 @@ func grpcOptionsFor(runtime judgeconfig.Runtime) ([]grpc.ServerOption, error) {
 		return nil, fmt.Errorf("load Judge mTLS configuration: %w", err)
 	}
 	if tlsConfig.MinVersion != tls.VersionTLS13 {
-		return nil, fmt.Errorf("Judge mTLS must require TLS 1.3")
+		return nil, fmt.Errorf("judge mTLS must require TLS 1.3")
 	}
 	return []grpc.ServerOption{
 		grpc.Creds(credentials.NewTLS(tlsConfig)),

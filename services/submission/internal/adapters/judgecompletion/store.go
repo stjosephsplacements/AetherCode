@@ -18,14 +18,14 @@ type Store struct {
 
 func NewStore(pool *pgxpool.Pool) (*Store, error) {
 	if pool == nil {
-		return nil, fmt.Errorf("Judge completion adapter database pool is required")
+		return nil, fmt.Errorf("judge completion adapter database pool is required")
 	}
 	return &Store{pool: pool}, nil
 }
 
 func (store *Store) Ping(contextValue context.Context) error {
 	if store == nil || store.pool == nil {
-		return fmt.Errorf("Judge completion adapter store is not initialized")
+		return fmt.Errorf("judge completion adapter store is not initialized")
 	}
 	if err := store.pool.Ping(contextValue); err != nil {
 		return fmt.Errorf("ping Judge completion adapter database: %w", err)
@@ -63,7 +63,7 @@ func (store *Store) Persist(contextValue context.Context, consumerID string, com
 		return fmt.Errorf("persist Judge completion ingress: %w", err)
 	}
 	if persistedOutboxEventID == "" {
-		return fmt.Errorf("Judge completion ingress returned an empty outbox event id")
+		return fmt.Errorf("judge completion ingress returned an empty outbox event id")
 	}
 	if err := transaction.Commit(contextValue); err != nil {
 		return fmt.Errorf("commit Judge completion persistence: %w", err)

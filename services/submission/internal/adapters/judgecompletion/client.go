@@ -32,7 +32,7 @@ type grpcClient struct {
 // Dial opens a verified TLS 1.3 connection to the private wrapper API.
 func Dial(contextValue context.Context, runtime Runtime) (Client, error) {
 	if !runtime.Enabled {
-		return nil, fmt.Errorf("Judge completion bridge is disabled")
+		return nil, fmt.Errorf("judge completion bridge is disabled")
 	}
 	tlsConfig, err := loadClientTLS(runtime)
 	if err != nil {
@@ -40,6 +40,7 @@ func Dial(contextValue context.Context, runtime Runtime) (Client, error) {
 	}
 	dialContext, cancel := context.WithTimeout(contextValue, runtime.RPCTimeout)
 	defer cancel()
+	//nolint:staticcheck // SA1019: blocking dial is load-bearing for startup readiness; the caller in cmd/server/main.go treats a failed dial as a fatal startup error, so the service fails fast instead of starting without a working Judge bridge. Migrate alongside a readiness rework.
 	connection, err := grpc.DialContext(
 		dialContext,
 		runtime.Endpoint,
@@ -107,7 +108,7 @@ func loadClientTLS(runtime Runtime) (*tls.Config, error) {
 	}
 	rootCAs := x509.NewCertPool()
 	if !rootCAs.AppendCertsFromPEM(caPEM) {
-		return nil, fmt.Errorf("Judge completion server CA contains no certificates")
+		return nil, fmt.Errorf("judge completion server CA contains no certificates")
 	}
 	serverName := runtime.ServerName
 	if serverName == "" {

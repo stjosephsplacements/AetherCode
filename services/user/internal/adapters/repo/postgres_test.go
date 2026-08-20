@@ -82,7 +82,6 @@ func testGormDB(t *testing.T) *gorm.DB {
 }
 
 func TestStudentGormRepo_SoftDeleteStudent_FiltersFromQueries(t *testing.T) {
-	ctx := context.Background()
 	db := testGormDB(t)
 	repo := NewStudentGormRepo(db)
 
@@ -94,18 +93,18 @@ func TestStudentGormRepo_SoftDeleteStudent_FiltersFromQueries(t *testing.T) {
 		EnrollmentNumber: "TEST001",
 		Status:           domain.StatusActive,
 	}
-	require.NoError(t, repo.CreateStudent(ctx, s))
+	require.NoError(t, repo.CreateStudent(context.Background(), s))
 
 	// Soft delete
 	actor := uuid.New()
-	require.NoError(t, repo.SoftDeleteStudent(ctx, s.ID, actor, "Test deletion"))
+	require.NoError(t, repo.SoftDeleteStudent(context.Background(), s.ID, actor, "Test deletion"))
 
 	// Verify not found in default queries
-	_, err := repo.GetStudentByID(ctx, s.ID)
+	_, err := repo.GetStudentByID(context.Background(), s.ID)
 	assert.ErrorIs(t, err, domain.ErrNotFound)
 
 	// Verify accessible with IncludeDeleted
-	deleted, err := repo.GetStudentByIDIncludeDeleted(ctx, s.ID)
+	deleted, err := repo.GetStudentByIDIncludeDeleted(context.Background(), s.ID)
 	require.NoError(t, err)
 	assert.NotNil(t, deleted.DeletedAt)
 	assert.Equal(t, actor, *deleted.DeletedBy)

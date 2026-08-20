@@ -67,7 +67,7 @@ func (publisher *Publisher) Run(contextValue context.Context) {
 // Ready reports whether the publisher has a live broker-confirmed channel.
 func (publisher *Publisher) Ready(context.Context) error {
 	if !publisher.healthy.Load() {
-		return fmt.Errorf("Judge admission publisher is not connected to RabbitMQ")
+		return fmt.Errorf("judge admission publisher is not connected to RabbitMQ")
 	}
 	return nil
 }
@@ -77,12 +77,12 @@ func (publisher *Publisher) runConnection(contextValue context.Context) error {
 	if err != nil {
 		return fmt.Errorf("dial RabbitMQ: %w", err)
 	}
-	defer connection.Close()
+	defer func() { _ = connection.Close() }()
 	channel, err := connection.Channel()
 	if err != nil {
 		return fmt.Errorf("open RabbitMQ channel: %w", err)
 	}
-	defer channel.Close()
+	defer func() { _ = channel.Close() }()
 	if _, err := channel.QueueDeclare(admissionQueue, true, false, false, false, amqp091.Table{
 		"x-queue-type": "quorum",
 	}); err != nil {

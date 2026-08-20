@@ -33,7 +33,7 @@ func NewAssertionVerifier(verifier *sharedauthn.Verifier, sessionValidator Token
 		return nil, fmt.Errorf("shared identity assertion verifier is required")
 	}
 	if sessionValidator == nil {
-		return nil, fmt.Errorf("Identity session validator is required")
+		return nil, fmt.Errorf("identity session validator is required")
 	}
 	return &AssertionVerifier{verifier: verifier, sessionValidator: sessionValidator, now: time.Now}, nil
 }

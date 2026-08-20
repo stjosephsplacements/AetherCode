@@ -47,10 +47,10 @@ func Load(environment string) (Runtime, error) {
 		}
 	}
 	if runtime.RequireMTLS && configuredFiles != 3 {
-		return Runtime{}, fmt.Errorf("Judge TLS certificate, key, and client CA are required in %s", environment)
+		return Runtime{}, fmt.Errorf("judge TLS certificate, key, and client CA are required in %s", environment)
 	}
 	if !runtime.RequireMTLS && configuredFiles != 0 && configuredFiles != 3 {
-		return Runtime{}, fmt.Errorf("Judge TLS certificate, key, and client CA must be configured together")
+		return Runtime{}, fmt.Errorf("judge TLS certificate, key, and client CA must be configured together")
 	}
 	if configuredFiles == 3 {
 		runtime.RequireMTLS = true

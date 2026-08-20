@@ -29,14 +29,14 @@ type GlobalAuthorizationProjection struct {
 
 func NewGlobalAuthorizationProjection(pool *pgxpool.Pool) (*GlobalAuthorizationProjection, error) {
 	if pool == nil {
-		return nil, fmt.Errorf("Question Bank authorization projection database pool is required")
+		return nil, fmt.Errorf("question bank authorization projection database pool is required")
 	}
 	return &GlobalAuthorizationProjection{pool: pool}, nil
 }
 
 func (projection *GlobalAuthorizationProjection) Ping(contextValue context.Context) error {
 	if projection == nil || projection.pool == nil {
-		return fmt.Errorf("Question Bank authorization projection is not initialized")
+		return fmt.Errorf("question bank authorization projection is not initialized")
 	}
 	if err := projection.pool.Ping(contextValue); err != nil {
 		return fmt.Errorf("ping Question Bank authorization projection database: %w", err)
@@ -49,7 +49,7 @@ func (projection *GlobalAuthorizationProjection) Ping(contextValue context.Conte
 // so local RLS denies while the consumer catches up.
 func (projection *GlobalAuthorizationProjection) Apply(contextValue context.Context, event messaging.Event) error {
 	if projection == nil || projection.pool == nil {
-		return fmt.Errorf("Question Bank authorization projection is not initialized")
+		return fmt.Errorf("question bank authorization projection is not initialized")
 	}
 	payload, err := parseSnapshot(event)
 	if err != nil {
@@ -202,6 +202,7 @@ func validUUID(value string) bool {
 			}
 			continue
 		}
+		//nolint:staticcheck // QF1001: the negated-range form reads more clearly for character validation
 		if !(character >= '0' && character <= '9') && !(character >= 'a' && character <= 'f') {
 			return false
 		}

@@ -59,7 +59,7 @@ func run(contextValue context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer connection.Close()
+	defer func() { _ = connection.Close() }()
 	authorizer, err := httpauth.New(authzClient, "notification")
 	if err != nil {
 		return err

@@ -22,7 +22,7 @@ type Handler struct {
 
 func NewHandler(serviceName string, service *app.ManagementService, readiness httpx.ReadinessFunc, authorizer *httpauth.Authorizer) (http.Handler, error) {
 	if service == nil || authorizer == nil {
-		return nil, fmt.Errorf("User management service and authorizer are required")
+		return nil, fmt.Errorf("user management service and authorizer are required")
 	}
 	handler := &Handler{service: service, authorizer: authorizer}
 	mux := httpx.NewOperationalMux(serviceName, readiness)

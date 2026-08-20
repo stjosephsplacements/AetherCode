@@ -49,7 +49,7 @@ func migrateWithLedger(databaseURL, sourceURL string, operation func(*migrate.Mi
 	if err != nil {
 		return fmt.Errorf("open migrations: %w", err)
 	}
-	defer migration.Close()
+	defer func() { _, _ = migration.Close() }()
 
 	if err := operation(migration); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return err
@@ -74,7 +74,7 @@ func EnsureMigrationLedger(ctx context.Context, databaseURL string) error {
 	if err != nil {
 		return fmt.Errorf("open PostgreSQL connection: %w", err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	if err := database.PingContext(ctx); err != nil {
 		return fmt.Errorf("ping PostgreSQL connection: %w", err)
@@ -92,7 +92,7 @@ func EnsureMigrationLedger(ctx context.Context, databaseURL string) error {
 	if err != nil {
 		return fmt.Errorf("begin migration ledger transaction: %w", err)
 	}
-	defer transaction.Rollback()
+	defer func() { _ = transaction.Rollback() }()
 
 	if _, err := transaction.ExecContext(ctx, "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", "aethercode:migration-ledger"); err != nil {
 		return fmt.Errorf("lock migration ledger bootstrap: %w", err)

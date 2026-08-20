@@ -65,6 +65,7 @@ func TestParseCompletionRequiresMatchingExplicitVerdict(t *testing.T) {
 	t.Parallel()
 
 	value := validProtoCompletion()
+	//nolint:staticcheck // SA1019: this test exercises the deprecated verdict field on purpose, to verify parseCompletion still enforces the proto's wire-compatibility contract against verdict_code.
 	value.Verdict = "wrong_answer"
 	if _, err := parseCompletion(value); err == nil {
 		t.Fatal("parseCompletion() accepted a mismatched deprecated verdict")

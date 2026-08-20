@@ -453,20 +453,6 @@ func (handler *Handler) authenticatedPrincipal(request *http.Request) (string, e
 	return claims.Subject, nil
 }
 
-func parseRoles(rolesHeader string) []string {
-	if rolesHeader == "" {
-		return []string{}
-	}
-	roles := strings.Split(rolesHeader, ",")
-	trimmed := make([]string, 0, len(roles))
-	for _, role := range roles {
-		if r := strings.TrimSpace(role); r != "" {
-			trimmed = append(trimmed, r)
-		}
-	}
-	return trimmed
-}
-
 func clientIP(request *http.Request) string {
 	host, _, err := net.SplitHostPort(strings.TrimSpace(request.RemoteAddr))
 	if err == nil {

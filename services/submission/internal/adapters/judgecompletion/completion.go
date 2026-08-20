@@ -29,18 +29,19 @@ type Completion struct {
 
 func parseCompletion(value *judgev1.Completion) (Completion, error) {
 	if value == nil {
-		return Completion{}, fmt.Errorf("Judge completion is required")
+		return Completion{}, fmt.Errorf("judge completion is required")
 	}
 	verdict, err := verdictFromProto(value.GetVerdictCode())
 	if err != nil {
 		return Completion{}, err
 	}
+	//nolint:staticcheck // SA1019: the deprecated verdict field is read deliberately, to enforce the proto's own migration contract that it must still match verdict_code during the wire-compatibility period.
 	if value.GetVerdict() != verdict {
-		return Completion{}, fmt.Errorf("Judge completion deprecated verdict does not match verdict_code")
+		return Completion{}, fmt.Errorf("judge completion deprecated verdict does not match verdict_code")
 	}
 	completedAt, err := time.Parse(time.RFC3339Nano, value.GetCompletedAt())
 	if err != nil || completedAt.IsZero() {
-		return Completion{}, fmt.Errorf("Judge completion completed_at is invalid")
+		return Completion{}, fmt.Errorf("judge completion completed_at is invalid")
 	}
 	executionTimeMS, err := optionalMetric(value.ExecutionTimeMs, "execution_time_ms")
 	if err != nil {
@@ -73,7 +74,7 @@ func (completion *Completion) setResultReference(objectKey, checksum, keyReferen
 	keyReference = strings.TrimSpace(keyReference)
 	present := objectKey != ""
 	if (checksum != "") != present || (keyReference != "") != present {
-		return fmt.Errorf("Judge encrypted result reference, checksum, and key reference must be all-or-none")
+		return fmt.Errorf("judge encrypted result reference, checksum, and key reference must be all-or-none")
 	}
 	if !present {
 		return nil
@@ -91,20 +92,20 @@ func (completion Completion) Validate() error {
 		"delivery_id":               completion.DeliveryID, "lease_id": completion.LeaseID,
 	} {
 		if !validUUIDv7(value) {
-			return fmt.Errorf("Judge completion %s must be a UUIDv7", field)
+			return fmt.Errorf("judge completion %s must be a UUIDv7", field)
 		}
 	}
 	if !validVerdict(completion.Verdict) || completion.CompletedAt.IsZero() {
-		return fmt.Errorf("Judge completion verdict or completion time is invalid")
+		return fmt.Errorf("judge completion verdict or completion time is invalid")
 	}
 	if (completion.ExecutionTimeMS != nil && *completion.ExecutionTimeMS < 0) ||
 		(completion.MemoryKiB != nil && *completion.MemoryKiB < 0) ||
 		!sameOptionalPresence(completion.ResultObjectKey, completion.ResultChecksum, completion.EncryptionKeyReference) {
-		return fmt.Errorf("Judge completion metrics or encrypted result are invalid")
+		return fmt.Errorf("judge completion metrics or encrypted result are invalid")
 	}
 	if completion.ResultObjectKey != nil {
 		if len(*completion.ResultObjectKey) > 2048 || len(*completion.EncryptionKeyReference) > 1024 || !validSHA256(*completion.ResultChecksum) {
-			return fmt.Errorf("Judge completion encrypted result is invalid")
+			return fmt.Errorf("judge completion encrypted result is invalid")
 		}
 	}
 	return nil
@@ -115,7 +116,7 @@ func optionalMetric(value *uint32, field string) (*int, error) {
 		return nil, nil
 	}
 	if uint64(*value) > 2147483647 {
-		return nil, fmt.Errorf("Judge completion %s exceeds Submission's signed integer range", field)
+		return nil, fmt.Errorf("judge completion %s exceeds Submission's signed integer range", field)
 	}
 	converted := int(*value)
 	return &converted, nil
@@ -140,7 +141,7 @@ func verdictFromProto(value judgev1.CompletionVerdict) (string, error) {
 	case judgev1.CompletionVerdict_COMPLETION_VERDICT_CANCELLED:
 		return "cancelled", nil
 	default:
-		return "", fmt.Errorf("Judge completion verdict_code is unsupported")
+		return "", fmt.Errorf("judge completion verdict_code is unsupported")
 	}
 }
 
@@ -192,6 +193,7 @@ func validSHA256(value string) bool {
 		return false
 	}
 	for _, character := range value {
+		//nolint:staticcheck // QF1001: the negated-range form reads more clearly for character validation
 		if !(character >= '0' && character <= '9') && !(character >= 'a' && character <= 'f') {
 			return false
 		}

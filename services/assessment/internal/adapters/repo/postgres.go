@@ -88,7 +88,7 @@ func (repository *Postgres) ClaimIdempotency(ctx context.Context, transaction pg
 		FOR UPDATE
 	`, claim.TenantID, claim.Operation, claim.Key).Scan(&requestHash, &state, &response)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, false, fmt.Errorf("Assessment idempotency record disappeared")
+		return nil, false, fmt.Errorf("assessment idempotency record disappeared")
 	}
 	if err != nil {
 		return nil, false, fmt.Errorf("read Assessment idempotency record: %w", err)
@@ -114,7 +114,7 @@ func (repository *Postgres) CompleteIdempotency(ctx context.Context, transaction
 		return fmt.Errorf("complete Assessment idempotency record: %w", err)
 	}
 	if command.RowsAffected() != 1 {
-		return fmt.Errorf("Assessment idempotency record was not in progress")
+		return fmt.Errorf("assessment idempotency record was not in progress")
 	}
 	return nil
 }
@@ -507,7 +507,7 @@ func (repository *Postgres) enqueue(ctx context.Context, transaction pgx.Tx, agg
 
 func (repository *Postgres) enqueueWithID(ctx context.Context, transaction pgx.Tx, eventID, aggregateType, aggregateID, tenantID, eventType string, payload any) error {
 	if repository == nil || repository.outbox == nil {
-		return fmt.Errorf("Assessment outbox is not initialized")
+		return fmt.Errorf("assessment outbox is not initialized")
 	}
 	encoded, err := json.Marshal(payload)
 	if err != nil {
