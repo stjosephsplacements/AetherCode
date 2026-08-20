@@ -290,3 +290,77 @@ func testKeyring(t *testing.T) *centralauthz.Keyring {
 	}
 	return keyring
 }
+
+func TestAssignmentAppliesAllowsCandidateAssignmentCollection(t *testing.T) {
+	t.Parallel()
+	principal := "018f4b0d-08f8-7c09-9ba7-efdf9c220101"
+	tenant := "018f4b0d-08f8-7c09-9ba7-efdf9c220202"
+	assignment := Assignment{Role: "student", ScopeKind: "self", ScopeID: principal, TenantID: tenant}
+	request := Request{
+		PrincipalID: principal, TenantID: tenant,
+		ResourceType: "candidate_assignments", ResourceID: principal, Action: "read",
+	}
+	if !assignmentApplies(assignment, request, nil, nil, nil) {
+		t.Fatal("assignmentApplies() = false, want true for a candidate listing their own assignments")
+	}
+}
+
+func TestAssignmentAppliesDeniesForeignCandidateAssignmentCollection(t *testing.T) {
+	t.Parallel()
+	principal := "018f4b0d-08f8-7c09-9ba7-efdf9c220101"
+	other := "018f4b0d-08f8-7c09-9ba7-efdf9c220999"
+	tenant := "018f4b0d-08f8-7c09-9ba7-efdf9c220202"
+	assignment := Assignment{Role: "student", ScopeKind: "self", ScopeID: principal, TenantID: tenant}
+	request := Request{
+		PrincipalID: principal, TenantID: tenant,
+		ResourceType: "candidate_assignments", ResourceID: other, Action: "read",
+	}
+	if assignmentApplies(assignment, request, nil, nil, nil) {
+		t.Fatal("assignmentApplies() = true, want false when the resource ID is another principal")
+	}
+}
+
+func TestAssignmentAppliesAllowsOwnSessionCollection(t *testing.T) {
+	t.Parallel()
+	principal := "018f4b0d-08f8-7c09-9ba7-efdf9c220101"
+	tenant := "018f4b0d-08f8-7c09-9ba7-efdf9c220202"
+	assignment := Assignment{Role: "student", ScopeKind: "self", ScopeID: principal, TenantID: tenant}
+	request := Request{
+		PrincipalID: principal, TenantID: tenant,
+		ResourceType: "sessions", ResourceID: principal, Action: "read",
+	}
+	if !assignmentApplies(assignment, request, nil, nil, nil) {
+		t.Fatal("assignmentApplies() = false, want true for a candidate listing their own SEB sessions")
+	}
+}
+
+func TestAssignmentAppliesDeniesForeignSessionCollection(t *testing.T) {
+	t.Parallel()
+	principal := "018f4b0d-08f8-7c09-9ba7-efdf9c220101"
+	other := "018f4b0d-08f8-7c09-9ba7-efdf9c220999"
+	tenant := "018f4b0d-08f8-7c09-9ba7-efdf9c220202"
+	assignment := Assignment{Role: "student", ScopeKind: "self", ScopeID: principal, TenantID: tenant}
+	request := Request{
+		PrincipalID: principal, TenantID: tenant,
+		ResourceType: "sessions", ResourceID: other, Action: "read",
+	}
+	if assignmentApplies(assignment, request, nil, nil, nil) {
+		t.Fatal("assignmentApplies() = true, want false when the resource ID is another principal")
+	}
+}
+
+func TestAssignmentAppliesDeniesSelfScopeInAnotherTenant(t *testing.T) {
+	t.Parallel()
+	principal := "018f4b0d-08f8-7c09-9ba7-efdf9c220101"
+	assignment := Assignment{
+		Role: "student", ScopeKind: "self", ScopeID: principal,
+		TenantID: "018f4b0d-08f8-7c09-9ba7-efdf9c220202",
+	}
+	request := Request{
+		PrincipalID: principal, TenantID: "018f4b0d-08f8-7c09-9ba7-efdf9c220303",
+		ResourceType: "sessions", ResourceID: principal, Action: "read",
+	}
+	if assignmentApplies(assignment, request, nil, nil, nil) {
+		t.Fatal("assignmentApplies() = true, want false when the self scope belongs to another tenant")
+	}
+}

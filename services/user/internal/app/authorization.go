@@ -377,6 +377,16 @@ func assignmentApplies(
 		case "students", "profiles":
 			return request.ResourceID == assignment.ScopeID
 		case "candidate_assignments":
+			// Two shapes are permitted. A get-by-id request names one opaque
+			// assignment UUID and must be proven owned against the private
+			// Assessment ownership projection. A collection request has no such
+			// UUID and instead names the bearer subject, exactly as the attempts
+			// routes do; Assessment then binds rows to
+			// authz.current_context_actor_id() inside its own list function, so
+			// this branch never authorizes another candidate's assignments.
+			if request.ResourceID == assignment.ScopeID {
+				return true
+			}
 			_, owned := ownedCandidateAssignments[request.ResourceID]
 			return owned
 		case "attempts":
@@ -395,6 +405,12 @@ func assignmentApplies(
 			// SEB uses the bearer subject as the authorization resource and its
 			// database procedure binds that signed actor to sessions.candidate_id.
 			// This grants no direct access to an opaque session or event ID.
+			return request.ResourceID == assignment.ScopeID
+		case "sessions":
+			// SEB's candidate-facing session collection authorizes with the bearer
+			// subject as the resource ID. SEB binds the signed actor to
+			// sessions.candidate_id inside its SECURITY DEFINER list function, so
+			// this policy cannot authorize a guessed opaque session ID.
 			return request.ResourceID == assignment.ScopeID
 		default:
 			return false
