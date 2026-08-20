@@ -56,7 +56,11 @@ func run(contextValue context.Context) error {
 	if err != nil {
 		logger.Warn("telemetry provider init failed, tracing disabled", "error", err)
 	} else {
-		defer otelShutdown(contextValue)
+		defer func() {
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			otelShutdown(shutdownCtx)
+		}()
 	}
 	authzDatabaseConfig, err := config.LoadDatabase("USER_AUTHZ")
 	if err != nil {

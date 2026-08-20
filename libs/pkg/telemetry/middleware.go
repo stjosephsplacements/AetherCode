@@ -4,12 +4,48 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"log/slog"
 	"net/http"
+	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/trace"
 )
+
+var (
+	uuidPattern      = regexp.MustCompile(`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`)
+	numericIDPattern = regexp.MustCompile(`/\d+(/|$)`)
+)
+
+// sanitizePath replaces UUIDs and numeric path segments with {id} to keep
+// Prometheus label cardinality bounded.
+func sanitizePath(path string) string {
+	path = uuidPattern.ReplaceAllString(path, "{id}")
+	path = numericIDPattern.ReplaceAllStringFunc(path, func(s string) string {
+		if strings.HasSuffix(s, "/") {
+			return "/{id}/"
+		}
+		return "/{id}"
+	})
+	return path
+}
+
+// LoggerWithTrace returns the logger enriched with trace_id and span_id from the
+// active OTel span in ctx. If no span is active, the logger is returned unchanged.
+func LoggerWithTrace(ctx context.Context, logger *slog.Logger) *slog.Logger {
+	span := trace.SpanFromContext(ctx)
+	if !span.SpanContext().IsValid() {
+		return logger
+	}
+	sc := span.SpanContext()
+	return logger.With(
+		slog.String("trace_id", sc.TraceID().String()),
+		slog.String("span_id", sc.SpanID().String()),
+	)
+}
 
 type requestIDKeyType struct{}
 
@@ -51,8 +87,9 @@ func HTTPMiddleware(serviceName string, next http.Handler) http.Handler {
 
 		duration := time.Since(start).Seconds()
 		status := strconv.Itoa(wrapped.status)
-		httpRequestsTotal.WithLabelValues(r.Method, r.URL.Path, status).Inc()
-		httpRequestDuration.WithLabelValues(r.Method, r.URL.Path).Observe(duration)
+		path := sanitizePath(r.URL.Path)
+		httpRequestsTotal.WithLabelValues(r.Method, path, status).Inc()
+		httpRequestDuration.WithLabelValues(r.Method, path).Observe(duration)
 	})
 }
 

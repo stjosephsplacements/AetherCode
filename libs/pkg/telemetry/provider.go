@@ -13,6 +13,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 )
 
 // InitProvider initialises the global OTel trace provider. If
@@ -30,14 +31,18 @@ func InitProvider(ctx context.Context, serviceName, version string) (func(contex
 		return nil, fmt.Errorf("create otel resource: %w", err)
 	}
 
-	var exporter sdktrace.SpanExporter
-	if os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT") != "" {
-		exporter, err = otlptracehttp.New(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("create otlp exporter: %w", err)
-		}
-	} else {
-		exporter = &noopExporter{}
+	if os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT") == "" {
+		otel.SetTracerProvider(noop.NewTracerProvider())
+		otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
+			propagation.TraceContext{},
+			propagation.Baggage{},
+		))
+		return func(_ context.Context) {}, nil
+	}
+
+	exporter, err := otlptracehttp.New(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("create otlp exporter: %w", err)
 	}
 
 	sampler := sdktrace.ParentBased(sdktrace.TraceIDRatioBased(samplerRatio()))
@@ -72,8 +77,3 @@ func samplerRatio() float64 {
 	}
 	return 0.1
 }
-
-type noopExporter struct{}
-
-func (n *noopExporter) ExportSpans(_ context.Context, _ []sdktrace.ReadOnlySpan) error { return nil }
-func (n *noopExporter) Shutdown(_ context.Context) error                               { return nil }
