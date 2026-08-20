@@ -595,6 +595,11 @@ func (service *Service) ListSessions(contextValue context.Context, capability ce
 }
 
 func (service *Service) ListConfigurations(contextValue context.Context, capability centralauthz.Capability, command ListConfigurations) (Page[Configuration], error) {
+	if command.CursorSort != "" {
+		if _, err := time.Parse(time.RFC3339Nano, command.CursorSort); err != nil {
+			return Page[Configuration]{}, apperrors.New(apperrors.CodeInvalidArgument, "cursor contains an invalid timestamp")
+		}
+	}
 	var page Page[Configuration]
 	err := database.WithTenantTx(contextValue, service.pool, capability, func(transaction pgx.Tx) error {
 		probe := command

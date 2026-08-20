@@ -445,11 +445,16 @@ func (handler *Handler) listPublishedQuestions(writer http.ResponseWriter, reque
 		return
 	}
 	query := request.URL.Query()
+	difficulty, err := httpx.ParseEnumQuery(request, "difficulty", "easy", "medium", "hard")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
 	command := app.ListPublishedQuestions{
 		Limit:      limit,
 		CursorSort: cursor.SortValue,
 		CursorID:   cursor.ID,
-		Difficulty: strings.TrimSpace(query.Get("difficulty")),
+		Difficulty: difficulty,
 		Tag:        strings.TrimSpace(query.Get("tag")),
 		Language:   strings.TrimSpace(query.Get("language")),
 	}
@@ -483,12 +488,17 @@ func (handler *Handler) listQuestionVersions(writer http.ResponseWriter, request
 		httpx.WriteError(writer, err)
 		return
 	}
+	status, err := httpx.ParseEnumQuery(request, "status", "draft", "published", "retired")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
 	command := app.ListQuestionVersions{
 		QuestionID: questionID,
 		Limit:      limit,
 		CursorSort: cursor.SortValue,
 		CursorID:   cursor.ID,
-		Status:     strings.TrimSpace(query.Get("status")),
+		Status:     status,
 	}
 	page, err := handler.service.ListQuestionVersions(request.Context(), decision.Capability, command)
 	if err != nil {

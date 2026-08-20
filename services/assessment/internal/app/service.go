@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"math/big"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -791,6 +792,11 @@ func (service *Service) ListCandidateAssignments(ctx context.Context, capability
 
 // ListExams returns a keyset page of exams for the tenant.
 func (service *Service) ListExams(ctx context.Context, capability centralauthz.Capability, command ListExams) (Page[Exam], error) {
+	if command.CursorSort != "" {
+		if _, err := time.Parse(time.RFC3339Nano, command.CursorSort); err != nil {
+			return Page[Exam]{}, apperrors.New(apperrors.CodeInvalidArgument, "cursor contains an invalid timestamp")
+		}
+	}
 	var page Page[Exam]
 	err := service.withTenantTx(ctx, capability, command.TenantID, func(transaction pgx.Tx) error {
 		probe := command
@@ -816,6 +822,11 @@ func (service *Service) ListExams(ctx context.Context, capability centralauthz.C
 
 // ListExamVersions returns a keyset page of versions for the given exam.
 func (service *Service) ListExamVersions(ctx context.Context, capability centralauthz.Capability, command ListExamVersions) (Page[ExamVersion], error) {
+	if command.CursorSort != "" {
+		if _, err := strconv.ParseInt(command.CursorSort, 10, 64); err != nil {
+			return Page[ExamVersion]{}, apperrors.New(apperrors.CodeInvalidArgument, "cursor contains an invalid version number")
+		}
+	}
 	var page Page[ExamVersion]
 	err := service.withTenantTx(ctx, capability, command.TenantID, func(transaction pgx.Tx) error {
 		probe := command
