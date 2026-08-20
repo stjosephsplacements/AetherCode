@@ -6,6 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
+	"time"
 
 	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
 	"github.com/aethercode/aethercode/services/question-bank/internal/app"
@@ -234,9 +237,18 @@ func (repository *Postgres) GetQuestionVersion(contextValue context.Context, tra
 	return decodeQuestionVersion(raw)
 }
 
-func (repository *Postgres) ListPublishedQuestions(contextValue context.Context, transaction pgx.Tx, limit int) ([]app.QuestionDetail, error) {
+func (repository *Postgres) ListPublishedQuestions(contextValue context.Context, transaction pgx.Tx, command app.ListPublishedQuestions) ([]app.QuestionDetail, error) {
 	var raw json.RawMessage
-	if err := transaction.QueryRow(contextValue, `SELECT qbank.list_published_questions($1)`, limit).Scan(&raw); err != nil {
+	err := transaction.QueryRow(contextValue, `
+		SELECT qbank.list_published_questions($1, $2, $3, $4, $5, $6)
+	`,
+		command.Limit,
+		nullableTimestamp(command.CursorSort), nullableText(command.CursorID),
+		nullableText(command.Difficulty),
+		nullableText(command.Tag),
+		nullableText(command.Language),
+	).Scan(&raw)
+	if err != nil {
 		return nil, mapCommandError(err, "list published questions")
 	}
 	var questions []app.QuestionDetail
@@ -244,6 +256,55 @@ func (repository *Postgres) ListPublishedQuestions(contextValue context.Context,
 		return nil, fmt.Errorf("decode published question list: %w", err)
 	}
 	return questions, nil
+}
+
+func (repository *Postgres) ListQuestionVersions(contextValue context.Context, transaction pgx.Tx, command app.ListQuestionVersions) ([]app.QuestionVersion, error) {
+	var raw json.RawMessage
+	err := transaction.QueryRow(contextValue, `
+		SELECT qbank.list_question_versions($1, $2, $3, $4, $5)
+	`,
+		nullableText(command.QuestionID),
+		command.Limit,
+		nullableInt(command.CursorSort), nullableText(command.CursorID),
+		nullableText(command.Status),
+	).Scan(&raw)
+	if err != nil {
+		return nil, mapCommandError(err, "list question versions")
+	}
+	var versions []app.QuestionVersion
+	if err := json.Unmarshal(raw, &versions); err != nil {
+		return nil, fmt.Errorf("decode question version list: %w", err)
+	}
+	return versions, nil
+}
+
+func nullableText(value string) any {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	return value
+}
+
+func nullableTimestamp(value string) any {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	parsed, err := time.Parse(time.RFC3339Nano, value)
+	if err != nil {
+		return nil
+	}
+	return parsed.UTC()
+}
+
+func nullableInt(value string) any {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	parsed, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return nil
+	}
+	return parsed
 }
 
 func encodedVersionParts(content app.VersionContent) ([]byte, []byte, error) {

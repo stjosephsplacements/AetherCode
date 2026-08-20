@@ -18,6 +18,7 @@ import (
 	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
 	"github.com/aethercode/aethercode/libs/pkg/database"
 	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
+	"github.com/aethercode/aethercode/libs/pkg/pagination"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -54,7 +55,8 @@ type Store interface {
 	GetQuestionVersion(context.Context, pgx.Tx, string) (QuestionVersion, error)
 	GetQuestionIncludeDeleted(context.Context, pgx.Tx, string) (Question, error)
 	GetQuestionVersionIncludeDeleted(context.Context, pgx.Tx, string) (QuestionVersion, error)
-	ListPublishedQuestions(context.Context, pgx.Tx, int) ([]QuestionDetail, error)
+	ListPublishedQuestions(context.Context, pgx.Tx, ListPublishedQuestions) ([]QuestionDetail, error)
+	ListQuestionVersions(context.Context, pgx.Tx, ListQuestionVersions) ([]QuestionVersion, error)
 	SoftDeleteQuestion(context.Context, pgx.Tx, DeleteQuestion) error
 	HardDeleteQuestion(context.Context, pgx.Tx, DeleteQuestion) error
 	SoftDeleteQuestionVersion(context.Context, pgx.Tx, DeleteQuestionVersion) error
@@ -121,6 +123,32 @@ type QuestionVersion struct {
 type QuestionDetail struct {
 	Question        Question        `json:"question"`
 	QuestionVersion QuestionVersion `json:"question_version"`
+}
+
+// Page is the generic keyset-paginated response used by collection endpoints.
+type Page[T any] struct {
+	Items      []T    `json:"items"`
+	NextCursor string `json:"next_cursor,omitempty"`
+}
+
+// ListPublishedQuestions is Class B: Question Bank content is tenant-global, so
+// require_read_context plus RLS is the whole authorization story.
+type ListPublishedQuestions struct {
+	Limit      int
+	CursorSort string
+	CursorID   string
+	Difficulty string
+	Tag        string
+	Language   string
+}
+
+// ListQuestionVersions lists versions of a specific question with cursor pagination.
+type ListQuestionVersions struct {
+	QuestionID string
+	Limit      int
+	CursorSort string
+	CursorID   string
+	Status     string
 }
 
 type WriteCommand struct {
@@ -378,17 +406,60 @@ func (service *Service) GetQuestionVersion(contextValue context.Context, capabil
 	return result, err
 }
 
-func (service *Service) ListPublishedQuestions(contextValue context.Context, capability centralauthz.Capability, limit int) ([]QuestionDetail, error) {
-	if limit < 1 || limit > 100 {
-		return nil, apperrors.New(apperrors.CodeInvalidArgument, "question listing limit must be between 1 and 100")
+func (service *Service) ListPublishedQuestions(contextValue context.Context, capability centralauthz.Capability, command ListPublishedQuestions) (Page[QuestionDetail], error) {
+	if command.Limit < 1 || command.Limit > 100 {
+		return Page[QuestionDetail]{}, apperrors.New(apperrors.CodeInvalidArgument, "question listing limit must be between 1 and 100")
 	}
-	var result []QuestionDetail
+	var page Page[QuestionDetail]
 	err := database.WithTenantTx(contextValue, service.pool, capability, func(transaction pgx.Tx) error {
-		var err error
-		result, err = service.store.ListPublishedQuestions(contextValue, transaction, limit)
-		return err
+		probe := command
+		probe.Limit = command.Limit + 1
+		questions, err := service.store.ListPublishedQuestions(contextValue, transaction, probe)
+		if err != nil {
+			return err
+		}
+		page = Page[QuestionDetail]{Items: []QuestionDetail{}}
+		if len(questions) > command.Limit {
+			questions = questions[:command.Limit]
+			last := questions[len(questions)-1]
+			if last.QuestionVersion.PublishedAt != nil {
+				page.NextCursor = pagination.Encode(pagination.EncodeTime(*last.QuestionVersion.PublishedAt), last.QuestionVersion.ID)
+			}
+		}
+		page.Items = append(page.Items, questions...)
+		return nil
 	})
-	return result, err
+	if err != nil {
+		return Page[QuestionDetail]{}, err
+	}
+	return page, nil
+}
+
+func (service *Service) ListQuestionVersions(contextValue context.Context, capability centralauthz.Capability, command ListQuestionVersions) (Page[QuestionVersion], error) {
+	if command.Limit < 1 || command.Limit > 100 {
+		return Page[QuestionVersion]{}, apperrors.New(apperrors.CodeInvalidArgument, "question version listing limit must be between 1 and 100")
+	}
+	var page Page[QuestionVersion]
+	err := database.WithTenantTx(contextValue, service.pool, capability, func(transaction pgx.Tx) error {
+		probe := command
+		probe.Limit = command.Limit + 1
+		versions, err := service.store.ListQuestionVersions(contextValue, transaction, probe)
+		if err != nil {
+			return err
+		}
+		page = Page[QuestionVersion]{Items: []QuestionVersion{}}
+		if len(versions) > command.Limit {
+			versions = versions[:command.Limit]
+			last := versions[len(versions)-1]
+			page.NextCursor = pagination.Encode(pagination.FormatInt(int64(last.VersionNumber)), last.ID)
+		}
+		page.Items = append(page.Items, versions...)
+		return nil
+	})
+	if err != nil {
+		return Page[QuestionVersion]{}, err
+	}
+	return page, nil
 }
 
 func runWrite[T any](

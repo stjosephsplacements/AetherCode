@@ -30,18 +30,23 @@ paths:
         - name: limit
           in: query
           schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+        - {$ref: '#/components/parameters/Cursor'}
+        - name: difficulty
+          in: query
+          schema: {type: string, enum: [easy, medium, hard]}
+        - name: tag
+          in: query
+          schema: {type: string}
+        - name: language
+          in: query
+          schema: {type: string}
       responses:
         '200':
           description: Latest published version for each active question
           content:
             application/json:
-              schema:
-                type: object
-                required: [items]
-                properties:
-                  items:
-                    type: array
-                    items: {$ref: '#/components/schemas/QuestionDetail'}
+              schema: {$ref: '#/components/schemas/QuestionDetailPage'}
+        '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
     post:
@@ -74,6 +79,27 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
   /v1/questions/{question_id}/versions:
+    get:
+      operationId: listQuestionVersions
+      parameters:
+        - {$ref: '#/components/parameters/QuestionID'}
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+        - {$ref: '#/components/parameters/Cursor'}
+        - name: status
+          in: query
+          schema: {type: string, enum: [draft, published]}
+      responses:
+        '200':
+          description: All versions of the question visible to the caller
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/QuestionVersionPage'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
     post:
       operationId: createDraftQuestionVersion
       parameters:
@@ -242,6 +268,12 @@ components:
       in: header
       required: true
       schema: {type: string, minLength: 1, maxLength: 255}
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      schema: {type: string}
+      description: Opaque keyset cursor from the previous page's next_cursor field
     QuestionID:
       name: question_id
       in: path
@@ -272,6 +304,26 @@ components:
     UUID:
       type: string
       format: uuid
+    QuestionDetailPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/QuestionDetail'}
+        next_cursor:
+          type: string
+          description: Opaque keyset cursor; absent on the last page
+    QuestionVersionPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/QuestionVersion'}
+        next_cursor:
+          type: string
+          description: Opaque keyset cursor; absent on the last page
     EncryptedObjectReference:
       type: object
       required: [object_key, checksum, encryption_key_reference]

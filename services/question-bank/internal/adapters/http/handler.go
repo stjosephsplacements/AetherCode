@@ -4,13 +4,13 @@ package httpadapter
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/aethercode/aethercode/libs/pkg/database"
 	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
 	"github.com/aethercode/aethercode/libs/pkg/httpauth"
 	"github.com/aethercode/aethercode/libs/pkg/httpx"
+	"github.com/aethercode/aethercode/libs/pkg/pagination"
 	"github.com/aethercode/aethercode/services/question-bank/internal/app"
 )
 
@@ -28,6 +28,7 @@ func NewHandler(serviceName string, service *app.Service, readiness httpx.Readin
 	mux.HandleFunc("GET /v1/questions", handler.listPublishedQuestions)
 	mux.HandleFunc("POST /v1/questions", handler.createQuestion)
 	mux.HandleFunc("GET /v1/questions/{question_id}", handler.getPublishedQuestion)
+	mux.HandleFunc("GET /v1/questions/{question_id}/versions", handler.listQuestionVersions)
 	mux.HandleFunc("POST /v1/questions/{question_id}/versions", handler.createDraftQuestionVersion)
 	mux.HandleFunc("POST /v1/questions/{question_id}/archive", handler.archiveQuestion)
 	mux.HandleFunc("GET /v1/question-versions/{question_version_id}", handler.getQuestionVersion)
@@ -428,26 +429,72 @@ func (handler *Handler) getQuestionVersion(writer http.ResponseWriter, request *
 }
 
 func (handler *Handler) listPublishedQuestions(writer http.ResponseWriter, request *http.Request) {
-	limit := 20
-	if rawLimit := strings.TrimSpace(request.URL.Query().Get("limit")); rawLimit != "" {
-		parsed, err := strconv.Atoi(rawLimit)
-		if err != nil || parsed < 1 || parsed > 100 {
-			httpx.WriteError(writer, apperrors.New(apperrors.CodeInvalidArgument, "limit must be between 1 and 100"))
-			return
-		}
-		limit = parsed
+	limit, err := pagination.ParseLimit(request.URL.Query().Get("limit"), 20, 100)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	cursor, _, err := pagination.Parse(request.URL.Query().Get("cursor"))
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
 	}
 	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "questions", "published", "")
 	if err != nil {
 		httpx.WriteError(writer, err)
 		return
 	}
-	questions, err := handler.service.ListPublishedQuestions(request.Context(), decision.Capability, limit)
+	query := request.URL.Query()
+	command := app.ListPublishedQuestions{
+		Limit:      limit,
+		CursorSort: cursor.SortValue,
+		CursorID:   cursor.ID,
+		Difficulty: strings.TrimSpace(query.Get("difficulty")),
+		Tag:        strings.TrimSpace(query.Get("tag")),
+		Language:   strings.TrimSpace(query.Get("language")),
+	}
+	page, err := handler.service.ListPublishedQuestions(request.Context(), decision.Capability, command)
 	if err != nil {
 		httpx.WriteError(writer, err)
 		return
 	}
-	httpx.WriteJSON(writer, http.StatusOK, map[string]any{"items": questions})
+	httpx.WriteJSON(writer, http.StatusOK, page)
+}
+
+func (handler *Handler) listQuestionVersions(writer http.ResponseWriter, request *http.Request) {
+	questionID, err := httpx.ParseUUIDPathValue(request, "question_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	limit, err := pagination.ParseLimit(request.URL.Query().Get("limit"), 20, 100)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	cursor, _, err := pagination.Parse(request.URL.Query().Get("cursor"))
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "questions", "versions", questionID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	command := app.ListQuestionVersions{
+		QuestionID: questionID,
+		Limit:      limit,
+		CursorSort: cursor.SortValue,
+		CursorID:   cursor.ID,
+		Status:     strings.TrimSpace(request.URL.Query().Get("status")),
+	}
+	page, err := handler.service.ListQuestionVersions(request.Context(), decision.Capability, command)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, page)
 }
 
 func objectReference(request objectReferenceRequest) app.ObjectReference {

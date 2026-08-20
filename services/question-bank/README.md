@@ -12,6 +12,31 @@ capability and an exact local authorization-projection revision before its
 `FORCE ROW LEVEL SECURITY` policies permit work. A missing or lagging global
 projection denies access.
 
+## Collection endpoints
+
+`GET /v1/questions` lists published questions with cursor-based keyset
+pagination. Supported query parameters:
+
+| Parameter    | Default | Notes                                      |
+|---|---|---|
+| `limit`      | 20      | 1–100; out-of-range returns 400            |
+| `cursor`     | —       | Opaque token from `next_cursor` in a prior response |
+| `difficulty` | —       | Optional filter (`easy`, `medium`, `hard`) |
+| `tag`        | —       | Optional tag name filter                   |
+| `language`   | —       | Optional supported-language filter         |
+
+`GET /v1/questions/{question_id}/versions` lists all versions of one question
+(including drafts visible to the caller under RLS), also cursor-paginated:
+
+| Parameter | Default | Notes                            |
+|---|---|---|
+| `limit`   | 20      | 1–100                            |
+| `cursor`  | —       | Opaque token from prior response |
+| `status`  | —       | Optional filter (`draft`, `published`) |
+
+Both endpoints return `{"items": [...], "next_cursor": "..."}`. An absent
+`next_cursor` means the last page has been reached.
+
 ## Authoring workflow
 
 1. `POST /v1/questions` creates a draft question and draft version `1`.

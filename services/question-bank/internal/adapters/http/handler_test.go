@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/aethercode/aethercode/libs/pkg/pagination"
 )
 
 func TestIdempotencyKeyRequiresPrintableHeader(t *testing.T) {
@@ -77,5 +79,28 @@ func TestListPublishedQuestionsLimitBounds(t *testing.T) {
 		}
 		recorder := httptest.NewRecorder()
 		_ = recorder
+	}
+}
+
+func TestListQuestionsRejectsMalformedCursor(t *testing.T) {
+	t.Parallel()
+	// "not.a.valid.cursor" contains dots which are not in the base64url alphabet,
+	// so pagination.Parse must reject it with an error.
+	request := httptest.NewRequest(http.MethodGet, "/v1/questions?cursor=not.a.valid.cursor", nil)
+	rawCursor := request.URL.Query().Get("cursor")
+	_, _, err := pagination.Parse(rawCursor)
+	if err == nil {
+		t.Fatal("pagination.Parse accepted a malformed cursor, want error")
+	}
+}
+
+func TestListQuestionsStillAcceptsBareLimit(t *testing.T) {
+	t.Parallel()
+	// A limit-only request carries no cursor; Parse("") must succeed.
+	request := httptest.NewRequest(http.MethodGet, "/v1/questions?limit=5", nil)
+	rawCursor := request.URL.Query().Get("cursor")
+	_, _, err := pagination.Parse(rawCursor)
+	if err != nil {
+		t.Fatalf("pagination.Parse rejected empty cursor for limit-only request: %v", err)
 	}
 }
