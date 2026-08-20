@@ -139,6 +139,8 @@ func ParseUUIDValue(raw, name string) (string, error) {
 // ParseEnumQuery validates an optional enumerated query filter. An absent
 // parameter is not an error and returns "". A present value outside the allowed
 // set is rejected, so a mistyped filter never silently returns an empty page.
+// An empty value (?name=) is indistinguishable from absent, since url.Values
+// cannot tell them apart, and is likewise treated as absent-or-empty, not an error.
 func ParseEnumQuery(request *http.Request, name string, allowed ...string) (string, error) {
 	raw := strings.TrimSpace(request.URL.Query().Get(name))
 	if raw == "" {

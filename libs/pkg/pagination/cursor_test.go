@@ -52,7 +52,7 @@ func TestParseRejectsMalformedCursors(t *testing.T) {
 	}{
 		{name: "not base64", raw: "!!!not-base64!!!"},
 		{name: "missing separator", raw: Encode("", "")},
-		{name: "too many segments", raw: encodeRaw("a|b|c")},
+		{name: "no separator at all", raw: encodeRaw(testID)},
 		{name: "empty sort value", raw: encodeRaw("|" + testID)},
 		{name: "non-uuid id", raw: encodeRaw("2026-08-20T10:11:12Z|not-a-uuid")},
 		{name: "empty id", raw: encodeRaw("2026-08-20T10:11:12Z|")},
@@ -64,6 +64,28 @@ func TestParseRejectsMalformedCursors(t *testing.T) {
 				t.Fatalf("Parse(%q) error = nil, want an error", testCase.raw)
 			}
 		})
+	}
+}
+
+// TestParseAllowsSeparatorInSortValue documents that Parse splits on the
+// first separator only, so a sort value that itself contains the separator
+// (a three-segment payload such as "a|b|<uuid>") round-trips instead of
+// being misread as a corrupted, too-many-segments token.
+func TestParseAllowsSeparatorInSortValue(t *testing.T) {
+	t.Parallel()
+	encoded := Encode("a|b", testID)
+	cursor, present, err := Parse(encoded)
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if !present {
+		t.Fatal("Parse() present = false, want true")
+	}
+	if cursor.SortValue != "a|b" {
+		t.Fatalf("Parse() SortValue = %q, want %q", cursor.SortValue, "a|b")
+	}
+	if cursor.ID != testID {
+		t.Fatalf("Parse() ID = %q, want %q", cursor.ID, testID)
 	}
 }
 
@@ -101,6 +123,34 @@ func TestParseLimitBounds(t *testing.T) {
 				t.Fatalf("ParseLimit(%q) = %d, want %d", testCase.raw, got, testCase.want)
 			}
 		})
+	}
+}
+
+// TestEncodeTimeZeroNanosecondsSortsChronologically guards against
+// time.RFC3339Nano, which trims a trailing all-zero fractional part
+// entirely: a zero-nanosecond instant would then string-compare as GREATER
+// than a later instant in the same second that has a nonzero fraction,
+// because '.' (0x2E) sorts below 'Z' (0x5A). Encoded values must remain
+// chronologically ordered as plain strings for keyset pagination to work.
+func TestEncodeTimeZeroNanosecondsSortsChronologically(t *testing.T) {
+	t.Parallel()
+	earlier := time.Date(2026, time.August, 20, 10, 11, 12, 0, time.UTC)
+	later := time.Date(2026, time.August, 20, 10, 11, 12, 500000000, time.UTC)
+	earlierEncoded := EncodeTime(earlier)
+	laterEncoded := EncodeTime(later)
+	if earlierEncoded >= laterEncoded {
+		t.Fatalf("EncodeTime(ns=0) = %q, EncodeTime(ns=5e8) = %q; want the former to sort strictly before the latter",
+			earlierEncoded, laterEncoded)
+	}
+	cursor, present, err := Parse(Encode(earlierEncoded, testID))
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if !present {
+		t.Fatal("Parse() present = false, want true")
+	}
+	if cursor.SortValue != earlierEncoded {
+		t.Fatalf("Parse() SortValue = %q, want %q", cursor.SortValue, earlierEncoded)
 	}
 }
 

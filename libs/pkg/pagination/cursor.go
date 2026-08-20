@@ -17,6 +17,13 @@ import (
 
 const separator = "|"
 
+// timestampLayout is a fixed-width RFC3339 nanosecond layout. time.RFC3339Nano
+// trims trailing zero fractional digits, which breaks string ordering: a
+// zero-nanosecond instant ("...12Z") would sort after a later instant with a
+// nonzero fraction ("...12.5Z") because '.' (0x2E) sorts before 'Z' (0x5A).
+// Values produced by this layout still parse with time.RFC3339Nano.
+const timestampLayout = "2006-01-02T15:04:05.000000000Z07:00"
+
 var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 
 // Cursor is one decoded keyset position: the value of the sort column and the
@@ -48,11 +55,16 @@ func Parse(raw string) (Cursor, bool, error) {
 	if err != nil {
 		return Cursor{}, false, apperrors.New(apperrors.CodeInvalidArgument, "cursor is not a valid pagination token")
 	}
-	parts := strings.Split(string(decoded), separator)
-	if len(parts) != 2 {
+	// Split on the LAST separator, not the first: a UUID can never contain
+	// the separator, but sortValue is caller-supplied and may. Splitting on
+	// the first occurrence would misread a sort value like "a|b" as sortValue
+	// "a" and id "b|<uuid>", which then fails UUID validation.
+	payload := string(decoded)
+	lastIndex := strings.LastIndex(payload, separator)
+	if lastIndex < 0 {
 		return Cursor{}, false, apperrors.New(apperrors.CodeInvalidArgument, "cursor is not a valid pagination token")
 	}
-	sortValue, id := parts[0], parts[1]
+	sortValue, id := payload[:lastIndex], payload[lastIndex+len(separator):]
 	if strings.TrimSpace(sortValue) == "" || !uuidPattern.MatchString(id) {
 		return Cursor{}, false, apperrors.New(apperrors.CodeInvalidArgument, "cursor is not a valid pagination token")
 	}
@@ -74,9 +86,11 @@ func ParseLimit(raw string, defaultLimit, maxLimit int) (int, error) {
 }
 
 // EncodeTime renders a timestamp sort value. Nanosecond precision matters:
-// two rows created in the same millisecond must produce different cursors.
+// two rows created in the same millisecond must produce different cursors. A
+// fixed-width layout is used so that string comparison of two encoded values
+// agrees with chronological order regardless of trailing zero digits.
 func EncodeTime(value time.Time) string {
-	return value.UTC().Format(time.RFC3339Nano)
+	return value.UTC().Format(timestampLayout)
 }
 
 // FormatInt renders an integer sort value such as a version number.
