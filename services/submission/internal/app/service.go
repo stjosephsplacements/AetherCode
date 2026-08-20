@@ -446,19 +446,24 @@ func (service *Service) ListAnswerRevisions(contextValue context.Context, capabi
 		if err != nil {
 			return err
 		}
-		page = Page[AnswerRevision]{Items: []AnswerRevision{}}
-		if len(revisions) > command.Limit {
-			revisions = revisions[:command.Limit]
-			last := revisions[len(revisions)-1]
-			page.NextCursor = pagination.Encode(pagination.EncodeTime(last.CreatedAt), last.ID)
-		}
-		page.Items = append(page.Items, revisions...)
+		page = buildAnswerRevisionPage(revisions, command.Limit)
 		return nil
 	})
 	if err != nil {
 		return Page[AnswerRevision]{}, err
 	}
 	return page, nil
+}
+
+func buildAnswerRevisionPage(revisions []AnswerRevision, limit int) Page[AnswerRevision] {
+	page := Page[AnswerRevision]{Items: []AnswerRevision{}}
+	if len(revisions) > limit {
+		revisions = revisions[:limit]
+		last := revisions[len(revisions)-1]
+		page.NextCursor = pagination.Encode(pagination.EncodeTime(last.CreatedAt), last.ID)
+	}
+	page.Items = append(page.Items, revisions...)
+	return page
 }
 
 // DeleteAttempt performs soft delete (default for all authorized roles).

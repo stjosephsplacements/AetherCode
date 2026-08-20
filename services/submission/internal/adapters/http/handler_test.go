@@ -1,12 +1,12 @@
 package httpadapter
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	"github.com/aethercode/aethercode/libs/pkg/pagination"
 )
 
 func TestRequiredIdempotencyKey(t *testing.T) {
@@ -27,16 +27,28 @@ func TestRequiredIdempotencyKey(t *testing.T) {
 	}
 }
 
-func TestParseLimitRejectsZero(t *testing.T) {
+func TestOptionalUUIDQueryAcceptsEmpty(t *testing.T) {
 	t.Parallel()
-	if _, err := pagination.ParseLimit("0", 20, 100); err == nil {
-		t.Fatal("limit=0 must fail")
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	if v, err := optionalUUIDQuery(req, "exam_version_id"); err != nil || v != "" {
+		t.Fatalf("empty param should return empty string, got %q, %v", v, err)
 	}
 }
 
-func TestParseCursorRejectsMalformed(t *testing.T) {
+func TestOptionalUUIDQueryRejectsMalformed(t *testing.T) {
 	t.Parallel()
-	if _, _, err := pagination.Parse("!!!"); err == nil {
-		t.Fatal("cursor=!!! must fail")
+	req := httptest.NewRequest(http.MethodGet, "/?exam_version_id=not-a-uuid", nil)
+	if _, err := optionalUUIDQuery(req, "exam_version_id"); err == nil {
+		t.Fatal("malformed UUID must be rejected")
+	}
+}
+
+func TestOptionalUUIDQueryAcceptsValidUUID(t *testing.T) {
+	t.Parallel()
+	req := httptest.NewRequest(http.MethodGet,
+		"/?exam_version_id=018f4b0d-08f8-7c09-9ba7-efdf9c221001", nil)
+	v, err := optionalUUIDQuery(req, "exam_version_id")
+	if err != nil || v != "018f4b0d-08f8-7c09-9ba7-efdf9c221001" {
+		t.Fatalf("valid UUID rejected: %q, %v", v, err)
 	}
 }
