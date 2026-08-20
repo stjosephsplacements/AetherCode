@@ -15,8 +15,9 @@ propagation, and HTTP middleware for all AetherCode services.
   used so services start cleanly without one.
 - **Prometheus metrics** — exposes `http_requests_total` (counter) and
   `http_request_duration_seconds` (histogram) labelled by method, sanitised
-  path, and status code. DB connection-pool metrics are available via
-  `RegisterDBPool`.
+  path, and status code. DB connection-pool metrics are available via the
+  `telemetry/dbmetrics` sub-package, which is kept separate so services
+  without a DB (e.g. gateway) do not transitively import pgxpool.
 
 ---
 
@@ -27,7 +28,7 @@ propagation, and HTTP middleware for all AetherCode services.
 | `InitProvider(ctx, service, version)` | Initialise the global OTel trace provider. Returns a shutdown func that must be called on graceful shutdown. |
 | `Tracer(name)` | Return a tracer from the global OTel provider. |
 | `HTTPMiddleware(service, next)` | Wrap an `http.Handler` with request-ID injection, OTel span creation, and Prometheus recording. |
-| `RegisterDBPool(service, pool)` | Register a `pgxpool.Pool` with Prometheus so connection totals, idle, and in-use gauges are exported. |
+| `dbmetrics.Register(service, pool)` | (**sub-package** `telemetry/dbmetrics`) Register a `pgxpool.Pool` with Prometheus so connection totals, idle, and in-use gauges are exported. Import only in services that have a DB pool. |
 | `ContextWithRequestID(ctx, id)` | Store a request ID in a context. |
 | `RequestIDFromContext(ctx)` | Retrieve the request ID from a context; returns `""` if absent. |
 | `LoggerWithTrace(ctx, logger)` | Return a `*slog.Logger` enriched with `trace_id` and `span_id` from the active OTel span in ctx. |
