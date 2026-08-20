@@ -13,6 +13,7 @@ import (
 	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
 	"github.com/aethercode/aethercode/libs/pkg/database"
 	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
+	"github.com/aethercode/aethercode/libs/pkg/pagination"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -22,6 +23,34 @@ var (
 	sha256Pattern     = regexp.MustCompile(`^[0-9a-f]{64}$`)
 	languageIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._+:-]{0,79}$`)
 )
+
+// Page is one keyset page. NextCursor is empty on the final page.
+type Page[T any] struct {
+	Items      []T    `json:"items"`
+	NextCursor string `json:"next_cursor,omitempty"`
+}
+
+// ListAttempts is a candidate-scoped attempt query. CandidateID is deliberately
+// absent: the database binds rows to the signed context actor.
+type ListAttempts struct {
+	TenantID       string
+	Limit          int
+	CursorSort     string
+	CursorID       string
+	ExamVersionID  string
+	LifecycleState string
+}
+
+// ListAnswerRevisions is a candidate-scoped answer-metadata query scoped to one
+// attempt the caller must own.
+type ListAnswerRevisions struct {
+	TenantID   string
+	AttemptID  string
+	Limit      int
+	CursorSort string
+	CursorID   string
+	ExamItemID string
+}
 
 // Store is implemented by the Submission PostgreSQL adapter. Every call runs
 // within the request's fresh, signed authorization transaction.
@@ -35,6 +64,8 @@ type Store interface {
 	CountEvaluationRequests(context.Context, pgx.Tx, GetAttempt) (int, error)
 	SoftDeleteAttempt(context.Context, pgx.Tx, DeleteAttempt) error
 	HardDeleteAttempt(context.Context, pgx.Tx, DeleteAttempt) error
+	ListAttempts(context.Context, pgx.Tx, ListAttempts) ([]Attempt, error)
+	ListAnswerRevisions(context.Context, pgx.Tx, ListAnswerRevisions) ([]AnswerRevision, error)
 	Ping(context.Context) error
 }
 
@@ -373,6 +404,61 @@ func validIdempotencyKey(value string) bool {
 func validText(value string, maximum int) bool {
 	length := len([]rune(strings.TrimSpace(value)))
 	return length > 0 && length <= maximum
+}
+
+func (service *Service) ListAttempts(contextValue context.Context, capability centralauthz.Capability, command ListAttempts) (Page[Attempt], error) {
+	var page Page[Attempt]
+	err := database.WithTenantTx(contextValue, service.pool, capability, func(transaction pgx.Tx) error {
+		// Fetch one extra row to learn whether a further page exists without a
+		// second count query.
+		probe := command
+		probe.Limit = command.Limit + 1
+		attempts, err := service.store.ListAttempts(contextValue, transaction, probe)
+		if err != nil {
+			return err
+		}
+		page = buildAttemptPage(attempts, command.Limit)
+		return nil
+	})
+	if err != nil {
+		return Page[Attempt]{}, err
+	}
+	return page, nil
+}
+
+func buildAttemptPage(attempts []Attempt, limit int) Page[Attempt] {
+	page := Page[Attempt]{Items: []Attempt{}}
+	if len(attempts) > limit {
+		attempts = attempts[:limit]
+		last := attempts[len(attempts)-1]
+		page.NextCursor = pagination.Encode(pagination.EncodeTime(last.CreatedAt), last.ID)
+	}
+	page.Items = append(page.Items, attempts...)
+	return page
+}
+
+func (service *Service) ListAnswerRevisions(contextValue context.Context, capability centralauthz.Capability, command ListAnswerRevisions) (Page[AnswerRevision], error) {
+	var page Page[AnswerRevision]
+	err := database.WithTenantTx(contextValue, service.pool, capability, func(transaction pgx.Tx) error {
+		probe := command
+		probe.Limit = command.Limit + 1
+		revisions, err := service.store.ListAnswerRevisions(contextValue, transaction, probe)
+		if err != nil {
+			return err
+		}
+		page = Page[AnswerRevision]{Items: []AnswerRevision{}}
+		if len(revisions) > command.Limit {
+			revisions = revisions[:command.Limit]
+			last := revisions[len(revisions)-1]
+			page.NextCursor = pagination.Encode(pagination.EncodeTime(last.CreatedAt), last.ID)
+		}
+		page.Items = append(page.Items, revisions...)
+		return nil
+	})
+	if err != nil {
+		return Page[AnswerRevision]{}, err
+	}
+	return page, nil
 }
 
 // DeleteAttempt performs soft delete (default for all authorized roles).

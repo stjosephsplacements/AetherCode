@@ -17,6 +17,41 @@ paths:
         '503':
           description: A required dependency is unavailable.
   /v1/tenants/{tenant_id}/attempts:
+    get:
+      summary: List the calling candidate's attempts (keyset paged)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: exam_version_id
+          in: query
+          schema:
+            $ref: '#/components/schemas/UUID'
+        - name: lifecycle_state
+          in: query
+          schema:
+            type: string
+            enum: [created, active, submitted, grading, graded, expired, cancelled]
+      responses:
+        '200':
+          description: One keyset page of attempts. next_cursor is absent on the final page.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttemptPage'
+        '400': { $ref: '#/components/responses/Problem400' }
+        '403': { $ref: '#/components/responses/Problem403' }
     post:
       summary: Start an assignment-backed candidate attempt
       security:
@@ -63,6 +98,38 @@ paths:
         '400': { $ref: '#/components/responses/Problem400' }
         '403': { $ref: '#/components/responses/Problem403' }
         '404': { $ref: '#/components/responses/Problem404' }
+  /v1/tenants/{tenant_id}/attempts/{attempt_id}/answers:
+    get:
+      summary: List answer-revision metadata for an attempt the caller owns (keyset paged)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/AttemptID'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: exam_item_id
+          in: query
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: One keyset page of answer revisions. next_cursor is absent on the final page.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnswerRevisionPage'
+        '400': { $ref: '#/components/responses/Problem400' }
+        '403': { $ref: '#/components/responses/Problem403' }
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/answers/{exam_item_id}:
     put:
       summary: Append an immutable answer revision
@@ -252,6 +319,28 @@ components:
         created_at: { type: string, format: date-time }
         created_by: { $ref: '#/components/schemas/UUID' }
         attempt_version: { type: integer, minimum: 1 }
+    AttemptPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Attempt'
+        next_cursor:
+          type: string
+    AnswerRevisionPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnswerRevision'
+        next_cursor:
+          type: string
     Problem:
       type: object
       additionalProperties: false

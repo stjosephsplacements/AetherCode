@@ -11,6 +11,7 @@ import (
 	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
 	"github.com/aethercode/aethercode/libs/pkg/httpauth"
 	"github.com/aethercode/aethercode/libs/pkg/httpx"
+	"github.com/aethercode/aethercode/libs/pkg/pagination"
 	"github.com/aethercode/aethercode/services/submission/internal/app"
 )
 
@@ -31,6 +32,8 @@ func NewHandler(serviceName string, service *app.Service, readiness httpx.Readin
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/attempts/{attempt_id}/submit", handler.submitAttempt)
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/attempts/{attempt_id}", handler.deleteAttempt)
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/attempts/{attempt_id}/hard", handler.hardDeleteAttempt)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts", handler.listAttempts)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}/answers", handler.listAnswerRevisions)
 	return mux, nil
 }
 
@@ -315,4 +318,105 @@ func (handler *Handler) hardDeleteAttempt(writer http.ResponseWriter, request *h
 		return
 	}
 	writer.WriteHeader(http.StatusNoContent)
+}
+
+func (handler *Handler) listAttempts(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	limit, err := pagination.ParseLimit(request.URL.Query().Get("limit"), 20, 100)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	cursor, _, err := pagination.Parse(request.URL.Query().Get("cursor"))
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	examVersionID, err := optionalUUIDQuery(request, "exam_version_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	lifecycleState, err := httpx.ParseEnumQuery(request, "lifecycle_state",
+		"created", "active", "submitted", "grading", "graded", "expired", "cancelled")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	// The candidate collection authorizes with the bearer subject as the
+	// resource; Submission binds rows to the signed actor in the database.
+	decision, err := handler.authorizer.AuthorizeSelfHTTP(request.Context(), request, "read", "attempts", tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	page, err := handler.service.ListAttempts(request.Context(), decision.Capability, app.ListAttempts{
+		TenantID: tenantID, Limit: limit,
+		CursorSort: cursor.SortValue, CursorID: cursor.ID,
+		ExamVersionID:  examVersionID,
+		LifecycleState: lifecycleState,
+	})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, page)
+}
+
+func (handler *Handler) listAnswerRevisions(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	attemptID, err := httpx.ParseUUIDPathValue(request, "attempt_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	limit, err := pagination.ParseLimit(request.URL.Query().Get("limit"), 20, 100)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	cursor, _, err := pagination.Parse(request.URL.Query().Get("cursor"))
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	examItemID, err := optionalUUIDQuery(request, "exam_item_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeSelfHTTP(request.Context(), request, "read", "attempts", tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	page, err := handler.service.ListAnswerRevisions(request.Context(), decision.Capability, app.ListAnswerRevisions{
+		TenantID: tenantID, AttemptID: attemptID, Limit: limit,
+		CursorSort: cursor.SortValue, CursorID: cursor.ID,
+		ExamItemID: examItemID,
+	})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, page)
+}
+
+// optionalUUIDQuery validates an optional UUID filter. An absent parameter is
+// not an error; a present but malformed one is, so a typo never silently widens
+// the result set.
+func optionalUUIDQuery(request *http.Request, name string) (string, error) {
+	raw := strings.TrimSpace(request.URL.Query().Get(name))
+	if raw == "" {
+		return "", nil
+	}
+	return httpx.ParseUUIDValue(raw, name)
 }

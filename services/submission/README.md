@@ -4,10 +4,14 @@ Submission owns the durable candidate-attempt record: attempt state, append-only
 
 Candidate API:
 
-- `POST /v1/tenants/{tenant_id}/attempts` starts an assignment-backed attempt. `Idempotency-Key` is required; a newly created attempt emits one durable analytics-safe start fact, while an idempotent replay emits none.
-- `GET /v1/tenants/{tenant_id}/attempts/{attempt_id}` returns the caller's own attempt.
-- `PUT /v1/tenants/{tenant_id}/attempts/{attempt_id}/answers/{exam_item_id}` appends an answer revision with optimistic attempt-version checking.
-- `POST /v1/tenants/{tenant_id}/attempts/{attempt_id}/submit` atomically snapshots the latest answer per item, creates durable evaluation requests, and emits one `submission.evaluation_requested.v1` outbox event per request. `Idempotency-Key` is required.
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/v1/tenants/{tenant_id}/attempts` | Start an assignment-backed attempt. `Idempotency-Key` is required; a newly created attempt emits one durable analytics-safe start fact, while an idempotent replay emits none. |
+| `GET` | `/v1/tenants/{tenant_id}/attempts` | List the calling candidate's attempts. Keyset paged via `limit` (1-100, default 20) and `cursor`. Filters: `exam_version_id`, `lifecycle_state`. Rows are bound to the signed context actor by `submission.list_attempts`. |
+| `GET` | `/v1/tenants/{tenant_id}/attempts/{attempt_id}` | Return the caller's own attempt. |
+| `PUT` | `/v1/tenants/{tenant_id}/attempts/{attempt_id}/answers/{exam_item_id}` | Append an answer revision with optimistic attempt-version checking. |
+| `POST` | `/v1/tenants/{tenant_id}/attempts/{attempt_id}/submit` | Atomically snapshot the latest answer per item, create durable evaluation requests, and emit one `submission.evaluation_requested.v1` outbox event per request. `Idempotency-Key` is required. |
+| `GET` | `/v1/tenants/{tenant_id}/attempts/{attempt_id}/answers` | List answer-revision metadata for an attempt the caller owns. Filters: `exam_item_id`. |
 
 Every route obtains a fresh central User authorization decision, then consumes the signed capability in one local transaction. Database functions enforce candidate ownership again; a candidate cannot select another candidate's attempt even if an application handler is changed incorrectly. Local authorization grant snapshots are revision-bound and fail closed while they lag a revocation.
 

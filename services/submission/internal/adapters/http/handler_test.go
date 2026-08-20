@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
+	"github.com/aethercode/aethercode/libs/pkg/pagination"
 )
 
 func TestRequiredIdempotencyKey(t *testing.T) {
@@ -23,5 +24,19 @@ func TestRequiredIdempotencyKey(t *testing.T) {
 	applicationError, ok := err.(*apperrors.Error)
 	if !ok || applicationError.Code != apperrors.CodeInvalidArgument {
 		t.Fatalf("error = %#v, want invalid argument", err)
+	}
+}
+
+func TestParseLimitRejectsZero(t *testing.T) {
+	t.Parallel()
+	if _, err := pagination.ParseLimit("0", 20, 100); err == nil {
+		t.Fatal("limit=0 must fail")
+	}
+}
+
+func TestParseCursorRejectsMalformed(t *testing.T) {
+	t.Parallel()
+	if _, _, err := pagination.Parse("!!!"); err == nil {
+		t.Fatal("cursor=!!! must fail")
 	}
 }

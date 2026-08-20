@@ -371,6 +371,74 @@ func mustNewUUIDv7() string {
 	return id
 }
 
+func (repository *Postgres) ListAttempts(contextValue context.Context, transaction pgx.Tx, command app.ListAttempts) ([]app.Attempt, error) {
+	var raw json.RawMessage
+	err := transaction.QueryRow(contextValue, `
+		SELECT submission.list_attempts($1, $2, $3, $4, $5, $6)
+	`,
+		command.TenantID, command.Limit,
+		nullableTimestamp(command.CursorSort), nullableUUID(command.CursorID),
+		nullableUUID(command.ExamVersionID), nullableText(command.LifecycleState),
+	).Scan(&raw)
+	if err != nil {
+		return nil, mapDatabaseError(err, "list attempts")
+	}
+	var attempts []app.Attempt
+	if err := json.Unmarshal(raw, &attempts); err != nil {
+		return nil, fmt.Errorf("decode attempt list: %w", err)
+	}
+	return attempts, nil
+}
+
+func (repository *Postgres) ListAnswerRevisions(contextValue context.Context, transaction pgx.Tx, command app.ListAnswerRevisions) ([]app.AnswerRevision, error) {
+	var raw json.RawMessage
+	err := transaction.QueryRow(contextValue, `
+		SELECT submission.list_answer_revisions($1, $2, $3, $4, $5, $6)
+	`,
+		command.TenantID, command.AttemptID, command.Limit,
+		nullableTimestamp(command.CursorSort), nullableUUID(command.CursorID),
+		nullableUUID(command.ExamItemID),
+	).Scan(&raw)
+	if err != nil {
+		return nil, mapDatabaseError(err, "list answer revisions")
+	}
+	var revisions []app.AnswerRevision
+	if err := json.Unmarshal(raw, &revisions); err != nil {
+		return nil, fmt.Errorf("decode answer revision list: %w", err)
+	}
+	return revisions, nil
+}
+
+// nullableUUID converts an absent optional filter to a SQL NULL so one function
+// signature serves both the filtered and unfiltered query.
+func nullableUUID(value string) any {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	return value
+}
+
+func nullableText(value string) any {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	return value
+}
+
+// nullableTimestamp parses an RFC3339 nanosecond cursor sort value. The handler
+// has already validated the cursor's shape, so a parse failure here is a
+// programming error rather than user input.
+func nullableTimestamp(value string) any {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	parsed, err := time.Parse(time.RFC3339Nano, value)
+	if err != nil {
+		return nil
+	}
+	return parsed.UTC()
+}
+
 func mapDatabaseError(err error, operation string) error {
 	if errors.Is(err, pgx.ErrNoRows) {
 		return apperrors.New(apperrors.CodeNotFound, "submission record was not found")
