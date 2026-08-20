@@ -1,0 +1,488 @@
+openapi: 3.1.1
+info:
+  title: AetherCode Assessment API
+  version: 1.0.0
+  description: >-
+    Tenant-scoped immutable exam authoring, publication, and assignment API.
+    Every business request requires a bearer identity assertion and receives a
+    fresh central authorization decision before a FORCE RLS transaction opens.
+servers:
+  - url: https://assessment.internal.aethercode.in
+security:
+  - bearerAuth: []
+paths:
+  /healthz:
+    get:
+      security: []
+      responses:
+        '200': {description: Process is alive}
+  /readyz:
+    get:
+      security: []
+      responses:
+        '200': {description: Database, authorization projection, and broker are ready}
+        '503': {description: A required dependency is unavailable}
+  /v1/tenants/{tenant_id}/proctor-policies:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    post:
+      summary: Create a proctor-policy aggregate
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name]
+              properties:
+                name: {type: string, minLength: 1, maxLength: 160}
+      responses:
+        '201': {$ref: '#/components/responses/ProctorPolicy'}
+        default: {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/proctor-policies/{proctor_policy_id}/versions:
+    parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/ProctorPolicyID'}
+    post:
+      summary: Add the next immutable proctor-policy draft
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expected_policy_version, policy]
+              properties:
+                expected_policy_version: {type: integer, minimum: 1}
+                policy: {type: object}
+      responses:
+        '201': {$ref: '#/components/responses/ProctorPolicyVersion'}
+        default: {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/proctor-policy-versions/{proctor_policy_version_id}/publish:
+    parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/ProctorPolicyVersionID'}
+    post:
+      summary: Publish a draft proctor-policy version
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      responses:
+        '200': {$ref: '#/components/responses/ProctorPolicyVersion'}
+        default: {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/exams:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    post:
+      summary: Create an exam aggregate
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                external_reference: {type: string, minLength: 1, maxLength: 160}
+      responses:
+        '201': {$ref: '#/components/responses/Exam'}
+        default: {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/exams/{exam_id}/versions:
+    parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/ExamID'}
+    post:
+      summary: Create the next draft exam version from a published proctor policy
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateExamVersion'}
+      responses:
+        '201': {$ref: '#/components/responses/ExamVersion'}
+        default: {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}:
+    parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/ExamVersionID'}
+    get:
+      summary: Read an exam-version snapshot and its optimistic content version
+      responses:
+        '200': {$ref: '#/components/responses/ExamVersion'}
+        default: {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/sections:
+    parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/ExamVersionID'}
+    post:
+      summary: Add a section to a draft exam version
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AddExamSection'}
+      responses:
+        '201': {$ref: '#/components/responses/ExamSection'}
+        default: {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/sections/{section_id}/items:
+    parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/ExamVersionID'}
+      - {$ref: '#/components/parameters/SectionID'}
+    post:
+      summary: Snapshot a question version into a draft exam section
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      description: The Question Bank IDs remain opaque; Assessment stores immutable IDs plus an encrypted evaluation-bundle object reference and checksum.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AddExamItem'}
+      responses:
+        '201': {$ref: '#/components/responses/ExamItem'}
+        default: {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/publish:
+    parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/ExamVersionID'}
+    post:
+      summary: Publish a complete draft exam version
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expected_content_version]
+              properties:
+                expected_content_version: {type: integer, minimum: 1}
+      responses:
+        '200': {$ref: '#/components/responses/ExamVersion'}
+        default: {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/assignment-rules:
+    parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/ExamVersionID'}
+    post:
+      summary: Create an assignment rule for a published exam version
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateAssignmentRule'}
+      responses:
+        '201': {$ref: '#/components/responses/AssignmentRule'}
+        default: {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/assignment-rules/{assignment_rule_id}/candidate-assignments:
+    parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/AssignmentRuleID'}
+    post:
+      summary: Materialize a direct student assignment
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      description: >-
+        This endpoint is intentionally limited to a student-target rule whose
+        target ID equals candidate_id. Department, batch, and placement rules
+        remain durable rules until an authoritative User affiliation projection
+        is consumed; they are never expanded from caller-supplied membership data.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [candidate_id]
+              properties:
+                candidate_id: {$ref: '#/components/schemas/UUID'}
+      responses:
+        '201': {$ref: '#/components/responses/CandidateAssignment'}
+        default: {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/candidate-assignments/{candidate_assignment_id}:
+    parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/CandidateAssignmentID'}
+    get:
+      summary: Read one candidate assignment
+      responses:
+        '200': {$ref: '#/components/responses/CandidateAssignment'}
+        default: {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/candidate-assignments/{candidate_assignment_id}/revoke:
+    parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/CandidateAssignmentID'}
+    post:
+      summary: Revoke a candidate assignment
+      description: >-
+        Uses optimistic versioning and emits the next
+        assessment.candidate_assignment.snapshot.v1 state with lifecycle_state
+        set to revoked. Assessment owns no Submission attempt state; Submission
+        applies the newer snapshot by cancelling its nonterminal attempts and
+        queued or dispatched evaluations.
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expected_version]
+              properties:
+                expected_version: {type: integer, minimum: 1}
+      responses:
+        '200': {$ref: '#/components/responses/CandidateAssignment'}
+        default: {$ref: '#/components/responses/Problem'}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    TenantID:
+      name: tenant_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUID'}
+    ProctorPolicyID:
+      name: proctor_policy_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUID'}
+    ProctorPolicyVersionID:
+      name: proctor_policy_version_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUID'}
+    ExamID:
+      name: exam_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUID'}
+    ExamVersionID:
+      name: exam_version_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUID'}
+    SectionID:
+      name: section_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUID'}
+    AssignmentRuleID:
+      name: assignment_rule_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUID'}
+    CandidateAssignmentID:
+      name: candidate_assignment_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUID'}
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: {type: string, minLength: 1, maxLength: 255, pattern: '^[!-~]+$'}
+  responses:
+    ProctorPolicy:
+      description: Proctor policy aggregate
+      content: {application/json: {schema: {$ref: '#/components/schemas/ProctorPolicy'}}}
+    ProctorPolicyVersion:
+      description: Immutable proctor policy snapshot
+      content: {application/json: {schema: {$ref: '#/components/schemas/ProctorPolicyVersion'}}}
+    Exam:
+      description: Exam aggregate
+      content: {application/json: {schema: {$ref: '#/components/schemas/Exam'}}}
+    ExamVersion:
+      description: Exam version snapshot
+      content: {application/json: {schema: {$ref: '#/components/schemas/ExamVersion'}}}
+    ExamSection:
+      description: Draft section snapshot
+      content: {application/json: {schema: {$ref: '#/components/schemas/ExamSection'}}}
+    ExamItem:
+      description: Immutable question-version selection
+      content: {application/json: {schema: {$ref: '#/components/schemas/ExamItem'}}}
+    AssignmentRule:
+      description: Assignment rule
+      content: {application/json: {schema: {$ref: '#/components/schemas/AssignmentRule'}}}
+    CandidateAssignment:
+      description: Candidate assignment
+      content: {application/json: {schema: {$ref: '#/components/schemas/CandidateAssignment'}}}
+    Problem:
+      description: Stable application error
+      content: {application/json: {schema: {$ref: '#/components/schemas/Problem'}}}
+  schemas:
+    UUID:
+      type: string
+      format: uuid
+    Timestamp:
+      type: string
+      format: date-time
+    Problem:
+      type: object
+      required: [code, message]
+      properties:
+        code: {type: string}
+        message: {type: string}
+    ProctorPolicy:
+      type: object
+      required: [id, tenant_id, name, lifecycle_state, version, created_at]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+        name: {type: string}
+        lifecycle_state: {enum: [active, archived]}
+        version: {type: integer, minimum: 1}
+        created_at: {$ref: '#/components/schemas/Timestamp'}
+    ProctorPolicyVersion:
+      type: object
+      required: [id, tenant_id, proctor_policy_id, version_number, policy, policy_checksum, status, created_at]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+        proctor_policy_id: {$ref: '#/components/schemas/UUID'}
+        version_number: {type: integer, minimum: 1}
+        policy: {type: object}
+        policy_checksum: {type: string, pattern: '^[0-9a-f]{64}$'}
+        status: {enum: [draft, published, retired]}
+        published_at: {$ref: '#/components/schemas/Timestamp'}
+        created_at: {$ref: '#/components/schemas/Timestamp'}
+    Exam:
+      type: object
+      required: [id, tenant_id, lifecycle_state, version, created_at, updated_at]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+        external_reference: {type: string}
+        lifecycle_state: {enum: [draft, published, archived]}
+        version: {type: integer, minimum: 1}
+        created_at: {$ref: '#/components/schemas/Timestamp'}
+        updated_at: {$ref: '#/components/schemas/Timestamp'}
+    CreateExamVersion:
+      type: object
+      additionalProperties: false
+      required: [expected_exam_version, title, instructions_markdown, opens_at, closes_at, duration_seconds, proctor_policy_version_id]
+      properties:
+        expected_exam_version: {type: integer, minimum: 1}
+        title: {type: string, minLength: 1, maxLength: 300}
+        instructions_markdown: {type: string, minLength: 1, maxLength: 100000}
+        opens_at: {$ref: '#/components/schemas/Timestamp'}
+        closes_at: {$ref: '#/components/schemas/Timestamp'}
+        duration_seconds: {type: integer, minimum: 60, maximum: 43200}
+        proctor_policy_version_id: {$ref: '#/components/schemas/UUID'}
+    ExamVersion:
+      type: object
+      required: [id, tenant_id, exam_id, version_number, content_version, attempt_limit, title, instructions_markdown, opens_at, closes_at, duration_seconds, proctor_policy_version_id, status, created_at]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+        exam_id: {$ref: '#/components/schemas/UUID'}
+        version_number: {type: integer, minimum: 1}
+        content_version: {type: integer, minimum: 1}
+        attempt_limit: {type: integer, minimum: 1, maximum: 20}
+        title: {type: string}
+        instructions_markdown: {type: string}
+        opens_at: {$ref: '#/components/schemas/Timestamp'}
+        closes_at: {$ref: '#/components/schemas/Timestamp'}
+        duration_seconds: {type: integer}
+        proctor_policy_version_id: {$ref: '#/components/schemas/UUID'}
+        status: {enum: [draft, published, retired]}
+        published_at: {$ref: '#/components/schemas/Timestamp'}
+        created_at: {$ref: '#/components/schemas/Timestamp'}
+    AddExamSection:
+      type: object
+      additionalProperties: false
+      required: [expected_content_version, position, title, instructions_markdown]
+      properties:
+        expected_content_version: {type: integer, minimum: 1}
+        position: {type: integer, minimum: 1}
+        title: {type: string, minLength: 1, maxLength: 300}
+        instructions_markdown: {type: string, maxLength: 100000}
+        time_limit_seconds: {type: integer, minimum: 60, maximum: 43200}
+    ExamSection:
+      type: object
+      required: [id, tenant_id, exam_version_id, position, title, instructions_markdown, created_at]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+        exam_version_id: {$ref: '#/components/schemas/UUID'}
+        position: {type: integer}
+        title: {type: string}
+        instructions_markdown: {type: string}
+        time_limit_seconds: {type: integer}
+        created_at: {$ref: '#/components/schemas/Timestamp'}
+    AddExamItem:
+      type: object
+      additionalProperties: false
+      required: [expected_content_version, position, question_id, question_version_id, maximum_score, evaluation_bundle_object_key, evaluation_bundle_checksum]
+      properties:
+        expected_content_version: {type: integer, minimum: 1}
+        position: {type: integer, minimum: 1}
+        question_id: {$ref: '#/components/schemas/UUID'}
+        question_version_id: {$ref: '#/components/schemas/UUID'}
+        maximum_score: {type: string, pattern: '^(?:0\.[0-9]{1,4}|[1-9][0-9]{0,7}(?:\.[0-9]{1,4})?)$'}
+        evaluation_bundle_object_key: {type: string, minLength: 1, maxLength: 1024, pattern: '^[A-Za-z0-9][A-Za-z0-9._/=@+-]*$'}
+        evaluation_bundle_checksum: {type: string, pattern: '^[0-9a-f]{64}$'}
+    ExamItem:
+      type: object
+      required: [id, tenant_id, exam_version_id, section_id, position, question_id, question_version_id, maximum_score, evaluation_bundle_checksum, created_at]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+        exam_version_id: {$ref: '#/components/schemas/UUID'}
+        section_id: {$ref: '#/components/schemas/UUID'}
+        position: {type: integer}
+        question_id: {$ref: '#/components/schemas/UUID'}
+        question_version_id: {$ref: '#/components/schemas/UUID'}
+        maximum_score: {type: string}
+        evaluation_bundle_checksum: {type: string}
+        created_at: {$ref: '#/components/schemas/Timestamp'}
+    CreateAssignmentRule:
+      type: object
+      additionalProperties: false
+      required: [target_type, target_id, available_from, available_until, accommodations]
+      properties:
+        target_type: {enum: [department, batch, placement_department, student]}
+        target_id: {$ref: '#/components/schemas/UUID'}
+        available_from: {$ref: '#/components/schemas/Timestamp'}
+        available_until: {$ref: '#/components/schemas/Timestamp'}
+        accommodations: {type: object}
+    AssignmentRule:
+      type: object
+      required: [id, tenant_id, exam_version_id, target_type, target_id, available_from, available_until, accommodations, version, created_at]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+        exam_version_id: {$ref: '#/components/schemas/UUID'}
+        target_type: {type: string}
+        target_id: {$ref: '#/components/schemas/UUID'}
+        available_from: {$ref: '#/components/schemas/Timestamp'}
+        available_until: {$ref: '#/components/schemas/Timestamp'}
+        accommodations: {type: object}
+        disabled_at: {$ref: '#/components/schemas/Timestamp'}
+        version: {type: integer}
+        created_at: {$ref: '#/components/schemas/Timestamp'}
+    CandidateAssignment:
+      type: object
+      required: [id, tenant_id, assignment_rule_id, exam_version_id, candidate_id, available_from, available_until, lifecycle_state, assigned_at, version]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+        assignment_rule_id: {$ref: '#/components/schemas/UUID'}
+        exam_version_id: {$ref: '#/components/schemas/UUID'}
+        candidate_id: {$ref: '#/components/schemas/UUID'}
+        available_from: {$ref: '#/components/schemas/Timestamp'}
+        available_until: {$ref: '#/components/schemas/Timestamp'}
+        lifecycle_state: {enum: [assigned, revoked, started, completed, expired]}
+        assigned_at: {$ref: '#/components/schemas/Timestamp'}
+        revoked_at: {$ref: '#/components/schemas/Timestamp'}
+        completed_at: {$ref: '#/components/schemas/Timestamp'}
+        version: {type: integer}

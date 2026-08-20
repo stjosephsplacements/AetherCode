@@ -1,0 +1,66 @@
+enabled: false
+
+compatibilityGate:
+  approved: false
+  evidenceRef: ""
+
+image:
+  repository: ""
+  tag: ""
+  digest: ""
+  engineVersion: "1.13.1"
+  pullPolicy: IfNotPresent
+
+runtimeClassName: gvisor
+
+server:
+  replicas: 3
+  port: 2358
+
+worker:
+  replicas: 3
+
+runtimeSecret:
+  name: ""
+
+# Required when the engine is enabled. The referenced evidence binds the
+# separately operated, India-resident engine database HA topology, upstream CE
+# 1.13.1 schema/migration record, encryption domain, and 24-hour payload purge.
+engineDatabase:
+  haEvidenceRef: ""
+
+resources:
+  server:
+    requests:
+      cpu: 1
+      memory: 2Gi
+    limits:
+      cpu: "4"
+      memory: 8Gi
+  worker:
+    requests:
+      cpu: 2
+      memory: 4Gi
+    limits:
+      cpu: "8"
+      memory: 16Gi
+
+nodeSelector:
+  role: judge
+
+tolerations:
+  - key: role
+    operator: Equal
+    value: judge
+    effect: NoSchedule
+
+networkPolicy:
+  enabled: true
+  wrapperNamespaceLabels:
+    aethercode.io/plane: judge-control
+  dataNamespaceLabels:
+    aethercode.io/plane: judge-engine-data
+  dnsNamespaceLabels:
+    kubernetes.io/metadata.name: kube-system
+  dnsPodLabels:
+    k8s-app: kube-dns

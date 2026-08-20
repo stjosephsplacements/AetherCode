@@ -1,0 +1,58 @@
+{{- include "platform-postgres-ha.requireProductionInputs" . -}}
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ include "platform-postgres-ha.fullname" . }}
+  labels:
+    app.kubernetes.io/name: aethercode-platform-postgres
+    aethercode.io/residency: india
+spec:
+  instances: {{ .Values.cluster.instances }}
+  imageName: {{ .Values.cluster.image | quote }}
+  enableSuperuserAccess: false
+  primaryUpdateStrategy: unsupervised
+  minSyncReplicas: 1
+  maxSyncReplicas: 1
+  affinity:
+    enablePodAntiAffinity: true
+    topologyKey: kubernetes.io/hostname
+    podAntiAffinityType: required
+    nodeSelector:
+{{ toYaml .Values.cluster.nodeSelector | indent 6 }}
+    tolerations:
+{{ toYaml .Values.cluster.tolerations | indent 6 }}
+  storage:
+    storageClass: {{ .Values.cluster.storageClass | quote }}
+    size: {{ .Values.cluster.storageSize | quote }}
+  walStorage:
+    storageClass: {{ .Values.cluster.storageClass | quote }}
+    size: {{ .Values.cluster.walStorageSize | quote }}
+  resources:
+{{ toYaml .Values.cluster.resources | indent 4 }}
+  certificates:
+    serverCASecret: {{ .Values.certificates.serverCASecret | quote }}
+    serverTLSSecret: {{ .Values.certificates.serverTLSSecret | quote }}
+    clientCASecret: {{ .Values.certificates.clientCASecret | quote }}
+    replicationTLSSecret: {{ .Values.certificates.replicationTLSSecret | quote }}
+  postgresql:
+    parameters:
+      password_encryption: scram-sha-256
+      log_connections: "on"
+      log_disconnections: "on"
+      log_line_prefix: "%m [%p] %u@%d %r "
+      timezone: UTC
+      log_timezone: UTC
+    pg_hba:
+      # User rules precede CNPG's password default: no plaintext or password
+      # database connections are accepted from platform workloads.
+      - hostnossl all all all reject
+      - hostssl all all all cert clientcert=verify-full
+    syncReplicaElectionConstraint:
+      enabled: true
+      nodeLabelsAntiAffinity:
+        - kubernetes.io/hostname
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: {{ include "platform-postgres-ha.fullname" . }}-backup

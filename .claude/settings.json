@@ -1,0 +1,60 @@
+{
+  "version": 2,
+  "model": "sonnet",
+  "theme": "dark",
+  "statusLine": {
+    "type": "command",
+    "command": "wc -l"
+  },
+  "permissions": {
+    "allow": [
+      "go test ./...",
+      "go build ./...",
+      "npm run lint",
+      "npm run test",
+      "git status",
+      "git diff",
+      "git log"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python - <<'PY'\nimport os, sys\npaths = sys.argv[1:]\nfor path in paths:\n    if any(part in {'.git', '.next', 'node_modules', 'vendor', 'dist'} for part in path.split('/')):\n        print('blocked')\n        sys.exit(1)\nPY",
+            "args": ["{file_path}"]
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -lc 'if [[ \"$1\" == *.go ]]; then gofumpt -w \"$1\" && goimports -w \"$1\"; fi' --",
+            "args": ["{file_path}"]
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -lc 'if [[ \"$1\" =~ \\.(ts|tsx)$ ]]; then eslint --fix \"$1\" && prettier --write \"$1\"; fi' --",
+            "args": ["{file_path}"]
+          }
+        ]
+      }
+    ]
+  },
+  "compact": {
+    "thresholdTokens": 180000
+  },
+  "outputStyle": "concise"
+}

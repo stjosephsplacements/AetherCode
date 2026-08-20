@@ -1,0 +1,413 @@
+openapi: 3.1.1
+info:
+  title: AetherCode User API
+  version: 1.0.0
+  description: >-
+    Canonical User profile, student, membership, and authorization-management
+    workflows. Every protected request carries a bearer identity assertion,
+    receives a fresh central authorization decision, and executes inside one
+    FORCE RLS transaction.
+servers:
+  - url: https://user.internal.aethercode.in
+security:
+  - bearerAuth: []
+paths:
+  /healthz:
+    get:
+      security: []
+      summary: Liveness probe
+      responses:
+        '200': {description: Process is alive}
+  /readyz:
+    get:
+      security: []
+      summary: Readiness probe
+      responses:
+        '200': {description: Database and authorization dependencies are ready}
+        '503': {description: A required dependency is unavailable}
+  /v1/profiles/{principal_id}:
+    parameters:
+      - $ref: '#/components/parameters/PrincipalID'
+      - $ref: '#/components/parameters/TenantQueryID'
+    put:
+      summary: Create or update a principal profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/UpsertProfile'}
+      responses:
+        '200': {$ref: '#/components/responses/Profile'}
+        '400': {$ref: '#/components/responses/Problem400'}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
+  /v1/tenants/{tenant_id}/students:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    post:
+      summary: Enroll an active student with current department affiliations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/EnrollStudent'}
+      responses:
+        '201': {$ref: '#/components/responses/Student'}
+        '400': {$ref: '#/components/responses/Problem400'}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '409': {$ref: '#/components/responses/Problem409'}
+  /v1/tenants/{tenant_id}/students/{student_id}:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/StudentID'
+    get:
+      summary: Read a student and current department affiliations
+      responses:
+        '200': {$ref: '#/components/responses/Student'}
+        '400': {$ref: '#/components/responses/Problem400'}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '404': {$ref: '#/components/responses/Problem404'}
+  /v1/role-assignments:
+    post:
+      summary: Grant a scoped canonical role
+      description: >-
+        tenant_id and scope_id are required or omitted according to scope_kind.
+        No Idempotency-Key header is accepted by this v1 endpoint.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AssignRole'}
+      responses:
+        '201': {$ref: '#/components/responses/RoleAssignment'}
+        '400': {$ref: '#/components/responses/Problem400'}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '409': {$ref: '#/components/responses/Problem409'}
+  /v1/role-assignments/{role_assignment_id}/revoke:
+    parameters: [{$ref: '#/components/parameters/RoleAssignmentID'}]
+    post:
+      summary: Revoke an active role assignment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RevokeRole'}
+      responses:
+        '200': {$ref: '#/components/responses/RoleAssignment'}
+        '400': {$ref: '#/components/responses/Problem400'}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '404': {$ref: '#/components/responses/Problem404'}
+  /v1/placement-departments/{placement_department_id}/staff/{principal_id}:
+    parameters:
+      - $ref: '#/components/parameters/PlacementDepartmentID'
+      - $ref: '#/components/parameters/PrincipalID'
+    put:
+      summary: Create or reactivate a placement-department staff membership
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SetPlacementStaffMembership'}
+      responses:
+        '200': {$ref: '#/components/responses/PlacementStaffMembership'}
+        '400': {$ref: '#/components/responses/Problem400'}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '409': {$ref: '#/components/responses/Problem409'}
+  /v1/tenants/{tenant_id}/batches/{batch_id}/mentors/{principal_id}:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/BatchID'
+      - $ref: '#/components/parameters/PrincipalID'
+    put:
+      summary: Assign a mentor to an active tenant batch
+      responses:
+        '200': {$ref: '#/components/responses/MentorBatchAssignment'}
+        '400': {$ref: '#/components/responses/Problem400'}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '409': {$ref: '#/components/responses/Problem409'}
+  /v1/tenants/{tenant_id}/students/{student_id}/batch-affiliation:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/StudentID'
+    get:
+      summary: Read a student's current batch affiliation and optimistic version
+      responses:
+        '200': {$ref: '#/components/responses/StudentBatchAffiliation'}
+        '400': {$ref: '#/components/responses/Problem400'}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '404': {$ref: '#/components/responses/Problem404'}
+    put:
+      summary: Set a student's current batch affiliation
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      description: >-
+        The expected_version is the current affiliation version returned by
+        this resource's GET operation. The User
+        service validates an active student and an active Tenant-owned batch,
+        closes any prior immutable history interval, and emits a durable
+        user.student_batch_affiliation.snapshot.v1 event in the same
+        transaction. The required Idempotency-Key is persisted with the exact
+        request fingerprint and successful response, so a retry is replayed
+        without a second state transition or outbox event.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SetStudentBatchAffiliation'}
+      responses:
+        '200': {$ref: '#/components/responses/StudentBatchAffiliation'}
+        '400': {$ref: '#/components/responses/Problem400'}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '409': {$ref: '#/components/responses/Problem409'}
+  /v1/tenants/{tenant_id}/students/{student_id}/batch-affiliation/revoke:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/StudentID'
+      - $ref: '#/components/parameters/IdempotencyKey'
+    post:
+      summary: Revoke a student's current batch affiliation
+      description: >-
+        expected_version prevents stale revocations. The required
+        Idempotency-Key replays the durable response for an equivalent retry.
+        The response and durable snapshot contain batch_id as null when
+        lifecycle_state is inactive.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/EndStudentBatchAffiliation'}
+      responses:
+        '200': {$ref: '#/components/responses/StudentBatchAffiliation'}
+        '400': {$ref: '#/components/responses/Problem400'}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '409': {$ref: '#/components/responses/Problem409'}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    TenantID:
+      name: tenant_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUID'}
+    TenantQueryID:
+      name: tenant_id
+      in: query
+      required: true
+      schema: {$ref: '#/components/schemas/UUID'}
+    PrincipalID:
+      name: principal_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUID'}
+    StudentID:
+      name: student_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUID'}
+    RoleAssignmentID:
+      name: role_assignment_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUID'}
+    PlacementDepartmentID:
+      name: placement_department_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUID'}
+    BatchID:
+      name: batch_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUID'}
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: UUID request key retained for 24 hours within the caller, tenant, student, and operation scope.
+      schema: {$ref: '#/components/schemas/UUID'}
+  responses:
+    Profile:
+      description: Profile state
+      content: {application/json: {schema: {$ref: '#/components/schemas/Profile'}}}
+    Student:
+      description: Student state and current department affiliations
+      content: {application/json: {schema: {$ref: '#/components/schemas/Student'}}}
+    RoleAssignment:
+      description: Canonical role assignment
+      content: {application/json: {schema: {$ref: '#/components/schemas/RoleAssignment'}}}
+    PlacementStaffMembership:
+      description: Placement staff membership
+      content: {application/json: {schema: {$ref: '#/components/schemas/PlacementStaffMembership'}}}
+    MentorBatchAssignment:
+      description: Mentor batch assignment
+      content: {application/json: {schema: {$ref: '#/components/schemas/MentorBatchAssignment'}}}
+    StudentBatchAffiliation:
+      description: Versioned current student batch affiliation
+      content: {application/json: {schema: {$ref: '#/components/schemas/StudentBatchAffiliation'}}}
+    Problem400:
+      description: Invalid path, body, UUID, scope, batch projection, or expected version.
+      content: {application/json: {schema: {$ref: '#/components/schemas/Problem'}}}
+    Problem401:
+      description: Missing or invalid bearer identity assertion.
+      content: {application/json: {schema: {$ref: '#/components/schemas/Problem'}}}
+    Problem403:
+      description: Central authorization denied or the local RLS authorization projection is stale.
+      content: {application/json: {schema: {$ref: '#/components/schemas/Problem'}}}
+    Problem404:
+      description: Requested student or active role assignment was not found.
+      content: {application/json: {schema: {$ref: '#/components/schemas/Problem'}}}
+    Problem409:
+      description: Duplicate state or optimistic-version conflict.
+      content: {application/json: {schema: {$ref: '#/components/schemas/Problem'}}}
+  schemas:
+    UUID:
+      type: string
+      format: uuid
+    Timestamp:
+      type: string
+      format: date-time
+    Problem:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code: {type: string}
+        message: {type: string}
+    UpsertProfile:
+      type: object
+      additionalProperties: false
+      required: [given_name, family_name]
+      properties:
+        given_name: {type: string, minLength: 1, maxLength: 120}
+        family_name: {type: string, minLength: 1, maxLength: 120}
+        preferred_name: {type: string, maxLength: 120}
+    Profile:
+      type: object
+      additionalProperties: false
+      required: [principal_id, given_name, family_name, version, created_at, updated_at]
+      properties:
+        principal_id: {$ref: '#/components/schemas/UUID'}
+        given_name: {type: string}
+        family_name: {type: string}
+        preferred_name: {type: string}
+        version: {type: integer, minimum: 1}
+        created_at: {$ref: '#/components/schemas/Timestamp'}
+        updated_at: {$ref: '#/components/schemas/Timestamp'}
+    EnrollStudent:
+      type: object
+      additionalProperties: false
+      required: [principal_id, enrollment_number, college_department_id, placement_department_id]
+      properties:
+        principal_id: {$ref: '#/components/schemas/UUID'}
+        enrollment_number: {type: string, minLength: 1, maxLength: 128}
+        college_department_id: {$ref: '#/components/schemas/UUID'}
+        placement_department_id: {$ref: '#/components/schemas/UUID'}
+    Student:
+      type: object
+      additionalProperties: false
+      required: [id, principal_id, tenant_id, enrollment_number, status, version, created_at]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        principal_id: {$ref: '#/components/schemas/UUID'}
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+        enrollment_number: {type: string}
+        status: {enum: [pending, active, inactive, withdrawn]}
+        college_department_id: {$ref: '#/components/schemas/UUID'}
+        placement_department_id: {$ref: '#/components/schemas/UUID'}
+        version: {type: integer, minimum: 1}
+        created_at: {$ref: '#/components/schemas/Timestamp'}
+    AssignRole:
+      type: object
+      additionalProperties: false
+      required: [principal_id, role_name, scope_kind]
+      properties:
+        principal_id: {$ref: '#/components/schemas/UUID'}
+        role_name: {enum: [super_admin, placement_user, college_admin, department_user, mentor, student]}
+        scope_kind: {enum: [platform, college, department, batch, placement_department, self]}
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+        scope_id: {$ref: '#/components/schemas/UUID'}
+        expires_at: {$ref: '#/components/schemas/Timestamp'}
+    RevokeRole:
+      type: object
+      additionalProperties: false
+      properties:
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+    RoleAssignment:
+      type: object
+      additionalProperties: false
+      required: [id, principal_id, role_name, scope_kind, status, version]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        principal_id: {$ref: '#/components/schemas/UUID'}
+        role_name: {type: string}
+        scope_kind: {type: string}
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+        scope_id: {$ref: '#/components/schemas/UUID'}
+        status: {enum: [active, revoked]}
+        expires_at: {$ref: '#/components/schemas/Timestamp'}
+        version: {type: integer, minimum: 1}
+    SetPlacementStaffMembership:
+      type: object
+      additionalProperties: false
+      properties:
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+        expires_at: {$ref: '#/components/schemas/Timestamp'}
+    PlacementStaffMembership:
+      type: object
+      additionalProperties: false
+      required: [id, principal_id, placement_department_id, status, version]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        principal_id: {$ref: '#/components/schemas/UUID'}
+        placement_department_id: {$ref: '#/components/schemas/UUID'}
+        status: {enum: [active, revoked]}
+        expires_at: {$ref: '#/components/schemas/Timestamp'}
+        version: {type: integer, minimum: 1}
+    MentorBatchAssignment:
+      type: object
+      additionalProperties: false
+      required: [id, mentor_principal_id, tenant_id, batch_id, status, version]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        mentor_principal_id: {$ref: '#/components/schemas/UUID'}
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+        batch_id: {$ref: '#/components/schemas/UUID'}
+        status: {enum: [active, ended]}
+        version: {type: integer, minimum: 1}
+    SetStudentBatchAffiliation:
+      type: object
+      additionalProperties: false
+      required: [batch_id, expected_version]
+      properties:
+        batch_id: {$ref: '#/components/schemas/UUID'}
+        expected_version: {type: integer, minimum: 1}
+    EndStudentBatchAffiliation:
+      type: object
+      additionalProperties: false
+      required: [expected_version]
+      properties:
+        expected_version: {type: integer, minimum: 1}
+    StudentBatchAffiliation:
+      type: object
+      additionalProperties: false
+      required: [student_id, tenant_id, batch_id, lifecycle_state, version, updated_at]
+      properties:
+        student_id: {$ref: '#/components/schemas/UUID'}
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+        batch_id:
+          type: [string, 'null']
+          format: uuid
+        lifecycle_state: {enum: [active, inactive]}
+        version: {type: integer, minimum: 1}
+        updated_at: {$ref: '#/components/schemas/Timestamp'}

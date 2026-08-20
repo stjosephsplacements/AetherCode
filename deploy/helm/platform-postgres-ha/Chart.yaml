@@ -1,0 +1,8 @@
+apiVersion: v2
+name: platform-postgres-ha
+description: AetherCode's three-instance platform PostgreSQL cluster and encrypted backup topology.
+type: application
+version: 0.1.0
+appVersion: "18.4"
+annotations:
+  aethercode.io/requires: "CloudNativePG 1.30.x and Barman Cloud CNPG-I"

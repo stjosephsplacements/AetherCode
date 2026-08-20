@@ -1,0 +1,140 @@
+{{- include "judge-control.validate" . }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "judge-control.fullname" . }}
+  labels:
+    {{- include "judge-control.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  minReadySeconds: 15
+  progressDeadlineSeconds: 600
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      {{- include "judge-control.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "judge-control.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: wrapper
+        app.kubernetes.io/part-of: judge-control
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "judge-control.fullname" . }}
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      nodeSelector:
+        {{- toYaml .Values.nodeSelector | nindent 8 }}
+      tolerations:
+        {{- toYaml .Values.tolerations | nindent 8 }}
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  {{- include "judge-control.selectorLabels" . | nindent 18 }}
+              topologyKey: kubernetes.io/hostname
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              {{- include "judge-control.selectorLabels" . | nindent 14 }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: wrapper
+          image: {{ include "judge-control.image" .Values.image }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: grpc
+              containerPort: {{ .Values.service.grpcContainerPort }}
+              protocol: TCP
+            - name: health
+              containerPort: {{ .Values.service.healthContainerPort }}
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "judge-control.fullname" . }}-config
+          env:
+            - name: JUDGE_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.runtimeSecret.name }}
+                  key: {{ .Values.runtimeSecret.databaseURLKey }}
+            - name: JUDGE_RABBITMQ_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.runtimeSecret.name }}
+                  key: {{ .Values.runtimeSecret.rabbitMQURLKey }}
+            {{- if .Values.engine.enabled }}
+            - name: JUDGE_ENGINE_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.engine.authSecretName }}
+                  key: {{ .Values.engine.authTokenKey }}
+            {{- end }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            failureThreshold: 30
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            periodSeconds: 10
+            timeoutSeconds: 2
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+            periodSeconds: 5
+            timeoutSeconds: 2
+          volumeMounts:
+            - name: tls
+              mountPath: /var/run/aethercode/tls
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tls
+          secret:
+            secretName: {{ .Values.tls.secretName }}
+            defaultMode: 0440
+            items:
+              - key: {{ .Values.tls.certificateKey }}
+                path: tls.crt
+              - key: {{ .Values.tls.privateKeyKey }}
+                path: tls.key
+              - key: {{ .Values.tls.clientCAKey }}
+                path: ca.crt
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi

@@ -1,0 +1,135 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- include "judge-control.validate" . }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "judge-control.fullname" . }}-default-deny
+  labels:
+    {{- include "judge-control.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: judge-control
+  policyTypes: ["Ingress", "Egress"]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "judge-control.fullname" . }}-wrapper
+  labels:
+    {{- include "judge-control.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "judge-control.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: wrapper
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              {{- toYaml .Values.networkPolicy.platformNamespaceLabels | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: grpc
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "judge-control.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: rabbitmq
+      ports:
+        - protocol: TCP
+          port: amqp
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              {{- toYaml .Values.networkPolicy.dataNamespaceLabels | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              {{- toYaml .Values.networkPolicy.dnsNamespaceLabels | nindent 14 }}
+          podSelector:
+            matchLabels:
+              {{- toYaml .Values.networkPolicy.dnsPodLabels | nindent 14 }}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    {{- if .Values.engine.enabled }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              {{- toYaml .Values.networkPolicy.engineNamespaceLabels | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.engine.port }}
+    {{- end }}
+{{- if .Values.rabbitmq.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "judge-control.fullname" . }}-rabbitmq
+  labels:
+    {{- include "judge-control.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "judge-control.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: rabbitmq
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "judge-control.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: wrapper
+      ports:
+        - protocol: TCP
+          port: amqp
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "judge-control.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: rabbitmq
+      ports:
+        - protocol: TCP
+          port: epmd
+        - protocol: TCP
+          port: distribution
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "judge-control.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: rabbitmq
+      ports:
+        - protocol: TCP
+          port: epmd
+        - protocol: TCP
+          port: distribution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              {{- toYaml .Values.networkPolicy.dnsNamespaceLabels | nindent 14 }}
+          podSelector:
+            matchLabels:
+              {{- toYaml .Values.networkPolicy.dnsPodLabels | nindent 14 }}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - ipBlock:
+            cidr: {{ .Values.networkPolicy.apiServerCIDR | quote }}
+      ports:
+        - protocol: TCP
+          port: 443
+{{- end }}
+{{- end }}

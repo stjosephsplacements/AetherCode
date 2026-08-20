@@ -1,0 +1,42 @@
+openapi: 3.1.1
+info:
+  title: AetherCode Gateway API
+  version: 1.0.0
+  description: >-
+    Stateless fixed-upstream edge. Only the documented allowlisted service
+    names are routable; Judge is intentionally absent. Protected paths require
+    a freshly verified bearer assertion.
+paths:
+  /healthz:
+    get:
+      responses:
+        '200': {description: Service is alive}
+  /readyz:
+    get:
+      responses:
+        '200': {description: Service is ready}
+        '503': {description: A configured upstream or authorization dependency is unavailable}
+  /api/{service}/{path}:
+    parameters:
+      - name: service
+        in: path
+        required: true
+        schema:
+          type: string
+          enum: [identity, tenant, user, question-bank, assessment, submission, seb, notification, analytics]
+      - name: path
+        in: path
+        required: true
+        schema: {type: string}
+    description: >-
+      Fixed allowlisted reverse-proxy route. The service prefix is removed
+      before the configured private upstream is called. Only the exact public
+      Identity authentication routes may omit bearer authentication.
+    get:
+      responses:
+        '200': {description: Proxied service response}
+        '401': {description: Missing or invalid bearer assertion}
+        '403': {description: Secure Exam Browser validation failed}
+        '404': {description: Route or service is unavailable}
+        '429': {description: Per-instance rate limit exceeded}
+        '502': {description: Configured upstream is unavailable}

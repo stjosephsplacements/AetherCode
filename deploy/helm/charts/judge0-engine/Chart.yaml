@@ -1,0 +1,7 @@
+apiVersion: v2
+name: judge0-engine
+description: Gated Judge0 CE runtime; disabled until the gVisor compatibility gate is approved.
+type: application
+version: 0.1.0
+appVersion: "1.13.1"
+kubeVersion: ">=1.34.0-0"

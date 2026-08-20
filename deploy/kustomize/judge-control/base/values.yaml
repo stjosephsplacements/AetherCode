@@ -1,0 +1,25 @@
+# This values file carries only non-secret names and required deployment slots.
+# CI materializes its sibling with an approved image digest and cluster-specific
+# network CIDRs before rendering; do not insert secret values here.
+image:
+  repository: ""
+  digest: ""
+runtimeSecret:
+  name: ""
+tls:
+  secretName: ""
+  allowedClientSubjects: []
+engine:
+  enabled: false
+  compatibilityApproved: false
+  compatibilityEvidenceRef: ""
+rabbitmq:
+  authSecretName: ""
+  image:
+    repository: rabbitmq
+    digest: ""
+networkPolicy:
+  apiServerCIDR: ""
+databaseHA:
+  enabled: false
+  externalHAEvidenceRef: ""

@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Provision one audience-bound HMAC key after that database's bootstrap
+# migration. Secrets come from the approved KMS/secret controller; this script
+# never generates, prints, or stores them in the repository.
+: "${DATABASE_URL:?DATABASE_URL must use the database owner/migration credential}"
+: "${AUTHZ_CONTEXT_KEY_ID:?AUTHZ_CONTEXT_KEY_ID must be a UUID}"
+: "${AUTHZ_CONTEXT_AUDIENCE:?AUTHZ_CONTEXT_AUDIENCE must be the target database name}"
+: "${AUTHZ_CONTEXT_KEY_SECRET_BASE64:?AUTHZ_CONTEXT_KEY_SECRET_BASE64 is required}"
+: "${AUTHZ_CONTEXT_NOT_AFTER:?AUTHZ_CONTEXT_NOT_AFTER is required (UTC RFC3339)}"
+
+if ! [[ "$AUTHZ_CONTEXT_KEY_ID" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
+  printf '%s\n' 'AUTHZ_CONTEXT_KEY_ID must be a UUID' >&2
+  exit 1
+fi
+if ! [[ "$AUTHZ_CONTEXT_AUDIENCE" =~ ^[a-z][a-z0-9_]{0,62}$ ]]; then
+  printf '%s\n' 'AUTHZ_CONTEXT_AUDIENCE must be a PostgreSQL database identifier' >&2
+  exit 1
+fi
+
+psql --set=ON_ERROR_STOP=1 --dbname="$DATABASE_URL" \
+  --set=key_id="$AUTHZ_CONTEXT_KEY_ID" \
+  --set=audience="$AUTHZ_CONTEXT_AUDIENCE" \
+  --set=key_material="$AUTHZ_CONTEXT_KEY_SECRET_BASE64" \
+  --set=not_after="$AUTHZ_CONTEXT_NOT_AFTER" <<'SQL'
+SELECT current_database() = :'audience' AS audience_matches \gset
+\if :audience_matches
+\else
+\echo 'AUTHZ_CONTEXT_AUDIENCE does not match the connected database.'
+\quit
+\endif
+
+INSERT INTO authz.context_keys (key_id, audience, key_material, not_before, not_after)
+VALUES (
+    :'key_id'::uuid,
+    :'audience',
+    decode(:'key_material', 'base64'),
+    clock_timestamp(),
+    :'not_after'::timestamptz
+)
+ON CONFLICT (key_id) DO NOTHING;
+
+SELECT EXISTS (
+    SELECT 1
+    FROM authz.context_keys
+    WHERE key_id = :'key_id'::uuid
+      AND audience = :'audience'
+      AND octet_length(key_material) >= 32
+      AND not_after > clock_timestamp()
+) AS active_key \gset
+\if :active_key
+\else
+\echo 'Context key was not provisioned as an active audience key.'
+\quit
+\endif
+SQL

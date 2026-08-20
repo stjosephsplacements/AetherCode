@@ -1,0 +1,282 @@
+openapi: 3.1.1
+info:
+  title: AetherCode Submission API
+  version: 1.0.0
+  description: Candidate-safe attempt, answer-revision, and submission workflows.
+paths:
+  /healthz:
+    get:
+      responses:
+        '200':
+          description: Service is alive.
+  /readyz:
+    get:
+      responses:
+        '200':
+          description: Service and required durable dependencies are ready.
+        '503':
+          description: A required dependency is unavailable.
+  /v1/tenants/{tenant_id}/attempts:
+    post:
+      summary: Start an assignment-backed candidate attempt
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [candidate_assignment_id]
+              properties:
+                candidate_assignment_id:
+                  $ref: '#/components/schemas/UUID'
+      responses:
+        '201':
+          description: Attempt started or returned from the same idempotency key. A newly created attempt emits one internal submission.attempt_started.v1 event; a replay emits none.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Attempt'
+        '400': { $ref: '#/components/responses/Problem400' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '409': { $ref: '#/components/responses/Problem409' }
+  /v1/tenants/{tenant_id}/attempts/{attempt_id}:
+    get:
+      summary: Read the caller's own attempt
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/AttemptID'
+      responses:
+        '200':
+          description: Candidate-owned attempt.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Attempt'
+        '400': { $ref: '#/components/responses/Problem400' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '404': { $ref: '#/components/responses/Problem404' }
+  /v1/tenants/{tenant_id}/attempts/{attempt_id}/answers/{exam_item_id}:
+    put:
+      summary: Append an immutable answer revision
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/AttemptID'
+        - name: exam_item_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - language_id
+                - source_object_key
+                - source_checksum
+                - encryption_key_reference
+                - expected_attempt_version
+              properties:
+                language_id:
+                  type: string
+                  maxLength: 80
+                source_object_key:
+                  type: string
+                  maxLength: 2048
+                source_checksum:
+                  $ref: '#/components/schemas/SHA256'
+                encryption_key_reference:
+                  type: string
+                  maxLength: 1024
+                expected_attempt_version:
+                  type: integer
+                  minimum: 1
+      responses:
+        '201':
+          description: Immutable answer revision accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnswerRevision'
+        '400': { $ref: '#/components/responses/Problem400' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '404': { $ref: '#/components/responses/Problem404' }
+        '409': { $ref: '#/components/responses/Problem409' }
+  /v1/tenants/{tenant_id}/attempts/{attempt_id}/submit:
+    post:
+      summary: Submit an attempt and accept durable grading work
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/AttemptID'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expected_attempt_version]
+              properties:
+                expected_attempt_version:
+                  type: integer
+                  minimum: 1
+      responses:
+        '202':
+          description: The attempt and its durable evaluation work were accepted.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [attempt, evaluation_request_count]
+                properties:
+                  attempt:
+                    $ref: '#/components/schemas/Attempt'
+                  evaluation_request_count:
+                    type: integer
+                    minimum: 0
+        '400': { $ref: '#/components/responses/Problem400' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '404': { $ref: '#/components/responses/Problem404' }
+        '409': { $ref: '#/components/responses/Problem409' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    TenantID:
+      name: tenant_id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/UUID'
+    AttemptID:
+      name: attempt_id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/UUID'
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 255
+  schemas:
+    UUID:
+      type: string
+      format: uuid
+    SHA256:
+      type: string
+      pattern: '^[0-9a-f]{64}$'
+    Attempt:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - tenant_id
+        - exam_id
+        - exam_version_id
+        - candidate_id
+        - candidate_assignment_id
+        - attempt_number
+        - lifecycle_state
+        - available_from
+        - submission_deadline
+        - version
+        - created_at
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        tenant_id: { $ref: '#/components/schemas/UUID' }
+        exam_id: { $ref: '#/components/schemas/UUID' }
+        exam_version_id: { $ref: '#/components/schemas/UUID' }
+        candidate_id: { $ref: '#/components/schemas/UUID' }
+        candidate_assignment_id: { $ref: '#/components/schemas/UUID' }
+        attempt_number: { type: integer, minimum: 1 }
+        lifecycle_state:
+          type: string
+          enum: [created, active, submitted, grading, graded, expired, cancelled]
+        available_from: { type: string, format: date-time }
+        submission_deadline: { type: string, format: date-time }
+        started_at: { type: [string, 'null'], format: date-time }
+        submitted_at: { type: [string, 'null'], format: date-time }
+        completed_at: { type: [string, 'null'], format: date-time }
+        version: { type: integer, minimum: 1 }
+        created_at: { type: string, format: date-time }
+    AnswerRevision:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - tenant_id
+        - attempt_id
+        - exam_item_id
+        - revision_number
+        - language_id
+        - source_object_key
+        - source_checksum
+        - encryption_key_reference
+        - created_at
+        - created_by
+        - attempt_version
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        tenant_id: { $ref: '#/components/schemas/UUID' }
+        attempt_id: { $ref: '#/components/schemas/UUID' }
+        exam_item_id: { $ref: '#/components/schemas/UUID' }
+        revision_number: { type: integer, minimum: 1 }
+        language_id: { type: string }
+        source_object_key: { type: string }
+        source_checksum: { $ref: '#/components/schemas/SHA256' }
+        encryption_key_reference: { type: string }
+        created_at: { type: string, format: date-time }
+        created_by: { $ref: '#/components/schemas/UUID' }
+        attempt_version: { type: integer, minimum: 1 }
+    Problem:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+  responses:
+    Problem400:
+      description: Invalid request.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Problem403:
+      description: Authorization denied or local authorization projection is stale.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Problem404:
+      description: Candidate-owned record was not found.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Problem409:
+      description: State, deadline, idempotency, or optimistic-version conflict.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Problem' }

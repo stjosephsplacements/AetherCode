@@ -1,0 +1,34 @@
+.DS_Store
+.idea/
+.vscode/
+
+# Go
+bin/
+coverage.out
+*.test
+vendor/
+# Local service binaries produced by ad-hoc `go build -o server` commands.
+services/*/server
+
+# JavaScript
+node_modules/
+.next/
+
+# Local environment and generated runtime data
+.env
+.env.*.local
+!.env.example
+data/
+tmp/
+dist/
+.tools/
+
+# Certificates, keys, and encrypted local secrets
+*.key
+*.pem
+*.crt
+secrets/
+
+# OS/editor artifacts
+*.swp
+*~

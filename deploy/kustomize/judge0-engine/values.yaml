@@ -1,0 +1,5 @@
+# The engine produces no Kubernetes resources while disabled. Its chart refuses
+# to render once enabled unless signed compatibility evidence is supplied.
+enabled: false
+engineDatabase:
+  haEvidenceRef: ""

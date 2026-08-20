@@ -1,0 +1,313 @@
+openapi: 3.1.1
+info:
+  title: AetherCode SEB control-plane API
+  version: 1.0.0
+  description: >-
+    Safe Exam Browser configuration and session controls. All non-operational
+    routes require a fresh bearer identity assertion and central authorization.
+    Every state transition except append-only gateway validation requires a
+    printable Idempotency-Key. The service hashes the exact validated JSON body
+    and replays only an equivalent request within its 24-hour retention window.
+servers:
+  - url: https://seb.internal.aethercode
+paths:
+  /healthz:
+    get:
+      responses:
+        '200': {$ref: '#/components/responses/Operational'}
+  /readyz:
+    get:
+      responses:
+        '200': {$ref: '#/components/responses/Operational'}
+        '503': {$ref: '#/components/responses/Operational'}
+  /v1/tenants/{tenant_id}/configurations:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    post:
+      security: [{bearerAuth: []}]
+      summary: Register encrypted SEB configuration metadata
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ConfigurationInput'}
+      responses:
+        '201': {$ref: '#/components/responses/Configuration'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/configurations/{configuration_id}:
+    parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/ConfigurationID'}
+    get:
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {$ref: '#/components/responses/Configuration'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/configurations/{configuration_id}/rotate:
+    parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/ConfigurationID'}
+    post:
+      security: [{bearerAuth: []}]
+      summary: Retire an active configuration and atomically create its replacement
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - {$ref: '#/components/schemas/ConfigurationInput'}
+                - type: object
+                  required: [reason]
+                  properties:
+                    reason: {type: string, minLength: 1, maxLength: 500}
+      responses:
+        '201': {$ref: '#/components/responses/Configuration'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/configurations/{configuration_id}/revoke:
+    parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/ConfigurationID'}
+    post:
+      security: [{bearerAuth: []}]
+      summary: Immediately revoke an active configuration
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: {type: string, minLength: 1, maxLength: 500}
+      responses:
+        '200': {$ref: '#/components/responses/Configuration'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/sessions:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    post:
+      security: [{bearerAuth: []}]
+      summary: Issue one attempt-bound SEB session
+      description: >-
+        The raw quit token is returned only once. A completed retry with the
+        same Idempotency-Key and body returns 409 rather than replaying or
+        persisting that secret; retrieve authorized non-secret state through
+        the session GET route.
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [configuration_id, attempt_id, candidate_id, expires_at]
+              properties:
+                configuration_id: {$ref: '#/components/schemas/UUID'}
+                attempt_id: {$ref: '#/components/schemas/UUID'}
+                candidate_id: {$ref: '#/components/schemas/UUID'}
+                expires_at: {type: string, format: date-time}
+      responses:
+        '201':
+          description: Issued; the quit token is returned only in this response.
+          headers:
+            Cache-Control: {schema: {type: string, const: no-store}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/IssuedSession'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/sessions/{session_id}:
+    parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/SessionID'}
+    get:
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {$ref: '#/components/responses/Session'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/sessions/{session_id}/close:
+    parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/SessionID'}
+    post:
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expected_version, reason]
+              properties:
+                expected_version: {type: integer, minimum: 1}
+                reason: {type: string, minLength: 1, maxLength: 500}
+      responses:
+        '200': {$ref: '#/components/responses/Session'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/sessions/{session_id}/validate:
+    parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/SessionID'}
+    post:
+      security: [{bearerAuth: []}]
+      summary: Validate one SEB header and append its audit event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [header_kind, request_fingerprint_hash]
+              properties:
+                header_kind: {type: string, enum: [config_key, browser_exam_key]}
+                header_value:
+                  type: string
+                  writeOnly: true
+                  description: Raw value; it is hashed in memory before SQL.
+                request_fingerprint_hash: {$ref: '#/components/schemas/SHA256'}
+      responses:
+        '200':
+          description: Validation outcome without key material.
+          headers:
+            Cache-Control: {schema: {type: string, const: no-store}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Validation'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+components:
+  securitySchemes:
+    bearerAuth: {type: http, scheme: bearer, bearerFormat: AetherCode access token}
+  parameters:
+    TenantID:
+      name: tenant_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUID'}
+    ConfigurationID:
+      name: configuration_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUID'}
+    SessionID:
+      name: session_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUID'}
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: >-
+        A caller-generated 1–255 character printable ASCII retry key. It is
+        scoped to the authenticated principal, tenant, operation, and target
+        resource where applicable. Reuse it only with the exact same JSON body.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 255
+        pattern: '^[!-~]{1,255}$'
+  responses:
+    Operational:
+      description: Operational status
+    Configuration:
+      description: Non-secret configuration metadata
+      content:
+        application/json: {schema: {$ref: '#/components/schemas/Configuration'}}
+    Session:
+      description: Non-secret session state
+      content:
+        application/json: {schema: {$ref: '#/components/schemas/Session'}}
+    Problem:
+      description: Stable error response
+      content:
+        application/json: {schema: {$ref: '#/components/schemas/Problem'}}
+  schemas:
+    UUID: {type: string, format: uuid}
+    SHA256: {type: string, pattern: '^[0-9a-f]{64}$'}
+    ConfigurationInput:
+      type: object
+      required: [exam_id, exam_version_id, configuration_version, config_object_key, config_checksum, encryption_key_reference, config_key_hash]
+      properties:
+        exam_id: {$ref: '#/components/schemas/UUID'}
+        exam_version_id: {$ref: '#/components/schemas/UUID'}
+        configuration_version: {type: integer, minimum: 1}
+        config_object_key: {type: string, minLength: 1, maxLength: 1024}
+        config_checksum: {$ref: '#/components/schemas/SHA256'}
+        encryption_key_reference: {type: string, minLength: 1, maxLength: 1024}
+        config_key_hash: {$ref: '#/components/schemas/SHA256'}
+        browser_exam_key_hash: {$ref: '#/components/schemas/SHA256'}
+    Configuration:
+      type: object
+      required: [id, tenant_id, exam_id, exam_version_id, configuration_version, config_object_key, config_checksum, encryption_key_reference, lifecycle_state, created_by, created_at]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+        exam_id: {$ref: '#/components/schemas/UUID'}
+        exam_version_id: {$ref: '#/components/schemas/UUID'}
+        configuration_version: {type: integer}
+        config_object_key: {type: string}
+        config_checksum: {$ref: '#/components/schemas/SHA256'}
+        encryption_key_reference: {type: string}
+        lifecycle_state: {type: string, enum: [active, retired, revoked]}
+        created_by: {$ref: '#/components/schemas/UUID'}
+        created_at: {type: string, format: date-time}
+    Session:
+      type: object
+      required: [id, tenant_id, configuration_id, attempt_id, candidate_id, lifecycle_state, issued_at, expires_at, version]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+        configuration_id: {$ref: '#/components/schemas/UUID'}
+        attempt_id: {$ref: '#/components/schemas/UUID'}
+        candidate_id: {$ref: '#/components/schemas/UUID'}
+        lifecycle_state: {type: string, enum: [issued, active, closed, revoked, expired]}
+        issued_at: {type: string, format: date-time}
+        activated_at: {type: string, format: date-time}
+        closed_at: {type: string, format: date-time}
+        expires_at: {type: string, format: date-time}
+        closed_reason: {type: string}
+        version: {type: integer, minimum: 1}
+    IssuedSession:
+      type: object
+      required: [session, quit_token]
+      properties:
+        session: {$ref: '#/components/schemas/Session'}
+        quit_token:
+          type: string
+          description: One-time 256-bit session secret; never persisted.
+    Validation:
+      type: object
+      required: [header_kind, validation_result, occurred_at]
+      properties:
+        header_kind: {type: string, enum: [config_key, browser_exam_key]}
+        validation_result: {type: string, enum: [matched, missing, mismatched, not_required, expired_session, closed_session, revoked_configuration]}
+        occurred_at: {type: string, format: date-time}
+    Problem:
+      type: object
+      required: [code, message]
+      properties:
+        code: {type: string}
+        message: {type: string}

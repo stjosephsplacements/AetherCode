@@ -1,0 +1,162 @@
+{{- range $service := .Values.services }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: aether-{{ $service.id }}-owner
+  labels:
+    aethercode.io/service: {{ $service.id | quote }}
+spec:
+  cluster:
+    name: {{ $.Values.cluster.name }}
+  name: aether_{{ $service.rolePrefix }}_owner
+  login: false
+  inherit: false
+  superuser: false
+  createdb: false
+  createrole: false
+  replication: false
+  bypassrls: false
+  databaseRoleReclaimPolicy: retain
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: aether-{{ $service.id }}-migrator
+  labels:
+    aethercode.io/service: {{ $service.id | quote }}
+spec:
+  cluster:
+    name: {{ $.Values.cluster.name }}
+  name: aether_{{ $service.rolePrefix }}_migrator
+  login: true
+  inherit: false
+  inRoles:
+    - aether_{{ $service.rolePrefix }}_owner
+  superuser: false
+  createdb: false
+  createrole: false
+  replication: false
+  bypassrls: false
+  clientCertificate:
+    enabled: true
+  databaseRoleReclaimPolicy: retain
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: aether-{{ $service.id }}-app
+  labels:
+    aethercode.io/service: {{ $service.id | quote }}
+spec:
+  cluster:
+    name: {{ $.Values.cluster.name }}
+  name: aether_{{ $service.rolePrefix }}_app
+  login: true
+  inherit: false
+  superuser: false
+  createdb: false
+  createrole: false
+  replication: false
+  bypassrls: false
+  clientCertificate:
+    enabled: true
+  databaseRoleReclaimPolicy: retain
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: aether-{{ $service.id }}-projection
+  labels:
+    aethercode.io/service: {{ $service.id | quote }}
+spec:
+  cluster:
+    name: {{ $.Values.cluster.name }}
+  name: aether_{{ $service.rolePrefix }}_projection_worker
+  login: true
+  inherit: false
+  superuser: false
+  createdb: false
+  createrole: false
+  replication: false
+  bypassrls: false
+  clientCertificate:
+    enabled: true
+  databaseRoleReclaimPolicy: retain
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: aether-{{ $service.id }}-authz-reader
+  labels:
+    aethercode.io/service: {{ $service.id | quote }}
+spec:
+  cluster:
+    name: {{ $.Values.cluster.name }}
+  name: aether_{{ $service.rolePrefix }}_authz_reader
+  login: true
+  inherit: false
+  superuser: false
+  createdb: false
+  createrole: false
+  replication: false
+  bypassrls: false
+  clientCertificate:
+    enabled: true
+  databaseRoleReclaimPolicy: retain
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: aether-{{ $service.id }}-database
+  labels:
+    aethercode.io/service: {{ $service.id | quote }}
+spec:
+  cluster:
+    name: {{ $.Values.cluster.name }}
+  name: {{ $service.database }}
+  owner: aether_{{ $service.rolePrefix }}_owner
+  databaseReclaimPolicy: retain
+{{- end }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: aether-submission-judge-adapter
+  labels:
+    aethercode.io/service: "submission"
+spec:
+  cluster:
+    name: {{ .Values.cluster.name }}
+  name: aether_submission_judge_adapter
+  login: true
+  inherit: false
+  superuser: false
+  createdb: false
+  createrole: false
+  replication: false
+  bypassrls: false
+  clientCertificate:
+    enabled: true
+  databaseRoleReclaimPolicy: retain
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: aether-notification-retention-worker
+  labels:
+    aethercode.io/service: "notification"
+spec:
+  cluster:
+    name: {{ .Values.cluster.name }}
+  name: aether_notification_retention_worker
+  login: true
+  inherit: false
+  superuser: false
+  createdb: false
+  createrole: false
+  replication: false
+  bypassrls: false
+  clientCertificate:
+    enabled: true
+  databaseRoleReclaimPolicy: retain

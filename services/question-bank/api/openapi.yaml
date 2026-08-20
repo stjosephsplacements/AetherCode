@@ -1,0 +1,350 @@
+openapi: 3.1.1
+info:
+  title: AetherCode Question Bank API
+  version: 1.0.0
+  description: |
+    Global authoring and consumption API for immutable coding-question versions.
+    Every protected request requires a bearer access token; mutations also
+    require an Idempotency-Key. Encrypted object references are accepted only
+    on writes and are never returned by this browser-facing API.
+servers:
+  - url: /
+security:
+  - BearerAuth: []
+paths:
+  /healthz:
+    get:
+      security: []
+      responses:
+        '200': {description: Service is alive}
+  /readyz:
+    get:
+      security: []
+      responses:
+        '200': {description: Database, outbox publisher, and authorization projection are ready}
+        '503': {$ref: '#/components/responses/Problem'}
+  /v1/questions:
+    get:
+      operationId: listPublishedQuestions
+      parameters:
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+      responses:
+        '200':
+          description: Latest published version for each active question
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: '#/components/schemas/QuestionDetail'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+    post:
+      operationId: createQuestion
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - type: object
+                  required: [slug]
+                  properties:
+                    slug: {type: string, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'}
+                - {$ref: '#/components/schemas/VersionContentInput'}
+      responses:
+        '201': {$ref: '#/components/responses/QuestionDetail'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+  /v1/questions/{question_id}:
+    get:
+      operationId: getPublishedQuestion
+      parameters: [{$ref: '#/components/parameters/QuestionID'}]
+      responses:
+        '200': {$ref: '#/components/responses/QuestionDetail'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+  /v1/questions/{question_id}/versions:
+    post:
+      operationId: createDraftQuestionVersion
+      parameters:
+        - {$ref: '#/components/parameters/QuestionID'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - type: object
+                  required: [expected_question_revision]
+                  properties:
+                    expected_question_revision: {type: integer, minimum: 1}
+                - {$ref: '#/components/schemas/VersionContentInput'}
+      responses:
+        '201': {$ref: '#/components/responses/QuestionDetail'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+  /v1/questions/{question_id}/archive:
+    post:
+      operationId: archiveQuestion
+      parameters:
+        - {$ref: '#/components/parameters/QuestionID'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expected_question_revision]
+              properties:
+                expected_question_revision: {type: integer, minimum: 1}
+      responses:
+        '200': {$ref: '#/components/responses/QuestionDetail'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+  /v1/question-versions/{question_version_id}:
+    get:
+      operationId: getQuestionVersion
+      parameters: [{$ref: '#/components/parameters/QuestionVersionID'}]
+      responses:
+        '200': {$ref: '#/components/responses/QuestionVersion'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+  /v1/question-versions/{question_version_id}/manifests/{manifest_kind}:
+    put:
+      operationId: upsertTestCaseManifest
+      parameters:
+        - {$ref: '#/components/parameters/QuestionVersionID'}
+        - name: manifest_kind
+          in: path
+          required: true
+          schema: {type: string, enum: [sample, hidden]}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expected_question_version, object_reference, test_case_count]
+              properties:
+                expected_question_version: {type: integer, minimum: 1}
+                object_reference: {$ref: '#/components/schemas/EncryptedObjectReference'}
+                test_case_count: {type: integer, minimum: 1}
+      responses:
+        '200': {$ref: '#/components/responses/QuestionVersion'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+  /v1/question-versions/{question_version_id}/assets:
+    post:
+      operationId: addQuestionAsset
+      parameters:
+        - {$ref: '#/components/parameters/QuestionVersionID'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [asset_kind, object_reference, content_type, byte_size, expected_question_version]
+              properties:
+                asset_kind: {type: string, enum: [attachment, starter_code, reference_solution]}
+                object_reference: {$ref: '#/components/schemas/EncryptedObjectReference'}
+                content_type: {type: string, minLength: 1, maxLength: 180}
+                byte_size: {type: integer, minimum: 1}
+                expected_question_version: {type: integer, minimum: 1}
+      responses:
+        '201': {$ref: '#/components/responses/QuestionVersion'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+  /v1/question-versions/{question_version_id}/tags:
+    put:
+      operationId: replaceQuestionVersionTags
+      parameters:
+        - {$ref: '#/components/parameters/QuestionVersionID'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expected_question_version, tags]
+              properties:
+                expected_question_version: {type: integer, minimum: 1}
+                tags:
+                  type: array
+                  maxItems: 50
+                  items: {type: string, minLength: 1, maxLength: 80}
+      responses:
+        '200': {$ref: '#/components/responses/QuestionVersion'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+  /v1/question-versions/{question_version_id}/publish:
+    post:
+      operationId: publishQuestionVersion
+      parameters:
+        - {$ref: '#/components/parameters/QuestionVersionID'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expected_question_version]
+              properties:
+                expected_question_version: {type: integer, minimum: 1}
+      responses:
+        '200': {$ref: '#/components/responses/QuestionDetail'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: {type: string, minLength: 1, maxLength: 255}
+    QuestionID:
+      name: question_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUID'}
+    QuestionVersionID:
+      name: question_version_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUID'}
+  responses:
+    Problem:
+      description: Stable error response
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    QuestionDetail:
+      description: Question and one immutable version summary
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/QuestionDetail'}
+    QuestionVersion:
+      description: Safe version metadata without encrypted object locations
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/QuestionVersion'}
+  schemas:
+    UUID:
+      type: string
+      format: uuid
+    EncryptedObjectReference:
+      type: object
+      required: [object_key, checksum, encryption_key_reference]
+      properties:
+        object_key: {type: string, minLength: 1, maxLength: 1024}
+        checksum: {type: string, pattern: '^[0-9a-fA-F]{64}$'}
+        encryption_key_reference: {type: string, minLength: 1, maxLength: 1024}
+    VersionContentInput:
+      type: object
+      required: [title, prompt_markdown, difficulty, supported_languages, time_limit_ms, memory_limit_kib, evaluation_bundle, tags]
+      properties:
+        title: {type: string, minLength: 1, maxLength: 300}
+        prompt_markdown: {type: string, minLength: 1, maxLength: 200000}
+        difficulty: {type: string, enum: [easy, medium, hard]}
+        supported_languages:
+          type: array
+          minItems: 1
+          maxItems: 32
+          uniqueItems: true
+          items: {type: string, minLength: 1, maxLength: 80}
+        time_limit_ms: {type: integer, minimum: 50, maximum: 600000}
+        memory_limit_kib: {type: integer, minimum: 1024, maximum: 4194304}
+        evaluation_bundle: {$ref: '#/components/schemas/EncryptedObjectReference'}
+        tags:
+          type: array
+          maxItems: 50
+          items: {type: string, minLength: 1, maxLength: 80}
+    Tag:
+      type: object
+      required: [id, name]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        name: {type: string}
+    Question:
+      type: object
+      required: [id, slug, lifecycle_state, created_at, version]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        slug: {type: string}
+        lifecycle_state: {type: string, enum: [draft, published, archived]}
+        created_at: {type: string, format: date-time}
+        archived_at: {type: [string, 'null'], format: date-time}
+        version: {type: integer, minimum: 1}
+    QuestionVersion:
+      type: object
+      required: [id, question_id, version_number, title, prompt_markdown, difficulty, supported_languages, time_limit_ms, memory_limit_kib, status, created_at, version, tags, sample_test_case_count, hidden_test_case_count, asset_count]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        question_id: {$ref: '#/components/schemas/UUID'}
+        version_number: {type: integer, minimum: 1}
+        title: {type: string}
+        prompt_markdown: {type: string}
+        difficulty: {type: string, enum: [easy, medium, hard]}
+        supported_languages: {type: array, items: {type: string}}
+        time_limit_ms: {type: integer}
+        memory_limit_kib: {type: integer}
+        status: {type: string, enum: [draft, published, retired]}
+        published_at: {type: [string, 'null'], format: date-time}
+        created_at: {type: string, format: date-time}
+        version: {type: integer, minimum: 1}
+        tags: {type: array, items: {$ref: '#/components/schemas/Tag'}}
+        sample_test_case_count: {type: integer, minimum: 0}
+        hidden_test_case_count: {type: integer, minimum: 0}
+        asset_count: {type: integer, minimum: 0}
+    QuestionDetail:
+      type: object
+      required: [question, question_version]
+      properties:
+        question: {$ref: '#/components/schemas/Question'}
+        question_version: {$ref: '#/components/schemas/QuestionVersion'}
+    Problem:
+      type: object
+      required: [code, message]
+      properties:
+        code: {type: string}
+        message: {type: string}

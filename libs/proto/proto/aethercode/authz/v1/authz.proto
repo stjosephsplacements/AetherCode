@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package aethercode.authz.v1;
+
+option go_package = "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/authz/v1;authzv1";
+
+service AuthorizationService {
+  rpc Authorize(AuthorizeRequest) returns (AuthorizeResponse);
+}
+
+message AuthorizeRequest {
+  string principal_id = 1;
+  string action = 2;
+  string resource_type = 3;
+  string resource_id = 4;
+  string tenant_id = 5;
+  string request_id = 6;
+  // The service that will open its local RLS-protected transaction after this
+  // decision. It is part of the signed database-capability audience.
+  string target_service = 7;
+  // A short-lived identity assertion minted by the identity-validation path.
+  // Production Authz verifies that it binds this principal and request before
+  // evaluating policy; it is never accepted from a public client directly.
+  string identity_assertion = 8;
+}
+
+message Scope {
+  string kind = 1;
+  string id = 2;
+}
+
+message AuthorizeResponse {
+  bool allowed = 1;
+  string decision_id = 2;
+  uint64 authz_revision = 3;
+  repeated Scope scopes = 4;
+  // A short-lived, one-time, base64url-encoded signed authorization envelope.
+  // It is issued only for allowed decisions and only to target_service. The
+  // receiving database validates it; services never receive its signing key.
+  string database_capability = 5;
+  // UTC RFC3339Nano time. A capability is valid for at most five seconds.
+  string database_capability_expires_at = 6;
+}

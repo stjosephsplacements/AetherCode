@@ -1,0 +1,19 @@
+go 1.26.0
+
+toolchain go1.26.5
+
+use (
+	./libs/pkg
+	./libs/proto
+	./services/analytics
+	./services/assessment
+	./services/gateway
+	./services/identity
+	./services/judge
+	./services/notification
+	./services/question-bank
+	./services/seb
+	./services/submission
+	./services/tenant
+	./services/user
+)

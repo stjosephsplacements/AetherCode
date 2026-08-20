@@ -1,0 +1,68 @@
+# This chart deliberately fails to render until the India-resident backup and
+# certificate resources are named. Keep credentials out of Git; provision each
+# referenced Secret through the approved secrets controller.
+cluster:
+  name: aether-platform
+  image: ghcr.io/cloudnative-pg/postgresql@sha256:9287ce030c6f3ce822e383b019ae4aaf1e8370bff3b39f9c51dc10d69dc97219
+  instances: 3
+  storageClass: local-nvme-replicated
+  storageSize: 2Ti
+  walStorageSize: 512Gi
+  nodeSelector:
+    node-role.kubernetes.io/postgres: ""
+  tolerations:
+    - key: node-role.kubernetes.io/postgres
+      operator: Exists
+      effect: NoSchedule
+  resources:
+    requests:
+      cpu: "8"
+      memory: 32Gi
+    limits:
+      cpu: "16"
+      memory: 64Gi
+
+# These Secrets must exist in the release namespace before Helm is run.
+certificates:
+  serverCASecret: ""
+  serverTLSSecret: ""
+  clientCASecret: ""
+  replicationTLSSecret: ""
+
+backup:
+  destinationPath: ""
+  endpointURL: ""
+  credentialsSecret: ""
+  endpointCASecret: ""
+  retentionPolicy: 35d
+
+# CNPG creates a certificate Secret for every LOGIN role below. Workload
+# manifests mount only their own certificate Secret; never reuse credentials.
+services:
+  - id: identity
+    rolePrefix: identity
+    database: aether_identity
+  - id: tenant
+    rolePrefix: tenant
+    database: aether_tenant
+  - id: users
+    rolePrefix: user
+    database: aether_users
+  - id: question-bank
+    rolePrefix: question_bank
+    database: aether_qbank
+  - id: assessment
+    rolePrefix: assessment
+    database: aether_assessment
+  - id: submission
+    rolePrefix: submission
+    database: aether_submission
+  - id: seb
+    rolePrefix: seb
+    database: aether_seb
+  - id: notification
+    rolePrefix: notification
+    database: aether_notification
+  - id: analytics
+    rolePrefix: analytics
+    database: aether_analytics

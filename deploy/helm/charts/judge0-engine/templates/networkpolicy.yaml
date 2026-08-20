@@ -1,0 +1,92 @@
+{{- if and .Values.enabled .Values.networkPolicy.enabled }}
+{{- include "judge0-engine.validate" . }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "judge0-engine.fullname" . }}-default-deny
+  labels:
+    {{- include "judge0-engine.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: judge-engine
+  policyTypes: ["Ingress", "Egress"]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "judge0-engine.fullname" . }}-server
+  labels:
+    {{- include "judge0-engine.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "judge0-engine.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: server
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              {{- toYaml .Values.networkPolicy.wrapperNamespaceLabels | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: http
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              {{- toYaml .Values.networkPolicy.dataNamespaceLabels | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 6379
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              {{- toYaml .Values.networkPolicy.dnsNamespaceLabels | nindent 14 }}
+          podSelector:
+            matchLabels:
+              {{- toYaml .Values.networkPolicy.dnsPodLabels | nindent 14 }}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "judge0-engine.fullname" . }}-worker
+  labels:
+    {{- include "judge0-engine.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "judge0-engine.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: worker
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              {{- toYaml .Values.networkPolicy.dataNamespaceLabels | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 6379
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              {{- toYaml .Values.networkPolicy.dnsNamespaceLabels | nindent 14 }}
+          podSelector:
+            matchLabels:
+              {{- toYaml .Values.networkPolicy.dnsPodLabels | nindent 14 }}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+{{- end }}

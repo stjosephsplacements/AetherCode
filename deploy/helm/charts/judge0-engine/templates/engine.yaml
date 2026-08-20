@@ -1,0 +1,256 @@
+{{- if .Values.enabled }}
+{{- include "judge0-engine.validate" . }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "judge0-engine.fullname" . }}-config
+  labels:
+    {{- include "judge0-engine.labels" . | nindent 4 }}
+data:
+  JUDGE0_TELEMETRY_ENABLE: "false"
+  RAILS_ENV: production
+  ENABLE_WAIT_RESULT: "false"
+  ENABLE_COMPILER_OPTIONS: "false"
+  ENABLE_COMMAND_LINE_ARGUMENTS: "false"
+  ENABLE_SUBMISSION_DELETE: "false"
+  ENABLE_BATCHED_SUBMISSIONS: "false"
+  ENABLE_CALLBACKS: "false"
+  ENABLE_ADDITIONAL_FILES: "false"
+  ENABLE_NETWORK: "false"
+  ALLOW_ENABLE_NETWORK: "false"
+  ENABLE_PER_PROCESS_AND_THREAD_TIME_LIMIT: "false"
+  ALLOW_ENABLE_PER_PROCESS_AND_THREAD_TIME_LIMIT: "false"
+  ENABLE_PER_PROCESS_AND_THREAD_MEMORY_LIMIT: "false"
+  ALLOW_ENABLE_PER_PROCESS_AND_THREAD_MEMORY_LIMIT: "false"
+  CPU_TIME_LIMIT: "5"
+  MAX_CPU_TIME_LIMIT: "15"
+  CPU_EXTRA_TIME: "1"
+  MAX_CPU_EXTRA_TIME: "5"
+  WALL_TIME_LIMIT: "20"
+  MAX_WALL_TIME_LIMIT: "60"
+  MEMORY_LIMIT: "262144"
+  MAX_MEMORY_LIMIT: "2097152"
+  STACK_LIMIT: "131072"
+  MAX_STACK_LIMIT: "262144"
+  MAX_PROCESSES_AND_OR_THREADS: "64"
+  MAX_MAX_PROCESSES_AND_OR_THREADS: "256"
+  MAX_FILE_SIZE: "1024"
+  MAX_MAX_FILE_SIZE: "4096"
+  MAX_EXTRACT_SIZE: "10240"
+  MAX_QUEUE_SIZE: "1000"
+  COUNT: "4"
+  RAILS_MAX_THREADS: "4"
+  RAILS_SERVER_PROCESSES: "2"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "judge0-engine.fullname" . }}
+  labels:
+    {{- include "judge0-engine.labels" . | nindent 4 }}
+    app.kubernetes.io/component: server
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "judge0-engine.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: server
+  ports:
+    - name: http
+      port: {{ .Values.server.port }}
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "judge0-engine.fullname" . }}-server
+  labels:
+    {{- include "judge0-engine.labels" . | nindent 4 }}
+    app.kubernetes.io/component: server
+spec:
+  replicas: {{ .Values.server.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      {{- include "judge0-engine.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: server
+  template:
+    metadata:
+      labels:
+        {{- include "judge0-engine.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: server
+        app.kubernetes.io/part-of: judge-engine
+    spec:
+      runtimeClassName: {{ .Values.runtimeClassName }}
+      hostNetwork: false
+      hostPID: false
+      hostIPC: false
+      automountServiceAccountToken: false
+      nodeSelector:
+        {{- toYaml .Values.nodeSelector | nindent 8 }}
+      tolerations:
+        {{- toYaml .Values.tolerations | nindent 8 }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              {{- include "judge0-engine.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: server
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: judge0-server
+          image: {{ include "judge0-engine.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.server.port }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "judge0-engine.fullname" . }}-config
+            - secretRef:
+                name: {{ .Values.runtimeSecret.name }}
+          securityContext:
+            privileged: false
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            {{- toYaml .Values.resources.server | nindent 12 }}
+          startupProbe:
+            tcpSocket:
+              port: http
+            failureThreshold: 60
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 15
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 5
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: isolate-boxes
+              mountPath: /box
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 512Mi
+        - name: isolate-boxes
+          emptyDir:
+            sizeLimit: 4Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "judge0-engine.fullname" . }}-worker
+  labels:
+    {{- include "judge0-engine.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  replicas: {{ .Values.worker.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      {{- include "judge0-engine.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      labels:
+        {{- include "judge0-engine.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: worker
+        app.kubernetes.io/part-of: judge-engine
+    spec:
+      runtimeClassName: {{ .Values.runtimeClassName }}
+      hostNetwork: false
+      hostPID: false
+      hostIPC: false
+      automountServiceAccountToken: false
+      nodeSelector:
+        {{- toYaml .Values.nodeSelector | nindent 8 }}
+      tolerations:
+        {{- toYaml .Values.tolerations | nindent 8 }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              {{- include "judge0-engine.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: worker
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: judge0-worker
+          image: {{ include "judge0-engine.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["./scripts/workers"]
+          envFrom:
+            - configMapRef:
+                name: {{ include "judge0-engine.fullname" . }}-config
+            - secretRef:
+                name: {{ .Values.runtimeSecret.name }}
+          securityContext:
+            privileged: false
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            {{- toYaml .Values.resources.worker | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: isolate-boxes
+              mountPath: /box
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 512Mi
+        - name: isolate-boxes
+          emptyDir:
+            sizeLimit: 4Gi
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "judge0-engine.fullname" . }}-server
+  labels:
+    {{- include "judge0-engine.labels" . | nindent 4 }}
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      {{- include "judge0-engine.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: server
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "judge0-engine.fullname" . }}-worker
+  labels:
+    {{- include "judge0-engine.labels" . | nindent 4 }}
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      {{- include "judge0-engine.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: worker
+{{- end }}

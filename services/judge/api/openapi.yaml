@@ -1,0 +1,13 @@
+openapi: 3.1.1
+info:
+  title: AetherCode Judge operational API
+  version: 0.1.0
+paths:
+  /healthz:
+    get:
+      responses:
+        '200': {description: Service is alive}
+  /readyz:
+    get:
+      responses:
+        '200': {description: Service is ready}

@@ -1,0 +1,92 @@
+// Package config holds Judge wrapper-specific validated runtime configuration.
+package config
+
+import (
+	"fmt"
+	"os"
+	"strings"
+)
+
+// Runtime controls the private Judge gRPC listener. Production and staging
+// instances always require TLS 1.3 with verified client certificates.
+type Runtime struct {
+	GRPCAddress                 string
+	CertificateFile             string
+	KeyFile                     string
+	ClientCAFile                string
+	AllowedSubjects             []string
+	RequireMTLS                 bool
+	RabbitURL                   string
+	PublisherID                 string
+	EngineCompatibilityApproved bool
+}
+
+// Load returns a safe listener configuration for the supplied environment.
+func Load(environment string) (Runtime, error) {
+	environment = strings.ToLower(strings.TrimSpace(environment))
+	grpcAddress := value("JUDGE_GRPC_ADDR", ":8443")
+	if !strings.Contains(grpcAddress, ":") {
+		return Runtime{}, fmt.Errorf("JUDGE_GRPC_ADDR must include a port")
+	}
+
+	runtime := Runtime{
+		GRPCAddress:                 grpcAddress,
+		CertificateFile:             strings.TrimSpace(value("JUDGE_TLS_CERT_FILE", "")),
+		KeyFile:                     strings.TrimSpace(value("JUDGE_TLS_KEY_FILE", "")),
+		ClientCAFile:                strings.TrimSpace(value("JUDGE_CLIENT_CA_FILE", "")),
+		AllowedSubjects:             splitSubjects(value("JUDGE_ALLOWED_CLIENT_SUBJECTS", "")),
+		RequireMTLS:                 environment == "production" || environment == "staging",
+		RabbitURL:                   strings.TrimSpace(value("JUDGE_RABBITMQ_URL", "")),
+		PublisherID:                 strings.TrimSpace(value("JUDGE_PUBLISHER_ID", "judge-admission-publisher")),
+		EngineCompatibilityApproved: strings.TrimSpace(value("JUDGE_ENGINE_COMPATIBILITY_APPROVED", "false")) == "true",
+	}
+	configuredFiles := 0
+	for _, file := range []string{runtime.CertificateFile, runtime.KeyFile, runtime.ClientCAFile} {
+		if file != "" {
+			configuredFiles++
+		}
+	}
+	if runtime.RequireMTLS && configuredFiles != 3 {
+		return Runtime{}, fmt.Errorf("Judge TLS certificate, key, and client CA are required in %s", environment)
+	}
+	if !runtime.RequireMTLS && configuredFiles != 0 && configuredFiles != 3 {
+		return Runtime{}, fmt.Errorf("Judge TLS certificate, key, and client CA must be configured together")
+	}
+	if configuredFiles == 3 {
+		runtime.RequireMTLS = true
+	}
+	if runtime.RequireMTLS && len(runtime.AllowedSubjects) == 0 {
+		return Runtime{}, fmt.Errorf("JUDGE_ALLOWED_CLIENT_SUBJECTS is required when Judge mTLS is enabled")
+	}
+	if runtime.RequireMTLS && runtime.RabbitURL == "" {
+		return Runtime{}, fmt.Errorf("JUDGE_RABBITMQ_URL is required in %s", environment)
+	}
+	if runtime.RabbitURL != "" && (runtime.PublisherID == "" || len(runtime.PublisherID) > 255) {
+		return Runtime{}, fmt.Errorf("JUDGE_PUBLISHER_ID must contain 1 to 255 characters when RabbitMQ is configured")
+	}
+	compatibilityValue := strings.TrimSpace(value("JUDGE_ENGINE_COMPATIBILITY_APPROVED", "false"))
+	if compatibilityValue != "true" && compatibilityValue != "false" {
+		return Runtime{}, fmt.Errorf("JUDGE_ENGINE_COMPATIBILITY_APPROVED must be true or false")
+	}
+	if runtime.RequireMTLS && !runtime.EngineCompatibilityApproved {
+		return Runtime{}, fmt.Errorf("JUDGE_ENGINE_COMPATIBILITY_APPROVED=true is required in %s", environment)
+	}
+	return runtime, nil
+}
+
+func splitSubjects(raw string) []string {
+	values := make([]string, 0)
+	for _, value := range strings.Split(raw, ",") {
+		if value = strings.TrimSpace(value); value != "" {
+			values = append(values, value)
+		}
+	}
+	return values
+}
+
+func value(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return fallback
+}

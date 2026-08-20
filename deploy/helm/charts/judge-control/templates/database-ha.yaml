@@ -1,0 +1,72 @@
+{{- if .Values.databaseHA.enabled }}
+{{- include "judge-control.validate" . }}
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ include "judge-control.fullname" . }}-postgres
+  labels:
+    {{- include "judge-control.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  instances: 3
+  imageName: {{ .Values.databaseHA.imageName | quote }}
+  startDelay: 300
+  stopDelay: 1800
+  switchoverDelay: 600
+  failoverDelay: 0
+  affinity:
+    enablePodAntiAffinity: true
+    topologyKey: kubernetes.io/hostname
+    podAntiAffinityType: required
+    nodeSelector:
+      {{- toYaml .Values.databaseHA.nodeSelector | nindent 6 }}
+    tolerations:
+      {{- toYaml .Values.databaseHA.tolerations | nindent 6 }}
+  storage:
+    storageClass: {{ .Values.databaseHA.storageClass | quote }}
+    size: {{ .Values.databaseHA.storageSize }}
+  postgresql:
+    parameters:
+      password_encryption: scram-sha-256
+      timezone: UTC
+      log_timezone: UTC
+      max_connections: "400"
+    synchronous:
+      method: any
+      number: 1
+      dataDurability: required
+  plugins:
+    - name: {{ .Values.databaseHA.backupPluginName | quote }}
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: {{ .Values.databaseHA.backupObjectStoreRef | quote }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: {{ include "judge-control.fullname" . }}-postgres-nightly
+  labels:
+    {{- include "judge-control.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  schedule: "0 0 2 * * *"
+  cluster:
+    name: {{ include "judge-control.fullname" . }}-postgres
+  backupOwnerReference: self
+  method: plugin
+  pluginConfiguration:
+    name: {{ .Values.databaseHA.backupPluginName | quote }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "judge-control.fullname" . }}-postgres
+  labels:
+    {{- include "judge-control.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      cnpg.io/cluster: {{ include "judge-control.fullname" . }}-postgres
+{{- end }}

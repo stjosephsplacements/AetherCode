@@ -1,0 +1,247 @@
+openapi: 3.1.1
+info:
+  title: AetherCode Notification API
+  version: 1.0.0
+  description: >-
+    Tenant-scoped notification preferences, encrypted notification references,
+    and durable in-app delivery. Every business request receives a fresh
+    central authorization decision and a one-transaction local RLS capability.
+servers:
+  - url: https://notification.internal.aethercode
+paths:
+  /healthz:
+    get:
+      responses:
+        '200': {$ref: '#/components/responses/Operational'}
+  /readyz:
+    get:
+      responses:
+        '200': {$ref: '#/components/responses/Operational'}
+        '503': {$ref: '#/components/responses/Operational'}
+  /v1/tenants/{tenant_id}/me/preferences:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    get:
+      security: [{bearerAuth: []}]
+      summary: List the caller's notification preferences
+      responses:
+        '200':
+          description: Caller-owned preferences
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: '#/components/schemas/Preference'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/me/preferences/in-app:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    put:
+      security: [{bearerAuth: []}]
+      summary: Create or optimistically update the caller's in-app preference
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PreferenceWrite'}
+      responses:
+        '200': {$ref: '#/components/responses/Preference'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/me/notifications:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    get:
+      security: [{bearerAuth: []}]
+      summary: List the caller's encrypted notification references
+      parameters:
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 50}
+      responses:
+        '200':
+          description: Caller-owned notification metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: '#/components/schemas/Notification'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/notifications:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    post:
+      security: [{bearerAuth: []}]
+      summary: Schedule one encrypted notification for a recipient
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ScheduleNotification'}
+      responses:
+        '201': {$ref: '#/components/responses/Notification'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/notifications/{notification_id}/cancel:
+    parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/NotificationID'}
+    post:
+      security: [{bearerAuth: []}]
+      summary: Cancel a pending notification with optimistic concurrency
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CancelNotification'}
+      responses:
+        '200': {$ref: '#/components/responses/Notification'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+components:
+  securitySchemes:
+    bearerAuth: {type: http, scheme: bearer, bearerFormat: AetherCode access token}
+  parameters:
+    TenantID:
+      name: tenant_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUID'}
+    NotificationID:
+      name: notification_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUID'}
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: >-
+        A stable request key. Reusing it with different JSON bytes returns
+        conflict; successful responses are replayed for 24 hours.
+      schema: {type: string, minLength: 1, maxLength: 255}
+  responses:
+    Operational:
+      description: Operational status
+    Preference:
+      description: Caller-owned preference
+      content:
+        application/json: {schema: {$ref: '#/components/schemas/Preference'}}
+    Notification:
+      description: Notification metadata and encrypted payload reference
+      content:
+        application/json: {schema: {$ref: '#/components/schemas/Notification'}}
+    Problem:
+      description: Stable error response
+      content:
+        application/json: {schema: {$ref: '#/components/schemas/Problem'}}
+  schemas:
+    UUID: {type: string, format: uuid}
+    SHA256: {type: string, pattern: '^[0-9a-f]{64}$'}
+    PreferenceWrite:
+      type: object
+      required: [enabled, expected_version]
+      additionalProperties: false
+      properties:
+        enabled: {type: boolean}
+        expected_version: {type: integer, minimum: 0}
+    Preference:
+      type: object
+      required: [id, tenant_id, recipient_id, channel, enabled, updated_at, version]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+        recipient_id: {$ref: '#/components/schemas/UUID'}
+        channel: {type: string, const: in_app}
+        enabled: {type: boolean}
+        updated_at: {type: string, format: date-time}
+        version: {type: integer, minimum: 1}
+    ScheduleNotification:
+      type: object
+      required:
+        - recipient_id
+        - category
+        - template_code
+        - content_object_key
+        - content_checksum
+        - encryption_key_reference
+        - scheduled_at
+      additionalProperties: false
+      properties:
+        recipient_id: {$ref: '#/components/schemas/UUID'}
+        category: {type: string, enum: [exam_reminder, exam_result, system]}
+        template_code: {type: string, minLength: 1, maxLength: 160}
+        content_object_key:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          description: Encrypted object-storage reference; never plaintext content.
+        content_checksum: {$ref: '#/components/schemas/SHA256'}
+        encryption_key_reference: {type: string, minLength: 1, maxLength: 255}
+        scheduled_at: {type: string, format: date-time}
+        retention_subject_id:
+          description: Optional Assessment or Submission aggregate covered by a legal hold.
+          allOf: [{$ref: '#/components/schemas/UUID'}]
+    CancelNotification:
+      type: object
+      required: [expected_version, reason]
+      additionalProperties: false
+      properties:
+        expected_version: {type: integer, minimum: 1}
+        reason: {type: string, minLength: 1, maxLength: 500}
+    Notification:
+      type: object
+      required:
+        - id
+        - tenant_id
+        - recipient_id
+        - category
+        - template_code
+        - content_object_key
+        - content_checksum
+        - encryption_key_reference
+        - lifecycle_state
+        - scheduled_at
+        - created_at
+        - retention_until
+        - legal_hold
+        - version
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+        recipient_id: {$ref: '#/components/schemas/UUID'}
+        category: {type: string, enum: [exam_reminder, exam_result, system]}
+        template_code: {type: string}
+        content_object_key: {type: string}
+        content_checksum: {$ref: '#/components/schemas/SHA256'}
+        encryption_key_reference: {type: string}
+        lifecycle_state: {type: string, enum: [pending, sending, sent, partially_delivered, failed, cancelled]}
+        scheduled_at: {type: string, format: date-time}
+        created_at: {type: string, format: date-time}
+        completed_at: {type: string, format: date-time}
+        retention_until: {type: string, format: date-time}
+        legal_hold: {type: boolean}
+        retention_subject_id: {$ref: '#/components/schemas/UUID'}
+        version: {type: integer, minimum: 1}
+    Problem:
+      type: object
+      required: [code, message]
+      properties:
+        code: {type: string}
+        message: {type: string}

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "replicaCount": {"type": "integer", "minimum": 3},
+    "engine": {
+      "type": "object",
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "compatibilityApproved": {"type": "boolean"},
+        "compatibilityEvidenceRef": {"type": "string"}
+      }
+    },
+    "rabbitmq": {
+      "type": "object",
+      "properties": {"replicas": {"type": "integer", "minimum": 3}}
+    },
+    "databaseHA": {
+      "type": "object",
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "externalHAEvidenceRef": {"type": "string"}
+      }
+    }
+  }
+}

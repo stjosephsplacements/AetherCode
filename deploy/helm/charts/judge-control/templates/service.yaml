@@ -1,0 +1,16 @@
+{{- include "judge-control.validate" . }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "judge-control.fullname" . }}
+  labels:
+    {{- include "judge-control.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "judge-control.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: grpc
+      port: {{ .Values.service.port }}
+      targetPort: grpc
+      protocol: TCP

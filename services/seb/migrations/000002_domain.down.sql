@@ -1,0 +1,3 @@
+SET ROLE aether_seb_owner;
+DROP SCHEMA seb CASCADE;
+RESET ROLE;

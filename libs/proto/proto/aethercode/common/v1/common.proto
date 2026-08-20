@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package aethercode.common.v1;
+
+option go_package = "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/common/v1;commonv1";
+
+message HealthRequest {}
+
+message HealthResponse {
+  string service = 1;
+  string status = 2;
+}

@@ -1,0 +1,88 @@
+name: aethercode
+
+services:
+  platform-postgres:
+    image: postgres:18.4
+    profiles: ["platform"]
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: aether_admin
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:?set POSTGRES_SUPERUSER_PASSWORD}
+      IDENTITY_DB_PASSWORD: ${IDENTITY_DB_PASSWORD:?set IDENTITY_DB_PASSWORD}
+      TENANT_DB_PASSWORD: ${TENANT_DB_PASSWORD:?set TENANT_DB_PASSWORD}
+      USERS_DB_PASSWORD: ${USERS_DB_PASSWORD:?set USERS_DB_PASSWORD}
+      QBANK_DB_PASSWORD: ${QBANK_DB_PASSWORD:?set QBANK_DB_PASSWORD}
+      ASSESSMENT_DB_PASSWORD: ${ASSESSMENT_DB_PASSWORD:?set ASSESSMENT_DB_PASSWORD}
+      SUBMISSION_DB_PASSWORD: ${SUBMISSION_DB_PASSWORD:?set SUBMISSION_DB_PASSWORD}
+      SEB_DB_PASSWORD: ${SEB_DB_PASSWORD:?set SEB_DB_PASSWORD}
+      NOTIFICATION_DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD:?set NOTIFICATION_DB_PASSWORD}
+      ANALYTICS_DB_PASSWORD: ${ANALYTICS_DB_PASSWORD:?set ANALYTICS_DB_PASSWORD}
+    command:
+      - postgres
+      - -c
+      - password_encryption=scram-sha-256
+      - -c
+      - log_connections=on
+    volumes:
+      - platform-postgres-data:/var/lib/postgresql
+      - ./deploy/database/platform/dev-init.sh:/docker-entrypoint-initdb.d/00-aethercode-roles.sh:ro
+    ports:
+      - 127.0.0.1:5432:5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aether_admin -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  nats:
+    image: nats:2.14.3
+    profiles: ["platform"]
+    command: ["-js", "-sd", "/data"]
+    volumes:
+      - nats-data:/data
+    ports:
+      - 127.0.0.1:4222:4222
+      - 127.0.0.1:8222:8222
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  platform-redis:
+    image: redis:8.8.0
+    profiles: ["platform"]
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - platform-redis-data:/data
+    ports:
+      - 127.0.0.1:6379:6379
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: minio/minio:RELEASE.2024-10-13T13-34-11Z
+    profiles: ["platform"]
+    command: server /data --console-address :9001
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio-data:/data
+    ports:
+      - 127.0.0.1:9000:9000
+      - 127.0.0.1:9001:9001
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  platform-postgres-data:
+  nats-data:
+  platform-redis-data:
+  minio-data:

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -lt 1 ]]; then
+  printf 'usage: %s <image-reference> [image-reference ...]\n' "$0" >&2
+  exit 64
+fi
+
+for image in "$@"; do
+  if [[ ! "$image" =~ @sha256:[a-f0-9]{64}$ ]]; then
+    printf 'production image must include an immutable manifest digest: %s\n' "$image" >&2
+    exit 65
+  fi
+done

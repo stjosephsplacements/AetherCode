@@ -1,0 +1,38 @@
+{{- include "platform-postgres-ha.requireProductionInputs" . -}}
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: {{ include "platform-postgres-ha.fullname" . }}-backup
+  labels:
+    app.kubernetes.io/name: aethercode-platform-postgres
+    aethercode.io/residency: india
+spec:
+  retentionPolicy: {{ .Values.backup.retentionPolicy | quote }}
+  configuration:
+    destinationPath: {{ .Values.backup.destinationPath | quote }}
+    endpointURL: {{ .Values.backup.endpointURL | quote }}
+    endpointCA:
+      name: {{ .Values.backup.endpointCASecret | quote }}
+      key: ca.crt
+    s3Credentials:
+      accessKeyId:
+        name: {{ .Values.backup.credentialsSecret | quote }}
+        key: ACCESS_KEY_ID
+      secretAccessKey:
+        name: {{ .Values.backup.credentialsSecret | quote }}
+        key: ACCESS_SECRET_KEY
+    data:
+      compression: gzip
+      encryption: AES256
+    wal:
+      compression: gzip
+      encryption: AES256
+  instanceSidecarConfiguration:
+    retentionPolicyIntervalSeconds: 1800
+    resources:
+      requests:
+        cpu: 500m
+        memory: 512Mi
+      limits:
+        cpu: "2"
+        memory: 2Gi

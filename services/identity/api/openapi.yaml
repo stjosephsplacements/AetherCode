@@ -1,0 +1,330 @@
+openapi: 3.1.1
+info:
+  title: AetherCode Identity API
+  version: 1.0.0
+  description: |
+    Public authentication and self-service MFA API. Responses containing a
+    bearer, TOTP secret, or recovery codes are returned with `Cache-Control:
+    no-store`. Development-only delivery tokens are omitted in production.
+paths:
+  /healthz:
+    get:
+      responses:
+        '200': {description: Service is alive}
+  /readyz:
+    get:
+      responses:
+        '200': {description: Service is ready}
+        '503': {$ref: '#/components/responses/Error'}
+  /v1/auth/register:
+    post:
+      summary: Register a pending-verification principal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RegisterRequest'}
+      responses:
+        '201':
+          description: Registration accepted; verification token is development-only.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RegisterResponse'}
+        '400': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+  /v1/auth/verify-email:
+    post:
+      summary: Consume a one-time email-verification token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/TokenRequest'}
+      responses:
+        '200':
+          description: Principal activated
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PrincipalResponse'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+  /v1/auth/login:
+    post:
+      summary: Authenticate with an email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/LoginRequest'}
+      responses:
+        '200':
+          description: Access and refresh tokens, or an MFA challenge.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TokenPair'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '423': {$ref: '#/components/responses/Error'}
+  /v1/auth/mfa/verify-login:
+    post:
+      summary: Complete an MFA login challenge
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/MFALoginRequest'}
+      responses:
+        '200':
+          description: Access and refresh tokens
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TokenPair'}
+        '401': {$ref: '#/components/responses/Error'}
+  /v1/auth/refresh:
+    post:
+      summary: Rotate a refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RefreshRequest'}
+      responses:
+        '200':
+          description: Rotated access and refresh tokens
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TokenPair'}
+        '401': {$ref: '#/components/responses/Error'}
+  /v1/auth/logout:
+    post:
+      summary: Revoke the refresh-token family
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RefreshRequest'}
+      responses:
+        '204': {description: Refresh family revoked}
+        '400': {$ref: '#/components/responses/Error'}
+  /v1/auth/password-reset:
+    post:
+      summary: Create a password-reset delivery token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              additionalProperties: false
+              properties:
+                email: {$ref: '#/components/schemas/Email'}
+      responses:
+        '202':
+          description: Reset delivery accepted; token is development-only.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PasswordResetRequested'}
+        '400': {$ref: '#/components/responses/Error'}
+  /v1/auth/password-reset/complete:
+    post:
+      summary: Reset a password and revoke active refresh sessions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              additionalProperties: false
+              properties:
+                token: {$ref: '#/components/schemas/OpaqueToken'}
+                password:
+                  type: string
+                  format: password
+                  minLength: 12
+                  writeOnly: true
+      responses:
+        '204': {description: Password reset completed}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+  /v1/auth/mfa/totp:
+    post:
+      summary: Start TOTP enrollment
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [label]
+              additionalProperties: false
+              properties:
+                label: {type: string, minLength: 1, maxLength: 120}
+      responses:
+        '201':
+          description: A pending factor and one-time TOTP seed.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TOTPEnrollment'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+  /v1/auth/mfa/totp/{factor_id}/activate:
+    post:
+      summary: Activate a pending TOTP factor
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/FactorID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/TOTPCode'}
+      responses:
+        '200':
+          description: One-time recovery codes; store them securely.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RecoveryCodes'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+  /v1/auth/mfa/totp/{factor_id}:
+    delete:
+      summary: Disable a TOTP factor with current-factor proof
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/FactorID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/TOTPCode'}
+      responses:
+        '204': {description: Factor disabled}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWS
+  parameters:
+    FactorID:
+      name: factor_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUID'}
+  responses:
+    Error:
+      description: Stable machine-readable API error.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+  schemas:
+    UUID: {type: string, format: uuid}
+    Email: {type: string, format: email, maxLength: 320}
+    OpaqueToken: {type: string, minLength: 1, writeOnly: true}
+    RegisterRequest:
+      type: object
+      required: [email, display_name, password]
+      additionalProperties: false
+      properties:
+        email: {$ref: '#/components/schemas/Email'}
+        display_name: {type: string, minLength: 1, maxLength: 200}
+        password: {type: string, format: password, minLength: 12, writeOnly: true}
+    RegisterResponse:
+      type: object
+      required: [principal_id]
+      additionalProperties: false
+      properties:
+        principal_id: {$ref: '#/components/schemas/UUID'}
+        verification_token:
+          type: string
+          description: Present only when development-secret exposure is enabled.
+    TokenRequest:
+      type: object
+      required: [token]
+      additionalProperties: false
+      properties:
+        token: {$ref: '#/components/schemas/OpaqueToken'}
+    PrincipalResponse:
+      type: object
+      required: [principal_id]
+      additionalProperties: false
+      properties:
+        principal_id: {$ref: '#/components/schemas/UUID'}
+    LoginRequest:
+      type: object
+      required: [email, password]
+      additionalProperties: false
+      properties:
+        email: {$ref: '#/components/schemas/Email'}
+        password: {type: string, format: password, writeOnly: true}
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+    MFALoginRequest:
+      type: object
+      required: [mfa_challenge_token, code]
+      additionalProperties: false
+      properties:
+        mfa_challenge_token: {$ref: '#/components/schemas/OpaqueToken'}
+        code: {type: string, pattern: '^[0-9]{6}$', writeOnly: true}
+    RefreshRequest:
+      type: object
+      required: [refresh_token]
+      additionalProperties: false
+      properties:
+        refresh_token: {$ref: '#/components/schemas/OpaqueToken'}
+    TokenPair:
+      type: object
+      properties:
+        access_token: {type: string, readOnly: true}
+        access_token_expires_at: {type: string, format: date-time, readOnly: true}
+        refresh_token: {type: string, readOnly: true}
+        refresh_token_expires_at: {type: string, format: date-time, readOnly: true}
+        mfa_required: {type: boolean, readOnly: true}
+        mfa_challenge_token: {type: string, readOnly: true}
+        mfa_challenge_expires_at: {type: string, format: date-time, readOnly: true}
+      oneOf:
+        - required: [access_token, access_token_expires_at, refresh_token, refresh_token_expires_at]
+        - required: [mfa_required, mfa_challenge_token, mfa_challenge_expires_at]
+    PasswordResetRequested:
+      type: object
+      required: [status]
+      additionalProperties: false
+      properties:
+        status: {type: string, const: accepted}
+        token:
+          type: string
+          description: Present only when development-secret exposure is enabled.
+    TOTPEnrollment:
+      type: object
+      required: [factor_id, secret, otpauth_uri]
+      additionalProperties: false
+      properties:
+        factor_id: {$ref: '#/components/schemas/UUID'}
+        secret: {type: string, readOnly: true}
+        otpauth_uri: {type: string, format: uri, readOnly: true}
+    TOTPCode:
+      type: object
+      required: [code]
+      additionalProperties: false
+      properties:
+        code: {type: string, pattern: '^[0-9]{6}$', writeOnly: true}
+    RecoveryCodes:
+      type: object
+      required: [recovery_codes]
+      additionalProperties: false
+      properties:
+        recovery_codes:
+          type: array
+          readOnly: true
+          items: {type: string}
+    Error:
+      type: object
+      required: [code, message]
+      additionalProperties: false
+      properties:
+        code: {type: string}
+        message: {type: string}

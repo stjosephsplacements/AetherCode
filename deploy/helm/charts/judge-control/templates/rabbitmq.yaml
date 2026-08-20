@@ -1,0 +1,213 @@
+{{- if .Values.rabbitmq.enabled }}
+{{- include "judge-control.validate" . }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "judge-control.fullname" . }}-rabbitmq-config
+  labels:
+    {{- include "judge-control.labels" . | nindent 4 }}
+data:
+  rabbitmq.conf: |
+    cluster_formation.peer_discovery_backend = rabbit_peer_discovery_k8s
+    cluster_formation.k8s.service_name = {{ include "judge-control.fullname" . }}-rabbitmq-headless
+    cluster_formation.k8s.address_type = hostname
+    cluster_partition_handling = pause_minority
+    default_queue_type = quorum
+    listeners.tcp.default = 5672
+    management.tcp.port = 15672
+    channel_max = 2048
+    consumer_timeout = 1800000
+  enabled_plugins: |
+    [rabbitmq_management,rabbitmq_peer_discovery_k8s].
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "judge-control.fullname" . }}-rabbitmq-headless
+  labels:
+    {{- include "judge-control.labels" . | nindent 4 }}
+    app.kubernetes.io/component: rabbitmq
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    {{- include "judge-control.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: rabbitmq
+  ports:
+    - name: amqp
+      port: 5672
+      targetPort: amqp
+    - name: epmd
+      port: 4369
+      targetPort: epmd
+    - name: distribution
+      port: 25672
+      targetPort: distribution
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "judge-control.fullname" . }}-rabbitmq
+  labels:
+    {{- include "judge-control.labels" . | nindent 4 }}
+    app.kubernetes.io/component: rabbitmq
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "judge-control.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: rabbitmq
+  ports:
+    - name: amqp
+      port: 5672
+      targetPort: amqp
+      protocol: TCP
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "judge-control.fullname" . }}-rabbitmq
+  labels:
+    {{- include "judge-control.labels" . | nindent 4 }}
+    app.kubernetes.io/component: rabbitmq
+spec:
+  serviceName: {{ include "judge-control.fullname" . }}-rabbitmq-headless
+  replicas: {{ .Values.rabbitmq.replicas }}
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      {{- include "judge-control.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: rabbitmq
+  template:
+    metadata:
+      labels:
+        {{- include "judge-control.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: rabbitmq
+        app.kubernetes.io/part-of: judge-control
+    spec:
+      serviceAccountName: {{ include "judge-control.fullname" . }}-rabbitmq
+      terminationGracePeriodSeconds: 120
+      nodeSelector:
+        {{- toYaml .Values.nodeSelector | nindent 8 }}
+      tolerations:
+        {{- toYaml .Values.tolerations | nindent 8 }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              {{- include "judge-control.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: rabbitmq
+      securityContext:
+        runAsNonRoot: true
+        fsGroup: 999
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: rabbitmq
+          image: {{ include "judge-control.image" .Values.rabbitmq.image }}
+          imagePullPolicy: {{ .Values.rabbitmq.image.pullPolicy }}
+          ports:
+            - name: amqp
+              containerPort: 5672
+            - name: management
+              containerPort: 15672
+            - name: epmd
+              containerPort: 4369
+            - name: distribution
+              containerPort: 25672
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: RABBITMQ_USE_LONGNAME
+              value: "true"
+            - name: RABBITMQ_NODENAME
+              value: rabbit@$(POD_NAME).{{ include "judge-control.fullname" . }}-rabbitmq-headless.$(POD_NAMESPACE).svc.cluster.local
+            - name: RABBITMQ_ERLANG_COOKIE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.rabbitmq.authSecretName }}
+                  key: {{ .Values.rabbitmq.erlangCookieKey }}
+            - name: RABBITMQ_DEFAULT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.rabbitmq.authSecretName }}
+                  key: {{ .Values.rabbitmq.usernameKey }}
+            - name: RABBITMQ_DEFAULT_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.rabbitmq.authSecretName }}
+                  key: {{ .Values.rabbitmq.passwordKey }}
+            - name: RABBITMQ_DEFAULT_VHOST
+              value: judge
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            {{- toYaml .Values.rabbitmq.resources | nindent 12 }}
+          startupProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "ping"]
+            failureThreshold: 36
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "ping"]
+            periodSeconds: 15
+            timeoutSeconds: 5
+          readinessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "check_running"]
+            periodSeconds: 10
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: rabbitmq-data
+              mountPath: /var/lib/rabbitmq
+            - name: rabbitmq-config
+              mountPath: /etc/rabbitmq/rabbitmq.conf
+              subPath: rabbitmq.conf
+              readOnly: true
+            - name: rabbitmq-config
+              mountPath: /etc/rabbitmq/enabled_plugins
+              subPath: enabled_plugins
+              readOnly: true
+      volumes:
+        - name: rabbitmq-config
+          configMap:
+            name: {{ include "judge-control.fullname" . }}-rabbitmq-config
+  volumeClaimTemplates:
+    - metadata:
+        name: rabbitmq-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with .Values.rabbitmq.storageClass }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.rabbitmq.storageSize }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "judge-control.fullname" . }}-rabbitmq
+  labels:
+    {{- include "judge-control.labels" . | nindent 4 }}
+    app.kubernetes.io/component: rabbitmq
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      {{- include "judge-control.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: rabbitmq
+{{- end }}

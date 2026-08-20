@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "enabled": {"type": "boolean"},
+    "compatibilityGate": {
+      "type": "object",
+      "properties": {"approved": {"type": "boolean"}, "evidenceRef": {"type": "string"}}
+    },
+    "runtimeClassName": {"const": "gvisor"},
+    "server": {"type": "object", "properties": {"replicas": {"type": "integer", "minimum": 3}}},
+    "worker": {"type": "object", "properties": {"replicas": {"type": "integer", "minimum": 3}}},
+    "engineDatabase": {"type": "object", "properties": {"haEvidenceRef": {"type": "string"}}}
+  }
+}

@@ -1,0 +1,1136 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Exercises the repository migrations against an isolated PostgreSQL 18.4
+# container. It creates no host database, volume, role, or network and removes
+# the exact container and temporary runner binary that it creates on exit.
+
+readonly REPOSITORY_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
+readonly POSTGRES_IMAGE="postgres:18.4"
+readonly ADMIN_USER="aether_migration_verifier"
+readonly JUDGE_MIGRATOR="aether_judge_migration_verifier"
+readonly CONTAINER_NAME="aether-migration-verify-${RANDOM}-${RANDOM}"
+readonly TEMPORARY_DIRECTORY="$(mktemp -d "${TMPDIR:-/tmp}/aether-migration-verify.XXXXXX")"
+readonly MIGRATION_RUNNER="${TEMPORARY_DIRECTORY}/aether-migrate"
+
+readonly -a PLATFORM_DATABASES=(
+  "identity:aether_identity:aether_identity_migrator:aether_identity_owner:aether_identity_app"
+  "tenant:aether_tenant:aether_tenant_migrator:aether_tenant_owner:aether_tenant_app"
+  "user:aether_users:aether_user_migrator:aether_user_owner:aether_user_app"
+  "question-bank:aether_qbank:aether_question_bank_migrator:aether_question_bank_owner:aether_question_bank_app"
+  "assessment:aether_assessment:aether_assessment_migrator:aether_assessment_owner:aether_assessment_app"
+  "submission:aether_submission:aether_submission_migrator:aether_submission_owner:aether_submission_app"
+  "seb:aether_seb:aether_seb_migrator:aether_seb_owner:aether_seb_app"
+  "notification:aether_notification:aether_notification_migrator:aether_notification_owner:aether_notification_app"
+  "analytics:aether_analytics:aether_analytics_migrator:aether_analytics_owner:aether_analytics_app"
+)
+
+readonly -a PLATFORM_CONNECT_IDENTITIES=(
+  "aether_identity:aether_identity_migrator:aether_identity_app:aether_identity_authz_reader:aether_identity_projection_worker"
+  "aether_tenant:aether_tenant_migrator:aether_tenant_app:aether_tenant_authz_reader:aether_tenant_projection_worker"
+  "aether_users:aether_user_migrator:aether_user_app:aether_user_authz_reader:aether_user_projection_worker"
+  "aether_qbank:aether_question_bank_migrator:aether_question_bank_app:aether_question_bank_authz_reader:aether_question_bank_projection_worker"
+  "aether_assessment:aether_assessment_migrator:aether_assessment_app:aether_assessment_authz_reader:aether_assessment_projection_worker"
+  "aether_submission:aether_submission_migrator:aether_submission_app:aether_submission_authz_reader:aether_submission_projection_worker:aether_submission_judge_adapter"
+  "aether_seb:aether_seb_migrator:aether_seb_app:aether_seb_authz_reader:aether_seb_projection_worker"
+  "aether_notification:aether_notification_migrator:aether_notification_app:aether_notification_authz_reader:aether_notification_projection_worker:aether_notification_retention_worker"
+  "aether_analytics:aether_analytics_migrator:aether_analytics_app:aether_analytics_authz_reader:aether_analytics_projection_worker"
+)
+
+container_started=false
+database_port=""
+
+fail() {
+  printf 'migration verification failed: %s\n' "$*" >&2
+  exit 1
+}
+
+cleanup() {
+  local status=$?
+  trap - EXIT INT TERM
+  if [[ "$container_started" == true ]]; then
+    docker rm --force "$CONTAINER_NAME" >/dev/null 2>&1 || true
+  fi
+  rm --force -- "$MIGRATION_RUNNER" >/dev/null 2>&1 || true
+  rmdir -- "$TEMPORARY_DIRECTORY" >/dev/null 2>&1 || true
+  exit "$status"
+}
+
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+require_command() {
+  command -v "$1" >/dev/null 2>&1 || fail "required command is unavailable: $1"
+}
+
+random_password() {
+  od -An -N24 -tx1 /dev/urandom | tr -d ' \n'
+}
+
+postgres_url() {
+  local role="$1"
+  local database="$2"
+  printf 'postgres://%s:%s@127.0.0.1:%s/%s?sslmode=disable' \
+    "$role" "$SERVICE_PASSWORD" "$database_port" "$database"
+}
+
+admin_psql() {
+  docker exec \
+    --env "PGPASSWORD=${ADMIN_PASSWORD}" \
+    "$CONTAINER_NAME" \
+    psql --host=127.0.0.1 --username="$ADMIN_USER" --dbname=postgres --set=ON_ERROR_STOP=1 "$@"
+}
+
+database_psql() {
+  local database="$1"
+  shift
+  docker exec --interactive \
+    --env "PGPASSWORD=${ADMIN_PASSWORD}" \
+    "$CONTAINER_NAME" \
+    psql --host=127.0.0.1 --username="$ADMIN_USER" --dbname="$database" --set=ON_ERROR_STOP=1 "$@"
+}
+
+role_psql() {
+  local database="$1"
+  local role="$2"
+  shift 2
+  docker exec --interactive \
+    --env "PGPASSWORD=${SERVICE_PASSWORD}" \
+    "$CONTAINER_NAME" \
+    psql --host=127.0.0.1 --username="$role" --dbname="$database" --set=ON_ERROR_STOP=1 "$@"
+}
+
+start_postgres() {
+  printf '%s\n' 'Starting disposable PostgreSQL 18.4 migration verifier...'
+  docker run --detach --name "$CONTAINER_NAME" \
+    --label aethercode.io/purpose=migration-verification \
+    --publish 127.0.0.1::5432 \
+    --env "POSTGRES_DB=postgres" \
+    --env "POSTGRES_USER=${ADMIN_USER}" \
+    --env "POSTGRES_PASSWORD=${ADMIN_PASSWORD}" \
+    --env "IDENTITY_DB_PASSWORD=${SERVICE_PASSWORD}" \
+    --env "TENANT_DB_PASSWORD=${SERVICE_PASSWORD}" \
+    --env "USERS_DB_PASSWORD=${SERVICE_PASSWORD}" \
+    --env "QBANK_DB_PASSWORD=${SERVICE_PASSWORD}" \
+    --env "ASSESSMENT_DB_PASSWORD=${SERVICE_PASSWORD}" \
+    --env "SUBMISSION_DB_PASSWORD=${SERVICE_PASSWORD}" \
+    --env "SEB_DB_PASSWORD=${SERVICE_PASSWORD}" \
+    --env "NOTIFICATION_DB_PASSWORD=${SERVICE_PASSWORD}" \
+    --env "ANALYTICS_DB_PASSWORD=${SERVICE_PASSWORD}" \
+    --volume "${REPOSITORY_ROOT}/deploy/database/platform/dev-init.sh:/docker-entrypoint-initdb.d/00-aethercode-roles.sh:ro" \
+    --volume "${REPOSITORY_ROOT}/deploy/database/platform/grant-connect.sql:/bootstrap/platform-grant-connect.sql:ro" \
+    --volume "${REPOSITORY_ROOT}/deploy/database/judge-control/roles.sql:/bootstrap/judge-roles.sql:ro" \
+    "$POSTGRES_IMAGE" >/dev/null
+  container_started=true
+
+  database_port="$(docker port "$CONTAINER_NAME" 5432/tcp | sed -n '1{s/.*://p;}')"
+  [[ "$database_port" =~ ^[0-9]{1,5}$ ]] || fail "could not determine disposable PostgreSQL port"
+
+  wait_for_postgres
+}
+
+wait_for_postgres() {
+  local attempt
+  for attempt in $(seq 1 60); do
+    if admin_psql --command 'SELECT 1' >/dev/null 2>&1; then
+      return
+    fi
+    sleep 1
+  done
+
+  docker logs "$CONTAINER_NAME" >&2 || true
+  fail "disposable PostgreSQL did not become ready"
+}
+
+restart_postgres() {
+  printf '%s\n' 'Restarting disposable PostgreSQL to prove logged replay-ledger metadata survives...'
+  docker restart "$CONTAINER_NAME" >/dev/null
+  wait_for_postgres
+}
+
+bootstrap_judge_migration_identity() {
+  admin_psql --set=judge_db_name=aether_judge_wrapper --file=/bootstrap/judge-roles.sql >/dev/null
+
+  docker exec --interactive \
+    --env "PGPASSWORD=${ADMIN_PASSWORD}" \
+    "$CONTAINER_NAME" \
+    psql --host=127.0.0.1 --username="$ADMIN_USER" --dbname=postgres --set=ON_ERROR_STOP=1 \
+    --set=role="$JUDGE_MIGRATOR" --set=password="$SERVICE_PASSWORD" <<'SQL' >/dev/null
+SELECT format(
+    'CREATE ROLE %I LOGIN INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD %L',
+    :'role',
+    :'password'
+)
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'role')
+\gexec
+GRANT aether_judge_migrator TO :"role";
+SQL
+}
+
+build_migration_runner() {
+  printf '%s\n' 'Building the repository migration runner...'
+  (
+    cd "$REPOSITORY_ROOT/libs/pkg"
+    go build -o "$MIGRATION_RUNNER" ./cmd/migrate
+  )
+}
+
+assert_paired_migrations() {
+  local service="$1"
+  local directory="${REPOSITORY_ROOT}/services/${service}/migrations"
+  local migration
+  local basename
+  local -a up_files
+  local -a down_files
+
+  [[ -d "$directory" ]] || fail "migration directory is missing: ${directory}"
+  shopt -s nullglob
+  up_files=("${directory}"/*.up.sql)
+  down_files=("${directory}"/*.down.sql)
+  shopt -u nullglob
+  ((${#up_files[@]} > 0)) || fail "migration directory has no up migrations: ${directory}"
+  ((${#down_files[@]} > 0)) || fail "migration directory has no down migrations: ${directory}"
+
+  for migration in "${up_files[@]}"; do
+    basename="${migration%.up.sql}"
+    [[ -f "${basename}.down.sql" ]] || fail "missing down migration for ${migration}"
+  done
+  for migration in "${down_files[@]}"; do
+    basename="${migration%.down.sql}"
+    [[ -f "${basename}.up.sql" ]] || fail "missing up migration for ${migration}"
+  done
+}
+
+assert_ledger_security() {
+  local database="$1"
+  local migrator="$2"
+  local owner="$3"
+  local application="$4"
+  local state
+
+  state="$(database_psql "$database" --tuples-only --no-align --field-separator='|' \
+    --set=migrator="$migrator" --set=application="$application" <<'SQL'
+WITH ledger AS (
+    SELECT class.relowner, class.relacl
+    FROM pg_class AS class
+    JOIN pg_namespace AS namespace ON namespace.oid = class.relnamespace
+    WHERE namespace.nspname = 'public'
+      AND class.relname = 'schema_migrations'
+      AND class.relkind = 'r'
+), direct_migrator_privileges AS (
+    SELECT COALESCE(string_agg(DISTINCT acl.privilege_type, ',' ORDER BY acl.privilege_type), '') AS privileges
+    FROM ledger
+    CROSS JOIN LATERAL aclexplode(COALESCE(ledger.relacl, acldefault('r', ledger.relowner))) AS acl
+    WHERE acl.grantee = (SELECT oid FROM pg_roles WHERE rolname = :'migrator')
+), public_create AS (
+    SELECT EXISTS (
+        SELECT 1
+        FROM pg_namespace AS namespace
+        CROSS JOIN LATERAL aclexplode(COALESCE(namespace.nspacl, acldefault('n', namespace.nspowner))) AS acl
+        WHERE namespace.nspname = 'public'
+          AND acl.grantee = 0
+          AND acl.privilege_type = 'CREATE'
+    ) AS allowed
+)
+SELECT pg_get_userbyid(ledger.relowner),
+       (SELECT allowed FROM public_create),
+       (SELECT privileges FROM direct_migrator_privileges),
+       has_table_privilege(:'application', 'public.schema_migrations', 'SELECT')
+FROM ledger;
+SQL
+  )"
+
+  [[ "$state" == "${owner}|f|INSERT,SELECT,TRUNCATE|f" ]] || fail \
+    "unexpected migration-ledger security for ${database}: ${state}"
+}
+
+assert_platform_connect_state() {
+  local entry
+  local database
+  local role
+  local state
+  local -a parts
+
+  for entry in "${PLATFORM_CONNECT_IDENTITIES[@]}"; do
+    IFS=':' read -r -a parts <<<"$entry"
+    database="${parts[0]}"
+    for role in "${parts[@]:1}"; do
+      state="$(role_psql "$database" "$role" --tuples-only --no-align --command 'SELECT current_user')"
+      [[ "$state" == "$role" ]] || fail \
+        "${role} could not directly reconnect to ${database}: ${state}"
+    done
+    state="$(database_psql "$database" --tuples-only --no-align --command "
+SELECT EXISTS (
+    SELECT 1
+    FROM pg_database AS database_row
+    CROSS JOIN LATERAL aclexplode(
+        COALESCE(database_row.datacl, acldefault('d', database_row.datdba))
+    ) AS privilege
+    WHERE database_row.datname = current_database()
+      AND privilege.grantee = 0
+      AND privilege.privilege_type = 'CONNECT'
+);
+")"
+    [[ "$state" == 'f' ]] || fail "PUBLIC can connect to ${database}"
+  done
+}
+
+assert_platform_connect_recovery() {
+  local entry
+  local database
+  local revoke_roles
+  local -a parts
+
+  # First prove the service migrations granted each direct runtime identity.
+  assert_platform_connect_state
+
+  # Simulate a pre-baseline cluster that revoked PUBLIC and lost the direct
+  # grants. The administrator-only recovery SQL must restore exactly those
+  # roles, without making PUBLIC reconnectable.
+  for entry in "${PLATFORM_CONNECT_IDENTITIES[@]}"; do
+    IFS=':' read -r -a parts <<<"$entry"
+    database="${parts[0]}"
+    revoke_roles="$(IFS=,; printf '%s' "${parts[*]:1}")"
+    admin_psql --command "REVOKE CONNECT ON DATABASE ${database} FROM ${revoke_roles}" >/dev/null
+  done
+  admin_psql --file=/bootstrap/platform-grant-connect.sql >/dev/null
+  assert_platform_connect_state
+}
+
+assert_capability_replay_schema() {
+  local database="$1"
+  local state
+
+  state="$(database_psql "$database" --tuples-only --no-align --field-separator='|' <<'SQL'
+WITH consumed AS (
+    SELECT class.oid, class.relpersistence
+    FROM pg_class AS class
+    JOIN pg_namespace AS namespace ON namespace.oid = class.relnamespace
+    WHERE namespace.nspname = 'authz'
+      AND class.relname = 'consumed_capabilities'
+      AND class.relkind = 'r'
+), request_contexts AS (
+    SELECT class.oid, class.relpersistence
+    FROM pg_class AS class
+    JOIN pg_namespace AS namespace ON namespace.oid = class.relnamespace
+    WHERE namespace.nspname = 'authz'
+      AND class.relname = 'request_contexts'
+      AND class.relkind = 'r'
+)
+SELECT consumed.relpersistence,
+       EXISTS (
+           SELECT 1
+           FROM pg_attribute AS attribute
+	           JOIN pg_constraint AS table_constraint ON table_constraint.conrelid = attribute.attrelid
+           WHERE attribute.attrelid = consumed.oid
+             AND attribute.attname = 'capability_id'
+             AND attribute.atttypid = 'uuid'::regtype
+             AND attribute.attnotnull
+	             AND table_constraint.contype = 'p'
+	             AND array_length(table_constraint.conkey, 1) = 1
+	             AND table_constraint.conkey[1] = attribute.attnum
+       ),
+       EXISTS (
+           SELECT 1
+           FROM pg_attribute AS attribute
+           WHERE attribute.attrelid = consumed.oid
+             AND attribute.attname = 'expires_at'
+             AND attribute.atttypid = 'timestamp with time zone'::regtype
+             AND attribute.attnotnull
+       ),
+       EXISTS (
+           SELECT 1
+           FROM pg_index AS index
+           JOIN pg_attribute AS attribute
+             ON attribute.attrelid = consumed.oid
+            AND attribute.attnum = ANY(index.indkey::smallint[])
+           WHERE index.indrelid = consumed.oid
+             AND index.indisvalid
+             AND attribute.attname = 'expires_at'
+       ),
+       request_contexts.relpersistence,
+       EXISTS (
+           SELECT 1
+           FROM pg_attribute AS attribute
+           WHERE attribute.attrelid = request_contexts.oid
+             AND attribute.attname = 'capability_id'
+             AND attribute.atttypid = 'uuid'::regtype
+             AND attribute.attnotnull
+       ),
+       EXISTS (
+           SELECT 1
+           FROM pg_index AS index
+           JOIN pg_attribute AS attribute
+             ON attribute.attrelid = request_contexts.oid
+            AND attribute.attnum = ANY(index.indkey::smallint[])
+           WHERE index.indrelid = request_contexts.oid
+             AND index.indisunique
+             AND attribute.attname = 'capability_id'
+       )
+FROM consumed
+CROSS JOIN request_contexts;
+SQL
+  )"
+
+  [[ "$state" == 'p|t|t|t|u|t|t' ]] || fail \
+    "unexpected capability replay schema for ${database}: ${state}"
+}
+
+run_migration_cycle() {
+  local service="$1"
+  local database="$2"
+  local migrator="$3"
+  local owner="$4"
+  local application="$5"
+  local source="file://${REPOSITORY_ROOT}/services/${service}/migrations"
+  local database_url
+  database_url="$(postgres_url "$migrator" "$database")"
+
+  printf 'Verifying %s with dedicated migrator %s...\n' "$database" "$migrator"
+  "$MIGRATION_RUNNER" --database-url "$database_url" --source "$source" --direction up
+  assert_ledger_security "$database" "$migrator" "$owner" "$application"
+  "$MIGRATION_RUNNER" --database-url "$database_url" --source "$source" --direction down
+  "$MIGRATION_RUNNER" --database-url "$database_url" --source "$source" --direction up
+  assert_ledger_security "$database" "$migrator" "$owner" "$application"
+}
+
+assert_superuser_rejected() {
+  local source="file://${REPOSITORY_ROOT}/services/identity/migrations"
+  local database_url
+  database_url="postgres://${ADMIN_USER}:${ADMIN_PASSWORD}@127.0.0.1:${database_port}/aether_identity?sslmode=disable"
+
+  if "$MIGRATION_RUNNER" --database-url "$database_url" --source "$source" --direction up >/dev/null 2>&1; then
+    fail "shared migration runner accepted a superuser"
+  fi
+}
+
+assert_user_authorization_resync_runtime() {
+  local state
+
+  # Exercise the narrow projection-worker entry points, including uuidv7()
+  # batch-event generation, rather than merely parsing the SQL function body.
+  database_psql aether_users --command "
+SET ROLE aether_user_owner;
+INSERT INTO users.authz_revisions (principal_id, revision, change_reason)
+VALUES ('018f4b0d-08f8-7c09-9ba7-efdf9c22d201'::uuid, 1, 'resync_test');
+INSERT INTO authz.principal_authorization_revisions (actor_id, authz_revision)
+VALUES ('018f4b0d-08f8-7c09-9ba7-efdf9c22d201'::uuid, 1);
+INSERT INTO authz.actor_tenant_authorizations (
+  actor_id, tenant_id, authz_revision, is_authorized, grant_kind, grant_source_id
+) VALUES (
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d201'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d202'::uuid,
+  1, true, 'tenant', '018f4b0d-08f8-7c09-9ba7-efdf9c22d202'::uuid
+);
+RESET ROLE;
+" >/dev/null
+
+  state="$(database_psql aether_users --tuples-only --no-align --field-separator='|' --command "
+SELECT authz.has_tenant_authorization_at(
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d201'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d202'::uuid,
+  1
+);
+")"
+  [[ "$state" == 'f' ]] || fail "User authorization projection did not fail closed before resync: ${state}"
+
+  database_psql aether_users --command "
+SET ROLE aether_user_projection_worker;
+SELECT authz.begin_authorization_projection_resync(
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d203'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d204'::uuid,
+  'user',
+  'startup'
+);
+SELECT users.process_authorization_resync_request(
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d203'::uuid,
+  decode(repeat('0', 64), 'hex'),
+  clock_timestamp(),
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d204'::uuid,
+  'user',
+  'startup'
+);
+RESET ROLE;
+" >/dev/null
+
+  state="$(database_psql aether_users --tuples-only --no-align --field-separator='|' --command "
+SELECT
+  NOT (SELECT projection_ready FROM authz.authorization_projection_resync_state WHERE singleton),
+  EXISTS (
+    SELECT 1 FROM users.authorization_resync_requests
+    WHERE resync_id = '018f4b0d-08f8-7c09-9ba7-efdf9c22d204'::uuid
+  ),
+  EXISTS (
+    SELECT 1 FROM app.outbox_events
+    WHERE event_type = 'authz.grants_snapshot.resync_snapshot.user.v1'
+  ),
+  EXISTS (
+    SELECT 1 FROM app.outbox_events
+    WHERE event_type = 'authz.grants_snapshot.resync_completed.user.v1'
+  ),
+  EXISTS (
+    SELECT 1
+    FROM app.outbox_events
+    WHERE event_type = 'authz.grants_snapshot.resync_snapshot.user.v1'
+      AND encode(
+        extensions.digest(convert_to((payload -> 'snapshot')::text, 'UTF8'), 'sha256'),
+        'hex'
+      ) = payload ->> 'snapshot_sha256'
+  ),
+  (
+    WITH snapshot_entries AS (
+      SELECT payload -> 'snapshot' ->> 'principal_id' AS principal_id,
+             payload -> 'snapshot' ->> 'authz_revision' AS authz_revision,
+             payload ->> 'snapshot_sha256' AS snapshot_sha256
+      FROM app.outbox_events
+      WHERE event_type = 'authz.grants_snapshot.resync_snapshot.user.v1'
+    ), expected AS (
+      SELECT encode(
+               extensions.digest(
+                 convert_to(
+                   COALESCE(
+                     string_agg(
+                       principal_id || '|' || authz_revision || '|' || snapshot_sha256,
+                       E'\\n' ORDER BY principal_id
+                     ),
+                     ''
+                   ),
+                   'UTF8'
+                 ),
+                 'sha256'
+               ),
+               'hex'
+             ) AS manifest_sha256
+      FROM snapshot_entries
+    )
+    SELECT EXISTS (
+      SELECT 1
+      FROM app.outbox_events AS completion_event
+      CROSS JOIN expected
+      WHERE completion_event.event_type = 'authz.grants_snapshot.resync_completed.user.v1'
+        AND completion_event.payload ->> 'manifest_sha256' = expected.manifest_sha256
+    )
+  ),
+  has_function_privilege(
+    'aether_user_app',
+    'authz.begin_authorization_projection_resync(uuid, uuid, text, text)',
+    'EXECUTE'
+  );
+")"
+  [[ "$state" == 't|t|t|t|t|t|f' ]] || fail \
+    "unexpected User authorization resync runtime state: ${state}"
+}
+
+assert_authorization_resync_target_runtime() {
+  local database="$1"
+  local worker="$2"
+  local application="$3"
+  local target="$4"
+  local state
+
+  # The target entry point is the only way a projection worker can make a
+  # recovery request. It must begin in deny mode, bind the target service in
+  # SQL (not just in Go), write the request to the durable local outbox, and
+  # remain unavailable to the request-serving role.
+  database_psql "$database" --command "
+SET ROLE ${worker};
+SELECT authz.begin_authorization_projection_resync(
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d211'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d212'::uuid,
+  '${target}',
+  'startup'
+);
+DO \$block\$
+BEGIN
+  PERFORM authz.begin_authorization_projection_resync(
+    '018f4b0d-08f8-7c09-9ba7-efdf9c22d213'::uuid,
+    '018f4b0d-08f8-7c09-9ba7-efdf9c22d214'::uuid,
+    'wrong-target',
+    'startup'
+  );
+  RAISE EXCEPTION 'target binding unexpectedly accepted another service';
+EXCEPTION WHEN SQLSTATE '22023' THEN
+  NULL;
+END
+\$block\$;
+RESET ROLE;
+" >/dev/null
+
+  state="$(database_psql "$database" --tuples-only --no-align --field-separator='|' --command "
+SELECT
+  NOT authz.authorization_projection_ready(),
+  EXISTS (
+    SELECT 1 FROM app.outbox_events
+    WHERE event_id = '018f4b0d-08f8-7c09-9ba7-efdf9c22d211'::uuid
+      AND aggregate_type = 'authz_resync'
+      AND aggregate_id = '018f4b0d-08f8-7c09-9ba7-efdf9c22d212'::uuid
+      AND tenant_id IS NULL
+      AND event_type = 'authz.grants_snapshot.resync_requested.${target}.v1'
+  ),
+  has_function_privilege(
+    '${application}',
+    'authz.begin_authorization_projection_resync(uuid, uuid, text, text)',
+    'EXECUTE'
+  ),
+  has_table_privilege('${application}', 'authz.authorization_projection_resync_state', 'SELECT'),
+  has_table_privilege('${application}', 'authz.authorization_projection_resync_items', 'INSERT');
+")"
+  [[ "$state" == 't|t|f|f|f' ]] || fail \
+    "unexpected ${target} authorization resync runtime state: ${state}"
+}
+
+assert_user_batch_affiliation_policies() {
+  local state
+
+  # These rules were added after the submission self rules. Keep both sets in
+  # the verifier because a reused UUID would make a rollback of the batch
+  # migration silently delete unrelated attempt authorization policy.
+  state="$(database_psql aether_users --tuples-only --no-align --field-separator='|' --command "
+SELECT
+  EXISTS (
+    SELECT 1
+    FROM users.authorization_policy_rules
+    WHERE id = '018f4b0d-08f8-7c09-9ba7-efdf9c220017'::uuid
+      AND ptype = 'p'
+      AND v0 = 'placement_user'
+      AND v1 = 'placement_department'
+      AND v2 = '/student_batch_affiliations/:id'
+      AND v3 = 'read'
+  ),
+  EXISTS (
+    SELECT 1
+    FROM users.authorization_policy_rules
+    WHERE id = '018f4b0d-08f8-7c09-9ba7-efdf9c220018'::uuid
+      AND ptype = 'p'
+      AND v0 = 'placement_user'
+      AND v1 = 'placement_department'
+      AND v2 = '/student_batch_affiliations/:id'
+      AND v3 = 'write'
+  ),
+  EXISTS (
+    SELECT 1
+    FROM users.authorization_policy_rules
+    WHERE id = '018f4b0d-08f8-7c09-9ba7-efdf9c220012'::uuid
+      AND ptype = 'p'
+      AND v0 = 'student'
+      AND v1 = 'self'
+      AND v2 = '/attempts/:id'
+      AND v3 = 'read'
+  ),
+  EXISTS (
+    SELECT 1
+    FROM users.authorization_policy_rules
+    WHERE id = '018f4b0d-08f8-7c09-9ba7-efdf9c220013'::uuid
+      AND ptype = 'p'
+      AND v0 = 'student'
+      AND v1 = 'self'
+      AND v2 = '/attempts/:id'
+      AND v3 = 'write'
+  );
+")"
+  [[ "$state" == 't|t|t|t' ]] || fail \
+    "unexpected User batch or submission authorization policies: ${state}"
+}
+
+assert_notification_retention_execution_boundary() {
+  local state
+  local purge_counts
+  local source="file://${REPOSITORY_ROOT}/services/notification/migrations"
+  local database_url
+
+  # The dedicated worker must prove that it can purge eligible records without
+  # receiving any direct domain-table privilege. A second eligible pair is put
+  # under a tenant hold before the worker runs, proving both cached and direct
+  # legal-hold checks block deletion.
+  database_psql aether_notification --command "
+SET ROLE aether_notification_owner;
+INSERT INTO notification.notifications (
+  id, tenant_id, recipient_id, category, template_code,
+  content_object_key, content_checksum, encryption_key_reference,
+  lifecycle_state, scheduled_at, created_at, completed_at, retention_until
+) VALUES (
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d701'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d702'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d703'::uuid,
+  'system', 'retention-test',
+  'notifications/retention-test.enc', repeat('a', 64), 'kms://india/retention-test',
+  'sent', clock_timestamp() - interval '2 days', clock_timestamp() - interval '2 days',
+  clock_timestamp() - interval '1 day', clock_timestamp() - interval '1 hour'
+);
+INSERT INTO notification.delivery_attempts (
+  id, occurred_at, tenant_id, notification_id, recipient_id,
+  channel, provider, attempt_number, delivery_state, retention_until
+) VALUES (
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d704'::uuid,
+  clock_timestamp(), '018f4b0d-08f8-7c09-9ba7-efdf9c22d702'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d701'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d703'::uuid,
+  'in_app', 'in_app', 1, 'delivered', clock_timestamp()
+);
+RESET ROLE;
+" >/dev/null
+
+  purge_counts="$(database_psql aether_notification --quiet --tuples-only --no-align --field-separator='|' --command "
+SET ROLE aether_notification_retention_worker;
+SELECT deleted_notifications, deleted_delivery_attempts
+FROM notification.purge_expired_retained_data(10);
+RESET ROLE;
+")"
+  [[ "$purge_counts" == '1|1' ]] || fail \
+    "Notification retention worker did not purge eligible records: ${purge_counts}"
+
+  database_psql aether_notification --command "
+SET ROLE aether_notification_owner;
+INSERT INTO notification.notifications (
+  id, tenant_id, recipient_id, category, template_code,
+  content_object_key, content_checksum, encryption_key_reference,
+  lifecycle_state, scheduled_at, created_at, completed_at, retention_until
+) VALUES (
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d705'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d706'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d707'::uuid,
+  'system', 'retention-held-test',
+  'notifications/retention-held-test.enc', repeat('b', 64), 'kms://india/retention-held-test',
+  'sent', clock_timestamp() - interval '2 days', clock_timestamp() - interval '2 days',
+  clock_timestamp() - interval '1 day', clock_timestamp() - interval '1 hour'
+);
+INSERT INTO notification.delivery_attempts (
+  id, occurred_at, tenant_id, notification_id, recipient_id,
+  channel, provider, attempt_number, delivery_state, retention_until
+) VALUES (
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d708'::uuid,
+  clock_timestamp(), '018f4b0d-08f8-7c09-9ba7-efdf9c22d706'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d705'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d707'::uuid,
+  'in_app', 'in_app', 1, 'delivered', clock_timestamp()
+);
+RESET ROLE;
+SET ROLE aether_notification_projection_worker;
+SELECT notification.apply_legal_hold_projection(
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d709'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d710'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d706'::uuid,
+  'tenant', NULL, 'active', clock_timestamp()
+);
+RESET ROLE;
+" >/dev/null
+
+  purge_counts="$(database_psql aether_notification --quiet --tuples-only --no-align --field-separator='|' --command "
+SET ROLE aether_notification_retention_worker;
+SELECT deleted_notifications, deleted_delivery_attempts
+FROM notification.purge_expired_retained_data(10);
+RESET ROLE;
+")"
+  [[ "$purge_counts" == '0|0' ]] || fail \
+    "Notification retention worker purged legal-hold records: ${purge_counts}"
+
+  state="$(database_psql aether_notification --tuples-only --no-align --field-separator='|' --command "
+SELECT
+  NOT (SELECT rolsuper OR rolbypassrls FROM pg_roles WHERE rolname = 'aether_notification_retention_worker'),
+  has_function_privilege(
+    'aether_notification_retention_worker',
+    'notification.purge_expired_retained_data(integer)',
+    'EXECUTE'
+  ),
+  has_table_privilege(
+    'aether_notification_retention_worker',
+    'notification.notifications',
+    'SELECT,INSERT,UPDATE,DELETE'
+  ),
+  has_table_privilege(
+    'aether_notification_retention_worker',
+    'notification.delivery_attempts',
+    'SELECT,INSERT,UPDATE,DELETE'
+  ),
+  (SELECT legal_hold FROM notification.notifications
+   WHERE id = '018f4b0d-08f8-7c09-9ba7-efdf9c22d705'::uuid),
+  (SELECT legal_hold FROM notification.delivery_attempts
+   WHERE id = '018f4b0d-08f8-7c09-9ba7-efdf9c22d708'::uuid);
+")"
+  [[ "$state" == 't|t|f|f|t|t' ]] || fail \
+    "unexpected Notification retention worker state: ${state}"
+
+  database_url="$(postgres_url aether_notification_migrator aether_notification)"
+  if "$MIGRATION_RUNNER" --database-url "$database_url" --source "$source" --direction down >/dev/null 2>&1; then
+    fail "Notification retention rollback removed legal-hold serialization while a hold was active"
+  fi
+}
+
+assert_analytics_report_export_legal_hold_runtime() {
+  local state
+  local purge_count
+
+  # Exercise the hold projection and retention procedure through their granted
+  # worker/migrator entry points. The export is already due when the tenant
+  # hold lands, so a single assertion covers flag synchronization, lifecycle
+  # denial, deletion denial, object-reference preservation, and purge denial.
+  database_psql aether_analytics --command "
+SET ROLE aether_analytics_owner;
+INSERT INTO analytics.report_exports (
+  id, tenant_id, requested_by, report_type, filters, lifecycle_state,
+  object_key, checksum, encryption_key_reference,
+  requested_at, completed_at, expires_at, retention_until
+) VALUES (
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d301'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d302'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d303'::uuid,
+  'exam_results', '{}'::jsonb, 'completed',
+  'analytics/exports/hold-test.csv.enc', repeat('a', 64), 'kms://india/hold-test',
+  clock_timestamp() - interval '2 days', clock_timestamp() - interval '2 days',
+  clock_timestamp() - interval '1 day', clock_timestamp() + interval '7 years'
+);
+RESET ROLE;
+" >/dev/null
+
+  database_psql aether_analytics --command "
+SET ROLE aether_analytics_projection_worker;
+SELECT analytics.apply_legal_hold(
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d302'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d304'::uuid,
+  'tenant', NULL, true,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d305'::uuid
+);
+RESET ROLE;
+" >/dev/null
+
+  state="$(database_psql aether_analytics --tuples-only --no-align --field-separator='|' --command "
+SELECT
+  (SELECT legal_hold
+   FROM analytics.report_exports
+   WHERE id = '018f4b0d-08f8-7c09-9ba7-efdf9c22d301'::uuid),
+  (SELECT active_tenant_hold
+   FROM analytics.tenant_report_export_hold_states
+   WHERE tenant_id = '018f4b0d-08f8-7c09-9ba7-efdf9c22d302'::uuid),
+  has_column_privilege(
+    'aether_analytics_app', 'analytics.report_exports', 'object_key', 'SELECT'
+  ),
+  has_column_privilege(
+    'aether_analytics_app', 'analytics.report_exports', 'checksum', 'SELECT'
+  ),
+  has_column_privilege(
+    'aether_analytics_app', 'analytics.report_exports', 'encryption_key_reference', 'SELECT'
+  ),
+  has_column_privilege(
+    'aether_analytics_app', 'analytics.report_exports', 'lifecycle_state', 'SELECT'
+  );
+")"
+  [[ "$state" == 't|t|f|f|f|t' ]] || fail \
+    "unexpected Analytics report-export legal-hold state: ${state}"
+
+  database_psql aether_analytics --command "
+SET ROLE aether_analytics_owner;
+DO \$block\$
+BEGIN
+  UPDATE analytics.report_exports
+  SET lifecycle_state = 'expired', version = version + 1
+  WHERE id = '018f4b0d-08f8-7c09-9ba7-efdf9c22d301'::uuid;
+  RAISE EXCEPTION 'held report export unexpectedly expired';
+EXCEPTION WHEN SQLSTATE '55000' THEN
+  NULL;
+END
+\$block\$;
+DO \$block\$
+BEGIN
+  UPDATE analytics.report_exports
+  SET object_key = 'analytics/exports/replaced.csv.enc'
+  WHERE id = '018f4b0d-08f8-7c09-9ba7-efdf9c22d301'::uuid;
+  RAISE EXCEPTION 'held report export object reference unexpectedly changed';
+EXCEPTION WHEN SQLSTATE '55000' THEN
+  NULL;
+END
+\$block\$;
+DO \$block\$
+BEGIN
+  DELETE FROM analytics.report_exports
+  WHERE id = '018f4b0d-08f8-7c09-9ba7-efdf9c22d301'::uuid;
+  RAISE EXCEPTION 'held report export unexpectedly deleted';
+EXCEPTION WHEN SQLSTATE '55000' THEN
+  NULL;
+END
+\$block\$;
+RESET ROLE;
+" >/dev/null
+
+  purge_count="$(database_psql aether_analytics --tuples-only --no-align --command "
+SELECT analytics.purge_expired_retained_data(10);
+")"
+  [[ "$purge_count" == '0' ]] || fail \
+    "Analytics retention purge expired a held report export: ${purge_count}"
+
+  database_psql aether_analytics --command "
+SET ROLE aether_analytics_projection_worker;
+SELECT analytics.apply_legal_hold(
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d302'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d304'::uuid,
+  NULL, NULL, false,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22d306'::uuid
+);
+RESET ROLE;
+" >/dev/null
+
+  state="$(database_psql aether_analytics --tuples-only --no-align --field-separator='|' --command "
+SELECT
+  (SELECT legal_hold
+   FROM analytics.report_exports
+   WHERE id = '018f4b0d-08f8-7c09-9ba7-efdf9c22d301'::uuid),
+  (SELECT active_tenant_hold
+   FROM analytics.tenant_report_export_hold_states
+   WHERE tenant_id = '018f4b0d-08f8-7c09-9ba7-efdf9c22d302'::uuid),
+  has_function_privilege(
+    'aether_analytics_migrator',
+    'analytics.purge_expired_retained_data(integer)',
+    'EXECUTE'
+  );
+")"
+  [[ "$state" == 'f|f|t' ]] || fail \
+    "Analytics report-export hold did not release safely: ${state}"
+
+  purge_count="$(database_psql aether_analytics --tuples-only --no-align --command "
+SELECT analytics.purge_expired_retained_data(10);
+")"
+  [[ "$purge_count" == '1' ]] || fail \
+    "Analytics retention purge did not expire a released report export: ${purge_count}"
+
+  state="$(database_psql aether_analytics --tuples-only --no-align --command "
+SELECT lifecycle_state
+FROM analytics.report_exports
+WHERE id = '018f4b0d-08f8-7c09-9ba7-efdf9c22d301'::uuid;
+")"
+  [[ "$state" == 'expired' ]] || fail \
+    "released Analytics report export did not reach expired state: ${state}"
+}
+
+assert_submission_judge_completion_bridge() {
+  local state
+  local source="file://${REPOSITORY_ROOT}/services/submission/migrations"
+  local database_url
+
+  # Materialize only the minimum locally-bound evaluation request. The adapter
+  # cannot select these tables; it must prove its opaque correlation and exact
+  # Judge job through the security-definer ingress routine.
+  database_psql aether_submission <<'SQL' >/dev/null
+SET ROLE aether_submission_owner;
+INSERT INTO submission.attempts (
+  id, tenant_id, exam_id, exam_version_id, candidate_id, candidate_assignment_id,
+  attempt_number, lifecycle_state, available_from, started_at, submitted_at, submission_deadline
+) VALUES (
+  '018f4b0d-08f8-7c09-9ba7-efdf9c220306'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c220301'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c220302'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c220303'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c220304'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c220305'::uuid,
+  1, 'grading', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
+  CURRENT_TIMESTAMP + interval '1 hour'
+);
+INSERT INTO submission.answer_revisions (
+  id, tenant_id, attempt_id, exam_item_id, revision_number, language_id,
+  source_object_key, source_checksum, encryption_key_reference, created_by
+) VALUES (
+  '018f4b0d-08f8-7c09-9ba7-efdf9c220307'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c220301'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c220306'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c220302'::uuid,
+  1, 'go-1.26', 'sources/test.enc', repeat('a', 64), 'kms://india/source',
+  '018f4b0d-08f8-7c09-9ba7-efdf9c220304'::uuid
+);
+INSERT INTO submission.evaluation_requests (
+  id, tenant_id, attempt_id, answer_revision_id, evaluation_bundle_object_key,
+  evaluation_bundle_checksum, caller_idempotency_key, judge_job_id, maximum_score
+) VALUES (
+  '018f4b0d-08f8-7c09-9ba7-efdf9c220308'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c220301'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c220306'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c220307'::uuid,
+  'bundles/test.enc', repeat('b', 64), 'submission:test-bridge',
+  '018f4b0d-08f8-7c09-9ba7-efdf9c220309'::uuid, 10
+);
+RESET ROLE;
+
+SET ROLE aether_submission_judge_adapter;
+SELECT submission.ingest_judge_completion(
+  '018f4b0d-08f8-7c09-9ba7-efdf9c220313'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c220310'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c220311'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c220312'::uuid,
+  'submission-judge-completion',
+  '018f4b0d-08f8-7c09-9ba7-efdf9c220308'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c220309'::uuid,
+  'accepted', 17, 2048, 'results/test.enc', repeat('c', 64),
+  'kms://india/result', '2026-07-24T10:00:00.123456Z'::timestamptz
+);
+DO $block$
+BEGIN
+  PERFORM submission.ingest_judge_completion(
+    '018f4b0d-08f8-7c09-9ba7-efdf9c220314'::uuid,
+    '018f4b0d-08f8-7c09-9ba7-efdf9c220310'::uuid,
+    '018f4b0d-08f8-7c09-9ba7-efdf9c220315'::uuid,
+    '018f4b0d-08f8-7c09-9ba7-efdf9c220316'::uuid,
+    'submission-judge-completion',
+    '018f4b0d-08f8-7c09-9ba7-efdf9c220308'::uuid,
+    '018f4b0d-08f8-7c09-9ba7-efdf9c220309'::uuid,
+    'accepted', 17, 2048, 'results/test.enc', repeat('c', 64),
+    'kms://india/result', '2026-07-24T10:00:00.123457Z'::timestamptz
+  );
+  RAISE EXCEPTION 'Judge event replay unexpectedly accepted an altered completion timestamp';
+EXCEPTION WHEN unique_violation THEN
+  NULL;
+END
+$block$;
+RESET ROLE;
+SQL
+
+  state="$(database_psql aether_submission --tuples-only --no-align --field-separator='|' --command "
+SELECT
+  NOT (SELECT rolsuper OR rolbypassrls FROM pg_roles WHERE rolname = 'aether_submission_judge_adapter'),
+  has_function_privilege(
+    'aether_submission_judge_adapter',
+    'submission.ingest_judge_completion(uuid,uuid,uuid,uuid,text,uuid,uuid,text,integer,integer,text,text,text,timestamp with time zone)',
+    'EXECUTE'
+  ),
+  has_table_privilege('aether_submission_judge_adapter', 'submission.evaluation_requests', 'SELECT'),
+  has_table_privilege('aether_submission_judge_adapter', 'submission.judge_completion_ingress', 'INSERT'),
+  EXISTS (
+    SELECT 1
+    FROM app.outbox_events
+    WHERE event_id = '018f4b0d-08f8-7c09-9ba7-efdf9c220313'::uuid
+      AND event_type = 'judge.completed.v1'
+      AND payload ->> 'completed_at' = '2026-07-24T10:00:00.123456Z'
+  ),
+  EXISTS (
+    SELECT 1
+    FROM submission.judge_completion_ingress
+    WHERE judge_event_id = '018f4b0d-08f8-7c09-9ba7-efdf9c220310'::uuid
+      AND completed_at = '2026-07-24T10:00:00.123456Z'::timestamptz
+  );
+")"
+  [[ "$state" == 't|t|f|f|t|t' ]] || fail \
+    "unexpected Submission Judge completion bridge state: ${state}"
+
+  database_url="$(postgres_url aether_submission_migrator aether_submission)"
+  if "$MIGRATION_RUNNER" --database-url "$database_url" --source "$source" --direction down >/dev/null 2>&1; then
+    fail "Submission Judge completion bridge rollback discarded durable ingress records"
+  fi
+}
+
+assert_judge_completion_contract() {
+  local state
+  local source="file://${REPOSITORY_ROOT}/services/judge/migrations"
+  local database_url
+
+  database_psql aether_judge_wrapper <<'SQL' >/dev/null
+SET ROLE aether_judge_migrator;
+INSERT INTO judge.outbox_events (
+  event_id, aggregate_id, event_type, payload, payload_sha256, expires_at
+) VALUES (
+  '018f4b0d-08f8-7c09-9ba7-efdf9c220401'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c220402'::uuid,
+  'judge.completed.v1',
+  jsonb_build_object(
+    'submission_correlation_id', '018f4b0d-08f8-7c09-9ba7-efdf9c220403',
+    'verdict', 'accepted',
+    'completed_at', '2026-07-24T10:00:00.123456Z',
+    'result_ref', 'results/test.enc',
+    'result_sha256', repeat('d', 64),
+    'result_encryption_key_reference', 'kms://india/result',
+    'execution_time_ms', 17,
+    'memory_kib', 2048
+  ),
+  repeat('e', 64), clock_timestamp() + interval '31 days'
+);
+DO $block$
+BEGIN
+  INSERT INTO judge.outbox_events (
+    event_id, aggregate_id, event_type, payload, payload_sha256, expires_at
+  ) VALUES (
+    '018f4b0d-08f8-7c09-9ba7-efdf9c220404'::uuid,
+    '018f4b0d-08f8-7c09-9ba7-efdf9c220405'::uuid,
+    'judge.completed.v1',
+    jsonb_build_object(
+      'submission_correlation_id', '018f4b0d-08f8-7c09-9ba7-efdf9c220406',
+      'verdict', 'accepted',
+      'completed_at', '2026-07-24T10:00:00Z',
+      'result_ref', 'results/partial.enc',
+      'result_sha256', repeat('f', 64)
+    ),
+    repeat('a', 64), clock_timestamp() + interval '31 days'
+  );
+  RAISE EXCEPTION 'Judge completion trigger accepted a partial encrypted result reference';
+EXCEPTION WHEN invalid_parameter_value THEN
+  NULL;
+END
+$block$;
+RESET ROLE;
+SQL
+
+  state="$(database_psql aether_judge_wrapper --tuples-only --no-align --field-separator='|' --command "
+SELECT
+  EXISTS (
+    SELECT 1 FROM judge.outbox_events
+    WHERE event_id = '018f4b0d-08f8-7c09-9ba7-efdf9c220401'::uuid
+      AND payload ->> 'result_encryption_key_reference' = 'kms://india/result'
+  ),
+  has_function_privilege('aether_judge_app', 'judge.validate_completion_outbox_payload()', 'EXECUTE');
+")"
+  [[ "$state" == 't|f' ]] || fail "unexpected Judge completion contract state: ${state}"
+
+  database_url="$(postgres_url "$JUDGE_MIGRATOR" aether_judge_wrapper)"
+  if "$MIGRATION_RUNNER" --database-url "$database_url" --source "$source" --direction down >/dev/null 2>&1; then
+    fail "Judge completion contract rollback removed validation while terminal records exist"
+  fi
+}
+
+main() {
+  require_command docker
+  require_command go
+  require_command od
+  require_command sed
+
+  ADMIN_PASSWORD="$(random_password)"
+  SERVICE_PASSWORD="$(random_password)"
+  [[ -n "$ADMIN_PASSWORD" && -n "$SERVICE_PASSWORD" ]] || fail "could not generate disposable credentials"
+
+  local entry
+  for entry in "${PLATFORM_DATABASES[@]}"; do
+    IFS=':' read -r service database migrator owner application <<<"$entry"
+    assert_paired_migrations "$service"
+  done
+  assert_paired_migrations judge
+
+  start_postgres
+  bootstrap_judge_migration_identity
+  build_migration_runner
+
+  for entry in "${PLATFORM_DATABASES[@]}"; do
+    IFS=':' read -r service database migrator owner application <<<"$entry"
+    run_migration_cycle "$service" "$database" "$migrator" "$owner" "$application"
+  done
+  run_migration_cycle \
+    judge aether_judge_wrapper "$JUDGE_MIGRATOR" aether_judge_migrator aether_judge_app
+  assert_platform_connect_recovery
+  assert_submission_judge_completion_bridge
+  assert_judge_completion_contract
+  assert_user_authorization_resync_runtime
+  assert_user_batch_affiliation_policies
+  assert_authorization_resync_target_runtime aether_identity aether_identity_projection_worker aether_identity_app identity
+  assert_authorization_resync_target_runtime aether_tenant aether_tenant_projection_worker aether_tenant_app tenant
+  assert_authorization_resync_target_runtime aether_qbank aether_question_bank_projection_worker aether_question_bank_app question-bank
+  assert_authorization_resync_target_runtime aether_assessment aether_assessment_projection_worker aether_assessment_app assessment
+  assert_authorization_resync_target_runtime aether_submission aether_submission_projection_worker aether_submission_app submission
+  assert_authorization_resync_target_runtime aether_seb aether_seb_projection_worker aether_seb_app seb
+  assert_authorization_resync_target_runtime aether_notification aether_notification_projection_worker aether_notification_app notification
+  assert_authorization_resync_target_runtime aether_analytics aether_analytics_projection_worker aether_analytics_app analytics
+  assert_notification_retention_execution_boundary
+  assert_analytics_report_export_legal_hold_runtime
+  restart_postgres
+  for entry in "${PLATFORM_DATABASES[@]}"; do
+    IFS=':' read -r service database migrator owner application <<<"$entry"
+    assert_capability_replay_schema "$database"
+  done
+  assert_superuser_rejected
+
+  printf '%s\n' 'Migration verification passed: fresh up, full down, and reapply succeeded using only dedicated non-superuser migrators.'
+}
+
+main "$@"

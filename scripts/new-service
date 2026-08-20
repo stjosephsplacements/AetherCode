@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -ne 1 ]]; then
+  printf 'usage: %s <service-name>\n' "$0" >&2
+  exit 64
+fi
+
+service="$1"
+if [[ ! "$service" =~ ^[a-z][a-z0-9-]*$ ]]; then
+  printf 'service name must use lowercase letters, digits, and hyphens\n' >&2
+  exit 64
+fi
+
+directory="services/${service}"
+if [[ -e "$directory" ]]; then
+  printf 'service already exists: %s\n' "$directory" >&2
+  exit 73
+fi
+
+mkdir -p "${directory}/cmd/server" "${directory}/internal/domain" \
+  "${directory}/internal/app" "${directory}/internal/ports" \
+  "${directory}/internal/adapters/http" "${directory}/internal/adapters/grpc" \
+  "${directory}/internal/adapters/repo" "${directory}/internal/adapters/messaging" \
+  "${directory}/migrations" "${directory}/api"
+
+module="github.com/aethercode/aethercode/services/${service}"
+cat >"${directory}/go.mod" <<EOF
+module ${module}
+
+go 1.26.0
+
+toolchain go1.26.5
+
+require github.com/aethercode/aethercode/libs/pkg v0.0.0
+
+replace github.com/aethercode/aethercode/libs/pkg => ../../libs/pkg
+EOF
+
+cat >"${directory}/cmd/server/main.go" <<EOF
+package main
+
+import (
+	"context"
+	"log/slog"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/aethercode/aethercode/libs/pkg/httpx"
+)
+
+func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	if err := httpx.Run(ctx, "${service}"); err != nil {
+		slog.Error("service stopped", "error", err)
+		os.Exit(1)
+	}
+}
+EOF
+
+cat >"${directory}/Dockerfile" <<EOF
+ARG GO_BUILDER_IMAGE=golang:1.26.5@sha256:3aff6657219a4d9c14e27fb1d8976c49c29fddb70ba835014f477e1c70636647
+FROM \${GO_BUILDER_IMAGE} AS build
+ARG SERVICE=${service}
+WORKDIR /src
+COPY libs/pkg ./libs/pkg
+COPY libs/proto ./libs/proto
+COPY services/\${SERVICE} ./services/\${SERVICE}
+RUN cd services/\${SERVICE} && CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /out/server ./cmd/server
+
+FROM scratch
+COPY --from=build /out/server /server
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+USER 65532:65532
+EXPOSE 8080
+ENTRYPOINT ["/server"]
+EOF
+
+cat >"${directory}/api/openapi.yaml" <<EOF
+openapi: 3.1.0
+info:
+  title: ${service} operational API
+  version: 0.1.0
+paths:
+  /healthz:
+    get:
+      responses:
+        '200':
+          description: Process is live.
+  /readyz:
+    get:
+      responses:
+        '200':
+          description: Service can receive work.
+        '503':
+          description: A required dependency is unavailable.
+  /metrics:
+    get:
+      responses:
+        '200':
+          description: Prometheus metrics.
+EOF
+
+cat >"${directory}/README.md" <<EOF
+# ${service}
+
+Operational Go service foundation. It starts validated configuration, JSON
+logging, liveness/readiness endpoints, and Prometheus metrics. Add its bounded
+context, contracts, data ownership, and migrations in the same change that adds
+business behavior; no other service may access its database directly.
+EOF
+
+printf 'created %s\n' "$directory"

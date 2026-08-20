@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -ne 2 ]]; then
+  printf 'usage: %s <service> <migration-name>\n' "$0" >&2
+  exit 64
+fi
+
+service="$1"
+name="$2"
+directory="services/${service}/migrations"
+
+if [[ ! -d "$directory" ]]; then
+  printf 'unknown service or missing migration directory: %s\n' "$directory" >&2
+  exit 66
+fi
+if [[ ! "$name" =~ ^[a-z0-9_]+$ ]]; then
+  printf 'migration name must use lowercase letters, numbers, and underscores\n' >&2
+  exit 64
+fi
+
+version="$(date -u +%Y%m%d%H%M%S)"
+up="${directory}/${version}_${name}.up.sql"
+down="${directory}/${version}_${name}.down.sql"
+if [[ -e "$up" || -e "$down" ]]; then
+  printf 'migration version already exists; retry in the next UTC second\n' >&2
+  exit 73
+fi
+
+umask 022
+cat >"$up" <<EOF
+-- ${service}: ${name}
+-- The golang-migrate PostgreSQL driver takes a database advisory lock before
+-- this file runs. Author only additive/expand changes here; put backfills in
+-- a separately deployable release and destructive contracts in a later one.
+BEGIN;
+COMMIT;
+EOF
+cat >"$down" <<EOF
+-- ${service}: revert ${name}
+-- Rollbacks must be safe for the immediately preceding release only.
+BEGIN;
+COMMIT;
+EOF
+printf 'created %s and %s\n' "$up" "$down"

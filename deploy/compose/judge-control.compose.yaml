@@ -1,0 +1,63 @@
+name: aether-judge-control
+
+services:
+  postgres:
+    image: postgres:18.4-bookworm@sha256:1961f96e6029a02c3812d7cb329a3b03a3ac2bb067058dec17b0f5596aca9296
+    environment:
+      POSTGRES_DB: ${JUDGE_CONTROL_DATABASE_NAME:-aether_judge_wrapper}
+      POSTGRES_USER: ${JUDGE_CONTROL_BOOTSTRAP_USER:?set JUDGE_CONTROL_BOOTSTRAP_USER in a local env file}
+      POSTGRES_PASSWORD: ${JUDGE_CONTROL_BOOTSTRAP_PASSWORD:?set JUDGE_CONTROL_BOOTSTRAP_PASSWORD in a local env file}
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    command:
+      - postgres
+      - -c
+      - password_encryption=scram-sha-256
+      - -c
+      - max_connections=200
+    ports:
+      - 127.0.0.1:${JUDGE_CONTROL_POSTGRES_PORT:-55432}:5432
+    volumes:
+      - judge-control-postgres:/var/lib/postgresql
+      - ../database/judge-control/init/001-local-roles.sql:/docker-entrypoint-initdb.d/001-local-roles.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready --username=$$POSTGRES_USER --dbname=$$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - judge-control
+
+  rabbitmq:
+    image: rabbitmq:4.3.3-management@sha256:d8b3d416236ae5ba3f6a9f4e4651fdacda01780181a7d83a71b640248d8f0a69
+    hostname: aether-judge-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${JUDGE_CONTROL_RABBITMQ_USER:?set JUDGE_CONTROL_RABBITMQ_USER in a local env file}
+      RABBITMQ_DEFAULT_PASS: ${JUDGE_CONTROL_RABBITMQ_PASSWORD:?set JUDGE_CONTROL_RABBITMQ_PASSWORD in a local env file}
+      RABBITMQ_DEFAULT_VHOST: judge
+    ports:
+      - 127.0.0.1:${JUDGE_CONTROL_RABBITMQ_PORT:-55672}:5672
+      - 127.0.0.1:${JUDGE_CONTROL_RABBITMQ_MANAGEMENT_PORT:-55673}:15672
+    volumes:
+      - judge-control-rabbitmq:/var/lib/rabbitmq
+      - ../database/judge-control/local/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - judge-control
+
+networks:
+  judge-control:
+    internal: true
+
+volumes:
+  judge-control-postgres:
+  judge-control-rabbitmq:

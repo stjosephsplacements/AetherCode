@@ -1,0 +1,17 @@
+{{- include "platform-postgres-ha.requireProductionInputs" . -}}
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: {{ include "platform-postgres-ha.fullname" . }}-daily
+  labels:
+    app.kubernetes.io/name: aethercode-platform-postgres
+spec:
+  cluster:
+    name: {{ include "platform-postgres-ha.fullname" . }}
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io
+  target: prefer-standby
+  schedule: "0 0 1 * * *"
+  immediate: true
+  backupOwnerReference: cluster

@@ -1,0 +1,116 @@
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: ""
+  digest: ""
+  pullPolicy: IfNotPresent
+
+replicaCount: 3
+
+service:
+  port: 8443
+  grpcContainerPort: 8443
+  healthContainerPort: 8080
+
+runtimeSecret:
+  name: ""
+  databaseURLKey: database-url
+  rabbitMQURLKey: rabbitmq-url
+
+tls:
+  secretName: ""
+  certificateKey: tls.crt
+  privateKeyKey: tls.key
+  clientCAKey: ca.crt
+  allowedClientSubjects: []
+
+engine:
+  enabled: false
+  endpoint: ""
+  port: 2358
+  compatibilityApproved: false
+  compatibilityEvidenceRef: ""
+  authSecretName: ""
+  authTokenKey: token
+
+podAnnotations: {}
+podLabels: {}
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+  limits:
+    cpu: "2"
+    memory: 2Gi
+
+nodeSelector:
+  role: judge
+
+tolerations:
+  - key: role
+    operator: Equal
+    value: judge
+    effect: NoSchedule
+
+affinity: {}
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 30
+  averageCPUUtilization: 65
+
+rabbitmq:
+  enabled: true
+  image:
+    repository: rabbitmq
+    digest: ""
+    pullPolicy: IfNotPresent
+  replicas: 3
+  authSecretName: ""
+  usernameKey: username
+  passwordKey: password
+  erlangCookieKey: erlang-cookie
+  storageClass: ""
+  storageSize: 40Gi
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 4Gi
+
+databaseHA:
+  enabled: false
+  # Required when enabled is false. This is a durable change/attestation record
+  # for the separately managed three-node, synchronous Judge control database.
+  externalHAEvidenceRef: ""
+  imageName: ""
+  storageClass: ""
+  storageSize: 100Gi
+  backupPluginName: ""
+  backupObjectStoreRef: ""
+  nodeSelector:
+    role: data
+  tolerations:
+    - key: role
+      operator: Equal
+      value: data
+      effect: NoSchedule
+
+networkPolicy:
+  enabled: true
+  platformNamespaceLabels:
+    aethercode.io/plane: platform
+  dataNamespaceLabels:
+    aethercode.io/plane: judge-data
+  dnsNamespaceLabels:
+    kubernetes.io/metadata.name: kube-system
+  dnsPodLabels:
+    k8s-app: kube-dns
+  apiServerCIDR: ""
+  engineNamespaceLabels:
+    aethercode.io/plane: judge-engine

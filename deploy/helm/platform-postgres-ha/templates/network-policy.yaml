@@ -1,0 +1,20 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "platform-postgres-ha.fullname" . }}-ingress
+  labels:
+    app.kubernetes.io/name: aethercode-platform-postgres
+spec:
+  podSelector:
+    matchLabels:
+      cnpg.io/cluster: {{ include "platform-postgres-ha.fullname" . }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: aethercode
+      ports:
+        - protocol: TCP
+          port: 5432

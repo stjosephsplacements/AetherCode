@@ -1,0 +1,257 @@
+openapi: 3.1.1
+info:
+  title: AetherCode Analytics API
+  version: 1.0.0
+  description: Event-fed, tenant-scoped reporting read models and durable export requests. Report export responses are status metadata only and never disclose encrypted object-storage references.
+paths:
+  /healthz:
+    get:
+      responses:
+        '200': {description: Service is alive}
+  /readyz:
+    get:
+      responses:
+        '200': {description: Database, authorization projection, outbox, and consumers are ready}
+        '503': {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/student-progress/{student_id}:
+    get:
+      security: [{bearerAuth: []}]
+      parameters:
+        - {$ref: '#/components/parameters/TenantID'}
+        - {$ref: '#/components/parameters/StudentID'}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200':
+          description: Event-fed question progress for the requested student.
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: '#/components/schemas/StudentProgress'}}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/exam-results:
+    get:
+      security: [{bearerAuth: []}]
+      parameters:
+        - {$ref: '#/components/parameters/TenantID'}
+        - name: exam_version_id
+          in: query
+          required: true
+          schema: {$ref: '#/components/schemas/UUID'}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200':
+          description: Completed attempts for one immutable exam version.
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: '#/components/schemas/ExamResult'}}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/batch-progress/{batch_id}:
+    get:
+      security: [{bearerAuth: []}]
+      parameters:
+        - {$ref: '#/components/parameters/TenantID'}
+        - name: batch_id
+          in: path
+          required: true
+          schema: {$ref: '#/components/schemas/UUID'}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200':
+          description: Current active User student-batch affiliations only. No affiliation event is inferred as membership; started_count comes from durable attempt-start facts for current active assignments, completed_count comes from terminal grades, and average_score uses each student's latest current-assignment grade.
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: '#/components/schemas/BatchProgress'}}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/placement-progress/{placement_department_id}:
+    get:
+      security: [{bearerAuth: []}]
+      parameters:
+        - {$ref: '#/components/parameters/TenantID'}
+        - name: placement_department_id
+          in: path
+          required: true
+          schema: {$ref: '#/components/schemas/UUID'}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200':
+          description: Latest completed attempt per currently affiliated student.
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: '#/components/schemas/PlacementProgress'}}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/report-exports:
+    post:
+      security: [{bearerAuth: []}]
+      parameters:
+        - {$ref: '#/components/parameters/TenantID'}
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: {type: string, minLength: 1, maxLength: 255}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [report_type, filters]
+              properties:
+                report_type:
+                  type: string
+                  enum: [student_progress, exam_results, batch_progress, placement_progress]
+                filters: {type: object}
+      responses:
+        '202':
+          description: Durable export request accepted and published through the local outbox. A tenant-wide legal hold is captured before the request commits and blocks later expiry/deletion.
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ReportExport'}}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/report-exports/{export_id}:
+    get:
+      security: [{bearerAuth: []}]
+      parameters:
+        - {$ref: '#/components/parameters/TenantID'}
+        - name: export_id
+          in: path
+          required: true
+          schema: {$ref: '#/components/schemas/UUID'}
+      responses:
+        '200':
+          description: Current durable export state. Storage-object keys and checksums are always omitted, including for completed or legally held exports.
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ReportExport'}}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+components:
+  securitySchemes:
+    bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT}
+  parameters:
+    TenantID:
+      name: tenant_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUID'}
+    StudentID:
+      name: student_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUID'}
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema: {type: integer, minimum: 1, maximum: 500, default: 100}
+  responses:
+    Problem:
+      description: Stable application error.
+      content:
+        application/json: {schema: {$ref: '#/components/schemas/Problem'}}
+  schemas:
+    UUID: {type: string, format: uuid}
+    Problem:
+      type: object
+      required: [code, message]
+      properties:
+        code: {type: string}
+        message: {type: string}
+    StudentProgress:
+      type: object
+      required: [tenant_id, student_id, question_id, attempts_count, accepted_count, best_score, source_revision, computed_at, version]
+      properties:
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+        student_id: {$ref: '#/components/schemas/UUID'}
+        question_id: {$ref: '#/components/schemas/UUID'}
+        attempts_count: {type: integer, minimum: 0}
+        accepted_count: {type: integer, minimum: 0}
+        best_score: {type: string}
+        last_attempt_at: {type: string, format: date-time}
+        source_revision: {type: integer, format: int64}
+        computed_at: {type: string, format: date-time}
+        version: {type: integer, format: int64}
+    ExamResult:
+      type: object
+      required: [tenant_id, exam_id, exam_version_id, candidate_id, attempt_id, lifecycle_state, source_revision, computed_at, version]
+      properties:
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+        exam_id: {$ref: '#/components/schemas/UUID'}
+        exam_version_id: {$ref: '#/components/schemas/UUID'}
+        candidate_id: {$ref: '#/components/schemas/UUID'}
+        candidate_assignment_id: {$ref: '#/components/schemas/UUID'}
+        attempt_id: {$ref: '#/components/schemas/UUID'}
+        attempt_number: {type: integer}
+        lifecycle_state: {type: string, enum: [assigned, in_progress, graded, invalidated]}
+        score: {type: string}
+        maximum_score: {type: string}
+        submitted_at: {type: string, format: date-time}
+        graded_at: {type: string, format: date-time}
+        source_revision: {type: integer, format: int64}
+        computed_at: {type: string, format: date-time}
+        version: {type: integer, format: int64}
+    BatchProgress:
+      type: object
+      required: [tenant_id, batch_id, exam_version_id, assigned_count, started_count, completed_count, source_revision, computed_at, version]
+      properties:
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+        batch_id: {$ref: '#/components/schemas/UUID'}
+        exam_version_id: {$ref: '#/components/schemas/UUID'}
+        assigned_count: {type: integer, minimum: 0, description: Distinct actively affiliated students with a current active assignment.}
+        started_count: {type: integer, minimum: 0, description: Distinct actively affiliated students with a durable start fact for a current active assignment. A terminal grade is also treated as proof of a start during cross-subject delivery lag.}
+        completed_count: {type: integer, minimum: 0, description: Students with a terminal graded attempt.}
+        average_score: {type: string, description: Average latest graded score per completed student for a current assignment.}
+        source_revision: {type: integer, format: int64}
+        computed_at: {type: string, format: date-time}
+        version: {type: integer, format: int64}
+    PlacementProgress:
+      type: object
+      required: [tenant_id, placement_department_id, student_id, home_department_id, source_revision, computed_at, version]
+      properties:
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+        placement_department_id: {$ref: '#/components/schemas/UUID'}
+        student_id: {$ref: '#/components/schemas/UUID'}
+        home_department_id: {$ref: '#/components/schemas/UUID'}
+        latest_exam_version_id: {$ref: '#/components/schemas/UUID'}
+        latest_score: {type: string}
+        latest_activity_at: {type: string, format: date-time}
+        source_revision: {type: integer, format: int64}
+        computed_at: {type: string, format: date-time}
+        version: {type: integer, format: int64}
+    ReportExport:
+      type: object
+      required: [id, tenant_id, requested_by, report_type, filters, lifecycle_state, requested_at, expires_at, retention_until, legal_hold, version]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+        requested_by: {$ref: '#/components/schemas/UUID'}
+        report_type: {type: string, enum: [student_progress, exam_results, batch_progress, placement_progress]}
+        filters: {type: object}
+        lifecycle_state: {type: string, enum: [queued, running, completed, failed, expired]}
+        object_key:
+          type: string
+          readOnly: true
+          description: Internal encrypted object reference. Always omitted from public responses.
+        checksum:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+          readOnly: true
+          description: Internal encrypted object checksum. Always omitted from public responses.
+        requested_at: {type: string, format: date-time}
+        completed_at: {type: string, format: date-time}
+        expires_at: {type: string, format: date-time}
+        retention_until: {type: string, format: date-time}
+        legal_hold:
+          type: boolean
+          description: True when an active tenant-wide legal hold preserves this export from expiry and deletion.
+        version: {type: integer, format: int64}

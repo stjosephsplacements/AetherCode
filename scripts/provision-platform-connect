@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Restore/bootstrap the direct database CONNECT baseline through an approved
+# platform database-administrator identity. This script contains no credential
+# and never changes table, schema, RLS, or role-membership privileges.
+: "${PLATFORM_ADMIN_DATABASE_URL:?PLATFORM_ADMIN_DATABASE_URL must use the approved platform database-administrator identity}"
+
+script_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+exec psql --no-psqlrc --set=ON_ERROR_STOP=1 \
+  --dbname="$PLATFORM_ADMIN_DATABASE_URL" \
+  --file="$script_root/deploy/database/platform/grant-connect.sql"

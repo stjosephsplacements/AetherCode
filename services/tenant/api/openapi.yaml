@@ -1,0 +1,326 @@
+openapi: 3.1.1
+info:
+  title: AetherCode Tenant API
+  version: 1.0.0
+  description: |
+    Tenant, department, batch, retention, and legal-hold workflows. Every
+    business request requires an Identity bearer assertion, a fresh User
+    authorization decision over mTLS, and a transaction-scoped signed RLS
+    capability; authorization failures fail closed.
+paths:
+  /healthz:
+    get:
+      responses:
+        '200': {description: Service is alive}
+  /readyz:
+    get:
+      responses:
+        '200': {description: Service is ready}
+        '503': {$ref: '#/components/responses/Error'}
+  /v1/tenants:
+    post:
+      summary: Provision a college tenant
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ProvisionTenantRequest'}
+      responses:
+        '201': {$ref: '#/components/responses/Tenant'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+  /v1/tenants/{tenant_id}:
+    get:
+      summary: Read a tenant
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/TenantID'}]
+      responses:
+        '200': {$ref: '#/components/responses/Tenant'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+  /v1/placement-organizations:
+    post:
+      summary: Create a placement organization
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PlacementOrganizationRequest'}
+      responses:
+        '201': {$ref: '#/components/responses/PlacementOrganization'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+  /v1/tenants/{tenant_id}/departments:
+    post:
+      summary: Create a college department
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/TenantID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/DepartmentRequest'}
+      responses:
+        '201': {$ref: '#/components/responses/Department'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+  /v1/placement-organizations/{organization_id}/departments:
+    post:
+      summary: Create a placement department
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/OrganizationID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/DepartmentRequest'}
+      responses:
+        '201': {$ref: '#/components/responses/Department'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+  /v1/tenants/{tenant_id}/batches:
+    post:
+      summary: Create a batch in an active college department
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/TenantID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/BatchRequest'}
+      responses:
+        '201': {$ref: '#/components/responses/Batch'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+  /v1/tenants/{tenant_id}/retention-policy:
+    put:
+      summary: Set tenant retention policy within platform bounds
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/TenantID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RetentionPolicyRequest'}
+      responses:
+        '200': {$ref: '#/components/responses/RetentionPolicy'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+  /v1/tenants/{tenant_id}/legal-holds:
+    post:
+      summary: Place a tenant, student, assessment, or submission legal hold
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/TenantID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/LegalHoldRequest'}
+      responses:
+        '201': {$ref: '#/components/responses/LegalHold'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+  /v1/tenants/{tenant_id}/legal-holds/{hold_id}/release:
+    post:
+      summary: Release an active legal hold
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/HoldID'
+      responses:
+        '200': {$ref: '#/components/responses/LegalHold'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWS
+  parameters:
+    TenantID:
+      name: tenant_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUID'}
+    OrganizationID:
+      name: organization_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUID'}
+    HoldID:
+      name: hold_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUID'}
+  responses:
+    Tenant:
+      description: Tenant record
+      content: {application/json: {schema: {$ref: '#/components/schemas/Tenant'}}}
+    PlacementOrganization:
+      description: Placement organization record
+      content: {application/json: {schema: {$ref: '#/components/schemas/PlacementOrganization'}}}
+    Department:
+      description: Department record
+      content: {application/json: {schema: {$ref: '#/components/schemas/Department'}}}
+    Batch:
+      description: Batch record
+      content: {application/json: {schema: {$ref: '#/components/schemas/Batch'}}}
+    RetentionPolicy:
+      description: Tenant retention policy
+      content: {application/json: {schema: {$ref: '#/components/schemas/RetentionPolicy'}}}
+    LegalHold:
+      description: Legal hold record
+      content: {application/json: {schema: {$ref: '#/components/schemas/LegalHold'}}}
+    Error:
+      description: Stable machine-readable API error
+      content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+  schemas:
+    UUID: {type: string, format: uuid}
+    Timestamp: {type: string, format: date-time}
+    ProvisionTenantRequest:
+      type: object
+      required: [slug, legal_name, display_name]
+      additionalProperties: false
+      properties:
+        slug: {type: string, pattern: '^[a-z0-9][a-z0-9-]{1,62}$'}
+        legal_name: {type: string, minLength: 1, maxLength: 255}
+        display_name: {type: string, minLength: 1, maxLength: 255}
+    PlacementOrganizationRequest:
+      type: object
+      required: [code, legal_name]
+      additionalProperties: false
+      properties:
+        code: {type: string, pattern: '^[A-Z0-9][A-Z0-9-]{1,62}$'}
+        legal_name: {type: string, minLength: 1, maxLength: 255}
+    DepartmentRequest:
+      type: object
+      required: [code, name]
+      additionalProperties: false
+      properties:
+        code: {type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9_-]{1,62}$'}
+        name: {type: string, minLength: 1, maxLength: 255}
+    BatchRequest:
+      type: object
+      required: [department_id, code, name, academic_year]
+      additionalProperties: false
+      properties:
+        department_id: {$ref: '#/components/schemas/UUID'}
+        code: {type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9_-]{1,62}$'}
+        name: {type: string, minLength: 1, maxLength: 255}
+        academic_year: {type: string, pattern: '^[0-9]{4}-[0-9]{4}$'}
+    RetentionPolicyRequest:
+      type: object
+      required: [academic_records_years, audit_records_years, auth_logs_days, notification_delivery_days, execution_record_days]
+      additionalProperties: false
+      properties:
+        academic_records_years: {type: integer, minimum: 7, maximum: 30}
+        audit_records_years: {type: integer, minimum: 7, maximum: 30}
+        auth_logs_days: {type: integer, minimum: 90, maximum: 3650}
+        notification_delivery_days: {type: integer, minimum: 30, maximum: 3650}
+        execution_record_days: {type: integer, minimum: 1, maximum: 365}
+    LegalHoldRequest:
+      type: object
+      required: [scope, reason]
+      additionalProperties: false
+      properties:
+        scope: {type: string, enum: [tenant, student, assessment, submission]}
+        subject_id:
+          oneOf:
+            - {$ref: '#/components/schemas/UUID'}
+            - {type: 'null'}
+        reason: {type: string, minLength: 1, maxLength: 2000}
+    Tenant:
+      type: object
+      required: [id, slug, legal_name, display_name, status, version, created_at]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        slug: {type: string}
+        legal_name: {type: string}
+        display_name: {type: string}
+        status: {type: string}
+        version: {type: integer, minimum: 1}
+        created_at: {$ref: '#/components/schemas/Timestamp'}
+    PlacementOrganization:
+      type: object
+      required: [id, code, legal_name, status, version, created_at]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        code: {type: string}
+        legal_name: {type: string}
+        status: {type: string}
+        version: {type: integer, minimum: 1}
+        created_at: {$ref: '#/components/schemas/Timestamp'}
+    Department:
+      type: object
+      required: [id, department_type, code, name, status, version, created_at]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+        placement_organization_id: {$ref: '#/components/schemas/UUID'}
+        department_type: {type: string, enum: [college, placement]}
+        code: {type: string}
+        name: {type: string}
+        status: {type: string}
+        version: {type: integer, minimum: 1}
+        created_at: {$ref: '#/components/schemas/Timestamp'}
+    Batch:
+      type: object
+      required: [id, tenant_id, department_id, code, name, academic_year, status, version, created_at]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+        department_id: {$ref: '#/components/schemas/UUID'}
+        code: {type: string}
+        name: {type: string}
+        academic_year: {type: string}
+        status: {type: string}
+        version: {type: integer, minimum: 1}
+        created_at: {$ref: '#/components/schemas/Timestamp'}
+    RetentionPolicy:
+      allOf:
+        - {$ref: '#/components/schemas/RetentionPolicyRequest'}
+        - type: object
+          required: [tenant_id, version, updated_at]
+          properties:
+            tenant_id: {$ref: '#/components/schemas/UUID'}
+            version: {type: integer, minimum: 1}
+            updated_at: {$ref: '#/components/schemas/Timestamp'}
+    LegalHold:
+      type: object
+      required: [id, tenant_id, scope, reason, status, placed_at]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+        scope: {type: string, enum: [tenant, student, assessment, submission]}
+        subject_id: {$ref: '#/components/schemas/UUID'}
+        reason: {type: string}
+        status: {type: string, enum: [active, released]}
+        placed_at: {$ref: '#/components/schemas/Timestamp'}
+        released_at: {$ref: '#/components/schemas/Timestamp'}
+    Error:
+      type: object
+      required: [code, message]
+      additionalProperties: false
+      properties:
+        code: {type: string}
+        message: {type: string}

@@ -1,0 +1,5 @@
+Judge0 is intentionally not rendered unless all compatibility-gate values are
+explicitly approved. The engine receives only its own PostgreSQL/Redis/auth
+secret; it must never receive platform or Judge wrapper database credentials.
+`engineDatabase.haEvidenceRef` identifies the separately operated,
+version-pinned engine database HA and upstream migration record.

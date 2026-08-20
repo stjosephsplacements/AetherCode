@@ -1,0 +1,318 @@
+// Package httpadapter exposes candidate-safe Submission workflows over HTTP.
+package httpadapter
+
+import (
+	"fmt"
+	"net/http"
+	"strings"
+
+	"github.com/aethercode/aethercode/libs/pkg/authn"
+	"github.com/aethercode/aethercode/libs/pkg/database"
+	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
+	"github.com/aethercode/aethercode/libs/pkg/httpauth"
+	"github.com/aethercode/aethercode/libs/pkg/httpx"
+	"github.com/aethercode/aethercode/services/submission/internal/app"
+)
+
+type Handler struct {
+	service    *app.Service
+	authorizer *httpauth.Authorizer
+}
+
+func NewHandler(serviceName string, service *app.Service, readiness httpx.ReadinessFunc, authorizer *httpauth.Authorizer) (http.Handler, error) {
+	if service == nil || authorizer == nil {
+		return nil, fmt.Errorf("submission service and authorizer are required")
+	}
+	handler := &Handler{service: service, authorizer: authorizer}
+	mux := httpx.NewOperationalMux(serviceName, readiness)
+	mux.HandleFunc("POST /v1/tenants/{tenant_id}/attempts", handler.startAttempt)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}", handler.getAttempt)
+	mux.HandleFunc("PUT /v1/tenants/{tenant_id}/attempts/{attempt_id}/answers/{exam_item_id}", handler.appendAnswerRevision)
+	mux.HandleFunc("POST /v1/tenants/{tenant_id}/attempts/{attempt_id}/submit", handler.submitAttempt)
+	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/attempts/{attempt_id}", handler.deleteAttempt)
+	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/attempts/{attempt_id}/hard", handler.hardDeleteAttempt)
+	return mux, nil
+}
+
+type startAttemptRequest struct {
+	CandidateAssignmentID string `json:"candidate_assignment_id"`
+}
+
+func (handler *Handler) startAttempt(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var body startAttemptRequest
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	idempotencyKey, err := requiredIdempotencyKey(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	attemptID, err := database.NewUUIDv7()
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	candidateID, err := candidateResourceID(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "attempts", candidateID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	attempt, err := handler.service.StartAttempt(request.Context(), decision.Capability, app.StartAttempt{
+		ID: attemptID, TenantID: tenantID, CandidateAssignmentID: body.CandidateAssignmentID,
+		IdempotencyKey: idempotencyKey,
+	})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusCreated, attempt)
+}
+
+func (handler *Handler) getAttempt(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	attemptID, err := httpx.ParseUUIDPathValue(request, "attempt_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	candidateID, err := candidateResourceID(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "attempts", candidateID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	attempt, err := handler.service.GetAttempt(request.Context(), decision.Capability, app.GetAttempt{
+		TenantID: tenantID, AttemptID: attemptID,
+	})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, attempt)
+}
+
+type appendAnswerRevisionRequest struct {
+	LanguageID             string `json:"language_id"`
+	SourceObjectKey        string `json:"source_object_key"`
+	SourceChecksum         string `json:"source_checksum"`
+	EncryptionKeyReference string `json:"encryption_key_reference"`
+	ExpectedAttemptVersion int64  `json:"expected_attempt_version"`
+}
+
+func (handler *Handler) appendAnswerRevision(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	attemptID, err := httpx.ParseUUIDPathValue(request, "attempt_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	examItemID, err := httpx.ParseUUIDPathValue(request, "exam_item_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var body appendAnswerRevisionRequest
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	revisionID, err := database.NewUUIDv7()
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	candidateID, err := candidateResourceID(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "attempts", candidateID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	revision, err := handler.service.AppendAnswerRevision(request.Context(), decision.Capability, app.AppendAnswerRevision{
+		ID: revisionID, TenantID: tenantID, AttemptID: attemptID, ExamItemID: examItemID,
+		LanguageID: body.LanguageID, SourceObjectKey: body.SourceObjectKey,
+		SourceChecksum: body.SourceChecksum, EncryptionKeyReference: body.EncryptionKeyReference,
+		ExpectedAttemptVersion: body.ExpectedAttemptVersion,
+	})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusCreated, revision)
+}
+
+type submitAttemptRequest struct {
+	ExpectedAttemptVersion int64 `json:"expected_attempt_version"`
+}
+
+func (handler *Handler) submitAttempt(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	attemptID, err := httpx.ParseUUIDPathValue(request, "attempt_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var body submitAttemptRequest
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	idempotencyKey, err := requiredIdempotencyKey(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	candidateID, err := candidateResourceID(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "attempts", candidateID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	result, err := handler.service.SubmitAttempt(request.Context(), decision.Capability, app.SubmitAttempt{
+		TenantID: tenantID, AttemptID: attemptID, ExpectedAttemptVersion: body.ExpectedAttemptVersion,
+		IdempotencyKey: idempotencyKey,
+	})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusAccepted, result)
+}
+
+func requiredIdempotencyKey(request *http.Request) (string, error) {
+	key := strings.TrimSpace(request.Header.Get("Idempotency-Key"))
+	if len([]rune(key)) == 0 || len([]rune(key)) > 255 {
+		return "", apperrors.New(apperrors.CodeInvalidArgument, "Idempotency-Key header is required and must be at most 255 characters")
+	}
+	return key, nil
+}
+
+// candidateResourceID is routing input only. The central User service verifies
+// the same assertion before issuing the signed database capability; the local
+// stored procedures bind the capability actor to the candidate-owned record.
+func candidateResourceID(request *http.Request) (string, error) {
+	assertion, err := httpx.BearerToken(request)
+	if err != nil {
+		return "", err
+	}
+	principalID, err := authn.UnverifiedSubject(assertion)
+	if err != nil {
+		return "", apperrors.New(apperrors.CodeUnauthorized, "access token is invalid")
+	}
+	return principalID, nil
+}
+
+type deleteAttemptRequest struct {
+	Reason string `json:"reason"`
+}
+
+func (handler *Handler) deleteAttempt(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	attemptID, err := httpx.ParseUUIDPathValue(request, "attempt_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var body deleteAttemptRequest
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	candidateID, err := candidateResourceID(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "attempts", candidateID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	if err := handler.service.DeleteAttempt(request.Context(), decision.Capability, app.DeleteAttempt{
+		ID:       attemptID,
+		TenantID: tenantID,
+		ActorID:  decision.PrincipalID,
+		Reason:   body.Reason,
+	}); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.WriteHeader(http.StatusNoContent)
+}
+
+func (handler *Handler) hardDeleteAttempt(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	attemptID, err := httpx.ParseUUIDPathValue(request, "attempt_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var body deleteAttemptRequest
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	candidateID, err := candidateResourceID(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "delete", "attempts", candidateID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	if err := handler.service.HardDeleteAttempt(request.Context(), decision.Capability, app.DeleteAttempt{
+		ID:       attemptID,
+		TenantID: tenantID,
+		ActorID:  decision.PrincipalID,
+		Reason:   body.Reason,
+	}); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.WriteHeader(http.StatusNoContent)
+}

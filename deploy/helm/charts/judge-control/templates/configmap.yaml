@@ -1,0 +1,19 @@
+{{- include "judge-control.validate" . }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "judge-control.fullname" . }}-config
+  labels:
+    {{- include "judge-control.labels" . | nindent 4 }}
+data:
+  AETHERCODE_ENV: production
+  JUDGE_TLS_CERT_FILE: /var/run/aethercode/tls/tls.crt
+  JUDGE_TLS_KEY_FILE: /var/run/aethercode/tls/tls.key
+  JUDGE_CLIENT_CA_FILE: /var/run/aethercode/tls/ca.crt
+  JUDGE_ALLOWED_CLIENT_SUBJECTS: {{ join "," .Values.tls.allowedClientSubjects | quote }}
+  JUDGE_ENGINE_MODE: {{ ternary "approved" "disabled" .Values.engine.enabled | quote }}
+  JUDGE_ENGINE_COMPATIBILITY_APPROVED: {{ ternary "true" "false" .Values.engine.compatibilityApproved | quote }}
+  {{- if .Values.engine.enabled }}
+  JUDGE_ENGINE_ENDPOINT: {{ .Values.engine.endpoint | quote }}
+  JUDGE_ENGINE_COMPATIBILITY_EVIDENCE: {{ .Values.engine.compatibilityEvidenceRef | quote }}
+  {{- end }}
