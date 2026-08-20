@@ -866,6 +866,7 @@ BEGIN
                attempt.submitted_at,
                attempt.completed_at,
                attempt.created_at,
+               attempt.legal_hold,
                attempt.version
         FROM submission.attempts AS attempt
         WHERE attempt.tenant_id = p_tenant_id
@@ -931,11 +932,18 @@ BEGIN
     SELECT COALESCE(jsonb_agg(row_to_json(item)::jsonb ORDER BY item.created_at DESC, item.id DESC), '[]'::jsonb)
     INTO response
     FROM (
+        -- encryption_key_reference is deliberately excluded: a KMS key
+        -- reference has no place in a list response, for the same reason
+        -- seb.list_sessions omits quit_token_hash. The remaining fields match
+        -- app.AnswerRevision's JSON tags exactly.
         SELECT revision.id,
                revision.tenant_id,
                revision.attempt_id,
                revision.exam_item_id,
                revision.revision_number,
+               revision.language_id,
+               revision.source_object_key,
+               revision.source_checksum,
                revision.created_at
         FROM submission.answer_revisions AS revision
         WHERE revision.tenant_id = p_tenant_id
@@ -2129,6 +2137,7 @@ BEGIN
         FROM seb.sessions AS session_row
         WHERE session_row.tenant_id = p_tenant_id
           AND session_row.candidate_id = signed_actor_id
+          AND session_row.deleted_at IS NULL
           AND (p_lifecycle_state IS NULL OR session_row.lifecycle_state = p_lifecycle_state)
           AND (
                 p_cursor_issued_at IS NULL
@@ -2148,7 +2157,7 @@ GRANT EXECUTE ON FUNCTION seb.list_sessions(uuid, integer, timestamptz, uuid, te
 RESET ROLE;
 ```
 
-Confirm whether `seb.sessions` gained a `deleted_at` column in `000010_soft_delete_schema.up.sql`; if it did, add `AND session_row.deleted_at IS NULL` to the WHERE clause.
+Verified: `seb.sessions` and `seb.configurations` both gained `deleted_at` in `000010_soft_delete_schema.up.sql`, so both queries filter it. Note that `submission.answer_revisions` did NOT — only `submission.attempts` is soft-deletable in that service — so `list_answer_revisions` correctly has no such filter.
 
 - [ ] **Step 3: Write the down migration**
 
@@ -3015,7 +3024,7 @@ func (repository *Postgres) ListStudents(contextValue context.Context, transacti
 
 Verify the real column names on `users.current_student_affiliations` and `users.student_department_memberships` with `sed -n '/CREATE TABLE users.current_student_affiliations/,/^);/p' services/user/migrations/000002_user_domain.up.sql` before running; adjust the EXISTS subqueries to match.
 
-Add `ListMentorBatchAssignments` and `ListRoleAssignments` as plain keyset `SELECT`s over `users.mentor_batch_assignments` and `users.role_assignments`, following the template in Appendix A.5. Copy the `nullableUUID` / `nullableText` / `nullableTimestamp` helpers from Appendix A.4 into this file if they are not already present.
+Add `ListMentorBatchAssignments` and `ListRoleAssignments` as plain keyset `SELECT`s over `users.mentor_batch_assignments` and `users.role_assignments`, following the template in Appendix A.5. Both tables gained `deleted_at` in `000017_soft_delete_schema.up.sql`, so both queries MUST include `AND deleted_at IS NULL`. Copy the `nullableUUID` / `nullableText` / `nullableTimestamp` helpers from Appendix A.4 into this file if they are not already present.
 
 - [ ] **Step 5: Implement the app methods**
 
