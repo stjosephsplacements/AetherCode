@@ -22,11 +22,15 @@ func NewHandler(serviceName string, service *app.Service, readiness httpx.Readin
 	}
 	handler := &Handler{service: service, authorizer: authorizer}
 	mux := httpx.NewOperationalMux(serviceName, readiness)
+	mux.HandleFunc("GET /v1/tenants", handler.listTenants)
 	mux.HandleFunc("POST /v1/tenants", handler.provisionTenant)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}", handler.getTenant)
 	mux.HandleFunc("POST /v1/placement-organizations", handler.createPlacementOrganization)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/departments", handler.listDepartments)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/departments", handler.createCollegeDepartment)
+	mux.HandleFunc("GET /v1/placement-organizations/{organization_id}/departments", handler.listPlacementDepartments)
 	mux.HandleFunc("POST /v1/placement-organizations/{organization_id}/departments", handler.createPlacementDepartment)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/batches", handler.listBatches)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/batches", handler.createBatch)
 	mux.HandleFunc("PUT /v1/tenants/{tenant_id}/retention-policy", handler.setRetentionPolicy)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/legal-holds", handler.placeLegalHold)

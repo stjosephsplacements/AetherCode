@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/aethercode/aethercode/libs/pkg/database"
@@ -606,6 +607,184 @@ func (repository *Postgres) HardDeletePlacementOrganization(contextValue context
 		return apperrors.New(apperrors.CodeNotFound, "placement organization not found or insufficient permissions")
 	}
 	return nil
+}
+
+func (repository *Postgres) ListTenants(contextValue context.Context, transaction pgx.Tx, command app.ListTenants) ([]app.Tenant, error) {
+	rows, err := transaction.Query(contextValue, `
+		SELECT id::text, slug, legal_name, display_name, status, version, created_at
+		FROM tenant.tenants
+		WHERE deleted_at IS NULL
+		  AND ($1::text IS NULL OR status = $1)
+		  AND ($2::timestamptz IS NULL OR (created_at, id) < ($2, $3))
+		ORDER BY created_at DESC, id DESC
+		LIMIT $4
+	`,
+		nullableText(command.Status),
+		nullableTimestamp(command.CursorSort), nullableUUID(command.CursorID),
+		command.Limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list tenants: %w", err)
+	}
+	defer rows.Close()
+
+	tenants := make([]app.Tenant, 0, command.Limit)
+	for rows.Next() {
+		var tenant app.Tenant
+		if err := rows.Scan(&tenant.ID, &tenant.Slug, &tenant.LegalName, &tenant.DisplayName,
+			&tenant.Status, &tenant.Version, &tenant.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan tenant row: %w", err)
+		}
+		tenants = append(tenants, tenant)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read tenant rows: %w", err)
+	}
+	return tenants, nil
+}
+
+func (repository *Postgres) ListDepartments(contextValue context.Context, transaction pgx.Tx, command app.ListDepartments) ([]app.Department, error) {
+	rows, err := transaction.Query(contextValue, `
+		SELECT id::text, COALESCE(tenant_id::text, ''), COALESCE(placement_organization_id::text, ''),
+		       department_type, code, name, status, version, created_at
+		FROM tenant.departments
+		WHERE tenant_id = $1
+		  AND deleted_at IS NULL
+		  AND ($2::text IS NULL OR status = $2)
+		  AND ($3::timestamptz IS NULL OR (created_at, id) < ($3, $4))
+		ORDER BY created_at DESC, id DESC
+		LIMIT $5
+	`,
+		command.TenantID,
+		nullableText(command.Status),
+		nullableTimestamp(command.CursorSort), nullableUUID(command.CursorID),
+		command.Limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list departments: %w", err)
+	}
+	defer rows.Close()
+
+	departments := make([]app.Department, 0, command.Limit)
+	for rows.Next() {
+		var department app.Department
+		if err := rows.Scan(&department.ID, &department.TenantID, &department.PlacementOrganizationID,
+			&department.DepartmentType, &department.Code, &department.Name,
+			&department.Status, &department.Version, &department.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan department row: %w", err)
+		}
+		departments = append(departments, department)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read department rows: %w", err)
+	}
+	return departments, nil
+}
+
+func (repository *Postgres) ListPlacementDepartments(contextValue context.Context, transaction pgx.Tx, command app.ListPlacementDepartments) ([]app.Department, error) {
+	rows, err := transaction.Query(contextValue, `
+		SELECT id::text, COALESCE(tenant_id::text, ''), placement_organization_id::text,
+		       department_type, code, name, status, version, created_at
+		FROM tenant.departments
+		WHERE placement_organization_id = $1
+		  AND deleted_at IS NULL
+		  AND ($2::text IS NULL OR status = $2)
+		  AND ($3::timestamptz IS NULL OR (created_at, id) < ($3, $4))
+		ORDER BY created_at DESC, id DESC
+		LIMIT $5
+	`,
+		command.OrganizationID,
+		nullableText(command.Status),
+		nullableTimestamp(command.CursorSort), nullableUUID(command.CursorID),
+		command.Limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list placement departments: %w", err)
+	}
+	defer rows.Close()
+
+	departments := make([]app.Department, 0, command.Limit)
+	for rows.Next() {
+		var department app.Department
+		if err := rows.Scan(&department.ID, &department.TenantID, &department.PlacementOrganizationID,
+			&department.DepartmentType, &department.Code, &department.Name,
+			&department.Status, &department.Version, &department.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan placement department row: %w", err)
+		}
+		departments = append(departments, department)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read placement department rows: %w", err)
+	}
+	return departments, nil
+}
+
+func (repository *Postgres) ListBatches(contextValue context.Context, transaction pgx.Tx, command app.ListBatches) ([]app.Batch, error) {
+	rows, err := transaction.Query(contextValue, `
+		SELECT id::text, tenant_id::text, department_id::text, code, name,
+		       academic_year, status, version, created_at
+		FROM tenant.batches
+		WHERE tenant_id = $1
+		  AND deleted_at IS NULL
+		  AND ($2::uuid IS NULL OR department_id = $2)
+		  AND ($3::text IS NULL OR status = $3)
+		  AND ($4::text IS NULL OR academic_year = $4)
+		  AND ($5::timestamptz IS NULL OR (created_at, id) < ($5, $6))
+		ORDER BY created_at DESC, id DESC
+		LIMIT $7
+	`,
+		command.TenantID, nullableUUID(command.DepartmentID),
+		nullableText(command.Status), nullableText(command.AcademicYear),
+		nullableTimestamp(command.CursorSort), nullableUUID(command.CursorID),
+		command.Limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list batches: %w", err)
+	}
+	defer rows.Close()
+
+	batches := make([]app.Batch, 0, command.Limit)
+	for rows.Next() {
+		var batch app.Batch
+		if err := rows.Scan(&batch.ID, &batch.TenantID, &batch.DepartmentID, &batch.Code,
+			&batch.Name, &batch.AcademicYear, &batch.Status, &batch.Version,
+			&batch.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan batch row: %w", err)
+		}
+		batches = append(batches, batch)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read batch rows: %w", err)
+	}
+	return batches, nil
+}
+
+func nullableUUID(value string) any {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	return value
+}
+
+func nullableText(value string) any {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	return value
+}
+
+// nullableTimestamp parses an RFC3339 nanosecond cursor sort value. The handler
+// has already validated the cursor's shape, so a parse failure here is a
+// programming error rather than user input.
+func nullableTimestamp(value string) any {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	parsed, err := time.Parse(time.RFC3339Nano, value)
+	if err != nil {
+		return nil
+	}
+	return parsed.UTC()
 }
 
 func mapWriteError(err error, conflictMessage string) error {

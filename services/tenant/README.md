@@ -61,6 +61,17 @@ retention and legal-hold v2 events feed Notification without a cross-database
 read. All business routes validate Identity, obtain a fresh User authorization
 decision over mTLS, and use its signed transaction-local RLS context.
 
+### Collection endpoints (Class B, keyset-cursor pagination)
+
+| Method | Path | Auth resource | Description |
+|---|---|---|---|
+| GET | `/v1/tenants` | `tenants` (global, no tenant_id) | List all tenants |
+| GET | `/v1/tenants/{tenant_id}/departments` | `departments` | List college departments for a tenant |
+| GET | `/v1/tenants/{tenant_id}/batches` | `batches` | List batches for a tenant |
+| GET | `/v1/placement-organizations/{organization_id}/departments` | `placement_organizations` (global) | List placement departments for an organization |
+
+Query parameters for all collection routes: `limit` (1–100, default 20), `cursor` (opaque keyset token), `status` (enum, optional). The batches endpoint additionally accepts `department_id` and `academic_year` filters. Responses contain `{items, next_cursor}` where `next_cursor` is absent on the final page.
+
 The complete REST contract is in [api/openapi.yaml](api/openapi.yaml).
 
 ## Migrations and verification

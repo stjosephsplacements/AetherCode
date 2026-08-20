@@ -86,6 +86,18 @@ func (panicStore) SoftDeleteBatch(context.Context, pgx.Tx, DeleteEntity) error {
 func (panicStore) HardDeleteBatch(context.Context, pgx.Tx, DeleteEntity) error {
 	panic("unexpected persistence call")
 }
+func (panicStore) ListTenants(context.Context, pgx.Tx, ListTenants) ([]Tenant, error) {
+	panic("unexpected persistence call")
+}
+func (panicStore) ListDepartments(context.Context, pgx.Tx, ListDepartments) ([]Department, error) {
+	panic("unexpected persistence call")
+}
+func (panicStore) ListPlacementDepartments(context.Context, pgx.Tx, ListPlacementDepartments) ([]Department, error) {
+	panic("unexpected persistence call")
+}
+func (panicStore) ListBatches(context.Context, pgx.Tx, ListBatches) ([]Batch, error) {
+	panic("unexpected persistence call")
+}
 func (panicStore) Ping(context.Context) error { panic("unexpected persistence call") }
 
 const testUUID = "550e8400-e29b-41d4-a716-446655440000"

@@ -18,6 +18,20 @@ paths:
         '200': {description: Service is ready}
         '503': {$ref: '#/components/responses/Error'}
   /v1/tenants:
+    get:
+      summary: List all tenants (global resource, Class B)
+      security: [{bearerAuth: []}]
+      parameters:
+        - {$ref: '#/components/parameters/Limit'}
+        - {$ref: '#/components/parameters/Cursor'}
+        - name: status
+          in: query
+          schema: {type: string, enum: [provisioning, active, suspended, closed]}
+      responses:
+        '200': {$ref: '#/components/responses/TenantPage'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
     post:
       summary: Provision a college tenant
       security: [{bearerAuth: []}]
@@ -59,6 +73,21 @@ paths:
         '403': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
   /v1/tenants/{tenant_id}/departments:
+    get:
+      summary: List college departments for a tenant (Class B)
+      security: [{bearerAuth: []}]
+      parameters:
+        - {$ref: '#/components/parameters/TenantID'}
+        - {$ref: '#/components/parameters/Limit'}
+        - {$ref: '#/components/parameters/Cursor'}
+        - name: status
+          in: query
+          schema: {type: string, enum: [active, archived]}
+      responses:
+        '200': {$ref: '#/components/responses/DepartmentPage'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
     post:
       summary: Create a college department
       security: [{bearerAuth: []}]
@@ -75,6 +104,21 @@ paths:
         '403': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
   /v1/placement-organizations/{organization_id}/departments:
+    get:
+      summary: List placement departments for an organization (Class B, global)
+      security: [{bearerAuth: []}]
+      parameters:
+        - {$ref: '#/components/parameters/OrganizationID'}
+        - {$ref: '#/components/parameters/Limit'}
+        - {$ref: '#/components/parameters/Cursor'}
+        - name: status
+          in: query
+          schema: {type: string, enum: [active, archived]}
+      responses:
+        '200': {$ref: '#/components/responses/DepartmentPage'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
     post:
       summary: Create a placement department
       security: [{bearerAuth: []}]
@@ -91,6 +135,27 @@ paths:
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
   /v1/tenants/{tenant_id}/batches:
+    get:
+      summary: List batches for a tenant (Class B)
+      security: [{bearerAuth: []}]
+      parameters:
+        - {$ref: '#/components/parameters/TenantID'}
+        - {$ref: '#/components/parameters/Limit'}
+        - {$ref: '#/components/parameters/Cursor'}
+        - name: status
+          in: query
+          schema: {type: string, enum: [active, archived]}
+        - name: department_id
+          in: query
+          schema: {$ref: '#/components/schemas/UUID'}
+        - name: academic_year
+          in: query
+          schema: {type: string, pattern: '^[0-9]{4}-[0-9]{4}$'}
+      responses:
+        '200': {$ref: '#/components/responses/BatchPage'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
     post:
       summary: Create a batch in an active college department
       security: [{bearerAuth: []}]
@@ -172,19 +237,36 @@ components:
       in: path
       required: true
       schema: {$ref: '#/components/schemas/UUID'}
+    Limit:
+      name: limit
+      in: query
+      schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+    Cursor:
+      name: cursor
+      in: query
+      schema: {type: string}
   responses:
     Tenant:
       description: Tenant record
       content: {application/json: {schema: {$ref: '#/components/schemas/Tenant'}}}
+    TenantPage:
+      description: Keyset page of tenants
+      content: {application/json: {schema: {$ref: '#/components/schemas/TenantPage'}}}
     PlacementOrganization:
       description: Placement organization record
       content: {application/json: {schema: {$ref: '#/components/schemas/PlacementOrganization'}}}
     Department:
       description: Department record
       content: {application/json: {schema: {$ref: '#/components/schemas/Department'}}}
+    DepartmentPage:
+      description: Keyset page of departments
+      content: {application/json: {schema: {$ref: '#/components/schemas/DepartmentPage'}}}
     Batch:
       description: Batch record
       content: {application/json: {schema: {$ref: '#/components/schemas/Batch'}}}
+    BatchPage:
+      description: Keyset page of batches
+      content: {application/json: {schema: {$ref: '#/components/schemas/BatchPage'}}}
     RetentionPolicy:
       description: Tenant retention policy
       content: {application/json: {schema: {$ref: '#/components/schemas/RetentionPolicy'}}}
@@ -197,6 +279,30 @@ components:
   schemas:
     UUID: {type: string, format: uuid}
     Timestamp: {type: string, format: date-time}
+    TenantPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/Tenant'}
+        next_cursor: {type: string}
+    DepartmentPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/Department'}
+        next_cursor: {type: string}
+    BatchPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/Batch'}
+        next_cursor: {type: string}
     ProvisionTenantRequest:
       type: object
       required: [slug, legal_name, display_name]

@@ -11,6 +11,7 @@ import (
 	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
 	"github.com/aethercode/aethercode/libs/pkg/database"
 	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
+	"github.com/aethercode/aethercode/libs/pkg/pagination"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -22,6 +23,12 @@ var (
 	yearPattern          = regexp.MustCompile(`^[0-9]{4}-[0-9]{4}$`)
 )
 
+// Page is one keyset page. NextCursor is empty on the final page.
+type Page[T any] struct {
+	Items      []T    `json:"items"`
+	NextCursor string `json:"next_cursor,omitempty"`
+}
+
 // Store is implemented by the PostgreSQL adapter. Every operation receives the
 // caller's already authorized transaction; adapters never open an unscoped
 // application transaction on their own.
@@ -31,6 +38,7 @@ type Store interface {
 	GetTenantIncludeDeleted(context.Context, pgx.Tx, string) (Tenant, error)
 	SoftDeleteTenant(context.Context, pgx.Tx, DeleteEntity) error
 	HardDeleteTenant(context.Context, pgx.Tx, DeleteEntity) error
+	ListTenants(context.Context, pgx.Tx, ListTenants) ([]Tenant, error)
 	CreatePlacementOrganization(context.Context, pgx.Tx, CreatePlacementOrganization) (PlacementOrganization, error)
 	GetPlacementOrganization(context.Context, pgx.Tx, string) (PlacementOrganization, error)
 	GetPlacementOrganizationIncludeDeleted(context.Context, pgx.Tx, string) (PlacementOrganization, error)
@@ -42,11 +50,14 @@ type Store interface {
 	GetDepartmentIncludeDeleted(context.Context, pgx.Tx, string) (Department, error)
 	SoftDeleteDepartment(context.Context, pgx.Tx, DeleteEntity) error
 	HardDeleteDepartment(context.Context, pgx.Tx, DeleteEntity) error
+	ListDepartments(context.Context, pgx.Tx, ListDepartments) ([]Department, error)
+	ListPlacementDepartments(context.Context, pgx.Tx, ListPlacementDepartments) ([]Department, error)
 	CreateBatch(context.Context, pgx.Tx, CreateBatch) (Batch, error)
 	GetBatch(context.Context, pgx.Tx, string) (Batch, error)
 	GetBatchIncludeDeleted(context.Context, pgx.Tx, string) (Batch, error)
 	SoftDeleteBatch(context.Context, pgx.Tx, DeleteEntity) error
 	HardDeleteBatch(context.Context, pgx.Tx, DeleteEntity) error
+	ListBatches(context.Context, pgx.Tx, ListBatches) ([]Batch, error)
 	SetRetentionPolicy(context.Context, pgx.Tx, SetRetentionPolicy) (RetentionPolicy, error)
 	PlaceLegalHold(context.Context, pgx.Tx, PlaceLegalHold) (LegalHold, error)
 	ReleaseLegalHold(context.Context, pgx.Tx, ReleaseLegalHold) (LegalHold, error)
@@ -182,6 +193,39 @@ type DeleteEntity struct {
 	ID      string
 	ActorID string
 	Reason  string
+}
+
+type ListTenants struct {
+	Limit      int
+	CursorSort string
+	CursorID   string
+	Status     string
+}
+
+type ListDepartments struct {
+	TenantID   string
+	Limit      int
+	CursorSort string
+	CursorID   string
+	Status     string
+}
+
+type ListBatches struct {
+	TenantID     string
+	Limit        int
+	CursorSort   string
+	CursorID     string
+	Status       string
+	DepartmentID string
+	AcademicYear string
+}
+
+type ListPlacementDepartments struct {
+	OrganizationID string
+	Limit          int
+	CursorSort     string
+	CursorID       string
+	Status         string
 }
 
 // Service owns the secure transaction boundary for Tenant workflows.
@@ -486,6 +530,122 @@ func (service *Service) HardDeletePlacementOrganization(contextValue context.Con
 
 		return nil
 	})
+}
+
+func (service *Service) ListTenants(contextValue context.Context, capability centralauthz.Capability, command ListTenants) (Page[Tenant], error) {
+	if command.CursorSort != "" {
+		if _, err := time.Parse(time.RFC3339Nano, command.CursorSort); err != nil {
+			return Page[Tenant]{}, apperrors.New(apperrors.CodeInvalidArgument, "cursor contains an invalid timestamp")
+		}
+	}
+	var page Page[Tenant]
+	err := database.WithTenantTx(contextValue, service.pool, capability, func(transaction pgx.Tx) error {
+		probe := command
+		probe.Limit = command.Limit + 1
+		tenants, err := service.store.ListTenants(contextValue, transaction, probe)
+		if err != nil {
+			return err
+		}
+		page = Page[Tenant]{Items: []Tenant{}}
+		if len(tenants) > command.Limit {
+			tenants = tenants[:command.Limit]
+			last := tenants[len(tenants)-1]
+			page.NextCursor = pagination.Encode(pagination.EncodeTime(last.CreatedAt), last.ID)
+		}
+		page.Items = append(page.Items, tenants...)
+		return nil
+	})
+	if err != nil {
+		return Page[Tenant]{}, err
+	}
+	return page, nil
+}
+
+func (service *Service) ListDepartments(contextValue context.Context, capability centralauthz.Capability, command ListDepartments) (Page[Department], error) {
+	if command.CursorSort != "" {
+		if _, err := time.Parse(time.RFC3339Nano, command.CursorSort); err != nil {
+			return Page[Department]{}, apperrors.New(apperrors.CodeInvalidArgument, "cursor contains an invalid timestamp")
+		}
+	}
+	var page Page[Department]
+	err := database.WithTenantTx(contextValue, service.pool, capability, func(transaction pgx.Tx) error {
+		probe := command
+		probe.Limit = command.Limit + 1
+		departments, err := service.store.ListDepartments(contextValue, transaction, probe)
+		if err != nil {
+			return err
+		}
+		page = Page[Department]{Items: []Department{}}
+		if len(departments) > command.Limit {
+			departments = departments[:command.Limit]
+			last := departments[len(departments)-1]
+			page.NextCursor = pagination.Encode(pagination.EncodeTime(last.CreatedAt), last.ID)
+		}
+		page.Items = append(page.Items, departments...)
+		return nil
+	})
+	if err != nil {
+		return Page[Department]{}, err
+	}
+	return page, nil
+}
+
+func (service *Service) ListBatches(contextValue context.Context, capability centralauthz.Capability, command ListBatches) (Page[Batch], error) {
+	if command.CursorSort != "" {
+		if _, err := time.Parse(time.RFC3339Nano, command.CursorSort); err != nil {
+			return Page[Batch]{}, apperrors.New(apperrors.CodeInvalidArgument, "cursor contains an invalid timestamp")
+		}
+	}
+	var page Page[Batch]
+	err := database.WithTenantTx(contextValue, service.pool, capability, func(transaction pgx.Tx) error {
+		probe := command
+		probe.Limit = command.Limit + 1
+		batches, err := service.store.ListBatches(contextValue, transaction, probe)
+		if err != nil {
+			return err
+		}
+		page = Page[Batch]{Items: []Batch{}}
+		if len(batches) > command.Limit {
+			batches = batches[:command.Limit]
+			last := batches[len(batches)-1]
+			page.NextCursor = pagination.Encode(pagination.EncodeTime(last.CreatedAt), last.ID)
+		}
+		page.Items = append(page.Items, batches...)
+		return nil
+	})
+	if err != nil {
+		return Page[Batch]{}, err
+	}
+	return page, nil
+}
+
+func (service *Service) ListPlacementDepartments(contextValue context.Context, capability centralauthz.Capability, command ListPlacementDepartments) (Page[Department], error) {
+	if command.CursorSort != "" {
+		if _, err := time.Parse(time.RFC3339Nano, command.CursorSort); err != nil {
+			return Page[Department]{}, apperrors.New(apperrors.CodeInvalidArgument, "cursor contains an invalid timestamp")
+		}
+	}
+	var page Page[Department]
+	err := database.WithTenantTx(contextValue, service.pool, capability, func(transaction pgx.Tx) error {
+		probe := command
+		probe.Limit = command.Limit + 1
+		departments, err := service.store.ListPlacementDepartments(contextValue, transaction, probe)
+		if err != nil {
+			return err
+		}
+		page = Page[Department]{Items: []Department{}}
+		if len(departments) > command.Limit {
+			departments = departments[:command.Limit]
+			last := departments[len(departments)-1]
+			page.NextCursor = pagination.Encode(pagination.EncodeTime(last.CreatedAt), last.ID)
+		}
+		page.Items = append(page.Items, departments...)
+		return nil
+	})
+	if err != nil {
+		return Page[Department]{}, err
+	}
+	return page, nil
 }
 
 func isUUID(value string) bool {
