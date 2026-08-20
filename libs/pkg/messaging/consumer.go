@@ -116,7 +116,7 @@ func (consumer *PullConsumer) Run(contextValue context.Context) {
 		messages, err := consumer.subscription.Fetch(consumer.batchSize, nats.Context(fetchContext))
 		cancel()
 		if err != nil {
-			if contextValue.Err() != nil || err == nats.ErrTimeout {
+			if contextValue.Err() != nil || errors.Is(err, nats.ErrTimeout) {
 				continue
 			}
 			consumer.recordFailure("fetch durable event", err)

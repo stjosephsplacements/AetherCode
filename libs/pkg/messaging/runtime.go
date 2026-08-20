@@ -2,6 +2,7 @@ package messaging
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -81,7 +82,7 @@ func ensurePlatformStream(stream nats.JetStreamContext) error {
 	}
 	if _, err := stream.StreamInfo(platformStream); err == nil {
 		return nil
-	} else if err != nats.ErrStreamNotFound {
+	} else if !errors.Is(err, nats.ErrStreamNotFound) {
 		return fmt.Errorf("read platform event stream: %w", err)
 	}
 	_, err := stream.AddStream(&nats.StreamConfig{
@@ -93,7 +94,7 @@ func ensurePlatformStream(stream nats.JetStreamContext) error {
 		MaxAge:     8 * 24 * time.Hour,
 		Duplicates: 2 * time.Minute,
 	})
-	if err != nil && err != nats.ErrStreamNameAlreadyInUse {
+	if err != nil && !errors.Is(err, nats.ErrStreamNameAlreadyInUse) {
 		return fmt.Errorf("create platform event stream: %w", err)
 	}
 	return nil

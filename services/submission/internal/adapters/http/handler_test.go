@@ -1,6 +1,7 @@
 package httpadapter
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -21,8 +22,8 @@ func TestRequiredIdempotencyKey(t *testing.T) {
 	}
 	request.Header.Set("Idempotency-Key", strings.Repeat("x", 256))
 	_, err = requiredIdempotencyKey(request)
-	applicationError, ok := err.(*apperrors.Error)
-	if !ok || applicationError.Code != apperrors.CodeInvalidArgument {
+	var applicationError *apperrors.Error
+	if !errors.As(err, &applicationError) || applicationError.Code != apperrors.CodeInvalidArgument {
 		t.Fatalf("error = %#v, want invalid argument", err)
 	}
 }

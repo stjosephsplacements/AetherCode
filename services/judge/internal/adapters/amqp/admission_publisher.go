@@ -121,7 +121,7 @@ func (publisher *Publisher) runConnection(contextValue context.Context) error {
 			if err := publisher.publishOne(contextValue, channel, confirms, lease); err != nil {
 				releaseErr := publisher.store.ReleaseAdmission(contextValue, lease.EventID, lease.LeaseID, time.Now().UTC().Add(time.Second), err)
 				if releaseErr != nil {
-					return fmt.Errorf("publish admission %s: %w; release lease: %v", lease.EventID, err, releaseErr)
+					return fmt.Errorf("publish admission %s: %w; release lease: %w", lease.EventID, err, releaseErr)
 				}
 				return fmt.Errorf("publish admission %s: %w", lease.EventID, err)
 			}

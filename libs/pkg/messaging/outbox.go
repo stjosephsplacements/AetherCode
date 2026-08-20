@@ -189,7 +189,7 @@ func PublishBatch(contextValue context.Context, store *OutboxStore, stream nats.
 		message.Data = payload
 		if _, err := stream.PublishMsg(message, nats.Context(contextValue)); err != nil {
 			if releaseErr := store.Release(contextValue, event, err); releaseErr != nil {
-				return fmt.Errorf("publish outbox event %s: %w; release: %v", event.EventID, err, releaseErr)
+				return fmt.Errorf("publish outbox event %s: %w; release: %w", event.EventID, err, releaseErr)
 			}
 			return fmt.Errorf("publish outbox event %s: %w", event.EventID, err)
 		}

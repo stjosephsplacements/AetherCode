@@ -3,6 +3,7 @@ package messaging
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -63,7 +64,7 @@ func (store *InboxStore) Process(
 	`, store.table), consumer, event.ID, event.Type, event.OccurredAt.UTC(), payloadHash[:])
 	var claimedID string
 	if err := row.Scan(&claimedID); err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			if commitErr := transaction.Commit(contextValue); commitErr != nil {
 				return false, fmt.Errorf("commit duplicate inbox event: %w", commitErr)
 			}

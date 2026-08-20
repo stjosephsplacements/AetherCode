@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -113,8 +114,8 @@ func TestAttemptStartEventIDsAreDistinctUUIDv7(t *testing.T) {
 
 func assertInvalidArgument(t *testing.T, err error) {
 	t.Helper()
-	applicationError, ok := err.(*apperrors.Error)
-	if !ok || applicationError.Code != apperrors.CodeInvalidArgument {
+	var applicationError *apperrors.Error
+	if !errors.As(err, &applicationError) || applicationError.Code != apperrors.CodeInvalidArgument {
 		t.Fatalf("error = %#v, want invalid argument", err)
 	}
 }
