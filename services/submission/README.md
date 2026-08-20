@@ -131,3 +131,33 @@ dedicated `aether_submission_projection_worker` writes the request through
 Submission's outbox and consumes only Submission's response subjects.
 `SUBMISSION_PROJECTION_DATABASE_URL` must use that role; no request-serving
 credential can access the resync state.
+
+## Attempt expiry worker
+
+`000017_attempt_expiry_worker` adds the wall-clock expiry path. A background
+worker polls on `SUBMISSION_EXPIRY_POLL_INTERVAL` and calls
+`submission.expire_overdue_attempts(limit)` in bounded batches. The function is
+`SECURITY DEFINER` and `FOR UPDATE SKIP LOCKED`; two worker replicas claim
+disjoint rows rather than blocking each other. Each expiry writes one
+`submission.attempt_expired.v1` outbox event in the same transaction as the
+state change, carrying `attempt_id`, `tenant_id`, `exam_id`,
+`exam_version_id`, `candidate_id`, and `expired_at`.
+
+The worker runs as `aether_submission_expiry_worker`, a dedicated least-privilege
+login role provisioned in `deploy/database/platform/dev-init.sh`. It can execute
+exactly one function and cannot read or write any Submission or app table
+directly. A startup `Ping` self-audit confirms this posture; the service will
+not start if the role has been misconfigured.
+
+Configuration (required when `SUBMISSION_EXPIRY_ENABLED=true`):
+
+| Variable | Default | Range | Description |
+|---|---|---|---|
+| `SUBMISSION_EXPIRY_ENABLED` | `false` (dev), `true` (staging/production) | bool | Enable the expiry worker. |
+| `SUBMISSION_EXPIRY_DATABASE_URL` | — | — | `aether_submission_expiry_worker` credentials. |
+| `SUBMISSION_EXPIRY_BATCH_SIZE` | 500 | 1–5000 | Rows expired per database call. |
+| `SUBMISSION_EXPIRY_MAX_BATCHES` | 20 | 1–100 | Maximum calls per poll cycle. |
+| `SUBMISSION_EXPIRY_POLL_INTERVAL` | 1m | 10s–1h | Interval between cycles. |
+
+The worker is included in the readiness probe when enabled; the service will not
+report ready until a recent cycle has completed successfully.

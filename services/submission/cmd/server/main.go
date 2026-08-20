@@ -21,6 +21,7 @@ import (
 	"github.com/aethercode/aethercode/services/submission/internal/adapters/projection"
 	"github.com/aethercode/aethercode/services/submission/internal/adapters/repo"
 	"github.com/aethercode/aethercode/services/submission/internal/app"
+	"github.com/aethercode/aethercode/services/submission/internal/expiry"
 )
 
 func main() {
@@ -247,6 +248,50 @@ func run(contextValue context.Context) error {
 			}
 			return judgeCompletionConsumer.Ready(readinessContext)
 		}
+	}
+
+	expiryRuntime, err := expiry.LoadRuntime(serviceConfig.Environment)
+	if err != nil {
+		return err
+	}
+	var expiryRunner *expiry.Runner
+	if expiryRuntime.Enabled {
+		expiryDatabaseConfig, expiryConfigErr := config.LoadDatabase("SUBMISSION_EXPIRY")
+		if expiryConfigErr != nil {
+			return expiryConfigErr
+		}
+		expiryPool, expiryPoolErr := database.Open(contextValue, expiryDatabaseConfig)
+		if expiryPoolErr != nil {
+			return expiryPoolErr
+		}
+		defer expiryPool.Close()
+		expiryStore, expiryStoreErr := expiry.NewStore(expiryPool)
+		if expiryStoreErr != nil {
+			return expiryStoreErr
+		}
+		if expiryRoleErr := expiryStore.Ping(contextValue); expiryRoleErr != nil {
+			return expiryRoleErr
+		}
+		var expiryRunnerErr error
+		expiryRunner, expiryRunnerErr = expiry.NewRunner(expiryStore, expiryRuntime, logger)
+		if expiryRunnerErr != nil {
+			return expiryRunnerErr
+		}
+		if expiryOnceErr := expiryRunner.ProcessOnce(contextValue); expiryOnceErr != nil {
+			return fmt.Errorf("initial attempt expiry cycle: %w", expiryOnceErr)
+		}
+		go expiryRunner.Run(contextValue)
+	}
+
+	priorReadiness := readiness
+	readiness = func(readinessContext context.Context) error {
+		if err := priorReadiness(readinessContext); err != nil {
+			return err
+		}
+		if expiryRunner != nil {
+			return expiryRunner.Ready(readinessContext)
+		}
+		return nil
 	}
 
 	handler, err := httpadapter.NewHandler(serviceConfig.Name, submissionService, readiness, authorizer)

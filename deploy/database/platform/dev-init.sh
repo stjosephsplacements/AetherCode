@@ -96,3 +96,12 @@ psql --set=ON_ERROR_STOP=1 --dbname="aether_notification" \
   --set=database="aether_notification" --set=retention_worker="aether_notification_retention_worker" <<'SQL'
 GRANT CONNECT ON DATABASE :"database" TO :"retention_worker";
 SQL
+
+# Expiry has an intentionally separate login: it can execute one bounded
+# owner-defined expiry routine but cannot serve request traffic, consume events,
+# or read/write Submission tables directly.
+create_login_role_if_missing "aether_submission_expiry_worker" "${SUBMISSION_DB_PASSWORD:?missing SUBMISSION_DB_PASSWORD}"
+psql --set=ON_ERROR_STOP=1 --dbname="aether_submission" \
+  --set=database="aether_submission" --set=expiry_worker="aether_submission_expiry_worker" <<'SQL'
+GRANT CONNECT ON DATABASE :"database" TO :"expiry_worker";
+SQL
