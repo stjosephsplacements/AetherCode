@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -410,6 +411,11 @@ func (service *Service) ListPublishedQuestions(contextValue context.Context, cap
 	if command.Limit < 1 || command.Limit > 100 {
 		return Page[QuestionDetail]{}, apperrors.New(apperrors.CodeInvalidArgument, "question listing limit must be between 1 and 100")
 	}
+	if command.CursorSort != "" {
+		if _, err := time.Parse(time.RFC3339Nano, command.CursorSort); err != nil {
+			return Page[QuestionDetail]{}, apperrors.New(apperrors.CodeInvalidArgument, "cursor contains an invalid timestamp")
+		}
+	}
 	var page Page[QuestionDetail]
 	err := database.WithTenantTx(contextValue, service.pool, capability, func(transaction pgx.Tx) error {
 		probe := command
@@ -422,9 +428,10 @@ func (service *Service) ListPublishedQuestions(contextValue context.Context, cap
 		if len(questions) > command.Limit {
 			questions = questions[:command.Limit]
 			last := questions[len(questions)-1]
-			if last.QuestionVersion.PublishedAt != nil {
-				page.NextCursor = pagination.Encode(pagination.EncodeTime(*last.QuestionVersion.PublishedAt), last.QuestionVersion.ID)
+			if last.QuestionVersion.PublishedAt == nil {
+				return fmt.Errorf("list questions: published question has nil published_at")
 			}
+			page.NextCursor = pagination.Encode(pagination.EncodeTime(*last.QuestionVersion.PublishedAt), last.QuestionVersion.ID)
 		}
 		page.Items = append(page.Items, questions...)
 		return nil
@@ -438,6 +445,11 @@ func (service *Service) ListPublishedQuestions(contextValue context.Context, cap
 func (service *Service) ListQuestionVersions(contextValue context.Context, capability centralauthz.Capability, command ListQuestionVersions) (Page[QuestionVersion], error) {
 	if command.Limit < 1 || command.Limit > 100 {
 		return Page[QuestionVersion]{}, apperrors.New(apperrors.CodeInvalidArgument, "question version listing limit must be between 1 and 100")
+	}
+	if command.CursorSort != "" {
+		if _, err := strconv.ParseInt(command.CursorSort, 10, 64); err != nil {
+			return Page[QuestionVersion]{}, apperrors.New(apperrors.CodeInvalidArgument, "cursor contains an invalid version number")
+		}
 	}
 	var page Page[QuestionVersion]
 	err := database.WithTenantTx(contextValue, service.pool, capability, func(transaction pgx.Tx) error {

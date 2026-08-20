@@ -263,7 +263,7 @@ func (repository *Postgres) ListQuestionVersions(contextValue context.Context, t
 	err := transaction.QueryRow(contextValue, `
 		SELECT qbank.list_question_versions($1, $2, $3, $4, $5)
 	`,
-		nullableText(command.QuestionID),
+		command.QuestionID,
 		command.Limit,
 		nullableInt(command.CursorSort), nullableText(command.CursorID),
 		nullableText(command.Status),

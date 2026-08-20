@@ -467,12 +467,13 @@ func (handler *Handler) listQuestionVersions(writer http.ResponseWriter, request
 		httpx.WriteError(writer, err)
 		return
 	}
-	limit, err := pagination.ParseLimit(request.URL.Query().Get("limit"), 20, 100)
+	query := request.URL.Query()
+	limit, err := pagination.ParseLimit(query.Get("limit"), 20, 100)
 	if err != nil {
 		httpx.WriteError(writer, err)
 		return
 	}
-	cursor, _, err := pagination.Parse(request.URL.Query().Get("cursor"))
+	cursor, _, err := pagination.Parse(query.Get("cursor"))
 	if err != nil {
 		httpx.WriteError(writer, err)
 		return
@@ -487,7 +488,7 @@ func (handler *Handler) listQuestionVersions(writer http.ResponseWriter, request
 		Limit:      limit,
 		CursorSort: cursor.SortValue,
 		CursorID:   cursor.ID,
-		Status:     strings.TrimSpace(request.URL.Query().Get("status")),
+		Status:     strings.TrimSpace(query.Get("status")),
 	}
 	page, err := handler.service.ListQuestionVersions(request.Context(), decision.Capability, command)
 	if err != nil {
