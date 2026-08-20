@@ -12,10 +12,18 @@ from the User authorization service, and a matching local authorization-grant
 snapshot before a signed RLS transaction begins.
 
 - Create/read encrypted configuration metadata.
+- List configurations for a tenant with keyset pagination (`GET
+  /v1/tenants/{tenant_id}/configurations`). Staff-scoped; tenant RLS applies.
+  Supports `lifecycle_state` filter (`active`, `retired`, `revoked`).
 - Rotate or revoke an active configuration through narrow database procedures.
 - Issue an attempt-bound session with a 256-bit quit token; the raw token is
   returned only once in the issuance response with `Cache-Control: no-store`.
 - Read or optimistic-close an active session.
+- List sessions for the authenticated candidate with keyset pagination (`GET
+  /v1/tenants/{tenant_id}/sessions`). Candidate-scoped; a SECURITY DEFINER
+  function (`seb.list_sessions`) binds rows to the signed actor so the caller
+  can only see their own sessions. Supports `lifecycle_state` filter (`issued`,
+  `active`, `closed`, `revoked`, `expired`).
 - Validate a `config_key` or `browser_exam_key` header. The HTTP adapter hashes
   the raw header before SQL; audit records store only the validation result and
   a required, already-hashed non-secret request fingerprint.

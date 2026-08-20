@@ -64,6 +64,12 @@ func (service *fakeSEBService) ValidateSessionHeader(_ context.Context, _ centra
 	service.validationCommand = command
 	return service.validation, nil
 }
+func (service *fakeSEBService) ListSessions(context.Context, centralauthz.Capability, app.ListSessions) (app.Page[app.Session], error) {
+	return app.Page[app.Session]{Items: []app.Session{}}, nil
+}
+func (service *fakeSEBService) ListConfigurations(context.Context, centralauthz.Capability, app.ListConfigurations) (app.Page[app.Configuration], error) {
+	return app.Page[app.Configuration]{Items: []app.Configuration{}}, nil
+}
 func (service *fakeSEBService) DeleteConfiguration(context.Context, centralauthz.Capability, app.DeleteConfiguration) error {
 	return nil
 }

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/aethercode/aethercode/libs/pkg/database"
@@ -319,6 +320,94 @@ func (repository *Postgres) HardDeleteConfiguration(ctx context.Context, transac
 		return apperrors.New(apperrors.CodeForbidden, "hard delete denied")
 	}
 	return nil
+}
+
+func (repository *Postgres) ListSessions(contextValue context.Context, transaction pgx.Tx, command app.ListSessions) ([]app.Session, error) {
+	var raw json.RawMessage
+	err := transaction.QueryRow(contextValue, `
+		SELECT seb.list_sessions($1, $2, $3, $4, $5)
+	`,
+		command.TenantID, command.Limit,
+		nullableTimestamp(command.CursorSort), nullableText(command.CursorID),
+		nullableText(command.LifecycleState),
+	).Scan(&raw)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, apperrors.New(apperrors.CodeNotFound, "SEB sessions were not found")
+		}
+		var postgresError *pgconn.PgError
+		if errors.As(err, &postgresError) && postgresError.Code == "42501" {
+			return nil, apperrors.New(apperrors.CodeForbidden, "list sessions: authorization denied")
+		}
+		return nil, fmt.Errorf("list sessions: %w", err)
+	}
+	var sessions []app.Session
+	if err := json.Unmarshal(raw, &sessions); err != nil {
+		return nil, fmt.Errorf("decode session list: %w", err)
+	}
+	return sessions, nil
+}
+
+func (repository *Postgres) ListConfigurations(contextValue context.Context, transaction pgx.Tx, command app.ListConfigurations) ([]app.Configuration, error) {
+	rows, err := transaction.Query(contextValue, `
+		SELECT id::text, tenant_id::text, exam_id::text, exam_version_id::text,
+			configuration_version, config_object_key, config_checksum,
+			encryption_key_reference, lifecycle_state, created_by::text, created_at
+		FROM seb.configurations
+		WHERE tenant_id = $1
+		  AND deleted_at IS NULL
+		  AND ($2::text IS NULL OR lifecycle_state = $2)
+		  AND ($3::timestamptz IS NULL OR (created_at, id) < ($3, $4::uuid))
+		ORDER BY created_at DESC, id DESC
+		LIMIT $5
+	`,
+		command.TenantID, nullableText(command.LifecycleState),
+		nullableTimestamp(command.CursorSort), nullableText(command.CursorID),
+		command.Limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list configurations: %w", err)
+	}
+	defer rows.Close()
+
+	configurations := make([]app.Configuration, 0, command.Limit)
+	for rows.Next() {
+		var configuration app.Configuration
+		if err := rows.Scan(
+			&configuration.ID, &configuration.TenantID, &configuration.ExamID,
+			&configuration.ExamVersionID, &configuration.ConfigurationVersion,
+			&configuration.ConfigObjectKey, &configuration.ConfigChecksum,
+			&configuration.EncryptionKeyRef, &configuration.LifecycleState,
+			&configuration.CreatedBy, &configuration.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan configuration row: %w", err)
+		}
+		configurations = append(configurations, configuration)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read configuration rows: %w", err)
+	}
+	return configurations, nil
+}
+
+// nullableText returns nil when the value is blank, otherwise the trimmed value.
+// Used for both text and UUID SQL parameters so only one helper is needed.
+func nullableText(value string) any {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	return value
+}
+
+func nullableTimestamp(value string) any {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	parsed, err := time.Parse(time.RFC3339Nano, value)
+	if err != nil {
+		return nil
+	}
+	return parsed.UTC()
 }
 
 func mapWriteError(err error, message string) error {

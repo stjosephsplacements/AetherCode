@@ -22,6 +22,24 @@ paths:
         '503': {$ref: '#/components/responses/Operational'}
   /v1/tenants/{tenant_id}/configurations:
     parameters: [{$ref: '#/components/parameters/TenantID'}]
+    get:
+      security: [{bearerAuth: []}]
+      summary: List SEB configurations for a tenant (keyset-paginated)
+      parameters:
+        - {$ref: '#/components/parameters/Limit'}
+        - {$ref: '#/components/parameters/Cursor'}
+        - name: lifecycle_state
+          in: query
+          schema: {type: string, enum: [active, retired, revoked]}
+      responses:
+        '200':
+          description: Paged configuration list
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PagedConfigurations'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
     post:
       security: [{bearerAuth: []}]
       summary: Register encrypted SEB configuration metadata
@@ -98,6 +116,28 @@ paths:
         '409': {$ref: '#/components/responses/Problem'}
   /v1/tenants/{tenant_id}/sessions:
     parameters: [{$ref: '#/components/parameters/TenantID'}]
+    get:
+      security: [{bearerAuth: []}]
+      summary: List SEB sessions for the authenticated candidate (keyset-paginated)
+      description: >-
+        Candidate-facing. The database SECURITY DEFINER function binds rows to the
+        signed actor; only the caller's own sessions are returned regardless of
+        any other parameter.
+      parameters:
+        - {$ref: '#/components/parameters/Limit'}
+        - {$ref: '#/components/parameters/Cursor'}
+        - name: lifecycle_state
+          in: query
+          schema: {type: string, enum: [issued, active, closed, revoked, expired]}
+      responses:
+        '200':
+          description: Paged session list
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PagedSessions'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
     post:
       security: [{bearerAuth: []}]
       summary: Issue one attempt-bound SEB session
@@ -216,6 +256,15 @@ components:
       in: path
       required: true
       schema: {$ref: '#/components/schemas/UUID'}
+    Limit:
+      name: limit
+      in: query
+      schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+    Cursor:
+      name: cursor
+      in: query
+      schema: {type: string}
+      description: Opaque keyset pagination token from a previous response's next_cursor.
     IdempotencyKey:
       name: Idempotency-Key
       in: header
@@ -305,6 +354,22 @@ components:
         header_kind: {type: string, enum: [config_key, browser_exam_key]}
         validation_result: {type: string, enum: [matched, missing, mismatched, not_required, expired_session, closed_session, revoked_configuration]}
         occurred_at: {type: string, format: date-time}
+    PagedSessions:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/Session'}
+        next_cursor: {type: string, description: Absent on the final page.}
+    PagedConfigurations:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/Configuration'}
+        next_cursor: {type: string, description: Absent on the final page.}
     Problem:
       type: object
       required: [code, message]

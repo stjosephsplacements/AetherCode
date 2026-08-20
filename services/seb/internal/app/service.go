@@ -18,6 +18,7 @@ import (
 	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
 	"github.com/aethercode/aethercode/libs/pkg/database"
 	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
+	"github.com/aethercode/aethercode/libs/pkg/pagination"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -161,6 +162,30 @@ type ValidateSessionHeader struct {
 	RequestFingerprintHash string
 }
 
+// Page is one keyset page. NextCursor is empty on the final page.
+type Page[T any] struct {
+	Items      []T    `json:"items"`
+	NextCursor string `json:"next_cursor,omitempty"`
+}
+
+// ListSessions is candidate-scoped; the database binds rows to the signed actor.
+type ListSessions struct {
+	TenantID       string
+	Limit          int
+	CursorSort     string
+	CursorID       string
+	LifecycleState string
+}
+
+// ListConfigurations is staff-scoped and relies on tenant RLS.
+type ListConfigurations struct {
+	TenantID       string
+	Limit          int
+	CursorSort     string
+	CursorID       string
+	LifecycleState string
+}
+
 // DeleteConfiguration is the command for soft/hard delete operations.
 type DeleteConfiguration struct {
 	ID       string
@@ -181,6 +206,8 @@ type Store interface {
 	GetSession(context.Context, pgx.Tx, string, string) (Session, error)
 	CloseSession(context.Context, pgx.Tx, CloseSession) (Session, error)
 	ValidateSessionHeader(context.Context, pgx.Tx, ValidateSessionHeader) (ValidationResult, error)
+	ListSessions(context.Context, pgx.Tx, ListSessions) ([]Session, error)
+	ListConfigurations(context.Context, pgx.Tx, ListConfigurations) ([]Configuration, error)
 	SoftDeleteConfiguration(context.Context, pgx.Tx, DeleteConfiguration) error
 	HardDeleteConfiguration(context.Context, pgx.Tx, DeleteConfiguration) error
 	Ping(context.Context) error
@@ -541,6 +568,54 @@ func (service *Service) DeleteConfiguration(ctx context.Context, capability cent
 	return database.WithTenantTx(ctx, service.pool, capability, func(transaction pgx.Tx) error {
 		return service.store.SoftDeleteConfiguration(ctx, transaction, command)
 	})
+}
+
+func (service *Service) ListSessions(contextValue context.Context, capability centralauthz.Capability, command ListSessions) (Page[Session], error) {
+	var page Page[Session]
+	err := database.WithTenantTx(contextValue, service.pool, capability, func(transaction pgx.Tx) error {
+		probe := command
+		probe.Limit = command.Limit + 1
+		sessions, err := service.store.ListSessions(contextValue, transaction, probe)
+		if err != nil {
+			return err
+		}
+		page = Page[Session]{Items: []Session{}}
+		if len(sessions) > command.Limit {
+			sessions = sessions[:command.Limit]
+			last := sessions[len(sessions)-1]
+			page.NextCursor = pagination.Encode(pagination.EncodeTime(last.IssuedAt), last.ID)
+		}
+		page.Items = append(page.Items, sessions...)
+		return nil
+	})
+	if err != nil {
+		return Page[Session]{}, err
+	}
+	return page, nil
+}
+
+func (service *Service) ListConfigurations(contextValue context.Context, capability centralauthz.Capability, command ListConfigurations) (Page[Configuration], error) {
+	var page Page[Configuration]
+	err := database.WithTenantTx(contextValue, service.pool, capability, func(transaction pgx.Tx) error {
+		probe := command
+		probe.Limit = command.Limit + 1
+		configurations, err := service.store.ListConfigurations(contextValue, transaction, probe)
+		if err != nil {
+			return err
+		}
+		page = Page[Configuration]{Items: []Configuration{}}
+		if len(configurations) > command.Limit {
+			configurations = configurations[:command.Limit]
+			last := configurations[len(configurations)-1]
+			page.NextCursor = pagination.Encode(pagination.EncodeTime(last.CreatedAt), last.ID)
+		}
+		page.Items = append(page.Items, configurations...)
+		return nil
+	})
+	if err != nil {
+		return Page[Configuration]{}, err
+	}
+	return page, nil
 }
 
 // HardDeleteConfiguration permanently removes a configuration (SuperAdmin only).

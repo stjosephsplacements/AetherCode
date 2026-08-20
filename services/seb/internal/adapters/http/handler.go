@@ -34,6 +34,8 @@ type service interface {
 	GetSession(context.Context, centralauthz.Capability, string, string) (app.Session, error)
 	CloseSession(context.Context, centralauthz.Capability, app.CloseSession) (app.Session, error)
 	ValidateSessionHeader(context.Context, centralauthz.Capability, app.ValidateSessionHeader) (app.ValidationResult, error)
+	ListSessions(context.Context, centralauthz.Capability, app.ListSessions) (app.Page[app.Session], error)
+	ListConfigurations(context.Context, centralauthz.Capability, app.ListConfigurations) (app.Page[app.Configuration], error)
 	DeleteConfiguration(context.Context, centralauthz.Capability, app.DeleteConfiguration) error
 	HardDeleteConfiguration(context.Context, centralauthz.Capability, app.DeleteConfiguration) error
 }
@@ -57,6 +59,8 @@ func NewHandler(serviceName string, service service, readiness httpx.ReadinessFu
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/sessions/{session_id}", handler.getSession)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/sessions/{session_id}/close", handler.closeSession)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/sessions/{session_id}/validate", handler.validateSession)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/sessions", handler.listSessions)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/configurations", handler.listConfigurations)
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/configurations/{configuration_id}", handler.deleteConfiguration)
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/configurations/{configuration_id}/hard", handler.hardDeleteConfiguration)
 	return mux, nil
