@@ -141,6 +141,20 @@ All user entities support soft delete (archival without physical removal):
 
 Ref: [ADR-0013](../../docs/adr/0013-soft-delete-architecture.md)
 
+## Collection endpoints
+
+Three cursor-paginated list endpoints follow the Class B pattern (staff roles
+hold `/*` scope; tenant RLS is the primary isolation boundary):
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/v1/tenants/{tenant_id}/students` | Student roster. Optional query params: `status` (`pending`/`active`/`inactive`/`withdrawn`), `batch_id` (UUID), `department_id` (UUID), `enrollment_number_prefix`. |
+| `GET` | `/v1/tenants/{tenant_id}/batches/{batch_id}/mentors` | Mentor assignments for one batch. |
+| `GET` | `/v1/role-assignments` | Platform-wide role listing. Tenant read from `X-Tenant-ID` header (optional). Optional query params: `principal_id`, `role_name`, `scope_kind`. |
+
+All three accept `limit` (1–100, default 20) and `cursor` (opaque base64url
+keyset token). They return `{"items": [...], "next_cursor": "..."}`.
+
 ## Migrations and verification
 
 `000001_bootstrap` installs the shared security contract. `000002_user_domain`

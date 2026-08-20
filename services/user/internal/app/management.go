@@ -10,11 +10,18 @@ import (
 	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
 	"github.com/aethercode/aethercode/libs/pkg/database"
 	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
+	"github.com/aethercode/aethercode/libs/pkg/pagination"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var enrollmentPattern = regexp.MustCompile(`^\S(?:.*\S)?$`)
+
+// Page is a single cursor-paginated result set returned by list endpoints.
+type Page[T any] struct {
+	Items      []T    `json:"items"`
+	NextCursor string `json:"next_cursor,omitempty"`
+}
 
 // ManagementStore owns user-domain persistence. Its methods always run inside
 // a transaction already bound to one fresh central authorization capability.
@@ -32,6 +39,9 @@ type ManagementStore interface {
 	GetStudentIncludeDeleted(context.Context, pgx.Tx, string) (Student, error)
 	SoftDeleteStudent(context.Context, pgx.Tx, DeleteStudent) error
 	HardDeleteStudent(context.Context, pgx.Tx, DeleteStudent) error
+	ListStudents(context.Context, pgx.Tx, ListStudents) ([]Student, error)
+	ListMentorBatchAssignments(context.Context, pgx.Tx, ListMentorBatchAssignments) ([]MentorBatchAssignment, error)
+	ListRoleAssignments(context.Context, pgx.Tx, ListRoleAssignments) ([]RoleAssignment, error)
 	Ping(context.Context) error
 }
 
@@ -67,6 +77,7 @@ type RoleAssignment struct {
 	Status      string     `json:"status"`
 	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
 	Version     int        `json:"version"`
+	CreatedAt   time.Time  `json:"created_at"`
 }
 
 type PlacementStaffMembership struct {
@@ -79,12 +90,13 @@ type PlacementStaffMembership struct {
 }
 
 type MentorBatchAssignment struct {
-	ID                string `json:"id"`
-	MentorPrincipalID string `json:"mentor_principal_id"`
-	TenantID          string `json:"tenant_id"`
-	BatchID           string `json:"batch_id"`
-	Status            string `json:"status"`
-	Version           int    `json:"version"`
+	ID                string    `json:"id"`
+	MentorPrincipalID string    `json:"mentor_principal_id"`
+	TenantID          string    `json:"tenant_id"`
+	BatchID           string    `json:"batch_id"`
+	Status            string    `json:"status"`
+	Version           int       `json:"version"`
+	CreatedAt         time.Time `json:"created_at"`
 }
 
 // StudentBatchAffiliation is the one versioned current batch state for a
@@ -177,6 +189,35 @@ type DeleteStudent struct {
 	ID      string
 	ActorID string
 	Reason  string
+}
+
+type ListStudents struct {
+	TenantID               string
+	Limit                  int
+	CursorSort             string
+	CursorID               string
+	Status                 string
+	BatchID                string
+	DepartmentID           string
+	EnrollmentNumberPrefix string
+}
+
+type ListMentorBatchAssignments struct {
+	TenantID   string
+	BatchID    string
+	Limit      int
+	CursorSort string
+	CursorID   string
+}
+
+type ListRoleAssignments struct {
+	TenantID    string
+	PrincipalID string
+	RoleName    string
+	ScopeKind   string
+	Limit       int
+	CursorSort  string
+	CursorID    string
 }
 
 // ManagementService coordinates domain commands and the local RLS boundary.
@@ -394,6 +435,111 @@ func (service *ManagementService) HardDeleteStudent(contextValue context.Context
 
 		return nil
 	})
+}
+
+// ListStudents returns a cursor-paginated page of students within a tenant.
+// Supports optional filters for status, batch, department, and enrollment
+// number prefix. CursorSort must be a valid RFC3339Nano timestamp when set.
+func (service *ManagementService) ListStudents(contextValue context.Context, capability centralauthz.Capability, command ListStudents) (Page[Student], error) {
+	if command.Limit < 1 || command.Limit > 100 {
+		return Page[Student]{}, apperrors.New(apperrors.CodeInvalidArgument, "student listing limit must be between 1 and 100")
+	}
+	if command.CursorSort != "" {
+		if _, err := time.Parse(time.RFC3339Nano, command.CursorSort); err != nil {
+			return Page[Student]{}, apperrors.New(apperrors.CodeInvalidArgument, "cursor contains an invalid timestamp")
+		}
+	}
+	var page Page[Student]
+	err := database.WithTenantTx(contextValue, service.pool, capability, func(transaction pgx.Tx) error {
+		probe := command
+		probe.Limit = command.Limit + 1
+		students, err := service.store.ListStudents(contextValue, transaction, probe)
+		if err != nil {
+			return err
+		}
+		page = Page[Student]{Items: []Student{}}
+		if len(students) > command.Limit {
+			students = students[:command.Limit]
+			last := students[len(students)-1]
+			page.NextCursor = pagination.Encode(pagination.EncodeTime(last.CreatedAt), last.ID)
+		}
+		page.Items = append(page.Items, students...)
+		return nil
+	})
+	if err != nil {
+		return Page[Student]{}, err
+	}
+	return page, nil
+}
+
+// ListMentorBatchAssignments returns a cursor-paginated page of mentor
+// assignments for one batch. CursorSort must be a valid RFC3339Nano
+// timestamp when set.
+func (service *ManagementService) ListMentorBatchAssignments(contextValue context.Context, capability centralauthz.Capability, command ListMentorBatchAssignments) (Page[MentorBatchAssignment], error) {
+	if command.Limit < 1 || command.Limit > 100 {
+		return Page[MentorBatchAssignment]{}, apperrors.New(apperrors.CodeInvalidArgument, "mentor batch assignment listing limit must be between 1 and 100")
+	}
+	if command.CursorSort != "" {
+		if _, err := time.Parse(time.RFC3339Nano, command.CursorSort); err != nil {
+			return Page[MentorBatchAssignment]{}, apperrors.New(apperrors.CodeInvalidArgument, "cursor contains an invalid timestamp")
+		}
+	}
+	var page Page[MentorBatchAssignment]
+	err := database.WithTenantTx(contextValue, service.pool, capability, func(transaction pgx.Tx) error {
+		probe := command
+		probe.Limit = command.Limit + 1
+		assignments, err := service.store.ListMentorBatchAssignments(contextValue, transaction, probe)
+		if err != nil {
+			return err
+		}
+		page = Page[MentorBatchAssignment]{Items: []MentorBatchAssignment{}}
+		if len(assignments) > command.Limit {
+			assignments = assignments[:command.Limit]
+			last := assignments[len(assignments)-1]
+			page.NextCursor = pagination.Encode(pagination.EncodeTime(last.CreatedAt), last.ID)
+		}
+		page.Items = append(page.Items, assignments...)
+		return nil
+	})
+	if err != nil {
+		return Page[MentorBatchAssignment]{}, err
+	}
+	return page, nil
+}
+
+// ListRoleAssignments returns a cursor-paginated page of role assignments.
+// TenantID is optional; when absent the query spans all tenants the caller is
+// authorized to see. CursorSort must be a valid RFC3339Nano timestamp when set.
+func (service *ManagementService) ListRoleAssignments(contextValue context.Context, capability centralauthz.Capability, command ListRoleAssignments) (Page[RoleAssignment], error) {
+	if command.Limit < 1 || command.Limit > 100 {
+		return Page[RoleAssignment]{}, apperrors.New(apperrors.CodeInvalidArgument, "role assignment listing limit must be between 1 and 100")
+	}
+	if command.CursorSort != "" {
+		if _, err := time.Parse(time.RFC3339Nano, command.CursorSort); err != nil {
+			return Page[RoleAssignment]{}, apperrors.New(apperrors.CodeInvalidArgument, "cursor contains an invalid timestamp")
+		}
+	}
+	var page Page[RoleAssignment]
+	err := database.WithTenantTx(contextValue, service.pool, capability, func(transaction pgx.Tx) error {
+		probe := command
+		probe.Limit = command.Limit + 1
+		assignments, err := service.store.ListRoleAssignments(contextValue, transaction, probe)
+		if err != nil {
+			return err
+		}
+		page = Page[RoleAssignment]{Items: []RoleAssignment{}}
+		if len(assignments) > command.Limit {
+			assignments = assignments[:command.Limit]
+			last := assignments[len(assignments)-1]
+			page.NextCursor = pagination.Encode(pagination.EncodeTime(last.CreatedAt), last.ID)
+		}
+		page.Items = append(page.Items, assignments...)
+		return nil
+	})
+	if err != nil {
+		return Page[RoleAssignment]{}, err
+	}
+	return page, nil
 }
 
 func validName(value string) bool {

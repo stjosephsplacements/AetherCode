@@ -130,6 +130,18 @@ func (uncalledManagementStore) HardDeleteStudent(context.Context, pgx.Tx, Delete
 	panic("unexpected persistence call")
 }
 
+func (uncalledManagementStore) ListStudents(context.Context, pgx.Tx, ListStudents) ([]Student, error) {
+	panic("unexpected persistence call")
+}
+
+func (uncalledManagementStore) ListMentorBatchAssignments(context.Context, pgx.Tx, ListMentorBatchAssignments) ([]MentorBatchAssignment, error) {
+	panic("unexpected persistence call")
+}
+
+func (uncalledManagementStore) ListRoleAssignments(context.Context, pgx.Tx, ListRoleAssignments) ([]RoleAssignment, error) {
+	panic("unexpected persistence call")
+}
+
 func (uncalledManagementStore) Ping(context.Context) error {
 	panic("unexpected persistence call")
 }

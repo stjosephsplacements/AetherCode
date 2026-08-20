@@ -43,6 +43,24 @@ paths:
         '403': {$ref: '#/components/responses/Problem403'}
   /v1/tenants/{tenant_id}/students:
     parameters: [{$ref: '#/components/parameters/TenantID'}]
+    get:
+      summary: List students in a tenant
+      description: >-
+        Cursor-paginated (created_at DESC, id DESC). All filters are optional.
+        Batch filter matches students with an active batch affiliation for that batch.
+        Department filter matches students with any active department membership for that department.
+      parameters:
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+        - {name: cursor, in: query, schema: {type: string}}
+        - {name: status, in: query, schema: {enum: [pending, active, inactive, withdrawn]}}
+        - {name: batch_id, in: query, schema: {$ref: '#/components/schemas/UUID'}}
+        - {name: department_id, in: query, schema: {$ref: '#/components/schemas/UUID'}}
+        - {name: enrollment_number_prefix, in: query, schema: {type: string}}
+      responses:
+        '200': {$ref: '#/components/responses/StudentPage'}
+        '400': {$ref: '#/components/responses/Problem400'}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
     post:
       summary: Enroll an active student with current department affiliations
       requestBody:
@@ -69,6 +87,24 @@ paths:
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
   /v1/role-assignments:
+    get:
+      summary: List role assignments
+      description: >-
+        Cursor-paginated (created_at DESC, id DESC). Tenant scope is read from
+        the X-Tenant-ID header; absent header means platform-wide listing for
+        callers with sufficient privilege. All query filters are optional.
+      parameters:
+        - {name: X-Tenant-ID, in: header, schema: {$ref: '#/components/schemas/UUID'}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+        - {name: cursor, in: query, schema: {type: string}}
+        - {name: principal_id, in: query, schema: {$ref: '#/components/schemas/UUID'}}
+        - {name: role_name, in: query, schema: {enum: [super_admin, placement_user, college_admin, department_user, mentor, student]}}
+        - {name: scope_kind, in: query, schema: {enum: [platform, college, department, batch, placement_department, self]}}
+      responses:
+        '200': {$ref: '#/components/responses/RoleAssignmentPage'}
+        '400': {$ref: '#/components/responses/Problem400'}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
     post:
       summary: Grant a scoped canonical role
       description: >-
@@ -117,6 +153,21 @@ paths:
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '409': {$ref: '#/components/responses/Problem409'}
+  /v1/tenants/{tenant_id}/batches/{batch_id}/mentors:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/BatchID'
+    get:
+      summary: List mentor assignments for a batch
+      description: Cursor-paginated (created_at DESC, id DESC).
+      parameters:
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200': {$ref: '#/components/responses/MentorBatchAssignmentPage'}
+        '400': {$ref: '#/components/responses/Problem400'}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
   /v1/tenants/{tenant_id}/batches/{batch_id}/mentors/{principal_id}:
     parameters:
       - $ref: '#/components/parameters/TenantID'
@@ -252,6 +303,15 @@ components:
     MentorBatchAssignment:
       description: Mentor batch assignment
       content: {application/json: {schema: {$ref: '#/components/schemas/MentorBatchAssignment'}}}
+    StudentPage:
+      description: Cursor-paginated student list
+      content: {application/json: {schema: {$ref: '#/components/schemas/StudentPage'}}}
+    MentorBatchAssignmentPage:
+      description: Cursor-paginated mentor batch assignment list
+      content: {application/json: {schema: {$ref: '#/components/schemas/MentorBatchAssignmentPage'}}}
+    RoleAssignmentPage:
+      description: Cursor-paginated role assignment list
+      content: {application/json: {schema: {$ref: '#/components/schemas/RoleAssignmentPage'}}}
     StudentBatchAffiliation:
       description: Versioned current student batch affiliation
       content: {application/json: {schema: {$ref: '#/components/schemas/StudentBatchAffiliation'}}}
@@ -346,7 +406,7 @@ components:
     RoleAssignment:
       type: object
       additionalProperties: false
-      required: [id, principal_id, role_name, scope_kind, status, version]
+      required: [id, principal_id, role_name, scope_kind, status, version, created_at]
       properties:
         id: {$ref: '#/components/schemas/UUID'}
         principal_id: {$ref: '#/components/schemas/UUID'}
@@ -357,6 +417,7 @@ components:
         status: {enum: [active, revoked]}
         expires_at: {$ref: '#/components/schemas/Timestamp'}
         version: {type: integer, minimum: 1}
+        created_at: {$ref: '#/components/schemas/Timestamp'}
     SetPlacementStaffMembership:
       type: object
       additionalProperties: false
@@ -377,7 +438,7 @@ components:
     MentorBatchAssignment:
       type: object
       additionalProperties: false
-      required: [id, mentor_principal_id, tenant_id, batch_id, status, version]
+      required: [id, mentor_principal_id, tenant_id, batch_id, status, version, created_at]
       properties:
         id: {$ref: '#/components/schemas/UUID'}
         mentor_principal_id: {$ref: '#/components/schemas/UUID'}
@@ -385,6 +446,34 @@ components:
         batch_id: {$ref: '#/components/schemas/UUID'}
         status: {enum: [active, ended]}
         version: {type: integer, minimum: 1}
+        created_at: {$ref: '#/components/schemas/Timestamp'}
+    StudentPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/Student'}
+        next_cursor: {type: string}
+    MentorBatchAssignmentPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/MentorBatchAssignment'}
+        next_cursor: {type: string}
+    RoleAssignmentPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/RoleAssignment'}
+        next_cursor: {type: string}
     SetStudentBatchAffiliation:
       type: object
       additionalProperties: false

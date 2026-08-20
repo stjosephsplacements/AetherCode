@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
@@ -287,11 +288,12 @@ func (repository *Postgres) AssignRole(contextValue context.Context, transaction
 		)
 		RETURNING id::text, principal_id::text, role_name, scope_kind,
 		          COALESCE(tenant_id::text, ''), COALESCE(scope_id::text, ''),
-		          status, expires_at, version
+		          status, expires_at, version, created_at
 	`, command.ID, command.PrincipalID, command.RoleName, command.ScopeKind,
 		command.TenantID, command.ScopeID, command.GrantedByPrincipalID, command.ExpiresAt).Scan(
 		&assignment.ID, &assignment.PrincipalID, &assignment.RoleName, &assignment.ScopeKind,
 		&assignment.TenantID, &assignment.ScopeID, &assignment.Status, &assignment.ExpiresAt, &assignment.Version,
+		&assignment.CreatedAt,
 	)
 	if err != nil {
 		return app.RoleAssignment{}, mapWriteError(err, "role assignment could not be created")
@@ -310,10 +312,11 @@ func (repository *Postgres) RevokeRole(contextValue context.Context, transaction
 		WHERE id = $1 AND status = 'active'
 		RETURNING id::text, principal_id::text, role_name, scope_kind,
 		          COALESCE(tenant_id::text, ''), COALESCE(scope_id::text, ''),
-		          status, expires_at, version
+		          status, expires_at, version, created_at
 	`, command.ID).Scan(
 		&assignment.ID, &assignment.PrincipalID, &assignment.RoleName, &assignment.ScopeKind,
 		&assignment.TenantID, &assignment.ScopeID, &assignment.Status, &assignment.ExpiresAt, &assignment.Version,
+		&assignment.CreatedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return app.RoleAssignment{}, apperrors.New(apperrors.CodeNotFound, "active role assignment was not found")
@@ -389,10 +392,10 @@ func (repository *Postgres) AssignMentorBatch(contextValue context.Context, tran
 			assigned_by_principal_id = EXCLUDED.assigned_by_principal_id,
 			version = users.mentor_batch_assignments.version + 1
 		RETURNING id::text, mentor_principal_id::text, tenant_id::text, batch_id::text,
-		          status, version
+		          status, version, created_at
 	`, command.ID, command.MentorPrincipalID, command.TenantID, command.BatchID, command.AssignedByPrincipalID).Scan(
 		&assignment.ID, &assignment.MentorPrincipalID, &assignment.TenantID, &assignment.BatchID,
-		&assignment.Status, &assignment.Version,
+		&assignment.Status, &assignment.Version, &assignment.CreatedAt,
 	)
 	if err != nil {
 		return app.MentorBatchAssignment{}, mapWriteError(err, "mentor batch assignment could not be saved")
@@ -874,4 +877,179 @@ func mapWriteError(err error, message string) error {
 		}
 	}
 	return fmt.Errorf("write User record: %w", err)
+}
+
+// ListStudents returns up to command.Limit students within a tenant,
+// sorted by (created_at DESC, id DESC) for stable keyset pagination.
+// Batch filter uses current_student_batch_affiliations.batch_id;
+// department filter uses student_department_memberships.department_id.
+func (repository *Postgres) ListStudents(contextValue context.Context, transaction pgx.Tx, command app.ListStudents) ([]app.Student, error) {
+	rows, err := transaction.Query(contextValue, `
+		SELECT student.id::text, student.principal_id::text, student.tenant_id::text,
+		       student.enrollment_number, student.status,
+		       student.version, student.created_at
+		FROM users.students AS student
+		WHERE student.tenant_id = $1
+		  AND student.deleted_at IS NULL
+		  AND ($2::text IS NULL OR student.status = $2)
+		  AND ($3::text IS NULL OR student.enrollment_number LIKE $3 || '%')
+		  AND (
+		        $4::uuid IS NULL
+		        OR EXISTS (
+		            SELECT 1 FROM users.current_student_batch_affiliations AS affil
+		            WHERE affil.student_id = student.id
+		              AND affil.batch_id = $4
+		              AND affil.lifecycle_state = 'active'
+		        )
+		      )
+		  AND (
+		        $5::uuid IS NULL
+		        OR EXISTS (
+		            SELECT 1 FROM users.student_department_memberships AS membership
+		            WHERE membership.student_id = student.id
+		              AND membership.department_id = $5
+		              AND membership.status = 'active'
+		        )
+		      )
+		  AND ($6::timestamptz IS NULL OR (student.created_at, student.id) < ($6, $7::uuid))
+		ORDER BY student.created_at DESC, student.id DESC
+		LIMIT $8
+	`,
+		command.TenantID, nullableText(command.Status),
+		nullableText(command.EnrollmentNumberPrefix),
+		nullableText(command.BatchID), nullableText(command.DepartmentID),
+		nullableTimestamp(command.CursorSort), nullableText(command.CursorID),
+		command.Limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list students: %w", err)
+	}
+	defer rows.Close()
+
+	students := make([]app.Student, 0, command.Limit)
+	for rows.Next() {
+		var student app.Student
+		if err := rows.Scan(
+			&student.ID, &student.PrincipalID, &student.TenantID,
+			&student.EnrollmentNumber, &student.Status,
+			&student.Version, &student.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan student row: %w", err)
+		}
+		students = append(students, student)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read student rows: %w", err)
+	}
+	return students, nil
+}
+
+// ListMentorBatchAssignments returns up to command.Limit active mentor
+// assignments for one batch, sorted by (created_at DESC, id DESC).
+func (repository *Postgres) ListMentorBatchAssignments(contextValue context.Context, transaction pgx.Tx, command app.ListMentorBatchAssignments) ([]app.MentorBatchAssignment, error) {
+	rows, err := transaction.Query(contextValue, `
+		SELECT id::text, mentor_principal_id::text, tenant_id::text, batch_id::text,
+		       status, version, created_at
+		FROM users.mentor_batch_assignments
+		WHERE tenant_id = $1
+		  AND batch_id = $2
+		  AND deleted_at IS NULL
+		  AND ($3::timestamptz IS NULL OR (created_at, id) < ($3, $4::uuid))
+		ORDER BY created_at DESC, id DESC
+		LIMIT $5
+	`,
+		command.TenantID, command.BatchID,
+		nullableTimestamp(command.CursorSort), nullableText(command.CursorID),
+		command.Limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list mentor batch assignments: %w", err)
+	}
+	defer rows.Close()
+
+	assignments := make([]app.MentorBatchAssignment, 0, command.Limit)
+	for rows.Next() {
+		var assignment app.MentorBatchAssignment
+		if err := rows.Scan(
+			&assignment.ID, &assignment.MentorPrincipalID, &assignment.TenantID, &assignment.BatchID,
+			&assignment.Status, &assignment.Version, &assignment.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan mentor batch assignment row: %w", err)
+		}
+		assignments = append(assignments, assignment)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read mentor batch assignment rows: %w", err)
+	}
+	return assignments, nil
+}
+
+// ListRoleAssignments returns up to command.Limit role assignments,
+// sorted by (created_at DESC, id DESC). TenantID, PrincipalID, RoleName,
+// and ScopeKind are optional filters.
+func (repository *Postgres) ListRoleAssignments(contextValue context.Context, transaction pgx.Tx, command app.ListRoleAssignments) ([]app.RoleAssignment, error) {
+	rows, err := transaction.Query(contextValue, `
+		SELECT id::text, principal_id::text, role_name, scope_kind,
+		       COALESCE(tenant_id::text, ''), COALESCE(scope_id::text, ''),
+		       status, expires_at, version, created_at
+		FROM users.role_assignments
+		WHERE deleted_at IS NULL
+		  AND ($1::uuid IS NULL OR tenant_id = $1::uuid)
+		  AND ($2::uuid IS NULL OR principal_id = $2::uuid)
+		  AND ($3::text IS NULL OR role_name = $3)
+		  AND ($4::text IS NULL OR scope_kind = $4)
+		  AND ($5::timestamptz IS NULL OR (created_at, id) < ($5, $6::uuid))
+		ORDER BY created_at DESC, id DESC
+		LIMIT $7
+	`,
+		nullableText(command.TenantID), nullableText(command.PrincipalID),
+		nullableText(command.RoleName), nullableText(command.ScopeKind),
+		nullableTimestamp(command.CursorSort), nullableText(command.CursorID),
+		command.Limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list role assignments: %w", err)
+	}
+	defer rows.Close()
+
+	assignments := make([]app.RoleAssignment, 0, command.Limit)
+	for rows.Next() {
+		var assignment app.RoleAssignment
+		if err := rows.Scan(
+			&assignment.ID, &assignment.PrincipalID, &assignment.RoleName, &assignment.ScopeKind,
+			&assignment.TenantID, &assignment.ScopeID, &assignment.Status, &assignment.ExpiresAt,
+			&assignment.Version, &assignment.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan role assignment row: %w", err)
+		}
+		assignments = append(assignments, assignment)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read role assignment rows: %w", err)
+	}
+	return assignments, nil
+}
+
+// nullableText returns nil when the value is blank, otherwise the trimmed
+// value. Used for both text and UUID SQL parameters so only one helper is
+// needed; the type cast (e.g. $1::uuid) is done in SQL.
+func nullableText(value string) any {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	return value
+}
+
+// nullableTimestamp parses an RFC3339Nano string and returns nil when it is
+// blank or unparseable. The app layer validates the format, so a parse failure
+// here means an empty cursor rather than an error.
+func nullableTimestamp(value string) any {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	parsed, err := time.Parse(time.RFC3339Nano, value)
+	if err != nil {
+		return nil
+	}
+	return parsed.UTC()
 }
