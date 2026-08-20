@@ -81,6 +81,15 @@ services:
       timeout: 5s
       retries: 12
 
+  jaeger:
+    image: jaegertracing/all-in-one:1.60
+    profiles: ["platform"]
+    ports:
+      - "127.0.0.1:16686:16686"
+      - "127.0.0.1:4318:4318"
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+
 volumes:
   platform-postgres-data:
   nats-data:

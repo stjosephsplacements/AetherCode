@@ -19,6 +19,7 @@ import (
 	"github.com/aethercode/aethercode/libs/pkg/httpx"
 	"github.com/aethercode/aethercode/libs/pkg/logging"
 	"github.com/aethercode/aethercode/libs/pkg/messaging"
+	"github.com/aethercode/aethercode/libs/pkg/telemetry"
 	authzv1 "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/authz/v1"
 	authnadapter "github.com/aethercode/aethercode/services/user/internal/adapters/authn"
 	grpcadapter "github.com/aethercode/aethercode/services/user/internal/adapters/grpc"
@@ -50,6 +51,12 @@ func run(contextValue context.Context) error {
 	logger, err := logging.New(serviceConfig.LogLevel)
 	if err != nil {
 		return err
+	}
+	otelShutdown, err := telemetry.InitProvider(contextValue, "user", "0.1.0")
+	if err != nil {
+		logger.Warn("telemetry provider init failed, tracing disabled", "error", err)
+	} else {
+		defer otelShutdown(contextValue)
 	}
 	authzDatabaseConfig, err := config.LoadDatabase("USER_AUTHZ")
 	if err != nil {
@@ -333,7 +340,7 @@ func run(contextValue context.Context) error {
 			contextValue,
 			serviceConfig,
 			logger,
-			handler,
+			telemetry.HTTPMiddleware("user", handler),
 		)
 	}()
 

@@ -10,6 +10,7 @@ import (
 	"github.com/aethercode/aethercode/libs/pkg/config"
 	"github.com/aethercode/aethercode/libs/pkg/httpx"
 	"github.com/aethercode/aethercode/libs/pkg/logging"
+	"github.com/aethercode/aethercode/libs/pkg/telemetry"
 	gatewayconfig "github.com/aethercode/aethercode/services/gateway/internal/config"
 	"github.com/aethercode/aethercode/services/gateway/internal/edge"
 )
@@ -31,6 +32,12 @@ func run(contextValue context.Context) error {
 	logger, err := logging.New(serviceConfig.LogLevel)
 	if err != nil {
 		return err
+	}
+	otelShutdown, err := telemetry.InitProvider(contextValue, "gateway", "0.1.0")
+	if err != nil {
+		logger.Warn("telemetry provider init failed, tracing disabled", "error", err)
+	} else {
+		defer otelShutdown(contextValue)
 	}
 	runtime, err := gatewayconfig.Load()
 	if err != nil {
@@ -59,5 +66,5 @@ func run(contextValue context.Context) error {
 	}
 	mux := httpx.NewOperationalMux(serviceConfig.Name, handler.Ready)
 	mux.Handle("/api/", handler)
-	return httpx.Serve(contextValue, serviceConfig, logger, mux)
+	return httpx.Serve(contextValue, serviceConfig, logger, telemetry.HTTPMiddleware("gateway", mux))
 }

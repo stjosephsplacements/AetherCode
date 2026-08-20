@@ -19,6 +19,7 @@ import (
 	"github.com/aethercode/aethercode/libs/pkg/httpx"
 	"github.com/aethercode/aethercode/libs/pkg/logging"
 	"github.com/aethercode/aethercode/libs/pkg/messaging"
+	"github.com/aethercode/aethercode/libs/pkg/telemetry"
 	httpadapter "github.com/aethercode/aethercode/services/identity/internal/adapters/http"
 	introspectionadapter "github.com/aethercode/aethercode/services/identity/internal/adapters/introspection"
 	"github.com/aethercode/aethercode/services/identity/internal/adapters/repo"
@@ -45,6 +46,12 @@ func run(contextValue context.Context) error {
 	logger, err := logging.New(serviceConfig.LogLevel)
 	if err != nil {
 		return err
+	}
+	otelShutdown, err := telemetry.InitProvider(contextValue, "identity", "0.1.0")
+	if err != nil {
+		logger.Warn("telemetry provider init failed, tracing disabled", "error", err)
+	} else {
+		defer otelShutdown(contextValue)
 	}
 	databaseConfig, err := config.LoadDatabase("IDENTITY")
 	if err != nil {
@@ -181,6 +188,7 @@ func run(contextValue context.Context) error {
 	if err != nil {
 		return err
 	}
+	handler = telemetry.HTTPMiddleware("identity", handler)
 	introspectionHandler, err := introspectionadapter.NewHandler(
 		identityService, runtime.AccessVerifier, runtime.IntrospectionTrustedSPIFFEID, runtime.RequireIntrospectionMTLS,
 	)

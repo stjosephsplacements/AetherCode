@@ -15,6 +15,7 @@ import (
 	"github.com/aethercode/aethercode/libs/pkg/database"
 	"github.com/aethercode/aethercode/libs/pkg/httpx"
 	"github.com/aethercode/aethercode/libs/pkg/logging"
+	"github.com/aethercode/aethercode/libs/pkg/telemetry"
 	judgev1 "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/judge/v1"
 	amqpadapter "github.com/aethercode/aethercode/services/judge/internal/adapters/amqp"
 	grpcadapter "github.com/aethercode/aethercode/services/judge/internal/adapters/grpc"
@@ -44,6 +45,12 @@ func run(contextValue context.Context) error {
 	logger, err := logging.New(serviceConfig.LogLevel)
 	if err != nil {
 		return err
+	}
+	otelShutdown, err := telemetry.InitProvider(contextValue, "judge", "0.1.0")
+	if err != nil {
+		logger.Warn("telemetry provider init failed, tracing disabled", "error", err)
+	} else {
+		defer otelShutdown(contextValue)
 	}
 	databaseConfig, err := config.LoadDatabase("JUDGE")
 	if err != nil {
@@ -105,7 +112,7 @@ func run(contextValue context.Context) error {
 			contextValue,
 			serviceConfig,
 			logger,
-			httpx.NewOperationalHandler(serviceConfig.Name, readiness),
+			telemetry.HTTPMiddleware("judge", httpx.NewOperationalHandler(serviceConfig.Name, readiness)),
 		)
 	}()
 

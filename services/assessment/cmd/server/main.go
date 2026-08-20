@@ -15,6 +15,7 @@ import (
 	"github.com/aethercode/aethercode/libs/pkg/httpx"
 	"github.com/aethercode/aethercode/libs/pkg/logging"
 	"github.com/aethercode/aethercode/libs/pkg/messaging"
+	"github.com/aethercode/aethercode/libs/pkg/telemetry"
 	httpadapter "github.com/aethercode/aethercode/services/assessment/internal/adapters/http"
 	"github.com/aethercode/aethercode/services/assessment/internal/adapters/projection"
 	"github.com/aethercode/aethercode/services/assessment/internal/adapters/repo"
@@ -38,6 +39,12 @@ func run(ctx context.Context) error {
 	logger, err := logging.New(serviceConfig.LogLevel)
 	if err != nil {
 		return err
+	}
+	otelShutdown, err := telemetry.InitProvider(ctx, "assessment", "0.1.0")
+	if err != nil {
+		logger.Warn("telemetry provider init failed, tracing disabled", "error", err)
+	} else {
+		defer otelShutdown(ctx)
 	}
 	databaseConfig, err := config.LoadDatabase("ASSESSMENT")
 	if err != nil {
@@ -214,5 +221,5 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	return httpx.Serve(ctx, serviceConfig, logger, handler)
+	return httpx.Serve(ctx, serviceConfig, logger, telemetry.HTTPMiddleware("assessment", handler))
 }
