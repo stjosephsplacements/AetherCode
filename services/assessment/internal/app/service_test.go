@@ -312,6 +312,95 @@ func TestCreateAssignmentRuleRejectsInvalidTargetType(t *testing.T) {
 	}
 }
 
+func TestUpdateExamRejectsInvalidFields(t *testing.T) {
+	t.Parallel()
+	service := &Service{pool: nil, store: nil}
+	validUUID := "00000000-0000-7000-8000-000000000001"
+
+	testCases := []struct {
+		name    string
+		command UpdateExam
+	}{
+		{
+			name: "non-UUID ID",
+			command: UpdateExam{
+				ID: "bad", TenantID: validUUID, ExpectedVersion: 1,
+			},
+		},
+		{
+			name: "non-UUID TenantID",
+			command: UpdateExam{
+				ID: validUUID, TenantID: "bad", ExpectedVersion: 1,
+			},
+		},
+		{
+			name: "zero expected version",
+			command: UpdateExam{
+				ID: validUUID, TenantID: validUUID, ExpectedVersion: 0,
+			},
+		},
+		{
+			name: "negative expected version",
+			command: UpdateExam{
+				ID: validUUID, TenantID: validUUID, ExpectedVersion: -1,
+			},
+		},
+		{
+			name: "external_reference exceeds 160 characters",
+			command: UpdateExam{
+				ID: validUUID, TenantID: validUUID, ExpectedVersion: 1,
+				ExternalReference: strings.Repeat("x", 161),
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := service.UpdateExam(t.Context(), centralauthz.Capability{}, tc.command)
+			assertInvalid(t, err)
+		})
+	}
+}
+
+func TestUpdateExamAcceptsValidFields(t *testing.T) {
+	t.Parallel()
+	service := &Service{pool: nil, store: nil}
+	validUUID := "00000000-0000-7000-8000-000000000001"
+
+	testCases := []struct {
+		name    string
+		command UpdateExam
+	}{
+		{
+			name: "empty external_reference is allowed",
+			command: UpdateExam{
+				ID: validUUID, TenantID: validUUID, ExpectedVersion: 1, ExternalReference: "",
+			},
+		},
+		{
+			name: "external_reference at max length is allowed",
+			command: UpdateExam{
+				ID: validUUID, TenantID: validUUID, ExpectedVersion: 1,
+				ExternalReference: strings.Repeat("x", 160),
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			// Validation passes; the call fails only when it tries to open a DB
+			// connection against the nil pool — not with an invalid-argument error.
+			_, err := service.UpdateExam(t.Context(), centralauthz.Capability{}, tc.command)
+			var appErr *apperrors.Error
+			if errors.As(err, &appErr) && appErr.Code == apperrors.CodeInvalidArgument {
+				t.Fatalf("UpdateExam rejected valid input: %v", err)
+			}
+		})
+	}
+}
+
 func TestRunWriteIdempotencyKeyBoundaryConditions(t *testing.T) {
 	t.Parallel()
 

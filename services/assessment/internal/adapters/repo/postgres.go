@@ -565,6 +565,38 @@ func (repository *Postgres) GetExamIncludeDeleted(ctx context.Context, transacti
 	return exam, nil
 }
 
+func (repository *Postgres) UpdateExam(ctx context.Context, transaction pgx.Tx, command app.UpdateExam) (app.Exam, error) {
+	var exam app.Exam
+	err := transaction.QueryRow(ctx, `
+		UPDATE assessment.exams
+		SET external_reference = NULLIF($3, ''),
+		    updated_at = clock_timestamp(),
+		    version = version + 1
+		WHERE id = $1 AND tenant_id = $2
+		  AND lifecycle_state = 'draft'
+		  AND version = $4
+		  AND deleted_at IS NULL
+		RETURNING id::text, tenant_id::text, COALESCE(external_reference, ''), lifecycle_state,
+		          version, created_at, updated_at
+	`, command.ID, command.TenantID, command.ExternalReference, command.ExpectedVersion).Scan(
+		&exam.ID, &exam.TenantID, &exam.ExternalRef, &exam.LifecycleState, &exam.Version, &exam.CreatedAt, &exam.UpdatedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return app.Exam{}, apperrors.New(apperrors.CodeConflict, "exam version is stale or exam is no longer a draft")
+	}
+	if err != nil {
+		return app.Exam{}, fmt.Errorf("update exam: %w", err)
+	}
+	if err := repository.enqueue(ctx, transaction, "exam", exam.ID, exam.TenantID, "assessment.exam.updated.v1", struct {
+		ExamID            string `json:"exam_id"`
+		TenantID          string `json:"tenant_id"`
+		ExternalReference string `json:"external_reference,omitempty"`
+	}{exam.ID, exam.TenantID, exam.ExternalRef}); err != nil {
+		return app.Exam{}, err
+	}
+	return exam, nil
+}
+
 func (repository *Postgres) SoftDeleteExam(ctx context.Context, transaction pgx.Tx, command app.DeleteExam) error {
 	result, err := transaction.Exec(ctx, `
 		UPDATE assessment.exams

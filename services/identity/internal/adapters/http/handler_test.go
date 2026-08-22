@@ -80,7 +80,7 @@ func (fakeVerifier) Verify(string, time.Time) (authn.Claims, error) {
 func TestRegisterDoesNotExposeVerificationBearerOutsideDevelopment(t *testing.T) {
 	t.Parallel()
 	fake := &fakeUseCases{registerToken: "verification-bearer"}
-	_, handler, err := NewHandler("identity", fake, nil, fakeVerifier{}, false)
+	_, handler, err := NewHandler("identity", fake, nil, fakeVerifier{}, false, nil)
 	if err != nil {
 		t.Fatalf("NewHandler() error = %v", err)
 	}
@@ -109,7 +109,7 @@ func TestRegisterDoesNotExposeVerificationBearerOutsideDevelopment(t *testing.T)
 func TestRegisterRejectsUnknownJSONFields(t *testing.T) {
 	t.Parallel()
 	fake := &fakeUseCases{}
-	_, handler, err := NewHandler("identity", fake, nil, fakeVerifier{}, true)
+	_, handler, err := NewHandler("identity", fake, nil, fakeVerifier{}, true, nil)
 	if err != nil {
 		t.Fatalf("NewHandler() error = %v", err)
 	}
@@ -124,7 +124,7 @@ func TestRegisterRejectsUnknownJSONFields(t *testing.T) {
 func TestDevelopmentResetResponseIncludesBearerOnlyWhenEnabled(t *testing.T) {
 	t.Parallel()
 	fake := &fakeUseCases{}
-	_, handler, err := NewHandler("identity", fake, nil, fakeVerifier{}, true)
+	_, handler, err := NewHandler("identity", fake, nil, fakeVerifier{}, true, nil)
 	if err != nil {
 		t.Fatalf("NewHandler() error = %v", err)
 	}
@@ -133,5 +133,149 @@ func TestDevelopmentResetResponseIncludesBearerOnlyWhenEnabled(t *testing.T) {
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusAccepted || !strings.Contains(response.Body.String(), "reset-token") {
 		t.Fatalf("response = %d %s", response.Code, response.Body.String())
+	}
+}
+
+func TestRegisterRateLimitBlocks429AfterBurstExhausted(t *testing.T) {
+	t.Parallel()
+	// Burst of 1 with near-zero refill so the second request from the same IP
+	// is always denied within the test window.
+	limiter, err := NewRegisterLimiter(RegisterLimiterConfig{
+		Capacity:        1,
+		RefillPerSecond: 0.0001,
+		MaxEntries:      100,
+		IdleTTL:         time.Hour,
+	})
+	if err != nil {
+		t.Fatalf("NewRegisterLimiter() error = %v", err)
+	}
+	fake := &fakeUseCases{registerToken: "tok"}
+	_, handler, err := NewHandler("identity", fake, nil, fakeVerifier{}, false, limiter)
+	if err != nil {
+		t.Fatalf("NewHandler() error = %v", err)
+	}
+
+	body := `{"email":"rate@example.com","display_name":"Rate","password":"AetherCode2026"}`
+	makeRequest := func() *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/v1/auth/register", strings.NewReader(body))
+		req.RemoteAddr = "203.0.113.42:9999"
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		return rec
+	}
+
+	first := makeRequest()
+	if first.Code != http.StatusCreated {
+		t.Fatalf("first request: status = %d, body = %s", first.Code, first.Body.String())
+	}
+
+	second := makeRequest()
+	if second.Code != http.StatusTooManyRequests {
+		t.Fatalf("second request: expected 429, got %d, body = %s", second.Code, second.Body.String())
+	}
+	if second.Header().Get("Retry-After") != retryAfterRegistration {
+		t.Fatalf("Retry-After = %q, want %q", second.Header().Get("Retry-After"), retryAfterRegistration)
+	}
+	var problem map[string]any
+	if err := json.Unmarshal(second.Body.Bytes(), &problem); err != nil {
+		t.Fatalf("decode 429 body: %v", err)
+	}
+	if problem["code"] != "too_many_requests" {
+		t.Fatalf("429 code = %q, want too_many_requests", problem["code"])
+	}
+}
+
+func TestRegisterRateLimitDistinctIPsAreTrackedSeparately(t *testing.T) {
+	t.Parallel()
+	limiter, err := NewRegisterLimiter(RegisterLimiterConfig{
+		Capacity:        1,
+		RefillPerSecond: 0.0001,
+		MaxEntries:      100,
+		IdleTTL:         time.Hour,
+	})
+	if err != nil {
+		t.Fatalf("NewRegisterLimiter() error = %v", err)
+	}
+	fake := &fakeUseCases{registerToken: "tok"}
+	_, handler, err := NewHandler("identity", fake, nil, fakeVerifier{}, false, limiter)
+	if err != nil {
+		t.Fatalf("NewHandler() error = %v", err)
+	}
+
+	body := `{"email":"iptest@example.com","display_name":"IP","password":"AetherCode2026"}`
+	makeRequest := func(ip string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/v1/auth/register", strings.NewReader(body))
+		req.RemoteAddr = ip + ":9999"
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		return rec
+	}
+
+	if r := makeRequest("203.0.113.1"); r.Code != http.StatusCreated {
+		t.Fatalf("IP-1 first request: status = %d", r.Code)
+	}
+	// IP-1 exhausted, IP-2 has its own fresh bucket and should succeed.
+	if r := makeRequest("203.0.113.2"); r.Code != http.StatusCreated {
+		t.Fatalf("IP-2 first request: status = %d", r.Code)
+	}
+	// IP-1 should now be rate limited.
+	if r := makeRequest("203.0.113.1"); r.Code != http.StatusTooManyRequests {
+		t.Fatalf("IP-1 second request: expected 429, got %d", r.Code)
+	}
+}
+
+func TestRegisterRateLimitXForwardedForOverridesRemoteAddr(t *testing.T) {
+	t.Parallel()
+	limiter, err := NewRegisterLimiter(RegisterLimiterConfig{
+		Capacity:        1,
+		RefillPerSecond: 0.0001,
+		MaxEntries:      100,
+		IdleTTL:         time.Hour,
+	})
+	if err != nil {
+		t.Fatalf("NewRegisterLimiter() error = %v", err)
+	}
+	fake := &fakeUseCases{registerToken: "tok"}
+	_, handler, err := NewHandler("identity", fake, nil, fakeVerifier{}, false, limiter)
+	if err != nil {
+		t.Fatalf("NewHandler() error = %v", err)
+	}
+
+	body := `{"email":"xff@example.com","display_name":"XFF","password":"AetherCode2026"}`
+	makeRequestWithXFF := func(xff string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/v1/auth/register", strings.NewReader(body))
+		req.RemoteAddr = "10.0.0.1:1234" // gateway address; varies per request
+		req.Header.Set("X-Forwarded-For", xff)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		return rec
+	}
+
+	// First request from real client IP succeeds.
+	if r := makeRequestWithXFF("198.51.100.7"); r.Code != http.StatusCreated {
+		t.Fatalf("first request: status = %d, body = %s", r.Code, r.Body.String())
+	}
+	// Second request from the same real client IP (different gateway RemoteAddr) is limited.
+	if r := makeRequestWithXFF("198.51.100.7"); r.Code != http.StatusTooManyRequests {
+		t.Fatalf("second request from same real IP: expected 429, got %d", r.Code)
+	}
+}
+
+func TestRegisterNilLimiterAllowsAllRequests(t *testing.T) {
+	t.Parallel()
+	fake := &fakeUseCases{registerToken: "tok"}
+	_, handler, err := NewHandler("identity", fake, nil, fakeVerifier{}, false, nil)
+	if err != nil {
+		t.Fatalf("NewHandler() error = %v", err)
+	}
+	body := `{"email":"nolimit@example.com","display_name":"NoLimit","password":"AetherCode2026"}`
+	for i := range 5 {
+		req := httptest.NewRequest(http.MethodPost, "/v1/auth/register", strings.NewReader(body))
+		req.RemoteAddr = "192.0.2.1:1234"
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("request %d: status = %d (nil limiter must allow all)", i+1, rec.Code)
+		}
 	}
 }

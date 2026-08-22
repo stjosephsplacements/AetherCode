@@ -6,9 +6,11 @@ RabbitMQ pointer notification; and leases terminal results to the platform
 submission adapter. It is not a public code-execution API and never connects to
 the upstream Judge0 PostgreSQL database.
 
-The foundation release does **not** deploy an engine dispatcher. Production
-startup fails closed until the gVisor compatibility approval is present; the
-approved Judge0 phase adds the worker-side pointer consumer and dispatch flow.
+The dispatcher worker is off by default (`JUDGE_DISPATCHER_ENABLED=false`). When
+enabled it reads admission pointers from RabbitMQ, submits each test unit to the
+configured evaluation engine, polls for verdicts, and writes completion records.
+The stub engine (`JUDGE_ENGINE=stub`) is available without a Judge0 installation.
+The judge0 engine requires the gVisor compatibility gate to be approved first.
 
 ## Ownership
 
@@ -72,6 +74,22 @@ Run service tests from the service module:
 ```bash
 go test ./...
 ```
+
+## Dispatcher configuration
+
+The dispatcher worker is controlled by the following environment variables. All
+dispatcher variables are optional when `JUDGE_DISPATCHER_ENABLED=false`.
+
+| Variable | Default | Description |
+|---|---|---|
+| `JUDGE_DISPATCHER_ENABLED` | `false` | Set to `true` to start the RabbitMQ consumer and dispatch worker. The server starts normally when false. |
+| `JUDGE_ENGINE` | `stub` | Evaluation engine: `stub` (deterministic accept, no external deps) or `judge0` (requires gVisor gate). |
+| `JUDGE_WORKER_CONCURRENCY` | `4` | Number of concurrent dispatch goroutines. Must be 1–32. |
+| `JUDGE_POLL_INTERVAL_MS` | `2000` | Milliseconds between engine verdict poll attempts. |
+| `JUDGE_MAX_POLL_ATTEMPTS` | `30` | Maximum poll attempts before a synthetic `time_limit_exceeded` verdict is recorded. |
+
+`JUDGE_RABBITMQ_URL` is also required when `JUDGE_DISPATCHER_ENABLED=true` (it
+is already required for the admission publisher in production/staging).
 
 ## Deployment gate
 

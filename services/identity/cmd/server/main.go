@@ -186,8 +186,17 @@ func run(contextValue context.Context) error {
 	if err != nil {
 		return err
 	}
+	registerLimiter, err := httpadapter.NewRegisterLimiter(httpadapter.RegisterLimiterConfig{
+		Capacity:        float64(runtime.RegisterBurst),
+		RefillPerSecond: float64(runtime.RegisterRate) / 3600.0,
+		MaxEntries:      50000,
+		IdleTTL:         2 * time.Hour,
+	})
+	if err != nil {
+		return err
+	}
 	_, handler, err := httpadapter.NewHandler(
-		serviceConfig.Name, identityService, readiness, runtime.AccessVerifier, runtime.ExposeDevelopmentSecrets,
+		serviceConfig.Name, identityService, readiness, runtime.AccessVerifier, runtime.ExposeDevelopmentSecrets, registerLimiter,
 	)
 	if err != nil {
 		return err

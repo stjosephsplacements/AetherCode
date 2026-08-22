@@ -31,6 +31,8 @@ type Runtime struct {
 	DeliveryTokenKey             []byte
 	MFAMasterKeys                map[string][]byte
 	MFAKeyReference              string
+	RegisterRate                 int
+	RegisterBurst                int
 	ExposeDevelopmentSecrets     bool
 	IntrospectionAddress         string
 	IntrospectionCertificateFile string
@@ -110,6 +112,14 @@ func Load(environment string) (Runtime, error) {
 	if _, found := mfaMasterKeys[mfaKeyReference]; !found {
 		return Runtime{}, fmt.Errorf("IDENTITY_MFA_KEY_REFERENCE does not identify a configured MFA master key")
 	}
+	registerRate, err := positiveInt("IDENTITY_REGISTER_RATE", "5", 1, 100)
+	if err != nil {
+		return Runtime{}, err
+	}
+	registerBurst, err := positiveInt("IDENTITY_REGISTER_BURST", "2", 1, 20)
+	if err != nil {
+		return Runtime{}, err
+	}
 	introspection, err := loadIntrospectionRuntime(environment)
 	if err != nil {
 		return Runtime{}, err
@@ -127,6 +137,8 @@ func Load(environment string) (Runtime, error) {
 		DeliveryTokenKey:             append([]byte(nil), deliveryTokenKey...),
 		MFAMasterKeys:                mfaMasterKeys,
 		MFAKeyReference:              mfaKeyReference,
+		RegisterRate:                 registerRate,
+		RegisterBurst:                registerBurst,
 		ExposeDevelopmentSecrets:     environment == "development" || environment == "test",
 		IntrospectionAddress:         introspection.address,
 		IntrospectionCertificateFile: introspection.certificateFile,

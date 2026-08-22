@@ -17,6 +17,10 @@ import (
 	"github.com/aethercode/aethercode/services/identity/internal/app"
 )
 
+// retryAfterRegistration is the Retry-After value sent with 429 responses on
+// the registration endpoint. One hour matches the token-bucket refill window.
+const retryAfterRegistration = "3600"
+
 // UseCases keeps the transport adapter independent of Identity's concrete
 // application implementation and makes request/response boundary tests small.
 type UseCases interface {
@@ -50,17 +54,24 @@ type Handler struct {
 	service                  UseCases
 	accessVerifier           AccessVerifier
 	exposeDevelopmentSecrets bool
+	registerLimiter          *RegisterLimiter
 }
 
 // NewHandler installs concrete identity workflows on an operational mux.
-func NewHandler(serviceName string, service UseCases, readiness httpx.ReadinessFunc, accessVerifier AccessVerifier, exposeDevelopmentSecrets bool) (*Handler, http.Handler, error) {
+// registerLimiter may be nil to disable per-IP registration rate limiting.
+func NewHandler(serviceName string, service UseCases, readiness httpx.ReadinessFunc, accessVerifier AccessVerifier, exposeDevelopmentSecrets bool, registerLimiter *RegisterLimiter) (*Handler, http.Handler, error) {
 	if service == nil {
 		return nil, nil, fmt.Errorf("identity use cases are required")
 	}
 	if accessVerifier == nil {
 		return nil, nil, fmt.Errorf("identity access-token verifier is required")
 	}
-	handler := &Handler{service: service, accessVerifier: accessVerifier, exposeDevelopmentSecrets: exposeDevelopmentSecrets}
+	handler := &Handler{
+		service:                  service,
+		accessVerifier:           accessVerifier,
+		exposeDevelopmentSecrets: exposeDevelopmentSecrets,
+		registerLimiter:          registerLimiter,
+	}
 	mux := httpx.NewOperationalMux(serviceName, readiness)
 	mux.HandleFunc("POST /v1/auth/register", handler.register)
 	mux.HandleFunc("POST /v1/auth/verify-email", handler.verifyEmail)
@@ -90,6 +101,14 @@ type registerResponse struct {
 }
 
 func (handler *Handler) register(writer http.ResponseWriter, request *http.Request) {
+	if handler.registerLimiter != nil {
+		ip := registerClientIP(request)
+		if !handler.registerLimiter.Allow(ip, time.Now().UTC()) {
+			writer.Header().Set("Retry-After", retryAfterRegistration)
+			httpx.WriteJSON(writer, http.StatusTooManyRequests, httpx.Problem{Code: "too_many_requests", Message: "registration rate limit exceeded"})
+			return
+		}
+	}
 	var body registerRequest
 	if err := httpx.DecodeJSON(request, &body); err != nil {
 		httpx.WriteError(writer, err)
@@ -451,6 +470,20 @@ func (handler *Handler) authenticatedPrincipal(request *http.Request) (string, e
 		return "", apperrors.New(apperrors.CodeUnauthorized, "access token is invalid")
 	}
 	return claims.Subject, nil
+}
+
+// registerClientIP returns the client address used as the per-IP rate-limit
+// key for registration. The gateway stamps the real client address into
+// X-Forwarded-For before proxying; the function falls back to RemoteAddr for
+// direct connections (local dev, integration tests).
+func registerClientIP(request *http.Request) string {
+	if xff := strings.TrimSpace(request.Header.Get("X-Forwarded-For")); xff != "" {
+		first := strings.TrimSpace(strings.SplitN(xff, ",", 2)[0])
+		if parsed := net.ParseIP(first); parsed != nil {
+			return parsed.String()
+		}
+	}
+	return clientIP(request)
 }
 
 func clientIP(request *http.Request) string {

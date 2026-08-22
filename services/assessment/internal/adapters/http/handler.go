@@ -30,6 +30,7 @@ func NewHandler(serviceName string, service *app.Service, readiness httpx.Readin
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/proctor-policies/{proctor_policy_id}/versions", handler.createProctorPolicyVersion)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/proctor-policy-versions/{proctor_policy_version_id}/publish", handler.publishProctorPolicyVersion)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/exams", handler.createExam)
+	mux.HandleFunc("PATCH /v1/tenants/{tenant_id}/exams/{exam_id}", handler.updateExam)
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/exams/{exam_id}", handler.deleteExam)
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/exams/{exam_id}/hard", handler.hardDeleteExam)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/exams/{exam_id}/versions", handler.createExamVersion)
@@ -585,6 +586,43 @@ func (handler *Handler) getCandidateAssignment(writer http.ResponseWriter, reque
 		return
 	}
 	httpx.WriteJSON(writer, http.StatusOK, assignment)
+}
+
+type updateExamRequest struct {
+	ExpectedVersion   int64  `json:"expected_version"`
+	ExternalReference string `json:"external_reference"`
+}
+
+func (handler *Handler) updateExam(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := tenantID(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	examID, err := httpx.ParseUUIDPathValue(request, "exam_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var body updateExamRequest
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "exams", examID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	exam, err := handler.service.UpdateExam(request.Context(), decision.Capability, app.UpdateExam{
+		ID: examID, TenantID: tenantID, ExpectedVersion: body.ExpectedVersion,
+		ExternalReference: body.ExternalReference,
+	})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, exam)
 }
 
 type deleteExamRequest struct {

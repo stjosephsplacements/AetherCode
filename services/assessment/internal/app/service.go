@@ -56,6 +56,7 @@ type Store interface {
 	GetCandidateAssignment(context.Context, pgx.Tx, GetCandidateAssignment) (CandidateAssignment, error)
 	GetExam(context.Context, pgx.Tx, string, string) (Exam, error)
 	GetExamIncludeDeleted(context.Context, pgx.Tx, string, string) (Exam, error)
+	UpdateExam(context.Context, pgx.Tx, UpdateExam) (Exam, error)
 	SoftDeleteExam(context.Context, pgx.Tx, DeleteExam) error
 	HardDeleteExam(context.Context, pgx.Tx, DeleteExam) error
 	ListCandidateAssignments(context.Context, pgx.Tx, ListCandidateAssignments) ([]CandidateAssignment, error)
@@ -142,6 +143,16 @@ type DeleteExam struct {
 	TenantID string
 	ActorID  string
 	Reason   string
+}
+
+// UpdateExam is the command for mutating mutable metadata on a draft exam.
+// Only the external_reference field is mutable at the exam level; scheduling
+// and content fields live on immutable ExamVersions.
+type UpdateExam struct {
+	ID                string
+	TenantID          string
+	ExpectedVersion   int64
+	ExternalReference string
 }
 
 type ExamVersion struct {
@@ -762,6 +773,32 @@ func (service *Service) HardDeleteExam(ctx context.Context, capability centralau
 		}
 		return service.store.HardDeleteExam(ctx, transaction, command)
 	})
+}
+
+// UpdateExam mutates the mutable metadata of a draft exam. It returns a 409
+// Conflict if the exam has already been published or archived.
+func (service *Service) UpdateExam(ctx context.Context, capability centralauthz.Capability, command UpdateExam) (Exam, error) {
+	command.ID, command.TenantID = normalizeID(command.ID), normalizeID(command.TenantID)
+	command.ExternalReference = strings.TrimSpace(command.ExternalReference)
+	if !validID(command.ID) || !validID(command.TenantID) || command.ExpectedVersion <= 0 {
+		return Exam{}, invalid("exam ID, tenant ID, and expected version are required")
+	}
+	if command.ExternalReference != "" && !validText(command.ExternalReference, 160) {
+		return Exam{}, invalid("external_reference must not exceed 160 characters")
+	}
+	var result Exam
+	err := service.withTenantTx(ctx, capability, command.TenantID, func(transaction pgx.Tx) error {
+		exam, err := service.store.GetExam(ctx, transaction, command.ID, command.TenantID)
+		if err != nil {
+			return err
+		}
+		if exam.LifecycleState != "draft" {
+			return apperrors.New(apperrors.CodeConflict, "only draft exams can be updated")
+		}
+		result, err = service.store.UpdateExam(ctx, transaction, command)
+		return err
+	})
+	return result, err
 }
 
 // ListCandidateAssignments returns a keyset page of the calling candidate's

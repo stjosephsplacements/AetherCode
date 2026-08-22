@@ -19,9 +19,11 @@ import (
 	judgev1 "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/judge/v1"
 	amqpadapter "github.com/aethercode/aethercode/services/judge/internal/adapters/amqp"
 	grpcadapter "github.com/aethercode/aethercode/services/judge/internal/adapters/grpc"
+	judge0adapter "github.com/aethercode/aethercode/services/judge/internal/adapters/judge0"
 	"github.com/aethercode/aethercode/services/judge/internal/adapters/repo"
 	"github.com/aethercode/aethercode/services/judge/internal/app"
 	judgeconfig "github.com/aethercode/aethercode/services/judge/internal/config"
+	"github.com/aethercode/aethercode/services/judge/internal/dispatcher"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	grpcHealth "google.golang.org/grpc/health"
@@ -70,6 +72,11 @@ func run(contextValue context.Context) error {
 		return err
 	}
 
+	dispatcherRuntime, err := dispatcher.LoadRuntime()
+	if err != nil {
+		return err
+	}
+
 	store := repo.NewPostgres(pool)
 	judgeService := app.NewService(store)
 	readiness := store.Ping
@@ -86,6 +93,36 @@ func run(contextValue context.Context) error {
 			return publisher.Ready(readinessContext)
 		}
 	}
+	if dispatcherRuntime.Enabled {
+		switch dispatcherRuntime.EngineType {
+		case "judge0":
+			if !runtime.EngineCompatibilityApproved {
+				logger.Warn("dispatcher: engine=judge0 requires JUDGE_ENGINE_COMPATIBILITY_APPROVED=true; dispatcher not started")
+			} else {
+				logger.Warn("dispatcher: judge0 engine adapter not available in this build; dispatcher not started")
+			}
+		case "stub":
+			if runtime.RabbitURL == "" {
+				return fmt.Errorf("dispatcher: JUDGE_RABBITMQ_URL is required when JUDGE_DISPATCHER_ENABLED=true")
+			}
+			eng := judge0adapter.NewStub()
+			storeAdapter := repo.NewDispatchStoreAdapter(pool)
+			worker, workerErr := dispatcher.NewWorker(storeAdapter, eng, dispatcherRuntime, logger)
+			if workerErr != nil {
+				return workerErr
+			}
+			consumer, consumerErr := amqpadapter.NewConsumer(runtime.RabbitURL, worker, logger)
+			if consumerErr != nil {
+				return consumerErr
+			}
+			go func() {
+				if err := consumer.Start(contextValue); err != nil && contextValue.Err() == nil {
+					logger.Error("dispatcher consumer stopped unexpectedly", "error", err)
+				}
+			}()
+		}
+	}
+
 	listener, err := net.Listen("tcp", runtime.GRPCAddress)
 	if err != nil {
 		return fmt.Errorf("listen for Judge gRPC: %w", err)
