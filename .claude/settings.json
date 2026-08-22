@@ -8,13 +8,13 @@
   },
   "permissions": {
     "allow": [
-      "go test ./...",
-      "go build ./...",
-      "npm run lint",
-      "npm run test",
-      "git status",
-      "git diff",
-      "git log"
+      "Bash(go test ./...)",
+      "Bash(go build ./...)",
+      "Bash(npm run lint)",
+      "Bash(npm run test)",
+      "Bash(git status)",
+      "Bash(git diff)",
+      "Bash(git log)"
     ]
   },
   "hooks": {
