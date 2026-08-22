@@ -92,6 +92,9 @@ func (panicStore) ListTenants(context.Context, pgx.Tx, ListTenants) ([]Tenant, e
 func (panicStore) ListDepartments(context.Context, pgx.Tx, ListDepartments) ([]Department, error) {
 	panic("unexpected persistence call")
 }
+func (panicStore) ListPlacementOrganizations(context.Context, pgx.Tx, ListPlacementOrganizations) ([]PlacementOrganization, error) {
+	panic("unexpected persistence call")
+}
 func (panicStore) ListPlacementDepartments(context.Context, pgx.Tx, ListPlacementDepartments) ([]Department, error) {
 	panic("unexpected persistence call")
 }
@@ -305,4 +308,22 @@ func TestReleaseLegalHoldRejectsInvalidIDs(t *testing.T) {
 		})
 		assertInvalidArgument(t, err)
 	}
+}
+
+func TestGetPlacementOrganizationRejectsInvalidUUID(t *testing.T) {
+	t.Parallel()
+	service := &Service{pool: &pgxpool.Pool{}, store: panicStore{}}
+	for _, id := range []string{"", "not-a-uuid", "550e8400-e29b-41d4-a716"} {
+		_, err := service.GetPlacementOrganization(context.Background(), centralauthz.Capability{}, id)
+		assertInvalidArgument(t, err)
+	}
+}
+
+func TestListPlacementOrganizationsRejectsInvalidCursor(t *testing.T) {
+	t.Parallel()
+	service := &Service{pool: &pgxpool.Pool{}, store: panicStore{}}
+	_, err := service.ListPlacementOrganizations(context.Background(), centralauthz.Capability{}, ListPlacementOrganizations{
+		Limit: 20, CursorSort: "not-a-timestamp", CursorID: testUUID,
+	})
+	assertInvalidArgument(t, err)
 }

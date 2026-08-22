@@ -56,6 +56,10 @@ type Store interface {
 	GetCandidateAssignment(context.Context, pgx.Tx, GetCandidateAssignment) (CandidateAssignment, error)
 	GetExam(context.Context, pgx.Tx, string, string) (Exam, error)
 	GetExamIncludeDeleted(context.Context, pgx.Tx, string, string) (Exam, error)
+	GetProctorPolicy(context.Context, pgx.Tx, string, string) (ProctorPolicy, error)
+	GetProctorPolicyVersion(context.Context, pgx.Tx, string, string) (ProctorPolicyVersion, error)
+	ListProctorPolicies(context.Context, pgx.Tx, ListProctorPolicies) ([]ProctorPolicy, error)
+	ListProctorPolicyVersions(context.Context, pgx.Tx, ListProctorPolicyVersions) ([]ProctorPolicyVersion, error)
 	UpdateExam(context.Context, pgx.Tx, UpdateExam) (Exam, error)
 	SoftDeleteExam(context.Context, pgx.Tx, DeleteExam) error
 	HardDeleteExam(context.Context, pgx.Tx, DeleteExam) error
@@ -98,6 +102,25 @@ type ListExamVersions struct {
 	CursorSort string
 	CursorID   string
 	Status     string
+}
+
+// ListProctorPolicies is staff-scoped and relies on tenant RLS.
+type ListProctorPolicies struct {
+	TenantID       string
+	Limit          int
+	CursorSort     string
+	CursorID       string
+	LifecycleState string
+}
+
+// ListProctorPolicyVersions is staff-scoped and relies on tenant RLS.
+type ListProctorPolicyVersions struct {
+	TenantID        string
+	ProctorPolicyID string
+	Limit           int
+	CursorSort      string
+	CursorID        string
+	Status          string
 }
 
 type ProctorPolicy struct {
@@ -883,6 +906,111 @@ func (service *Service) ListExamVersions(ctx context.Context, capability central
 	})
 	if err != nil {
 		return Page[ExamVersion]{}, err
+	}
+	return page, nil
+}
+
+// GetExam returns a single non-deleted exam by ID.
+func (service *Service) GetExam(ctx context.Context, capability centralauthz.Capability, tenantID, examID string) (Exam, error) {
+	tenantID, examID = normalizeID(tenantID), normalizeID(examID)
+	if !validID(tenantID) || !validID(examID) {
+		return Exam{}, invalid("exam IDs are invalid")
+	}
+	var result Exam
+	err := service.withTenantTx(ctx, capability, tenantID, func(transaction pgx.Tx) error {
+		var err error
+		result, err = service.store.GetExam(ctx, transaction, examID, tenantID)
+		return err
+	})
+	return result, err
+}
+
+// GetProctorPolicy returns a single proctor policy by ID.
+func (service *Service) GetProctorPolicy(ctx context.Context, capability centralauthz.Capability, tenantID, policyID string) (ProctorPolicy, error) {
+	tenantID, policyID = normalizeID(tenantID), normalizeID(policyID)
+	if !validID(tenantID) || !validID(policyID) {
+		return ProctorPolicy{}, invalid("proctor policy IDs are invalid")
+	}
+	var result ProctorPolicy
+	err := service.withTenantTx(ctx, capability, tenantID, func(transaction pgx.Tx) error {
+		var err error
+		result, err = service.store.GetProctorPolicy(ctx, transaction, policyID, tenantID)
+		return err
+	})
+	return result, err
+}
+
+// GetProctorPolicyVersion returns a single proctor policy version by ID.
+func (service *Service) GetProctorPolicyVersion(ctx context.Context, capability centralauthz.Capability, tenantID, versionID string) (ProctorPolicyVersion, error) {
+	tenantID, versionID = normalizeID(tenantID), normalizeID(versionID)
+	if !validID(tenantID) || !validID(versionID) {
+		return ProctorPolicyVersion{}, invalid("proctor policy version IDs are invalid")
+	}
+	var result ProctorPolicyVersion
+	err := service.withTenantTx(ctx, capability, tenantID, func(transaction pgx.Tx) error {
+		var err error
+		result, err = service.store.GetProctorPolicyVersion(ctx, transaction, versionID, tenantID)
+		return err
+	})
+	return result, err
+}
+
+// ListProctorPolicies returns a keyset page of proctor policies for the tenant.
+func (service *Service) ListProctorPolicies(ctx context.Context, capability centralauthz.Capability, command ListProctorPolicies) (Page[ProctorPolicy], error) {
+	if command.CursorSort != "" {
+		if _, err := time.Parse(time.RFC3339Nano, command.CursorSort); err != nil {
+			return Page[ProctorPolicy]{}, apperrors.New(apperrors.CodeInvalidArgument, "cursor contains an invalid timestamp")
+		}
+	}
+	var page Page[ProctorPolicy]
+	err := service.withTenantTx(ctx, capability, command.TenantID, func(transaction pgx.Tx) error {
+		probe := command
+		probe.Limit = command.Limit + 1
+		policies, err := service.store.ListProctorPolicies(ctx, transaction, probe)
+		if err != nil {
+			return err
+		}
+		page = Page[ProctorPolicy]{Items: []ProctorPolicy{}}
+		if len(policies) > command.Limit {
+			policies = policies[:command.Limit]
+			last := policies[len(policies)-1]
+			page.NextCursor = pagination.Encode(pagination.EncodeTime(last.CreatedAt), last.ID)
+		}
+		page.Items = append(page.Items, policies...)
+		return nil
+	})
+	if err != nil {
+		return Page[ProctorPolicy]{}, err
+	}
+	return page, nil
+}
+
+// ListProctorPolicyVersions returns a keyset page of versions for the given proctor policy.
+func (service *Service) ListProctorPolicyVersions(ctx context.Context, capability centralauthz.Capability, command ListProctorPolicyVersions) (Page[ProctorPolicyVersion], error) {
+	if command.CursorSort != "" {
+		if _, err := strconv.ParseInt(command.CursorSort, 10, 64); err != nil {
+			return Page[ProctorPolicyVersion]{}, apperrors.New(apperrors.CodeInvalidArgument, "cursor contains an invalid version number")
+		}
+	}
+	var page Page[ProctorPolicyVersion]
+	err := service.withTenantTx(ctx, capability, command.TenantID, func(transaction pgx.Tx) error {
+		probe := command
+		probe.Limit = command.Limit + 1
+		versions, err := service.store.ListProctorPolicyVersions(ctx, transaction, probe)
+		if err != nil {
+			return err
+		}
+		page = Page[ProctorPolicyVersion]{Items: []ProctorPolicyVersion{}}
+		if len(versions) > command.Limit {
+			versions = versions[:command.Limit]
+			last := versions[len(versions)-1]
+			page.NextCursor = pagination.Encode(pagination.FormatInt(int64(last.VersionNumber)), last.ID)
+		}
+		page.Items = append(page.Items, versions...)
+		return nil
+	})
+	if err != nil {
+		return Page[ProctorPolicyVersion]{}, err
 	}
 	return page, nil
 }

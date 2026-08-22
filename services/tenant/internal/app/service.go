@@ -51,6 +51,7 @@ type Store interface {
 	SoftDeleteDepartment(context.Context, pgx.Tx, DeleteEntity) error
 	HardDeleteDepartment(context.Context, pgx.Tx, DeleteEntity) error
 	ListDepartments(context.Context, pgx.Tx, ListDepartments) ([]Department, error)
+	ListPlacementOrganizations(context.Context, pgx.Tx, ListPlacementOrganizations) ([]PlacementOrganization, error)
 	ListPlacementDepartments(context.Context, pgx.Tx, ListPlacementDepartments) ([]Department, error)
 	CreateBatch(context.Context, pgx.Tx, CreateBatch) (Batch, error)
 	GetBatch(context.Context, pgx.Tx, string) (Batch, error)
@@ -220,6 +221,13 @@ type ListBatches struct {
 	AcademicYear string
 }
 
+type ListPlacementOrganizations struct {
+	Limit      int
+	CursorSort string
+	CursorID   string
+	Status     string
+}
+
 type ListPlacementDepartments struct {
 	OrganizationID string
 	Limit          int
@@ -283,6 +291,48 @@ func (service *Service) CreatePlacementOrganization(contextValue context.Context
 		return err
 	})
 	return result, err
+}
+
+func (service *Service) GetPlacementOrganization(contextValue context.Context, capability centralauthz.Capability, organizationID string) (PlacementOrganization, error) {
+	if !isUUID(organizationID) {
+		return PlacementOrganization{}, apperrors.New(apperrors.CodeInvalidArgument, "organization ID must be a UUID")
+	}
+	var result PlacementOrganization
+	err := database.WithTenantTx(contextValue, service.pool, capability, func(transaction pgx.Tx) error {
+		var err error
+		result, err = service.store.GetPlacementOrganization(contextValue, transaction, organizationID)
+		return err
+	})
+	return result, err
+}
+
+func (service *Service) ListPlacementOrganizations(contextValue context.Context, capability centralauthz.Capability, command ListPlacementOrganizations) (Page[PlacementOrganization], error) {
+	if command.CursorSort != "" {
+		if _, err := time.Parse(time.RFC3339Nano, command.CursorSort); err != nil {
+			return Page[PlacementOrganization]{}, apperrors.New(apperrors.CodeInvalidArgument, "cursor contains an invalid timestamp")
+		}
+	}
+	var page Page[PlacementOrganization]
+	err := database.WithTenantTx(contextValue, service.pool, capability, func(transaction pgx.Tx) error {
+		probe := command
+		probe.Limit = command.Limit + 1
+		organizations, err := service.store.ListPlacementOrganizations(contextValue, transaction, probe)
+		if err != nil {
+			return err
+		}
+		page = Page[PlacementOrganization]{Items: []PlacementOrganization{}}
+		if len(organizations) > command.Limit {
+			organizations = organizations[:command.Limit]
+			last := organizations[len(organizations)-1]
+			page.NextCursor = pagination.Encode(pagination.EncodeTime(last.CreatedAt), last.ID)
+		}
+		page.Items = append(page.Items, organizations...)
+		return nil
+	})
+	if err != nil {
+		return Page[PlacementOrganization]{}, err
+	}
+	return page, nil
 }
 
 func (service *Service) CreateCollegeDepartment(contextValue context.Context, capability centralauthz.Capability, command CreateCollegeDepartment) (Department, error) {

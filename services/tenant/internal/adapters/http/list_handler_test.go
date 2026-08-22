@@ -75,3 +75,38 @@ func TestListRequestPartsRejectsInvalidTenantID(t *testing.T) {
 		t.Fatal("listRequestParts() error = nil, want an error for invalid tenant UUID")
 	}
 }
+
+func TestListPlacementOrganizationsRejectsLimitAboveMax(t *testing.T) {
+	t.Parallel()
+	request := httptest.NewRequest("GET", "/v1/placement-organizations?limit=101", nil)
+	recorder := httptest.NewRecorder()
+	// handler.listPlacementOrganizations rejects the limit before touching the
+	// authorizer, so a zero-value Handler is enough to exercise the guard.
+	handler := &Handler{}
+	handler.listPlacementOrganizations(recorder, request)
+	if recorder.Code == 200 {
+		t.Fatalf("expected non-200 for limit > 100, got %d", recorder.Code)
+	}
+}
+
+func TestListPlacementOrganizationsRejectsMalformedCursor(t *testing.T) {
+	t.Parallel()
+	request := httptest.NewRequest("GET", "/v1/placement-organizations?cursor=!!!", nil)
+	recorder := httptest.NewRecorder()
+	handler := &Handler{}
+	handler.listPlacementOrganizations(recorder, request)
+	if recorder.Code == 200 {
+		t.Fatalf("expected non-200 for malformed cursor, got %d", recorder.Code)
+	}
+}
+
+func TestListPlacementOrganizationsRejectsInvalidStatus(t *testing.T) {
+	t.Parallel()
+	request := httptest.NewRequest("GET", "/v1/placement-organizations?status=invalid", nil)
+	recorder := httptest.NewRecorder()
+	handler := &Handler{}
+	handler.listPlacementOrganizations(recorder, request)
+	if recorder.Code == 200 {
+		t.Fatalf("expected non-200 for invalid status, got %d", recorder.Code)
+	}
+}

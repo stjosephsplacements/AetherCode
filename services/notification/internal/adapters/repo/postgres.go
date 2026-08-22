@@ -49,8 +49,8 @@ func (repository *Postgres) UpsertOwnPreference(ctx context.Context, transaction
 	var preference app.Preference
 	err := transaction.QueryRow(ctx, `
 		SELECT id::text, tenant_id::text, recipient_id::text, channel, enabled, updated_at, version
-		FROM notification.upsert_own_recipient_preference($1, $2, 'in_app', $3, $4)
-	`, command.ID, command.TenantID, command.Enabled, command.ExpectedVersion).Scan(
+		FROM notification.upsert_own_recipient_preference($1, $2, $3, $4, $5)
+	`, command.ID, command.TenantID, command.Channel, command.Enabled, command.ExpectedVersion).Scan(
 		&preference.ID, &preference.TenantID, &preference.RecipientID, &preference.Channel,
 		&preference.Enabled, &preference.UpdatedAt, &preference.Version,
 	)

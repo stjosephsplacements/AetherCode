@@ -372,6 +372,105 @@ func (repository *Postgres) GetCandidateAssignment(ctx context.Context, transact
 	return selectCandidateAssignment(ctx, transaction, command.CandidateAssignmentID, command.TenantID)
 }
 
+func (repository *Postgres) GetProctorPolicy(ctx context.Context, transaction pgx.Tx, id, tenantID string) (app.ProctorPolicy, error) {
+	return selectProctorPolicy(ctx, transaction, id, tenantID)
+}
+
+func (repository *Postgres) GetProctorPolicyVersion(ctx context.Context, transaction pgx.Tx, id, tenantID string) (app.ProctorPolicyVersion, error) {
+	return selectProctorPolicyVersion(ctx, transaction, id, tenantID)
+}
+
+func (repository *Postgres) ListProctorPolicies(ctx context.Context, transaction pgx.Tx, command app.ListProctorPolicies) ([]app.ProctorPolicy, error) {
+	rows, err := transaction.Query(ctx, `
+		SELECT id::text, tenant_id::text, name, lifecycle_state, version, created_at
+		FROM assessment.proctor_policies
+		WHERE tenant_id = $1
+		  AND ($2::text IS NULL OR lifecycle_state = $2)
+		  AND ($3::timestamptz IS NULL OR (created_at, id) < ($3, $4))
+		ORDER BY created_at DESC, id DESC
+		LIMIT $5
+	`,
+		command.TenantID, nullableText(command.LifecycleState),
+		nullableTimestamp(command.CursorSort), nullableText(command.CursorID),
+		command.Limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list proctor policies: %w", err)
+	}
+	defer rows.Close()
+
+	policies := make([]app.ProctorPolicy, 0, command.Limit)
+	for rows.Next() {
+		var policy app.ProctorPolicy
+		if err := rows.Scan(&policy.ID, &policy.TenantID, &policy.Name, &policy.LifecycleState,
+			&policy.Version, &policy.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan proctor policy row: %w", err)
+		}
+		policies = append(policies, policy)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read proctor policy rows: %w", err)
+	}
+	return policies, nil
+}
+
+func (repository *Postgres) ListProctorPolicyVersions(ctx context.Context, transaction pgx.Tx, command app.ListProctorPolicyVersions) ([]app.ProctorPolicyVersion, error) {
+	rows, err := transaction.Query(ctx, `
+		SELECT id::text, tenant_id::text, proctor_policy_id::text, version_number, policy,
+		       policy_checksum, status, published_at, created_at
+		FROM assessment.proctor_policy_versions
+		WHERE tenant_id = $1
+		  AND proctor_policy_id = $2::uuid
+		  AND ($3::text IS NULL OR status = $3)
+		  AND ($4::bigint IS NULL OR (version_number, id) < ($4, $5::uuid))
+		ORDER BY version_number DESC, id DESC
+		LIMIT $6
+	`,
+		command.TenantID, command.ProctorPolicyID, nullableText(command.Status),
+		nullableInt(command.CursorSort), nullableText(command.CursorID),
+		command.Limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list proctor policy versions: %w", err)
+	}
+	defer rows.Close()
+
+	versions := make([]app.ProctorPolicyVersion, 0, command.Limit)
+	for rows.Next() {
+		var version app.ProctorPolicyVersion
+		if err := rows.Scan(
+			&version.ID, &version.TenantID, &version.ProctorPolicyID, &version.VersionNumber,
+			&version.Policy, &version.PolicyChecksum, &version.Status,
+			&version.PublishedAt, &version.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan proctor policy version row: %w", err)
+		}
+		versions = append(versions, version)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read proctor policy version rows: %w", err)
+	}
+	return versions, nil
+}
+
+func selectProctorPolicy(ctx context.Context, transaction pgx.Tx, id, tenantID string) (app.ProctorPolicy, error) {
+	var result app.ProctorPolicy
+	err := transaction.QueryRow(ctx, `
+		SELECT id::text, tenant_id::text, name, lifecycle_state, version, created_at
+		FROM assessment.proctor_policies
+		WHERE id = $1 AND tenant_id = $2
+	`, id, tenantID).Scan(
+		&result.ID, &result.TenantID, &result.Name, &result.LifecycleState, &result.Version, &result.CreatedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return app.ProctorPolicy{}, apperrors.New(apperrors.CodeNotFound, "proctor policy was not found")
+	}
+	if err != nil {
+		return app.ProctorPolicy{}, fmt.Errorf("read proctor policy: %w", err)
+	}
+	return result, nil
+}
+
 func selectProctorPolicyVersion(ctx context.Context, transaction pgx.Tx, id, tenantID string) (app.ProctorPolicyVersion, error) {
 	var result app.ProctorPolicyVersion
 	err := transaction.QueryRow(ctx, `

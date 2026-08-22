@@ -30,6 +30,8 @@ func NewHandler(serviceName string, service *app.Service, readiness httpx.Readin
 	mux := httpx.NewOperationalMux(serviceName, readiness)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/me/preferences", handler.listOwnPreferences)
 	mux.HandleFunc("PUT /v1/tenants/{tenant_id}/me/preferences/in-app", handler.upsertOwnInAppPreference)
+	mux.HandleFunc("PUT /v1/tenants/{tenant_id}/me/preferences/email", handler.upsertOwnEmailPreference)
+	mux.HandleFunc("PUT /v1/tenants/{tenant_id}/me/preferences/sms", handler.upsertOwnSMSPreference)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/me/notifications", handler.listOwnNotifications)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/notifications", handler.scheduleNotification)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/notifications/{notification_id}/cancel", handler.cancelNotification)
@@ -44,6 +46,18 @@ type preferenceRequest struct {
 }
 
 func (handler *Handler) upsertOwnInAppPreference(writer http.ResponseWriter, request *http.Request) {
+	handler.upsertOwnPreference(writer, request, "in_app")
+}
+
+func (handler *Handler) upsertOwnEmailPreference(writer http.ResponseWriter, request *http.Request) {
+	handler.upsertOwnPreference(writer, request, "email")
+}
+
+func (handler *Handler) upsertOwnSMSPreference(writer http.ResponseWriter, request *http.Request) {
+	handler.upsertOwnPreference(writer, request, "sms")
+}
+
+func (handler *Handler) upsertOwnPreference(writer http.ResponseWriter, request *http.Request, channel string) {
 	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
 	if err != nil {
 		httpx.WriteError(writer, err)
@@ -71,8 +85,9 @@ func (handler *Handler) upsertOwnInAppPreference(writer http.ResponseWriter, req
 		return
 	}
 	preference, err := handler.service.UpsertOwnPreference(request.Context(), decision.Capability, app.UpsertOwnPreference{
-		ID: preferenceID, TenantID: tenantID, Enabled: body.Enabled, ExpectedVersion: body.ExpectedVersion,
-		IdempotencyKey: request.Header.Get("Idempotency-Key"), RequestHash: requestHash,
+		ID: preferenceID, TenantID: tenantID, Channel: channel, Enabled: body.Enabled,
+		ExpectedVersion: body.ExpectedVersion,
+		IdempotencyKey:  request.Header.Get("Idempotency-Key"), RequestHash: requestHash,
 	})
 	if err != nil {
 		httpx.WriteError(writer, err)

@@ -84,6 +84,7 @@ func NewHandler(serviceName string, service UseCases, readiness httpx.ReadinessF
 	mux.HandleFunc("POST /v1/auth/mfa/totp", handler.beginTOTP)
 	mux.HandleFunc("POST /v1/auth/mfa/totp/{factor_id}/activate", handler.activateTOTP)
 	mux.HandleFunc("DELETE /v1/auth/mfa/totp/{factor_id}", handler.disableTOTP)
+	mux.HandleFunc("GET /v1/principals/{id}", handler.getPrincipal)
 	mux.HandleFunc("DELETE /v1/principals/{id}", handler.deletePrincipal)
 	mux.HandleFunc("DELETE /v1/principals/{id}/hard", handler.hardDeletePrincipal)
 	return handler, noStore(mux), nil
@@ -383,6 +384,28 @@ func (handler *Handler) disableTOTP(writer http.ResponseWriter, request *http.Re
 		return
 	}
 	writer.WriteHeader(http.StatusNoContent)
+}
+
+func (handler *Handler) getPrincipal(writer http.ResponseWriter, request *http.Request) {
+	principalID, err := httpx.ParseUUIDPathValue(request, "id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	if _, err := handler.authenticatedPrincipal(request); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	principal, err := handler.service.GetPrincipal(request.Context(), principalID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	if principal == nil {
+		httpx.WriteError(writer, apperrors.New(apperrors.CodeNotFound, "principal not found"))
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, principal)
 }
 
 type deletePrincipalRequest struct {

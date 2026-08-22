@@ -62,6 +62,7 @@ type Notification struct {
 type UpsertOwnPreference struct {
 	ID              string
 	TenantID        string
+	Channel         string
 	Enabled         bool
 	ExpectedVersion int64
 	IdempotencyKey  string
@@ -137,7 +138,8 @@ func NewService(pool *pgxpool.Pool, store Store) (*Service, error) {
 }
 
 func (service *Service) UpsertOwnPreference(ctx context.Context, capability centralauthz.Capability, command UpsertOwnPreference) (Preference, error) {
-	if !validUUID(command.ID) || !validUUID(command.TenantID) || command.ExpectedVersion < 0 {
+	if !validUUID(command.ID) || !validUUID(command.TenantID) || command.ExpectedVersion < 0 ||
+		(command.Channel != "in_app" && command.Channel != "email" && command.Channel != "sms") {
 		return Preference{}, invalid("notification preference fields are invalid")
 	}
 	if err := validateIdempotency(command.IdempotencyKey, command.RequestHash); err != nil {

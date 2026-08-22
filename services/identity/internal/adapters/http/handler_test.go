@@ -14,8 +14,10 @@ import (
 )
 
 type fakeUseCases struct {
-	registerEmail string
-	registerToken string
+	registerEmail      string
+	registerToken      string
+	getPrincipalID     string
+	getPrincipalResult *app.Principal
 }
 
 func (fake *fakeUseCases) Register(_ context.Context, email, _, _, _, _ string) (string, string, error) {
@@ -61,7 +63,11 @@ func (fake *fakeUseCases) DisableTOTP(context.Context, string, string, string) e
 
 func (fake *fakeUseCases) ValidateAccessToken(context.Context, string, string) error { return nil }
 
-func (fake *fakeUseCases) GetPrincipal(context.Context, string) (*app.Principal, error) {
+func (fake *fakeUseCases) GetPrincipal(_ context.Context, id string) (*app.Principal, error) {
+	fake.getPrincipalID = id
+	if fake.getPrincipalResult != nil {
+		return fake.getPrincipalResult, nil
+	}
 	return nil, nil
 }
 
@@ -277,5 +283,82 @@ func TestRegisterNilLimiterAllowsAllRequests(t *testing.T) {
 		if rec.Code != http.StatusCreated {
 			t.Fatalf("request %d: status = %d (nil limiter must allow all)", i+1, rec.Code)
 		}
+	}
+}
+
+func TestGetPrincipalReturns200WhenFound(t *testing.T) {
+	t.Parallel()
+	principalID := "019b11a0-0000-7000-8000-000000000001"
+	fake := &fakeUseCases{
+		getPrincipalResult: &app.Principal{ID: principalID, Email: "ada@example.com", DisplayName: "Ada", Status: "active"},
+	}
+	_, handler, err := NewHandler("identity", fake, nil, fakeVerifier{}, false, nil)
+	if err != nil {
+		t.Fatalf("NewHandler() error = %v", err)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/v1/principals/"+principalID, nil)
+	req.Header.Set("Authorization", "Bearer valid-token")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body["id"] != principalID {
+		t.Fatalf("response id = %q, want %q", body["id"], principalID)
+	}
+	if fake.getPrincipalID != principalID {
+		t.Fatalf("service received id = %q, want %q", fake.getPrincipalID, principalID)
+	}
+}
+
+func TestGetPrincipalReturns404WhenNotFound(t *testing.T) {
+	t.Parallel()
+	fake := &fakeUseCases{} // getPrincipalResult is nil → not found
+	_, handler, err := NewHandler("identity", fake, nil, fakeVerifier{}, false, nil)
+	if err != nil {
+		t.Fatalf("NewHandler() error = %v", err)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/v1/principals/019b11a0-0000-7000-8000-000000000099", nil)
+	req.Header.Set("Authorization", "Bearer valid-token")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestGetPrincipalRejectsUnauthenticated(t *testing.T) {
+	t.Parallel()
+	fake := &fakeUseCases{}
+	_, handler, err := NewHandler("identity", fake, nil, fakeVerifier{}, false, nil)
+	if err != nil {
+		t.Fatalf("NewHandler() error = %v", err)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/v1/principals/019b11a0-0000-7000-8000-000000000001", nil)
+	// No Authorization header.
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code == http.StatusOK {
+		t.Fatal("unauthenticated request was accepted, want a non-200 status")
+	}
+}
+
+func TestGetPrincipalRejectsMalformedID(t *testing.T) {
+	t.Parallel()
+	fake := &fakeUseCases{}
+	_, handler, err := NewHandler("identity", fake, nil, fakeVerifier{}, false, nil)
+	if err != nil {
+		t.Fatalf("NewHandler() error = %v", err)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/v1/principals/not-a-uuid", nil)
+	req.Header.Set("Authorization", "Bearer valid-token")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("malformed UUID: status = %d, body = %s", rec.Code, rec.Body.String())
 	}
 }

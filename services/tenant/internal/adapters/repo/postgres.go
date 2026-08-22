@@ -609,6 +609,40 @@ func (repository *Postgres) HardDeletePlacementOrganization(contextValue context
 	return nil
 }
 
+func (repository *Postgres) ListPlacementOrganizations(contextValue context.Context, transaction pgx.Tx, command app.ListPlacementOrganizations) ([]app.PlacementOrganization, error) {
+	rows, err := transaction.Query(contextValue, `
+		SELECT id::text, code, legal_name, status, version, created_at
+		FROM tenant.placement_organizations
+		WHERE deleted_at IS NULL
+		  AND ($1::text IS NULL OR status = $1)
+		  AND ($2::timestamptz IS NULL OR (created_at, id) < ($2, $3))
+		ORDER BY created_at DESC, id DESC
+		LIMIT $4
+	`,
+		nullableText(command.Status),
+		nullableTimestamp(command.CursorSort), nullableUUID(command.CursorID),
+		command.Limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list placement organizations: %w", err)
+	}
+	defer rows.Close()
+
+	organizations := make([]app.PlacementOrganization, 0, command.Limit)
+	for rows.Next() {
+		var organization app.PlacementOrganization
+		if err := rows.Scan(&organization.ID, &organization.Code, &organization.LegalName,
+			&organization.Status, &organization.Version, &organization.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan placement organization row: %w", err)
+		}
+		organizations = append(organizations, organization)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read placement organization rows: %w", err)
+	}
+	return organizations, nil
+}
+
 func (repository *Postgres) ListTenants(contextValue context.Context, transaction pgx.Tx, command app.ListTenants) ([]app.Tenant, error) {
 	rows, err := transaction.Query(contextValue, `
 		SELECT id::text, slug, legal_name, display_name, status, version, created_at

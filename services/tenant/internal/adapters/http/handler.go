@@ -25,7 +25,11 @@ func NewHandler(serviceName string, service *app.Service, readiness httpx.Readin
 	mux.HandleFunc("GET /v1/tenants", handler.listTenants)
 	mux.HandleFunc("POST /v1/tenants", handler.provisionTenant)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}", handler.getTenant)
+	mux.HandleFunc("GET /v1/placement-organizations", handler.listPlacementOrganizations)
 	mux.HandleFunc("POST /v1/placement-organizations", handler.createPlacementOrganization)
+	mux.HandleFunc("GET /v1/placement-organizations/{organization_id}", handler.getPlacementOrganization)
+	mux.HandleFunc("DELETE /v1/placement-organizations/{organization_id}", handler.deletePlacementOrganization)
+	mux.HandleFunc("DELETE /v1/placement-organizations/{organization_id}/hard", handler.hardDeletePlacementOrganization)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/departments", handler.listDepartments)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/departments", handler.createCollegeDepartment)
 	mux.HandleFunc("GET /v1/placement-organizations/{organization_id}/departments", handler.listPlacementDepartments)
@@ -122,6 +126,71 @@ func (handler *Handler) createPlacementOrganization(writer http.ResponseWriter, 
 		return
 	}
 	httpx.WriteJSON(writer, http.StatusCreated, organization)
+}
+
+func (handler *Handler) getPlacementOrganization(writer http.ResponseWriter, request *http.Request) {
+	organizationID, err := httpx.ParseUUIDPathValue(request, "organization_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "placement_organizations", organizationID, "")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	organization, err := handler.service.GetPlacementOrganization(request.Context(), decision.Capability, organizationID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, organization)
+}
+
+func (handler *Handler) deletePlacementOrganization(writer http.ResponseWriter, request *http.Request) {
+	organizationID, err := httpx.ParseUUIDPathValue(request, "organization_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var body deleteEntityRequest
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "delete", "placement_organizations", organizationID, "")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	if err := handler.service.DeletePlacementOrganization(request.Context(), decision.Capability, app.DeleteEntity{ID: organizationID, ActorID: decision.PrincipalID, Reason: body.Reason}); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.WriteHeader(http.StatusNoContent)
+}
+
+func (handler *Handler) hardDeletePlacementOrganization(writer http.ResponseWriter, request *http.Request) {
+	organizationID, err := httpx.ParseUUIDPathValue(request, "organization_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var body deleteEntityRequest
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "delete", "placement_organizations", organizationID, "")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	if err := handler.service.HardDeletePlacementOrganization(request.Context(), decision.Capability, app.DeleteEntity{ID: organizationID, ActorID: decision.PrincipalID, Reason: body.Reason}); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.WriteHeader(http.StatusNoContent)
 }
 
 type departmentRequest struct {

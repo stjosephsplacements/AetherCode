@@ -2,12 +2,14 @@
 package httpadapter
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
+	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
 	"github.com/aethercode/aethercode/libs/pkg/database"
 	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
 	"github.com/aethercode/aethercode/libs/pkg/httpauth"
@@ -15,9 +17,44 @@ import (
 	"github.com/aethercode/aethercode/services/assessment/internal/app"
 )
 
+// appService is the subset of *app.Service methods consumed by Handler.
+// Defining an interface here keeps the handler testable without a real database.
+type appService interface {
+	CreateProctorPolicy(context.Context, centralauthz.Capability, app.CreateProctorPolicy) (app.ProctorPolicy, error)
+	CreateProctorPolicyVersion(context.Context, centralauthz.Capability, app.CreateProctorPolicyVersion) (app.ProctorPolicyVersion, error)
+	PublishProctorPolicyVersion(context.Context, centralauthz.Capability, app.PublishProctorPolicyVersion) (app.ProctorPolicyVersion, error)
+	GetProctorPolicy(context.Context, centralauthz.Capability, string, string) (app.ProctorPolicy, error)
+	GetProctorPolicyVersion(context.Context, centralauthz.Capability, string, string) (app.ProctorPolicyVersion, error)
+	ListProctorPolicies(context.Context, centralauthz.Capability, app.ListProctorPolicies) (app.Page[app.ProctorPolicy], error)
+	ListProctorPolicyVersions(context.Context, centralauthz.Capability, app.ListProctorPolicyVersions) (app.Page[app.ProctorPolicyVersion], error)
+	CreateExam(context.Context, centralauthz.Capability, app.CreateExam) (app.Exam, error)
+	GetExam(context.Context, centralauthz.Capability, string, string) (app.Exam, error)
+	UpdateExam(context.Context, centralauthz.Capability, app.UpdateExam) (app.Exam, error)
+	DeleteExam(context.Context, centralauthz.Capability, app.DeleteExam) error
+	HardDeleteExam(context.Context, centralauthz.Capability, app.DeleteExam) error
+	CreateExamVersion(context.Context, centralauthz.Capability, app.CreateExamVersion) (app.ExamVersion, error)
+	GetExamVersion(context.Context, centralauthz.Capability, app.GetExamVersion) (app.ExamVersion, error)
+	AddExamSection(context.Context, centralauthz.Capability, app.AddExamSection) (app.ExamSection, error)
+	AddExamItem(context.Context, centralauthz.Capability, app.AddExamItem) (app.ExamItem, error)
+	PublishExamVersion(context.Context, centralauthz.Capability, app.PublishExamVersion) (app.ExamVersion, error)
+	CreateAssignmentRule(context.Context, centralauthz.Capability, app.CreateAssignmentRule) (app.AssignmentRule, error)
+	MaterializeDirectCandidateAssignment(context.Context, centralauthz.Capability, app.MaterializeDirectCandidateAssignment) (app.CandidateAssignment, error)
+	RevokeCandidateAssignment(context.Context, centralauthz.Capability, app.RevokeCandidateAssignment) (app.CandidateAssignment, error)
+	GetCandidateAssignment(context.Context, centralauthz.Capability, app.GetCandidateAssignment) (app.CandidateAssignment, error)
+	ListCandidateAssignments(context.Context, centralauthz.Capability, app.ListCandidateAssignments) (app.Page[app.CandidateAssignment], error)
+	ListExams(context.Context, centralauthz.Capability, app.ListExams) (app.Page[app.Exam], error)
+	ListExamVersions(context.Context, centralauthz.Capability, app.ListExamVersions) (app.Page[app.ExamVersion], error)
+}
+
+// httpAuthorizer is the subset of *httpauth.Authorizer methods consumed by Handler.
+type httpAuthorizer interface {
+	AuthorizeHTTP(context.Context, *http.Request, string, string, string, string) (httpauth.Decision, error)
+	AuthorizeSelfHTTP(context.Context, *http.Request, string, string, string) (httpauth.Decision, error)
+}
+
 type Handler struct {
-	service    *app.Service
-	authorizer *httpauth.Authorizer
+	service    appService
+	authorizer httpAuthorizer
 }
 
 func NewHandler(serviceName string, service *app.Service, readiness httpx.ReadinessFunc, authorizer *httpauth.Authorizer) (http.Handler, error) {
@@ -27,9 +64,14 @@ func NewHandler(serviceName string, service *app.Service, readiness httpx.Readin
 	handler := &Handler{service: service, authorizer: authorizer}
 	mux := httpx.NewOperationalMux(serviceName, readiness)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/proctor-policies", handler.createProctorPolicy)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/proctor-policies", handler.listProctorPolicies)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/proctor-policies/{proctor_policy_id}", handler.getProctorPolicy)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/proctor-policies/{proctor_policy_id}/versions", handler.createProctorPolicyVersion)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/proctor-policies/{proctor_policy_id}/versions", handler.listProctorPolicyVersions)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/proctor-policy-versions/{proctor_policy_version_id}/publish", handler.publishProctorPolicyVersion)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/proctor-policy-versions/{proctor_policy_version_id}", handler.getProctorPolicyVersion)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/exams", handler.createExam)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/exams/{exam_id}", handler.getExam)
 	mux.HandleFunc("PATCH /v1/tenants/{tenant_id}/exams/{exam_id}", handler.updateExam)
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/exams/{exam_id}", handler.deleteExam)
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/exams/{exam_id}/hard", handler.hardDeleteExam)
@@ -688,6 +730,78 @@ func (handler *Handler) hardDeleteExam(writer http.ResponseWriter, request *http
 		return
 	}
 	writer.WriteHeader(http.StatusNoContent)
+}
+
+func (handler *Handler) getExam(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := tenantID(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	examID, err := httpx.ParseUUIDPathValue(request, "exam_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "exams", examID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	exam, err := handler.service.GetExam(request.Context(), decision.Capability, tenantID, examID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, exam)
+}
+
+func (handler *Handler) getProctorPolicy(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := tenantID(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	policyID, err := httpx.ParseUUIDPathValue(request, "proctor_policy_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "proctor_policies", policyID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	policy, err := handler.service.GetProctorPolicy(request.Context(), decision.Capability, tenantID, policyID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, policy)
+}
+
+func (handler *Handler) getProctorPolicyVersion(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := tenantID(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	versionID, err := httpx.ParseUUIDPathValue(request, "proctor_policy_version_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "proctor_policy_versions", versionID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	policyVersion, err := handler.service.GetProctorPolicyVersion(request.Context(), decision.Capability, tenantID, versionID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, policyVersion)
 }
 
 func tenantID(request *http.Request) (string, error) {
