@@ -22,6 +22,8 @@ const (
 	JudgeService_SubmitExecution_FullMethodName         = "/aethercode.judge.v1.JudgeService/SubmitExecution"
 	JudgeService_PullCompletedExecutions_FullMethodName = "/aethercode.judge.v1.JudgeService/PullCompletedExecutions"
 	JudgeService_AcknowledgeCompletion_FullMethodName   = "/aethercode.judge.v1.JudgeService/AcknowledgeCompletion"
+	JudgeService_DeleteExecutionJob_FullMethodName      = "/aethercode.judge.v1.JudgeService/DeleteExecutionJob"
+	JudgeService_HardDeleteExecutionJob_FullMethodName  = "/aethercode.judge.v1.JudgeService/HardDeleteExecutionJob"
 )
 
 // JudgeServiceClient is the client API for JudgeService service.
@@ -31,6 +33,8 @@ type JudgeServiceClient interface {
 	SubmitExecution(ctx context.Context, in *SubmitExecutionRequest, opts ...grpc.CallOption) (*SubmitExecutionResponse, error)
 	PullCompletedExecutions(ctx context.Context, in *PullCompletedExecutionsRequest, opts ...grpc.CallOption) (*PullCompletedExecutionsResponse, error)
 	AcknowledgeCompletion(ctx context.Context, in *AcknowledgeCompletionRequest, opts ...grpc.CallOption) (*AcknowledgeCompletionResponse, error)
+	DeleteExecutionJob(ctx context.Context, in *DeleteExecutionJobRequest, opts ...grpc.CallOption) (*DeleteExecutionJobResponse, error)
+	HardDeleteExecutionJob(ctx context.Context, in *HardDeleteExecutionJobRequest, opts ...grpc.CallOption) (*HardDeleteExecutionJobResponse, error)
 }
 
 type judgeServiceClient struct {
@@ -71,6 +75,26 @@ func (c *judgeServiceClient) AcknowledgeCompletion(ctx context.Context, in *Ackn
 	return out, nil
 }
 
+func (c *judgeServiceClient) DeleteExecutionJob(ctx context.Context, in *DeleteExecutionJobRequest, opts ...grpc.CallOption) (*DeleteExecutionJobResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteExecutionJobResponse)
+	err := c.cc.Invoke(ctx, JudgeService_DeleteExecutionJob_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *judgeServiceClient) HardDeleteExecutionJob(ctx context.Context, in *HardDeleteExecutionJobRequest, opts ...grpc.CallOption) (*HardDeleteExecutionJobResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HardDeleteExecutionJobResponse)
+	err := c.cc.Invoke(ctx, JudgeService_HardDeleteExecutionJob_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // JudgeServiceServer is the server API for JudgeService service.
 // All implementations must embed UnimplementedJudgeServiceServer
 // for forward compatibility.
@@ -78,6 +102,8 @@ type JudgeServiceServer interface {
 	SubmitExecution(context.Context, *SubmitExecutionRequest) (*SubmitExecutionResponse, error)
 	PullCompletedExecutions(context.Context, *PullCompletedExecutionsRequest) (*PullCompletedExecutionsResponse, error)
 	AcknowledgeCompletion(context.Context, *AcknowledgeCompletionRequest) (*AcknowledgeCompletionResponse, error)
+	DeleteExecutionJob(context.Context, *DeleteExecutionJobRequest) (*DeleteExecutionJobResponse, error)
+	HardDeleteExecutionJob(context.Context, *HardDeleteExecutionJobRequest) (*HardDeleteExecutionJobResponse, error)
 	mustEmbedUnimplementedJudgeServiceServer()
 }
 
@@ -96,6 +122,12 @@ func (UnimplementedJudgeServiceServer) PullCompletedExecutions(context.Context, 
 }
 func (UnimplementedJudgeServiceServer) AcknowledgeCompletion(context.Context, *AcknowledgeCompletionRequest) (*AcknowledgeCompletionResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method AcknowledgeCompletion not implemented")
+}
+func (UnimplementedJudgeServiceServer) DeleteExecutionJob(context.Context, *DeleteExecutionJobRequest) (*DeleteExecutionJobResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteExecutionJob not implemented")
+}
+func (UnimplementedJudgeServiceServer) HardDeleteExecutionJob(context.Context, *HardDeleteExecutionJobRequest) (*HardDeleteExecutionJobResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method HardDeleteExecutionJob not implemented")
 }
 func (UnimplementedJudgeServiceServer) mustEmbedUnimplementedJudgeServiceServer() {}
 func (UnimplementedJudgeServiceServer) testEmbeddedByValue()                      {}
@@ -172,6 +204,42 @@ func _JudgeService_AcknowledgeCompletion_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _JudgeService_DeleteExecutionJob_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteExecutionJobRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(JudgeServiceServer).DeleteExecutionJob(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: JudgeService_DeleteExecutionJob_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(JudgeServiceServer).DeleteExecutionJob(ctx, req.(*DeleteExecutionJobRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _JudgeService_HardDeleteExecutionJob_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HardDeleteExecutionJobRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(JudgeServiceServer).HardDeleteExecutionJob(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: JudgeService_HardDeleteExecutionJob_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(JudgeServiceServer).HardDeleteExecutionJob(ctx, req.(*HardDeleteExecutionJobRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // JudgeService_ServiceDesc is the grpc.ServiceDesc for JudgeService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -190,6 +258,14 @@ var JudgeService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AcknowledgeCompletion",
 			Handler:    _JudgeService_AcknowledgeCompletion_Handler,
+		},
+		{
+			MethodName: "DeleteExecutionJob",
+			Handler:    _JudgeService_DeleteExecutionJob_Handler,
+		},
+		{
+			MethodName: "HardDeleteExecutionJob",
+			Handler:    _JudgeService_HardDeleteExecutionJob_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

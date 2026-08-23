@@ -136,6 +136,43 @@ func (server *Server) AcknowledgeCompletion(
 	return &judgev1.AcknowledgeCompletionResponse{}, nil
 }
 
+// DeleteExecutionJob soft-deletes a job, retaining it with an audit trail.
+func (server *Server) DeleteExecutionJob(
+	contextValue context.Context,
+	request *judgev1.DeleteExecutionJobRequest,
+) (*judgev1.DeleteExecutionJobResponse, error) {
+	if request == nil {
+		return nil, status.Error(codes.InvalidArgument, "delete request is required")
+	}
+	if err := server.service.DeleteExecutionJob(contextValue, app.DeleteExecutionJob{
+		ID:      request.GetId(),
+		ActorID: request.GetActorId(),
+		Reason:  request.GetReason(),
+	}); err != nil {
+		return nil, toStatusError(err)
+	}
+	return &judgev1.DeleteExecutionJobResponse{}, nil
+}
+
+// HardDeleteExecutionJob permanently removes a job. SuperAdmin only; callers
+// enforce that authorization boundary before invoking this RPC.
+func (server *Server) HardDeleteExecutionJob(
+	contextValue context.Context,
+	request *judgev1.HardDeleteExecutionJobRequest,
+) (*judgev1.HardDeleteExecutionJobResponse, error) {
+	if request == nil {
+		return nil, status.Error(codes.InvalidArgument, "delete request is required")
+	}
+	if err := server.service.HardDeleteExecutionJob(contextValue, app.DeleteExecutionJob{
+		ID:      request.GetId(),
+		ActorID: request.GetActorId(),
+		Reason:  request.GetReason(),
+	}); err != nil {
+		return nil, toStatusError(err)
+	}
+	return &judgev1.HardDeleteExecutionJobResponse{}, nil
+}
+
 func completionVerdictCode(value string) (judgev1.CompletionVerdict, error) {
 	switch value {
 	case "accepted":

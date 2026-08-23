@@ -693,6 +693,198 @@ func (*AcknowledgeCompletionResponse) Descriptor() ([]byte, []int) {
 	return file_aethercode_judge_v1_judge_proto_rawDescGZIP(), []int{7}
 }
 
+type DeleteExecutionJobRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ActorId       string                 `protobuf:"bytes,2,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
+	Reason        string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteExecutionJobRequest) Reset() {
+	*x = DeleteExecutionJobRequest{}
+	mi := &file_aethercode_judge_v1_judge_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteExecutionJobRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteExecutionJobRequest) ProtoMessage() {}
+
+func (x *DeleteExecutionJobRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_aethercode_judge_v1_judge_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteExecutionJobRequest.ProtoReflect.Descriptor instead.
+func (*DeleteExecutionJobRequest) Descriptor() ([]byte, []int) {
+	return file_aethercode_judge_v1_judge_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *DeleteExecutionJobRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *DeleteExecutionJobRequest) GetActorId() string {
+	if x != nil {
+		return x.ActorId
+	}
+	return ""
+}
+
+func (x *DeleteExecutionJobRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type DeleteExecutionJobResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteExecutionJobResponse) Reset() {
+	*x = DeleteExecutionJobResponse{}
+	mi := &file_aethercode_judge_v1_judge_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteExecutionJobResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteExecutionJobResponse) ProtoMessage() {}
+
+func (x *DeleteExecutionJobResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_aethercode_judge_v1_judge_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteExecutionJobResponse.ProtoReflect.Descriptor instead.
+func (*DeleteExecutionJobResponse) Descriptor() ([]byte, []int) {
+	return file_aethercode_judge_v1_judge_proto_rawDescGZIP(), []int{9}
+}
+
+type HardDeleteExecutionJobRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ActorId       string                 `protobuf:"bytes,2,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
+	Reason        string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HardDeleteExecutionJobRequest) Reset() {
+	*x = HardDeleteExecutionJobRequest{}
+	mi := &file_aethercode_judge_v1_judge_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HardDeleteExecutionJobRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HardDeleteExecutionJobRequest) ProtoMessage() {}
+
+func (x *HardDeleteExecutionJobRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_aethercode_judge_v1_judge_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HardDeleteExecutionJobRequest.ProtoReflect.Descriptor instead.
+func (*HardDeleteExecutionJobRequest) Descriptor() ([]byte, []int) {
+	return file_aethercode_judge_v1_judge_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *HardDeleteExecutionJobRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *HardDeleteExecutionJobRequest) GetActorId() string {
+	if x != nil {
+		return x.ActorId
+	}
+	return ""
+}
+
+func (x *HardDeleteExecutionJobRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type HardDeleteExecutionJobResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HardDeleteExecutionJobResponse) Reset() {
+	*x = HardDeleteExecutionJobResponse{}
+	mi := &file_aethercode_judge_v1_judge_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HardDeleteExecutionJobResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HardDeleteExecutionJobResponse) ProtoMessage() {}
+
+func (x *HardDeleteExecutionJobResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_aethercode_judge_v1_judge_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HardDeleteExecutionJobResponse.ProtoReflect.Descriptor instead.
+func (*HardDeleteExecutionJobResponse) Descriptor() ([]byte, []int) {
+	return file_aethercode_judge_v1_judge_proto_rawDescGZIP(), []int{11}
+}
+
 var File_aethercode_judge_v1_judge_proto protoreflect.FileDescriptor
 
 const file_aethercode_judge_v1_judge_proto_rawDesc = "" +
@@ -756,7 +948,17 @@ const file_aethercode_judge_v1_judge_proto_rawDesc = "" +
 	"\vdelivery_id\x18\x03 \x01(\tR\n" +
 	"deliveryId\x12\x19\n" +
 	"\blease_id\x18\x04 \x01(\tR\aleaseId\"\x1f\n" +
-	"\x1dAcknowledgeCompletionResponse*\xec\x02\n" +
+	"\x1dAcknowledgeCompletionResponse\"^\n" +
+	"\x19DeleteExecutionJobRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
+	"\bactor_id\x18\x02 \x01(\tR\aactorId\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\"\x1c\n" +
+	"\x1aDeleteExecutionJobResponse\"b\n" +
+	"\x1dHardDeleteExecutionJobRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
+	"\bactor_id\x18\x02 \x01(\tR\aactorId\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\" \n" +
+	"\x1eHardDeleteExecutionJobResponse*\xec\x02\n" +
 	"\x11CompletionVerdict\x12\"\n" +
 	"\x1eCOMPLETION_VERDICT_UNSPECIFIED\x10\x00\x12\x1f\n" +
 	"\x1bCOMPLETION_VERDICT_ACCEPTED\x10\x01\x12#\n" +
@@ -766,11 +968,13 @@ const file_aethercode_judge_v1_judge_proto_rawDesc = "" +
 	" COMPLETION_VERDICT_RUNTIME_ERROR\x10\x05\x12$\n" +
 	" COMPLETION_VERDICT_COMPILE_ERROR\x10\x06\x12%\n" +
 	"!COMPLETION_VERDICT_INTERNAL_ERROR\x10\a\x12 \n" +
-	"\x1cCOMPLETION_VERDICT_CANCELLED\x10\b2\x83\x03\n" +
+	"\x1cCOMPLETION_VERDICT_CANCELLED\x10\b2\xfe\x04\n" +
 	"\fJudgeService\x12l\n" +
 	"\x0fSubmitExecution\x12+.aethercode.judge.v1.SubmitExecutionRequest\x1a,.aethercode.judge.v1.SubmitExecutionResponse\x12\x84\x01\n" +
 	"\x17PullCompletedExecutions\x123.aethercode.judge.v1.PullCompletedExecutionsRequest\x1a4.aethercode.judge.v1.PullCompletedExecutionsResponse\x12~\n" +
-	"\x15AcknowledgeCompletion\x121.aethercode.judge.v1.AcknowledgeCompletionRequest\x1a2.aethercode.judge.v1.AcknowledgeCompletionResponseBPZNgithub.com/aethercode/aethercode/libs/proto/gen/go/aethercode/judge/v1;judgev1b\x06proto3"
+	"\x15AcknowledgeCompletion\x121.aethercode.judge.v1.AcknowledgeCompletionRequest\x1a2.aethercode.judge.v1.AcknowledgeCompletionResponse\x12u\n" +
+	"\x12DeleteExecutionJob\x12..aethercode.judge.v1.DeleteExecutionJobRequest\x1a/.aethercode.judge.v1.DeleteExecutionJobResponse\x12\x81\x01\n" +
+	"\x16HardDeleteExecutionJob\x122.aethercode.judge.v1.HardDeleteExecutionJobRequest\x1a3.aethercode.judge.v1.HardDeleteExecutionJobResponseBPZNgithub.com/aethercode/aethercode/libs/proto/gen/go/aethercode/judge/v1;judgev1b\x06proto3"
 
 var (
 	file_aethercode_judge_v1_judge_proto_rawDescOnce sync.Once
@@ -785,7 +989,7 @@ func file_aethercode_judge_v1_judge_proto_rawDescGZIP() []byte {
 }
 
 var file_aethercode_judge_v1_judge_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_aethercode_judge_v1_judge_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_aethercode_judge_v1_judge_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_aethercode_judge_v1_judge_proto_goTypes = []any{
 	(CompletionVerdict)(0),                  // 0: aethercode.judge.v1.CompletionVerdict
 	(*ExecutionLimits)(nil),                 // 1: aethercode.judge.v1.ExecutionLimits
@@ -796,22 +1000,30 @@ var file_aethercode_judge_v1_judge_proto_goTypes = []any{
 	(*PullCompletedExecutionsResponse)(nil), // 6: aethercode.judge.v1.PullCompletedExecutionsResponse
 	(*AcknowledgeCompletionRequest)(nil),    // 7: aethercode.judge.v1.AcknowledgeCompletionRequest
 	(*AcknowledgeCompletionResponse)(nil),   // 8: aethercode.judge.v1.AcknowledgeCompletionResponse
+	(*DeleteExecutionJobRequest)(nil),       // 9: aethercode.judge.v1.DeleteExecutionJobRequest
+	(*DeleteExecutionJobResponse)(nil),      // 10: aethercode.judge.v1.DeleteExecutionJobResponse
+	(*HardDeleteExecutionJobRequest)(nil),   // 11: aethercode.judge.v1.HardDeleteExecutionJobRequest
+	(*HardDeleteExecutionJobResponse)(nil),  // 12: aethercode.judge.v1.HardDeleteExecutionJobResponse
 }
 var file_aethercode_judge_v1_judge_proto_depIdxs = []int32{
-	1, // 0: aethercode.judge.v1.SubmitExecutionRequest.limits:type_name -> aethercode.judge.v1.ExecutionLimits
-	0, // 1: aethercode.judge.v1.Completion.verdict_code:type_name -> aethercode.judge.v1.CompletionVerdict
-	5, // 2: aethercode.judge.v1.PullCompletedExecutionsResponse.completions:type_name -> aethercode.judge.v1.Completion
-	2, // 3: aethercode.judge.v1.JudgeService.SubmitExecution:input_type -> aethercode.judge.v1.SubmitExecutionRequest
-	4, // 4: aethercode.judge.v1.JudgeService.PullCompletedExecutions:input_type -> aethercode.judge.v1.PullCompletedExecutionsRequest
-	7, // 5: aethercode.judge.v1.JudgeService.AcknowledgeCompletion:input_type -> aethercode.judge.v1.AcknowledgeCompletionRequest
-	3, // 6: aethercode.judge.v1.JudgeService.SubmitExecution:output_type -> aethercode.judge.v1.SubmitExecutionResponse
-	6, // 7: aethercode.judge.v1.JudgeService.PullCompletedExecutions:output_type -> aethercode.judge.v1.PullCompletedExecutionsResponse
-	8, // 8: aethercode.judge.v1.JudgeService.AcknowledgeCompletion:output_type -> aethercode.judge.v1.AcknowledgeCompletionResponse
-	6, // [6:9] is the sub-list for method output_type
-	3, // [3:6] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	1,  // 0: aethercode.judge.v1.SubmitExecutionRequest.limits:type_name -> aethercode.judge.v1.ExecutionLimits
+	0,  // 1: aethercode.judge.v1.Completion.verdict_code:type_name -> aethercode.judge.v1.CompletionVerdict
+	5,  // 2: aethercode.judge.v1.PullCompletedExecutionsResponse.completions:type_name -> aethercode.judge.v1.Completion
+	2,  // 3: aethercode.judge.v1.JudgeService.SubmitExecution:input_type -> aethercode.judge.v1.SubmitExecutionRequest
+	4,  // 4: aethercode.judge.v1.JudgeService.PullCompletedExecutions:input_type -> aethercode.judge.v1.PullCompletedExecutionsRequest
+	7,  // 5: aethercode.judge.v1.JudgeService.AcknowledgeCompletion:input_type -> aethercode.judge.v1.AcknowledgeCompletionRequest
+	9,  // 6: aethercode.judge.v1.JudgeService.DeleteExecutionJob:input_type -> aethercode.judge.v1.DeleteExecutionJobRequest
+	11, // 7: aethercode.judge.v1.JudgeService.HardDeleteExecutionJob:input_type -> aethercode.judge.v1.HardDeleteExecutionJobRequest
+	3,  // 8: aethercode.judge.v1.JudgeService.SubmitExecution:output_type -> aethercode.judge.v1.SubmitExecutionResponse
+	6,  // 9: aethercode.judge.v1.JudgeService.PullCompletedExecutions:output_type -> aethercode.judge.v1.PullCompletedExecutionsResponse
+	8,  // 10: aethercode.judge.v1.JudgeService.AcknowledgeCompletion:output_type -> aethercode.judge.v1.AcknowledgeCompletionResponse
+	10, // 11: aethercode.judge.v1.JudgeService.DeleteExecutionJob:output_type -> aethercode.judge.v1.DeleteExecutionJobResponse
+	12, // 12: aethercode.judge.v1.JudgeService.HardDeleteExecutionJob:output_type -> aethercode.judge.v1.HardDeleteExecutionJobResponse
+	8,  // [8:13] is the sub-list for method output_type
+	3,  // [3:8] is the sub-list for method input_type
+	3,  // [3:3] is the sub-list for extension type_name
+	3,  // [3:3] is the sub-list for extension extendee
+	0,  // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_aethercode_judge_v1_judge_proto_init() }
@@ -826,7 +1038,7 @@ func file_aethercode_judge_v1_judge_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_aethercode_judge_v1_judge_proto_rawDesc), len(file_aethercode_judge_v1_judge_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   8,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

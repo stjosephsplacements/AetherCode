@@ -2,6 +2,7 @@ package grpcadapter
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -35,6 +36,27 @@ func (store *recordingStore) HardDeleteExecutionJob(context.Context, app.DeleteE
 }
 
 func (store *recordingStore) Ping(context.Context) error { return nil }
+
+// deleteAssertingStore records the commands passed to the soft/hard delete
+// store methods and lets tests inject a store-layer error to exercise
+// toStatusError mapping.
+type deleteAssertingStore struct {
+	recordingStore
+	softDeleteCalls []app.DeleteExecutionJob
+	hardDeleteCalls []app.DeleteExecutionJob
+	softDeleteErr   error
+	hardDeleteErr   error
+}
+
+func (store *deleteAssertingStore) SoftDeleteExecutionJob(_ context.Context, command app.DeleteExecutionJob) error {
+	store.softDeleteCalls = append(store.softDeleteCalls, command)
+	return store.softDeleteErr
+}
+
+func (store *deleteAssertingStore) HardDeleteExecutionJob(_ context.Context, command app.DeleteExecutionJob) error {
+	store.hardDeleteCalls = append(store.hardDeleteCalls, command)
+	return store.hardDeleteErr
+}
 
 func validSubmitExecutionRequest(tenantFairnessKey string) *judgev1.SubmitExecutionRequest {
 	return &judgev1.SubmitExecutionRequest{
@@ -111,5 +133,79 @@ func TestSubmitExecutionNilLimiterAllowsAllRequests(t *testing.T) {
 		if _, err := server.SubmitExecution(context.Background(), validSubmitExecutionRequest("tenant-1")); err != nil {
 			t.Fatalf("request %d: unexpected error = %v (nil limiter must allow all)", i+1, err)
 		}
+	}
+}
+
+func TestServerDeleteExecutionJob(t *testing.T) {
+	t.Parallel()
+
+	store := &deleteAssertingStore{}
+	server := NewServer(app.NewService(store), nil)
+
+	request := &judgev1.DeleteExecutionJobRequest{
+		Id:      "019b11a0-0000-7000-8000-000000000010",
+		ActorId: "019b11a0-0000-7000-8000-000000000011",
+		Reason:  "duplicate submission",
+	}
+
+	if _, err := server.DeleteExecutionJob(context.Background(), request); err != nil {
+		t.Fatalf("DeleteExecutionJob() unexpected error = %v", err)
+	}
+
+	if len(store.softDeleteCalls) != 1 {
+		t.Fatalf("SoftDeleteExecutionJob call count = %d, want 1", len(store.softDeleteCalls))
+	}
+	want := app.DeleteExecutionJob{ID: request.GetId(), ActorID: request.GetActorId(), Reason: request.GetReason()}
+	if store.softDeleteCalls[0] != want {
+		t.Fatalf("SoftDeleteExecutionJob command = %+v, want %+v", store.softDeleteCalls[0], want)
+	}
+	if len(store.hardDeleteCalls) != 0 {
+		t.Fatalf("HardDeleteExecutionJob call count = %d, want 0 (DeleteExecutionJob must only soft-delete)", len(store.hardDeleteCalls))
+	}
+
+	store.softDeleteErr = app.ErrIdempotencyConflict
+	if _, err := server.DeleteExecutionJob(context.Background(), request); status.Code(err) != codes.AlreadyExists {
+		t.Fatalf("status = %v, want AlreadyExists", status.Code(err))
+	}
+
+	if _, err := server.DeleteExecutionJob(context.Background(), nil); status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("nil request: status = %v, want InvalidArgument", status.Code(err))
+	}
+}
+
+func TestServerHardDeleteExecutionJob(t *testing.T) {
+	t.Parallel()
+
+	store := &deleteAssertingStore{}
+	server := NewServer(app.NewService(store), nil)
+
+	request := &judgev1.HardDeleteExecutionJobRequest{
+		Id:      "019b11a0-0000-7000-8000-000000000012",
+		ActorId: "019b11a0-0000-7000-8000-000000000013",
+		Reason:  "SuperAdmin purge",
+	}
+
+	if _, err := server.HardDeleteExecutionJob(context.Background(), request); err != nil {
+		t.Fatalf("HardDeleteExecutionJob() unexpected error = %v", err)
+	}
+
+	if len(store.hardDeleteCalls) != 1 {
+		t.Fatalf("HardDeleteExecutionJob call count = %d, want 1", len(store.hardDeleteCalls))
+	}
+	want := app.DeleteExecutionJob{ID: request.GetId(), ActorID: request.GetActorId(), Reason: request.GetReason()}
+	if store.hardDeleteCalls[0] != want {
+		t.Fatalf("HardDeleteExecutionJob command = %+v, want %+v", store.hardDeleteCalls[0], want)
+	}
+	if len(store.softDeleteCalls) != 0 {
+		t.Fatalf("SoftDeleteExecutionJob call count = %d, want 0 (HardDeleteExecutionJob must not soft-delete)", len(store.softDeleteCalls))
+	}
+
+	store.hardDeleteErr = errors.New("store failure")
+	if _, err := server.HardDeleteExecutionJob(context.Background(), request); status.Code(err) != codes.Internal {
+		t.Fatalf("status = %v, want Internal", status.Code(err))
+	}
+
+	if _, err := server.HardDeleteExecutionJob(context.Background(), nil); status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("nil request: status = %v, want InvalidArgument", status.Code(err))
 	}
 }

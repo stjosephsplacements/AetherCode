@@ -39,6 +39,10 @@ The service implements the generated `judge/v1` gRPC contract:
 - `AcknowledgeCompletion` accepts only the exact active
   `consumer_id`/`event_id`/`delivery_id`/`lease_id` tuple after the adapter has
   persisted the result.
+- `DeleteExecutionJob` soft-deletes an execution job (`deleted_at`), retaining
+  it with an audit trail.
+- `HardDeleteExecutionJob` permanently removes an execution job. Callers must
+  restrict this to SuperAdmin; the RPC itself performs no role check.
 
 Terminal `judge.completed.v1` and `judge.failed.v1` outbox records are checked
 at the database boundary: UUIDv7 identities, a bounded verdict, parseable UTC
