@@ -78,15 +78,24 @@ go test ./...
 ## Rate limiting
 
 `SubmitExecution` is protected by an in-process token bucket
-(`libs/pkg/ratelimit`), keyed on the request's `tenant_fairness_key` — the
-same opaque per-tenant key already used for dispatch fairness, so one tenant
-cannot exhaust another tenant's admission budget. A rate-limited call returns
-`codes.ResourceExhausted`.
+(`libs/pkg/ratelimit`), keyed on the request's `tenant_fairness_key`. This key
+is **tenant-wide** — one whole college, not one candidate or one exam
+session — so the limiter is a coarse, tenant-scoped abuse backstop, not a
+fairness control: dispatch fairness across tenants is a separate concern
+already handled by the judge dispatcher. It exists to catch a runaway retry
+loop or a scripted flood, not to throttle legitimate exam traffic, where
+dozens to hundreds of candidates in one tenant can each submit/run code many
+times per hour. A rate-limited call returns `codes.ResourceExhausted`.
+
+Because a single fixed default cannot be correct for every deployment scale,
+operators must size these to their largest expected tenant's concurrent exam
+load before go-live (candidate count × expected runs-per-candidate over the
+busiest hour of an exam, with headroom).
 
 | Variable | Default | Description |
 |---|---|---|
-| `JUDGE_SUBMIT_BURST` | 20 | Token-bucket burst capacity. |
-| `JUDGE_SUBMIT_RATE` | 60 | Refill rate, requests per hour. |
+| `JUDGE_SUBMIT_BURST` | 2000 | Token-bucket burst capacity (tenant-wide). |
+| `JUDGE_SUBMIT_RATE` | 20000 | Refill rate, requests per hour (tenant-wide). |
 
 ## Dispatcher configuration
 

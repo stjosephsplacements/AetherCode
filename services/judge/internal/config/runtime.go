@@ -74,11 +74,19 @@ func Load(environment string) (Runtime, error) {
 	if runtime.RequireMTLS && !runtime.EngineCompatibilityApproved {
 		return Runtime{}, fmt.Errorf("JUDGE_ENGINE_COMPATIBILITY_APPROVED=true is required in %s", environment)
 	}
-	submitRate, err := positiveInt("JUDGE_SUBMIT_RATE", "60", 1, 10000)
+	// SubmitRate/SubmitBurst are a coarse, tenant-wide abuse backstop keyed on
+	// tenant_fairness_key (one whole college, not one candidate). Dispatch
+	// fairness across tenants is a separate, already-existing concern owned by
+	// the judge dispatcher; this limiter exists only to catch a runaway retry
+	// loop or a scripted flood, not to throttle legitimate exam traffic. The
+	// defaults are sized for roughly 500 concurrently examined candidates each
+	// running/testing code up to 20 times within a single peak hour (10000
+	// admissions/hour of genuine load), doubled for headroom.
+	submitRate, err := positiveInt("JUDGE_SUBMIT_RATE", "20000", 1, 50000)
 	if err != nil {
 		return Runtime{}, err
 	}
-	submitBurst, err := positiveInt("JUDGE_SUBMIT_BURST", "20", 1, 1000)
+	submitBurst, err := positiveInt("JUDGE_SUBMIT_BURST", "2000", 1, 5000)
 	if err != nil {
 		return Runtime{}, err
 	}
