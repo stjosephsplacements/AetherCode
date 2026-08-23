@@ -132,7 +132,7 @@ BEGIN
     );
 
     UPDATE users.students
-    SET status = 'active', version = version + 1
+    SET status = 'active', version = students.version + 1
     WHERE students.id = p_student_id;
 
     RETURN QUERY
