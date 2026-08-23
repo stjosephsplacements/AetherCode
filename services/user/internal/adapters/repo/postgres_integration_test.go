@@ -80,7 +80,7 @@ func TestRLSIsolateTenants(t *testing.T) {
 	// Insert a student for tenant A. The postgres superuser bypasses all RLS.
 	_, err = pool.Exec(ctx,
 		`INSERT INTO users.students (id, principal_id, tenant_id, enrollment_number, status)
-		 VALUES ($1, $2, $3, 'RLIST-001', 'active')`,
+		 VALUES ($1, $2, $3, 'RLIST-001', 'pending')`,
 		studentID, principalID, tenantA,
 	)
 	require.NoError(t, err, "insert tenant A student")
