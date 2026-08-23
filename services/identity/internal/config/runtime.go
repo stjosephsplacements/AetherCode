@@ -33,6 +33,10 @@ type Runtime struct {
 	MFAKeyReference              string
 	RegisterRate                 int
 	RegisterBurst                int
+	LoginRate                    int
+	LoginBurst                   int
+	PasswordResetRate            int
+	PasswordResetBurst           int
 	ExposeDevelopmentSecrets     bool
 	IntrospectionAddress         string
 	IntrospectionCertificateFile string
@@ -120,6 +124,22 @@ func Load(environment string) (Runtime, error) {
 	if err != nil {
 		return Runtime{}, err
 	}
+	loginRate, err := positiveInt("IDENTITY_LOGIN_RATE", "30", 1, 1000)
+	if err != nil {
+		return Runtime{}, err
+	}
+	loginBurst, err := positiveInt("IDENTITY_LOGIN_BURST", "10", 1, 100)
+	if err != nil {
+		return Runtime{}, err
+	}
+	passwordResetRate, err := positiveInt("IDENTITY_PASSWORD_RESET_RATE", "5", 1, 100)
+	if err != nil {
+		return Runtime{}, err
+	}
+	passwordResetBurst, err := positiveInt("IDENTITY_PASSWORD_RESET_BURST", "3", 1, 20)
+	if err != nil {
+		return Runtime{}, err
+	}
 	introspection, err := loadIntrospectionRuntime(environment)
 	if err != nil {
 		return Runtime{}, err
@@ -139,6 +159,10 @@ func Load(environment string) (Runtime, error) {
 		MFAKeyReference:              mfaKeyReference,
 		RegisterRate:                 registerRate,
 		RegisterBurst:                registerBurst,
+		LoginRate:                    loginRate,
+		LoginBurst:                   loginBurst,
+		PasswordResetRate:            passwordResetRate,
+		PasswordResetBurst:           passwordResetBurst,
 		ExposeDevelopmentSecrets:     environment == "development" || environment == "test",
 		IntrospectionAddress:         introspection.address,
 		IntrospectionCertificateFile: introspection.certificateFile,

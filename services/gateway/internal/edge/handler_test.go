@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/aethercode/aethercode/libs/pkg/authn"
+	"github.com/aethercode/aethercode/libs/pkg/ratelimit"
 )
 
 type testVerifier struct {
@@ -27,7 +28,7 @@ func (verifier *testVerifier) Verify(_ string, _ time.Time) (authn.Claims, error
 
 func newTestHandler(t *testing.T, upstreams map[string]*url.URL, verifier AssertionVerifier, prefixes []string, trusted []*net.IPNet) *Handler {
 	t.Helper()
-	limiter, err := NewLimiter(RateLimitConfig{
+	limiter, err := ratelimit.New(ratelimit.Config{
 		Capacity: 100, RefillPerSecond: 100, MaxEntries: 100, IdleTTL: time.Minute,
 	})
 	if err != nil {

@@ -75,6 +75,19 @@ Run service tests from the service module:
 go test ./...
 ```
 
+## Rate limiting
+
+`SubmitExecution` is protected by an in-process token bucket
+(`libs/pkg/ratelimit`), keyed on the request's `tenant_fairness_key` — the
+same opaque per-tenant key already used for dispatch fairness, so one tenant
+cannot exhaust another tenant's admission budget. A rate-limited call returns
+`codes.ResourceExhausted`.
+
+| Variable | Default | Description |
+|---|---|---|
+| `JUDGE_SUBMIT_BURST` | 20 | Token-bucket burst capacity. |
+| `JUDGE_SUBMIT_RATE` | 60 | Refill rate, requests per hour. |
+
 ## Dispatcher configuration
 
 The dispatcher worker is controlled by the following environment variables. All

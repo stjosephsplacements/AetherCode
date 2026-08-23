@@ -15,6 +15,7 @@ import (
 	"github.com/aethercode/aethercode/libs/pkg/database"
 	"github.com/aethercode/aethercode/libs/pkg/httpx"
 	"github.com/aethercode/aethercode/libs/pkg/logging"
+	"github.com/aethercode/aethercode/libs/pkg/ratelimit"
 	"github.com/aethercode/aethercode/libs/pkg/telemetry"
 	judgev1 "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/judge/v1"
 	amqpadapter "github.com/aethercode/aethercode/services/judge/internal/adapters/amqp"
@@ -133,8 +134,17 @@ func run(contextValue context.Context) error {
 	if err != nil {
 		return err
 	}
+	submitLimiter, err := ratelimit.New(ratelimit.Config{
+		Capacity:        float64(runtime.SubmitBurst),
+		RefillPerSecond: float64(runtime.SubmitRate) / 3600.0,
+		MaxEntries:      50000,
+		IdleTTL:         2 * time.Hour,
+	})
+	if err != nil {
+		return err
+	}
 	grpcServer := grpc.NewServer(grpcOptions...)
-	judgev1.RegisterJudgeServiceServer(grpcServer, grpcadapter.NewServer(judgeService))
+	judgev1.RegisterJudgeServiceServer(grpcServer, grpcadapter.NewServer(judgeService, submitLimiter))
 	healthServer := grpcHealth.NewServer()
 	healthServer.SetServingStatus("", grpcHealthV1.HealthCheckResponse_SERVING)
 	grpcHealthV1.RegisterHealthServer(grpcServer, healthServer)

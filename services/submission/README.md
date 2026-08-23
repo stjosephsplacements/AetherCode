@@ -110,6 +110,20 @@ When `JUDGE_COMPLETION_ENABLED=true` (mandatory in staging and production):
 
 The application pool must not use the migration owner or a role with `BYPASSRLS`. The projection worker is separate because it can write only private inbox/projection state and invoke narrow security-definer projection functions.
 
+## Rate limiting
+
+`POST /v1/tenants/{tenant_id}/attempts` is protected by an in-process,
+per-candidate token bucket (`libs/pkg/ratelimit`), keyed on the bearer
+assertion's candidate subject rather than tenant ID or client IP, so one
+candidate cannot exhaust another tenant-mate's attempt-creation budget. A
+rate-limited request receives `429 Too Many Requests` with a
+`Retry-After: 3600` header.
+
+| Variable | Default | Description |
+|---|---|---|
+| `SUBMISSION_START_ATTEMPT_BURST` | 10 | Token-bucket burst capacity. |
+| `SUBMISSION_START_ATTEMPT_RATE` | 30 | Refill rate, requests per hour. |
+
 ## Database lifecycle
 
 `000003` aligns the legacy bootstrap outbox/inbox with the shared leased outbox contract. `000004` upgrades authorization state to full revisioned grant snapshots. `000005` adds assignment projections and the attempt workflow routines. `000006` hardens workflow function compilation and terminal Judge reconciliation while retaining backward-compatible event schema version `1`. `000007` turns a newer revoked Assessment snapshot into atomic attempt/evaluation cancellation. `000009` derives one analytics-safe start outbox fact from a newly appended attempt audit event, with a database uniqueness backstop against duplicate publication. `000010` adds the dedicated completion ingress, verifies a local dispatched-job correlation, and emits `judge.completed.v1` in the same idempotent transaction before the remote lease is acknowledged. Apply paired migrations with the dedicated migrator:

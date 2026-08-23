@@ -14,12 +14,18 @@ import (
 	"github.com/aethercode/aethercode/libs/pkg/database"
 	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
 	"github.com/aethercode/aethercode/libs/pkg/httpx"
+	"github.com/aethercode/aethercode/libs/pkg/ratelimit"
 	"github.com/aethercode/aethercode/services/identity/internal/app"
 )
 
 // retryAfterRegistration is the Retry-After value sent with 429 responses on
 // the registration endpoint. One hour matches the token-bucket refill window.
 const retryAfterRegistration = "3600"
+
+// retryAfterLoginOrPasswordReset is the Retry-After value sent with 429
+// responses on the login and password-reset endpoints. One hour matches the
+// token-bucket refill window.
+const retryAfterLoginOrPasswordReset = "3600"
 
 // UseCases keeps the transport adapter independent of Identity's concrete
 // application implementation and makes request/response boundary tests small.
@@ -54,12 +60,15 @@ type Handler struct {
 	service                  UseCases
 	accessVerifier           AccessVerifier
 	exposeDevelopmentSecrets bool
-	registerLimiter          *RegisterLimiter
+	registerLimiter          *ratelimit.Limiter
+	loginLimiter             *ratelimit.Limiter
+	passwordResetLimiter     *ratelimit.Limiter
 }
 
 // NewHandler installs concrete identity workflows on an operational mux.
-// registerLimiter may be nil to disable per-IP registration rate limiting.
-func NewHandler(serviceName string, service UseCases, readiness httpx.ReadinessFunc, accessVerifier AccessVerifier, exposeDevelopmentSecrets bool, registerLimiter *RegisterLimiter) (*Handler, http.Handler, error) {
+// registerLimiter, loginLimiter, and passwordResetLimiter may each be nil to
+// disable per-IP rate limiting on their respective endpoints.
+func NewHandler(serviceName string, service UseCases, readiness httpx.ReadinessFunc, accessVerifier AccessVerifier, exposeDevelopmentSecrets bool, registerLimiter *ratelimit.Limiter, loginLimiter *ratelimit.Limiter, passwordResetLimiter *ratelimit.Limiter) (*Handler, http.Handler, error) {
 	if service == nil {
 		return nil, nil, fmt.Errorf("identity use cases are required")
 	}
@@ -71,6 +80,8 @@ func NewHandler(serviceName string, service UseCases, readiness httpx.ReadinessF
 		accessVerifier:           accessVerifier,
 		exposeDevelopmentSecrets: exposeDevelopmentSecrets,
 		registerLimiter:          registerLimiter,
+		loginLimiter:             loginLimiter,
+		passwordResetLimiter:     passwordResetLimiter,
 	}
 	mux := httpx.NewOperationalMux(serviceName, readiness)
 	mux.HandleFunc("POST /v1/auth/register", handler.register)
@@ -161,6 +172,14 @@ type loginRequest struct {
 }
 
 func (handler *Handler) login(writer http.ResponseWriter, request *http.Request) {
+	if handler.loginLimiter != nil {
+		ip := clientIP(request)
+		if !handler.loginLimiter.Allow(ip, time.Now().UTC()) {
+			writer.Header().Set("Retry-After", retryAfterLoginOrPasswordReset)
+			httpx.WriteJSON(writer, http.StatusTooManyRequests, httpx.Problem{Code: "too_many_requests", Message: "login rate limit exceeded"})
+			return
+		}
+	}
 	var body loginRequest
 	if err := httpx.DecodeJSON(request, &body); err != nil {
 		httpx.WriteError(writer, err)
@@ -254,6 +273,14 @@ type passwordResetRequest struct {
 }
 
 func (handler *Handler) requestPasswordReset(writer http.ResponseWriter, request *http.Request) {
+	if handler.passwordResetLimiter != nil {
+		ip := clientIP(request)
+		if !handler.passwordResetLimiter.Allow(ip, time.Now().UTC()) {
+			writer.Header().Set("Retry-After", retryAfterLoginOrPasswordReset)
+			httpx.WriteJSON(writer, http.StatusTooManyRequests, httpx.Problem{Code: "too_many_requests", Message: "password reset rate limit exceeded"})
+			return
+		}
+	}
 	var body passwordResetRequest
 	if err := httpx.DecodeJSON(request, &body); err != nil {
 		httpx.WriteError(writer, err)
@@ -285,6 +312,14 @@ type resetPasswordRequest struct {
 }
 
 func (handler *Handler) resetPassword(writer http.ResponseWriter, request *http.Request) {
+	if handler.passwordResetLimiter != nil {
+		ip := clientIP(request)
+		if !handler.passwordResetLimiter.Allow(ip, time.Now().UTC()) {
+			writer.Header().Set("Retry-After", retryAfterLoginOrPasswordReset)
+			httpx.WriteJSON(writer, http.StatusTooManyRequests, httpx.Problem{Code: "too_many_requests", Message: "password reset rate limit exceeded"})
+			return
+		}
+	}
 	var body resetPasswordRequest
 	if err := httpx.DecodeJSON(request, &body); err != nil {
 		httpx.WriteError(writer, err)

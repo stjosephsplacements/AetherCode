@@ -1,14 +1,28 @@
 package httpadapter
 
 import (
+	"encoding/base64"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
+	"github.com/aethercode/aethercode/libs/pkg/ratelimit"
 )
+
+// unverifiedBearerToken builds a compact JWS with the given subject and no
+// verifiable signature. It exercises only the unsigned routing path
+// (candidateResourceID / authn.UnverifiedSubject); it must never be accepted
+// as a verified assertion.
+func unverifiedBearerToken(subject string) string {
+	header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"none"}`))
+	claims := base64.RawURLEncoding.EncodeToString([]byte(`{"sub":"` + subject + `"}`))
+	signature := base64.RawURLEncoding.EncodeToString([]byte("unsigned"))
+	return header + "." + claims + "." + signature
+}
 
 func TestRequiredIdempotencyKey(t *testing.T) {
 	request := httptest.NewRequest("POST", "/", nil)
@@ -51,5 +65,83 @@ func TestOptionalUUIDQueryAcceptsValidUUID(t *testing.T) {
 	v, err := optionalUUIDQuery(req, "exam_version_id")
 	if err != nil || v != "018f4b0d-08f8-7c09-9ba7-efdf9c221001" {
 		t.Fatalf("valid UUID rejected: %q, %v", v, err)
+	}
+}
+
+func newStartAttemptRequest(candidateID string) *http.Request {
+	body := `{"candidate_assignment_id":"018f4b0d-08f8-7c09-9ba7-efdf9c221002"}`
+	request := httptest.NewRequest(http.MethodPost, "/v1/tenants/018f4b0d-08f8-7c09-9ba7-efdf9c221003/attempts", strings.NewReader(body))
+	request.SetPathValue("tenant_id", "018f4b0d-08f8-7c09-9ba7-efdf9c221003")
+	request.Header.Set("Idempotency-Key", "request-1")
+	request.Header.Set("Authorization", "Bearer "+unverifiedBearerToken(candidateID))
+	return request
+}
+
+func TestStartAttemptRateLimitBlocks429AfterBurstExhausted(t *testing.T) {
+	t.Parallel()
+	limiter, err := ratelimit.New(ratelimit.Config{
+		Capacity:        1,
+		RefillPerSecond: 0.0001,
+		MaxEntries:      100,
+		IdleTTL:         time.Hour,
+	})
+	if err != nil {
+		t.Fatalf("ratelimit.New() error = %v", err)
+	}
+	handler := &Handler{startAttemptLimiter: limiter}
+	candidateID := "018f4b0d-08f8-7c09-9ba7-efdf9c221004"
+
+	first := httptest.NewRecorder()
+	handler.startAttempt(first, newStartAttemptRequest(candidateID))
+	if first.Code == http.StatusTooManyRequests {
+		t.Fatalf("first request: unexpectedly rate limited, body = %s", first.Body.String())
+	}
+
+	second := httptest.NewRecorder()
+	handler.startAttempt(second, newStartAttemptRequest(candidateID))
+	if second.Code != http.StatusTooManyRequests {
+		t.Fatalf("second request: expected 429, got %d, body = %s", second.Code, second.Body.String())
+	}
+	if second.Header().Get("Retry-After") != retryAfterStartAttempt {
+		t.Fatalf("Retry-After = %q, want %q", second.Header().Get("Retry-After"), retryAfterStartAttempt)
+	}
+}
+
+func TestStartAttemptRateLimitTracksDistinctCandidatesSeparately(t *testing.T) {
+	t.Parallel()
+	limiter, err := ratelimit.New(ratelimit.Config{
+		Capacity:        1,
+		RefillPerSecond: 0.0001,
+		MaxEntries:      100,
+		IdleTTL:         time.Hour,
+	})
+	if err != nil {
+		t.Fatalf("ratelimit.New() error = %v", err)
+	}
+	handler := &Handler{startAttemptLimiter: limiter}
+
+	first := httptest.NewRecorder()
+	handler.startAttempt(first, newStartAttemptRequest("018f4b0d-08f8-7c09-9ba7-efdf9c221005"))
+	if first.Code == http.StatusTooManyRequests {
+		t.Fatalf("candidate-1 first request: unexpectedly rate limited")
+	}
+
+	second := httptest.NewRecorder()
+	handler.startAttempt(second, newStartAttemptRequest("018f4b0d-08f8-7c09-9ba7-efdf9c221006"))
+	if second.Code == http.StatusTooManyRequests {
+		t.Fatalf("candidate-2 first request: unexpectedly rate limited by candidate-1's bucket")
+	}
+}
+
+func TestStartAttemptNilLimiterAllowsAllRequests(t *testing.T) {
+	t.Parallel()
+	handler := &Handler{}
+	candidateID := "018f4b0d-08f8-7c09-9ba7-efdf9c221007"
+	for i := range 5 {
+		rec := httptest.NewRecorder()
+		handler.startAttempt(rec, newStartAttemptRequest(candidateID))
+		if rec.Code == http.StatusTooManyRequests {
+			t.Fatalf("request %d: unexpectedly rate limited (nil limiter must allow all)", i+1)
+		}
 	}
 }

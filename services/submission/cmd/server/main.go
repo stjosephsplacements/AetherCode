@@ -17,12 +17,14 @@ import (
 	"github.com/aethercode/aethercode/libs/pkg/httpx"
 	"github.com/aethercode/aethercode/libs/pkg/logging"
 	"github.com/aethercode/aethercode/libs/pkg/messaging"
+	"github.com/aethercode/aethercode/libs/pkg/ratelimit"
 	"github.com/aethercode/aethercode/libs/pkg/telemetry"
 	httpadapter "github.com/aethercode/aethercode/services/submission/internal/adapters/http"
 	"github.com/aethercode/aethercode/services/submission/internal/adapters/judgecompletion"
 	"github.com/aethercode/aethercode/services/submission/internal/adapters/projection"
 	"github.com/aethercode/aethercode/services/submission/internal/adapters/repo"
 	"github.com/aethercode/aethercode/services/submission/internal/app"
+	submissionconfig "github.com/aethercode/aethercode/services/submission/internal/config"
 	"github.com/aethercode/aethercode/services/submission/internal/expiry"
 )
 
@@ -306,7 +308,20 @@ func run(contextValue context.Context) error {
 		return nil
 	}
 
-	handler, err := httpadapter.NewHandler(serviceConfig.Name, submissionService, readiness, authorizer)
+	rateLimitRuntime, err := submissionconfig.Load()
+	if err != nil {
+		return err
+	}
+	startAttemptLimiter, err := ratelimit.New(ratelimit.Config{
+		Capacity:        float64(rateLimitRuntime.StartAttemptBurst),
+		RefillPerSecond: float64(rateLimitRuntime.StartAttemptRate) / 3600.0,
+		MaxEntries:      50000,
+		IdleTTL:         2 * time.Hour,
+	})
+	if err != nil {
+		return err
+	}
+	handler, err := httpadapter.NewHandler(serviceConfig.Name, submissionService, readiness, authorizer, startAttemptLimiter)
 	if err != nil {
 		return err
 	}

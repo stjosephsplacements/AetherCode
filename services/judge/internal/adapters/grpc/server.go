@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/aethercode/aethercode/libs/pkg/ratelimit"
 	judgev1 "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/judge/v1"
 	"github.com/aethercode/aethercode/services/judge/internal/app"
 	"google.golang.org/grpc/codes"
@@ -18,11 +19,13 @@ import (
 type Server struct {
 	judgev1.UnimplementedJudgeServiceServer
 	service *app.Service
+	limiter *ratelimit.Limiter
 }
 
-// NewServer constructs a Judge gRPC adapter.
-func NewServer(service *app.Service) *Server {
-	return &Server{service: service}
+// NewServer constructs a Judge gRPC adapter. limiter may be nil to disable
+// per-tenant submission rate limiting.
+func NewServer(service *app.Service, limiter *ratelimit.Limiter) *Server {
+	return &Server{service: service, limiter: limiter}
 }
 
 // SubmitExecution durably accepts a deduplicated wrapper job.
@@ -32,6 +35,14 @@ func (server *Server) SubmitExecution(
 ) (*judgev1.SubmitExecutionResponse, error) {
 	if request == nil {
 		return nil, status.Error(codes.InvalidArgument, "execution request is required")
+	}
+	if server.limiter != nil {
+		// TenantFairnessKey is the opaque dispatch-fairness key: it already
+		// exists to prevent one tenant from starving others' throughput, so it
+		// is also the correct key for admission rate limiting.
+		if !server.limiter.Allow(request.GetTenantFairnessKey(), time.Now().UTC()) {
+			return nil, status.Error(codes.ResourceExhausted, "submission rate exceeded")
+		}
 	}
 	expiresAt, err := time.Parse(time.RFC3339Nano, request.GetExpiresAt())
 	if err != nil {

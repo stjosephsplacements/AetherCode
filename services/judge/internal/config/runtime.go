@@ -4,6 +4,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -19,6 +20,8 @@ type Runtime struct {
 	RabbitURL                   string
 	PublisherID                 string
 	EngineCompatibilityApproved bool
+	SubmitRate                  int
+	SubmitBurst                 int
 }
 
 // Load returns a safe listener configuration for the supplied environment.
@@ -71,7 +74,25 @@ func Load(environment string) (Runtime, error) {
 	if runtime.RequireMTLS && !runtime.EngineCompatibilityApproved {
 		return Runtime{}, fmt.Errorf("JUDGE_ENGINE_COMPATIBILITY_APPROVED=true is required in %s", environment)
 	}
+	submitRate, err := positiveInt("JUDGE_SUBMIT_RATE", "60", 1, 10000)
+	if err != nil {
+		return Runtime{}, err
+	}
+	submitBurst, err := positiveInt("JUDGE_SUBMIT_BURST", "20", 1, 1000)
+	if err != nil {
+		return Runtime{}, err
+	}
+	runtime.SubmitRate = submitRate
+	runtime.SubmitBurst = submitBurst
 	return runtime, nil
+}
+
+func positiveInt(key, fallback string, minimum, maximum int) (int, error) {
+	parsed, err := strconv.Atoi(value(key, fallback))
+	if err != nil || parsed < minimum || parsed > maximum {
+		return 0, fmt.Errorf("%s must be between %d and %d", key, minimum, maximum)
+	}
+	return parsed, nil
 }
 
 func splitSubjects(raw string) []string {

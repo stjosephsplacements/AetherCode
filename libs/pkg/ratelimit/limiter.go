@@ -1,4 +1,7 @@
-package edge
+// Package ratelimit provides an in-process token bucket limiter shared by
+// services that need to throttle abusive traffic per key (client IP, tenant,
+// candidate, etc.) without an external dependency.
+package ratelimit
 
 import (
 	"fmt"
@@ -6,10 +9,10 @@ import (
 	"time"
 )
 
-// RateLimitConfig describes an in-process token bucket set. It is deliberately
-// bounded: a malicious stream of principals/IPs cannot grow the gateway heap
+// Config describes an in-process token bucket set. It is deliberately
+// bounded: a malicious stream of principals/IPs cannot grow the process heap
 // without limit.
-type RateLimitConfig struct {
+type Config struct {
 	Capacity        float64
 	RefillPerSecond float64
 	MaxEntries      int
@@ -25,11 +28,12 @@ type tokenBucket struct {
 // Limiter is safe for concurrent HTTP handlers.
 type Limiter struct {
 	mu      sync.Mutex
-	config  RateLimitConfig
+	config  Config
 	buckets map[string]tokenBucket
 }
 
-func NewLimiter(config RateLimitConfig) (*Limiter, error) {
+// New constructs a limiter from the supplied config.
+func New(config Config) (*Limiter, error) {
 	if config.Capacity <= 0 || config.RefillPerSecond <= 0 || config.MaxEntries <= 0 || config.IdleTTL <= 0 {
 		return nil, fmt.Errorf("token bucket configuration must be positive")
 	}

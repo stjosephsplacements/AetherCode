@@ -82,6 +82,21 @@ Principals and credentials support soft delete for account deactivation:
 
 Ref: [ADR-0013](../../docs/adr/0013-soft-delete-architecture.md)
 
+## Rate limiting
+
+`POST /v1/auth/register`, `POST /v1/auth/login`, `POST /v1/auth/password-reset`,
+and `POST /v1/auth/password-reset/complete` are each protected by an
+in-process, per-client-IP token bucket (`libs/pkg/ratelimit`). Password reset
+request and completion share one budget, since both are the same abuse
+surface. A rate-limited request receives `429 Too Many Requests` with a
+`Retry-After: 3600` header.
+
+| Endpoint(s) | Burst env var | Refill-per-hour env var | Defaults |
+|---|---|---|---|
+| `POST /v1/auth/register` | `IDENTITY_REGISTER_BURST` | `IDENTITY_REGISTER_RATE` | burst 2, 5/hour |
+| `POST /v1/auth/login` | `IDENTITY_LOGIN_BURST` | `IDENTITY_LOGIN_RATE` | burst 10, 30/hour |
+| `POST /v1/auth/password-reset`, `POST /v1/auth/password-reset/complete` | `IDENTITY_PASSWORD_RESET_BURST` | `IDENTITY_PASSWORD_RESET_RATE` | burst 3, 5/hour |
+
 ## Authorization projection recovery
 
 `000006_authorization_projection_resync` replaces Identity's legacy
