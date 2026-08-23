@@ -95,6 +95,16 @@ func TestRLSIsolateTenants(t *testing.T) {
 	)
 	require.NoError(t, err, "insert actor tenant A authorization")
 
+	// Seed the principal authorization revision snapshot. The current_context_valid_student
+	// function (defined in migration 000006) performs an inner join on this table to validate
+	// that the authorization revision snapshot matches. In production, the projection worker
+	// keeps this table in sync with actor_tenant_authorizations; in tests, we seed it directly.
+	_, err = pool.Exec(ctx,
+		`INSERT INTO authz.principal_authorization_revisions (actor_id, authz_revision) VALUES ($1, 1)`,
+		actorID,
+	)
+	require.NoError(t, err, "insert actor authorization revision snapshot")
+
 	// --- table-driven RLS assertions ------------------------------------------
 	tests := []struct {
 		name            string
