@@ -281,6 +281,32 @@ func (repository *Postgres) AddExamItem(ctx context.Context, transaction pgx.Tx,
 	return item, nil
 }
 
+func (repository *Postgres) RemoveExamSection(ctx context.Context, transaction pgx.Tx, command app.RemoveExamSection) error {
+	if _, err := transaction.Exec(ctx, `
+		SELECT assessment.remove_exam_section($1, $2, $3, $4)
+	`, command.ID, command.TenantID, command.ExamVersionID, command.ExpectedContentVersion); err != nil {
+		return mapWriteError(err, "exam section could not be removed")
+	}
+	return repository.enqueue(ctx, transaction, "exam_section", command.ID, command.TenantID, "assessment.exam_section.removed.v1", struct {
+		ExamSectionID string `json:"exam_section_id"`
+		ExamVersionID string `json:"exam_version_id"`
+		TenantID      string `json:"tenant_id"`
+	}{command.ID, command.ExamVersionID, command.TenantID})
+}
+
+func (repository *Postgres) RemoveExamItem(ctx context.Context, transaction pgx.Tx, command app.RemoveExamItem) error {
+	if _, err := transaction.Exec(ctx, `
+		SELECT assessment.remove_exam_item($1, $2, $3, $4)
+	`, command.ID, command.TenantID, command.ExamVersionID, command.ExpectedContentVersion); err != nil {
+		return mapWriteError(err, "exam item could not be removed")
+	}
+	return repository.enqueue(ctx, transaction, "exam_item", command.ID, command.TenantID, "assessment.exam_item.removed.v1", struct {
+		ExamItemID    string `json:"exam_item_id"`
+		ExamVersionID string `json:"exam_version_id"`
+		TenantID      string `json:"tenant_id"`
+	}{command.ID, command.ExamVersionID, command.TenantID})
+}
+
 func (repository *Postgres) PublishExamVersion(ctx context.Context, transaction pgx.Tx, command app.PublishExamVersion) (app.ExamVersion, error) {
 	eventID, err := database.NewUUIDv7()
 	if err != nil {

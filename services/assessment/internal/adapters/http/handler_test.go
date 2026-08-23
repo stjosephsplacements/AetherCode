@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -21,6 +23,8 @@ const (
 	testExamID    = "018f4b0d-08f8-7c09-9ba7-efdf9c222002"
 	testPolicyID  = "018f4b0d-08f8-7c09-9ba7-efdf9c222003"
 	testVersionID = "018f4b0d-08f8-7c09-9ba7-efdf9c222004"
+	testSectionID = "018f4b0d-08f8-7c09-9ba7-efdf9c222005"
+	testItemID    = "018f4b0d-08f8-7c09-9ba7-efdf9c222006"
 )
 
 // stubAuthorizer implements httpAuthorizer and always returns the configured decision.
@@ -46,6 +50,8 @@ type stubService struct {
 	getProctorPolicyVersionFn   func(context.Context, centralauthz.Capability, string, string) (app.ProctorPolicyVersion, error)
 	listProctorPoliciesFn       func(context.Context, centralauthz.Capability, app.ListProctorPolicies) (app.Page[app.ProctorPolicy], error)
 	listProctorPolicyVersionsFn func(context.Context, centralauthz.Capability, app.ListProctorPolicyVersions) (app.Page[app.ProctorPolicyVersion], error)
+	removeExamSectionFn         func(context.Context, centralauthz.Capability, app.RemoveExamSection) error
+	removeExamItemFn            func(context.Context, centralauthz.Capability, app.RemoveExamItem) error
 }
 
 func (s *stubService) GetExam(ctx context.Context, cap centralauthz.Capability, tenantID, examID string) (app.Exam, error) {
@@ -97,6 +103,12 @@ func (s *stubService) AddExamSection(context.Context, centralauthz.Capability, a
 }
 func (s *stubService) AddExamItem(context.Context, centralauthz.Capability, app.AddExamItem) (app.ExamItem, error) {
 	panic("AddExamItem not expected")
+}
+func (s *stubService) RemoveExamSection(ctx context.Context, cap centralauthz.Capability, cmd app.RemoveExamSection) error {
+	return s.removeExamSectionFn(ctx, cap, cmd)
+}
+func (s *stubService) RemoveExamItem(ctx context.Context, cap centralauthz.Capability, cmd app.RemoveExamItem) error {
+	return s.removeExamItemFn(ctx, cap, cmd)
 }
 func (s *stubService) PublishExamVersion(context.Context, centralauthz.Capability, app.PublishExamVersion) (app.ExamVersion, error) {
 	panic("PublishExamVersion not expected")
@@ -442,6 +454,223 @@ func TestListProctorPolicyVersionsRejectsInvalidPolicyID(t *testing.T) {
 	request.SetPathValue("proctor_policy_id", "not-a-uuid")
 
 	handler.listProctorPolicyVersions(writer, request)
+
+	if writer.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", writer.Code)
+	}
+}
+
+// -- DELETE /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/sections/{section_id} ----
+
+func removeExamSectionRequestBody(t *testing.T, contentVersion int64) *http.Request {
+	t.Helper()
+	body := strings.NewReader(`{"expected_content_version":` + strconv.FormatInt(contentVersion, 10) + `}`)
+	request := httptest.NewRequest(http.MethodDelete,
+		"/v1/tenants/"+testTenantID+"/exam-versions/"+testVersionID+"/sections/"+testSectionID, body)
+	request.Header.Set("Idempotency-Key", "assessment:remove-section")
+	request.SetPathValue("tenant_id", testTenantID)
+	request.SetPathValue("exam_version_id", testVersionID)
+	request.SetPathValue("section_id", testSectionID)
+	return request
+}
+
+func TestRemoveExamSectionReturns204OnSuccess(t *testing.T) {
+	t.Parallel()
+	svc := &stubService{
+		removeExamSectionFn: func(_ context.Context, _ centralauthz.Capability, _ app.RemoveExamSection) error {
+			return nil
+		},
+	}
+	handler := &Handler{service: svc, authorizer: allowedAuthorizer()}
+	writer := httptest.NewRecorder()
+
+	handler.removeExamSection(writer, removeExamSectionRequestBody(t, 1))
+
+	if writer.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want 204", writer.Code)
+	}
+}
+
+func TestRemoveExamSectionReturnsConflictOnStaleContentVersion(t *testing.T) {
+	t.Parallel()
+	svc := &stubService{
+		removeExamSectionFn: func(_ context.Context, _ centralauthz.Capability, _ app.RemoveExamSection) error {
+			return apperrors.New(apperrors.CodeConflict, "exam content version is stale")
+		},
+	}
+	handler := &Handler{service: svc, authorizer: allowedAuthorizer()}
+	writer := httptest.NewRecorder()
+
+	handler.removeExamSection(writer, removeExamSectionRequestBody(t, 1))
+
+	if writer.Code != http.StatusConflict {
+		t.Fatalf("status = %d, want 409", writer.Code)
+	}
+}
+
+func TestRemoveExamSectionReturnsConflictWhenVersionPublished(t *testing.T) {
+	t.Parallel()
+	svc := &stubService{
+		removeExamSectionFn: func(_ context.Context, _ centralauthz.Capability, _ app.RemoveExamSection) error {
+			return apperrors.New(apperrors.CodeConflict, "published exam version is immutable")
+		},
+	}
+	handler := &Handler{service: svc, authorizer: allowedAuthorizer()}
+	writer := httptest.NewRecorder()
+
+	handler.removeExamSection(writer, removeExamSectionRequestBody(t, 1))
+
+	if writer.Code != http.StatusConflict {
+		t.Fatalf("status = %d, want 409", writer.Code)
+	}
+}
+
+func TestRemoveExamSectionReturnsNotFoundWhenMissing(t *testing.T) {
+	t.Parallel()
+	svc := &stubService{
+		removeExamSectionFn: func(_ context.Context, _ centralauthz.Capability, _ app.RemoveExamSection) error {
+			return apperrors.New(apperrors.CodeNotFound, "exam section was not found")
+		},
+	}
+	handler := &Handler{service: svc, authorizer: allowedAuthorizer()}
+	writer := httptest.NewRecorder()
+
+	handler.removeExamSection(writer, removeExamSectionRequestBody(t, 1))
+
+	if writer.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", writer.Code)
+	}
+}
+
+func TestRemoveExamSectionRejectsSectionWithItems(t *testing.T) {
+	t.Parallel()
+	svc := &stubService{
+		removeExamSectionFn: func(_ context.Context, _ centralauthz.Capability, _ app.RemoveExamSection) error {
+			return apperrors.New(apperrors.CodeInvalidArgument, "exam section still has items; remove them first")
+		},
+	}
+	handler := &Handler{service: svc, authorizer: allowedAuthorizer()}
+	writer := httptest.NewRecorder()
+
+	handler.removeExamSection(writer, removeExamSectionRequestBody(t, 1))
+
+	if writer.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", writer.Code)
+	}
+}
+
+func TestRemoveExamSectionRejectsInvalidSectionID(t *testing.T) {
+	t.Parallel()
+	handler := &Handler{authorizer: allowedAuthorizer()}
+	writer := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodDelete,
+		"/v1/tenants/"+testTenantID+"/exam-versions/"+testVersionID+"/sections/not-a-uuid", nil)
+	request.SetPathValue("tenant_id", testTenantID)
+	request.SetPathValue("exam_version_id", testVersionID)
+	request.SetPathValue("section_id", "not-a-uuid")
+
+	handler.removeExamSection(writer, request)
+
+	if writer.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", writer.Code)
+	}
+}
+
+// -- DELETE .../sections/{section_id}/items/{item_id} ------------------------
+
+func removeExamItemRequestBody(t *testing.T, contentVersion int64) *http.Request {
+	t.Helper()
+	body := strings.NewReader(`{"expected_content_version":` + strconv.FormatInt(contentVersion, 10) + `}`)
+	request := httptest.NewRequest(http.MethodDelete,
+		"/v1/tenants/"+testTenantID+"/exam-versions/"+testVersionID+"/sections/"+testSectionID+"/items/"+testItemID, body)
+	request.Header.Set("Idempotency-Key", "assessment:remove-item")
+	request.SetPathValue("tenant_id", testTenantID)
+	request.SetPathValue("exam_version_id", testVersionID)
+	request.SetPathValue("section_id", testSectionID)
+	request.SetPathValue("item_id", testItemID)
+	return request
+}
+
+func TestRemoveExamItemReturns204OnSuccess(t *testing.T) {
+	t.Parallel()
+	svc := &stubService{
+		removeExamItemFn: func(_ context.Context, _ centralauthz.Capability, _ app.RemoveExamItem) error {
+			return nil
+		},
+	}
+	handler := &Handler{service: svc, authorizer: allowedAuthorizer()}
+	writer := httptest.NewRecorder()
+
+	handler.removeExamItem(writer, removeExamItemRequestBody(t, 1))
+
+	if writer.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want 204", writer.Code)
+	}
+}
+
+func TestRemoveExamItemReturnsConflictOnStaleContentVersion(t *testing.T) {
+	t.Parallel()
+	svc := &stubService{
+		removeExamItemFn: func(_ context.Context, _ centralauthz.Capability, _ app.RemoveExamItem) error {
+			return apperrors.New(apperrors.CodeConflict, "exam content version is stale")
+		},
+	}
+	handler := &Handler{service: svc, authorizer: allowedAuthorizer()}
+	writer := httptest.NewRecorder()
+
+	handler.removeExamItem(writer, removeExamItemRequestBody(t, 1))
+
+	if writer.Code != http.StatusConflict {
+		t.Fatalf("status = %d, want 409", writer.Code)
+	}
+}
+
+func TestRemoveExamItemReturnsConflictWhenVersionPublished(t *testing.T) {
+	t.Parallel()
+	svc := &stubService{
+		removeExamItemFn: func(_ context.Context, _ centralauthz.Capability, _ app.RemoveExamItem) error {
+			return apperrors.New(apperrors.CodeConflict, "published exam version is immutable")
+		},
+	}
+	handler := &Handler{service: svc, authorizer: allowedAuthorizer()}
+	writer := httptest.NewRecorder()
+
+	handler.removeExamItem(writer, removeExamItemRequestBody(t, 1))
+
+	if writer.Code != http.StatusConflict {
+		t.Fatalf("status = %d, want 409", writer.Code)
+	}
+}
+
+func TestRemoveExamItemReturnsNotFoundWhenMissing(t *testing.T) {
+	t.Parallel()
+	svc := &stubService{
+		removeExamItemFn: func(_ context.Context, _ centralauthz.Capability, _ app.RemoveExamItem) error {
+			return apperrors.New(apperrors.CodeNotFound, "exam item was not found")
+		},
+	}
+	handler := &Handler{service: svc, authorizer: allowedAuthorizer()}
+	writer := httptest.NewRecorder()
+
+	handler.removeExamItem(writer, removeExamItemRequestBody(t, 1))
+
+	if writer.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", writer.Code)
+	}
+}
+
+func TestRemoveExamItemRejectsInvalidItemID(t *testing.T) {
+	t.Parallel()
+	handler := &Handler{authorizer: allowedAuthorizer()}
+	writer := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodDelete,
+		"/v1/tenants/"+testTenantID+"/exam-versions/"+testVersionID+"/sections/"+testSectionID+"/items/not-a-uuid", nil)
+	request.SetPathValue("tenant_id", testTenantID)
+	request.SetPathValue("exam_version_id", testVersionID)
+	request.SetPathValue("section_id", testSectionID)
+	request.SetPathValue("item_id", "not-a-uuid")
+
+	handler.removeExamItem(writer, request)
 
 	if writer.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400", writer.Code)

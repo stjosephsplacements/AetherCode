@@ -36,6 +36,8 @@ type appService interface {
 	GetExamVersion(context.Context, centralauthz.Capability, app.GetExamVersion) (app.ExamVersion, error)
 	AddExamSection(context.Context, centralauthz.Capability, app.AddExamSection) (app.ExamSection, error)
 	AddExamItem(context.Context, centralauthz.Capability, app.AddExamItem) (app.ExamItem, error)
+	RemoveExamSection(context.Context, centralauthz.Capability, app.RemoveExamSection) error
+	RemoveExamItem(context.Context, centralauthz.Capability, app.RemoveExamItem) error
 	PublishExamVersion(context.Context, centralauthz.Capability, app.PublishExamVersion) (app.ExamVersion, error)
 	CreateAssignmentRule(context.Context, centralauthz.Capability, app.CreateAssignmentRule) (app.AssignmentRule, error)
 	MaterializeDirectCandidateAssignment(context.Context, centralauthz.Capability, app.MaterializeDirectCandidateAssignment) (app.CandidateAssignment, error)
@@ -79,6 +81,8 @@ func NewHandler(serviceName string, service *app.Service, readiness httpx.Readin
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}", handler.getExamVersion)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/sections", handler.addExamSection)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/sections/{section_id}/items", handler.addExamItem)
+	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/sections/{section_id}", handler.removeExamSection)
+	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/sections/{section_id}/items/{item_id}", handler.removeExamItem)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/publish", handler.publishExamVersion)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/assignment-rules", handler.createAssignmentRule)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/assignment-rules/{assignment_rule_id}/candidate-assignments", handler.materializeDirectCandidateAssignment)
@@ -429,6 +433,100 @@ func (handler *Handler) addExamItem(writer http.ResponseWriter, request *http.Re
 		return
 	}
 	httpx.WriteJSON(writer, http.StatusCreated, item)
+}
+
+type removeExamSectionRequest struct {
+	ExpectedContentVersion int64 `json:"expected_content_version"`
+}
+
+func (handler *Handler) removeExamSection(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := tenantID(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	versionID, err := httpx.ParseUUIDPathValue(request, "exam_version_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	sectionID, err := httpx.ParseUUIDPathValue(request, "section_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var body removeExamSectionRequest
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	key, err := idempotencyKey(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "exam_sections", sectionID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	if err := handler.service.RemoveExamSection(request.Context(), decision.Capability, app.RemoveExamSection{
+		WriteCommand: app.WriteCommand{IdempotencyKey: key}, ID: sectionID, TenantID: tenantID, ExamVersionID: versionID,
+		ExpectedContentVersion: body.ExpectedContentVersion,
+	}); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.WriteHeader(http.StatusNoContent)
+}
+
+type removeExamItemRequest struct {
+	ExpectedContentVersion int64 `json:"expected_content_version"`
+}
+
+func (handler *Handler) removeExamItem(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := tenantID(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	versionID, err := httpx.ParseUUIDPathValue(request, "exam_version_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	if _, err := httpx.ParseUUIDPathValue(request, "section_id"); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	itemID, err := httpx.ParseUUIDPathValue(request, "item_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var body removeExamItemRequest
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	key, err := idempotencyKey(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "exam_items", itemID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	if err := handler.service.RemoveExamItem(request.Context(), decision.Capability, app.RemoveExamItem{
+		WriteCommand: app.WriteCommand{IdempotencyKey: key}, ID: itemID, TenantID: tenantID, ExamVersionID: versionID,
+		ExpectedContentVersion: body.ExpectedContentVersion,
+	}); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.WriteHeader(http.StatusNoContent)
 }
 
 type publishExamVersionRequest struct {

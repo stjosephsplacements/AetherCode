@@ -36,6 +36,13 @@ database layers.
   optimistic concurrency. Question IDs, encrypted evaluation-bundle object
   references, and checksums are opaque; Assessment never reads Question Bank
   tables.
+- Remove a draft section (`DELETE
+  /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/sections/{section_id}`)
+  or item (`DELETE
+  /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/sections/{section_id}/items/{item_id}`),
+  gated by the same draft-only, optimistic-concurrency `content_version` check
+  as the add endpoints. A section that still has items cannot be removed;
+  remove its items first.
 - Publish only a complete, unexpired draft with at least one section and one
   item. Publication atomically updates the parent exam, writes an append-only
   `exam_events` record, and queues `assessment.exam_version.published.v1`.

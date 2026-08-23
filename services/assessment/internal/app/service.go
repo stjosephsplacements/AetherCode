@@ -48,6 +48,8 @@ type Store interface {
 	CreateExamVersion(context.Context, pgx.Tx, CreateExamVersion) (ExamVersion, error)
 	AddExamSection(context.Context, pgx.Tx, AddExamSection) (ExamSection, error)
 	AddExamItem(context.Context, pgx.Tx, AddExamItem) (ExamItem, error)
+	RemoveExamSection(context.Context, pgx.Tx, RemoveExamSection) error
+	RemoveExamItem(context.Context, pgx.Tx, RemoveExamItem) error
 	PublishExamVersion(context.Context, pgx.Tx, PublishExamVersion) (ExamVersion, error)
 	CreateAssignmentRule(context.Context, pgx.Tx, CreateAssignmentRule) (AssignmentRule, error)
 	MaterializeDirectCandidateAssignment(context.Context, pgx.Tx, MaterializeDirectCandidateAssignment) (CandidateAssignment, error)
@@ -320,6 +322,22 @@ type AddExamItem struct {
 	EvaluationBundleChecksum  string
 }
 
+type RemoveExamSection struct {
+	WriteCommand
+	ID                     string
+	TenantID               string
+	ExamVersionID          string
+	ExpectedContentVersion int64
+}
+
+type RemoveExamItem struct {
+	WriteCommand
+	ID                     string
+	TenantID               string
+	ExamVersionID          string
+	ExpectedContentVersion int64
+}
+
 type PublishExamVersion struct {
 	WriteCommand
 	TenantID               string
@@ -536,6 +554,42 @@ func (service *Service) AddExamItem(ctx context.Context, capability centralauthz
 			return service.store.AddExamItem(ctx, transaction, command)
 		},
 	)
+}
+
+func (service *Service) RemoveExamSection(ctx context.Context, capability centralauthz.Capability, command RemoveExamSection) error {
+	command.ID, command.TenantID, command.ExamVersionID = normalizeID(command.ID), normalizeID(command.TenantID), normalizeID(command.ExamVersionID)
+	if !validID(command.ID) || !validID(command.TenantID) || !validID(command.ExamVersionID) || command.ExpectedContentVersion <= 0 {
+		return invalid("exam section removal fields are invalid")
+	}
+	_, err := runWrite(service, ctx, capability, command.TenantID, "assessment.exam_section.remove", command.IdempotencyKey,
+		struct {
+			ID                     string `json:"id"`
+			ExamVersionID          string `json:"exam_version_id"`
+			ExpectedContentVersion int64  `json:"expected_content_version"`
+		}{command.ID, command.ExamVersionID, command.ExpectedContentVersion}, httpStatusOK,
+		func(transaction pgx.Tx) (struct{}, error) {
+			return struct{}{}, service.store.RemoveExamSection(ctx, transaction, command)
+		},
+	)
+	return err
+}
+
+func (service *Service) RemoveExamItem(ctx context.Context, capability centralauthz.Capability, command RemoveExamItem) error {
+	command.ID, command.TenantID, command.ExamVersionID = normalizeID(command.ID), normalizeID(command.TenantID), normalizeID(command.ExamVersionID)
+	if !validID(command.ID) || !validID(command.TenantID) || !validID(command.ExamVersionID) || command.ExpectedContentVersion <= 0 {
+		return invalid("exam item removal fields are invalid")
+	}
+	_, err := runWrite(service, ctx, capability, command.TenantID, "assessment.exam_item.remove", command.IdempotencyKey,
+		struct {
+			ID                     string `json:"id"`
+			ExamVersionID          string `json:"exam_version_id"`
+			ExpectedContentVersion int64  `json:"expected_content_version"`
+		}{command.ID, command.ExamVersionID, command.ExpectedContentVersion}, httpStatusOK,
+		func(transaction pgx.Tx) (struct{}, error) {
+			return struct{}{}, service.store.RemoveExamItem(ctx, transaction, command)
+		},
+	)
+	return err
 }
 
 func (service *Service) PublishExamVersion(ctx context.Context, capability centralauthz.Capability, command PublishExamVersion) (ExamVersion, error) {
