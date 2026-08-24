@@ -124,19 +124,30 @@ func Load(environment string) (Runtime, error) {
 	if err != nil {
 		return Runtime{}, err
 	}
-	loginRate, err := positiveInt("IDENTITY_LOGIN_RATE", "30", 1, 1000)
+	// LoginRate/LoginBurst and PasswordResetRate/PasswordResetBurst are coarse
+	// abuse backstops keyed on client IP, not per-account or per-tenant
+	// controls. College campus networks commonly NAT hundreds of students
+	// behind one or a handful of public IPs, so a tight per-IP default would
+	// black out an entire campus's exam-morning login traffic. The defaults
+	// below are sized for roughly 500 students sharing one public IP, each
+	// attempting login up to 5 times within the busiest hour (mistyped
+	// passwords, MFA retries), doubled for headroom; password-reset defaults
+	// assume the same population with a lower per-student attempt rate.
+	// Operators must size these to their own largest expected shared-IP
+	// population before go-live.
+	loginRate, err := positiveInt("IDENTITY_LOGIN_RATE", "2000", 1, 20000)
 	if err != nil {
 		return Runtime{}, err
 	}
-	loginBurst, err := positiveInt("IDENTITY_LOGIN_BURST", "10", 1, 100)
+	loginBurst, err := positiveInt("IDENTITY_LOGIN_BURST", "500", 1, 5000)
 	if err != nil {
 		return Runtime{}, err
 	}
-	passwordResetRate, err := positiveInt("IDENTITY_PASSWORD_RESET_RATE", "5", 1, 100)
+	passwordResetRate, err := positiveInt("IDENTITY_PASSWORD_RESET_RATE", "1000", 1, 10000)
 	if err != nil {
 		return Runtime{}, err
 	}
-	passwordResetBurst, err := positiveInt("IDENTITY_PASSWORD_RESET_BURST", "3", 1, 20)
+	passwordResetBurst, err := positiveInt("IDENTITY_PASSWORD_RESET_BURST", "300", 1, 3000)
 	if err != nil {
 		return Runtime{}, err
 	}
