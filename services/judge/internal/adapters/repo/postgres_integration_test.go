@@ -3,7 +3,12 @@
 package repo_test
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"io"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -12,7 +17,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
+	"github.com/aethercode/aethercode/libs/pkg/database"
 	"github.com/aethercode/aethercode/libs/pkg/testutil/integration"
+	"github.com/aethercode/aethercode/services/judge/internal/adapters/repo"
+	"github.com/aethercode/aethercode/services/judge/internal/app"
 )
 
 // TestRLSIsolateTenants proves the access boundary judge actually implements
@@ -138,6 +146,186 @@ func TestRLSIsolateTenants(t *testing.T) {
 		require.NoError(t, err, "select count")
 		require.Equal(t, 0, count, "the row must be physically gone after hard_delete")
 	})
+}
+
+// TestSubmitFansOutBundleIntoExecutionUnits proves the full fan-out path
+// (Tasks 1-2 of this plan) end to end against a real PostgreSQL: submitting
+// one evaluation bundle with three test cases must leave exactly three
+// judge.execution_units rows, one per test case, all created inside the same
+// transaction as the execution_jobs row itself.
+//
+// Object storage and KMS are faked in-memory (see fakeStorage/fakeKMS below,
+// mirroring the pattern already established in postgres_fanout_test.go's
+// unit tests for fanOutTestCases) since libs/pkg/testutil has no MinIO
+// testcontainer helper to start a real object store here.
+func TestSubmitFansOutBundleIntoExecutionUnits(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	pool := integration.StartPostgres(ctx, t)
+
+	// --- pre-migration role and schema setup -----------------------------------
+	for _, stmt := range []string{
+		`CREATE ROLE aether_judge_migrator NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
+		`CREATE ROLE aether_judge_app      NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
+		`ALTER DATABASE testdb OWNER TO aether_judge_migrator`,
+		`ALTER SCHEMA public OWNER TO aether_judge_migrator`,
+		`CREATE TABLE public.schema_migrations (version bigint NOT NULL PRIMARY KEY, dirty boolean NOT NULL)`,
+		`ALTER TABLE public.schema_migrations OWNER TO aether_judge_migrator`,
+	} {
+		_, err := pool.Exec(ctx, stmt)
+		require.NoError(t, err, "pre-migration setup: %s", stmt[:min(len(stmt), 60)])
+	}
+
+	// --- apply migrations ------------------------------------------------------
+	_, file, _, _ := runtime.Caller(0)
+	svcRoot := filepath.Join(filepath.Dir(file), "../../..")
+	migrationsDir, err := filepath.Abs(filepath.Join(svcRoot, "migrations"))
+	require.NoError(t, err)
+	integration.ApplyMigrations(ctx, t, pool, migrationsDir)
+
+	// --- enable the language this submission targets ----------------------------
+	_, err = pool.Exec(ctx, `
+		INSERT INTO judge.language_mappings (language_key, engine_language_id, engine_version, enabled, max_parallelism)
+		VALUES ('python3', 71, '3.11.2', true, 4)
+	`)
+	require.NoError(t, err, "seed enabled language mapping")
+
+	// --- seed a real evaluation bundle in fake storage, encrypted with the fake KMS
+	objectStorage := newFakeStorage()
+	keyManager := fakeKMS{}
+
+	bundlePlaintext := []byte(`{"schema_version": 1, "test_cases": [
+		{"stdin": "1\n", "expected_output": "1\n"},
+		{"stdin": "2\n", "expected_output": "4\n"},
+		{"stdin": "3\n", "expected_output": "9\n"}
+	]}`)
+	bundleCiphertext, bundleKeyRef, err := keyManager.Encrypt(ctx, bundlePlaintext)
+	require.NoError(t, err, "encrypt fixture bundle")
+	const bundleObjectKey = "bundles/fanout-integration-test"
+	objectStorage.objects[bundleObjectKey] = bundleCiphertext
+	bundleSHA256 := sha256.Sum256(bundlePlaintext)
+
+	store := repo.NewPostgres(pool, objectStorage, keyManager)
+
+	correlationID, err := database.NewUUIDv7()
+	require.NoError(t, err)
+	idempotencyKey, err := database.NewUUIDv7()
+	require.NoError(t, err)
+
+	command := app.SubmitExecution{
+		IdempotencyKey:          "fanout-integration-" + idempotencyKey,
+		TenantFairnessKey:       "fanout-tenant:fanout-exam",
+		SubmissionCorrelationID: correlationID,
+		EvaluationBundleRef:     bundleObjectKey,
+		EvaluationBundleSHA256:  hex.EncodeToString(bundleSHA256[:]),
+		EvaluationBundleKeyRef:  bundleKeyRef,
+		SourceCiphertextRef:     "source/fanout-integration-test",
+		SourceCiphertextSHA256:  deterministicHex64("source"),
+		RequestCiphertextRef:    "request/fanout-integration-test",
+		LanguageKey:             "python3",
+		Limits: app.Limits{
+			CPUTimeMS:  1000,
+			WallTimeMS: 2000,
+			Memory:     268435456,
+			Processes:  1,
+		},
+		ExpiresAt: time.Now().Add(time.Hour),
+	}
+	require.NoError(t, command.Validate(time.Now()), "fixture command must satisfy the wrapper's own invariants")
+
+	execution, err := store.Submit(ctx, command)
+	require.NoError(t, err, "Submit")
+	require.NotEmpty(t, execution.ID)
+	require.Equal(t, "accepted", execution.Status)
+
+	rows, err := pool.Query(ctx, `
+		SELECT unit_number, test_case_ciphertext_ref
+		FROM judge.execution_units
+		WHERE job_id = $1
+		ORDER BY unit_number
+	`, execution.ID)
+	require.NoError(t, err, "query execution units")
+	defer rows.Close()
+
+	type unitRow struct {
+		number int
+		ref    string
+	}
+	var units []unitRow
+	for rows.Next() {
+		var row unitRow
+		require.NoError(t, rows.Scan(&row.number, &row.ref))
+		units = append(units, row)
+	}
+	require.NoError(t, rows.Err())
+
+	require.Len(t, units, 3, "one execution unit per test case in the bundle")
+	seenRefs := make(map[string]bool, len(units))
+	for i, row := range units {
+		require.Equal(t, i, row.number, "unit_number must be dense and zero-based")
+		require.False(t, seenRefs[row.ref], "test_case_ciphertext_ref %q must be distinct per unit", row.ref)
+		seenRefs[row.ref] = true
+	}
+}
+
+// fakeStorage is an in-memory stand-in for the storage.Object port, mirroring
+// the fakeStorage used by postgres_fanout_test.go's unit tests -- reused here
+// (in this package's separate repo_test package, which cannot see that
+// file's unexported types directly) rather than reinvented.
+type fakeStorage struct {
+	objects map[string][]byte
+}
+
+func newFakeStorage() *fakeStorage { return &fakeStorage{objects: make(map[string][]byte)} }
+
+func (s *fakeStorage) Get(_ context.Context, key string) (io.ReadCloser, int64, error) {
+	data, ok := s.objects[key]
+	if !ok {
+		return nil, 0, errors.New("object not found")
+	}
+	return io.NopCloser(bytes.NewReader(data)), int64(len(data)), nil
+}
+
+func (s *fakeStorage) Put(_ context.Context, key string, r io.Reader, _ int64, _ string) error {
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return err
+	}
+	s.objects[key] = data
+	return nil
+}
+
+func (s *fakeStorage) Delete(_ context.Context, key string) error {
+	delete(s.objects, key)
+	return nil
+}
+func (s *fakeStorage) Exists(context.Context, string) (bool, error) { return false, nil }
+func (s *fakeStorage) PresignGet(context.Context, string, time.Duration) (string, error) {
+	return "", nil
+}
+
+// fakeKMS "encrypts" by reversing bytes and "decrypts" by reversing back --
+// deterministic, reversible, and obviously not real encryption; sufficient
+// for testing that plaintext survives an encrypt-then-decrypt round trip
+// through the fan-out logic without depending on a real KMS. Mirrors the
+// fakeKMS used by postgres_fanout_test.go's unit tests.
+type fakeKMS struct{}
+
+func (fakeKMS) Encrypt(_ context.Context, plaintext []byte) ([]byte, string, error) {
+	reversed := make([]byte, len(plaintext))
+	for i, b := range plaintext {
+		reversed[len(plaintext)-1-i] = b
+	}
+	return reversed, "fake-key-ref", nil
+}
+
+func (fakeKMS) Decrypt(_ context.Context, ciphertext []byte, _ string) ([]byte, error) {
+	reversed := make([]byte, len(ciphertext))
+	for i, b := range ciphertext {
+		reversed[len(ciphertext)-1-i] = b
+	}
+	return reversed, nil
 }
 
 // deterministicHex64 returns a deterministic, well-formed 64-character hex string
