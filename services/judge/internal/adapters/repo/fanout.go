@@ -53,25 +53,48 @@ func fanOutTestCases(
 	}
 
 	refs := make([]unitObjectRef, 0, len(testCases))
+	storedKeys := make([]string, 0, len(testCases))
 	for i, testCase := range testCases {
 		unitPlaintext, err := json.Marshal(struct {
 			Stdin          string `json:"stdin"`
 			ExpectedOutput string `json:"expected_output"`
 		}{Stdin: testCase.Stdin, ExpectedOutput: testCase.ExpectedOutput})
 		if err != nil {
+			cleanupOrphanedObjects(ctx, objectStorage, storedKeys)
 			return nil, fmt.Errorf("fan-out: encode unit %d: %w", i, err)
 		}
 		unitCiphertext, keyRef, err := keyManager.Encrypt(ctx, unitPlaintext)
 		if err != nil {
+			cleanupOrphanedObjects(ctx, objectStorage, storedKeys)
 			return nil, fmt.Errorf("fan-out: encrypt unit %d: %w", i, err)
 		}
 		objectKey := fmt.Sprintf("judge/execution-units/%s/%d", jobID, i)
 		if err := objectStorage.Put(ctx, objectKey, bytes.NewReader(unitCiphertext), int64(len(unitCiphertext)), "application/json"); err != nil {
+			// Best-effort cleanup: this attempt's earlier Puts already
+			// succeeded and are not tracked anywhere else (the job's
+			// execution_units rows are only inserted after fanOutTestCases
+			// returns), so they would otherwise leak permanently. A cleanup
+			// failure must not mask the original Put error, which is what
+			// the caller needs to see and act on.
+			cleanupOrphanedObjects(ctx, objectStorage, storedKeys)
 			return nil, fmt.Errorf("fan-out: store unit %d: %w", i, err)
 		}
+		storedKeys = append(storedKeys, objectKey)
 		refs = append(refs, unitObjectRef{UnitNumber: i, ObjectKey: objectKey, KeyRef: keyRef})
 	}
 	return refs, nil
+}
+
+// cleanupOrphanedObjects best-effort deletes objects already stored during an
+// abandoned fan-out attempt. Individual delete failures are intentionally
+// ignored: this function only runs while returning a more important error to
+// the caller (the original fan-out failure), and there is no established
+// error-reporting channel from this package back to an operator to surface a
+// secondary cleanup failure through.
+func cleanupOrphanedObjects(ctx context.Context, objectStorage storage.Object, keys []string) {
+	for _, key := range keys {
+		_ = objectStorage.Delete(ctx, key)
+	}
 }
 
 // fanOutIntoExecutionUnits fans a newly admitted job's evaluation bundle out
