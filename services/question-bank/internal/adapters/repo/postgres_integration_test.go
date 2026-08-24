@@ -4,11 +4,13 @@ package repo_test
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"runtime"
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/require"
 
 	"github.com/aethercode/aethercode/libs/pkg/testutil/integration"
@@ -191,6 +193,9 @@ func TestRLSIsolateTenants(t *testing.T) {
 			}
 
 			require.Error(t, queryErr, "expected unauthorized actor to be denied")
+			var pgErr *pgconn.PgError
+			require.True(t, errors.As(queryErr, &pgErr), "expected a *pgconn.PgError, got %T: %v", queryErr, queryErr)
+			require.Equal(t, "42501", pgErr.Code, "expected an insufficient-privilege error, got: %s", pgErr.Message)
 		})
 	}
 }
