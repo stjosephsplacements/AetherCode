@@ -40,6 +40,24 @@ func validateArguments(action, audience string) error {
 	return nil
 }
 
+// requireAudienceMatchesDatabase confirms --audience actually names the
+// database --database-url connects to, mirroring the guard
+// scripts/provision-authz-context-key runs before its INSERT. Without this,
+// authz.set_context's `WHERE key.audience = current_database()` lookup means
+// a key published under a mistyped or wrong audience inserts successfully
+// but can never be selected by any service, and the mismatch is only
+// discovered at cutover time.
+func requireAudienceMatchesDatabase(ctx context.Context, conn *pgx.Conn, audience string) error {
+	var currentDatabase string
+	if err := conn.QueryRow(ctx, "SELECT current_database()").Scan(&currentDatabase); err != nil {
+		return fmt.Errorf("determine connected database: %w", err)
+	}
+	if currentDatabase != audience {
+		return fmt.Errorf("audience %q does not match the connected database %q", audience, currentDatabase)
+	}
+	return nil
+}
+
 func publish(ctx context.Context, conn *pgx.Conn, audience, keyID string, notBefore, notAfter time.Time) error {
 	var err error
 	if keyID == "" {
@@ -47,6 +65,10 @@ func publish(ctx context.Context, conn *pgx.Conn, audience, keyID string, notBef
 		if err != nil {
 			return fmt.Errorf("generate key ID: %w", err)
 		}
+	}
+
+	if err := requireAudienceMatchesDatabase(ctx, conn, audience); err != nil {
+		return err
 	}
 
 	secret := make([]byte, keyMaterialBytes)
