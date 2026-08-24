@@ -114,7 +114,7 @@ type registerResponse struct {
 
 func (handler *Handler) register(writer http.ResponseWriter, request *http.Request) {
 	if handler.registerLimiter != nil {
-		ip := registerClientIP(request)
+		ip := rateLimitClientIP(request)
 		if !handler.registerLimiter.Allow(ip, time.Now().UTC()) {
 			writer.Header().Set("Retry-After", retryAfterRegistration)
 			httpx.WriteJSON(writer, http.StatusTooManyRequests, httpx.Problem{Code: "too_many_requests", Message: "registration rate limit exceeded"})
@@ -173,7 +173,7 @@ type loginRequest struct {
 
 func (handler *Handler) login(writer http.ResponseWriter, request *http.Request) {
 	if handler.loginLimiter != nil {
-		ip := clientIP(request)
+		ip := rateLimitClientIP(request)
 		if !handler.loginLimiter.Allow(ip, time.Now().UTC()) {
 			writer.Header().Set("Retry-After", retryAfterLoginOrPasswordReset)
 			httpx.WriteJSON(writer, http.StatusTooManyRequests, httpx.Problem{Code: "too_many_requests", Message: "login rate limit exceeded"})
@@ -274,7 +274,7 @@ type passwordResetRequest struct {
 
 func (handler *Handler) requestPasswordReset(writer http.ResponseWriter, request *http.Request) {
 	if handler.passwordResetLimiter != nil {
-		ip := clientIP(request)
+		ip := rateLimitClientIP(request)
 		if !handler.passwordResetLimiter.Allow(ip, time.Now().UTC()) {
 			writer.Header().Set("Retry-After", retryAfterLoginOrPasswordReset)
 			httpx.WriteJSON(writer, http.StatusTooManyRequests, httpx.Problem{Code: "too_many_requests", Message: "password reset rate limit exceeded"})
@@ -313,7 +313,7 @@ type resetPasswordRequest struct {
 
 func (handler *Handler) resetPassword(writer http.ResponseWriter, request *http.Request) {
 	if handler.passwordResetLimiter != nil {
-		ip := clientIP(request)
+		ip := rateLimitClientIP(request)
 		if !handler.passwordResetLimiter.Allow(ip, time.Now().UTC()) {
 			writer.Header().Set("Retry-After", retryAfterLoginOrPasswordReset)
 			httpx.WriteJSON(writer, http.StatusTooManyRequests, httpx.Problem{Code: "too_many_requests", Message: "password reset rate limit exceeded"})
@@ -530,11 +530,13 @@ func (handler *Handler) authenticatedPrincipal(request *http.Request) (string, e
 	return claims.Subject, nil
 }
 
-// registerClientIP returns the client address used as the per-IP rate-limit
-// key for registration. The gateway stamps the real client address into
-// X-Forwarded-For before proxying; the function falls back to RemoteAddr for
-// direct connections (local dev, integration tests).
-func registerClientIP(request *http.Request) string {
+// rateLimitClientIP returns the client address used as the per-IP rate-limit
+// key for registration, login, and password-reset (request and complete).
+// The gateway stamps the real client address into X-Forwarded-For before
+// proxying, so RemoteAddr alone would key every rate limiter on the
+// gateway's own address; the function falls back to RemoteAddr for direct
+// connections (local dev, integration tests).
+func rateLimitClientIP(request *http.Request) string {
 	if xff := strings.TrimSpace(request.Header.Get("X-Forwarded-For")); xff != "" {
 		first := strings.TrimSpace(strings.SplitN(xff, ",", 2)[0])
 		if parsed := net.ParseIP(first); parsed != nil {

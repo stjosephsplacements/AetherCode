@@ -334,6 +334,43 @@ func TestLoginRateLimitBlocks429AfterBurstExhausted(t *testing.T) {
 	}
 }
 
+func TestLoginRateLimitXForwardedForOverridesRemoteAddr(t *testing.T) {
+	t.Parallel()
+	limiter, err := ratelimit.New(ratelimit.Config{
+		Capacity:        1,
+		RefillPerSecond: 0.0001,
+		MaxEntries:      100,
+		IdleTTL:         time.Hour,
+	})
+	if err != nil {
+		t.Fatalf("ratelimit.New() error = %v", err)
+	}
+	fake := &fakeUseCases{}
+	_, handler, err := NewHandler("identity", fake, nil, fakeVerifier{}, false, nil, limiter, nil)
+	if err != nil {
+		t.Fatalf("NewHandler() error = %v", err)
+	}
+
+	body := `{"email":"xff@example.com","password":"AetherCode2026","tenant_id":"019b11a0-0000-7000-8000-000000000003"}`
+	makeRequestWithXFF := func(xff string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/v1/auth/login", strings.NewReader(body))
+		req.RemoteAddr = "10.0.0.1:1234" // gateway address; varies per request
+		req.Header.Set("X-Forwarded-For", xff)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		return rec
+	}
+
+	// First request from real client IP succeeds.
+	if r := makeRequestWithXFF("198.51.100.7"); r.Code != http.StatusOK {
+		t.Fatalf("first request: status = %d, body = %s", r.Code, r.Body.String())
+	}
+	// Second request from the same real client IP (different gateway RemoteAddr) is limited.
+	if r := makeRequestWithXFF("198.51.100.7"); r.Code != http.StatusTooManyRequests {
+		t.Fatalf("second request from same real IP: expected 429, got %d", r.Code)
+	}
+}
+
 func TestLoginNilLimiterAllowsAllRequests(t *testing.T) {
 	t.Parallel()
 	fake := &fakeUseCases{}
@@ -393,6 +430,43 @@ func TestPasswordResetRateLimitBlocks429AfterBurstExhausted(t *testing.T) {
 	}
 }
 
+func TestPasswordResetRateLimitXForwardedForOverridesRemoteAddr(t *testing.T) {
+	t.Parallel()
+	limiter, err := ratelimit.New(ratelimit.Config{
+		Capacity:        1,
+		RefillPerSecond: 0.0001,
+		MaxEntries:      100,
+		IdleTTL:         time.Hour,
+	})
+	if err != nil {
+		t.Fatalf("ratelimit.New() error = %v", err)
+	}
+	fake := &fakeUseCases{}
+	_, handler, err := NewHandler("identity", fake, nil, fakeVerifier{}, false, nil, nil, limiter)
+	if err != nil {
+		t.Fatalf("NewHandler() error = %v", err)
+	}
+
+	body := `{"email":"xff@example.com"}`
+	makeRequestWithXFF := func(xff string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/v1/auth/password-reset", strings.NewReader(body))
+		req.RemoteAddr = "10.0.0.1:1234" // gateway address; varies per request
+		req.Header.Set("X-Forwarded-For", xff)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		return rec
+	}
+
+	// First request from real client IP succeeds.
+	if r := makeRequestWithXFF("198.51.100.7"); r.Code != http.StatusAccepted {
+		t.Fatalf("first request: status = %d, body = %s", r.Code, r.Body.String())
+	}
+	// Second request from the same real client IP (different gateway RemoteAddr) is limited.
+	if r := makeRequestWithXFF("198.51.100.7"); r.Code != http.StatusTooManyRequests {
+		t.Fatalf("second request from same real IP: expected 429, got %d", r.Code)
+	}
+}
+
 func TestPasswordResetCompleteRateLimitBlocks429AfterBurstExhausted(t *testing.T) {
 	t.Parallel()
 	limiter, err := ratelimit.New(ratelimit.Config{
@@ -427,6 +501,43 @@ func TestPasswordResetCompleteRateLimitBlocks429AfterBurstExhausted(t *testing.T
 	second := makeRequest()
 	if second.Code != http.StatusTooManyRequests {
 		t.Fatalf("second request: expected 429, got %d, body = %s", second.Code, second.Body.String())
+	}
+}
+
+func TestPasswordResetCompleteRateLimitXForwardedForOverridesRemoteAddr(t *testing.T) {
+	t.Parallel()
+	limiter, err := ratelimit.New(ratelimit.Config{
+		Capacity:        1,
+		RefillPerSecond: 0.0001,
+		MaxEntries:      100,
+		IdleTTL:         time.Hour,
+	})
+	if err != nil {
+		t.Fatalf("ratelimit.New() error = %v", err)
+	}
+	fake := &fakeUseCases{}
+	_, handler, err := NewHandler("identity", fake, nil, fakeVerifier{}, false, nil, nil, limiter)
+	if err != nil {
+		t.Fatalf("NewHandler() error = %v", err)
+	}
+
+	body := `{"token":"reset-token","password":"AetherCode2026"}`
+	makeRequestWithXFF := func(xff string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/v1/auth/password-reset/complete", strings.NewReader(body))
+		req.RemoteAddr = "10.0.0.1:1234" // gateway address; varies per request
+		req.Header.Set("X-Forwarded-For", xff)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		return rec
+	}
+
+	// First request from real client IP succeeds.
+	if r := makeRequestWithXFF("198.51.100.7"); r.Code != http.StatusNoContent {
+		t.Fatalf("first request: status = %d, body = %s", r.Code, r.Body.String())
+	}
+	// Second request from the same real client IP (different gateway RemoteAddr) is limited.
+	if r := makeRequestWithXFF("198.51.100.7"); r.Code != http.StatusTooManyRequests {
+		t.Fatalf("second request from same real IP: expected 429, got %d", r.Code)
 	}
 }
 
