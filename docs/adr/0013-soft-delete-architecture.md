@@ -67,6 +67,20 @@ Implement a **medallion-based soft delete architecture**:
 - Adding PERMISSIVE `USING(true)` for other commands would OR-combine with signed-context policies, defeating tenant isolation
 - Services without existing signed-context RLS (identity, judge) may safely use PERMISSIVE `USING(true)`
 
+## Known Limitations
+
+- **`users.students` cannot actually be hard-deleted today.** `app.hard_delete('users.students', ...)`
+  cannot succeed for any currently-enrolled student. `student_department_memberships`
+  and `current_student_affiliations` both hold `ON DELETE RESTRICT` foreign keys to
+  `users.students`, and the `protect_active_student_affiliation` trigger additionally
+  blocks removing those membership/affiliation rows while the student's status is
+  `'active'`. Soft delete never transitions a student's status away from `'active'`
+  or removes those rows, so the SuperAdmin hard-delete guarantee this ADR promises
+  is currently broken specifically for `users.students`. Fixing this needs a real
+  design decision — either a defined cascade order that also retires the
+  membership/affiliation rows, or a status-transition-then-delete flow — and is
+  tracked as follow-up work, not fixed here.
+
 ## Alternatives Considered
 
 1. **Flag-based (`is_deleted BOOLEAN`)**: Rejected because timestamps provide audit trail of when deletion occurred.
