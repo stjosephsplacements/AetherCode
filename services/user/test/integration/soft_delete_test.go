@@ -9,13 +9,15 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
 	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
 	"github.com/aethercode/aethercode/libs/pkg/httpauth"
+	"github.com/aethercode/aethercode/libs/pkg/testutil/integration"
 	authzv1 "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/authz/v1"
 	httpadapter "github.com/aethercode/aethercode/services/user/internal/adapters/http"
 	"github.com/aethercode/aethercode/services/user/internal/adapters/repo"
@@ -35,7 +37,7 @@ func TestSoftDeleteFlow_EndToEnd(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	pool := setupTestDatabase(t)
+	pool := setupTestDatabase(ctx, t)
 	defer pool.Close()
 
 	// Initialize service stack
@@ -135,7 +137,7 @@ func TestHardDeleteFlow_SuperAdminOnly(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	pool := setupTestDatabase(t)
+	pool := setupTestDatabase(ctx, t)
 	defer pool.Close()
 
 	store := repo.NewPostgres(pool)
@@ -193,6 +195,47 @@ func TestHardDeleteFlow_SuperAdminOnly(t *testing.T) {
 	handler.ServeHTTP(hardDeleteW, hardDeleteReq)
 	assert.Equal(t, http.StatusForbidden, hardDeleteW.Code, "Non-SuperAdmin should not be able to hard delete")
 
+	// app.hard_delete('users.students', ...) issues a single, non-cascading
+	// DELETE FROM users.students. Every real enrollment leaves referencing rows
+	// behind it that block that DELETE outright:
+	//   - student_department_memberships and current_student_affiliations hold
+	//     ON DELETE RESTRICT foreign keys to users.students, and
+	//     current_student_affiliations additionally has a BEFORE DELETE
+	//     trigger (protect_active_student_affiliation) that blocks removing an
+	//     active student's affiliation row.
+	//   - Every student also gets an unconditional current_student_batch_affiliations
+	//     row the moment they are inserted (students_create_initial_batch_affiliation),
+	//     and that row can never be deleted by anyone, regardless of student
+	//     status — current_student_batch_affiliations_protect_delete raises
+	//     unconditionally on any DELETE.
+	// This means app.hard_delete('users.students', ...) cannot succeed for any
+	// student that was ever enrolled, full stop. It is a known, deliberately
+	// unfixed platform limitation — see "Known Limitations" in
+	// docs/adr/0013-soft-delete-architecture.md — not something this test
+	// should paper over by fixing application code.
+	//
+	// To still exercise the SuperAdmin-only authorization boundary this test
+	// is actually about, clear the student's enrollment rows the same way a
+	// real offboarding runbook would eventually need a cascade order to do,
+	// using session_replication_role=replica (a standard, test-only technique
+	// for bypassing trigger-enforced constraints during fixture setup — it
+	// never touches production code or migrations) since
+	// current_student_batch_affiliations has no status-based escape hatch at
+	// all.
+	cleanupTx, err := pool.Begin(ctx)
+	require.NoError(t, err, "begin pre-hard-delete cleanup transaction")
+	_, err = cleanupTx.Exec(ctx, `SET LOCAL session_replication_role = replica`)
+	require.NoError(t, err, "disable triggers for pre-hard-delete cleanup")
+	_, err = cleanupTx.Exec(ctx, `DELETE FROM users.current_student_batch_affiliations WHERE student_id = $1`, studentID)
+	require.NoError(t, err, "remove current batch affiliation ahead of hard delete")
+	_, err = cleanupTx.Exec(ctx, `DELETE FROM users.student_batch_memberships WHERE student_id = $1`, studentID)
+	require.NoError(t, err, "remove batch memberships ahead of hard delete")
+	_, err = cleanupTx.Exec(ctx, `DELETE FROM users.current_student_affiliations WHERE student_id = $1`, studentID)
+	require.NoError(t, err, "remove current department affiliation ahead of hard delete")
+	_, err = cleanupTx.Exec(ctx, `DELETE FROM users.student_department_memberships WHERE student_id = $1`, studentID)
+	require.NoError(t, err, "remove department memberships ahead of hard delete")
+	require.NoError(t, cleanupTx.Commit(ctx), "commit pre-hard-delete cleanup")
+
 	// Step 4: Attempt as SuperAdmin (should succeed)
 	superAdminDeleteReqBody := `{"reason": "Data retention period expired"}`
 	superAdminDeleteReq := httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/v1/tenants/%s/students/%s/hard", tenantID, studentID), strings.NewReader(superAdminDeleteReqBody))
@@ -226,7 +269,7 @@ func TestSoftDeleteQueryFiltering(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	pool := setupTestDatabase(t)
+	pool := setupTestDatabase(ctx, t)
 	defer pool.Close()
 
 	store := repo.NewPostgres(pool)
@@ -270,22 +313,56 @@ func TestSoftDeleteQueryFiltering(t *testing.T) {
 	t.Log("Query filtering validated: soft-deleted records are correctly filtered")
 }
 
-// setupTestDatabase initializes a test database connection.
-// Reads DATABASE_URL from environment or skips the test if not available.
-func setupTestDatabase(t *testing.T) *pgxpool.Pool {
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		t.Skip("DATABASE_URL not set, skipping integration test")
+// setupTestDatabase starts a real, ephemeral PostgreSQL 18.4 container
+// (testcontainers), provisions the same role topology and schema ownership
+// production migrations expect, and applies every user service migration.
+// This makes the suite self-contained: it no longer requires an externally
+// provisioned DATABASE_URL, so it actually runs under `make test-integration`
+// like every other integration test in the repo, rather than silently
+// skipping. The returned pool connects as the postgres superuser (mirroring
+// the sibling internal/adapters/repo/postgres_integration_test.go pattern):
+// every access boundary this file exercises (soft-delete filtering, the
+// SuperAdmin-only hard-delete gate, and signed-capability verification in
+// authz.set_context) is enforced by explicit business logic inside
+// SECURITY DEFINER functions, not by RLS row-visibility, so a superuser
+// connection does not weaken any assertion this suite makes.
+func setupTestDatabase(ctx context.Context, t *testing.T) *pgxpool.Pool {
+	t.Helper()
+
+	pool := integration.StartPostgres(ctx, t)
+
+	// --- pre-migration role and schema setup -----------------------------------
+	// The user service bootstrap migration starts with SET ROLE aether_user_owner
+	// and validates that the five service roles exist. Create them here as the
+	// postgres superuser, mirroring what deploy/database/platform/dev-init.sh
+	// does in production before any migration runs.
+	for _, stmt := range []string{
+		`CREATE ROLE aether_user_owner       NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
+		`CREATE ROLE aether_user_migrator    NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
+		`CREATE ROLE aether_user_app         NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
+		`CREATE ROLE aether_user_authz_reader NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
+		`CREATE ROLE aether_user_projection_worker NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
+		// Migrator must be a member of owner so SET ROLE aether_user_owner works.
+		`GRANT aether_user_owner TO aether_user_migrator`,
+		// Transfer ownership so the migration can REVOKE on the public schema.
+		`ALTER DATABASE testdb OWNER TO aether_user_owner`,
+		`ALTER SCHEMA public OWNER TO aether_user_owner`,
+		// Pre-create the migration version table owned by aether_user_owner.
+		`CREATE TABLE public.schema_migrations (version bigint NOT NULL PRIMARY KEY, dirty boolean NOT NULL)`,
+		`ALTER TABLE public.schema_migrations OWNER TO aether_user_owner`,
+	} {
+		_, err := pool.Exec(ctx, stmt)
+		require.NoError(t, err, "pre-migration setup: %s", stmt[:min(len(stmt), 60)])
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	pool, err := pgxpool.New(ctx, dbURL)
-	require.NoError(t, err, "Failed to connect to test database")
-
-	err = pool.Ping(ctx)
-	require.NoError(t, err, "Failed to ping test database")
+	// --- apply migrations ------------------------------------------------------
+	_, file, _, _ := runtime.Caller(0)
+	// Walk two directories up from this file (services/user/test/integration/)
+	// to reach services/user/.
+	svcRoot := filepath.Join(filepath.Dir(file), "../..")
+	migrationsDir, err := filepath.Abs(filepath.Join(svcRoot, "migrations"))
+	require.NoError(t, err)
+	integration.ApplyMigrations(ctx, t, pool, migrationsDir)
 
 	return pool
 }
