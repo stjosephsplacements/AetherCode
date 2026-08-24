@@ -36,7 +36,12 @@ func (server *Server) SubmitExecution(
 	if request == nil {
 		return nil, status.Error(codes.InvalidArgument, "execution request is required")
 	}
-	if server.limiter != nil {
+	// An empty tenant_fairness_key is a permanent validation failure that
+	// app.Service.Submit rejects with InvalidArgument below; check it before
+	// consulting the limiter so that case is never reported as
+	// ResourceExhausted (Limiter.Allow denies an empty key by design, which
+	// would otherwise turn a non-retryable error into a retryable one).
+	if server.limiter != nil && request.GetTenantFairnessKey() != "" {
 		// TenantFairnessKey is the opaque dispatch-fairness key: it already
 		// exists to prevent one tenant from starving others' throughput, so it
 		// is also the correct key for admission rate limiting.

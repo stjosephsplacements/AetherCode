@@ -125,6 +125,31 @@ func TestSubmitExecutionRateLimitTracksDistinctTenantsSeparately(t *testing.T) {
 	}
 }
 
+func TestSubmitExecutionEmptyTenantFairnessKeyReturnsInvalidArgumentNotResourceExhausted(t *testing.T) {
+	t.Parallel()
+
+	// Limiter.Allow always denies the empty key by design (documented,
+	// intentional limiter behavior), regardless of remaining capacity. If the
+	// limiter guard ran before validation, an empty tenant_fairness_key would
+	// therefore always be reported as ResourceExhausted instead of the
+	// permanent InvalidArgument validation failure it actually is.
+	limiter, err := ratelimit.New(ratelimit.Config{
+		Capacity:        1,
+		RefillPerSecond: 0.0001,
+		MaxEntries:      100,
+		IdleTTL:         time.Hour,
+	})
+	if err != nil {
+		t.Fatalf("ratelimit.New() error = %v", err)
+	}
+	server := NewServer(app.NewService(&recordingStore{}), limiter)
+
+	_, err = server.SubmitExecution(context.Background(), validSubmitExecutionRequest(""))
+	if status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("empty tenant_fairness_key: status = %v, want InvalidArgument", status.Code(err))
+	}
+}
+
 func TestSubmitExecutionNilLimiterAllowsAllRequests(t *testing.T) {
 	t.Parallel()
 
