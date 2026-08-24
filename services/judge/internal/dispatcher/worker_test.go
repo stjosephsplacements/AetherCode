@@ -171,6 +171,37 @@ func TestWorkerMissingJob(t *testing.T) {
 	}
 }
 
+func TestWorkerPollExhaustionProducesInternalError(t *testing.T) {
+	// verdict is left nil, so fakeEngine.Poll never reports a terminal state —
+	// this simulates a Judge0 outage where the engine never responds with a
+	// verdict at all, which must not be misattributed to the candidate as a
+	// time limit exceeded.
+	job := &DispatchJob{
+		ID: "job-3",
+		Units: []DispatchUnit{
+			{ID: "unit-3", Language: "go", SourceCode: "package main", TimeLimitMS: 1000, MemLimitKB: 65536},
+		},
+	}
+	eng := &fakeEngine{verdict: nil}
+	store := newFakeStore(job)
+	w, err := NewWorker(store, eng, enabledRuntime(), testLogger())
+	if err != nil {
+		t.Fatalf("NewWorker: %v", err)
+	}
+
+	if err := w.DispatchJob(context.Background(), "job-3"); err != nil {
+		t.Fatalf("DispatchJob: %v", err)
+	}
+
+	v, ok := store.recordedVerdicts["unit-3"]
+	if !ok || v.Status != "internal_error" {
+		t.Fatalf("expected internal_error verdict for unit-3 after poll exhaustion, got %+v (ok=%v)", v, ok)
+	}
+	if status, ok := store.completedJobs["job-3"]; !ok || status != "internal_error" {
+		t.Errorf("expected job-3 marked complete with internal_error, got %q (ok=%v)", status, ok)
+	}
+}
+
 func TestWorkerPartiallyDispatchedJob(t *testing.T) {
 	// Unit already has a Token set → Submit must not be called again.
 	job := &DispatchJob{
