@@ -25,6 +25,7 @@ type Runtime struct {
 	SubmitBurst                 int
 	Judge0BaseURL               string
 	Judge0Timeout               time.Duration
+	Judge0AuthToken             string
 }
 
 // Load returns a safe listener configuration for the supplied environment.
@@ -102,9 +103,7 @@ func Load(environment string) (Runtime, error) {
 	}
 	runtime.SubmitRate = submitRate
 	runtime.SubmitBurst = submitBurst
-	if runtime.EngineCompatibilityApproved && runtime.Judge0BaseURL == "" {
-		return Runtime{}, fmt.Errorf("JUDGE0_BASE_URL is required when JUDGE_ENGINE_COMPATIBILITY_APPROVED=true")
-	}
+	runtime.Judge0AuthToken = strings.TrimSpace(value("JUDGE0_AUTH_TOKEN", ""))
 	return runtime, nil
 }
 

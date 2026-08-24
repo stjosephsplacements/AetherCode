@@ -113,8 +113,9 @@ dispatcher variables are optional when `JUDGE_DISPATCHER_ENABLED=false`.
 | `JUDGE_WORKER_CONCURRENCY` | `4` | Number of concurrent dispatch goroutines. Must be 1–32. |
 | `JUDGE_POLL_INTERVAL_MS` | `2000` | Milliseconds between engine verdict poll attempts. |
 | `JUDGE_MAX_POLL_ATTEMPTS` | `30` | Maximum poll attempts before a synthetic `time_limit_exceeded` verdict is recorded. |
-| `JUDGE0_BASE_URL` | *(required when `JUDGE_ENGINE_COMPATIBILITY_APPROVED=true`)* | Base URL of the Judge0 HTTP API the `judge0` engine submits to and polls. |
+| `JUDGE0_BASE_URL` | *(required when `JUDGE_ENGINE=judge0` and the dispatcher is enabled)* | Base URL of the Judge0 HTTP API the `judge0` engine submits to and polls. Not required for any other engine or deployment, even when `JUDGE_ENGINE_COMPATIBILITY_APPROVED=true` — that flag is independently required in production/staging regardless of engine choice. |
 | `JUDGE0_TIMEOUT_SECONDS` | `10` | Per-request HTTP timeout for the Judge0 client. Must be 1–120. |
+| `JUDGE0_AUTH_TOKEN` | *(optional)* | Bearer/auth token forwarded to Judge0 as `X-Auth-Token` on every request. Leave unset for a local/dev Judge0 instance with no auth configured. |
 
 `JUDGE_RABBITMQ_URL` is also required when `JUDGE_DISPATCHER_ENABLED=true` (it
 is already required for the admission publisher in production/staging).
@@ -125,8 +126,29 @@ is already required for the admission publisher in production/staging).
 that submits test units to a Judge0 instance at `JUDGE0_BASE_URL` and polls for
 verdicts. It is gated behind `JUDGE_ENGINE_COMPATIBILITY_APPROVED=true`: with the
 gate unset, the dispatcher logs a warning and does not start, matching the
-`stub` engine's off-by-default posture. Setting the gate to `true` also makes
-`JUDGE0_BASE_URL` a required variable (`Load` returns an error otherwise).
+`stub` engine's off-by-default posture. `JUDGE0_BASE_URL` is only required in
+this specific case (dispatcher enabled, `JUDGE_ENGINE=judge0`, gate approved) —
+`internal/adapters/judge0.NewClient` rejects an empty or invalid base URL when
+the client is constructed, so no deployment that does not actually select the
+`judge0` engine is forced to set it.
+
+This client is not end-to-end functional yet: nothing in the judge service
+currently decrypts and fetches the actual source code or test case content
+referenced by the ciphertext refs a dispatch job carries (that decrypt/fetch
+step is separate, tracked work, not part of this adapter). `Submit` fails
+loudly with a clear error on an empty source rather than submitting an empty
+program to Judge0, so even with a real, reachable Judge0 instance and the
+compatibility gate approved, submissions will fail this validation rather than
+silently grading garbage. This is a known, sequenced gap, not a bug in the
+client itself.
+
+Judge0's own default execution limits (commonly `max_cpu_time_limit` around
+15 seconds and `max_memory_limit` around 128 MB) are lower than this
+platform's configured maximums (this service's migrations allow up to 60000ms
+CPU time and 2GiB memory). An operator deploying a real Judge0 instance needs
+to raise Judge0's own limits to match, or over-limit jobs will fail with a 422
+from Judge0 — which the client already surfaces as a clear error, not a
+silent failure, but is worth planning for ahead of go-live.
 
 This adapter's request/response handling is covered by `httptest`-mocked unit
 tests only. It has not been live-validated against a real Judge0 deployment —
