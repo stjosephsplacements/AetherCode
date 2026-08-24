@@ -14,8 +14,12 @@ import (
 	"github.com/aethercode/aethercode/libs/pkg/config"
 	"github.com/aethercode/aethercode/libs/pkg/database"
 	"github.com/aethercode/aethercode/libs/pkg/httpx"
+	"github.com/aethercode/aethercode/libs/pkg/kms"
+	localkms "github.com/aethercode/aethercode/libs/pkg/kms/local"
 	"github.com/aethercode/aethercode/libs/pkg/logging"
 	"github.com/aethercode/aethercode/libs/pkg/ratelimit"
+	"github.com/aethercode/aethercode/libs/pkg/storage"
+	minioclient "github.com/aethercode/aethercode/libs/pkg/storage/minio"
 	"github.com/aethercode/aethercode/libs/pkg/telemetry"
 	judgev1 "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/judge/v1"
 	amqpadapter "github.com/aethercode/aethercode/services/judge/internal/adapters/amqp"
@@ -79,7 +83,31 @@ func run(contextValue context.Context) error {
 		return err
 	}
 
-	store := repo.NewPostgres(pool)
+	// NOTE: Storage and KMS are optional. Set JUDGE_STORAGE_ENDPOINT and
+	// JUDGE_KMS_LOCAL_KEY to enable test-case fan-out (Postgres.Submit). Submit
+	// returns app.ErrFanOutUnavailable when they are absent, mirroring
+	// question-bank's cmd/server/main.go.
+	var storageClient storage.Object
+	var kmsClient kms.KeyManager
+	if os.Getenv("JUDGE_STORAGE_ENDPOINT") != "" {
+		storageCfg, storageErr := minioclient.LoadConfig("JUDGE_STORAGE")
+		if storageErr != nil {
+			return storageErr
+		}
+		storageClient, storageErr = minioclient.New(storageCfg)
+		if storageErr != nil {
+			return storageErr
+		}
+	}
+	if os.Getenv("JUDGE_KMS_LOCAL_KEY") != "" {
+		kmsCfg, kmsErr := localkms.LoadConfig("JUDGE")
+		if kmsErr != nil {
+			return kmsErr
+		}
+		kmsClient = localkms.New(kmsCfg)
+	}
+
+	store := repo.NewPostgres(pool, storageClient, kmsClient)
 	judgeService := app.NewService(store)
 	readiness := store.Ping
 	if runtime.RabbitURL != "" {

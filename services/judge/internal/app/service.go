@@ -18,6 +18,7 @@ var (
 	ErrLanguageUnavailable = errors.New("requested language is unavailable")
 	ErrCompletionNotLeased = errors.New("completion is not currently leased to this consumer")
 	ErrAdmissionNotLeased  = errors.New("admission is not currently leased to this publisher")
+	ErrFanOutUnavailable   = errors.New("test-case fan-out storage or KMS is not configured on this instance")
 
 	uuidV7Pattern   = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
 	sha256Pattern   = regexp.MustCompile(`^[0-9a-f]{64}$`)
@@ -52,12 +53,19 @@ type SubmitExecution struct {
 	SubmissionCorrelationID string
 	EvaluationBundleRef     string
 	EvaluationBundleSHA256  string
-	SourceCiphertextRef     string
-	SourceCiphertextSHA256  string
-	RequestCiphertextRef    string
-	LanguageKey             string
-	Limits                  Limits
-	ExpiresAt               time.Time
+	// EvaluationBundleKeyRef is the KMS key reference the evaluation bundle
+	// was encrypted with. It is optional today because the SubmitExecution
+	// wire contract (libs/proto/proto/aethercode/judge/v1/judge.proto) has no
+	// field to carry it yet; a job admitted without one still passes
+	// admission, but fan-out (see Postgres.Submit) fails with a real KMS
+	// error rather than silently mis-decrypting the bundle.
+	EvaluationBundleKeyRef string
+	SourceCiphertextRef    string
+	SourceCiphertextSHA256 string
+	RequestCiphertextRef   string
+	LanguageKey            string
+	Limits                 Limits
+	ExpiresAt              time.Time
 }
 
 // Execution is the durable acceptance result.
@@ -231,6 +239,7 @@ func (request SubmitExecution) Fingerprint() (string, error) {
 		SubmissionCorrelationID string `json:"submission_correlation_id"`
 		EvaluationBundleRef     string `json:"evaluation_bundle_ref"`
 		EvaluationBundleSHA256  string `json:"evaluation_bundle_sha256"`
+		EvaluationBundleKeyRef  string `json:"evaluation_bundle_key_ref"`
 		SourceCiphertextRef     string `json:"source_ciphertext_ref"`
 		SourceCiphertextSHA256  string `json:"source_ciphertext_sha256"`
 		RequestCiphertextRef    string `json:"request_ciphertext_ref"`
@@ -242,6 +251,7 @@ func (request SubmitExecution) Fingerprint() (string, error) {
 		SubmissionCorrelationID: request.SubmissionCorrelationID,
 		EvaluationBundleRef:     request.EvaluationBundleRef,
 		EvaluationBundleSHA256:  request.EvaluationBundleSHA256,
+		EvaluationBundleKeyRef:  request.EvaluationBundleKeyRef,
 		SourceCiphertextRef:     request.SourceCiphertextRef,
 		SourceCiphertextSHA256:  request.SourceCiphertextSHA256,
 		RequestCiphertextRef:    request.RequestCiphertextRef,
