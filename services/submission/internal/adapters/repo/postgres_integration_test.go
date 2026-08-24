@@ -199,9 +199,8 @@ func TestRLSIsolateTenants(t *testing.T) {
 
 			require.Error(t, queryErr, "expected mismatched tenant context to be denied")
 			var pgErr *pgconn.PgError
-			if errors.As(queryErr, &pgErr) {
-				require.Equal(t, "42501", pgErr.Code, "expected an insufficient-privilege error, got: %s", pgErr.Message)
-			}
+			require.True(t, errors.As(queryErr, &pgErr), "expected a *pgconn.PgError, got %T: %v", queryErr, queryErr)
+			require.Equal(t, "42501", pgErr.Code, "expected an insufficient-privilege error, got: %s", pgErr.Message)
 		})
 	}
 }
