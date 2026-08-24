@@ -113,9 +113,27 @@ dispatcher variables are optional when `JUDGE_DISPATCHER_ENABLED=false`.
 | `JUDGE_WORKER_CONCURRENCY` | `4` | Number of concurrent dispatch goroutines. Must be 1–32. |
 | `JUDGE_POLL_INTERVAL_MS` | `2000` | Milliseconds between engine verdict poll attempts. |
 | `JUDGE_MAX_POLL_ATTEMPTS` | `30` | Maximum poll attempts before a synthetic `time_limit_exceeded` verdict is recorded. |
+| `JUDGE0_BASE_URL` | *(required when `JUDGE_ENGINE_COMPATIBILITY_APPROVED=true`)* | Base URL of the Judge0 HTTP API the `judge0` engine submits to and polls. |
+| `JUDGE0_TIMEOUT_SECONDS` | `10` | Per-request HTTP timeout for the Judge0 client. Must be 1–120. |
 
 `JUDGE_RABBITMQ_URL` is also required when `JUDGE_DISPATCHER_ENABLED=true` (it
 is already required for the admission publisher in production/staging).
+
+### The `judge0` engine
+
+`JUDGE_ENGINE=judge0` constructs a real HTTP client (`internal/adapters/judge0`)
+that submits test units to a Judge0 instance at `JUDGE0_BASE_URL` and polls for
+verdicts. It is gated behind `JUDGE_ENGINE_COMPATIBILITY_APPROVED=true`: with the
+gate unset, the dispatcher logs a warning and does not start, matching the
+`stub` engine's off-by-default posture. Setting the gate to `true` also makes
+`JUDGE0_BASE_URL` a required variable (`Load` returns an error otherwise).
+
+This adapter's request/response handling is covered by `httptest`-mocked unit
+tests only. It has not been live-validated against a real Judge0 deployment —
+per the [deployment gate](#deployment-gate) above, no Judge0 instance may be
+added to the local compose stack until the gVisor compatibility evidence suite
+is approved. Do not treat `JUDGE_ENGINE_COMPATIBILITY_APPROVED=true` as
+production sign-off by itself; it must be backed by that approved evidence.
 
 ## Deployment gate
 

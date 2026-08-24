@@ -99,9 +99,29 @@ func run(contextValue context.Context) error {
 		case "judge0":
 			if !runtime.EngineCompatibilityApproved {
 				logger.Warn("dispatcher: engine=judge0 requires JUDGE_ENGINE_COMPATIBILITY_APPROVED=true; dispatcher not started")
-			} else {
-				logger.Warn("dispatcher: judge0 engine adapter not available in this build; dispatcher not started")
+				break
 			}
+			if runtime.RabbitURL == "" {
+				return fmt.Errorf("dispatcher: JUDGE_RABBITMQ_URL is required when JUDGE_DISPATCHER_ENABLED=true")
+			}
+			eng, engErr := judge0adapter.NewClient(runtime.Judge0BaseURL, runtime.Judge0Timeout)
+			if engErr != nil {
+				return fmt.Errorf("dispatcher: construct judge0 client: %w", engErr)
+			}
+			storeAdapter := repo.NewDispatchStoreAdapter(pool)
+			worker, workerErr := dispatcher.NewWorker(storeAdapter, eng, dispatcherRuntime, logger)
+			if workerErr != nil {
+				return workerErr
+			}
+			consumer, consumerErr := amqpadapter.NewConsumer(runtime.RabbitURL, worker, logger)
+			if consumerErr != nil {
+				return consumerErr
+			}
+			go func() {
+				if err := consumer.Start(contextValue); err != nil && contextValue.Err() == nil {
+					logger.Error("dispatcher consumer stopped unexpectedly", "error", err)
+				}
+			}()
 		case "stub":
 			if runtime.RabbitURL == "" {
 				return fmt.Errorf("dispatcher: JUDGE_RABBITMQ_URL is required when JUDGE_DISPATCHER_ENABLED=true")
