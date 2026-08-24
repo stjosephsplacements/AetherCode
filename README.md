@@ -113,6 +113,54 @@ repaired by running it again — each half independently no-ops if its row alrea
 exists. Once the platform has any principal or any `super_admin`, both functions
 permanently refuse further calls.
 
+## HMAC capability key rotation
+
+`authz.context_keys` (present in the `analytics`, `assessment`, `identity`,
+`notification`, `question-bank`, `seb`, `submission`, `tenant`, and `user`
+databases — not `gateway` or `judge`, which have no such table) supports
+zero-downtime rotation through overlapping `not_before`/`not_after`/`retired_at`
+validity windows, but publishing and retiring a key still requires an operator
+action. `make rotate-authz-key` targets exactly one database per invocation:
+
+```sh
+export DATABASE_URL="postgres://..."
+make rotate-authz-key ACTION=publish AUDIENCE=aether_submission NOT_AFTER=2026-09-24T00:00:00Z
+```
+
+The command generates a new key ID (a UUIDv7, unless `KEY_ID` is supplied) and
+32 bytes of random HMAC key material, inserts the row, and prints the key ID
+and base64-encoded secret to stderr **exactly once**, with a clear warning that
+it is the only time the secret is shown. The secret is never written to a file,
+a log, or stdout. Copy it out-of-band into the target's operational secret
+store before it is lost.
+
+Full rotation procedure:
+
+1. Publish a new key against all nine target databases, one invocation per
+   database, with a `not-before` a few minutes in the future (the default) so
+   already-deployed services have time to pick up the new configuration before
+   the key becomes valid, and a `not-after` far enough out to cover the
+   rotation window.
+2. Wait until `not-before` has passed on every database, then confirm the new
+   key works before relying on it.
+3. Update `AUTHZ_CAPABILITY_KEYS` in the User service's configuration (the
+   canonical signing service, per `libs/pkg/authz`) to the new key.
+4. Once confident no capability signed with the old key is still in flight —
+   capabilities have a five-second TTL (`capabilityTTL` in
+   `libs/pkg/authz/capability.go`), so the safe window is generous — retire the
+   old key on all nine databases:
+
+```sh
+export DATABASE_URL="postgres://..."
+make rotate-authz-key ACTION=retire AUDIENCE=aether_submission KEY_ID=<old-key-id>
+```
+
+`retire` fails if the key is already retired or does not exist for that
+audience. This CLI is for operational key rotation; the KMS-provisioned
+first key for a freshly bootstrapped database still comes from
+[`scripts/provision-authz-context-key`](scripts/provision-authz-context-key),
+whose secret is supplied externally rather than generated locally.
+
 ## Local prerequisites
 
 Install Go, Docker, GNU Make, Buf, and golangci-lint. The pinned
