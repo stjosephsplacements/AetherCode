@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/aethercode/aethercode/services/judge/internal/dispatcher"
@@ -20,15 +21,19 @@ import (
 // holds no mutable state beyond the underlying http.Client, which is itself
 // safe for concurrent use.
 type Client struct {
-	baseURL string
-	http    *http.Client
+	baseURL   string
+	authToken string
+	http      *http.Client
 }
 
 // NewClient constructs a Judge0 client. baseURL must be a valid absolute URL
 // (e.g. "http://judge0:2358"); the client never follows redirects, since a
 // redirect from the configured Judge0 endpoint would be unexpected and
-// potentially route requests to an untrusted host.
-func NewClient(baseURL string, timeout time.Duration) (*Client, error) {
+// potentially route requests to an untrusted host. authToken is optional —
+// an empty string means no auth header is sent, for a local/dev Judge0
+// instance with no auth configured. When non-empty, it is sent as Judge0's
+// documented X-Auth-Token header on every request.
+func NewClient(baseURL string, timeout time.Duration, authToken string) (*Client, error) {
 	parsed, err := url.Parse(baseURL)
 	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
 		return nil, fmt.Errorf("judge0: base URL is invalid")
@@ -36,7 +41,8 @@ func NewClient(baseURL string, timeout time.Duration) (*Client, error) {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.Proxy = nil
 	return &Client{
-		baseURL: baseURL,
+		baseURL:   strings.TrimRight(baseURL, "/"),
+		authToken: authToken,
 		http: &http.Client{
 			Transport: transport,
 			Timeout:   timeout,
@@ -45,6 +51,14 @@ func NewClient(baseURL string, timeout time.Duration) (*Client, error) {
 			},
 		},
 	}, nil
+}
+
+// setAuthHeader attaches the configured Judge0 auth token to req, when one is
+// configured.
+func (client *Client) setAuthHeader(req *http.Request) {
+	if client.authToken != "" {
+		req.Header.Set("X-Auth-Token", client.authToken)
+	}
 }
 
 type submitRequest struct {
@@ -65,6 +79,9 @@ type submitResponse struct {
 // contract, which avoids ambiguity with arbitrary candidate source containing
 // control characters or non-UTF8 bytes.
 func (client *Client) Submit(ctx context.Context, req dispatcher.UnitRequest) (string, error) {
+	if req.SourceCode == "" {
+		return "", fmt.Errorf("judge0: source code is required")
+	}
 	languageID, err := judgeLanguageID(req.Language)
 	if err != nil {
 		return "", err
@@ -88,6 +105,7 @@ func (client *Client) Submit(ctx context.Context, req dispatcher.UnitRequest) (s
 	}
 	httpRequest.Header.Set("Content-Type", "application/json")
 	httpRequest.Header.Set("Accept", "application/json")
+	client.setAuthHeader(httpRequest)
 
 	httpResponse, err := client.http.Do(httpRequest)
 	if err != nil {
@@ -113,11 +131,11 @@ type pollResponse struct {
 		ID          int    `json:"id"`
 		Description string `json:"description"`
 	} `json:"status"`
-	Stdout        string `json:"stdout"`
-	Stderr        string `json:"stderr"`
-	CompileOutput string `json:"compile_output"`
-	Time          string `json:"time"`
-	Memory        int    `json:"memory"`
+	Stdout        string      `json:"stdout"`
+	Stderr        string      `json:"stderr"`
+	CompileOutput string      `json:"compile_output"`
+	Time          string      `json:"time"`
+	Memory        json.Number `json:"memory"`
 }
 
 // judge0StatusVerdicts maps Judge0's numeric status.id to this platform's
@@ -151,6 +169,7 @@ func (client *Client) Poll(ctx context.Context, token string) (*dispatcher.UnitV
 		return nil, fmt.Errorf("judge0: build poll request: %w", err)
 	}
 	httpRequest.Header.Set("Accept", "application/json")
+	client.setAuthHeader(httpRequest)
 
 	httpResponse, err := client.http.Do(httpRequest)
 	if err != nil {
@@ -196,12 +215,21 @@ func (client *Client) Poll(ctx context.Context, token string) (*dispatcher.UnitV
 		timeMS = int(seconds * 1000)
 	}
 
+	memoryKB := 0
+	if decoded.Memory != "" {
+		memory, parseErr := decoded.Memory.Float64()
+		if parseErr != nil {
+			return nil, fmt.Errorf("judge0: parse memory %q: %w", decoded.Memory, parseErr)
+		}
+		memoryKB = int(memory)
+	}
+
 	return &dispatcher.UnitVerdict{
 		Status:        verdictStatus,
 		Stdout:        string(stdout),
 		Stderr:        string(stderr),
 		CompileOutput: string(compileOutput),
 		TimeMS:        timeMS,
-		MemoryKB:      decoded.Memory,
+		MemoryKB:      memoryKB,
 	}, nil
 }

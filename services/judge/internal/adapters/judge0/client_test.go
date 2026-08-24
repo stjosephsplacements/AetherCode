@@ -2,6 +2,7 @@ package judge0
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -24,12 +25,16 @@ func TestClientSubmitReturnsToken(t *testing.T) {
 		if body["language_id"] != float64(71) {
 			t.Errorf("language_id = %v, want 71", body["language_id"])
 		}
+		wantSourceCode := base64.StdEncoding.EncodeToString([]byte("print('hi')"))
+		if body["source_code"] != wantSourceCode {
+			t.Errorf("source_code = %v, want %q", body["source_code"], wantSourceCode)
+		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]string{"token": "abc-123-token"})
 	}))
 	defer server.Close()
 
-	client, err := NewClient(server.URL, 5*time.Second)
+	client, err := NewClient(server.URL, 5*time.Second, "")
 	if err != nil {
 		t.Fatalf("NewClient() error = %v", err)
 	}
@@ -50,7 +55,7 @@ func TestClientSubmitReturnsToken(t *testing.T) {
 
 func TestClientSubmitUnsupportedLanguageErrors(t *testing.T) {
 	t.Parallel()
-	client, err := NewClient("http://unused.invalid", 5*time.Second)
+	client, err := NewClient("http://unused.invalid", 5*time.Second, "")
 	if err != nil {
 		t.Fatalf("NewClient() error = %v", err)
 	}
@@ -69,7 +74,7 @@ func TestClientPollInProgressReturnsNil(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, err := NewClient(server.URL, 5*time.Second)
+	client, err := NewClient(server.URL, 5*time.Second, "")
 	if err != nil {
 		t.Fatalf("NewClient() error = %v", err)
 	}
@@ -113,7 +118,7 @@ func TestClientPollTerminalStatuses(t *testing.T) {
 			}))
 			defer server.Close()
 
-			client, err := NewClient(server.URL, 5*time.Second)
+			client, err := NewClient(server.URL, 5*time.Second, "")
 			if err != nil {
 				t.Fatalf("NewClient() error = %v", err)
 			}
@@ -126,6 +131,9 @@ func TestClientPollTerminalStatuses(t *testing.T) {
 			}
 			if verdict.Status != testCase.wantStatus {
 				t.Fatalf("Poll() verdict.Status = %q, want %q", verdict.Status, testCase.wantStatus)
+			}
+			if verdict.Stdout != "output" {
+				t.Fatalf("Poll() verdict.Stdout = %q, want %q", verdict.Stdout, "output")
 			}
 		})
 	}
@@ -143,7 +151,7 @@ func TestClientPollMemoryAndTimeParsed(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, err := NewClient(server.URL, 5*time.Second)
+	client, err := NewClient(server.URL, 5*time.Second, "")
 	if err != nil {
 		t.Fatalf("NewClient() error = %v", err)
 	}
@@ -161,10 +169,125 @@ func TestClientPollMemoryAndTimeParsed(t *testing.T) {
 
 func TestNewClientRejectsInvalidURL(t *testing.T) {
 	t.Parallel()
-	if _, err := NewClient("not-a-url", 5*time.Second); err == nil {
+	if _, err := NewClient("not-a-url", 5*time.Second, ""); err == nil {
 		t.Fatal("NewClient(\"not-a-url\") error = nil, want an error")
 	}
-	if _, err := NewClient("", 5*time.Second); err == nil {
+	if _, err := NewClient("", 5*time.Second, ""); err == nil {
 		t.Fatal("NewClient(\"\") error = nil, want an error")
+	}
+}
+
+func TestClientSendsAuthTokenHeaderWhenConfigured(t *testing.T) {
+	t.Parallel()
+	var gotHeader string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotHeader = r.Header.Get("X-Auth-Token")
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"token": "abc-123-token"})
+	}))
+	defer server.Close()
+
+	client, err := NewClient(server.URL, 5*time.Second, "super-secret-token")
+	if err != nil {
+		t.Fatalf("NewClient() error = %v", err)
+	}
+	if _, err := client.Submit(context.Background(), dispatcher.UnitRequest{
+		Language:   "python3",
+		SourceCode: "print('hi')",
+	}); err != nil {
+		t.Fatalf("Submit() error = %v", err)
+	}
+	if gotHeader != "super-secret-token" {
+		t.Fatalf("X-Auth-Token header = %q, want %q", gotHeader, "super-secret-token")
+	}
+}
+
+func TestClientOmitsAuthTokenHeaderWhenNotConfigured(t *testing.T) {
+	t.Parallel()
+	var gotHeader string
+	sawHeader := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotHeader, sawHeader = r.Header.Get("X-Auth-Token"), r.Header.Get("X-Auth-Token") != ""
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"token": "abc-123-token"})
+	}))
+	defer server.Close()
+
+	client, err := NewClient(server.URL, 5*time.Second, "")
+	if err != nil {
+		t.Fatalf("NewClient() error = %v", err)
+	}
+	if _, err := client.Submit(context.Background(), dispatcher.UnitRequest{
+		Language:   "python3",
+		SourceCode: "print('hi')",
+	}); err != nil {
+		t.Fatalf("Submit() error = %v", err)
+	}
+	if sawHeader {
+		t.Fatalf("X-Auth-Token header = %q, want no header sent", gotHeader)
+	}
+}
+
+func TestClientSubmitRejectsEmptySourceCode(t *testing.T) {
+	t.Parallel()
+	client, err := NewClient("http://unused.invalid", 5*time.Second, "")
+	if err != nil {
+		t.Fatalf("NewClient() error = %v", err)
+	}
+	if _, err := client.Submit(context.Background(), dispatcher.UnitRequest{Language: "python3", SourceCode: ""}); err == nil {
+		t.Fatal("Submit() with empty source code error = nil, want an error")
+	}
+}
+
+func TestClientSubmitNonSuccessStatusReturnsError(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte("engine unavailable"))
+	}))
+	defer server.Close()
+
+	client, err := NewClient(server.URL, 5*time.Second, "")
+	if err != nil {
+		t.Fatalf("NewClient() error = %v", err)
+	}
+	if _, err := client.Submit(context.Background(), dispatcher.UnitRequest{Language: "python3", SourceCode: "print(1)"}); err == nil {
+		t.Fatal("Submit() with a 500 response error = nil, want an error")
+	}
+}
+
+func TestClientPollNonSuccessStatusReturnsError(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte("engine unavailable"))
+	}))
+	defer server.Close()
+
+	client, err := NewClient(server.URL, 5*time.Second, "")
+	if err != nil {
+		t.Fatalf("NewClient() error = %v", err)
+	}
+	if _, err := client.Poll(context.Background(), "some-token"); err == nil {
+		t.Fatal("Poll() with a 500 response error = nil, want an error")
+	}
+}
+
+func TestClientPollUnrecognizedStatusIDReturnsError(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"status": map[string]any{"id": 99, "description": "Unknown Future Status"},
+		})
+	}))
+	defer server.Close()
+
+	client, err := NewClient(server.URL, 5*time.Second, "")
+	if err != nil {
+		t.Fatalf("NewClient() error = %v", err)
+	}
+	if _, err := client.Poll(context.Background(), "some-token"); err == nil {
+		t.Fatal("Poll() with an unrecognized status id error = nil, want an error, not a silently-wrong verdict")
 	}
 }

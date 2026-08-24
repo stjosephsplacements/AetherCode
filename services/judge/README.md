@@ -112,7 +112,7 @@ dispatcher variables are optional when `JUDGE_DISPATCHER_ENABLED=false`.
 | `JUDGE_ENGINE` | `stub` | Evaluation engine: `stub` (deterministic accept, no external deps) or `judge0` (requires gVisor gate). |
 | `JUDGE_WORKER_CONCURRENCY` | `4` | Number of concurrent dispatch goroutines. Must be 1–32. |
 | `JUDGE_POLL_INTERVAL_MS` | `2000` | Milliseconds between engine verdict poll attempts. |
-| `JUDGE_MAX_POLL_ATTEMPTS` | `30` | Maximum poll attempts before a synthetic `time_limit_exceeded` verdict is recorded. |
+| `JUDGE_MAX_POLL_ATTEMPTS` | `30` | Maximum poll attempts before a synthetic `internal_error` verdict is recorded (the engine never reported a terminal state — an engine/infrastructure failure, not evidence the candidate's code timed out). |
 | `JUDGE0_BASE_URL` | *(required when `JUDGE_ENGINE=judge0` and the dispatcher is enabled)* | Base URL of the Judge0 HTTP API the `judge0` engine submits to and polls. Not required for any other engine or deployment, even when `JUDGE_ENGINE_COMPATIBILITY_APPROVED=true` — that flag is independently required in production/staging regardless of engine choice. |
 | `JUDGE0_TIMEOUT_SECONDS` | `10` | Per-request HTTP timeout for the Judge0 client. Must be 1–120. |
 | `JUDGE0_AUTH_TOKEN` | *(optional)* | Bearer/auth token forwarded to Judge0 as `X-Auth-Token` on every request. Leave unset for a local/dev Judge0 instance with no auth configured. |

@@ -1,4 +1,3 @@
-// Package judge0 contains evaluation engine adapters for the judge dispatcher.
 package judge0
 
 import "fmt"
