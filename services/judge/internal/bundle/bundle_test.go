@@ -49,6 +49,17 @@ func TestParseRejectsMalformedJSON(t *testing.T) {
 	}
 }
 
+func TestParseRejectsMisnamedFields(t *testing.T) {
+	t.Parallel()
+	// "input"/"output" instead of "stdin"/"expected_output" — a producer bug
+	// that must fail clearly, not silently parse into empty-string test
+	// cases via json.Unmarshal's default unknown-field tolerance.
+	input := []byte(`{"schema_version": 1, "test_cases": [{"input": "5", "output": "8"}]}`)
+	if _, err := Parse(input); err == nil {
+		t.Fatal("Parse() with misnamed fields error = nil, want an error rejecting unknown fields")
+	}
+}
+
 func TestParseRejectsExcessiveTestCaseCount(t *testing.T) {
 	t.Parallel()
 	testCases := make([]map[string]string, 501)

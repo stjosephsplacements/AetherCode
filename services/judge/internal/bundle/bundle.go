@@ -6,6 +6,7 @@
 package bundle
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 )
@@ -35,7 +36,9 @@ type rawBundle struct {
 // already be decrypted — this package has no knowledge of encryption.
 func Parse(plaintext []byte) ([]TestCase, error) {
 	var raw rawBundle
-	if err := json.Unmarshal(plaintext, &raw); err != nil {
+	decoder := json.NewDecoder(bytes.NewReader(plaintext))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&raw); err != nil {
 		return nil, fmt.Errorf("bundle: decode: %w", err)
 	}
 	if raw.SchemaVersion != supportedSchemaVersion {
