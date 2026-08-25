@@ -3,7 +3,6 @@ package repo
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -55,10 +54,7 @@ func fanOutTestCases(
 	refs := make([]unitObjectRef, 0, len(testCases))
 	storedKeys := make([]string, 0, len(testCases))
 	for i, testCase := range testCases {
-		unitPlaintext, err := json.Marshal(struct {
-			Stdin          string `json:"stdin"`
-			ExpectedOutput string `json:"expected_output"`
-		}{Stdin: testCase.Stdin, ExpectedOutput: testCase.ExpectedOutput})
+		unitPlaintext, err := bundle.MarshalTestCase(testCase)
 		if err != nil {
 			cleanupOrphanedObjects(ctx, objectStorage, storedKeys)
 			return nil, fmt.Errorf("fan-out: encode unit %d: %w", i, err)

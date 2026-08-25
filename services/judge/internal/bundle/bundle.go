@@ -18,10 +18,24 @@ const maxTestCases = 500
 
 const supportedSchemaVersion = 1
 
-// TestCase is one stdin/expected-output pair from a parsed bundle.
+// TestCase is one stdin/expected-output pair from a parsed bundle. The JSON
+// tags define the per-unit encrypted object format that fan-out uploads for
+// each test case (see MarshalTestCase) — the same shape a later decrypt step
+// reads back.
 type TestCase struct {
-	Stdin          string
-	ExpectedOutput string
+	Stdin          string `json:"stdin"`
+	ExpectedOutput string `json:"expected_output"`
+}
+
+// MarshalTestCase encodes a single test case into the per-unit encrypted
+// object format: the JSON document that gets encrypted and uploaded as one
+// test case's independently stored object during fan-out.
+func MarshalTestCase(testCase TestCase) ([]byte, error) {
+	encoded, err := json.Marshal(testCase)
+	if err != nil {
+		return nil, fmt.Errorf("bundle: encode test case: %w", err)
+	}
+	return encoded, nil
 }
 
 type rawBundle struct {
