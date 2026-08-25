@@ -87,10 +87,6 @@ func (f *fakeStore) FetchIncompleteTokens(_ context.Context) ([]PendingUnit, err
 	return nil, nil
 }
 
-func (f *fakeStore) FetchUnitResults(_ context.Context, _ string) ([]UnitResult, error) {
-	return nil, nil
-}
-
 func enabledRuntime() Runtime {
 	return Runtime{
 		Enabled:         true,

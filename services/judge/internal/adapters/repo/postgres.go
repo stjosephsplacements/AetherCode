@@ -363,7 +363,7 @@ func (repository *Postgres) Pull(
 		}
 		unitResults, err := fetchUnitResults(contextValue, transaction, pendingCompletion.jobID)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("fetch completion unit results: %w", err)
 		}
 		completion := app.Completion{
 			EventID:                 pendingCompletion.eventID,

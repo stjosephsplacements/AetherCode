@@ -299,6 +299,11 @@ func (completion Completion) Validate() error {
 		(completion.MemoryKiB != nil && uint64(*completion.MemoryKiB) > 2147483647) {
 		return &ValidationError{Field: "metrics", Reason: "must fit Submission's signed integer range"}
 	}
+	for _, unit := range completion.UnitResults {
+		if (unit.TimeMS != nil && *unit.TimeMS > 2147483647) || (unit.MemoryKB != nil && *unit.MemoryKB > 2147483647) {
+			return &ValidationError{Field: "unit_results.metrics", Reason: "must fit Submission's signed integer range"}
+		}
+	}
 
 	resultFields := []string{
 		strings.TrimSpace(completion.ResultRef),

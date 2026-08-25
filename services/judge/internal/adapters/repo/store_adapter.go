@@ -163,27 +163,26 @@ func (a *DispatchStoreAdapter) FetchIncompleteTokens(ctx context.Context) ([]dis
 	return pending, nil
 }
 
-// FetchUnitResults returns every unit's recorded verdict for a job, in
-// unit_number order.
-func (a *DispatchStoreAdapter) FetchUnitResults(ctx context.Context, jobID string) ([]dispatcher.UnitResult, error) {
-	return fetchUnitResults(ctx, a.pool, jobID)
-}
-
 // unitResultsQuerier is satisfied by both *pgxpool.Pool and pgx.Tx, letting
-// fetchUnitResults run standalone (DispatchStoreAdapter, the dispatcher's own
-// port) or inside an existing transaction (Postgres.Pull, the control-plane
-// adapter) — both read the same judge.execution_units table.
+// fetchUnitResults run inside Postgres.Pull's existing transaction (its only
+// caller) without depending on the transaction type directly.
 type unitResultsQuerier interface {
 	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
 }
 
-// fetchUnitResults returns every unit's recorded verdict for a job, in
-// unit_number order.
+// fetchUnitResults returns every completed unit's recorded verdict for a
+// job, in unit_number order. Units that have not yet reached state
+// 'completed' are excluded: execution_units_result_check guarantees their
+// normalized_verdict is NULL, which would otherwise surface as an empty,
+// unrecognized verdict string that completionVerdictCode rejects --
+// poisoning the whole PullCompletedExecutions batch with codes.Internal for
+// one job's stray in-flight unit.
 func fetchUnitResults(ctx context.Context, querier unitResultsQuerier, jobID string) ([]dispatcher.UnitResult, error) {
 	rows, err := querier.Query(ctx, `
 		SELECT unit_number, normalized_verdict, cpu_time_ms, memory_bytes
 		FROM judge.execution_units
 		WHERE job_id = $1
+		  AND state = 'completed'
 		ORDER BY unit_number
 	`, jobID)
 	if err != nil {

@@ -21,10 +21,6 @@ type Store interface {
 	// FetchIncompleteTokens returns units that have been submitted to the
 	// engine but have not yet received a verdict. Used for crash recovery.
 	FetchIncompleteTokens(ctx context.Context) ([]PendingUnit, error)
-	// FetchUnitResults returns the terminal verdict for every unit of a
-	// completed job, ordered by unit number, for surfacing per-test-case
-	// detail to consumers outside the dispatcher.
-	FetchUnitResults(ctx context.Context, jobID string) ([]UnitResult, error)
 }
 
 // DispatchJob is a queued execution job with its pending test units.
