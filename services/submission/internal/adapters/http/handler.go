@@ -45,6 +45,8 @@ func NewHandler(serviceName string, service *app.Service, readiness httpx.Readin
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/attempts/{attempt_id}/hard", handler.hardDeleteAttempt)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts", handler.listAttempts)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}/answers", handler.listAnswerRevisions)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}/unit-results", handler.getAttemptUnitSummary)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}/judge-receipts", handler.listAttemptUnitResults)
 	return mux, nil
 }
 
@@ -420,6 +422,67 @@ func (handler *Handler) listAnswerRevisions(writer http.ResponseWriter, request 
 		TenantID: tenantID, AttemptID: attemptID, Limit: limit,
 		CursorSort: cursor.SortValue, CursorID: cursor.ID,
 		ExamItemID: examItemID,
+	})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, page)
+}
+
+// getAttemptUnitSummary serves the candidate-safe hidden-test counts. It
+// authorizes against `attempts` with the bearer subject as the resource, so the
+// database routine can bind the rows to the signed actor exactly as the other
+// candidate collections do.
+func (handler *Handler) getAttemptUnitSummary(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	attemptID, err := httpx.ParseUUIDPathValue(request, "attempt_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeSelfHTTP(request.Context(), request, "read", "attempts", tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	page, err := handler.service.GetAttemptUnitSummary(request.Context(), decision.Capability, app.GetAttempt{
+		TenantID: tenantID, AttemptID: attemptID,
+	})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, page)
+}
+
+// listAttemptUnitResults serves the full per-unit breakdown. It authorizes
+// against `judge_receipts`, a resource the canonical policy grants only to
+// college-, department-, batch-, or platform-scoped roles; a candidate's
+// self-scoped assignment cannot name it, so this route fails closed for them
+// before Submission is reached.
+func (handler *Handler) listAttemptUnitResults(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	attemptID, err := httpx.ParseUUIDPathValue(request, "attempt_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "judge_receipts", attemptID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	page, err := handler.service.ListAttemptUnitResults(request.Context(), decision.Capability, app.GetAttempt{
+		TenantID: tenantID, AttemptID: attemptID,
 	})
 	if err != nil {
 		httpx.WriteError(writer, err)

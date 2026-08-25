@@ -88,6 +88,158 @@ func TestParseCompletionPreservesOptionalMetricsAndEncryptedReference(t *testing
 	}
 }
 
+func TestParseCompletionMapsUnitResults(t *testing.T) {
+	t.Parallel()
+
+	executionTimeMS := uint32(12)
+	memoryKiB := uint32(1024)
+	overSignedRange := uint32(4000000000)
+	testCases := []struct {
+		name    string
+		units   []*judgev1.UnitResult
+		want    []UnitResult
+		wantErr bool
+	}{
+		{name: "absent breakdown becomes an empty list", units: nil, want: []UnitResult{}},
+		{
+			name: "verdict and optional metrics are preserved per unit",
+			units: []*judgev1.UnitResult{
+				{UnitNumber: 0, VerdictCode: judgev1.CompletionVerdict_COMPLETION_VERDICT_ACCEPTED, ExecutionTimeMs: &executionTimeMS, MemoryKib: &memoryKiB},
+				{UnitNumber: 1, VerdictCode: judgev1.CompletionVerdict_COMPLETION_VERDICT_WRONG_ANSWER},
+			},
+			want: []UnitResult{
+				{UnitNumber: 0, Verdict: "accepted", ExecutionTimeMS: intPointer(12), MemoryKiB: intPointer(1024)},
+				{UnitNumber: 1, Verdict: "wrong_answer"},
+			},
+		},
+		{
+			name:    "unspecified unit verdict is rejected",
+			units:   []*judgev1.UnitResult{{UnitNumber: 0, VerdictCode: judgev1.CompletionVerdict_COMPLETION_VERDICT_UNSPECIFIED}},
+			wantErr: true,
+		},
+		{name: "missing unit result is rejected", units: []*judgev1.UnitResult{nil}, wantErr: true},
+		{
+			name: "duplicate unit number is rejected",
+			units: []*judgev1.UnitResult{
+				{UnitNumber: 3, VerdictCode: judgev1.CompletionVerdict_COMPLETION_VERDICT_ACCEPTED},
+				{UnitNumber: 3, VerdictCode: judgev1.CompletionVerdict_COMPLETION_VERDICT_ACCEPTED},
+			},
+			wantErr: true,
+		},
+		{
+			name:    "unit metric beyond Submission's signed range is rejected",
+			units:   []*judgev1.UnitResult{{UnitNumber: 0, VerdictCode: judgev1.CompletionVerdict_COMPLETION_VERDICT_ACCEPTED, ExecutionTimeMs: &overSignedRange}},
+			wantErr: true,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			value := validProtoCompletion()
+			value.UnitResults = testCase.units
+			completion, err := parseCompletion(value)
+			if testCase.wantErr {
+				if err == nil {
+					t.Fatalf("parseCompletion() accepted %#v", testCase.units)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("parseCompletion() error = %v", err)
+			}
+			if len(completion.UnitResults) != len(testCase.want) {
+				t.Fatalf("unit results = %#v, want %#v", completion.UnitResults, testCase.want)
+			}
+			for index, want := range testCase.want {
+				got := completion.UnitResults[index]
+				if got.UnitNumber != want.UnitNumber || got.Verdict != want.Verdict ||
+					!sameOptionalInt(got.ExecutionTimeMS, want.ExecutionTimeMS) ||
+					!sameOptionalInt(got.MemoryKiB, want.MemoryKiB) {
+					t.Fatalf("unit %d = %#v, want %#v", index, got, want)
+				}
+			}
+		})
+	}
+}
+
+func TestValidateRejectsUnboundedUnitBreakdown(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name  string
+		units []UnitResult
+	}{
+		{name: "negative unit number", units: []UnitResult{{UnitNumber: -1, Verdict: "accepted"}}},
+		{name: "unknown unit verdict", units: []UnitResult{{UnitNumber: 0, Verdict: "partially_accepted"}}},
+		{name: "negative unit metric", units: []UnitResult{{UnitNumber: 0, Verdict: "accepted", MemoryKiB: intPointer(-1)}}},
+		{name: "unit metric beyond the database bound", units: []UnitResult{{UnitNumber: 0, Verdict: "accepted", ExecutionTimeMS: intPointer(maxUnitMetric + 1)}}},
+		{name: "more units than the database accepts", units: manyUnits(maxUnitResults + 1)},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			completion := validCompletion()
+			completion.UnitResults = testCase.units
+			if err := completion.Validate(); err == nil {
+				t.Fatal("Validate() accepted an out-of-contract unit breakdown")
+			}
+		})
+	}
+}
+
+func TestEncodeUnitResultsAlwaysProducesAnArray(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name  string
+		units []UnitResult
+		want  string
+	}{
+		{name: "nil breakdown", units: nil, want: "[]"},
+		{name: "empty breakdown", units: []UnitResult{}, want: "[]"},
+		{
+			name:  "populated breakdown keeps every ingress key present",
+			units: []UnitResult{{UnitNumber: 2, Verdict: "runtime_error"}},
+			want:  `[{"unit_number":2,"verdict":"runtime_error","execution_time_ms":null,"memory_kib":null}]`,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			encoded, err := encodeUnitResults(testCase.units)
+			if err != nil {
+				t.Fatalf("encodeUnitResults() error = %v", err)
+			}
+			if encoded != testCase.want {
+				t.Fatalf("encodeUnitResults() = %s, want %s", encoded, testCase.want)
+			}
+		})
+	}
+}
+
+func intPointer(value int) *int { return &value }
+
+func sameOptionalInt(left, right *int) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+	return *left == *right
+}
+
+func manyUnits(count int) []UnitResult {
+	units := make([]UnitResult, 0, count)
+	for index := range count {
+		units = append(units, UnitResult{UnitNumber: index, Verdict: "accepted"})
+	}
+	return units
+}
+
 func TestLoadRuntimeRejectsEnabledBridgeWithoutMutualTLS(t *testing.T) {
 	t.Setenv("JUDGE_COMPLETION_ENABLED", "true")
 	t.Setenv("JUDGE_COMPLETION_GRPC_ADDR", "judge.internal:8443")

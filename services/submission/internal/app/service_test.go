@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -47,6 +48,12 @@ func (validationStore) ListAttempts(context.Context, pgx.Tx, ListAttempts) ([]At
 	return nil, nil
 }
 func (validationStore) ListAnswerRevisions(context.Context, pgx.Tx, ListAnswerRevisions) ([]AnswerRevision, error) {
+	return nil, nil
+}
+func (validationStore) GetAttemptUnitSummary(context.Context, pgx.Tx, GetAttempt) ([]AttemptUnitSummary, error) {
+	return nil, nil
+}
+func (validationStore) ListAttemptUnitResults(context.Context, pgx.Tx, GetAttempt) ([]AttemptUnitResults, error) {
 	return nil, nil
 }
 func (validationStore) Ping(context.Context) error { return nil }
@@ -109,6 +116,68 @@ func TestAttemptStartEventIDsAreDistinctUUIDv7(t *testing.T) {
 		if !isUUID(identifier) || len(identifier) != 36 || identifier[14] != '7' {
 			t.Fatalf("event ID = %q, want UUIDv7", identifier)
 		}
+	}
+}
+
+// TestUnitResultResponsesKeepCandidateAndReviewerViewsSeparate locks the two
+// response contracts. Adding a per-unit field to the candidate summary would
+// hand a candidate the identity of the hidden test they failed, so the exact
+// key set of each view is asserted rather than merely spot-checked.
+func TestUnitResultResponsesKeepCandidateAndReviewerViewsSeparate(t *testing.T) {
+	t.Parallel()
+
+	executionTimeMS := 12
+	testCases := []struct {
+		name        string
+		page        any
+		wantKeys    []string
+		absentKeys  []string
+		wantSnippet string
+	}{
+		{
+			name: "candidate summary exposes counts only",
+			page: Page[AttemptUnitSummary]{Items: []AttemptUnitSummary{{
+				ExamItemID: validSubmissionTestUUID, EvaluationRequestID: validSubmissionTestUUID,
+				PassedUnits: 3, TotalUnits: 5,
+			}}},
+			wantKeys:   []string{"exam_item_id", "evaluation_request_id", "passed_units", "total_units"},
+			absentKeys: []string{"units", "unit_number", "verdict", "execution_time_ms", "memory_kib"},
+		},
+		{
+			name: "reviewer view exposes the full breakdown",
+			page: Page[AttemptUnitResults]{Items: []AttemptUnitResults{{
+				JudgeReceiptID: validSubmissionTestUUID, EvaluationRequestID: validSubmissionTestUUID,
+				ExamItemID: validSubmissionTestUUID, Verdict: "wrong_answer", PassedUnits: 1, TotalUnits: 2,
+				Units: []AttemptUnit{{UnitNumber: 1, Verdict: "wrong_answer", ExecutionTimeMS: &executionTimeMS}},
+			}}},
+			wantKeys:    []string{"judge_receipt_id", "verdict", "units", "unit_number", "execution_time_ms", "memory_kib"},
+			wantSnippet: `"unit_number":1`,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			encoded, err := json.Marshal(testCase.page)
+			if err != nil {
+				t.Fatalf("json.Marshal() error = %v", err)
+			}
+			body := string(encoded)
+			for _, key := range testCase.wantKeys {
+				if !strings.Contains(body, `"`+key+`"`) {
+					t.Fatalf("response %s is missing %q", body, key)
+				}
+			}
+			for _, key := range testCase.absentKeys {
+				if strings.Contains(body, `"`+key+`"`) {
+					t.Fatalf("response %s leaks %q", body, key)
+				}
+			}
+			if testCase.wantSnippet != "" && !strings.Contains(body, testCase.wantSnippet) {
+				t.Fatalf("response %s is missing %s", body, testCase.wantSnippet)
+			}
+		})
 	}
 }
 

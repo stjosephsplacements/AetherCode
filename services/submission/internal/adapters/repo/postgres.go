@@ -409,6 +409,36 @@ func (repository *Postgres) ListAnswerRevisions(contextValue context.Context, tr
 	return revisions, nil
 }
 
+func (repository *Postgres) GetAttemptUnitSummary(contextValue context.Context, transaction pgx.Tx, command app.GetAttempt) ([]app.AttemptUnitSummary, error) {
+	var raw json.RawMessage
+	err := transaction.QueryRow(contextValue, `
+		SELECT submission.get_attempt_unit_summary_for_candidate($1, $2)
+	`, command.TenantID, command.AttemptID).Scan(&raw)
+	if err != nil {
+		return nil, mapDatabaseError(err, "get attempt unit summary")
+	}
+	var summaries []app.AttemptUnitSummary
+	if err := json.Unmarshal(raw, &summaries); err != nil {
+		return nil, fmt.Errorf("decode attempt unit summary: %w", err)
+	}
+	return summaries, nil
+}
+
+func (repository *Postgres) ListAttemptUnitResults(contextValue context.Context, transaction pgx.Tx, command app.GetAttempt) ([]app.AttemptUnitResults, error) {
+	var raw json.RawMessage
+	err := transaction.QueryRow(contextValue, `
+		SELECT submission.list_attempt_unit_results($1, $2)
+	`, command.TenantID, command.AttemptID).Scan(&raw)
+	if err != nil {
+		return nil, mapDatabaseError(err, "list attempt unit results")
+	}
+	var results []app.AttemptUnitResults
+	if err := json.Unmarshal(raw, &results); err != nil {
+		return nil, fmt.Errorf("decode attempt unit results: %w", err)
+	}
+	return results, nil
+}
+
 // nullableUUID converts an absent optional filter to a SQL NULL so one function
 // signature serves both the filtered and unfiltered query.
 func nullableUUID(value string) any {

@@ -2,6 +2,7 @@ package judgecompletion
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/aethercode/aethercode/libs/pkg/database"
@@ -44,6 +45,10 @@ func (store *Store) Persist(contextValue context.Context, consumerID string, com
 	if err != nil {
 		return err
 	}
+	unitResults, err := encodeUnitResults(completion.UnitResults)
+	if err != nil {
+		return err
+	}
 	transaction, err := store.pool.BeginTx(contextValue, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
 	if err != nil {
 		return fmt.Errorf("begin Judge completion persistence: %w", err)
@@ -52,13 +57,13 @@ func (store *Store) Persist(contextValue context.Context, consumerID string, com
 	var persistedOutboxEventID string
 	err = transaction.QueryRow(contextValue, `
 		SELECT submission.ingest_judge_completion(
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb
 		)
 	`, outboxEventID, completion.JudgeEventID, completion.DeliveryID, completion.LeaseID,
 		consumerID, completion.EvaluationRequestID, completion.JudgeJobID, completion.Verdict,
 		completion.ExecutionTimeMS, completion.MemoryKiB, nullableString(completion.ResultObjectKey),
 		nullableString(completion.ResultChecksum), nullableString(completion.EncryptionKeyReference),
-		completion.CompletedAt.UTC()).Scan(&persistedOutboxEventID)
+		completion.CompletedAt.UTC(), unitResults).Scan(&persistedOutboxEventID)
 	if err != nil {
 		return fmt.Errorf("persist Judge completion ingress: %w", err)
 	}
@@ -69,6 +74,20 @@ func (store *Store) Persist(contextValue context.Context, consumerID string, com
 		return fmt.Errorf("commit Judge completion persistence: %w", err)
 	}
 	return nil
+}
+
+// encodeUnitResults always produces a JSON array. An absent breakdown is an
+// empty array rather than a JSON null, because the ingress routine stores the
+// value in a jsonb array column and compares it on every replayed delivery.
+func encodeUnitResults(units []UnitResult) (string, error) {
+	if len(units) == 0 {
+		return "[]", nil
+	}
+	encoded, err := json.Marshal(units)
+	if err != nil {
+		return "", fmt.Errorf("encode Judge completion unit results: %w", err)
+	}
+	return string(encoded), nil
 }
 
 func nullableString(value *string) any {

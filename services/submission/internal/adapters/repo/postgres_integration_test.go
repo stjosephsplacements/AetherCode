@@ -5,15 +5,11 @@ package repo_test
 import (
 	"context"
 	"errors"
-	"path/filepath"
-	"runtime"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/require"
-
-	"github.com/aethercode/aethercode/libs/pkg/testutil/integration"
 )
 
 // TestRLSIsolateTenants proves that tenant isolation in the submission
@@ -49,37 +45,7 @@ func TestRLSIsolateTenants(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
-	pool := integration.StartPostgres(ctx, t)
-
-	// --- pre-migration role and schema setup -----------------------------------
-	for _, stmt := range []string{
-		`CREATE ROLE aether_submission_owner       NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
-		`CREATE ROLE aether_submission_migrator    NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
-		`CREATE ROLE aether_submission_app         NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
-		`CREATE ROLE aether_submission_authz_reader NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
-		`CREATE ROLE aether_submission_projection_worker NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
-		// A separate runtime identity required by migration 000010 (judge
-		// completion bridge); it never touches candidate tables directly.
-		`CREATE ROLE aether_submission_judge_adapter NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
-		// Migrator must be a member of owner so SET ROLE aether_submission_owner works.
-		`GRANT aether_submission_owner TO aether_submission_migrator`,
-		// Transfer ownership so the migration can REVOKE on the public schema.
-		`ALTER DATABASE testdb OWNER TO aether_submission_owner`,
-		`ALTER SCHEMA public OWNER TO aether_submission_owner`,
-		// Pre-create the migration version table owned by aether_submission_owner.
-		`CREATE TABLE public.schema_migrations (version bigint NOT NULL PRIMARY KEY, dirty boolean NOT NULL)`,
-		`ALTER TABLE public.schema_migrations OWNER TO aether_submission_owner`,
-	} {
-		_, err := pool.Exec(ctx, stmt)
-		require.NoError(t, err, "pre-migration setup: %s", stmt[:min(len(stmt), 60)])
-	}
-
-	// --- apply migrations ------------------------------------------------------
-	_, file, _, _ := runtime.Caller(0)
-	svcRoot := filepath.Join(filepath.Dir(file), "../../..")
-	migrationsDir, err := filepath.Abs(filepath.Join(svcRoot, "migrations"))
-	require.NoError(t, err)
-	integration.ApplyMigrations(ctx, t, pool, migrationsDir)
+	pool := startSubmissionDatabase(ctx, t)
 
 	// --- committed test data ---------------------------------------------------
 	tenantA := uuid.MustParse("018f4b0d-08f8-7c09-9ba7-efdf9c330001")
@@ -88,7 +54,7 @@ func TestRLSIsolateTenants(t *testing.T) {
 	attemptID := uuid.New()
 
 	// Insert an attempt for tenant A. The postgres superuser bypasses all RLS.
-	_, err = pool.Exec(ctx,
+	_, err := pool.Exec(ctx,
 		`INSERT INTO submission.attempts
 		     (id, tenant_id, exam_id, exam_version_id, candidate_id, candidate_assignment_id,
 		      attempt_number, available_from, submission_deadline)

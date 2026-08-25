@@ -1,6 +1,7 @@
 package httpadapter
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"net/http"
@@ -9,8 +10,12 @@ import (
 	"testing"
 	"time"
 
+	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
 	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
+	"github.com/aethercode/aethercode/libs/pkg/httpauth"
 	"github.com/aethercode/aethercode/libs/pkg/ratelimit"
+	authzv1 "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/authz/v1"
+	"google.golang.org/grpc"
 )
 
 // unverifiedBearerToken builds a compact JWS with the given subject and no
@@ -22,6 +27,94 @@ func unverifiedBearerToken(subject string) string {
 	claims := base64.RawURLEncoding.EncodeToString([]byte(`{"sub":"` + subject + `"}`))
 	signature := base64.RawURLEncoding.EncodeToString([]byte("unsigned"))
 	return header + "." + claims + "." + signature
+}
+
+// recordingAuthorizationRPC captures the central authorization request a route
+// makes and always denies it, so a handler test can assert which protected
+// resource the route asks for without a live decision service.
+type recordingAuthorizationRPC struct {
+	request *authzv1.AuthorizeRequest
+}
+
+func (rpc *recordingAuthorizationRPC) Authorize(
+	_ context.Context, request *authzv1.AuthorizeRequest, _ ...grpc.CallOption,
+) (*authzv1.AuthorizeResponse, error) {
+	rpc.request = request
+	return &authzv1.AuthorizeResponse{Allowed: false}, nil
+}
+
+// TestUnitResultRoutesRequestTheirOwnProtectedResource pins the access-control
+// boundary between the two views. The candidate route asks for `attempts`,
+// which a student's self-scoped assignment can satisfy; the reviewer route asks
+// for `judge_receipts`, which the canonical policy grants only to a college-,
+// department-, batch-, or platform-scoped role. Pointing the reviewer route at
+// `attempts` would silently hand every candidate their own per-unit breakdown.
+func TestUnitResultRoutesRequestTheirOwnProtectedResource(t *testing.T) {
+	t.Parallel()
+
+	const (
+		tenantID    = "018f4b0d-08f8-7c09-9ba7-efdf9c221010"
+		attemptID   = "018f4b0d-08f8-7c09-9ba7-efdf9c221011"
+		candidateID = "018f4b0d-08f8-7c09-9ba7-efdf9c221012"
+	)
+	testCases := []struct {
+		name             string
+		route            func(*Handler, http.ResponseWriter, *http.Request)
+		wantResourceType string
+		wantResourceID   string
+	}{
+		{
+			name:             "candidate summary authorizes against attempts",
+			route:            (*Handler).getAttemptUnitSummary,
+			wantResourceType: "attempts",
+			wantResourceID:   candidateID,
+		},
+		{
+			name:             "reviewer breakdown authorizes against judge receipts",
+			route:            (*Handler).listAttemptUnitResults,
+			wantResourceType: "judge_receipts",
+			wantResourceID:   attemptID,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			rpc := &recordingAuthorizationRPC{}
+			client, err := centralauthz.NewClient(rpc)
+			if err != nil {
+				t.Fatalf("NewClient() error = %v", err)
+			}
+			authorizer, err := httpauth.New(client, "submission")
+			if err != nil {
+				t.Fatalf("httpauth.New() error = %v", err)
+			}
+			request := httptest.NewRequest(http.MethodGet, "/v1/tenants/"+tenantID+"/attempts/"+attemptID+"/unit-results", nil)
+			request.SetPathValue("tenant_id", tenantID)
+			request.SetPathValue("attempt_id", attemptID)
+			request.Header.Set("Authorization", "Bearer "+unverifiedBearerToken(candidateID))
+
+			recorder := httptest.NewRecorder()
+			testCase.route(&Handler{authorizer: authorizer}, recorder, request)
+
+			if recorder.Code != http.StatusForbidden {
+				t.Fatalf("status = %d, want 403; body = %s", recorder.Code, recorder.Body.String())
+			}
+			if rpc.request == nil {
+				t.Fatal("route did not request a central authorization decision")
+			}
+			if rpc.request.GetResourceType() != testCase.wantResourceType {
+				t.Fatalf("resource type = %q, want %q", rpc.request.GetResourceType(), testCase.wantResourceType)
+			}
+			if rpc.request.GetResourceId() != testCase.wantResourceID {
+				t.Fatalf("resource id = %q, want %q", rpc.request.GetResourceId(), testCase.wantResourceID)
+			}
+			if rpc.request.GetAction() != "read" || rpc.request.GetTenantId() != tenantID {
+				t.Fatalf("action/tenant = %q/%q", rpc.request.GetAction(), rpc.request.GetTenantId())
+			}
+		})
+	}
 }
 
 func TestRequiredIdempotencyKey(t *testing.T) {
