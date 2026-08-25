@@ -14,6 +14,16 @@ import (
 // maxTestCases bounds resource use during fan-out — an author authoring a
 // pathologically large bundle should not be able to make one submission
 // dispatch thousands of Judge0 units.
+//
+// Invariant: this must stay <= submission's per-completion unit-result bound
+// (services/submission/internal/adapters/judgecompletion/completion.go's
+// maxUnitResults, and the matching CHECK in
+// services/submission/migrations/000018_judge_receipt_units.up.sql's
+// ingest_judge_completion). Raising this above that bound without raising
+// the other two would silently re-arm a judge-completion bridge stall: every
+// completion for such a job would fail validateUnitResults/the SQL check,
+// Worker.ProcessOnce would never acknowledge the failing message, and the
+// same head-of-queue completion would be re-pulled and re-fail forever.
 const maxTestCases = 500
 
 const supportedSchemaVersion = 1

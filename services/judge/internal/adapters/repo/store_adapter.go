@@ -177,6 +177,11 @@ type unitResultsQuerier interface {
 // unrecognized verdict string that completionVerdictCode rejects --
 // poisoning the whole PullCompletedExecutions batch with codes.Internal for
 // one job's stray in-flight unit.
+//
+// This filter assumes 'completed' is the only reachable terminal state that
+// produces a non-NULL verdict. If a future change adds another terminal
+// state (e.g. some other terminal status), this WHERE clause must be updated
+// too, or results in that state will be silently under-counted here.
 func fetchUnitResults(ctx context.Context, querier unitResultsQuerier, jobID string) ([]dispatcher.UnitResult, error) {
 	rows, err := querier.Query(ctx, `
 		SELECT unit_number, normalized_verdict, cpu_time_ms, memory_bytes

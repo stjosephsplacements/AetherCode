@@ -110,6 +110,15 @@ BEGIN
        OR (p_encryption_key_reference IS NOT NULL AND length(btrim(p_encryption_key_reference)) NOT BETWEEN 1 AND 1024)
        OR p_unit_results IS NULL
        OR jsonb_typeof(p_unit_results) <> 'array'
+       -- Invariant: 1000 here must stay >= judge's per-bundle test-case bound
+       -- (services/judge/internal/bundle/bundle.go's maxTestCases) and must
+       -- match maxUnitResults in
+       -- services/submission/internal/adapters/judgecompletion/completion.go.
+       -- If judge's bound is ever raised above this one without raising this
+       -- check and maxUnitResults too, every completion for such a job would
+       -- fail this CHECK/validateUnitResults, Worker.ProcessOnce would never
+       -- acknowledge the failing message, and the same head-of-queue
+       -- completion would be re-pulled and re-fail forever.
        OR jsonb_array_length(p_unit_results) > 1000
     THEN
         RAISE EXCEPTION 'Judge completion ingress is invalid' USING ERRCODE = '22023';
@@ -443,6 +452,16 @@ $function$;
 -- A candidate learns how many hidden tests passed and nothing else. Exposing
 -- which unit number failed, or how long it ran, leaks the shape of a hidden
 -- test back into an exam that is still being sat by other candidates.
+--
+-- This function has no attempt.lifecycle_state predicate. That is
+-- intentional/structural, not an oversight: a submission.judge_receipts row
+-- (and therefore a submission.judge_receipt_units row) can only exist after
+-- an attempt has been formally submitted for evaluation, so there is no
+-- lifecycle_state under which a receipt could reflect mid-attempt work. This
+-- assumption becomes load-bearing, and must be re-verified, if a later plan
+-- (e.g. candidate-run-code) ever introduces a mid-attempt code-execution
+-- path that writes to judge_receipts, judge_receipt_units, or any other
+-- table this function reads from.
 CREATE FUNCTION submission.get_attempt_unit_summary_for_candidate(
     p_tenant_id uuid,
     p_attempt_id uuid

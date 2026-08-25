@@ -2,8 +2,11 @@ package app
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
+
+	"github.com/aethercode/aethercode/services/judge/internal/dispatcher"
 )
 
 func TestSubmitRejectsOutOfRangeWallTimeBeforePersistence(t *testing.T) {
@@ -47,6 +50,59 @@ func TestFingerprintExcludesIdempotencyKeyAndBindsPayload(t *testing.T) {
 	}
 	if firstFingerprint == changedFingerprint {
 		t.Fatal("payload change did not change request fingerprint")
+	}
+}
+
+func TestCompletionValidateRejectsUnrecognizedVerdicts(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		mutate    func(*Completion)
+		wantField string
+	}{
+		{
+			name:      "aggregate verdict is unrecognized",
+			mutate:    func(completion *Completion) { completion.Verdict = "not-a-real-verdict" },
+			wantField: "verdict",
+		},
+		{
+			name: "unit verdict is unrecognized",
+			mutate: func(completion *Completion) {
+				completion.UnitResults = []dispatcher.UnitResult{{UnitNumber: 0, Verdict: "not-a-real-verdict"}}
+			},
+			wantField: "unit_results.verdict",
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			completion := validCompletion()
+			testCase.mutate(&completion)
+
+			err := completion.Validate()
+			var validationError *ValidationError
+			if !errors.As(err, &validationError) {
+				t.Fatalf("Validate() error = %v, want *ValidationError", err)
+			}
+			if validationError.Field != testCase.wantField {
+				t.Fatalf("Validate() field = %q, want %q", validationError.Field, testCase.wantField)
+			}
+		})
+	}
+}
+
+func validCompletion() Completion {
+	return Completion{
+		EventID:                 "019b11a0-0000-7000-8000-000000000020",
+		JobID:                   "019b11a0-0000-7000-8000-000000000021",
+		SubmissionCorrelationID: "019b11a0-0000-7000-8000-000000000022",
+		DeliveryID:              "019b11a0-0000-7000-8000-000000000023",
+		LeaseID:                 "019b11a0-0000-7000-8000-000000000024",
+		Verdict:                 "accepted",
+		CompletedAt:             time.Date(2026, 7, 24, 0, 0, 0, 0, time.UTC),
 	}
 }
 

@@ -13,6 +13,17 @@ import (
 // submission.ingest_judge_completion enforces on the unit breakdown. Rejecting
 // here keeps an out-of-range wrapper value out of a retry loop the database
 // would fail on every time.
+//
+// Invariant: maxUnitResults must stay >= judge's per-bundle test-case bound
+// (services/judge/internal/bundle/bundle.go's maxTestCases) and must match
+// the jsonb_array_length(p_unit_results) > 1000 CHECK in
+// services/submission/migrations/000018_judge_receipt_units.up.sql's
+// ingest_judge_completion. If judge's bound is ever raised above this one
+// without raising this one and the SQL check too, every completion for such
+// a job would fail validateUnitResults/the SQL check and
+// Worker.ProcessOnce would never acknowledge the failing message, re-arming
+// a judge-completion bridge stall on the same head-of-queue completion
+// forever.
 const (
 	maxUnitResults = 1000
 	maxUnitMetric  = 999999999

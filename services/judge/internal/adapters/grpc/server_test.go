@@ -109,9 +109,15 @@ func TestPullCompletedExecutionsMapsUnitResults(t *testing.T) {
 			wantUnits:   []*judgev1.UnitResult{},
 		},
 		{
-			name:        "unrecognized unit verdict fails closed with Internal instead of a mismapped verdict",
+			// app.Completion.Validate() now rejects an unrecognized unit
+			// verdict inside service.Pull, before a completion ever reaches
+			// this handler's wire mapping. completionVerdictCode's own
+			// codes.Internal fail-closed branch below is unreachable through
+			// this path today, but stays as defense-in-depth for any future
+			// caller of the mapping loop that skips Validate.
+			name:        "unrecognized unit verdict is rejected by completion validation before reaching the wire mapping",
 			unitResults: []dispatcher.UnitResult{{UnitNumber: 0, Verdict: "not-a-real-verdict"}},
-			wantCode:    codes.Internal,
+			wantCode:    codes.InvalidArgument,
 		},
 	}
 

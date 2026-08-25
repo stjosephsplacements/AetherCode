@@ -300,6 +300,9 @@ func (completion Completion) Validate() error {
 		return &ValidationError{Field: "metrics", Reason: "must fit Submission's signed integer range"}
 	}
 	for _, unit := range completion.UnitResults {
+		if !isCompletionVerdict(unit.Verdict) {
+			return &ValidationError{Field: "unit_results.verdict", Reason: "is unsupported"}
+		}
 		if (unit.TimeMS != nil && *unit.TimeMS > 2147483647) || (unit.MemoryKB != nil && *unit.MemoryKB > 2147483647) {
 			return &ValidationError{Field: "unit_results.metrics", Reason: "must fit Submission's signed integer range"}
 		}
