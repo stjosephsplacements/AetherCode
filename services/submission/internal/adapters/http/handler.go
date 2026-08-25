@@ -22,15 +22,6 @@ import (
 // window.
 const retryAfterStartAttempt = "3600"
 
-// retryAfterRunCode is the Retry-After value sent with 429 responses on the
-// run-code endpoint. A much shorter window than attempt creation: run-code is
-// meant to support frequent iterative debugging, not per-hour friction.
-// Defined alongside runCodeLimiter ahead of the endpoint itself, which a later
-// task in this plan wires up.
-//
-//nolint:unused // consumed by the run-code endpoint added in a later task of this plan
-const retryAfterRunCode = "60"
-
 type Handler struct {
 	service             *app.Service
 	authorizer          *httpauth.Authorizer
