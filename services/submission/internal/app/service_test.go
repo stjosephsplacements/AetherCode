@@ -59,7 +59,7 @@ func (validationStore) ListAttemptUnitResults(context.Context, pgx.Tx, GetAttemp
 func (validationStore) Ping(context.Context) error { return nil }
 
 func TestStartAttemptRejectsInvalidCommandBeforeTransaction(t *testing.T) {
-	service, err := NewService(&pgxpool.Pool{}, validationStore{})
+	service, err := NewService(&pgxpool.Pool{}, validationStore{}, nil, nil)
 	if err != nil {
 		t.Fatalf("NewService() error = %v", err)
 	}
@@ -71,7 +71,7 @@ func TestStartAttemptRejectsInvalidCommandBeforeTransaction(t *testing.T) {
 }
 
 func TestAppendAnswerRevisionRejectsUntrustedSourceMetadata(t *testing.T) {
-	service, err := NewService(&pgxpool.Pool{}, validationStore{})
+	service, err := NewService(&pgxpool.Pool{}, validationStore{}, nil, nil)
 	if err != nil {
 		t.Fatalf("NewService() error = %v", err)
 	}
@@ -84,7 +84,7 @@ func TestAppendAnswerRevisionRejectsUntrustedSourceMetadata(t *testing.T) {
 }
 
 func TestSubmitAttemptRejectsMissingIdempotencyKeyBeforeTransaction(t *testing.T) {
-	service, err := NewService(&pgxpool.Pool{}, validationStore{})
+	service, err := NewService(&pgxpool.Pool{}, validationStore{}, nil, nil)
 	if err != nil {
 		t.Fatalf("NewService() error = %v", err)
 	}
@@ -223,7 +223,7 @@ func TestAppendAnswerRevisionEnforcesDeterministicChecksum(t *testing.T) {
 
 func TestStartAttemptRejectsDuplicateIDFormat(t *testing.T) {
 	t.Parallel()
-	service, err := NewService(&pgxpool.Pool{}, validationStore{})
+	service, err := NewService(&pgxpool.Pool{}, validationStore{}, nil, nil)
 	if err != nil {
 		t.Fatalf("NewService() error = %v", err)
 	}
@@ -272,7 +272,7 @@ func TestStartAttemptRejectsDuplicateIDFormat(t *testing.T) {
 
 func TestSubmitAttemptEnforcesVersionMonotonicity(t *testing.T) {
 	t.Parallel()
-	service, err := NewService(&pgxpool.Pool{}, validationStore{})
+	service, err := NewService(&pgxpool.Pool{}, validationStore{}, nil, nil)
 	if err != nil {
 		t.Fatalf("NewService() error = %v", err)
 	}
@@ -286,7 +286,7 @@ func TestSubmitAttemptEnforcesVersionMonotonicity(t *testing.T) {
 
 func TestAppendAnswerRevisionRejectsNonSHA256Checksums(t *testing.T) {
 	t.Parallel()
-	service, err := NewService(&pgxpool.Pool{}, validationStore{})
+	service, err := NewService(&pgxpool.Pool{}, validationStore{}, nil, nil)
 	if err != nil {
 		t.Fatalf("NewService() error = %v", err)
 	}
@@ -315,7 +315,7 @@ func TestAppendAnswerRevisionRejectsNonSHA256Checksums(t *testing.T) {
 
 func TestAppendAnswerRevisionRejectsTraversalSourceKeys(t *testing.T) {
 	t.Parallel()
-	service, err := NewService(&pgxpool.Pool{}, validationStore{})
+	service, err := NewService(&pgxpool.Pool{}, validationStore{}, nil, nil)
 	if err != nil {
 		t.Fatalf("NewService() error = %v", err)
 	}

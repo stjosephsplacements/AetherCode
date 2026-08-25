@@ -15,9 +15,13 @@ import (
 	"github.com/aethercode/aethercode/libs/pkg/database"
 	"github.com/aethercode/aethercode/libs/pkg/httpauth"
 	"github.com/aethercode/aethercode/libs/pkg/httpx"
+	"github.com/aethercode/aethercode/libs/pkg/kms"
+	localkms "github.com/aethercode/aethercode/libs/pkg/kms/local"
 	"github.com/aethercode/aethercode/libs/pkg/logging"
 	"github.com/aethercode/aethercode/libs/pkg/messaging"
 	"github.com/aethercode/aethercode/libs/pkg/ratelimit"
+	"github.com/aethercode/aethercode/libs/pkg/storage"
+	minioclient "github.com/aethercode/aethercode/libs/pkg/storage/minio"
 	"github.com/aethercode/aethercode/libs/pkg/telemetry"
 	httpadapter "github.com/aethercode/aethercode/services/submission/internal/adapters/http"
 	"github.com/aethercode/aethercode/services/submission/internal/adapters/judgecompletion"
@@ -84,7 +88,32 @@ func run(contextValue context.Context) error {
 	if err != nil {
 		return err
 	}
-	submissionService, err := app.NewService(pool, store)
+
+	// NOTE: Storage and KMS are optional. Set SUBMISSION_STORAGE_ENDPOINT and
+	// SUBMISSION_KMS_LOCAL_KEY to enable candidate-source encryption/retrieval
+	// workflows such as run-code. They return 503 Unavailable when these
+	// variables are absent.
+	var storageClient storage.Object
+	var kmsClient kms.KeyManager
+	if os.Getenv("SUBMISSION_STORAGE_ENDPOINT") != "" {
+		storageCfg, storageErr := minioclient.LoadConfig("SUBMISSION_STORAGE")
+		if storageErr != nil {
+			return storageErr
+		}
+		storageClient, storageErr = minioclient.New(storageCfg)
+		if storageErr != nil {
+			return storageErr
+		}
+	}
+	if os.Getenv("SUBMISSION_KMS_LOCAL_KEY") != "" {
+		kmsCfg, kmsErr := localkms.LoadConfig("SUBMISSION")
+		if kmsErr != nil {
+			return kmsErr
+		}
+		kmsClient = localkms.New(kmsCfg)
+	}
+
+	submissionService, err := app.NewService(pool, store, storageClient, kmsClient)
 	if err != nil {
 		return err
 	}
@@ -321,7 +350,16 @@ func run(contextValue context.Context) error {
 	if err != nil {
 		return err
 	}
-	handler, err := httpadapter.NewHandler(serviceConfig.Name, submissionService, readiness, authorizer, startAttemptLimiter)
+	runCodeLimiter, err := ratelimit.New(ratelimit.Config{
+		Capacity:        float64(rateLimitRuntime.RunCodeBurst),
+		RefillPerSecond: float64(rateLimitRuntime.RunCodeRate) / 3600.0,
+		MaxEntries:      50000,
+		IdleTTL:         2 * time.Hour,
+	})
+	if err != nil {
+		return err
+	}
+	handler, err := httpadapter.NewHandler(serviceConfig.Name, submissionService, readiness, authorizer, startAttemptLimiter, runCodeLimiter)
 	if err != nil {
 		return err
 	}

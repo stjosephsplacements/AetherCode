@@ -126,6 +126,11 @@ When `JUDGE_COMPLETION_ENABLED=true` (mandatory in staging and production):
 
 The application pool must not use the migration owner or a role with `BYPASSRLS`. The projection worker is separate because it can write only private inbox/projection state and invoke narrow security-definer projection functions.
 
+Object storage and KMS are optional and follow the same MinIO/local-KMS pattern as Question Bank (`libs/pkg/storage/minio`, `libs/pkg/kms/local`). They are unused until a candidate-source workflow (such as run-code) is wired to consume them; until then, setting them has no runtime effect.
+
+- `SUBMISSION_STORAGE_ENDPOINT`, `SUBMISSION_STORAGE_ACCESS_KEY`, `SUBMISSION_STORAGE_SECRET_KEY`, `SUBMISSION_STORAGE_BUCKET`, `SUBMISSION_STORAGE_USE_SSL`, `SUBMISSION_STORAGE_REGION` — enable object storage when `SUBMISSION_STORAGE_ENDPOINT` is set.
+- `SUBMISSION_KMS_LOCAL_KEY` — a base64-encoded 32-byte AES-256-GCM key; enables local KMS when set. Use a managed KMS in production.
+
 ## Rate limiting
 
 `POST /v1/tenants/{tenant_id}/attempts` is protected by an in-process,
@@ -139,6 +144,22 @@ rate-limited request receives `429 Too Many Requests` with a
 |---|---|---|
 | `SUBMISSION_START_ATTEMPT_BURST` | 10 | Token-bucket burst capacity. |
 | `SUBMISSION_START_ATTEMPT_RATE` | 30 | Refill rate, requests per hour. |
+
+A second, separate per-candidate token bucket is provisioned for the
+candidate run-code workflow (`runCodeLimiter` in the HTTP adapter) and will
+guard the run-code endpoint once it is wired. Its defaults are deliberately
+far more generous than attempt creation's: running code against sample tests
+is an iterative debugging action a candidate may reasonably repeat 10+ times
+while working a single item, so the limiter exists only to bound abuse, not
+to add per-hour friction to normal use. A rate-limited request will receive
+`429 Too Many Requests` with a `Retry-After: 60` header — a much shorter
+window than attempt creation's, matching the fast iterative nature of the
+workflow.
+
+| Variable | Default | Description |
+|---|---|---|
+| `SUBMISSION_RUN_CODE_BURST` | 30 | Token-bucket burst capacity. |
+| `SUBMISSION_RUN_CODE_RATE` | 300 | Refill rate, requests per hour (5/minute sustained). |
 
 ## Database lifecycle
 

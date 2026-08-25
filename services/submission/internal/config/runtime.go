@@ -12,6 +12,8 @@ import (
 type Runtime struct {
 	StartAttemptRate  int
 	StartAttemptBurst int
+	RunCodeRate       int
+	RunCodeBurst      int
 }
 
 // Load reads and validates Submission's rate-limit environment variables.
@@ -24,9 +26,22 @@ func Load() (Runtime, error) {
 	if err != nil {
 		return Runtime{}, err
 	}
+	// Run-code is iterative, debugging-loop usage (a candidate may reasonably
+	// run 10+ times while working one item), so its defaults are far more
+	// generous than attempt creation's per-hour friction.
+	runCodeRate, err := positiveInt("SUBMISSION_RUN_CODE_RATE", "300", 1, 10000)
+	if err != nil {
+		return Runtime{}, err
+	}
+	runCodeBurst, err := positiveInt("SUBMISSION_RUN_CODE_BURST", "30", 1, 1000)
+	if err != nil {
+		return Runtime{}, err
+	}
 	return Runtime{
 		StartAttemptRate:  startAttemptRate,
 		StartAttemptBurst: startAttemptBurst,
+		RunCodeRate:       runCodeRate,
+		RunCodeBurst:      runCodeBurst,
 	}, nil
 }
 

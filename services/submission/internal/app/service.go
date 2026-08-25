@@ -13,7 +13,9 @@ import (
 	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
 	"github.com/aethercode/aethercode/libs/pkg/database"
 	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
+	"github.com/aethercode/aethercode/libs/pkg/kms"
 	"github.com/aethercode/aethercode/libs/pkg/pagination"
+	"github.com/aethercode/aethercode/libs/pkg/storage"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -229,15 +231,20 @@ type SubmitResult struct {
 // Service owns validation, ID generation, and the one-transaction boundary for
 // all candidate-facing Submission operations.
 type Service struct {
-	pool  *pgxpool.Pool
-	store Store
+	pool    *pgxpool.Pool
+	store   Store
+	storage storage.Object
+	kms     kms.KeyManager
 }
 
-func NewService(pool *pgxpool.Pool, store Store) (*Service, error) {
+// NewService creates a new Submission service. storage and kms may both be
+// nil; workflows that need to encrypt or fetch candidate-run source (such as
+// run-code) return 503 Unavailable until they are wired.
+func NewService(pool *pgxpool.Pool, store Store, storage storage.Object, kms kms.KeyManager) (*Service, error) {
 	if pool == nil || store == nil {
 		return nil, fmt.Errorf("submission database pool and store are required")
 	}
-	return &Service{pool: pool, store: store}, nil
+	return &Service{pool: pool, store: store, storage: storage, kms: kms}, nil
 }
 
 func (service *Service) StartAttempt(contextValue context.Context, capability centralauthz.Capability, command StartAttempt) (Attempt, error) {

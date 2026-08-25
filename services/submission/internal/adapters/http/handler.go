@@ -22,20 +22,30 @@ import (
 // window.
 const retryAfterStartAttempt = "3600"
 
+// retryAfterRunCode is the Retry-After value sent with 429 responses on the
+// run-code endpoint. A much shorter window than attempt creation: run-code is
+// meant to support frequent iterative debugging, not per-hour friction.
+// Defined alongside runCodeLimiter ahead of the endpoint itself, which a later
+// task in this plan wires up.
+//
+//nolint:unused // consumed by the run-code endpoint added in a later task of this plan
+const retryAfterRunCode = "60"
+
 type Handler struct {
 	service             *app.Service
 	authorizer          *httpauth.Authorizer
 	startAttemptLimiter *ratelimit.Limiter
+	runCodeLimiter      *ratelimit.Limiter
 }
 
 // NewHandler installs concrete submission workflows on an operational mux.
-// startAttemptLimiter may be nil to disable per-candidate rate limiting on
-// attempt creation.
-func NewHandler(serviceName string, service *app.Service, readiness httpx.ReadinessFunc, authorizer *httpauth.Authorizer, startAttemptLimiter *ratelimit.Limiter) (http.Handler, error) {
+// startAttemptLimiter and runCodeLimiter may each be nil to disable
+// per-candidate rate limiting on their respective endpoints.
+func NewHandler(serviceName string, service *app.Service, readiness httpx.ReadinessFunc, authorizer *httpauth.Authorizer, startAttemptLimiter *ratelimit.Limiter, runCodeLimiter *ratelimit.Limiter) (http.Handler, error) {
 	if service == nil || authorizer == nil {
 		return nil, fmt.Errorf("submission service and authorizer are required")
 	}
-	handler := &Handler{service: service, authorizer: authorizer, startAttemptLimiter: startAttemptLimiter}
+	handler := &Handler{service: service, authorizer: authorizer, startAttemptLimiter: startAttemptLimiter, runCodeLimiter: runCodeLimiter}
 	mux := httpx.NewOperationalMux(serviceName, readiness)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/attempts", handler.startAttempt)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}", handler.getAttempt)
