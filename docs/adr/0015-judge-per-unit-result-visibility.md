@@ -54,7 +54,12 @@ before the cancelled-request early return, so cancelled and graded attempts keep
 the same evidence. The `judge.completed.v1` payload is byte-identical to before.
 
 Visibility is enforced by the signed capability's resource, not by a role check
-in Go. The two views are separate `SECURITY DEFINER` routines:
+in Go. A role check in Go is not merely disfavoured here, it is unavailable:
+neither `httpauth.Decision` nor `centralauthz.Capability` carries a role field,
+and `httpauth.Authorizer.authorize` discards `CentralDecision.Scopes` before
+returning. Do not "restore" a role branch at the handler or service layer —
+there is nothing there to branch on. The two views are separate
+`SECURITY DEFINER` routines:
 
 - `submission.get_attempt_unit_summary_for_candidate` requires a capability for
   `submission.attempts`, binds the attempt to
@@ -87,9 +92,26 @@ units. Ingress rows are never deleted (`ON DELETE RESTRICT` throughout, and
 `000010`'s rollback refuses while any exist), so this is reachable only by
 hand-crafting an event that the ingress never produced.
 
-A replayed delivery whose breakdown differs from the stored one now raises
-`23505` alongside the existing payload-fingerprint mismatch, rather than
-silently keeping the first. This is the intended fail-closed behaviour, and it
-means a completion ingested by a build that predates this change, then
-redelivered after it with a non-empty breakdown, is rejected. The window is one
-unacknowledged lease across the upgrade.
+A replayed delivery whose **already-stored, non-empty** breakdown differs from
+the redelivered one raises `23505` alongside the existing payload-fingerprint
+mismatch, rather than silently keeping the first. The empty stored breakdown is
+deliberately excluded from that check. It is what a completion ingested before
+this migration carries, and treating its redelivery as a violation would stall
+the whole bridge: the adapter acknowledges nothing it could not persist, and
+`Worker.ProcessOnce` returns on the first error, so it would re-pull the same
+head-of-queue completion every tick and block every completion behind it. The
+cost of the exclusion is that such a redelivery keeps its empty breakdown, so
+that one receipt is materialized with no units — incomplete evidence for a
+single completion in a single upgrade window, rather than a stalled bridge.
+
+**Scope limitation, inherited and not solved here.** The reviewer view is
+tenant-wide, not batch- or department-bound. `assignmentApplies` resolves every
+`college`-, `department`-, and `batch`-scoped assignment to "the tenants match",
+so a mentor scoped to one batch can read the full per-unit breakdown of any
+attempt in the college, not only their own batch's. This breadth is pre-existing
+platform behaviour rather than something introduced here; this is simply the
+first route to exercise the `judge_receipts` grant, so it is the first place the
+gap has real consequences. Narrowing it properly means binding assignment scope
+to attempt ownership across the Assessment and User boundaries, which is a
+platform-level change well outside this decision. Recorded here so it is tracked
+rather than silently inherited by the next route that reads this resource.

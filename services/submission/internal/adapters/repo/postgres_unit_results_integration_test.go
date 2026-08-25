@@ -78,6 +78,79 @@ const (
 	unitGradedOutboxID      = "018f4b0d-08f8-7c09-9ba7-efdf9c340011"
 )
 
+// dispatchedRequest is the minimum locally-bound work an ingested completion
+// must correlate to before the ingress routine will accept it.
+type dispatchedRequest struct {
+	AttemptID           string
+	CandidateID         string
+	ExamItemID          string
+	AnswerRevisionID    string
+	EvaluationRequestID string
+	JudgeJobID          string
+	RevisionNumber      int
+}
+
+func seedGradingAttempt(ctx context.Context, t *testing.T, pool *pgxpool.Pool, attemptID, candidateID string) {
+	t.Helper()
+
+	_, err := pool.Exec(ctx, `
+		INSERT INTO submission.attempts (
+		    id, tenant_id, exam_id, exam_version_id, candidate_id, candidate_assignment_id,
+		    attempt_number, lifecycle_state, available_from, started_at, submitted_at, submission_deadline)
+		VALUES ($1, $2, gen_random_uuid(), gen_random_uuid(), $3, gen_random_uuid(), 1, 'grading',
+		        clock_timestamp(), clock_timestamp(), clock_timestamp(), clock_timestamp() + interval '1 hour')`,
+		attemptID, unitTenantID, candidateID)
+	require.NoError(t, err, "seed grading attempt")
+}
+
+func seedDispatchedEvaluationRequest(ctx context.Context, t *testing.T, pool *pgxpool.Pool, request dispatchedRequest) {
+	t.Helper()
+
+	_, err := pool.Exec(ctx, `
+		INSERT INTO submission.answer_revisions (
+		    id, tenant_id, attempt_id, exam_item_id, revision_number, language_id,
+		    source_object_key, source_checksum, encryption_key_reference, created_by)
+		VALUES ($1, $2, $3, $4, $5, 'go-1.26', 'sources/unit.enc', repeat('a', 64),
+		        'kms://india/source', $6)`,
+		request.AnswerRevisionID, unitTenantID, request.AttemptID, request.ExamItemID,
+		request.RevisionNumber, request.CandidateID)
+	require.NoError(t, err, "seed answer revision")
+
+	_, err = pool.Exec(ctx, `
+		INSERT INTO submission.evaluation_requests (
+		    id, tenant_id, attempt_id, answer_revision_id, evaluation_bundle_object_key,
+		    evaluation_bundle_checksum, caller_idempotency_key, judge_job_id, maximum_score)
+		VALUES ($1, $2, $3, $4, 'bundles/unit.enc', repeat('b', 64), $5, $6, 10)`,
+		request.EvaluationRequestID, unitTenantID, request.AttemptID, request.AnswerRevisionID,
+		"submission:"+request.AnswerRevisionID, request.JudgeJobID)
+	require.NoError(t, err, "seed evaluation request")
+}
+
+func authorizeActorsInTenant(ctx context.Context, t *testing.T, pool *pgxpool.Pool, actorIDs ...string) {
+	t.Helper()
+
+	for _, actorID := range actorIDs {
+		_, err := pool.Exec(ctx, `
+			INSERT INTO authz.actor_tenant_authorizations
+			    (actor_id, tenant_id, authz_revision, is_authorized, grant_kind, grant_source_id)
+			VALUES ($1, $2, 1, true, 'tenant', $2)`, actorID, unitTenantID)
+		require.NoError(t, err, "authorize actor %s", actorID)
+		_, err = pool.Exec(ctx,
+			`INSERT INTO authz.principal_authorization_revisions (actor_id, authz_revision) VALUES ($1, 1)`,
+			actorID)
+		require.NoError(t, err, "seed revision snapshot for %s", actorID)
+	}
+	// Migration 000008 gates has_tenant_authorization_at on this singleton,
+	// which defaults to not-ready.
+	_, err := pool.Exec(ctx, `
+		UPDATE authz.authorization_projection_resync_state
+		SET projection_ready = true, active_resync_id = gen_random_uuid(),
+		    completion_event_id = gen_random_uuid(), expected_snapshot_count = 0,
+		    expected_manifest_sha256 = decode(repeat('00', 32), 'hex')
+		WHERE singleton = true`)
+	require.NoError(t, err, "mark authorization projection ready")
+}
+
 // TestJudgeReceiptUnitVisibility proves the access-control boundary that makes
 // per-unit persistence safe: the same attempt yields only redacted counts to
 // its candidate, and the full breakdown only to a caller holding a capability
@@ -89,41 +162,13 @@ func TestJudgeReceiptUnitVisibility(t *testing.T) {
 
 	pool := startSubmissionDatabase(ctx, t)
 
-	for _, statement := range []string{
-		`INSERT INTO submission.attempts (
-		     id, tenant_id, exam_id, exam_version_id, candidate_id, candidate_assignment_id,
-		     attempt_number, lifecycle_state, available_from, started_at, submitted_at, submission_deadline)
-		 VALUES ('` + unitAttemptID + `', '` + unitTenantID + `', gen_random_uuid(), gen_random_uuid(),
-		         '` + unitCandidateID + `', gen_random_uuid(), 1, 'grading',
-		         clock_timestamp(), clock_timestamp(), clock_timestamp(), clock_timestamp() + interval '1 hour')`,
-		`INSERT INTO submission.answer_revisions (
-		     id, tenant_id, attempt_id, exam_item_id, revision_number, language_id,
-		     source_object_key, source_checksum, encryption_key_reference, created_by)
-		 VALUES ('` + unitAnswerRevisionID + `', '` + unitTenantID + `', '` + unitAttemptID + `',
-		         '` + unitExamItemID + `', 1, 'go-1.26', 'sources/unit.enc', repeat('a', 64),
-		         'kms://india/source', '` + unitCandidateID + `')`,
-		`INSERT INTO submission.evaluation_requests (
-		     id, tenant_id, attempt_id, answer_revision_id, evaluation_bundle_object_key,
-		     evaluation_bundle_checksum, caller_idempotency_key, judge_job_id, maximum_score)
-		 VALUES ('` + unitEvaluationRequestID + `', '` + unitTenantID + `', '` + unitAttemptID + `',
-		         '` + unitAnswerRevisionID + `', 'bundles/unit.enc', repeat('b', 64),
-		         'submission:unit-results', '` + unitJudgeJobID + `', 10)`,
-		`INSERT INTO authz.actor_tenant_authorizations
-		     (actor_id, tenant_id, authz_revision, is_authorized, grant_kind, grant_source_id)
-		 VALUES ('` + unitCandidateID + `', '` + unitTenantID + `', 1, true, 'tenant', '` + unitTenantID + `'),
-		        ('` + unitOtherCandidateID + `', '` + unitTenantID + `', 1, true, 'tenant', '` + unitTenantID + `'),
-		        ('` + unitReviewerID + `', '` + unitTenantID + `', 1, true, 'tenant', '` + unitTenantID + `')`,
-		`INSERT INTO authz.principal_authorization_revisions (actor_id, authz_revision)
-		 VALUES ('` + unitCandidateID + `', 1), ('` + unitOtherCandidateID + `', 1), ('` + unitReviewerID + `', 1)`,
-		`UPDATE authz.authorization_projection_resync_state
-		 SET projection_ready = true, active_resync_id = gen_random_uuid(),
-		     completion_event_id = gen_random_uuid(), expected_snapshot_count = 0,
-		     expected_manifest_sha256 = decode(repeat('00', 32), 'hex')
-		 WHERE singleton = true`,
-	} {
-		_, err := pool.Exec(ctx, statement)
-		require.NoError(t, err, "seed statement: %s", statement[:min(len(statement), 60)])
-	}
+	seedGradingAttempt(ctx, t, pool, unitAttemptID, unitCandidateID)
+	seedDispatchedEvaluationRequest(ctx, t, pool, dispatchedRequest{
+		AttemptID: unitAttemptID, CandidateID: unitCandidateID, ExamItemID: unitExamItemID,
+		AnswerRevisionID: unitAnswerRevisionID, EvaluationRequestID: unitEvaluationRequestID,
+		JudgeJobID: unitJudgeJobID, RevisionNumber: 1,
+	})
+	authorizeActorsInTenant(ctx, t, pool, unitCandidateID, unitOtherCandidateID, unitReviewerID)
 
 	// Drive the real ingestion and reconciliation routines rather than
 	// inserting judge_receipt_units directly: the point under test is that the
@@ -253,6 +298,126 @@ func TestJudgeReceiptUnitVisibility(t *testing.T) {
 			for _, absent := range testCase.wantAbsentTokens {
 				require.False(t, strings.Contains(body, absent), "response leaked %q: %s", absent, body)
 			}
+		})
+	}
+}
+
+// Second attempt's fixtures, used only by the replay test below.
+const (
+	replayAttemptID = "018f4b0d-08f8-7c09-9ba7-efdf9c340020"
+	replayCandidate = "018f4b0d-08f8-7c09-9ba7-efdf9c340021"
+)
+
+// TestJudgeCompletionReplayToleratesUpgradeWindow covers the one case where
+// rejecting a redelivered completion would be worse than accepting it.
+//
+// The adapter acknowledges nothing it could not persist, and ProcessOnce
+// returns on the first error, so any completion that can never be persisted
+// becomes a permanent head-of-queue block: the worker re-pulls it every tick
+// and every completion behind it stops. A completion ingested before migration
+// 000018 carries the column default '[]', so its redelivery after the upgrade
+// necessarily presents a "different" breakdown. That must not be treated as a
+// replay violation. A stored breakdown that is genuinely non-empty still must.
+func TestJudgeCompletionReplayToleratesUpgradeWindow(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	pool := startSubmissionDatabase(ctx, t)
+	seedGradingAttempt(ctx, t, pool, replayAttemptID, replayCandidate)
+	authorizeActorsInTenant(ctx, t, pool, replayCandidate)
+
+	const populated = `[{"unit_number":0,"verdict":"accepted","execution_time_ms":8,"memory_kib":1024}]`
+
+	tests := []struct {
+		name            string
+		suffix          string
+		firstBreakdown  string
+		secondBreakdown string
+		wantErrorCode   string
+	}{
+		{
+			name:            "pre-upgrade empty breakdown accepts a later populated redelivery",
+			suffix:          "30",
+			firstBreakdown:  `[]`,
+			secondBreakdown: populated,
+		},
+		{
+			name:            "identical redelivery is always accepted",
+			suffix:          "40",
+			firstBreakdown:  populated,
+			secondBreakdown: populated,
+		},
+		{
+			name:            "stored breakdown still rejects a genuinely different one",
+			suffix:          "50",
+			firstBreakdown:  populated,
+			secondBreakdown: `[{"unit_number":0,"verdict":"wrong_answer","execution_time_ms":8,"memory_kib":1024}]`,
+			wantErrorCode:   "23505",
+		},
+		{
+			name:            "stored breakdown still rejects a redelivery that drops it",
+			suffix:          "60",
+			firstBreakdown:  populated,
+			secondBreakdown: `[]`,
+			wantErrorCode:   "23505",
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Each case needs its own dispatched work and its own Judge event;
+			// only the delivery and lease differ between the two deliveries.
+			base := "018f4b0d-08f8-7c09-9ba7-efdf9c3400" + testCase.suffix
+			request := dispatchedRequest{
+				AttemptID: replayAttemptID, CandidateID: replayCandidate,
+				ExamItemID: base, AnswerRevisionID: base[:len(base)-1] + "1",
+				EvaluationRequestID: base[:len(base)-1] + "2", JudgeJobID: base[:len(base)-1] + "3",
+				RevisionNumber: 1,
+			}
+			seedDispatchedEvaluationRequest(ctx, t, pool, request)
+
+			judgeEventID := base[:len(base)-1] + "4"
+			ingest := func(outboxID, deliveryID, leaseID, breakdown string) error {
+				_, err := pool.Exec(ctx, `
+					SELECT submission.ingest_judge_completion(
+						$1, $2, $3, $4, 'submission-judge-completion', $5, $6, 'accepted', 21, 4096,
+						NULL, NULL, NULL, '2026-08-24T09:00:00.000000Z'::timestamptz, $7::jsonb
+					)`,
+					outboxID, judgeEventID, deliveryID, leaseID,
+					request.EvaluationRequestID, request.JudgeJobID, breakdown)
+				return err
+			}
+
+			require.NoError(t,
+				ingest(base[:len(base)-1]+"5", base[:len(base)-1]+"6", base[:len(base)-1]+"7", testCase.firstBreakdown),
+				"first delivery")
+
+			replayErr := ingest(base[:len(base)-1]+"8", base[:len(base)-1]+"9", base[:len(base)-1]+"a", testCase.secondBreakdown)
+
+			if testCase.wantErrorCode != "" {
+				require.Error(t, replayErr, "expected the replay to be refused")
+				var postgresError *pgconn.PgError
+				require.True(t, errors.As(replayErr, &postgresError), "expected *pgconn.PgError, got %T: %v", replayErr, replayErr)
+				require.Equal(t, testCase.wantErrorCode, postgresError.Code, "message: %s", postgresError.Message)
+				return
+			}
+			require.NoError(t, replayErr, "redelivery must not stall the bridge")
+
+			// The redelivery is a no-op on the ledger: it records its new lease
+			// and returns the original outbox event, it does not emit a second.
+			var outboxEvents int
+			require.NoError(t, pool.QueryRow(ctx,
+				`SELECT count(*) FROM app.outbox_events WHERE payload ->> 'judge_event_id' = $1`,
+				judgeEventID).Scan(&outboxEvents))
+			require.Equal(t, 1, outboxEvents, "a redelivery must not emit a second platform event")
+
+			var deliveries int
+			require.NoError(t, pool.QueryRow(ctx,
+				`SELECT count(*) FROM submission.judge_completion_ingress_deliveries WHERE judge_event_id = $1`,
+				judgeEventID).Scan(&deliveries))
+			require.Equal(t, 2, deliveries, "both delivery leases must be recorded")
 		})
 	}
 }

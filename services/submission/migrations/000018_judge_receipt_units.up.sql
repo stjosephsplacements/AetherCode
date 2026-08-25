@@ -174,8 +174,15 @@ BEGIN
     FROM submission.judge_completion_ingress
     WHERE judge_event_id = p_judge_event_id;
     IF FOUND THEN
+        -- A stored breakdown that later differs is a genuine replay violation.
+        -- An empty stored breakdown is not: it is also what a completion
+        -- ingested before this migration carries, and rejecting its redelivery
+        -- would stall the bridge on that completion forever, since the adapter
+        -- acknowledges nothing it could not persist and re-pulls the same head
+        -- of queue on every tick.
         IF existing_ingress.payload_sha256 <> event_payload_sha256
-           OR existing_ingress.unit_results <> p_unit_results THEN
+           OR (existing_ingress.unit_results <> '[]'::jsonb
+               AND existing_ingress.unit_results <> p_unit_results) THEN
             RAISE EXCEPTION 'Judge event id was replayed with a different completion payload' USING ERRCODE = '23505';
         END IF;
         INSERT INTO submission.judge_completion_ingress_deliveries (
@@ -318,7 +325,7 @@ BEGIN
     INSERT INTO submission.judge_receipt_units (
         id, tenant_id, judge_receipt_id, unit_number, verdict, execution_time_ms, memory_kib
     )
-    SELECT extensions.gen_random_uuid(), p_tenant_id, p_receipt_id,
+    SELECT uuidv7(), p_tenant_id, p_receipt_id,
            (unit ->> 'unit_number')::integer, unit ->> 'verdict',
            (unit ->> 'execution_time_ms')::integer, (unit ->> 'memory_kib')::integer
     FROM submission.judge_completion_ingress AS ingress
@@ -490,7 +497,11 @@ BEGIN
          AND unit.judge_receipt_id = receipt.id
         WHERE request_row.tenant_id = p_tenant_id
           AND request_row.attempt_id = p_attempt_id
-        GROUP BY revision.exam_item_id, request_row.id
+        -- Grouped by receipt as well, though it is not selected: judge_receipts
+        -- is unique per judge event, not per evaluation request, so a cancelled
+        -- request that received two distinct events would otherwise have both
+        -- breakdowns summed into one inflated passed/total.
+        GROUP BY revision.exam_item_id, request_row.id, receipt.id
     ) AS item;
 
     RETURN response;
