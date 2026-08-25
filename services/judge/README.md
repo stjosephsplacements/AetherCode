@@ -35,7 +35,9 @@ The service implements the generated `judge/v1` gRPC contract:
 - `SubmitExecution` durably accepts a request after request validation and
   idempotency checking.
 - `PullCompletedExecutions` creates bounded, expiring completion leases for the
-  submission-side adapter.
+  submission-side adapter. Each leased completion also carries `unit_results`,
+  one verdict/timing entry per test unit ordered by unit number, read back from
+  `judge.execution_units` — never raw stdout/stderr/expected-output content.
 - `AcknowledgeCompletion` accepts only the exact active
   `consumer_id`/`event_id`/`delivery_id`/`lease_id` tuple after the adapter has
   persisted the result.

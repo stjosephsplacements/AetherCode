@@ -9,6 +9,7 @@ import (
 	"github.com/aethercode/aethercode/libs/pkg/ratelimit"
 	judgev1 "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/judge/v1"
 	"github.com/aethercode/aethercode/services/judge/internal/app"
+	"github.com/aethercode/aethercode/services/judge/internal/dispatcher"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -56,6 +57,119 @@ func (store *deleteAssertingStore) SoftDeleteExecutionJob(_ context.Context, com
 func (store *deleteAssertingStore) HardDeleteExecutionJob(_ context.Context, command app.DeleteExecutionJob) error {
 	store.hardDeleteCalls = append(store.hardDeleteCalls, command)
 	return store.hardDeleteErr
+}
+
+// pullStubStore returns a fixed set of completions from Pull, letting tests
+// assert how PullCompletedExecutions maps app.Completion (including its
+// per-unit detail) into the wire response.
+type pullStubStore struct {
+	recordingStore
+	completions []app.Completion
+}
+
+func (store *pullStubStore) Pull(context.Context, app.PullCompletedExecutions) ([]app.Completion, error) {
+	return store.completions, nil
+}
+
+func uint32Ptr(v uint32) *uint32 { return &v }
+
+func TestPullCompletedExecutionsMapsUnitResults(t *testing.T) {
+	t.Parallel()
+
+	completedAt := time.Now().UTC()
+	timeMS, memoryKB := 120, 512
+
+	tests := []struct {
+		name        string
+		unitResults []dispatcher.UnitResult
+		wantCode    codes.Code
+		wantUnits   []*judgev1.UnitResult
+	}{
+		{
+			name: "maps unit_number, verdict, timing, and memory for every unit in order",
+			unitResults: []dispatcher.UnitResult{
+				{UnitNumber: 0, Verdict: "accepted", TimeMS: &timeMS, MemoryKB: &memoryKB},
+				{UnitNumber: 1, Verdict: "wrong_answer"},
+			},
+			wantCode: codes.OK,
+			wantUnits: []*judgev1.UnitResult{
+				{
+					UnitNumber:      0,
+					VerdictCode:     judgev1.CompletionVerdict_COMPLETION_VERDICT_ACCEPTED,
+					ExecutionTimeMs: uint32Ptr(120),
+					MemoryKib:       uint32Ptr(512),
+				},
+				{UnitNumber: 1, VerdictCode: judgev1.CompletionVerdict_COMPLETION_VERDICT_WRONG_ANSWER},
+			},
+		},
+		{
+			name:        "no units yields an empty, non-nil unit_results list",
+			unitResults: nil,
+			wantCode:    codes.OK,
+			wantUnits:   []*judgev1.UnitResult{},
+		},
+		{
+			name:        "unrecognized unit verdict fails closed with Internal instead of a mismapped verdict",
+			unitResults: []dispatcher.UnitResult{{UnitNumber: 0, Verdict: "not-a-real-verdict"}},
+			wantCode:    codes.Internal,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			store := &pullStubStore{completions: []app.Completion{{
+				EventID:                 "019b11a0-0000-7000-8000-000000000020",
+				JobID:                   "019b11a0-0000-7000-8000-000000000021",
+				SubmissionCorrelationID: "019b11a0-0000-7000-8000-000000000022",
+				Verdict:                 "wrong_answer",
+				DeliveryID:              "019b11a0-0000-7000-8000-000000000023",
+				LeaseID:                 "019b11a0-0000-7000-8000-000000000024",
+				CompletedAt:             completedAt,
+				UnitResults:             testCase.unitResults,
+			}}}
+			server := NewServer(app.NewService(store), nil)
+
+			response, err := server.PullCompletedExecutions(context.Background(), &judgev1.PullCompletedExecutionsRequest{
+				ConsumerId:   "consumer-1",
+				Limit:        10,
+				LeaseSeconds: 30,
+			})
+			if status.Code(err) != testCase.wantCode {
+				t.Fatalf("PullCompletedExecutions() status = %v, want %v (err=%v)", status.Code(err), testCase.wantCode, err)
+			}
+			if testCase.wantCode != codes.OK {
+				return
+			}
+
+			completions := response.GetCompletions()
+			if len(completions) != 1 {
+				t.Fatalf("completions len = %d, want 1", len(completions))
+			}
+			gotUnits := completions[0].GetUnitResults()
+			if len(gotUnits) != len(testCase.wantUnits) {
+				t.Fatalf("unit_results len = %d, want %d", len(gotUnits), len(testCase.wantUnits))
+			}
+			for i, want := range testCase.wantUnits {
+				got := gotUnits[i]
+				if got.GetUnitNumber() != want.GetUnitNumber() {
+					t.Fatalf("unit %d: unit_number = %d, want %d", i, got.GetUnitNumber(), want.GetUnitNumber())
+				}
+				if got.GetVerdictCode() != want.GetVerdictCode() {
+					t.Fatalf("unit %d: verdict_code = %v, want %v", i, got.GetVerdictCode(), want.GetVerdictCode())
+				}
+				if (got.ExecutionTimeMs == nil) != (want.ExecutionTimeMs == nil) ||
+					(got.ExecutionTimeMs != nil && got.GetExecutionTimeMs() != want.GetExecutionTimeMs()) {
+					t.Fatalf("unit %d: execution_time_ms = %v, want %v", i, got.ExecutionTimeMs, want.ExecutionTimeMs)
+				}
+				if (got.MemoryKib == nil) != (want.MemoryKib == nil) ||
+					(got.MemoryKib != nil && got.GetMemoryKib() != want.GetMemoryKib()) {
+					t.Fatalf("unit %d: memory_kib = %v, want %v", i, got.MemoryKib, want.MemoryKib)
+				}
+			}
+		})
+	}
 }
 
 func validSubmitExecutionRequest(tenantFairnessKey string) *judgev1.SubmitExecutionRequest {

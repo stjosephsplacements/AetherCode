@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/aethercode/aethercode/services/judge/internal/dispatcher"
 )
 
 var (
@@ -89,6 +91,11 @@ type Completion struct {
 	DeliveryID              string
 	LeaseID                 string
 	CompletedAt             time.Time
+	// UnitResults is the per-test-case detail behind Verdict, one entry per
+	// unit ordered by unit number. It carries only verdict and timing
+	// metadata for the same reason the rest of Completion does: raw
+	// stdout/stderr/expected-output content never crosses this boundary.
+	UnitResults []dispatcher.UnitResult
 }
 
 // PullCompletedExecutions describes one consumer's bounded outbox lease.

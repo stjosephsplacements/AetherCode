@@ -102,6 +102,23 @@ func (server *Server) PullCompletedExecutions(
 		if verdictErr != nil {
 			return nil, status.Error(codes.Internal, "Judge completion vocabulary is invalid")
 		}
+		unitResults := make([]*judgev1.UnitResult, 0, len(completion.UnitResults))
+		for _, unit := range completion.UnitResults {
+			unitVerdictCode, unitVerdictErr := completionVerdictCode(unit.Verdict)
+			if unitVerdictErr != nil {
+				return nil, status.Error(codes.Internal, "Judge completion vocabulary is invalid")
+			}
+			result := &judgev1.UnitResult{UnitNumber: uint32(unit.UnitNumber), VerdictCode: unitVerdictCode}
+			if unit.TimeMS != nil {
+				timeMS := uint32(*unit.TimeMS)
+				result.ExecutionTimeMs = &timeMS
+			}
+			if unit.MemoryKB != nil {
+				memoryKiB := uint32(*unit.MemoryKB)
+				result.MemoryKib = &memoryKiB
+			}
+			unitResults = append(unitResults, result)
+		}
 		response.Completions = append(response.Completions, &judgev1.Completion{
 			EventId:                      completion.EventID,
 			JobId:                        completion.JobID,
@@ -116,6 +133,7 @@ func (server *Server) PullCompletedExecutions(
 			DeliveryId:                   completion.DeliveryID,
 			LeaseId:                      completion.LeaseID,
 			CompletedAt:                  completion.CompletedAt.UTC().Format(time.RFC3339Nano),
+			UnitResults:                  unitResults,
 		})
 	}
 	return response, nil

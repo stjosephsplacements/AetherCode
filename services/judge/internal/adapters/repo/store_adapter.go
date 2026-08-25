@@ -162,3 +162,56 @@ func (a *DispatchStoreAdapter) FetchIncompleteTokens(ctx context.Context) ([]dis
 	}
 	return pending, nil
 }
+
+// FetchUnitResults returns every unit's recorded verdict for a job, in
+// unit_number order.
+func (a *DispatchStoreAdapter) FetchUnitResults(ctx context.Context, jobID string) ([]dispatcher.UnitResult, error) {
+	return fetchUnitResults(ctx, a.pool, jobID)
+}
+
+// unitResultsQuerier is satisfied by both *pgxpool.Pool and pgx.Tx, letting
+// fetchUnitResults run standalone (DispatchStoreAdapter, the dispatcher's own
+// port) or inside an existing transaction (Postgres.Pull, the control-plane
+// adapter) — both read the same judge.execution_units table.
+type unitResultsQuerier interface {
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+}
+
+// fetchUnitResults returns every unit's recorded verdict for a job, in
+// unit_number order.
+func fetchUnitResults(ctx context.Context, querier unitResultsQuerier, jobID string) ([]dispatcher.UnitResult, error) {
+	rows, err := querier.Query(ctx, `
+		SELECT unit_number, normalized_verdict, cpu_time_ms, memory_bytes
+		FROM judge.execution_units
+		WHERE job_id = $1
+		ORDER BY unit_number
+	`, jobID)
+	if err != nil {
+		return nil, fmt.Errorf("fetch unit results for job %s: %w", jobID, err)
+	}
+	defer rows.Close()
+
+	results := make([]dispatcher.UnitResult, 0)
+	for rows.Next() {
+		var unitNumber int
+		var verdict *string
+		var timeMS *int
+		var memoryBytes *int64
+		if err := rows.Scan(&unitNumber, &verdict, &timeMS, &memoryBytes); err != nil {
+			return nil, fmt.Errorf("scan unit result for job %s: %w", jobID, err)
+		}
+		result := dispatcher.UnitResult{UnitNumber: unitNumber, TimeMS: timeMS}
+		if verdict != nil {
+			result.Verdict = *verdict
+		}
+		if memoryBytes != nil {
+			memoryKB := int(*memoryBytes / 1024)
+			result.MemoryKB = &memoryKB
+		}
+		results = append(results, result)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate unit results for job %s: %w", jobID, err)
+	}
+	return results, nil
+}

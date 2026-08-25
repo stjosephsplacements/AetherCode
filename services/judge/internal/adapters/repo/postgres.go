@@ -361,6 +361,10 @@ func (repository *Postgres) Pull(
 		if err != nil {
 			return nil, fmt.Errorf("parse completion timestamp: %w", err)
 		}
+		unitResults, err := fetchUnitResults(contextValue, transaction, pendingCompletion.jobID)
+		if err != nil {
+			return nil, err
+		}
 		completion := app.Completion{
 			EventID:                 pendingCompletion.eventID,
 			JobID:                   pendingCompletion.jobID,
@@ -374,6 +378,7 @@ func (repository *Postgres) Pull(
 			DeliveryID:              deliveryID,
 			LeaseID:                 leaseID,
 			CompletedAt:             completedAt.UTC(),
+			UnitResults:             unitResults,
 		}
 		if err := completion.Validate(); err != nil {
 			return nil, fmt.Errorf("validate completion payload: %w", err)

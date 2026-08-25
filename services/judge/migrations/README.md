@@ -80,3 +80,12 @@ cleaned during hard delete. Event logs (`execution_events`, `inbox_messages`)
 remain immutable. The `app.hard_delete` function enforces SuperAdmin-only access
 via `pg_has_role` check and logs all physical deletions to
 `app.hard_delete_audit_log`.
+
+`000008_fix_execution_units_normalized_verdict_check` corrects
+`execution_units.normalized_verdict`'s CHECK constraint, which spelled the
+compile-error member `'compilation_error'` since `000001` while every actual
+writer/reader (the Judge0 client, the outbox completion contract in `000003`,
+and the wrapper's own verdict vocabulary) uses `'compile_error'`. Before this
+fix, a real compile-error verdict from the engine could never be recorded on a
+unit: `DispatchStoreAdapter.RecordVerdict`'s `UPDATE` would violate the
+constraint the moment a candidate's code failed to compile.
