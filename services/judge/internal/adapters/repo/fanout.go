@@ -97,36 +97,42 @@ func cleanupOrphanedObjects(ctx context.Context, objectStorage storage.Object, k
 // into judge.execution_units, one row per test case, within transaction. A
 // job is never left admitted with zero units: any fan-out failure here
 // propagates to the caller, which rolls transaction back.
+//
+// It returns the refs for every object it successfully uploaded, even when
+// it later returns an error (e.g. an INSERT after a successful upload
+// fails) — the caller uses this to best-effort clean up storage objects
+// that were durably written but whose owning transaction did not commit,
+// since a storage Put cannot itself be rolled back by the SQL transaction.
 func (repository *Postgres) fanOutIntoExecutionUnits(
 	contextValue context.Context,
 	transaction pgx.Tx,
 	jobID string,
 	request app.SubmitExecution,
-) error {
+) ([]unitObjectRef, error) {
 	if repository.storage == nil || repository.kms == nil {
-		return app.ErrFanOutUnavailable
+		return nil, app.ErrFanOutUnavailable
 	}
 	refs, err := fanOutTestCases(
 		contextValue, repository.storage, repository.kms,
 		request.EvaluationBundleRef, request.EvaluationBundleKeyRef, jobID,
 	)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	for _, ref := range refs {
 		unitID, err := database.NewUUIDv7()
 		if err != nil {
-			return err
+			return refs, err
 		}
 		if _, err := transaction.Exec(contextValue, `
 			INSERT INTO judge.execution_units (
 				id, job_id, unit_number, test_case_ciphertext_ref, encryption_key_reference, state
 			) VALUES ($1, $2, $3, $4, $5, 'queued')
 		`, unitID, jobID, ref.UnitNumber, ref.ObjectKey, ref.KeyRef); err != nil {
-			return fmt.Errorf("insert execution unit %d: %w", ref.UnitNumber, err)
+			return refs, fmt.Errorf("insert execution unit %d: %w", ref.UnitNumber, err)
 		}
 	}
-	return nil
+	return refs, nil
 }
 
 // nullableText converts an empty string into a SQL NULL for optional

@@ -58,6 +58,23 @@ func (repository *Postgres) Submit(contextValue context.Context, request app.Sub
 	}
 	defer func() { _ = transaction.Rollback(contextValue) }()
 
+	// fanOutRefs/committed back the storage cleanup safety net below: a
+	// storage Put cannot be rolled back by the SQL transaction, so if
+	// fan-out uploads objects and a LATER statement in this same
+	// transaction fails (or Commit itself fails), those objects would
+	// otherwise leak permanently with nothing left to track them.
+	var fanOutRefs []unitObjectRef
+	committed := false
+	defer func() {
+		if !committed && len(fanOutRefs) > 0 && repository.storage != nil {
+			keys := make([]string, len(fanOutRefs))
+			for i, ref := range fanOutRefs {
+				keys[i] = ref.ObjectKey
+			}
+			cleanupOrphanedObjects(contextValue, repository.storage, keys)
+		}
+	}()
+
 	existing, found, err := findExecutionByIdempotencyKey(contextValue, transaction, request.IdempotencyKey)
 	if err != nil {
 		return app.Execution{}, err
@@ -69,6 +86,7 @@ func (repository *Postgres) Submit(contextValue context.Context, request app.Sub
 		if err := transaction.Commit(contextValue); err != nil {
 			return app.Execution{}, fmt.Errorf("commit idempotent execution lookup: %w", err)
 		}
+		committed = true
 		return app.Execution{ID: existing.id, Status: existing.state}, nil
 	}
 
@@ -141,12 +159,15 @@ func (repository *Postgres) Submit(contextValue context.Context, request app.Sub
 		if err := transaction.Commit(contextValue); err != nil {
 			return app.Execution{}, fmt.Errorf("commit concurrent idempotency lookup: %w", err)
 		}
+		committed = true
 		return app.Execution{ID: existing.id, Status: existing.state}, nil
 	}
 	if err != nil {
 		return app.Execution{}, fmt.Errorf("insert execution job: %w", err)
 	}
-	if err := repository.fanOutIntoExecutionUnits(contextValue, transaction, insertedJobID, request); err != nil {
+	refs, err := repository.fanOutIntoExecutionUnits(contextValue, transaction, insertedJobID, request)
+	fanOutRefs = refs
+	if err != nil {
 		return app.Execution{}, err
 	}
 	if _, err := transaction.Exec(contextValue, `
@@ -164,6 +185,7 @@ func (repository *Postgres) Submit(contextValue context.Context, request app.Sub
 	if err := transaction.Commit(contextValue); err != nil {
 		return app.Execution{}, fmt.Errorf("commit execution acceptance: %w", err)
 	}
+	committed = true
 	return app.Execution{ID: insertedJobID, Status: "accepted"}, nil
 }
 

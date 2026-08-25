@@ -269,6 +269,116 @@ func TestSubmitFansOutBundleIntoExecutionUnits(t *testing.T) {
 	}
 }
 
+// TestSubmitCleansUpOrphanedStorageOnLaterTransactionFailure proves the
+// storage cleanup safety net added alongside fan-out: fan-out itself
+// succeeds (N per-test-case objects get uploaded and their execution_units
+// rows inserted), but a LATER statement in the same transaction
+// (the execution_events insert) fails, so the whole transaction rolls back.
+// A storage Put cannot be undone by that rollback, so Submit must clean up
+// the already-uploaded objects itself rather than leaking them — which is
+// exactly what happened 100% of the time before migration 000007 fixed the
+// execution_events.event_type CHECK regex.
+func TestSubmitCleansUpOrphanedStorageOnLaterTransactionFailure(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	pool := integration.StartPostgres(ctx, t)
+
+	// --- pre-migration role and schema setup -----------------------------------
+	for _, stmt := range []string{
+		`CREATE ROLE aether_judge_migrator NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
+		`CREATE ROLE aether_judge_app      NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
+		`ALTER DATABASE testdb OWNER TO aether_judge_migrator`,
+		`ALTER SCHEMA public OWNER TO aether_judge_migrator`,
+		`CREATE TABLE public.schema_migrations (version bigint NOT NULL PRIMARY KEY, dirty boolean NOT NULL)`,
+		`ALTER TABLE public.schema_migrations OWNER TO aether_judge_migrator`,
+	} {
+		_, err := pool.Exec(ctx, stmt)
+		require.NoError(t, err, "pre-migration setup: %s", stmt[:min(len(stmt), 60)])
+	}
+
+	// --- apply migrations ------------------------------------------------------
+	_, file, _, _ := runtime.Caller(0)
+	svcRoot := filepath.Join(filepath.Dir(file), "../../..")
+	migrationsDir, err := filepath.Abs(filepath.Join(svcRoot, "migrations"))
+	require.NoError(t, err)
+	integration.ApplyMigrations(ctx, t, pool, migrationsDir)
+
+	// --- enable the language this submission targets ----------------------------
+	_, err = pool.Exec(ctx, `
+		INSERT INTO judge.language_mappings (language_key, engine_language_id, engine_version, enabled, max_parallelism)
+		VALUES ('python3', 71, '3.11.2', true, 4)
+	`)
+	require.NoError(t, err, "seed enabled language mapping")
+
+	// --- deliberately force the statement AFTER fan-out to fail ----------------
+	// Submit's next statement after fanOutIntoExecutionUnits succeeds is the
+	// judge.execution_events insert. An always-false CHECK constraint fails
+	// every insert into that table without touching fan-out itself, giving a
+	// deterministic "later step fails" seam.
+	_, err = pool.Exec(ctx, `ALTER TABLE judge.execution_events ADD CONSTRAINT force_test_failure CHECK (false)`)
+	require.NoError(t, err, "seed a deliberate later-statement failure")
+
+	// --- seed a real evaluation bundle in fake storage, encrypted with the fake KMS
+	objectStorage := newFakeStorage()
+	keyManager := fakeKMS{}
+
+	bundlePlaintext := []byte(`{"schema_version": 1, "test_cases": [
+		{"stdin": "1\n", "expected_output": "1\n"},
+		{"stdin": "2\n", "expected_output": "4\n"},
+		{"stdin": "3\n", "expected_output": "9\n"}
+	]}`)
+	bundleCiphertext, bundleKeyRef, err := keyManager.Encrypt(ctx, bundlePlaintext)
+	require.NoError(t, err, "encrypt fixture bundle")
+	const bundleObjectKey = "bundles/fanout-cleanup-integration-test"
+	objectStorage.objects[bundleObjectKey] = bundleCiphertext
+	bundleSHA256 := sha256.Sum256(bundlePlaintext)
+
+	store := repo.NewPostgres(pool, objectStorage, keyManager)
+
+	correlationID, err := database.NewUUIDv7()
+	require.NoError(t, err)
+	idempotencyKey, err := database.NewUUIDv7()
+	require.NoError(t, err)
+
+	command := app.SubmitExecution{
+		IdempotencyKey:          "fanout-cleanup-" + idempotencyKey,
+		TenantFairnessKey:       "fanout-cleanup-tenant:fanout-exam",
+		SubmissionCorrelationID: correlationID,
+		EvaluationBundleRef:     bundleObjectKey,
+		EvaluationBundleSHA256:  hex.EncodeToString(bundleSHA256[:]),
+		EvaluationBundleKeyRef:  bundleKeyRef,
+		SourceCiphertextRef:     "source/fanout-cleanup-integration-test",
+		SourceCiphertextSHA256:  deterministicHex64("source"),
+		RequestCiphertextRef:    "request/fanout-cleanup-integration-test",
+		LanguageKey:             "python3",
+		Limits: app.Limits{
+			CPUTimeMS:  1000,
+			WallTimeMS: 2000,
+			Memory:     268435456,
+			Processes:  1,
+		},
+		ExpiresAt: time.Now().Add(time.Hour),
+	}
+	require.NoError(t, command.Validate(time.Now()), "fixture command must satisfy the wrapper's own invariants")
+
+	_, err = store.Submit(ctx, command)
+	require.Error(t, err, "Submit must surface the forced later-statement failure")
+
+	var jobCount int
+	err = pool.QueryRow(ctx, `SELECT count(*) FROM judge.execution_jobs`).Scan(&jobCount)
+	require.NoError(t, err)
+	require.Equal(t, 0, jobCount, "the whole transaction must have rolled back: no job row should exist")
+
+	// Fan-out uploaded 3 per-test-case objects before the later statement
+	// failed. Those must be cleaned up, leaving only the original bundle
+	// object behind — not leaked permanently in storage.
+	require.Len(t, objectStorage.objects, 1,
+		"fan-out's uploaded objects must be cleaned up when the owning transaction does not commit")
+	_, bundleStillPresent := objectStorage.objects[bundleObjectKey]
+	require.True(t, bundleStillPresent, "cleanup must not remove the bundle object itself, only the units it uploaded")
+}
+
 // fakeStorage is an in-memory stand-in for the storage.Object port, mirroring
 // the fakeStorage used by postgres_fanout_test.go's unit tests -- reused here
 // (in this package's separate repo_test package, which cannot see that
