@@ -383,6 +383,8 @@ type addExamItemRequest struct {
 	MaximumScore              string `json:"maximum_score"`
 	EvaluationBundleObjectKey string `json:"evaluation_bundle_object_key"`
 	EvaluationBundleChecksum  string `json:"evaluation_bundle_checksum"`
+	SampleBundleObjectKey     string `json:"sample_bundle_object_key"`
+	SampleBundleChecksum      string `json:"sample_bundle_checksum"`
 }
 
 func (handler *Handler) addExamItem(writer http.ResponseWriter, request *http.Request) {
@@ -427,6 +429,7 @@ func (handler *Handler) addExamItem(writer http.ResponseWriter, request *http.Re
 		QuestionID: body.QuestionID, QuestionVersionID: body.QuestionVersionID,
 		MaximumScore: body.MaximumScore, EvaluationBundleObjectKey: body.EvaluationBundleObjectKey,
 		EvaluationBundleChecksum: body.EvaluationBundleChecksum,
+		SampleBundleObjectKey:    body.SampleBundleObjectKey, SampleBundleChecksum: body.SampleBundleChecksum,
 	})
 	if err != nil {
 		httpx.WriteError(writer, err)

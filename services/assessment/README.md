@@ -35,7 +35,10 @@ database layers.
 - Add sections and question-version snapshots using `content_version` for
   optimistic concurrency. Question IDs, encrypted evaluation-bundle object
   references, and checksums are opaque; Assessment never reads Question Bank
-  tables.
+  tables. An exam item may also optionally pin a sample-test bundle
+  (`sample_bundle_object_key`/`sample_bundle_checksum`) alongside its
+  mandatory hidden evaluation bundle; both fields must be set together or both
+  left empty.
 - Remove a draft section (`DELETE
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/sections/{section_id}`)
   or item (`DELETE

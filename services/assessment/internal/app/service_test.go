@@ -283,6 +283,60 @@ func TestAddExamItemRejectsTraversalObjectKeys(t *testing.T) {
 	}
 }
 
+func TestAddExamItemSampleBundlePairing(t *testing.T) {
+	t.Parallel()
+	service := &Service{pool: nil, store: nil}
+	validUUID := "00000000-0000-7000-8000-000000000001"
+
+	baseCommand := func() AddExamItem {
+		return AddExamItem{
+			WriteCommand:              WriteCommand{IdempotencyKey: "test:key"},
+			ID:                        validUUID,
+			TenantID:                  validUUID,
+			ExamVersionID:             validUUID,
+			SectionID:                 validUUID,
+			ExpectedContentVersion:    1,
+			Position:                  1,
+			QuestionID:                validUUID,
+			QuestionVersionID:         validUUID,
+			MaximumScore:              "10.0000",
+			EvaluationBundleObjectKey: "evaluation/bundle.zip",
+			EvaluationBundleChecksum:  strings.Repeat("a", 64),
+		}
+	}
+
+	testCases := []struct {
+		name          string
+		sampleKey     string
+		sampleSum     string
+		wantForbidden bool
+	}{
+		{name: "both empty is valid", sampleKey: "", sampleSum: ""},
+		{name: "both populated is valid", sampleKey: "sample/bundle.zip", sampleSum: strings.Repeat("b", 64), wantForbidden: true},
+		{name: "object key without checksum is invalid", sampleKey: "sample/bundle.zip", sampleSum: ""},
+		{name: "checksum without object key is invalid", sampleKey: "", sampleSum: strings.Repeat("b", 64)},
+	}
+	testCases[0].wantForbidden = true
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			command := baseCommand()
+			command.SampleBundleObjectKey = tc.sampleKey
+			command.SampleBundleChecksum = tc.sampleSum
+			_, err := service.AddExamItem(t.Context(), centralauthz.Capability{}, command)
+			if tc.wantForbidden {
+				var appErr *apperrors.Error
+				if !errors.As(err, &appErr) || appErr.Code != apperrors.CodeForbidden {
+					t.Fatalf("error = %v, want forbidden (validation should have passed)", err)
+				}
+				return
+			}
+			assertInvalid(t, err)
+		})
+	}
+}
+
 func TestRemoveExamSectionRejectsInvalidFields(t *testing.T) {
 	t.Parallel()
 	service := &Service{pool: nil, store: nil}

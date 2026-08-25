@@ -320,6 +320,8 @@ type AddExamItem struct {
 	MaximumScore              string
 	EvaluationBundleObjectKey string
 	EvaluationBundleChecksum  string
+	SampleBundleObjectKey     string
+	SampleBundleChecksum      string
 }
 
 type RemoveExamSection struct {
@@ -534,8 +536,16 @@ func (service *Service) AddExamItem(ctx context.Context, capability centralauthz
 	command.MaximumScore = strings.TrimSpace(command.MaximumScore)
 	command.EvaluationBundleObjectKey = strings.TrimSpace(command.EvaluationBundleObjectKey)
 	command.EvaluationBundleChecksum = strings.ToLower(strings.TrimSpace(command.EvaluationBundleChecksum))
+	command.SampleBundleObjectKey = strings.TrimSpace(command.SampleBundleObjectKey)
+	command.SampleBundleChecksum = strings.ToLower(strings.TrimSpace(command.SampleBundleChecksum))
 	if !validID(command.ID) || !validID(command.TenantID) || !validID(command.ExamVersionID) || !validID(command.SectionID) || !validID(command.QuestionID) || !validID(command.QuestionVersionID) || command.ExpectedContentVersion <= 0 || command.Position <= 0 || !validScore(command.MaximumScore) || !validObjectKey(command.EvaluationBundleObjectKey) || !checksumPattern.MatchString(command.EvaluationBundleChecksum) {
 		return ExamItem{}, invalid("exam item fields are invalid")
+	}
+	if (command.SampleBundleObjectKey == "") != (command.SampleBundleChecksum == "") {
+		return ExamItem{}, invalid("sample bundle object key and checksum must both be set or both be empty")
+	}
+	if command.SampleBundleObjectKey != "" && (!validObjectKey(command.SampleBundleObjectKey) || !checksumPattern.MatchString(command.SampleBundleChecksum)) {
+		return ExamItem{}, invalid("sample bundle fields are invalid")
 	}
 	return runWrite(service, ctx, capability, command.TenantID, "assessment.exam_item.create", command.IdempotencyKey,
 		struct {
@@ -548,8 +558,11 @@ func (service *Service) AddExamItem(ctx context.Context, capability centralauthz
 			MaximumScore              string `json:"maximum_score"`
 			EvaluationBundleObjectKey string `json:"evaluation_bundle_object_key"`
 			EvaluationBundleChecksum  string `json:"evaluation_bundle_checksum"`
+			SampleBundleObjectKey     string `json:"sample_bundle_object_key"`
+			SampleBundleChecksum      string `json:"sample_bundle_checksum"`
 		}{command.ExamVersionID, command.SectionID, command.ExpectedContentVersion, command.Position,
-			command.QuestionID, command.QuestionVersionID, command.MaximumScore, command.EvaluationBundleObjectKey, command.EvaluationBundleChecksum}, httpStatusCreated,
+			command.QuestionID, command.QuestionVersionID, command.MaximumScore, command.EvaluationBundleObjectKey, command.EvaluationBundleChecksum,
+			command.SampleBundleObjectKey, command.SampleBundleChecksum}, httpStatusCreated,
 		func(transaction pgx.Tx) (ExamItem, error) {
 			return service.store.AddExamItem(ctx, transaction, command)
 		},

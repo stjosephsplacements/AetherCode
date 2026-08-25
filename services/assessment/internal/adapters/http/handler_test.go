@@ -52,6 +52,7 @@ type stubService struct {
 	listProctorPolicyVersionsFn func(context.Context, centralauthz.Capability, app.ListProctorPolicyVersions) (app.Page[app.ProctorPolicyVersion], error)
 	removeExamSectionFn         func(context.Context, centralauthz.Capability, app.RemoveExamSection) error
 	removeExamItemFn            func(context.Context, centralauthz.Capability, app.RemoveExamItem) error
+	addExamItemFn               func(context.Context, centralauthz.Capability, app.AddExamItem) (app.ExamItem, error)
 }
 
 func (s *stubService) GetExam(ctx context.Context, cap centralauthz.Capability, tenantID, examID string) (app.Exam, error) {
@@ -101,8 +102,8 @@ func (s *stubService) GetExamVersion(context.Context, centralauthz.Capability, a
 func (s *stubService) AddExamSection(context.Context, centralauthz.Capability, app.AddExamSection) (app.ExamSection, error) {
 	panic("AddExamSection not expected")
 }
-func (s *stubService) AddExamItem(context.Context, centralauthz.Capability, app.AddExamItem) (app.ExamItem, error) {
-	panic("AddExamItem not expected")
+func (s *stubService) AddExamItem(ctx context.Context, cap centralauthz.Capability, cmd app.AddExamItem) (app.ExamItem, error) {
+	return s.addExamItemFn(ctx, cap, cmd)
 }
 func (s *stubService) RemoveExamSection(ctx context.Context, cap centralauthz.Capability, cmd app.RemoveExamSection) error {
 	return s.removeExamSectionFn(ctx, cap, cmd)
@@ -457,6 +458,69 @@ func TestListProctorPolicyVersionsRejectsInvalidPolicyID(t *testing.T) {
 
 	if writer.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400", writer.Code)
+	}
+}
+
+// -- POST .../sections/{section_id}/items -------------------------------------
+
+func addExamItemRequestBody(t *testing.T, body string) *http.Request {
+	t.Helper()
+	request := httptest.NewRequest(http.MethodPost,
+		"/v1/tenants/"+testTenantID+"/exam-versions/"+testVersionID+"/sections/"+testSectionID+"/items",
+		strings.NewReader(body))
+	request.Header.Set("Idempotency-Key", "assessment:add-item")
+	request.SetPathValue("tenant_id", testTenantID)
+	request.SetPathValue("exam_version_id", testVersionID)
+	request.SetPathValue("section_id", testSectionID)
+	return request
+}
+
+func TestAddExamItemThreadsSampleBundleFieldsThroughToTheCommand(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name          string
+		body          string
+		wantObjectKey string
+		wantChecksum  string
+	}{
+		{
+			name: "sample bundle omitted",
+			body: `{"expected_content_version":1,"position":1,"question_id":"` + testExamID + `","question_version_id":"` + testExamID +
+				`","maximum_score":"10.0000","evaluation_bundle_object_key":"eval/bundle.zip","evaluation_bundle_checksum":"` + strings.Repeat("a", 64) + `"}`,
+		},
+		{
+			name: "sample bundle populated",
+			body: `{"expected_content_version":1,"position":1,"question_id":"` + testExamID + `","question_version_id":"` + testExamID +
+				`","maximum_score":"10.0000","evaluation_bundle_object_key":"eval/bundle.zip","evaluation_bundle_checksum":"` + strings.Repeat("a", 64) +
+				`","sample_bundle_object_key":"sample/bundle.zip","sample_bundle_checksum":"` + strings.Repeat("b", 64) + `"}`,
+			wantObjectKey: "sample/bundle.zip",
+			wantChecksum:  strings.Repeat("b", 64),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var captured app.AddExamItem
+			svc := &stubService{
+				addExamItemFn: func(_ context.Context, _ centralauthz.Capability, cmd app.AddExamItem) (app.ExamItem, error) {
+					captured = cmd
+					return app.ExamItem{ID: testItemID}, nil
+				},
+			}
+			handler := &Handler{service: svc, authorizer: allowedAuthorizer()}
+			writer := httptest.NewRecorder()
+
+			handler.addExamItem(writer, addExamItemRequestBody(t, tc.body))
+
+			if writer.Code != http.StatusCreated {
+				t.Fatalf("status = %d, want 201, body = %s", writer.Code, writer.Body.String())
+			}
+			if captured.SampleBundleObjectKey != tc.wantObjectKey || captured.SampleBundleChecksum != tc.wantChecksum {
+				t.Fatalf("sample bundle fields = (%q, %q), want (%q, %q)",
+					captured.SampleBundleObjectKey, captured.SampleBundleChecksum, tc.wantObjectKey, tc.wantChecksum)
+			}
+		})
 	}
 }
 
