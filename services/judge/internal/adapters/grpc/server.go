@@ -212,6 +212,8 @@ func toStatusError(err error) error {
 		return status.Error(codes.FailedPrecondition, err.Error())
 	case errors.Is(err, app.ErrCompletionNotLeased):
 		return status.Error(codes.FailedPrecondition, err.Error())
+	case errors.Is(err, app.ErrFanOutUnavailable):
+		return status.Error(codes.FailedPrecondition, err.Error())
 	default:
 		return status.Error(codes.Internal, "Judge operation failed")
 	}

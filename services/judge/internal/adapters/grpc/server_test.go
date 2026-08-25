@@ -234,3 +234,40 @@ func TestServerHardDeleteExecutionJob(t *testing.T) {
 		t.Fatalf("nil request: status = %v, want InvalidArgument", status.Code(err))
 	}
 }
+
+func TestToStatusErrorMapping(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		err      error
+		wantCode codes.Code
+	}{
+		{
+			name:     "fan-out unavailable maps to FailedPrecondition, not Internal",
+			err:      app.ErrFanOutUnavailable,
+			wantCode: codes.FailedPrecondition,
+		},
+		{
+			name:     "completion not leased maps to FailedPrecondition",
+			err:      app.ErrCompletionNotLeased,
+			wantCode: codes.FailedPrecondition,
+		},
+		{
+			name:     "unmapped error falls back to Internal",
+			err:      errors.New("unmapped store failure"),
+			wantCode: codes.Internal,
+		},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			got := toStatusError(testCase.err)
+			if status.Code(got) != testCase.wantCode {
+				t.Fatalf("toStatusError(%v) code = %v, want %v", testCase.err, status.Code(got), testCase.wantCode)
+			}
+			if testCase.wantCode != codes.Internal && got.Error() != status.Error(testCase.wantCode, testCase.err.Error()).Error() {
+				t.Fatalf("toStatusError(%v) = %v, want the underlying message preserved", testCase.err, got)
+			}
+		})
+	}
+}

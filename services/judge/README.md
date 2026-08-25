@@ -101,6 +101,29 @@ busiest hour of an exam, with headroom).
 | `JUDGE_SUBMIT_BURST` | 2000 | Token-bucket burst capacity (tenant-wide). |
 | `JUDGE_SUBMIT_RATE` | 20000 | Refill rate, requests per hour (tenant-wide). |
 
+## Test-case fan-out configuration
+
+`SubmitExecution` fans a submission's evaluation bundle out into one
+`judge.execution_units` row per test case (see `internal/bundle` for the bundle
+format), re-encrypting and storing each test case as its own object. This
+requires object storage and a KMS key manager to be configured; both are
+optional at the process level, but when either is absent, `Submit` fails
+clearly with `app.ErrFanOutUnavailable` (mapped to `codes.FailedPrecondition`)
+rather than silently admitting a job with zero units.
+
+| Variable | Default | Description |
+|---|---|---|
+| `JUDGE_STORAGE_ENDPOINT` | *(required for fan-out)* | MinIO/S3-compatible endpoint used to store per-test-case encrypted objects. |
+| `JUDGE_STORAGE_BUCKET` | *(required for fan-out)* | Bucket that receives per-test-case encrypted objects. |
+| `JUDGE_STORAGE_ACCESS_KEY` | *(required for fan-out)* | Access key for `JUDGE_STORAGE_ENDPOINT`. |
+| `JUDGE_STORAGE_SECRET_KEY` | *(required for fan-out)* | Secret key for `JUDGE_STORAGE_ENDPOINT`. |
+| `JUDGE_KMS_LOCAL_KEY` | *(required for fan-out)* | Base64-standard-encoded 32-byte AES-256-GCM key used to decrypt the evaluation bundle and re-encrypt each test case. Local/dev/CI only — production must use a managed KMS provider. |
+
+All five are unset by default, which disables fan-out: `Submit` still validates
+and accepts jobs (matching a deployment that never calls `Submit`, e.g. an
+instance serving only `Pull`/`Acknowledge`), but any `Submit` call fails with
+`FailedPrecondition` instead of creating a job with no execution units.
+
 ## Dispatcher configuration
 
 The dispatcher worker is controlled by the following environment variables. All
