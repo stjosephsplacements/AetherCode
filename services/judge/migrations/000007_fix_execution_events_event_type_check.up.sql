@@ -9,8 +9,8 @@
 -- Submit call that reaches the execution_events insert fails with a check
 -- constraint violation. This was never caught because no earlier test
 -- exercised that INSERT against a real database. Fix the regex to a single
--- backslash, which matches the same 'execution.<word>.v1' shape the rest of
--- the codebase (see judge.outbox_events' identical convention) intends.
+-- backslash, so it actually matches the 'execution.<word>.v1' shape this
+-- column was always intended to accept (e.g. 'execution.accepted.v1').
 
 SET ROLE aether_judge_migrator;
 

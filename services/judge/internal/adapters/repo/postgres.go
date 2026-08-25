@@ -189,6 +189,16 @@ func (repository *Postgres) Submit(contextValue context.Context, request app.Sub
 	return app.Execution{ID: insertedJobID, Status: "accepted"}, nil
 }
 
+// nullableText converts an empty string into a SQL NULL for optional
+// text columns, so INSERTs never write a zero-length string into a column
+// declared "IS NULL OR length(...) > 0".
+func nullableText(value string) any {
+	if value == "" {
+		return nil
+	}
+	return value
+}
+
 type existingExecution struct {
 	id          string
 	fingerprint string

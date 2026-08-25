@@ -14,6 +14,17 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+// maxBundleCiphertextBytes bounds how much of a bundle object fan-out will
+// read into memory before decrypting it. bundle.Parse already bounds the
+// parsed test-case COUNT (maxTestCases = 500), but that check only runs
+// after the whole object has already been read and decrypted -- an
+// oversized object would otherwise still cause unbounded memory use on the
+// way there. 10 MiB comfortably fits 500 test cases at an average of ~20KiB
+// of stdin+expected_output each (generous for typical test-case fixtures),
+// with headroom for encryption overhead, while still bounding a malicious or
+// accidental oversized upload.
+const maxBundleCiphertextBytes = 10 * 1024 * 1024
+
 // unitObjectRef identifies one test case's independently encrypted storage
 // object, produced by fanOutTestCases and consumed when inserting
 // judge.execution_units rows.
@@ -38,7 +49,7 @@ func fanOutTestCases(
 		return nil, fmt.Errorf("fan-out: fetch bundle: %w", err)
 	}
 	defer func() { _ = reader.Close() }()
-	ciphertext, err := io.ReadAll(reader)
+	ciphertext, err := io.ReadAll(io.LimitReader(reader, maxBundleCiphertextBytes))
 	if err != nil {
 		return nil, fmt.Errorf("fan-out: read bundle: %w", err)
 	}
@@ -133,14 +144,4 @@ func (repository *Postgres) fanOutIntoExecutionUnits(
 		}
 	}
 	return refs, nil
-}
-
-// nullableText converts an empty string into a SQL NULL for optional
-// text columns, so INSERTs never write a zero-length string into a column
-// declared "IS NULL OR length(...) > 0".
-func nullableText(value string) any {
-	if value == "" {
-		return nil
-	}
-	return value
 }
