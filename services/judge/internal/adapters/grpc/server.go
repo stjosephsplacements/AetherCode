@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/aethercode/aethercode/libs/pkg/ratelimit"
 	judgev1 "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/judge/v1"
 	"github.com/aethercode/aethercode/services/judge/internal/app"
 	"google.golang.org/grpc/codes"
@@ -18,11 +19,13 @@ import (
 type Server struct {
 	judgev1.UnimplementedJudgeServiceServer
 	service *app.Service
+	limiter *ratelimit.Limiter
 }
 
-// NewServer constructs a Judge gRPC adapter.
-func NewServer(service *app.Service) *Server {
-	return &Server{service: service}
+// NewServer constructs a Judge gRPC adapter. limiter may be nil to disable
+// per-tenant submission rate limiting.
+func NewServer(service *app.Service, limiter *ratelimit.Limiter) *Server {
+	return &Server{service: service, limiter: limiter}
 }
 
 // SubmitExecution durably accepts a deduplicated wrapper job.
@@ -32,6 +35,19 @@ func (server *Server) SubmitExecution(
 ) (*judgev1.SubmitExecutionResponse, error) {
 	if request == nil {
 		return nil, status.Error(codes.InvalidArgument, "execution request is required")
+	}
+	// An empty tenant_fairness_key is a permanent validation failure that
+	// app.Service.Submit rejects with InvalidArgument below; check it before
+	// consulting the limiter so that case is never reported as
+	// ResourceExhausted (Limiter.Allow denies an empty key by design, which
+	// would otherwise turn a non-retryable error into a retryable one).
+	if server.limiter != nil && request.GetTenantFairnessKey() != "" {
+		// TenantFairnessKey is the opaque dispatch-fairness key: it already
+		// exists to prevent one tenant from starving others' throughput, so it
+		// is also the correct key for admission rate limiting.
+		if !server.limiter.Allow(request.GetTenantFairnessKey(), time.Now().UTC()) {
+			return nil, status.Error(codes.ResourceExhausted, "submission rate exceeded")
+		}
 	}
 	expiresAt, err := time.Parse(time.RFC3339Nano, request.GetExpiresAt())
 	if err != nil {
@@ -86,6 +102,23 @@ func (server *Server) PullCompletedExecutions(
 		if verdictErr != nil {
 			return nil, status.Error(codes.Internal, "Judge completion vocabulary is invalid")
 		}
+		unitResults := make([]*judgev1.UnitResult, 0, len(completion.UnitResults))
+		for _, unit := range completion.UnitResults {
+			unitVerdictCode, unitVerdictErr := completionVerdictCode(unit.Verdict)
+			if unitVerdictErr != nil {
+				return nil, status.Error(codes.Internal, "Judge completion vocabulary is invalid")
+			}
+			result := &judgev1.UnitResult{UnitNumber: uint32(unit.UnitNumber), VerdictCode: unitVerdictCode}
+			if unit.TimeMS != nil {
+				timeMS := uint32(*unit.TimeMS)
+				result.ExecutionTimeMs = &timeMS
+			}
+			if unit.MemoryKB != nil {
+				memoryKiB := uint32(*unit.MemoryKB)
+				result.MemoryKib = &memoryKiB
+			}
+			unitResults = append(unitResults, result)
+		}
 		response.Completions = append(response.Completions, &judgev1.Completion{
 			EventId:                      completion.EventID,
 			JobId:                        completion.JobID,
@@ -100,6 +133,7 @@ func (server *Server) PullCompletedExecutions(
 			DeliveryId:                   completion.DeliveryID,
 			LeaseId:                      completion.LeaseID,
 			CompletedAt:                  completion.CompletedAt.UTC().Format(time.RFC3339Nano),
+			UnitResults:                  unitResults,
 		})
 	}
 	return response, nil
@@ -123,6 +157,43 @@ func (server *Server) AcknowledgeCompletion(
 		return nil, toStatusError(err)
 	}
 	return &judgev1.AcknowledgeCompletionResponse{}, nil
+}
+
+// DeleteExecutionJob soft-deletes a job, retaining it with an audit trail.
+func (server *Server) DeleteExecutionJob(
+	contextValue context.Context,
+	request *judgev1.DeleteExecutionJobRequest,
+) (*judgev1.DeleteExecutionJobResponse, error) {
+	if request == nil {
+		return nil, status.Error(codes.InvalidArgument, "delete request is required")
+	}
+	if err := server.service.DeleteExecutionJob(contextValue, app.DeleteExecutionJob{
+		ID:      request.GetId(),
+		ActorID: request.GetActorId(),
+		Reason:  request.GetReason(),
+	}); err != nil {
+		return nil, toStatusError(err)
+	}
+	return &judgev1.DeleteExecutionJobResponse{}, nil
+}
+
+// HardDeleteExecutionJob permanently removes a job. SuperAdmin only; callers
+// enforce that authorization boundary before invoking this RPC.
+func (server *Server) HardDeleteExecutionJob(
+	contextValue context.Context,
+	request *judgev1.HardDeleteExecutionJobRequest,
+) (*judgev1.HardDeleteExecutionJobResponse, error) {
+	if request == nil {
+		return nil, status.Error(codes.InvalidArgument, "delete request is required")
+	}
+	if err := server.service.HardDeleteExecutionJob(contextValue, app.DeleteExecutionJob{
+		ID:      request.GetId(),
+		ActorID: request.GetActorId(),
+		Reason:  request.GetReason(),
+	}); err != nil {
+		return nil, toStatusError(err)
+	}
+	return &judgev1.HardDeleteExecutionJobResponse{}, nil
 }
 
 func completionVerdictCode(value string) (judgev1.CompletionVerdict, error) {
@@ -158,6 +229,8 @@ func toStatusError(err error) error {
 	case errors.Is(err, app.ErrLanguageUnavailable):
 		return status.Error(codes.FailedPrecondition, err.Error())
 	case errors.Is(err, app.ErrCompletionNotLeased):
+		return status.Error(codes.FailedPrecondition, err.Error())
+	case errors.Is(err, app.ErrFanOutUnavailable):
 		return status.Error(codes.FailedPrecondition, err.Error())
 	default:
 		return status.Error(codes.Internal, "Judge operation failed")

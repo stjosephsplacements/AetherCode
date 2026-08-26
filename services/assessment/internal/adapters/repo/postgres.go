@@ -258,10 +258,11 @@ func (repository *Postgres) AddExamSection(ctx context.Context, transaction pgx.
 
 func (repository *Postgres) AddExamItem(ctx context.Context, transaction pgx.Tx, command app.AddExamItem) (app.ExamItem, error) {
 	if _, err := transaction.Exec(ctx, `
-		SELECT assessment.add_exam_item($1, $2, $3, $4, $5, $6, $7, $8, $9::numeric, $10, $11)
+		SELECT assessment.add_exam_item($1, $2, $3, $4, $5, $6, $7, $8, $9::numeric, $10, $11, $12, $13)
 	`, command.ID, command.TenantID, command.ExamVersionID, command.SectionID, command.ExpectedContentVersion,
 		command.Position, command.QuestionID, command.QuestionVersionID, command.MaximumScore,
-		command.EvaluationBundleObjectKey, command.EvaluationBundleChecksum); err != nil {
+		command.EvaluationBundleObjectKey, command.EvaluationBundleChecksum,
+		nullableText(command.SampleBundleObjectKey), nullableText(command.SampleBundleChecksum)); err != nil {
 		return app.ExamItem{}, mapWriteError(err, "exam item could not be added")
 	}
 	item, err := selectExamItem(ctx, transaction, command.ID, command.TenantID)
@@ -279,6 +280,32 @@ func (repository *Postgres) AddExamItem(ctx context.Context, transaction pgx.Tx,
 		return app.ExamItem{}, err
 	}
 	return item, nil
+}
+
+func (repository *Postgres) RemoveExamSection(ctx context.Context, transaction pgx.Tx, command app.RemoveExamSection) error {
+	if _, err := transaction.Exec(ctx, `
+		SELECT assessment.remove_exam_section($1, $2, $3, $4)
+	`, command.ID, command.TenantID, command.ExamVersionID, command.ExpectedContentVersion); err != nil {
+		return mapWriteError(err, "exam section could not be removed")
+	}
+	return repository.enqueue(ctx, transaction, "exam_section", command.ID, command.TenantID, "assessment.exam_section.removed.v1", struct {
+		ExamSectionID string `json:"exam_section_id"`
+		ExamVersionID string `json:"exam_version_id"`
+		TenantID      string `json:"tenant_id"`
+	}{command.ID, command.ExamVersionID, command.TenantID})
+}
+
+func (repository *Postgres) RemoveExamItem(ctx context.Context, transaction pgx.Tx, command app.RemoveExamItem) error {
+	if _, err := transaction.Exec(ctx, `
+		SELECT assessment.remove_exam_item($1, $2, $3, $4)
+	`, command.ID, command.TenantID, command.ExamVersionID, command.ExpectedContentVersion); err != nil {
+		return mapWriteError(err, "exam item could not be removed")
+	}
+	return repository.enqueue(ctx, transaction, "exam_item", command.ID, command.TenantID, "assessment.exam_item.removed.v1", struct {
+		ExamItemID    string `json:"exam_item_id"`
+		ExamVersionID string `json:"exam_version_id"`
+		TenantID      string `json:"tenant_id"`
+	}{command.ID, command.ExamVersionID, command.TenantID})
 }
 
 func (repository *Postgres) PublishExamVersion(ctx context.Context, transaction pgx.Tx, command app.PublishExamVersion) (app.ExamVersion, error) {
@@ -370,6 +397,105 @@ func (repository *Postgres) GetExamVersion(ctx context.Context, transaction pgx.
 
 func (repository *Postgres) GetCandidateAssignment(ctx context.Context, transaction pgx.Tx, command app.GetCandidateAssignment) (app.CandidateAssignment, error) {
 	return selectCandidateAssignment(ctx, transaction, command.CandidateAssignmentID, command.TenantID)
+}
+
+func (repository *Postgres) GetProctorPolicy(ctx context.Context, transaction pgx.Tx, id, tenantID string) (app.ProctorPolicy, error) {
+	return selectProctorPolicy(ctx, transaction, id, tenantID)
+}
+
+func (repository *Postgres) GetProctorPolicyVersion(ctx context.Context, transaction pgx.Tx, id, tenantID string) (app.ProctorPolicyVersion, error) {
+	return selectProctorPolicyVersion(ctx, transaction, id, tenantID)
+}
+
+func (repository *Postgres) ListProctorPolicies(ctx context.Context, transaction pgx.Tx, command app.ListProctorPolicies) ([]app.ProctorPolicy, error) {
+	rows, err := transaction.Query(ctx, `
+		SELECT id::text, tenant_id::text, name, lifecycle_state, version, created_at
+		FROM assessment.proctor_policies
+		WHERE tenant_id = $1
+		  AND ($2::text IS NULL OR lifecycle_state = $2)
+		  AND ($3::timestamptz IS NULL OR (created_at, id) < ($3, $4))
+		ORDER BY created_at DESC, id DESC
+		LIMIT $5
+	`,
+		command.TenantID, nullableText(command.LifecycleState),
+		nullableTimestamp(command.CursorSort), nullableText(command.CursorID),
+		command.Limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list proctor policies: %w", err)
+	}
+	defer rows.Close()
+
+	policies := make([]app.ProctorPolicy, 0, command.Limit)
+	for rows.Next() {
+		var policy app.ProctorPolicy
+		if err := rows.Scan(&policy.ID, &policy.TenantID, &policy.Name, &policy.LifecycleState,
+			&policy.Version, &policy.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan proctor policy row: %w", err)
+		}
+		policies = append(policies, policy)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read proctor policy rows: %w", err)
+	}
+	return policies, nil
+}
+
+func (repository *Postgres) ListProctorPolicyVersions(ctx context.Context, transaction pgx.Tx, command app.ListProctorPolicyVersions) ([]app.ProctorPolicyVersion, error) {
+	rows, err := transaction.Query(ctx, `
+		SELECT id::text, tenant_id::text, proctor_policy_id::text, version_number, policy,
+		       policy_checksum, status, published_at, created_at
+		FROM assessment.proctor_policy_versions
+		WHERE tenant_id = $1
+		  AND proctor_policy_id = $2::uuid
+		  AND ($3::text IS NULL OR status = $3)
+		  AND ($4::bigint IS NULL OR (version_number, id) < ($4, $5::uuid))
+		ORDER BY version_number DESC, id DESC
+		LIMIT $6
+	`,
+		command.TenantID, command.ProctorPolicyID, nullableText(command.Status),
+		nullableInt(command.CursorSort), nullableText(command.CursorID),
+		command.Limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list proctor policy versions: %w", err)
+	}
+	defer rows.Close()
+
+	versions := make([]app.ProctorPolicyVersion, 0, command.Limit)
+	for rows.Next() {
+		var version app.ProctorPolicyVersion
+		if err := rows.Scan(
+			&version.ID, &version.TenantID, &version.ProctorPolicyID, &version.VersionNumber,
+			&version.Policy, &version.PolicyChecksum, &version.Status,
+			&version.PublishedAt, &version.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan proctor policy version row: %w", err)
+		}
+		versions = append(versions, version)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read proctor policy version rows: %w", err)
+	}
+	return versions, nil
+}
+
+func selectProctorPolicy(ctx context.Context, transaction pgx.Tx, id, tenantID string) (app.ProctorPolicy, error) {
+	var result app.ProctorPolicy
+	err := transaction.QueryRow(ctx, `
+		SELECT id::text, tenant_id::text, name, lifecycle_state, version, created_at
+		FROM assessment.proctor_policies
+		WHERE id = $1 AND tenant_id = $2
+	`, id, tenantID).Scan(
+		&result.ID, &result.TenantID, &result.Name, &result.LifecycleState, &result.Version, &result.CreatedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return app.ProctorPolicy{}, apperrors.New(apperrors.CodeNotFound, "proctor policy was not found")
+	}
+	if err != nil {
+		return app.ProctorPolicy{}, fmt.Errorf("read proctor policy: %w", err)
+	}
+	return result, nil
 }
 
 func selectProctorPolicyVersion(ctx context.Context, transaction pgx.Tx, id, tenantID string) (app.ProctorPolicyVersion, error) {
@@ -561,6 +687,38 @@ func (repository *Postgres) GetExamIncludeDeleted(ctx context.Context, transacti
 	}
 	if err != nil {
 		return app.Exam{}, fmt.Errorf("read exam: %w", err)
+	}
+	return exam, nil
+}
+
+func (repository *Postgres) UpdateExam(ctx context.Context, transaction pgx.Tx, command app.UpdateExam) (app.Exam, error) {
+	var exam app.Exam
+	err := transaction.QueryRow(ctx, `
+		UPDATE assessment.exams
+		SET external_reference = NULLIF($3, ''),
+		    updated_at = clock_timestamp(),
+		    version = version + 1
+		WHERE id = $1 AND tenant_id = $2
+		  AND lifecycle_state = 'draft'
+		  AND version = $4
+		  AND deleted_at IS NULL
+		RETURNING id::text, tenant_id::text, COALESCE(external_reference, ''), lifecycle_state,
+		          version, created_at, updated_at
+	`, command.ID, command.TenantID, command.ExternalReference, command.ExpectedVersion).Scan(
+		&exam.ID, &exam.TenantID, &exam.ExternalRef, &exam.LifecycleState, &exam.Version, &exam.CreatedAt, &exam.UpdatedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return app.Exam{}, apperrors.New(apperrors.CodeConflict, "exam version is stale or exam is no longer a draft")
+	}
+	if err != nil {
+		return app.Exam{}, fmt.Errorf("update exam: %w", err)
+	}
+	if err := repository.enqueue(ctx, transaction, "exam", exam.ID, exam.TenantID, "assessment.exam.updated.v1", struct {
+		ExamID            string `json:"exam_id"`
+		TenantID          string `json:"tenant_id"`
+		ExternalReference string `json:"external_reference,omitempty"`
+	}{exam.ID, exam.TenantID, exam.ExternalRef}); err != nil {
+		return app.Exam{}, err
 	}
 	return exam, nil
 }

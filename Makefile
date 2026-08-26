@@ -4,10 +4,10 @@ SHELL := /usr/bin/env bash
 SERVICES := gateway identity tenant user question-bank assessment submission judge seb notification analytics
 MODULES := libs/pkg $(addprefix services/,$(SERVICES))
 
-.PHONY: help dev-up dev-down dev-judge-up dev-judge-down build test test-integration test-migrations lint proto migrate bootstrap fmt fmt-check vet vuln verify-workspace
+.PHONY: help dev-up dev-down dev-judge-up dev-judge-down build test test-integration test-migrations lint proto migrate bootstrap rotate-authz-key fmt fmt-check vet vuln verify-workspace
 
 help:
-	@printf '%s\n' 'Targets: dev-up dev-down dev-judge-up dev-judge-down build test test-integration test-migrations lint proto migrate bootstrap fmt fmt-check vet vuln'
+	@printf '%s\n' 'Targets: dev-up dev-down dev-judge-up dev-judge-down build test test-integration test-migrations lint proto migrate bootstrap rotate-authz-key fmt fmt-check vet vuln'
 
 verify-workspace:
 	@go work sync
@@ -60,6 +60,14 @@ bootstrap:
 		--identity-database-url "$$IDENTITY_DATABASE_URL" \
 		--user-database-url "$$USER_DATABASE_URL" \
 		--email "$(EMAIL)" --display-name "$(NAME)")
+
+rotate-authz-key:
+	@test -n "$(ACTION)" || { echo "ACTION is required (publish|retire)"; exit 1; }
+	@test -n "$(AUDIENCE)" || { echo "AUDIENCE is required"; exit 1; }
+	@test -n "$$DATABASE_URL" || { echo "DATABASE_URL is required"; exit 1; }
+	@(cd libs/pkg && go run ./cmd/rotate-authz-key \
+		--action "$(ACTION)" --audience "$(AUDIENCE)" --database-url "$$DATABASE_URL" \
+		$(if $(KEY_ID),--key-id "$(KEY_ID)") $(if $(NOT_BEFORE),--not-before "$(NOT_BEFORE)") $(if $(NOT_AFTER),--not-after "$(NOT_AFTER)"))
 
 fmt:
 	@for module in $(MODULES); do (cd $$module && gofmt -w $$(find . -name '*.go' -type f)); done

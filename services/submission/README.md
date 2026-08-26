@@ -12,6 +12,15 @@ Candidate API:
 | `PUT` | `/v1/tenants/{tenant_id}/attempts/{attempt_id}/answers/{exam_item_id}` | Append an answer revision with optimistic attempt-version checking. |
 | `POST` | `/v1/tenants/{tenant_id}/attempts/{attempt_id}/submit` | Atomically snapshot the latest answer per item, create durable evaluation requests, and emit one `submission.evaluation_requested.v1` outbox event per request. `Idempotency-Key` is required. |
 | `GET` | `/v1/tenants/{tenant_id}/attempts/{attempt_id}/answers` | List answer-revision metadata for an attempt the caller owns. Filters: `exam_item_id`. |
+| `GET` | `/v1/tenants/{tenant_id}/attempts/{attempt_id}/unit-results` | Return the redacted hidden-test outcome for an attempt the caller owns: `passed_units` and `total_units` per exam item, and nothing more. |
+
+Reviewer API:
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/v1/tenants/{tenant_id}/attempts/{attempt_id}/judge-receipts` | Return every Judge receipt for one attempt with its full per-unit breakdown: each executed test case's `unit_number`, normalized verdict, and optional timing. Authorized against the `judge_receipts` resource, which the canonical policy grants only to college-, department-, batch-, or platform-scoped roles; a candidate's self-scoped assignment cannot name it. |
+
+The two views are not two renderings of one response. They are separate database routines requiring capabilities signed for different resources (`submission.attempts` and `submission.judge_receipts`), so a handler mistake cannot widen the candidate view into the reviewer one. See `docs/adr/0015-judge-per-unit-result-visibility.md`.
 
 Every route obtains a fresh central User authorization decision, then consumes the signed capability in one local transaction. Database functions enforce candidate ownership again; a candidate cannot select another candidate's attempt even if an application handler is changed incorrectly. Local authorization grant snapshots are revision-bound and fail closed while they lag a revocation.
 
@@ -43,6 +52,13 @@ The service consumes these versioned platform events through durable JetStream c
 ```
 
 `judge.completed.v1` is emitted by the platform-side Judge adapter after it has durably pulled and acknowledged the private Judge-wrapper completion. Its payload contains `tenant_id`, `evaluation_request_id`, `judge_job_id`, `judge_event_id`, `verdict`, canonical `completed_at`, optional non-negative execution metrics, and an all-or-nothing encrypted result reference (`result_object_key`, `result_checksum`, `encryption_key_reference`). Submission records the receipt once and finalizes an attempt only after every evaluation request is terminal.
+
+The wrapper also reports one normalized verdict per executed test case. That
+breakdown is recorded on `submission.judge_completion_ingress.unit_results` and
+materialized into `submission.judge_receipt_units` by the same transaction that
+writes the receipt. It is deliberately absent from the `judge.completed.v1`
+payload: the event is a broadcast subject, and a per-unit verdict is
+reviewer-grade evidence rather than something every subscriber needs.
 
 A strictly newer `assessment.candidate_assignment.snapshot.v1` with
 `lifecycle_state: "revoked"` is an immediate terminal boundary. In its inbox
@@ -110,9 +126,44 @@ When `JUDGE_COMPLETION_ENABLED=true` (mandatory in staging and production):
 
 The application pool must not use the migration owner or a role with `BYPASSRLS`. The projection worker is separate because it can write only private inbox/projection state and invoke narrow security-definer projection functions.
 
+Object storage and KMS are optional and follow the same MinIO/local-KMS pattern as Question Bank (`libs/pkg/storage/minio`, `libs/pkg/kms/local`). They are unused until a candidate-source workflow (such as run-code) is wired to consume them; until then, setting them has no runtime effect.
+
+- `SUBMISSION_STORAGE_ENDPOINT`, `SUBMISSION_STORAGE_ACCESS_KEY`, `SUBMISSION_STORAGE_SECRET_KEY`, `SUBMISSION_STORAGE_BUCKET`, `SUBMISSION_STORAGE_USE_SSL`, `SUBMISSION_STORAGE_REGION` — enable object storage when `SUBMISSION_STORAGE_ENDPOINT` is set.
+- `SUBMISSION_KMS_LOCAL_KEY` — a base64-encoded 32-byte AES-256-GCM key; enables local KMS when set. Use a managed KMS in production.
+
+## Rate limiting
+
+`POST /v1/tenants/{tenant_id}/attempts` is protected by an in-process,
+per-candidate token bucket (`libs/pkg/ratelimit`), keyed on the bearer
+assertion's candidate subject rather than tenant ID or client IP, so one
+candidate cannot exhaust another tenant-mate's attempt-creation budget. A
+rate-limited request receives `429 Too Many Requests` with a
+`Retry-After: 3600` header.
+
+| Variable | Default | Description |
+|---|---|---|
+| `SUBMISSION_START_ATTEMPT_BURST` | 10 | Token-bucket burst capacity. |
+| `SUBMISSION_START_ATTEMPT_RATE` | 30 | Refill rate, requests per hour. |
+
+A second, separate per-candidate token bucket is provisioned for the
+candidate run-code workflow (`runCodeLimiter` in the HTTP adapter) and will
+guard the run-code endpoint once it is wired. Its defaults are deliberately
+far more generous than attempt creation's: running code against sample tests
+is an iterative debugging action a candidate may reasonably repeat 10+ times
+while working a single item, so the limiter exists only to bound abuse, not
+to add per-hour friction to normal use. A rate-limited request will receive
+`429 Too Many Requests` with a `Retry-After: 60` header — a much shorter
+window than attempt creation's, matching the fast iterative nature of the
+workflow.
+
+| Variable | Default | Description |
+|---|---|---|
+| `SUBMISSION_RUN_CODE_BURST` | 30 | Token-bucket burst capacity. |
+| `SUBMISSION_RUN_CODE_RATE` | 300 | Refill rate, requests per hour (5/minute sustained). |
+
 ## Database lifecycle
 
-`000003` aligns the legacy bootstrap outbox/inbox with the shared leased outbox contract. `000004` upgrades authorization state to full revisioned grant snapshots. `000005` adds assignment projections and the attempt workflow routines. `000006` hardens workflow function compilation and terminal Judge reconciliation while retaining backward-compatible event schema version `1`. `000007` turns a newer revoked Assessment snapshot into atomic attempt/evaluation cancellation. `000009` derives one analytics-safe start outbox fact from a newly appended attempt audit event, with a database uniqueness backstop against duplicate publication. `000010` adds the dedicated completion ingress, verifies a local dispatched-job correlation, and emits `judge.completed.v1` in the same idempotent transaction before the remote lease is acknowledged. Apply paired migrations with the dedicated migrator:
+`000003` aligns the legacy bootstrap outbox/inbox with the shared leased outbox contract. `000004` upgrades authorization state to full revisioned grant snapshots. `000005` adds assignment projections and the attempt workflow routines. `000006` hardens workflow function compilation and terminal Judge reconciliation while retaining backward-compatible event schema version `1`. `000007` turns a newer revoked Assessment snapshot into atomic attempt/evaluation cancellation. `000009` derives one analytics-safe start outbox fact from a newly appended attempt audit event, with a database uniqueness backstop against duplicate publication. `000010` adds the dedicated completion ingress, verifies a local dispatched-job correlation, and emits `judge.completed.v1` in the same idempotent transaction before the remote lease is acknowledged. `000018` threads the wrapper's per-unit breakdown through that ingress into `submission.judge_receipt_units`, and adds the redacted candidate and full reviewer read routines over it. Apply paired migrations with the dedicated migrator:
 
 ```sh
 make migrate SVC=submission DIR=up

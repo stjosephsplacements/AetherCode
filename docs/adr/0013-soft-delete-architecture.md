@@ -67,6 +67,34 @@ Implement a **medallion-based soft delete architecture**:
 - Adding PERMISSIVE `USING(true)` for other commands would OR-combine with signed-context policies, defeating tenant isolation
 - Services without existing signed-context RLS (identity, judge) may safely use PERMISSIVE `USING(true)`
 
+## Known Limitations
+
+- **`users.students` cannot actually be hard-deleted today, for any student that
+  was ever enrolled.** `app.hard_delete('users.students', ...)` issues a single,
+  non-cascading `DELETE FROM users.students`, which several referencing rows
+  always block:
+  - `student_department_memberships` and `current_student_affiliations` both
+    hold `ON DELETE RESTRICT` foreign keys to `users.students`, and the
+    `protect_active_student_affiliation` trigger additionally blocks removing
+    those affiliation rows while the student's status is `'active'`. Soft
+    delete never transitions a student's status away from `'active'` or
+    removes those rows.
+  - More fundamentally, every student unconditionally gets a
+    `current_student_batch_affiliations` row the moment they are inserted
+    (`students_create_initial_batch_affiliation`), and that row can never be
+    deleted by anyone, regardless of student status —
+    `current_student_batch_affiliations_protect_delete` raises unconditionally
+    on any `DELETE`, and the table also holds an `ON DELETE RESTRICT` foreign
+    key back to `users.students`.
+
+  Together these mean the SuperAdmin hard-delete guarantee this ADR promises is
+  currently broken for `users.students`, unconditionally, not just for
+  actively-enrolled students. Fixing this needs a real design decision —
+  either a defined cascade order that also retires the membership/affiliation/
+  batch-affiliation rows, or a status-transition-then-delete flow, or removing
+  the unconditional delete-block trigger in favor of a conditional one — and is
+  tracked as follow-up work, not fixed here.
+
 ## Alternatives Considered
 
 1. **Flag-based (`is_deleted BOOLEAN`)**: Rejected because timestamps provide audit trail of when deletion occurred.

@@ -82,6 +82,34 @@ Principals and credentials support soft delete for account deactivation:
 
 Ref: [ADR-0013](../../docs/adr/0013-soft-delete-architecture.md)
 
+## Rate limiting
+
+`POST /v1/auth/register`, `POST /v1/auth/login`, `POST /v1/auth/password-reset`,
+and `POST /v1/auth/password-reset/complete` are each protected by an
+in-process, per-client-IP token bucket (`libs/pkg/ratelimit`), keyed on the
+real client address (honoring `X-Forwarded-For` behind the gateway, since
+`RemoteAddr` alone would be the gateway pod's own address). Password reset
+request and completion share one budget, since both are the same abuse
+surface. A rate-limited request receives `429 Too Many Requests` with a
+`Retry-After: 3600` header.
+
+The login and password-reset limiters are coarse, per-IP abuse backstops, not
+per-account controls. College campus networks commonly NAT hundreds of
+students behind one or a handful of public IPs, so a tight per-IP budget
+would black out an entire campus's exam-morning login traffic behind a
+shared address. The defaults below assume roughly 500 students sharing one
+public IP, each attempting login up to 5 times within the busiest hour
+(mistyped passwords, MFA retries), doubled for headroom, with password-reset
+sized for the same population at a lower per-student rate. Operators must
+size these to their own largest expected shared-IP population before go-live
+— one IP does not mean one user.
+
+| Endpoint(s) | Burst env var | Refill-per-hour env var | Defaults |
+|---|---|---|---|
+| `POST /v1/auth/register` | `IDENTITY_REGISTER_BURST` | `IDENTITY_REGISTER_RATE` | burst 2, 5/hour |
+| `POST /v1/auth/login` | `IDENTITY_LOGIN_BURST` | `IDENTITY_LOGIN_RATE` | burst 500, 2000/hour |
+| `POST /v1/auth/password-reset`, `POST /v1/auth/password-reset/complete` | `IDENTITY_PASSWORD_RESET_BURST` | `IDENTITY_PASSWORD_RESET_RATE` | burst 300, 1000/hour |
+
 ## Authorization projection recovery
 
 `000006_authorization_projection_resync` replaces Identity's legacy

@@ -1,0 +1,82 @@
+// Package bundle parses the evaluation bundle format: one JSON document
+// listing the test cases for a question, encrypted as a single object and
+// referenced by evaluation_bundle_object_key. This is the only consumer of
+// this format in the codebase; anything that assembles a bundle for upload
+// must emit exactly this shape.
+package bundle
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+)
+
+// maxTestCases bounds resource use during fan-out — an author authoring a
+// pathologically large bundle should not be able to make one submission
+// dispatch thousands of Judge0 units.
+//
+// Invariant: this must stay <= submission's per-completion unit-result bound
+// (services/submission/internal/adapters/judgecompletion/completion.go's
+// maxUnitResults, and the matching CHECK in
+// services/submission/migrations/000018_judge_receipt_units.up.sql's
+// ingest_judge_completion). Raising this above that bound without raising
+// the other two would silently re-arm a judge-completion bridge stall: every
+// completion for such a job would fail validateUnitResults/the SQL check,
+// Worker.ProcessOnce would never acknowledge the failing message, and the
+// same head-of-queue completion would be re-pulled and re-fail forever.
+const maxTestCases = 500
+
+const supportedSchemaVersion = 1
+
+// TestCase is one stdin/expected-output pair from a parsed bundle. The JSON
+// tags define the per-unit encrypted object format that fan-out uploads for
+// each test case (see MarshalTestCase) — the same shape a later decrypt step
+// reads back.
+type TestCase struct {
+	Stdin          string `json:"stdin"`
+	ExpectedOutput string `json:"expected_output"`
+}
+
+// MarshalTestCase encodes a single test case into the per-unit encrypted
+// object format: the JSON document that gets encrypted and uploaded as one
+// test case's independently stored object during fan-out.
+func MarshalTestCase(testCase TestCase) ([]byte, error) {
+	encoded, err := json.Marshal(testCase)
+	if err != nil {
+		return nil, fmt.Errorf("bundle: encode test case: %w", err)
+	}
+	return encoded, nil
+}
+
+type rawBundle struct {
+	SchemaVersion int `json:"schema_version"`
+	TestCases     []struct {
+		Stdin          string `json:"stdin"`
+		ExpectedOutput string `json:"expected_output"`
+	} `json:"test_cases"`
+}
+
+// Parse decodes and validates a decrypted evaluation bundle. plaintext must
+// already be decrypted — this package has no knowledge of encryption.
+func Parse(plaintext []byte) ([]TestCase, error) {
+	var raw rawBundle
+	decoder := json.NewDecoder(bytes.NewReader(plaintext))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&raw); err != nil {
+		return nil, fmt.Errorf("bundle: decode: %w", err)
+	}
+	if raw.SchemaVersion != supportedSchemaVersion {
+		return nil, fmt.Errorf("bundle: unsupported schema_version %d, want %d", raw.SchemaVersion, supportedSchemaVersion)
+	}
+	if len(raw.TestCases) == 0 {
+		return nil, fmt.Errorf("bundle: must contain at least one test case")
+	}
+	if len(raw.TestCases) > maxTestCases {
+		return nil, fmt.Errorf("bundle: contains %d test cases, exceeds the limit of %d", len(raw.TestCases), maxTestCases)
+	}
+	testCases := make([]TestCase, len(raw.TestCases))
+	for i, rawCase := range raw.TestCases {
+		testCases[i] = TestCase{Stdin: rawCase.Stdin, ExpectedOutput: rawCase.ExpectedOutput}
+	}
+	return testCases, nil
+}

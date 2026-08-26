@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/aethercode/aethercode/libs/pkg/authn"
+	"github.com/aethercode/aethercode/libs/pkg/ratelimit"
 )
 
 const (
@@ -74,7 +75,7 @@ type AssertionVerifier interface {
 type Config struct {
 	Upstreams            map[string]*url.URL
 	Verifier             AssertionVerifier
-	Limiter              *Limiter
+	Limiter              *ratelimit.Limiter
 	TrustedProxyCIDRs    []*net.IPNet
 	SEBProtectedPrefixes []string
 	Client               *http.Client
@@ -88,7 +89,7 @@ type Config struct {
 type Handler struct {
 	upstreams            map[string]*url.URL
 	verifier             AssertionVerifier
-	limiter              *Limiter
+	limiter              *ratelimit.Limiter
 	trustedProxyCIDRs    []*net.IPNet
 	sebProtectedPrefixes []string
 	client               *http.Client

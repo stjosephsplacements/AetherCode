@@ -4,7 +4,9 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 )
 
 // Runtime controls the private Judge gRPC listener. Production and staging
@@ -19,6 +21,11 @@ type Runtime struct {
 	RabbitURL                   string
 	PublisherID                 string
 	EngineCompatibilityApproved bool
+	SubmitRate                  int
+	SubmitBurst                 int
+	Judge0BaseURL               string
+	Judge0Timeout               time.Duration
+	Judge0AuthToken             string
 }
 
 // Load returns a safe listener configuration for the supplied environment.
@@ -40,6 +47,13 @@ func Load(environment string) (Runtime, error) {
 		PublisherID:                 strings.TrimSpace(value("JUDGE_PUBLISHER_ID", "judge-admission-publisher")),
 		EngineCompatibilityApproved: strings.TrimSpace(value("JUDGE_ENGINE_COMPATIBILITY_APPROVED", "false")) == "true",
 	}
+	runtime.Judge0BaseURL = strings.TrimSpace(value("JUDGE0_BASE_URL", ""))
+	judge0TimeoutSeconds := strings.TrimSpace(value("JUDGE0_TIMEOUT_SECONDS", "10"))
+	timeoutSeconds, timeoutErr := strconv.Atoi(judge0TimeoutSeconds)
+	if timeoutErr != nil || timeoutSeconds < 1 || timeoutSeconds > 120 {
+		return Runtime{}, fmt.Errorf("JUDGE0_TIMEOUT_SECONDS must be an integer between 1 and 120")
+	}
+	runtime.Judge0Timeout = time.Duration(timeoutSeconds) * time.Second
 	configuredFiles := 0
 	for _, file := range []string{runtime.CertificateFile, runtime.KeyFile, runtime.ClientCAFile} {
 		if file != "" {
@@ -71,7 +85,34 @@ func Load(environment string) (Runtime, error) {
 	if runtime.RequireMTLS && !runtime.EngineCompatibilityApproved {
 		return Runtime{}, fmt.Errorf("JUDGE_ENGINE_COMPATIBILITY_APPROVED=true is required in %s", environment)
 	}
+	// SubmitRate/SubmitBurst are a coarse, tenant-wide abuse backstop keyed on
+	// tenant_fairness_key (one whole college, not one candidate). Dispatch
+	// fairness across tenants is a separate, already-existing concern owned by
+	// the judge dispatcher; this limiter exists only to catch a runaway retry
+	// loop or a scripted flood, not to throttle legitimate exam traffic. The
+	// defaults are sized for roughly 500 concurrently examined candidates each
+	// running/testing code up to 20 times within a single peak hour (10000
+	// admissions/hour of genuine load), doubled for headroom.
+	submitRate, err := positiveInt("JUDGE_SUBMIT_RATE", "20000", 1, 50000)
+	if err != nil {
+		return Runtime{}, err
+	}
+	submitBurst, err := positiveInt("JUDGE_SUBMIT_BURST", "2000", 1, 5000)
+	if err != nil {
+		return Runtime{}, err
+	}
+	runtime.SubmitRate = submitRate
+	runtime.SubmitBurst = submitBurst
+	runtime.Judge0AuthToken = strings.TrimSpace(value("JUDGE0_AUTH_TOKEN", ""))
 	return runtime, nil
+}
+
+func positiveInt(key, fallback string, minimum, maximum int) (int, error) {
+	parsed, err := strconv.Atoi(value(key, fallback))
+	if err != nil || parsed < minimum || parsed > maximum {
+		return 0, fmt.Errorf("%s must be between %d and %d", key, minimum, maximum)
+	}
+	return parsed, nil
 }
 
 func splitSubjects(raw string) []string {

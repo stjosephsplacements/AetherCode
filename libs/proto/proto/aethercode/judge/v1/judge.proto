@@ -8,6 +8,8 @@ service JudgeService {
   rpc SubmitExecution(SubmitExecutionRequest) returns (SubmitExecutionResponse);
   rpc PullCompletedExecutions(PullCompletedExecutionsRequest) returns (PullCompletedExecutionsResponse);
   rpc AcknowledgeCompletion(AcknowledgeCompletionRequest) returns (AcknowledgeCompletionResponse);
+  rpc DeleteExecutionJob(DeleteExecutionJobRequest) returns (DeleteExecutionJobResponse);
+  rpc HardDeleteExecutionJob(HardDeleteExecutionJobRequest) returns (HardDeleteExecutionJobResponse);
 }
 
 message ExecutionLimits {
@@ -58,6 +60,13 @@ enum CompletionVerdict {
   COMPLETION_VERDICT_CANCELLED = 8;
 }
 
+message UnitResult {
+  uint32 unit_number = 1;
+  CompletionVerdict verdict_code = 2;
+  optional uint32 execution_time_ms = 3;
+  optional uint32 memory_kib = 4;
+}
+
 message Completion {
   string event_id = 1;
   string job_id = 2;
@@ -78,6 +87,7 @@ message Completion {
   optional uint32 execution_time_ms = 11;
   optional uint32 memory_kib = 12;
   CompletionVerdict verdict_code = 13;
+  repeated UnitResult unit_results = 14;
 }
 
 message PullCompletedExecutionsResponse {
@@ -92,3 +102,19 @@ message AcknowledgeCompletionRequest {
 }
 
 message AcknowledgeCompletionResponse {}
+
+message DeleteExecutionJobRequest {
+  string id = 1;
+  string actor_id = 2;
+  string reason = 3;
+}
+
+message DeleteExecutionJobResponse {}
+
+message HardDeleteExecutionJobRequest {
+  string id = 1;
+  string actor_id = 2;
+  string reason = 3;
+}
+
+message HardDeleteExecutionJobResponse {}

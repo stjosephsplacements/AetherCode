@@ -19,6 +19,7 @@ import (
 	"github.com/aethercode/aethercode/libs/pkg/httpx"
 	"github.com/aethercode/aethercode/libs/pkg/logging"
 	"github.com/aethercode/aethercode/libs/pkg/messaging"
+	"github.com/aethercode/aethercode/libs/pkg/ratelimit"
 	"github.com/aethercode/aethercode/libs/pkg/telemetry"
 	httpadapter "github.com/aethercode/aethercode/services/identity/internal/adapters/http"
 	introspectionadapter "github.com/aethercode/aethercode/services/identity/internal/adapters/introspection"
@@ -186,8 +187,35 @@ func run(contextValue context.Context) error {
 	if err != nil {
 		return err
 	}
+	registerLimiter, err := ratelimit.New(ratelimit.Config{
+		Capacity:        float64(runtime.RegisterBurst),
+		RefillPerSecond: float64(runtime.RegisterRate) / 3600.0,
+		MaxEntries:      50000,
+		IdleTTL:         2 * time.Hour,
+	})
+	if err != nil {
+		return err
+	}
+	loginLimiter, err := ratelimit.New(ratelimit.Config{
+		Capacity:        float64(runtime.LoginBurst),
+		RefillPerSecond: float64(runtime.LoginRate) / 3600.0,
+		MaxEntries:      50000,
+		IdleTTL:         2 * time.Hour,
+	})
+	if err != nil {
+		return err
+	}
+	passwordResetLimiter, err := ratelimit.New(ratelimit.Config{
+		Capacity:        float64(runtime.PasswordResetBurst),
+		RefillPerSecond: float64(runtime.PasswordResetRate) / 3600.0,
+		MaxEntries:      50000,
+		IdleTTL:         2 * time.Hour,
+	})
+	if err != nil {
+		return err
+	}
 	_, handler, err := httpadapter.NewHandler(
-		serviceConfig.Name, identityService, readiness, runtime.AccessVerifier, runtime.ExposeDevelopmentSecrets,
+		serviceConfig.Name, identityService, readiness, runtime.AccessVerifier, runtime.ExposeDevelopmentSecrets, registerLimiter, loginLimiter, passwordResetLimiter,
 	)
 	if err != nil {
 		return err

@@ -9,20 +9,31 @@ import (
 	"time"
 
 	"github.com/aethercode/aethercode/libs/pkg/database"
+	"github.com/aethercode/aethercode/libs/pkg/kms"
+	"github.com/aethercode/aethercode/libs/pkg/storage"
 	"github.com/aethercode/aethercode/services/judge/internal/app"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // Postgres is the Judge wrapper's sole persistence adapter. It never connects
-// to the upstream Judge0 database.
+// to the upstream Judge0 database. storage/kms are nil-able: they are only
+// required for Submit's test-case fan-out (see fanOutTestCases in
+// fanout.go), so an instance built without them still serves Pull,
+// Acknowledge, and the delete paths, matching how
+// services/question-bank/internal/app/service.go treats its own optional
+// storage/kms fields.
 type Postgres struct {
-	pool *pgxpool.Pool
+	pool    *pgxpool.Pool
+	storage storage.Object
+	kms     kms.KeyManager
 }
 
 // NewPostgres creates a wrapper store over a service-owned connection pool.
-func NewPostgres(pool *pgxpool.Pool) *Postgres {
-	return &Postgres{pool: pool}
+// objectStorage and keyManager may be nil in environments that never call
+// Submit (e.g. an instance serving only Pull/Acknowledge).
+func NewPostgres(pool *pgxpool.Pool, objectStorage storage.Object, keyManager kms.KeyManager) *Postgres {
+	return &Postgres{pool: pool, storage: objectStorage, kms: keyManager}
 }
 
 // Ping reports database readiness without exposing credentials or SQL details.
@@ -47,6 +58,23 @@ func (repository *Postgres) Submit(contextValue context.Context, request app.Sub
 	}
 	defer func() { _ = transaction.Rollback(contextValue) }()
 
+	// fanOutRefs/committed back the storage cleanup safety net below: a
+	// storage Put cannot be rolled back by the SQL transaction, so if
+	// fan-out uploads objects and a LATER statement in this same
+	// transaction fails (or Commit itself fails), those objects would
+	// otherwise leak permanently with nothing left to track them.
+	var fanOutRefs []unitObjectRef
+	committed := false
+	defer func() {
+		if !committed && len(fanOutRefs) > 0 && repository.storage != nil {
+			keys := make([]string, len(fanOutRefs))
+			for i, ref := range fanOutRefs {
+				keys[i] = ref.ObjectKey
+			}
+			cleanupOrphanedObjects(contextValue, repository.storage, keys)
+		}
+	}()
+
 	existing, found, err := findExecutionByIdempotencyKey(contextValue, transaction, request.IdempotencyKey)
 	if err != nil {
 		return app.Execution{}, err
@@ -58,6 +86,7 @@ func (repository *Postgres) Submit(contextValue context.Context, request app.Sub
 		if err := transaction.Commit(contextValue); err != nil {
 			return app.Execution{}, fmt.Errorf("commit idempotent execution lookup: %w", err)
 		}
+		committed = true
 		return app.Execution{ID: existing.id, Status: existing.state}, nil
 	}
 
@@ -102,17 +131,19 @@ func (repository *Postgres) Submit(contextValue context.Context, request app.Sub
 		INSERT INTO judge.execution_jobs (
 			id, idempotency_key, request_fingerprint, tenant_fairness_key,
 			submission_correlation_id, evaluation_bundle_ref, evaluation_bundle_sha256,
+			evaluation_bundle_key_reference,
 			source_ciphertext_ref, source_ciphertext_sha256, request_ciphertext_ref, language_key,
 			cpu_time_limit_ms, wall_time_limit_ms, memory_limit_bytes, process_limit,
 			expires_at
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
 		)
 		ON CONFLICT (idempotency_key) DO NOTHING
 		RETURNING id
 	`,
 		jobID, request.IdempotencyKey, fingerprint, request.TenantFairnessKey,
 		request.SubmissionCorrelationID, request.EvaluationBundleRef, request.EvaluationBundleSHA256,
+		nullableText(request.EvaluationBundleKeyRef),
 		request.SourceCiphertextRef, request.SourceCiphertextSHA256, request.RequestCiphertextRef, request.LanguageKey,
 		request.Limits.CPUTimeMS, request.Limits.WallTimeMS, request.Limits.Memory, request.Limits.Processes,
 		request.ExpiresAt.UTC(),
@@ -128,10 +159,16 @@ func (repository *Postgres) Submit(contextValue context.Context, request app.Sub
 		if err := transaction.Commit(contextValue); err != nil {
 			return app.Execution{}, fmt.Errorf("commit concurrent idempotency lookup: %w", err)
 		}
+		committed = true
 		return app.Execution{ID: existing.id, Status: existing.state}, nil
 	}
 	if err != nil {
 		return app.Execution{}, fmt.Errorf("insert execution job: %w", err)
+	}
+	refs, err := repository.fanOutIntoExecutionUnits(contextValue, transaction, insertedJobID, request)
+	fanOutRefs = refs
+	if err != nil {
+		return app.Execution{}, err
 	}
 	if _, err := transaction.Exec(contextValue, `
 		INSERT INTO judge.execution_events (event_id, job_id, event_type, payload)
@@ -148,7 +185,18 @@ func (repository *Postgres) Submit(contextValue context.Context, request app.Sub
 	if err := transaction.Commit(contextValue); err != nil {
 		return app.Execution{}, fmt.Errorf("commit execution acceptance: %w", err)
 	}
+	committed = true
 	return app.Execution{ID: insertedJobID, Status: "accepted"}, nil
+}
+
+// nullableText converts an empty string into a SQL NULL for optional
+// text columns, so INSERTs never write a zero-length string into a column
+// declared "IS NULL OR length(...) > 0".
+func nullableText(value string) any {
+	if value == "" {
+		return nil
+	}
+	return value
 }
 
 type existingExecution struct {
@@ -313,6 +361,10 @@ func (repository *Postgres) Pull(
 		if err != nil {
 			return nil, fmt.Errorf("parse completion timestamp: %w", err)
 		}
+		unitResults, err := fetchUnitResults(contextValue, transaction, pendingCompletion.jobID)
+		if err != nil {
+			return nil, fmt.Errorf("fetch completion unit results: %w", err)
+		}
 		completion := app.Completion{
 			EventID:                 pendingCompletion.eventID,
 			JobID:                   pendingCompletion.jobID,
@@ -326,6 +378,7 @@ func (repository *Postgres) Pull(
 			DeliveryID:              deliveryID,
 			LeaseID:                 leaseID,
 			CompletedAt:             completedAt.UTC(),
+			UnitResults:             unitResults,
 		}
 		if err := completion.Validate(); err != nil {
 			return nil, fmt.Errorf("validate completion payload: %w", err)

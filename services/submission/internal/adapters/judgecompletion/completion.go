@@ -9,6 +9,26 @@ import (
 	"github.com/google/uuid"
 )
 
+// maxUnitResults and maxUnitMetric mirror the bounds
+// submission.ingest_judge_completion enforces on the unit breakdown. Rejecting
+// here keeps an out-of-range wrapper value out of a retry loop the database
+// would fail on every time.
+//
+// Invariant: maxUnitResults must stay >= judge's per-bundle test-case bound
+// (services/judge/internal/bundle/bundle.go's maxTestCases) and must match
+// the jsonb_array_length(p_unit_results) > 1000 CHECK in
+// services/submission/migrations/000018_judge_receipt_units.up.sql's
+// ingest_judge_completion. If judge's bound is ever raised above this one
+// without raising this one and the SQL check too, every completion for such
+// a job would fail validateUnitResults/the SQL check and
+// Worker.ProcessOnce would never acknowledge the failing message, re-arming
+// a judge-completion bridge stall on the same head-of-queue completion
+// forever.
+const (
+	maxUnitResults = 1000
+	maxUnitMetric  = 999999999
+)
+
 // Completion contains only the metadata required to durably reconcile a
 // wrapper result. It deliberately has no source, test, object bytes, or KMS
 // material beyond an opaque key reference.
@@ -25,6 +45,17 @@ type Completion struct {
 	ResultChecksum         *string
 	EncryptionKeyReference *string
 	CompletedAt            time.Time
+	UnitResults            []UnitResult
+}
+
+// UnitResult is one executed test case's normalized outcome. It carries no
+// stdout, stderr, or expected output: a per-unit verdict is already reviewer-
+// grade evidence and the content behind it never leaves the wrapper.
+type UnitResult struct {
+	UnitNumber      int    `json:"unit_number"`
+	Verdict         string `json:"verdict"`
+	ExecutionTimeMS *int   `json:"execution_time_ms"`
+	MemoryKiB       *int   `json:"memory_kib"`
 }
 
 func parseCompletion(value *judgev1.Completion) (Completion, error) {
@@ -51,11 +82,15 @@ func parseCompletion(value *judgev1.Completion) (Completion, error) {
 	if err != nil {
 		return Completion{}, err
 	}
+	unitResults, err := parseUnitResults(value.GetUnitResults())
+	if err != nil {
+		return Completion{}, err
+	}
 	completion := Completion{
 		JudgeEventID: value.GetEventId(), JudgeJobID: value.GetJobId(),
 		EvaluationRequestID: value.GetSubmissionCorrelationId(), DeliveryID: value.GetDeliveryId(),
 		LeaseID: value.GetLeaseId(), Verdict: verdict, ExecutionTimeMS: executionTimeMS,
-		MemoryKiB: memoryKiB, CompletedAt: completedAt.UTC(),
+		MemoryKiB: memoryKiB, CompletedAt: completedAt.UTC(), UnitResults: unitResults,
 	}
 	if err := completion.setResultReference(
 		value.GetResultRef(), value.GetResultSha256(), value.GetResultEncryptionKeyReference(),
@@ -108,7 +143,60 @@ func (completion Completion) Validate() error {
 			return fmt.Errorf("judge completion encrypted result is invalid")
 		}
 	}
+	return completion.validateUnitResults()
+}
+
+func (completion Completion) validateUnitResults() error {
+	if len(completion.UnitResults) > maxUnitResults {
+		return fmt.Errorf("judge completion reports more than %d units", maxUnitResults)
+	}
+	seen := make(map[int]struct{}, len(completion.UnitResults))
+	for _, unit := range completion.UnitResults {
+		if unit.UnitNumber < 0 || unit.UnitNumber > maxUnitMetric || !validVerdict(unit.Verdict) {
+			return fmt.Errorf("judge completion unit number or verdict is invalid")
+		}
+		if !validUnitMetric(unit.ExecutionTimeMS) || !validUnitMetric(unit.MemoryKiB) {
+			return fmt.Errorf("judge completion unit metrics are invalid")
+		}
+		if _, duplicate := seen[unit.UnitNumber]; duplicate {
+			return fmt.Errorf("judge completion repeats unit number %d", unit.UnitNumber)
+		}
+		seen[unit.UnitNumber] = struct{}{}
+	}
 	return nil
+}
+
+func parseUnitResults(values []*judgev1.UnitResult) ([]UnitResult, error) {
+	units := make([]UnitResult, 0, len(values))
+	for _, value := range values {
+		if value == nil {
+			return nil, fmt.Errorf("judge completion unit result is missing")
+		}
+		verdict, err := verdictFromProto(value.GetVerdictCode())
+		if err != nil {
+			return nil, err
+		}
+		executionTimeMS, err := optionalMetric(value.ExecutionTimeMs, "unit execution_time_ms")
+		if err != nil {
+			return nil, err
+		}
+		memoryKiB, err := optionalMetric(value.MemoryKib, "unit memory_kib")
+		if err != nil {
+			return nil, err
+		}
+		if value.GetUnitNumber() > maxUnitMetric {
+			return nil, fmt.Errorf("judge completion unit_number exceeds Submission's supported range")
+		}
+		units = append(units, UnitResult{
+			UnitNumber: int(value.GetUnitNumber()), Verdict: verdict,
+			ExecutionTimeMS: executionTimeMS, MemoryKiB: memoryKiB,
+		})
+	}
+	return units, nil
+}
+
+func validUnitMetric(value *int) bool {
+	return value == nil || (*value >= 0 && *value <= maxUnitMetric)
 }
 
 func optionalMetric(value *uint32, field string) (*int, error) {

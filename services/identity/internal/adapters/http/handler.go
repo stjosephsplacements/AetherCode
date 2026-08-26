@@ -14,8 +14,18 @@ import (
 	"github.com/aethercode/aethercode/libs/pkg/database"
 	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
 	"github.com/aethercode/aethercode/libs/pkg/httpx"
+	"github.com/aethercode/aethercode/libs/pkg/ratelimit"
 	"github.com/aethercode/aethercode/services/identity/internal/app"
 )
+
+// retryAfterRegistration is the Retry-After value sent with 429 responses on
+// the registration endpoint. One hour matches the token-bucket refill window.
+const retryAfterRegistration = "3600"
+
+// retryAfterLoginOrPasswordReset is the Retry-After value sent with 429
+// responses on the login and password-reset endpoints. One hour matches the
+// token-bucket refill window.
+const retryAfterLoginOrPasswordReset = "3600"
 
 // UseCases keeps the transport adapter independent of Identity's concrete
 // application implementation and makes request/response boundary tests small.
@@ -50,17 +60,29 @@ type Handler struct {
 	service                  UseCases
 	accessVerifier           AccessVerifier
 	exposeDevelopmentSecrets bool
+	registerLimiter          *ratelimit.Limiter
+	loginLimiter             *ratelimit.Limiter
+	passwordResetLimiter     *ratelimit.Limiter
 }
 
 // NewHandler installs concrete identity workflows on an operational mux.
-func NewHandler(serviceName string, service UseCases, readiness httpx.ReadinessFunc, accessVerifier AccessVerifier, exposeDevelopmentSecrets bool) (*Handler, http.Handler, error) {
+// registerLimiter, loginLimiter, and passwordResetLimiter may each be nil to
+// disable per-IP rate limiting on their respective endpoints.
+func NewHandler(serviceName string, service UseCases, readiness httpx.ReadinessFunc, accessVerifier AccessVerifier, exposeDevelopmentSecrets bool, registerLimiter *ratelimit.Limiter, loginLimiter *ratelimit.Limiter, passwordResetLimiter *ratelimit.Limiter) (*Handler, http.Handler, error) {
 	if service == nil {
 		return nil, nil, fmt.Errorf("identity use cases are required")
 	}
 	if accessVerifier == nil {
 		return nil, nil, fmt.Errorf("identity access-token verifier is required")
 	}
-	handler := &Handler{service: service, accessVerifier: accessVerifier, exposeDevelopmentSecrets: exposeDevelopmentSecrets}
+	handler := &Handler{
+		service:                  service,
+		accessVerifier:           accessVerifier,
+		exposeDevelopmentSecrets: exposeDevelopmentSecrets,
+		registerLimiter:          registerLimiter,
+		loginLimiter:             loginLimiter,
+		passwordResetLimiter:     passwordResetLimiter,
+	}
 	mux := httpx.NewOperationalMux(serviceName, readiness)
 	mux.HandleFunc("POST /v1/auth/register", handler.register)
 	mux.HandleFunc("POST /v1/auth/verify-email", handler.verifyEmail)
@@ -73,6 +95,7 @@ func NewHandler(serviceName string, service UseCases, readiness httpx.ReadinessF
 	mux.HandleFunc("POST /v1/auth/mfa/totp", handler.beginTOTP)
 	mux.HandleFunc("POST /v1/auth/mfa/totp/{factor_id}/activate", handler.activateTOTP)
 	mux.HandleFunc("DELETE /v1/auth/mfa/totp/{factor_id}", handler.disableTOTP)
+	mux.HandleFunc("GET /v1/principals/{id}", handler.getPrincipal)
 	mux.HandleFunc("DELETE /v1/principals/{id}", handler.deletePrincipal)
 	mux.HandleFunc("DELETE /v1/principals/{id}/hard", handler.hardDeletePrincipal)
 	return handler, noStore(mux), nil
@@ -90,6 +113,14 @@ type registerResponse struct {
 }
 
 func (handler *Handler) register(writer http.ResponseWriter, request *http.Request) {
+	if handler.registerLimiter != nil {
+		ip := rateLimitClientIP(request)
+		if !handler.registerLimiter.Allow(ip, time.Now().UTC()) {
+			writer.Header().Set("Retry-After", retryAfterRegistration)
+			httpx.WriteJSON(writer, http.StatusTooManyRequests, httpx.Problem{Code: "too_many_requests", Message: "registration rate limit exceeded"})
+			return
+		}
+	}
 	var body registerRequest
 	if err := httpx.DecodeJSON(request, &body); err != nil {
 		httpx.WriteError(writer, err)
@@ -141,6 +172,14 @@ type loginRequest struct {
 }
 
 func (handler *Handler) login(writer http.ResponseWriter, request *http.Request) {
+	if handler.loginLimiter != nil {
+		ip := rateLimitClientIP(request)
+		if !handler.loginLimiter.Allow(ip, time.Now().UTC()) {
+			writer.Header().Set("Retry-After", retryAfterLoginOrPasswordReset)
+			httpx.WriteJSON(writer, http.StatusTooManyRequests, httpx.Problem{Code: "too_many_requests", Message: "login rate limit exceeded"})
+			return
+		}
+	}
 	var body loginRequest
 	if err := httpx.DecodeJSON(request, &body); err != nil {
 		httpx.WriteError(writer, err)
@@ -234,6 +273,14 @@ type passwordResetRequest struct {
 }
 
 func (handler *Handler) requestPasswordReset(writer http.ResponseWriter, request *http.Request) {
+	if handler.passwordResetLimiter != nil {
+		ip := rateLimitClientIP(request)
+		if !handler.passwordResetLimiter.Allow(ip, time.Now().UTC()) {
+			writer.Header().Set("Retry-After", retryAfterLoginOrPasswordReset)
+			httpx.WriteJSON(writer, http.StatusTooManyRequests, httpx.Problem{Code: "too_many_requests", Message: "password reset rate limit exceeded"})
+			return
+		}
+	}
 	var body passwordResetRequest
 	if err := httpx.DecodeJSON(request, &body); err != nil {
 		httpx.WriteError(writer, err)
@@ -265,6 +312,14 @@ type resetPasswordRequest struct {
 }
 
 func (handler *Handler) resetPassword(writer http.ResponseWriter, request *http.Request) {
+	if handler.passwordResetLimiter != nil {
+		ip := rateLimitClientIP(request)
+		if !handler.passwordResetLimiter.Allow(ip, time.Now().UTC()) {
+			writer.Header().Set("Retry-After", retryAfterLoginOrPasswordReset)
+			httpx.WriteJSON(writer, http.StatusTooManyRequests, httpx.Problem{Code: "too_many_requests", Message: "password reset rate limit exceeded"})
+			return
+		}
+	}
 	var body resetPasswordRequest
 	if err := httpx.DecodeJSON(request, &body); err != nil {
 		httpx.WriteError(writer, err)
@@ -366,6 +421,28 @@ func (handler *Handler) disableTOTP(writer http.ResponseWriter, request *http.Re
 	writer.WriteHeader(http.StatusNoContent)
 }
 
+func (handler *Handler) getPrincipal(writer http.ResponseWriter, request *http.Request) {
+	principalID, err := httpx.ParseUUIDPathValue(request, "id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	if _, err := handler.authenticatedPrincipal(request); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	principal, err := handler.service.GetPrincipal(request.Context(), principalID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	if principal == nil {
+		httpx.WriteError(writer, apperrors.New(apperrors.CodeNotFound, "principal not found"))
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, principal)
+}
+
 type deletePrincipalRequest struct {
 	Reason string `json:"reason"`
 }
@@ -451,6 +528,22 @@ func (handler *Handler) authenticatedPrincipal(request *http.Request) (string, e
 		return "", apperrors.New(apperrors.CodeUnauthorized, "access token is invalid")
 	}
 	return claims.Subject, nil
+}
+
+// rateLimitClientIP returns the client address used as the per-IP rate-limit
+// key for registration, login, and password-reset (request and complete).
+// The gateway stamps the real client address into X-Forwarded-For before
+// proxying, so RemoteAddr alone would key every rate limiter on the
+// gateway's own address; the function falls back to RemoteAddr for direct
+// connections (local dev, integration tests).
+func rateLimitClientIP(request *http.Request) string {
+	if xff := strings.TrimSpace(request.Header.Get("X-Forwarded-For")); xff != "" {
+		first := strings.TrimSpace(strings.SplitN(xff, ",", 2)[0])
+		if parsed := net.ParseIP(first); parsed != nil {
+			return parsed.String()
+		}
+	}
+	return clientIP(request)
 }
 
 func clientIP(request *http.Request) string {

@@ -31,6 +31,12 @@ type Runtime struct {
 	DeliveryTokenKey             []byte
 	MFAMasterKeys                map[string][]byte
 	MFAKeyReference              string
+	RegisterRate                 int
+	RegisterBurst                int
+	LoginRate                    int
+	LoginBurst                   int
+	PasswordResetRate            int
+	PasswordResetBurst           int
 	ExposeDevelopmentSecrets     bool
 	IntrospectionAddress         string
 	IntrospectionCertificateFile string
@@ -110,6 +116,41 @@ func Load(environment string) (Runtime, error) {
 	if _, found := mfaMasterKeys[mfaKeyReference]; !found {
 		return Runtime{}, fmt.Errorf("IDENTITY_MFA_KEY_REFERENCE does not identify a configured MFA master key")
 	}
+	registerRate, err := positiveInt("IDENTITY_REGISTER_RATE", "5", 1, 100)
+	if err != nil {
+		return Runtime{}, err
+	}
+	registerBurst, err := positiveInt("IDENTITY_REGISTER_BURST", "2", 1, 20)
+	if err != nil {
+		return Runtime{}, err
+	}
+	// LoginRate/LoginBurst and PasswordResetRate/PasswordResetBurst are coarse
+	// abuse backstops keyed on client IP, not per-account or per-tenant
+	// controls. College campus networks commonly NAT hundreds of students
+	// behind one or a handful of public IPs, so a tight per-IP default would
+	// black out an entire campus's exam-morning login traffic. The defaults
+	// below are sized for roughly 500 students sharing one public IP, each
+	// attempting login up to 5 times within the busiest hour (mistyped
+	// passwords, MFA retries), doubled for headroom; password-reset defaults
+	// assume the same population with a lower per-student attempt rate.
+	// Operators must size these to their own largest expected shared-IP
+	// population before go-live.
+	loginRate, err := positiveInt("IDENTITY_LOGIN_RATE", "2000", 1, 20000)
+	if err != nil {
+		return Runtime{}, err
+	}
+	loginBurst, err := positiveInt("IDENTITY_LOGIN_BURST", "500", 1, 5000)
+	if err != nil {
+		return Runtime{}, err
+	}
+	passwordResetRate, err := positiveInt("IDENTITY_PASSWORD_RESET_RATE", "1000", 1, 10000)
+	if err != nil {
+		return Runtime{}, err
+	}
+	passwordResetBurst, err := positiveInt("IDENTITY_PASSWORD_RESET_BURST", "300", 1, 3000)
+	if err != nil {
+		return Runtime{}, err
+	}
 	introspection, err := loadIntrospectionRuntime(environment)
 	if err != nil {
 		return Runtime{}, err
@@ -127,6 +168,12 @@ func Load(environment string) (Runtime, error) {
 		DeliveryTokenKey:             append([]byte(nil), deliveryTokenKey...),
 		MFAMasterKeys:                mfaMasterKeys,
 		MFAKeyReference:              mfaKeyReference,
+		RegisterRate:                 registerRate,
+		RegisterBurst:                registerBurst,
+		LoginRate:                    loginRate,
+		LoginBurst:                   loginBurst,
+		PasswordResetRate:            passwordResetRate,
+		PasswordResetBurst:           passwordResetBurst,
 		ExposeDevelopmentSecrets:     environment == "development" || environment == "test",
 		IntrospectionAddress:         introspection.address,
 		IntrospectionCertificateFile: introspection.certificateFile,

@@ -13,7 +13,9 @@ import (
 	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
 	"github.com/aethercode/aethercode/libs/pkg/database"
 	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
+	"github.com/aethercode/aethercode/libs/pkg/kms"
 	"github.com/aethercode/aethercode/libs/pkg/pagination"
+	"github.com/aethercode/aethercode/libs/pkg/storage"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -66,7 +68,41 @@ type Store interface {
 	HardDeleteAttempt(context.Context, pgx.Tx, DeleteAttempt) error
 	ListAttempts(context.Context, pgx.Tx, ListAttempts) ([]Attempt, error)
 	ListAnswerRevisions(context.Context, pgx.Tx, ListAnswerRevisions) ([]AnswerRevision, error)
+	GetAttemptUnitSummary(context.Context, pgx.Tx, GetAttempt) ([]AttemptUnitSummary, error)
+	ListAttemptUnitResults(context.Context, pgx.Tx, GetAttempt) ([]AttemptUnitResults, error)
 	Ping(context.Context) error
+}
+
+// AttemptUnitSummary is the candidate-safe outcome of one evaluated exam item.
+// It carries counts only. Which unit number failed, and how long it ran, would
+// describe a hidden test to the candidate who is still being graded on it.
+type AttemptUnitSummary struct {
+	ExamItemID          string `json:"exam_item_id"`
+	EvaluationRequestID string `json:"evaluation_request_id"`
+	PassedUnits         int    `json:"passed_units"`
+	TotalUnits          int    `json:"total_units"`
+}
+
+// AttemptUnitResults is the reviewer view of one evaluated exam item. It is
+// reachable only with a capability signed for submission.judge_receipts, which
+// no candidate-scoped role can obtain.
+type AttemptUnitResults struct {
+	JudgeReceiptID      string        `json:"judge_receipt_id"`
+	EvaluationRequestID string        `json:"evaluation_request_id"`
+	ExamItemID          string        `json:"exam_item_id"`
+	Verdict             string        `json:"verdict"`
+	PassedUnits         int           `json:"passed_units"`
+	TotalUnits          int           `json:"total_units"`
+	Units               []AttemptUnit `json:"units"`
+}
+
+// AttemptUnit is one executed test case. Judge reports the normalized verdict
+// and timing only; no captured output crosses the wrapper boundary.
+type AttemptUnit struct {
+	UnitNumber      int    `json:"unit_number"`
+	Verdict         string `json:"verdict"`
+	ExecutionTimeMS *int   `json:"execution_time_ms"`
+	MemoryKiB       *int   `json:"memory_kib"`
 }
 
 // Attempt is the public, candidate-safe representation of one exam attempt.
@@ -195,15 +231,20 @@ type SubmitResult struct {
 // Service owns validation, ID generation, and the one-transaction boundary for
 // all candidate-facing Submission operations.
 type Service struct {
-	pool  *pgxpool.Pool
-	store Store
+	pool    *pgxpool.Pool
+	store   Store
+	storage storage.Object
+	kms     kms.KeyManager
 }
 
-func NewService(pool *pgxpool.Pool, store Store) (*Service, error) {
+// NewService creates a new Submission service. storage and kms may both be
+// nil; workflows that need to encrypt or fetch candidate-run source (such as
+// run-code) return 503 Unavailable until they are wired.
+func NewService(pool *pgxpool.Pool, store Store, storage storage.Object, kms kms.KeyManager) (*Service, error) {
 	if pool == nil || store == nil {
 		return nil, fmt.Errorf("submission database pool and store are required")
 	}
-	return &Service{pool: pool, store: store}, nil
+	return &Service{pool: pool, store: store, storage: storage, kms: kms}, nil
 }
 
 func (service *Service) StartAttempt(contextValue context.Context, capability centralauthz.Capability, command StartAttempt) (Attempt, error) {
@@ -244,6 +285,48 @@ func (service *Service) GetAttempt(contextValue context.Context, capability cent
 		return storeErr
 	})
 	return attempt, err
+}
+
+// GetAttemptUnitSummary returns the redacted hidden-test counts for an attempt
+// the calling candidate owns. Both collections below are bounded by the exam
+// items in one attempt, so neither issues a cursor.
+func (service *Service) GetAttemptUnitSummary(contextValue context.Context, capability centralauthz.Capability, command GetAttempt) (Page[AttemptUnitSummary], error) {
+	command.TenantID = normalizeUUID(command.TenantID)
+	command.AttemptID = normalizeUUID(command.AttemptID)
+	if !isUUID(command.TenantID) || !isUUID(command.AttemptID) {
+		return Page[AttemptUnitSummary]{}, apperrors.New(apperrors.CodeInvalidArgument, "tenant and attempt IDs must be UUIDs")
+	}
+	var summaries []AttemptUnitSummary
+	err := database.WithTenantTx(contextValue, service.pool, capability, func(transaction pgx.Tx) error {
+		var storeErr error
+		summaries, storeErr = service.store.GetAttemptUnitSummary(contextValue, transaction, command)
+		return storeErr
+	})
+	if err != nil {
+		return Page[AttemptUnitSummary]{}, err
+	}
+	return Page[AttemptUnitSummary]{Items: append([]AttemptUnitSummary{}, summaries...)}, nil
+}
+
+// ListAttemptUnitResults returns the full per-unit breakdown. The signed
+// capability decides who may call it: the database routine requires one issued
+// for submission.judge_receipts.
+func (service *Service) ListAttemptUnitResults(contextValue context.Context, capability centralauthz.Capability, command GetAttempt) (Page[AttemptUnitResults], error) {
+	command.TenantID = normalizeUUID(command.TenantID)
+	command.AttemptID = normalizeUUID(command.AttemptID)
+	if !isUUID(command.TenantID) || !isUUID(command.AttemptID) {
+		return Page[AttemptUnitResults]{}, apperrors.New(apperrors.CodeInvalidArgument, "tenant and attempt IDs must be UUIDs")
+	}
+	var results []AttemptUnitResults
+	err := database.WithTenantTx(contextValue, service.pool, capability, func(transaction pgx.Tx) error {
+		var storeErr error
+		results, storeErr = service.store.ListAttemptUnitResults(contextValue, transaction, command)
+		return storeErr
+	})
+	if err != nil {
+		return Page[AttemptUnitResults]{}, err
+	}
+	return Page[AttemptUnitResults]{Items: append([]AttemptUnitResults{}, results...)}, nil
 }
 
 func (service *Service) AppendAnswerRevision(contextValue context.Context, capability centralauthz.Capability, command AppendAnswerRevision) (AnswerRevision, error) {

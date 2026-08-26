@@ -11,6 +11,7 @@ import (
 	"github.com/aethercode/aethercode/libs/pkg/config"
 	"github.com/aethercode/aethercode/libs/pkg/httpx"
 	"github.com/aethercode/aethercode/libs/pkg/logging"
+	"github.com/aethercode/aethercode/libs/pkg/ratelimit"
 	"github.com/aethercode/aethercode/libs/pkg/telemetry"
 	gatewayconfig "github.com/aethercode/aethercode/services/gateway/internal/config"
 	"github.com/aethercode/aethercode/services/gateway/internal/edge"
@@ -48,7 +49,7 @@ func run(contextValue context.Context) error {
 	if err != nil {
 		return err
 	}
-	limiter, err := edge.NewLimiter(edge.RateLimitConfig{
+	limiter, err := ratelimit.New(ratelimit.Config{
 		Capacity:        runtime.RateLimit.Capacity,
 		RefillPerSecond: runtime.RateLimit.RefillPerSecond,
 		MaxEntries:      runtime.RateLimit.MaxEntries,

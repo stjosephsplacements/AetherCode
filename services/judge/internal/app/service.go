@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/aethercode/aethercode/services/judge/internal/dispatcher"
 )
 
 var (
@@ -18,6 +20,7 @@ var (
 	ErrLanguageUnavailable = errors.New("requested language is unavailable")
 	ErrCompletionNotLeased = errors.New("completion is not currently leased to this consumer")
 	ErrAdmissionNotLeased  = errors.New("admission is not currently leased to this publisher")
+	ErrFanOutUnavailable   = errors.New("test-case fan-out storage or KMS is not configured on this instance")
 
 	uuidV7Pattern   = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
 	sha256Pattern   = regexp.MustCompile(`^[0-9a-f]{64}$`)
@@ -52,12 +55,19 @@ type SubmitExecution struct {
 	SubmissionCorrelationID string
 	EvaluationBundleRef     string
 	EvaluationBundleSHA256  string
-	SourceCiphertextRef     string
-	SourceCiphertextSHA256  string
-	RequestCiphertextRef    string
-	LanguageKey             string
-	Limits                  Limits
-	ExpiresAt               time.Time
+	// EvaluationBundleKeyRef is the KMS key reference the evaluation bundle
+	// was encrypted with. It is optional today because the SubmitExecution
+	// wire contract (libs/proto/proto/aethercode/judge/v1/judge.proto) has no
+	// field to carry it yet; a job admitted without one still passes
+	// admission, but fan-out (see Postgres.Submit) fails with a real KMS
+	// error rather than silently mis-decrypting the bundle.
+	EvaluationBundleKeyRef string
+	SourceCiphertextRef    string
+	SourceCiphertextSHA256 string
+	RequestCiphertextRef   string
+	LanguageKey            string
+	Limits                 Limits
+	ExpiresAt              time.Time
 }
 
 // Execution is the durable acceptance result.
@@ -81,6 +91,11 @@ type Completion struct {
 	DeliveryID              string
 	LeaseID                 string
 	CompletedAt             time.Time
+	// UnitResults is the per-test-case detail behind Verdict, one entry per
+	// unit ordered by unit number. It carries only verdict and timing
+	// metadata for the same reason the rest of Completion does: raw
+	// stdout/stderr/expected-output content never crosses this boundary.
+	UnitResults []dispatcher.UnitResult
 }
 
 // PullCompletedExecutions describes one consumer's bounded outbox lease.
@@ -231,6 +246,7 @@ func (request SubmitExecution) Fingerprint() (string, error) {
 		SubmissionCorrelationID string `json:"submission_correlation_id"`
 		EvaluationBundleRef     string `json:"evaluation_bundle_ref"`
 		EvaluationBundleSHA256  string `json:"evaluation_bundle_sha256"`
+		EvaluationBundleKeyRef  string `json:"evaluation_bundle_key_ref"`
 		SourceCiphertextRef     string `json:"source_ciphertext_ref"`
 		SourceCiphertextSHA256  string `json:"source_ciphertext_sha256"`
 		RequestCiphertextRef    string `json:"request_ciphertext_ref"`
@@ -242,6 +258,7 @@ func (request SubmitExecution) Fingerprint() (string, error) {
 		SubmissionCorrelationID: request.SubmissionCorrelationID,
 		EvaluationBundleRef:     request.EvaluationBundleRef,
 		EvaluationBundleSHA256:  request.EvaluationBundleSHA256,
+		EvaluationBundleKeyRef:  request.EvaluationBundleKeyRef,
 		SourceCiphertextRef:     request.SourceCiphertextRef,
 		SourceCiphertextSHA256:  request.SourceCiphertextSHA256,
 		RequestCiphertextRef:    request.RequestCiphertextRef,
@@ -281,6 +298,14 @@ func (completion Completion) Validate() error {
 	if (completion.ExecutionTimeMS != nil && uint64(*completion.ExecutionTimeMS) > 2147483647) ||
 		(completion.MemoryKiB != nil && uint64(*completion.MemoryKiB) > 2147483647) {
 		return &ValidationError{Field: "metrics", Reason: "must fit Submission's signed integer range"}
+	}
+	for _, unit := range completion.UnitResults {
+		if !isCompletionVerdict(unit.Verdict) {
+			return &ValidationError{Field: "unit_results.verdict", Reason: "is unsupported"}
+		}
+		if (unit.TimeMS != nil && *unit.TimeMS > 2147483647) || (unit.MemoryKB != nil && *unit.MemoryKB > 2147483647) {
+			return &ValidationError{Field: "unit_results.metrics", Reason: "must fit Submission's signed integer range"}
+		}
 	}
 
 	resultFields := []string{

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/aethercode/aethercode/libs/pkg/authn"
 	"github.com/aethercode/aethercode/libs/pkg/database"
@@ -12,19 +13,30 @@ import (
 	"github.com/aethercode/aethercode/libs/pkg/httpauth"
 	"github.com/aethercode/aethercode/libs/pkg/httpx"
 	"github.com/aethercode/aethercode/libs/pkg/pagination"
+	"github.com/aethercode/aethercode/libs/pkg/ratelimit"
 	"github.com/aethercode/aethercode/services/submission/internal/app"
 )
 
+// retryAfterStartAttempt is the Retry-After value sent with 429 responses on
+// the attempt-creation endpoint. One hour matches the token-bucket refill
+// window.
+const retryAfterStartAttempt = "3600"
+
 type Handler struct {
-	service    *app.Service
-	authorizer *httpauth.Authorizer
+	service             *app.Service
+	authorizer          *httpauth.Authorizer
+	startAttemptLimiter *ratelimit.Limiter
+	runCodeLimiter      *ratelimit.Limiter
 }
 
-func NewHandler(serviceName string, service *app.Service, readiness httpx.ReadinessFunc, authorizer *httpauth.Authorizer) (http.Handler, error) {
+// NewHandler installs concrete submission workflows on an operational mux.
+// startAttemptLimiter and runCodeLimiter may each be nil to disable
+// per-candidate rate limiting on their respective endpoints.
+func NewHandler(serviceName string, service *app.Service, readiness httpx.ReadinessFunc, authorizer *httpauth.Authorizer, startAttemptLimiter *ratelimit.Limiter, runCodeLimiter *ratelimit.Limiter) (http.Handler, error) {
 	if service == nil || authorizer == nil {
 		return nil, fmt.Errorf("submission service and authorizer are required")
 	}
-	handler := &Handler{service: service, authorizer: authorizer}
+	handler := &Handler{service: service, authorizer: authorizer, startAttemptLimiter: startAttemptLimiter, runCodeLimiter: runCodeLimiter}
 	mux := httpx.NewOperationalMux(serviceName, readiness)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/attempts", handler.startAttempt)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}", handler.getAttempt)
@@ -34,6 +46,8 @@ func NewHandler(serviceName string, service *app.Service, readiness httpx.Readin
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/attempts/{attempt_id}/hard", handler.hardDeleteAttempt)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts", handler.listAttempts)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}/answers", handler.listAnswerRevisions)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}/unit-results", handler.getAttemptUnitSummary)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}/judge-receipts", handler.listAttemptUnitResults)
 	return mux, nil
 }
 
@@ -66,6 +80,13 @@ func (handler *Handler) startAttempt(writer http.ResponseWriter, request *http.R
 	if err != nil {
 		httpx.WriteError(writer, err)
 		return
+	}
+	if handler.startAttemptLimiter != nil {
+		if !handler.startAttemptLimiter.Allow(candidateID, time.Now().UTC()) {
+			writer.Header().Set("Retry-After", retryAfterStartAttempt)
+			httpx.WriteJSON(writer, http.StatusTooManyRequests, httpx.Problem{Code: "too_many_requests", Message: "attempt creation rate limit exceeded"})
+			return
+		}
 	}
 	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "attempts", candidateID, tenantID)
 	if err != nil {
@@ -402,6 +423,67 @@ func (handler *Handler) listAnswerRevisions(writer http.ResponseWriter, request 
 		TenantID: tenantID, AttemptID: attemptID, Limit: limit,
 		CursorSort: cursor.SortValue, CursorID: cursor.ID,
 		ExamItemID: examItemID,
+	})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, page)
+}
+
+// getAttemptUnitSummary serves the candidate-safe hidden-test counts. It
+// authorizes against `attempts` with the bearer subject as the resource, so the
+// database routine can bind the rows to the signed actor exactly as the other
+// candidate collections do.
+func (handler *Handler) getAttemptUnitSummary(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	attemptID, err := httpx.ParseUUIDPathValue(request, "attempt_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeSelfHTTP(request.Context(), request, "read", "attempts", tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	page, err := handler.service.GetAttemptUnitSummary(request.Context(), decision.Capability, app.GetAttempt{
+		TenantID: tenantID, AttemptID: attemptID,
+	})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, page)
+}
+
+// listAttemptUnitResults serves the full per-unit breakdown. It authorizes
+// against `judge_receipts`, a resource the canonical policy grants only to
+// college-, department-, batch-, or platform-scoped roles; a candidate's
+// self-scoped assignment cannot name it, so this route fails closed for them
+// before Submission is reached.
+func (handler *Handler) listAttemptUnitResults(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	attemptID, err := httpx.ParseUUIDPathValue(request, "attempt_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "judge_receipts", attemptID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	page, err := handler.service.ListAttemptUnitResults(request.Context(), decision.Capability, app.GetAttempt{
+		TenantID: tenantID, AttemptID: attemptID,
 	})
 	if err != nil {
 		httpx.WriteError(writer, err)

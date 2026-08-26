@@ -58,6 +58,32 @@ func TestNewHandlerRejectsNilDependencies(t *testing.T) {
 	}
 }
 
+func TestDeleteQuestionVersionRequiresIdempotencyKey(t *testing.T) {
+	t.Parallel()
+	// idempotencyKey must reject requests that omit the header — this applies
+	// equally to deleteQuestionVersion and hardDeleteQuestionVersion.
+	for _, testCase := range []struct {
+		name    string
+		header  string
+		wantErr bool
+	}{
+		{name: "valid key", header: "qbank:del-ver:01JTEST"},
+		{name: "missing key", wantErr: true},
+		{name: "whitespace only", header: "   ", wantErr: true},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodDelete, "/v1/question-versions/019b11a0-0000-7000-8000-000000000001", nil)
+			if testCase.header != "" {
+				request.Header.Set("Idempotency-Key", testCase.header)
+			}
+			_, err := idempotencyKey(request)
+			if (err != nil) != testCase.wantErr {
+				t.Fatalf("idempotencyKey() error = %v, wantErr = %t", err, testCase.wantErr)
+			}
+		})
+	}
+}
+
 func TestListPublishedQuestionsLimitBounds(t *testing.T) {
 	t.Parallel()
 	for _, testCase := range []struct {

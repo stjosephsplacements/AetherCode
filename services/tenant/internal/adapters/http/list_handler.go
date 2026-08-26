@@ -103,6 +103,37 @@ func (handler *Handler) listBatches(writer http.ResponseWriter, request *http.Re
 	httpx.WriteJSON(writer, http.StatusOK, page)
 }
 
+func (handler *Handler) listPlacementOrganizations(writer http.ResponseWriter, request *http.Request) {
+	limit, err := pagination.ParseLimit(request.URL.Query().Get("limit"), 20, 100)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	cursor, _, err := pagination.Parse(request.URL.Query().Get("cursor"))
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	status, err := httpx.ParseEnumQuery(request, "status", "active", "suspended", "closed")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "placement_organizations", "", "")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	page, err := handler.service.ListPlacementOrganizations(request.Context(), decision.Capability, app.ListPlacementOrganizations{
+		Limit: limit, CursorSort: cursor.SortValue, CursorID: cursor.ID, Status: status,
+	})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, page)
+}
+
 func (handler *Handler) listPlacementDepartments(writer http.ResponseWriter, request *http.Request) {
 	organizationID, err := httpx.ParseUUIDPathValue(request, "organization_id")
 	if err != nil {

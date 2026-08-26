@@ -39,6 +39,8 @@ func NewHandler(serviceName string, service *app.Service, readiness httpx.Readin
 	mux.HandleFunc("POST /v1/question-versions/{question_version_id}/publish", handler.publishQuestionVersion)
 	mux.HandleFunc("DELETE /v1/questions/{question_id}", handler.deleteQuestion)
 	mux.HandleFunc("DELETE /v1/questions/{question_id}/hard", handler.hardDeleteQuestion)
+	mux.HandleFunc("DELETE /v1/question-versions/{question_version_id}", handler.deleteQuestionVersion)
+	mux.HandleFunc("DELETE /v1/question-versions/{question_version_id}/hard", handler.hardDeleteQuestionVersion)
 	mux.HandleFunc("GET /v1/question-versions/{question_version_id}/assets/{asset_kind}", handler.getAsset)
 	mux.HandleFunc("GET /v1/question-versions/{question_version_id}/bundle", handler.getBundle)
 	return mux, nil
@@ -572,6 +574,54 @@ func (handler *Handler) hardDeleteQuestion(writer http.ResponseWriter, request *
 		return
 	}
 	if err := handler.service.HardDeleteQuestion(request.Context(), decision.Capability, app.DeleteQuestion{ID: questionID, ActorID: decision.PrincipalID, Reason: body.Reason}); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.WriteHeader(http.StatusNoContent)
+}
+
+func (handler *Handler) deleteQuestionVersion(writer http.ResponseWriter, request *http.Request) {
+	questionVersionID, err := httpx.ParseUUIDPathValue(request, "question_version_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var body deleteQuestionRequest
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	tenantID := strings.TrimSpace(request.Header.Get("X-Tenant-ID"))
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "delete", "question_versions", questionVersionID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	if err := handler.service.DeleteQuestionVersion(request.Context(), decision.Capability, app.DeleteQuestionVersion{ID: questionVersionID, ActorID: decision.PrincipalID, Reason: body.Reason}); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.WriteHeader(http.StatusNoContent)
+}
+
+func (handler *Handler) hardDeleteQuestionVersion(writer http.ResponseWriter, request *http.Request) {
+	questionVersionID, err := httpx.ParseUUIDPathValue(request, "question_version_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var body deleteQuestionRequest
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	tenantID := strings.TrimSpace(request.Header.Get("X-Tenant-ID"))
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "delete", "question_versions", questionVersionID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	if err := handler.service.HardDeleteQuestionVersion(request.Context(), decision.Capability, app.DeleteQuestionVersion{ID: questionVersionID, ActorID: decision.PrincipalID, Reason: body.Reason}); err != nil {
 		httpx.WriteError(writer, err)
 		return
 	}

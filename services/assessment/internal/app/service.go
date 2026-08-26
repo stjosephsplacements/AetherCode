@@ -48,6 +48,8 @@ type Store interface {
 	CreateExamVersion(context.Context, pgx.Tx, CreateExamVersion) (ExamVersion, error)
 	AddExamSection(context.Context, pgx.Tx, AddExamSection) (ExamSection, error)
 	AddExamItem(context.Context, pgx.Tx, AddExamItem) (ExamItem, error)
+	RemoveExamSection(context.Context, pgx.Tx, RemoveExamSection) error
+	RemoveExamItem(context.Context, pgx.Tx, RemoveExamItem) error
 	PublishExamVersion(context.Context, pgx.Tx, PublishExamVersion) (ExamVersion, error)
 	CreateAssignmentRule(context.Context, pgx.Tx, CreateAssignmentRule) (AssignmentRule, error)
 	MaterializeDirectCandidateAssignment(context.Context, pgx.Tx, MaterializeDirectCandidateAssignment) (CandidateAssignment, error)
@@ -56,6 +58,11 @@ type Store interface {
 	GetCandidateAssignment(context.Context, pgx.Tx, GetCandidateAssignment) (CandidateAssignment, error)
 	GetExam(context.Context, pgx.Tx, string, string) (Exam, error)
 	GetExamIncludeDeleted(context.Context, pgx.Tx, string, string) (Exam, error)
+	GetProctorPolicy(context.Context, pgx.Tx, string, string) (ProctorPolicy, error)
+	GetProctorPolicyVersion(context.Context, pgx.Tx, string, string) (ProctorPolicyVersion, error)
+	ListProctorPolicies(context.Context, pgx.Tx, ListProctorPolicies) ([]ProctorPolicy, error)
+	ListProctorPolicyVersions(context.Context, pgx.Tx, ListProctorPolicyVersions) ([]ProctorPolicyVersion, error)
+	UpdateExam(context.Context, pgx.Tx, UpdateExam) (Exam, error)
 	SoftDeleteExam(context.Context, pgx.Tx, DeleteExam) error
 	HardDeleteExam(context.Context, pgx.Tx, DeleteExam) error
 	ListCandidateAssignments(context.Context, pgx.Tx, ListCandidateAssignments) ([]CandidateAssignment, error)
@@ -97,6 +104,25 @@ type ListExamVersions struct {
 	CursorSort string
 	CursorID   string
 	Status     string
+}
+
+// ListProctorPolicies is staff-scoped and relies on tenant RLS.
+type ListProctorPolicies struct {
+	TenantID       string
+	Limit          int
+	CursorSort     string
+	CursorID       string
+	LifecycleState string
+}
+
+// ListProctorPolicyVersions is staff-scoped and relies on tenant RLS.
+type ListProctorPolicyVersions struct {
+	TenantID        string
+	ProctorPolicyID string
+	Limit           int
+	CursorSort      string
+	CursorID        string
+	Status          string
 }
 
 type ProctorPolicy struct {
@@ -142,6 +168,16 @@ type DeleteExam struct {
 	TenantID string
 	ActorID  string
 	Reason   string
+}
+
+// UpdateExam is the command for mutating mutable metadata on a draft exam.
+// Only the external_reference field is mutable at the exam level; scheduling
+// and content fields live on immutable ExamVersions.
+type UpdateExam struct {
+	ID                string
+	TenantID          string
+	ExpectedVersion   int64
+	ExternalReference string
 }
 
 type ExamVersion struct {
@@ -284,6 +320,24 @@ type AddExamItem struct {
 	MaximumScore              string
 	EvaluationBundleObjectKey string
 	EvaluationBundleChecksum  string
+	SampleBundleObjectKey     string
+	SampleBundleChecksum      string
+}
+
+type RemoveExamSection struct {
+	WriteCommand
+	ID                     string
+	TenantID               string
+	ExamVersionID          string
+	ExpectedContentVersion int64
+}
+
+type RemoveExamItem struct {
+	WriteCommand
+	ID                     string
+	TenantID               string
+	ExamVersionID          string
+	ExpectedContentVersion int64
 }
 
 type PublishExamVersion struct {
@@ -482,8 +536,16 @@ func (service *Service) AddExamItem(ctx context.Context, capability centralauthz
 	command.MaximumScore = strings.TrimSpace(command.MaximumScore)
 	command.EvaluationBundleObjectKey = strings.TrimSpace(command.EvaluationBundleObjectKey)
 	command.EvaluationBundleChecksum = strings.ToLower(strings.TrimSpace(command.EvaluationBundleChecksum))
+	command.SampleBundleObjectKey = strings.TrimSpace(command.SampleBundleObjectKey)
+	command.SampleBundleChecksum = strings.ToLower(strings.TrimSpace(command.SampleBundleChecksum))
 	if !validID(command.ID) || !validID(command.TenantID) || !validID(command.ExamVersionID) || !validID(command.SectionID) || !validID(command.QuestionID) || !validID(command.QuestionVersionID) || command.ExpectedContentVersion <= 0 || command.Position <= 0 || !validScore(command.MaximumScore) || !validObjectKey(command.EvaluationBundleObjectKey) || !checksumPattern.MatchString(command.EvaluationBundleChecksum) {
 		return ExamItem{}, invalid("exam item fields are invalid")
+	}
+	if (command.SampleBundleObjectKey == "") != (command.SampleBundleChecksum == "") {
+		return ExamItem{}, invalid("sample bundle object key and checksum must both be set or both be empty")
+	}
+	if command.SampleBundleObjectKey != "" && (!validObjectKey(command.SampleBundleObjectKey) || !checksumPattern.MatchString(command.SampleBundleChecksum)) {
+		return ExamItem{}, invalid("sample bundle fields are invalid")
 	}
 	return runWrite(service, ctx, capability, command.TenantID, "assessment.exam_item.create", command.IdempotencyKey,
 		struct {
@@ -496,12 +558,51 @@ func (service *Service) AddExamItem(ctx context.Context, capability centralauthz
 			MaximumScore              string `json:"maximum_score"`
 			EvaluationBundleObjectKey string `json:"evaluation_bundle_object_key"`
 			EvaluationBundleChecksum  string `json:"evaluation_bundle_checksum"`
+			SampleBundleObjectKey     string `json:"sample_bundle_object_key"`
+			SampleBundleChecksum      string `json:"sample_bundle_checksum"`
 		}{command.ExamVersionID, command.SectionID, command.ExpectedContentVersion, command.Position,
-			command.QuestionID, command.QuestionVersionID, command.MaximumScore, command.EvaluationBundleObjectKey, command.EvaluationBundleChecksum}, httpStatusCreated,
+			command.QuestionID, command.QuestionVersionID, command.MaximumScore, command.EvaluationBundleObjectKey, command.EvaluationBundleChecksum,
+			command.SampleBundleObjectKey, command.SampleBundleChecksum}, httpStatusCreated,
 		func(transaction pgx.Tx) (ExamItem, error) {
 			return service.store.AddExamItem(ctx, transaction, command)
 		},
 	)
+}
+
+func (service *Service) RemoveExamSection(ctx context.Context, capability centralauthz.Capability, command RemoveExamSection) error {
+	command.ID, command.TenantID, command.ExamVersionID = normalizeID(command.ID), normalizeID(command.TenantID), normalizeID(command.ExamVersionID)
+	if !validID(command.ID) || !validID(command.TenantID) || !validID(command.ExamVersionID) || command.ExpectedContentVersion <= 0 {
+		return invalid("exam section removal fields are invalid")
+	}
+	_, err := runWrite(service, ctx, capability, command.TenantID, "assessment.exam_section.remove", command.IdempotencyKey,
+		struct {
+			ID                     string `json:"id"`
+			ExamVersionID          string `json:"exam_version_id"`
+			ExpectedContentVersion int64  `json:"expected_content_version"`
+		}{command.ID, command.ExamVersionID, command.ExpectedContentVersion}, httpStatusOK,
+		func(transaction pgx.Tx) (struct{}, error) {
+			return struct{}{}, service.store.RemoveExamSection(ctx, transaction, command)
+		},
+	)
+	return err
+}
+
+func (service *Service) RemoveExamItem(ctx context.Context, capability centralauthz.Capability, command RemoveExamItem) error {
+	command.ID, command.TenantID, command.ExamVersionID = normalizeID(command.ID), normalizeID(command.TenantID), normalizeID(command.ExamVersionID)
+	if !validID(command.ID) || !validID(command.TenantID) || !validID(command.ExamVersionID) || command.ExpectedContentVersion <= 0 {
+		return invalid("exam item removal fields are invalid")
+	}
+	_, err := runWrite(service, ctx, capability, command.TenantID, "assessment.exam_item.remove", command.IdempotencyKey,
+		struct {
+			ID                     string `json:"id"`
+			ExamVersionID          string `json:"exam_version_id"`
+			ExpectedContentVersion int64  `json:"expected_content_version"`
+		}{command.ID, command.ExamVersionID, command.ExpectedContentVersion}, httpStatusOK,
+		func(transaction pgx.Tx) (struct{}, error) {
+			return struct{}{}, service.store.RemoveExamItem(ctx, transaction, command)
+		},
+	)
+	return err
 }
 
 func (service *Service) PublishExamVersion(ctx context.Context, capability centralauthz.Capability, command PublishExamVersion) (ExamVersion, error) {
@@ -764,6 +865,32 @@ func (service *Service) HardDeleteExam(ctx context.Context, capability centralau
 	})
 }
 
+// UpdateExam mutates the mutable metadata of a draft exam. It returns a 409
+// Conflict if the exam has already been published or archived.
+func (service *Service) UpdateExam(ctx context.Context, capability centralauthz.Capability, command UpdateExam) (Exam, error) {
+	command.ID, command.TenantID = normalizeID(command.ID), normalizeID(command.TenantID)
+	command.ExternalReference = strings.TrimSpace(command.ExternalReference)
+	if !validID(command.ID) || !validID(command.TenantID) || command.ExpectedVersion <= 0 {
+		return Exam{}, invalid("exam ID, tenant ID, and expected version are required")
+	}
+	if command.ExternalReference != "" && !validText(command.ExternalReference, 160) {
+		return Exam{}, invalid("external_reference must not exceed 160 characters")
+	}
+	var result Exam
+	err := service.withTenantTx(ctx, capability, command.TenantID, func(transaction pgx.Tx) error {
+		exam, err := service.store.GetExam(ctx, transaction, command.ID, command.TenantID)
+		if err != nil {
+			return err
+		}
+		if exam.LifecycleState != "draft" {
+			return apperrors.New(apperrors.CodeConflict, "only draft exams can be updated")
+		}
+		result, err = service.store.UpdateExam(ctx, transaction, command)
+		return err
+	})
+	return result, err
+}
+
 // ListCandidateAssignments returns a keyset page of the calling candidate's
 // assignments. Database RLS binds rows to the signed actor.
 func (service *Service) ListCandidateAssignments(ctx context.Context, capability centralauthz.Capability, command ListCandidateAssignments) (Page[CandidateAssignment], error) {
@@ -846,6 +973,111 @@ func (service *Service) ListExamVersions(ctx context.Context, capability central
 	})
 	if err != nil {
 		return Page[ExamVersion]{}, err
+	}
+	return page, nil
+}
+
+// GetExam returns a single non-deleted exam by ID.
+func (service *Service) GetExam(ctx context.Context, capability centralauthz.Capability, tenantID, examID string) (Exam, error) {
+	tenantID, examID = normalizeID(tenantID), normalizeID(examID)
+	if !validID(tenantID) || !validID(examID) {
+		return Exam{}, invalid("exam IDs are invalid")
+	}
+	var result Exam
+	err := service.withTenantTx(ctx, capability, tenantID, func(transaction pgx.Tx) error {
+		var err error
+		result, err = service.store.GetExam(ctx, transaction, examID, tenantID)
+		return err
+	})
+	return result, err
+}
+
+// GetProctorPolicy returns a single proctor policy by ID.
+func (service *Service) GetProctorPolicy(ctx context.Context, capability centralauthz.Capability, tenantID, policyID string) (ProctorPolicy, error) {
+	tenantID, policyID = normalizeID(tenantID), normalizeID(policyID)
+	if !validID(tenantID) || !validID(policyID) {
+		return ProctorPolicy{}, invalid("proctor policy IDs are invalid")
+	}
+	var result ProctorPolicy
+	err := service.withTenantTx(ctx, capability, tenantID, func(transaction pgx.Tx) error {
+		var err error
+		result, err = service.store.GetProctorPolicy(ctx, transaction, policyID, tenantID)
+		return err
+	})
+	return result, err
+}
+
+// GetProctorPolicyVersion returns a single proctor policy version by ID.
+func (service *Service) GetProctorPolicyVersion(ctx context.Context, capability centralauthz.Capability, tenantID, versionID string) (ProctorPolicyVersion, error) {
+	tenantID, versionID = normalizeID(tenantID), normalizeID(versionID)
+	if !validID(tenantID) || !validID(versionID) {
+		return ProctorPolicyVersion{}, invalid("proctor policy version IDs are invalid")
+	}
+	var result ProctorPolicyVersion
+	err := service.withTenantTx(ctx, capability, tenantID, func(transaction pgx.Tx) error {
+		var err error
+		result, err = service.store.GetProctorPolicyVersion(ctx, transaction, versionID, tenantID)
+		return err
+	})
+	return result, err
+}
+
+// ListProctorPolicies returns a keyset page of proctor policies for the tenant.
+func (service *Service) ListProctorPolicies(ctx context.Context, capability centralauthz.Capability, command ListProctorPolicies) (Page[ProctorPolicy], error) {
+	if command.CursorSort != "" {
+		if _, err := time.Parse(time.RFC3339Nano, command.CursorSort); err != nil {
+			return Page[ProctorPolicy]{}, apperrors.New(apperrors.CodeInvalidArgument, "cursor contains an invalid timestamp")
+		}
+	}
+	var page Page[ProctorPolicy]
+	err := service.withTenantTx(ctx, capability, command.TenantID, func(transaction pgx.Tx) error {
+		probe := command
+		probe.Limit = command.Limit + 1
+		policies, err := service.store.ListProctorPolicies(ctx, transaction, probe)
+		if err != nil {
+			return err
+		}
+		page = Page[ProctorPolicy]{Items: []ProctorPolicy{}}
+		if len(policies) > command.Limit {
+			policies = policies[:command.Limit]
+			last := policies[len(policies)-1]
+			page.NextCursor = pagination.Encode(pagination.EncodeTime(last.CreatedAt), last.ID)
+		}
+		page.Items = append(page.Items, policies...)
+		return nil
+	})
+	if err != nil {
+		return Page[ProctorPolicy]{}, err
+	}
+	return page, nil
+}
+
+// ListProctorPolicyVersions returns a keyset page of versions for the given proctor policy.
+func (service *Service) ListProctorPolicyVersions(ctx context.Context, capability centralauthz.Capability, command ListProctorPolicyVersions) (Page[ProctorPolicyVersion], error) {
+	if command.CursorSort != "" {
+		if _, err := strconv.ParseInt(command.CursorSort, 10, 64); err != nil {
+			return Page[ProctorPolicyVersion]{}, apperrors.New(apperrors.CodeInvalidArgument, "cursor contains an invalid version number")
+		}
+	}
+	var page Page[ProctorPolicyVersion]
+	err := service.withTenantTx(ctx, capability, command.TenantID, func(transaction pgx.Tx) error {
+		probe := command
+		probe.Limit = command.Limit + 1
+		versions, err := service.store.ListProctorPolicyVersions(ctx, transaction, probe)
+		if err != nil {
+			return err
+		}
+		page = Page[ProctorPolicyVersion]{Items: []ProctorPolicyVersion{}}
+		if len(versions) > command.Limit {
+			versions = versions[:command.Limit]
+			last := versions[len(versions)-1]
+			page.NextCursor = pagination.Encode(pagination.FormatInt(int64(last.VersionNumber)), last.ID)
+		}
+		page.Items = append(page.Items, versions...)
+		return nil
+	})
+	if err != nil {
+		return Page[ProctorPolicyVersion]{}, err
 	}
 	return page, nil
 }

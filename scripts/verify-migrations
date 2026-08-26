@@ -958,7 +958,9 @@ SELECT submission.ingest_judge_completion(
   '018f4b0d-08f8-7c09-9ba7-efdf9c220308'::uuid,
   '018f4b0d-08f8-7c09-9ba7-efdf9c220309'::uuid,
   'accepted', 17, 2048, 'results/test.enc', repeat('c', 64),
-  'kms://india/result', '2026-07-24T10:00:00.123456Z'::timestamptz
+  'kms://india/result', '2026-07-24T10:00:00.123456Z'::timestamptz,
+  '[{"unit_number": 0, "verdict": "accepted", "execution_time_ms": 8, "memory_kib": 1024},
+    {"unit_number": 1, "verdict": "wrong_answer", "execution_time_ms": 9, "memory_kib": 1088}]'::jsonb
 );
 DO $block$
 BEGIN
@@ -971,13 +973,30 @@ BEGIN
     '018f4b0d-08f8-7c09-9ba7-efdf9c220308'::uuid,
     '018f4b0d-08f8-7c09-9ba7-efdf9c220309'::uuid,
     'accepted', 17, 2048, 'results/test.enc', repeat('c', 64),
-    'kms://india/result', '2026-07-24T10:00:00.123457Z'::timestamptz
+    'kms://india/result', '2026-07-24T10:00:00.123457Z'::timestamptz, '[]'::jsonb
   );
   RAISE EXCEPTION 'Judge event replay unexpectedly accepted an altered completion timestamp';
 EXCEPTION WHEN unique_violation THEN
   NULL;
 END
 $block$;
+RESET ROLE;
+
+-- Reconciliation is the routine that actually writes submission.judge_receipts,
+-- so it is also the only place the per-unit breakdown can be materialized.
+SET ROLE aether_submission_projection_worker;
+SELECT submission.record_judge_completion(
+  '018f4b0d-08f8-7c09-9ba7-efdf9c220317'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c220318'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c220319'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c22031a'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c220301'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c220308'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c220309'::uuid,
+  '018f4b0d-08f8-7c09-9ba7-efdf9c220310'::uuid,
+  'accepted', 17, 2048, 'results/test.enc', repeat('c', 64),
+  'kms://india/result', '2026-07-24T10:00:00.123456Z'::timestamptz
+);
 RESET ROLE;
 SQL
 
@@ -986,7 +1005,7 @@ SELECT
   NOT (SELECT rolsuper OR rolbypassrls FROM pg_roles WHERE rolname = 'aether_submission_judge_adapter'),
   has_function_privilege(
     'aether_submission_judge_adapter',
-    'submission.ingest_judge_completion(uuid,uuid,uuid,uuid,text,uuid,uuid,text,integer,integer,text,text,text,timestamp with time zone)',
+    'submission.ingest_judge_completion(uuid,uuid,uuid,uuid,text,uuid,uuid,text,integer,integer,text,text,text,timestamp with time zone,jsonb)',
     'EXECUTE'
   ),
   has_table_privilege('aether_submission_judge_adapter', 'submission.evaluation_requests', 'SELECT'),
@@ -997,15 +1016,33 @@ SELECT
     WHERE event_id = '018f4b0d-08f8-7c09-9ba7-efdf9c220313'::uuid
       AND event_type = 'judge.completed.v1'
       AND payload ->> 'completed_at' = '2026-07-24T10:00:00.123456Z'
+      -- The per-unit breakdown stays off the broadcast subject.
+      AND NOT payload ? 'unit_results'
   ),
   EXISTS (
     SELECT 1
     FROM submission.judge_completion_ingress
     WHERE judge_event_id = '018f4b0d-08f8-7c09-9ba7-efdf9c220310'::uuid
       AND completed_at = '2026-07-24T10:00:00.123456Z'::timestamptz
+      AND jsonb_array_length(unit_results) = 2
+  ),
+  (
+    SELECT count(*) = 2 AND count(*) FILTER (WHERE verdict = 'accepted') = 1
+    FROM submission.judge_receipt_units
+    WHERE tenant_id = '018f4b0d-08f8-7c09-9ba7-efdf9c220301'::uuid
+      AND judge_receipt_id = '018f4b0d-08f8-7c09-9ba7-efdf9c220317'::uuid
+  ),
+  EXISTS (
+    SELECT 1
+    FROM submission.judge_receipt_units
+    WHERE judge_receipt_id = '018f4b0d-08f8-7c09-9ba7-efdf9c220317'::uuid
+      AND unit_number = 1
+      AND verdict = 'wrong_answer'
+      AND execution_time_ms = 9
+      AND memory_kib = 1088
   );
 ")"
-  [[ "$state" == 't|t|f|f|t|t' ]] || fail \
+  [[ "$state" == 't|t|f|f|t|t|t|t' ]] || fail \
     "unexpected Submission Judge completion bridge state: ${state}"
 
   database_url="$(postgres_url aether_submission_migrator aether_submission)"

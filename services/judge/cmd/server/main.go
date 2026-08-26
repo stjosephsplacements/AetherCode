@@ -14,14 +14,22 @@ import (
 	"github.com/aethercode/aethercode/libs/pkg/config"
 	"github.com/aethercode/aethercode/libs/pkg/database"
 	"github.com/aethercode/aethercode/libs/pkg/httpx"
+	"github.com/aethercode/aethercode/libs/pkg/kms"
+	localkms "github.com/aethercode/aethercode/libs/pkg/kms/local"
 	"github.com/aethercode/aethercode/libs/pkg/logging"
+	"github.com/aethercode/aethercode/libs/pkg/ratelimit"
+	"github.com/aethercode/aethercode/libs/pkg/storage"
+	minioclient "github.com/aethercode/aethercode/libs/pkg/storage/minio"
 	"github.com/aethercode/aethercode/libs/pkg/telemetry"
 	judgev1 "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/judge/v1"
 	amqpadapter "github.com/aethercode/aethercode/services/judge/internal/adapters/amqp"
 	grpcadapter "github.com/aethercode/aethercode/services/judge/internal/adapters/grpc"
+	judge0adapter "github.com/aethercode/aethercode/services/judge/internal/adapters/judge0"
 	"github.com/aethercode/aethercode/services/judge/internal/adapters/repo"
 	"github.com/aethercode/aethercode/services/judge/internal/app"
 	judgeconfig "github.com/aethercode/aethercode/services/judge/internal/config"
+	"github.com/aethercode/aethercode/services/judge/internal/dispatcher"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	grpcHealth "google.golang.org/grpc/health"
@@ -70,7 +78,36 @@ func run(contextValue context.Context) error {
 		return err
 	}
 
-	store := repo.NewPostgres(pool)
+	dispatcherRuntime, err := dispatcher.LoadRuntime()
+	if err != nil {
+		return err
+	}
+
+	// NOTE: Storage and KMS are optional. Set JUDGE_STORAGE_ENDPOINT and
+	// JUDGE_KMS_LOCAL_KEY to enable test-case fan-out (Postgres.Submit). Submit
+	// returns app.ErrFanOutUnavailable when they are absent, mirroring
+	// question-bank's cmd/server/main.go.
+	var storageClient storage.Object
+	var kmsClient kms.KeyManager
+	if os.Getenv("JUDGE_STORAGE_ENDPOINT") != "" {
+		storageCfg, storageErr := minioclient.LoadConfig("JUDGE_STORAGE")
+		if storageErr != nil {
+			return storageErr
+		}
+		storageClient, storageErr = minioclient.New(storageCfg)
+		if storageErr != nil {
+			return storageErr
+		}
+	}
+	if os.Getenv("JUDGE_KMS_LOCAL_KEY") != "" {
+		kmsCfg, kmsErr := localkms.LoadConfig("JUDGE")
+		if kmsErr != nil {
+			return kmsErr
+		}
+		kmsClient = localkms.New(kmsCfg)
+	}
+
+	store := repo.NewPostgres(pool, storageClient, kmsClient)
 	judgeService := app.NewService(store)
 	readiness := store.Ping
 	if runtime.RabbitURL != "" {
@@ -86,6 +123,28 @@ func run(contextValue context.Context) error {
 			return publisher.Ready(readinessContext)
 		}
 	}
+	if dispatcherRuntime.Enabled {
+		switch dispatcherRuntime.EngineType {
+		case "judge0":
+			if !runtime.EngineCompatibilityApproved {
+				logger.Warn("dispatcher: engine=judge0 requires JUDGE_ENGINE_COMPATIBILITY_APPROVED=true; dispatcher not started")
+				break
+			}
+			eng, engErr := judge0adapter.NewClient(runtime.Judge0BaseURL, runtime.Judge0Timeout, runtime.Judge0AuthToken)
+			if engErr != nil {
+				return fmt.Errorf("dispatcher: construct judge0 client: %w", engErr)
+			}
+			if err := startDispatchConsumer(pool, eng, dispatcherRuntime, runtime.RabbitURL, contextValue, logger); err != nil {
+				return err
+			}
+		case "stub":
+			eng := judge0adapter.NewStub()
+			if err := startDispatchConsumer(pool, eng, dispatcherRuntime, runtime.RabbitURL, contextValue, logger); err != nil {
+				return err
+			}
+		}
+	}
+
 	listener, err := net.Listen("tcp", runtime.GRPCAddress)
 	if err != nil {
 		return fmt.Errorf("listen for Judge gRPC: %w", err)
@@ -96,8 +155,17 @@ func run(contextValue context.Context) error {
 	if err != nil {
 		return err
 	}
+	submitLimiter, err := ratelimit.New(ratelimit.Config{
+		Capacity:        float64(runtime.SubmitBurst),
+		RefillPerSecond: float64(runtime.SubmitRate) / 3600.0,
+		MaxEntries:      50000,
+		IdleTTL:         2 * time.Hour,
+	})
+	if err != nil {
+		return err
+	}
 	grpcServer := grpc.NewServer(grpcOptions...)
-	judgev1.RegisterJudgeServiceServer(grpcServer, grpcadapter.NewServer(judgeService))
+	judgev1.RegisterJudgeServiceServer(grpcServer, grpcadapter.NewServer(judgeService, submitLimiter))
 	healthServer := grpcHealth.NewServer()
 	healthServer.SetServingStatus("", grpcHealthV1.HealthCheckResponse_SERVING)
 	grpcHealthV1.RegisterHealthServer(grpcServer, healthServer)
@@ -133,6 +201,38 @@ func run(contextValue context.Context) error {
 		}
 		return nil
 	}
+}
+
+// startDispatchConsumer wires a constructed evaluation engine into a
+// dispatch worker and a RabbitMQ consumer, then starts consuming in a
+// background goroutine. It is shared by every dispatcher.Runtime.EngineType
+// case in run, which differ only in how the engine itself is constructed.
+func startDispatchConsumer(
+	pool *pgxpool.Pool,
+	eng dispatcher.Engine,
+	dispatcherRuntime dispatcher.Runtime,
+	rabbitURL string,
+	contextValue context.Context,
+	logger *slog.Logger,
+) error {
+	if rabbitURL == "" {
+		return fmt.Errorf("dispatcher: JUDGE_RABBITMQ_URL is required when JUDGE_DISPATCHER_ENABLED=true")
+	}
+	storeAdapter := repo.NewDispatchStoreAdapter(pool)
+	worker, workerErr := dispatcher.NewWorker(storeAdapter, eng, dispatcherRuntime, logger)
+	if workerErr != nil {
+		return workerErr
+	}
+	consumer, consumerErr := amqpadapter.NewConsumer(rabbitURL, worker, logger)
+	if consumerErr != nil {
+		return consumerErr
+	}
+	go func() {
+		if err := consumer.Start(contextValue); err != nil && contextValue.Err() == nil {
+			logger.Error("dispatcher consumer stopped unexpectedly", "error", err)
+		}
+	}()
+	return nil
 }
 
 func grpcOptionsFor(runtime judgeconfig.Runtime) ([]grpc.ServerOption, error) {

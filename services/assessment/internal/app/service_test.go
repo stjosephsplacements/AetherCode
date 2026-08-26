@@ -283,6 +283,170 @@ func TestAddExamItemRejectsTraversalObjectKeys(t *testing.T) {
 	}
 }
 
+func TestAddExamItemSampleBundlePairing(t *testing.T) {
+	t.Parallel()
+	service := &Service{pool: nil, store: nil}
+	validUUID := "00000000-0000-7000-8000-000000000001"
+
+	baseCommand := func() AddExamItem {
+		return AddExamItem{
+			WriteCommand:              WriteCommand{IdempotencyKey: "test:key"},
+			ID:                        validUUID,
+			TenantID:                  validUUID,
+			ExamVersionID:             validUUID,
+			SectionID:                 validUUID,
+			ExpectedContentVersion:    1,
+			Position:                  1,
+			QuestionID:                validUUID,
+			QuestionVersionID:         validUUID,
+			MaximumScore:              "10.0000",
+			EvaluationBundleObjectKey: "evaluation/bundle.zip",
+			EvaluationBundleChecksum:  strings.Repeat("a", 64),
+		}
+	}
+
+	testCases := []struct {
+		name          string
+		sampleKey     string
+		sampleSum     string
+		wantForbidden bool
+	}{
+		{name: "both empty is valid", sampleKey: "", sampleSum: ""},
+		{name: "both populated is valid", sampleKey: "sample/bundle.zip", sampleSum: strings.Repeat("b", 64), wantForbidden: true},
+		{name: "object key without checksum is invalid", sampleKey: "sample/bundle.zip", sampleSum: ""},
+		{name: "checksum without object key is invalid", sampleKey: "", sampleSum: strings.Repeat("b", 64)},
+	}
+	testCases[0].wantForbidden = true
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			command := baseCommand()
+			command.SampleBundleObjectKey = tc.sampleKey
+			command.SampleBundleChecksum = tc.sampleSum
+			_, err := service.AddExamItem(t.Context(), centralauthz.Capability{}, command)
+			if tc.wantForbidden {
+				var appErr *apperrors.Error
+				if !errors.As(err, &appErr) || appErr.Code != apperrors.CodeForbidden {
+					t.Fatalf("error = %v, want forbidden (validation should have passed)", err)
+				}
+				return
+			}
+			assertInvalid(t, err)
+		})
+	}
+}
+
+func TestRemoveExamSectionRejectsInvalidFields(t *testing.T) {
+	t.Parallel()
+	service := &Service{pool: nil, store: nil}
+	validUUID := "00000000-0000-7000-8000-000000000001"
+
+	testCases := []struct {
+		name    string
+		command RemoveExamSection
+	}{
+		{
+			name: "non-UUID ID",
+			command: RemoveExamSection{
+				WriteCommand: WriteCommand{IdempotencyKey: "test:key"},
+				ID:           "bad", TenantID: validUUID, ExamVersionID: validUUID, ExpectedContentVersion: 1,
+			},
+		},
+		{
+			name: "non-UUID TenantID",
+			command: RemoveExamSection{
+				WriteCommand: WriteCommand{IdempotencyKey: "test:key"},
+				ID:           validUUID, TenantID: "bad", ExamVersionID: validUUID, ExpectedContentVersion: 1,
+			},
+		},
+		{
+			name: "non-UUID ExamVersionID",
+			command: RemoveExamSection{
+				WriteCommand: WriteCommand{IdempotencyKey: "test:key"},
+				ID:           validUUID, TenantID: validUUID, ExamVersionID: "bad", ExpectedContentVersion: 1,
+			},
+		},
+		{
+			name: "zero expected content version",
+			command: RemoveExamSection{
+				WriteCommand: WriteCommand{IdempotencyKey: "test:key"},
+				ID:           validUUID, TenantID: validUUID, ExamVersionID: validUUID, ExpectedContentVersion: 0,
+			},
+		},
+		{
+			name: "negative expected content version",
+			command: RemoveExamSection{
+				WriteCommand: WriteCommand{IdempotencyKey: "test:key"},
+				ID:           validUUID, TenantID: validUUID, ExamVersionID: validUUID, ExpectedContentVersion: -1,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := service.RemoveExamSection(t.Context(), centralauthz.Capability{}, tc.command)
+			assertInvalid(t, err)
+		})
+	}
+}
+
+func TestRemoveExamItemRejectsInvalidFields(t *testing.T) {
+	t.Parallel()
+	service := &Service{pool: nil, store: nil}
+	validUUID := "00000000-0000-7000-8000-000000000001"
+
+	testCases := []struct {
+		name    string
+		command RemoveExamItem
+	}{
+		{
+			name: "non-UUID ID",
+			command: RemoveExamItem{
+				WriteCommand: WriteCommand{IdempotencyKey: "test:key"},
+				ID:           "bad", TenantID: validUUID, ExamVersionID: validUUID, ExpectedContentVersion: 1,
+			},
+		},
+		{
+			name: "non-UUID TenantID",
+			command: RemoveExamItem{
+				WriteCommand: WriteCommand{IdempotencyKey: "test:key"},
+				ID:           validUUID, TenantID: "bad", ExamVersionID: validUUID, ExpectedContentVersion: 1,
+			},
+		},
+		{
+			name: "non-UUID ExamVersionID",
+			command: RemoveExamItem{
+				WriteCommand: WriteCommand{IdempotencyKey: "test:key"},
+				ID:           validUUID, TenantID: validUUID, ExamVersionID: "bad", ExpectedContentVersion: 1,
+			},
+		},
+		{
+			name: "zero expected content version",
+			command: RemoveExamItem{
+				WriteCommand: WriteCommand{IdempotencyKey: "test:key"},
+				ID:           validUUID, TenantID: validUUID, ExamVersionID: validUUID, ExpectedContentVersion: 0,
+			},
+		},
+		{
+			name: "negative expected content version",
+			command: RemoveExamItem{
+				WriteCommand: WriteCommand{IdempotencyKey: "test:key"},
+				ID:           validUUID, TenantID: validUUID, ExamVersionID: validUUID, ExpectedContentVersion: -1,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := service.RemoveExamItem(t.Context(), centralauthz.Capability{}, tc.command)
+			assertInvalid(t, err)
+		})
+	}
+}
+
 func TestCreateAssignmentRuleRejectsInvalidTargetType(t *testing.T) {
 	t.Parallel()
 
@@ -307,6 +471,95 @@ func TestCreateAssignmentRuleRejectsInvalidTargetType(t *testing.T) {
 			got := validTargetType(tc.targetType)
 			if got != tc.valid {
 				t.Fatalf("validTargetType(%q) = %t, want %t", tc.targetType, got, tc.valid)
+			}
+		})
+	}
+}
+
+func TestUpdateExamRejectsInvalidFields(t *testing.T) {
+	t.Parallel()
+	service := &Service{pool: nil, store: nil}
+	validUUID := "00000000-0000-7000-8000-000000000001"
+
+	testCases := []struct {
+		name    string
+		command UpdateExam
+	}{
+		{
+			name: "non-UUID ID",
+			command: UpdateExam{
+				ID: "bad", TenantID: validUUID, ExpectedVersion: 1,
+			},
+		},
+		{
+			name: "non-UUID TenantID",
+			command: UpdateExam{
+				ID: validUUID, TenantID: "bad", ExpectedVersion: 1,
+			},
+		},
+		{
+			name: "zero expected version",
+			command: UpdateExam{
+				ID: validUUID, TenantID: validUUID, ExpectedVersion: 0,
+			},
+		},
+		{
+			name: "negative expected version",
+			command: UpdateExam{
+				ID: validUUID, TenantID: validUUID, ExpectedVersion: -1,
+			},
+		},
+		{
+			name: "external_reference exceeds 160 characters",
+			command: UpdateExam{
+				ID: validUUID, TenantID: validUUID, ExpectedVersion: 1,
+				ExternalReference: strings.Repeat("x", 161),
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := service.UpdateExam(t.Context(), centralauthz.Capability{}, tc.command)
+			assertInvalid(t, err)
+		})
+	}
+}
+
+func TestUpdateExamAcceptsValidFields(t *testing.T) {
+	t.Parallel()
+	service := &Service{pool: nil, store: nil}
+	validUUID := "00000000-0000-7000-8000-000000000001"
+
+	testCases := []struct {
+		name    string
+		command UpdateExam
+	}{
+		{
+			name: "empty external_reference is allowed",
+			command: UpdateExam{
+				ID: validUUID, TenantID: validUUID, ExpectedVersion: 1, ExternalReference: "",
+			},
+		},
+		{
+			name: "external_reference at max length is allowed",
+			command: UpdateExam{
+				ID: validUUID, TenantID: validUUID, ExpectedVersion: 1,
+				ExternalReference: strings.Repeat("x", 160),
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			// Validation passes; the call fails only when it tries to open a DB
+			// connection against the nil pool — not with an invalid-argument error.
+			_, err := service.UpdateExam(t.Context(), centralauthz.Capability{}, tc.command)
+			var appErr *apperrors.Error
+			if errors.As(err, &appErr) && appErr.Code == apperrors.CodeInvalidArgument {
+				t.Fatalf("UpdateExam rejected valid input: %v", err)
 			}
 		})
 	}
