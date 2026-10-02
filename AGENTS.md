@@ -25,7 +25,11 @@ A coding-exam platform for colleges, in two independent codebases:
   upload path, and `web/` is empty. Full context in `PLAN.md`; current state in
   `Prompt.md` and `PENDING.md`.
 
-The two share no code or database. Never couple them.
+The two share no code or database. Never couple them. Per ADR-0017 the Go
+platform is the only backend going forward: `apps/exam-v1` is a **frozen
+fallback** (security fixes only) whose README and e2e spec are the
+behavioural reference for the port in
+`docs/superpowers/plans/2026-10-02-go-platform-exam-parity.md`.
 
 ## Prime directives
 

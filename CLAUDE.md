@@ -14,13 +14,14 @@ A coding-exam platform for colleges, in **two independent codebases**:
 
 | Codebase | Path | Status | Use it for |
 |---|---|---|---|
-| **Exam app v1** | `apps/exam-v1/` | Built for the first graded exams (Oct 2026): Next.js + Postgres + grading worker + Judge0/Piston on one campus server. | Anything the college runs **now**: exams, grading, results. |
-| **Platform** | `services/`, `libs/`, `deploy/` | Multi-tenant Go microservices. Strong security foundation, but the core exam loop is **not** wired end to end (see "Platform status"). | The long-term multi-college platform. |
+| **Platform** | `services/`, `libs/`, `deploy/`, `web/` | **The only backend going forward (ADR-0017).** Multi-tenant Go microservices; the exam loop is being completed per `docs/superpowers/plans/2026-10-02-go-platform-exam-parity.md`. | **All new work.** |
+| **Exam app v1** | `apps/exam-v1/` | **Frozen fallback.** Feature-complete single-server app used for exams until the platform reaches parity, then deleted. | Running exams before parity; the behavioural spec (`README.md`) and acceptance test (`e2e/`) for the port. |
 
-Why two: on 2026-10-02 an audit found the platform could not grade a
-submission or show any UI, and the first exam was two days away. The decision
-and its consequences are in `docs/adr/0016-lean-exam-app-for-first-launch.md`.
-The two share no code or database. Do not couple them.
+History: ADR-0016 built the exam app when the platform could not grade or show
+any UI two days before an exam; ADR-0017 then made the Go platform the only
+backend. **Do not add features to `apps/exam-v1`** (security fixes only), and
+never make the platform depend on it. Port its behaviour into the services,
+following the parity plan's phases.
 
 ## Core principles (non-negotiable, both codebases)
 

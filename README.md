@@ -7,7 +7,7 @@ two independent codebases:
 |---|---|---|
 | **Path** | [`apps/exam-v1/`](apps/exam-v1/README.md) | `services/`, `libs/`, `deploy/` |
 | **What it is** | One Next.js app + PostgreSQL + a grading worker over Judge0 (or Piston), deployed with Docker Compose behind nginx on a single campus server. | Multi-tenant Go microservices with PostgreSQL RLS, signed authorization capabilities, an isolated Judge0 wrapper and SEB enforcement, for Kubernetes on bare metal. |
-| **Status** | Built for the first real graded exams (October 2026). Feature-complete for a supervised lab exam; needs on-server verification (below). | Strong foundation, but **cannot run an exam yet**: submissions are never dispatched to the judge, nothing accepts raw code or test cases, and `web/` is empty. |
+| **Status** | **Frozen fallback** (ADR-0017): feature-complete for a supervised lab exam; used until the platform reaches parity, then deleted. | **The only backend going forward.** Cannot run an exam yet; being completed per the [parity plan](docs/superpowers/plans/2026-10-02-go-platform-exam-parity.md). |
 | **Start here** | [apps/exam-v1/README.md](apps/exam-v1/README.md) | [PLAN.md](PLAN.md), [TASKLIST.md](TASKLIST.md), [Prompt.md](Prompt.md), [PENDING.md](PENDING.md) |
 
 The split, and why it exists, is recorded in
