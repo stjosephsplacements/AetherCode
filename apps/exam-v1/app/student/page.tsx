@@ -14,7 +14,7 @@ export default async function StudentHome({ searchParams }: { searchParams: Prom
     Array<{ id: string; title: string; instructions: string; published: boolean; starts_at: Date; ends_at: Date; duration_minutes: number; questions: number; attempt_open: boolean | null }>
   >`
     SELECT e.id, e.title, e.instructions, e.published, e.starts_at, e.ends_at, e.duration_minutes,
-      (SELECT count(*)::int FROM exam_questions eq WHERE eq.exam_id = e.id) AS questions,
+      (SELECT count(DISTINCT eq.slot)::int FROM exam_questions eq WHERE eq.exam_id = e.id) AS questions,
       (a.finished_at IS NULL AND a.deadline_at > now()) AS attempt_open
     FROM exams e
     LEFT JOIN attempts a ON a.exam_id = e.id AND a.user_id = ${user.id}

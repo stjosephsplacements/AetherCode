@@ -11,7 +11,7 @@ export default async function FacultyHome() {
     Array<{ id: string; title: string; published: boolean; starts_at: Date; ends_at: Date; duration_minutes: number; batches: string[]; questions: number; started: number }>
   >`
     SELECT e.id, e.title, e.published, e.starts_at, e.ends_at, e.duration_minutes, e.batches,
-      (SELECT count(*)::int FROM exam_questions eq WHERE eq.exam_id = e.id) AS questions,
+      (SELECT count(DISTINCT eq.slot)::int FROM exam_questions eq WHERE eq.exam_id = e.id) AS questions,
       (SELECT count(*)::int FROM attempts a WHERE a.exam_id = e.id) AS started
     FROM exams e ORDER BY e.starts_at DESC`;
   return (

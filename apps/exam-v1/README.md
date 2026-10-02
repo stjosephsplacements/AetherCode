@@ -25,6 +25,7 @@ alongside the AetherCode microservices, which remain the long-term platform.
 - **Roles:** `admin` (people + everything faculty can do), `faculty` (questions, exams, results), `student`.
 - **Sign-in:** username/roll number + password. A student signing in elsewhere ends their other session. Five failed attempts lock that username for a minute.
 - **Timing:** each student's clock starts when they click Start: deadline = min(start + duration, window close). The server is the source of truth; the browser clock is anchored to server time.
+- **Question pools:** an exam question can have alternatives. Each student is assigned one question per slot at random when they click Start; results and exports are by slot (Q1, Q2…), so everyone is graded on the same scale. Alternatives in a pool must be worth the same points.
 - **Scoring:** a question's score is its *best* submission: `points × passed weight ÷ total weight`. Every test (sample and hidden) counts by weight.
 - **Time-up:** the browser saves the last edits (drafts are accepted for 15 s after the deadline), then the worker submits each question's latest draft unless that exact code was already submitted.
 - **Visibility:** students see full input/output for sample tests and only pass/fail for hidden tests.

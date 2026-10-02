@@ -17,7 +17,8 @@ export interface ExamFormValues {
   allowedNetworks: string[];
   requireFullscreen: boolean;
   blockExternalPaste: boolean;
-  questions: Array<{ questionId: string; points: number }>;
+  // Entries sharing a slot form a pool; each student gets one per slot.
+  questions: Array<{ questionId: string; points: number; slot: number }>;
 }
 
 // datetime-local works in the browser's zone; convert to/from ISO at the edges.
@@ -53,6 +54,8 @@ export function ExamForm({
   const batchOptions = [...new Set([...knownBatches, ...values.batches])].sort();
   const titleOf = new Map(questionBank.map((question) => [question.id, question.title]));
   const available = questionBank.filter((question) => !values.questions.some((entry) => entry.questionId === question.id));
+  const slots = [...new Set(values.questions.map((entry) => entry.slot))].sort((a, b) => a - b);
+  const nextSlot = slots.length === 0 ? 0 : slots[slots.length - 1] + 1;
 
   function submit() {
     setError(null);
@@ -163,15 +166,15 @@ export function ExamForm({
       </Card>
 
       <Card className="p-6">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-display text-xl font-semibold tracking-tight">Questions</h2>
           {!locked && available.length > 0 && (
             <select
               value=""
-              onChange={(event) => event.target.value && set("questions", [...values.questions, { questionId: event.target.value, points: 100 }])}
+              onChange={(event) => event.target.value && set("questions", [...values.questions, { questionId: event.target.value, points: 100, slot: nextSlot }])}
               className={`${inputClass} max-w-xs`}
             >
-              <option value="">+ Add from question bank</option>
+              <option value="">+ Add question</option>
               {available.map((question) => (
                 <option key={question.id} value={question.id}>
                   {question.title}
@@ -180,34 +183,67 @@ export function ExamForm({
             </select>
           )}
         </div>
+        <p className="mb-4 text-sm text-muted">Add alternatives to a question to make a pool: each student gets one of them at random, so neighbours see different problems.</p>
         {locked && <p className="mb-4 rounded-xl bg-accent-soft px-4 py-3 text-sm text-accent">Students have started this exam, so its questions are locked. Timing, batches and publishing can still change.</p>}
-        <ol className="divide-y divide-line rounded-xl border border-line">
-          {values.questions.map((entry, index) => (
-            <li key={entry.questionId} className="flex items-center gap-3 px-4 py-3">
-              <span className="w-6 font-display font-semibold text-faint">{index + 1}</span>
-              <span className="mr-auto font-medium">{titleOf.get(entry.questionId) ?? "Unknown question"}</span>
-              <label className="flex items-center gap-2 text-sm text-muted">
-                Points
-                <input
-                  type="number"
-                  min={1}
-                  max={1000}
-                  disabled={locked}
-                  value={entry.points}
-                  onChange={(event) =>
-                    set("questions", values.questions.map((item, at) => (at === index ? { ...item, points: Number(event.target.value) } : item)))
-                  }
-                  className="w-20 rounded-lg border border-line-strong px-2 py-1 text-ink"
-                />
-              </label>
-              {!locked && (
-                <button type="button" onClick={() => set("questions", values.questions.filter((_, at) => at !== index))} className="text-sm text-muted hover:text-error">
-                  Remove
-                </button>
-              )}
-            </li>
-          ))}
-          {values.questions.length === 0 && <li className="px-4 py-8 text-center text-sm text-muted">No questions added yet.</li>}
+        <ol className="grid gap-3">
+          {slots.map((slot, index) => {
+            const entries = values.questions.filter((entry) => entry.slot === slot);
+            return (
+              <li key={slot} className="rounded-xl border border-line p-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="font-display text-lg font-semibold">Q{index + 1}</span>
+                  {entries.length > 1 && <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-semibold text-brand-ink">Pool of {entries.length}: one per student</span>}
+                  <label className="ml-auto flex items-center gap-2 text-sm text-muted">
+                    Points
+                    <input
+                      type="number"
+                      min={1}
+                      max={1000}
+                      disabled={locked}
+                      value={entries[0].points}
+                      onChange={(event) =>
+                        set("questions", values.questions.map((item) => (item.slot === slot ? { ...item, points: Number(event.target.value) } : item)))
+                      }
+                      className="w-20 rounded-lg border border-line-strong px-2 py-1 text-ink"
+                    />
+                  </label>
+                </div>
+                <ul className="mt-2 grid gap-1.5">
+                  {entries.map((entry) => (
+                    <li key={entry.questionId} className="flex items-center gap-3 rounded-lg bg-sunken/60 px-3 py-2 text-sm">
+                      <span className="mr-auto font-medium">{titleOf.get(entry.questionId) ?? "Unknown question"}</span>
+                      {!locked && (
+                        <button
+                          type="button"
+                          onClick={() => set("questions", values.questions.filter((item) => item.questionId !== entry.questionId))}
+                          className="text-muted hover:text-error"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                {!locked && available.length > 0 && (
+                  <select
+                    value=""
+                    onChange={(event) =>
+                      event.target.value && set("questions", [...values.questions, { questionId: event.target.value, points: entries[0].points, slot }])
+                    }
+                    className="mt-2 rounded-lg border border-dashed border-line-strong bg-transparent px-2.5 py-1.5 text-sm text-muted"
+                  >
+                    <option value="">+ Add alternative to this pool</option>
+                    {available.map((question) => (
+                      <option key={question.id} value={question.id}>
+                        {question.title}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </li>
+            );
+          })}
+          {slots.length === 0 && <li className="rounded-xl border border-line px-4 py-8 text-center text-sm text-muted">No questions added yet.</li>}
         </ol>
       </Card>
 

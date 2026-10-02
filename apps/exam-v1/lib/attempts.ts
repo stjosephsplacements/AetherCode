@@ -43,9 +43,10 @@ export async function requireOpenAttempt(attemptId: string, user: User, graceSec
   return { id: attempt.id, examId: attempt.exam_id, languages: attempt.languages, deadlineAt: attempt.deadline_at };
 }
 
-export async function questionInExam(examId: string, questionId: string): Promise<boolean> {
+// True when this question was assigned to the attempt (one per slot).
+export async function questionInAttempt(attemptId: string, questionId: string): Promise<boolean> {
   if (!/^[0-9a-f-]{36}$/i.test(questionId)) return false;
-  const rows = await sql`SELECT 1 FROM exam_questions WHERE exam_id = ${examId} AND question_id = ${questionId}`;
+  const rows = await sql`SELECT 1 FROM attempt_questions WHERE attempt_id = ${attemptId} AND question_id = ${questionId}`;
   return rows.length > 0;
 }
 

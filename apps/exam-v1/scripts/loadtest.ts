@@ -73,7 +73,7 @@ async function setup(count: number) {
     INSERT INTO exams (title, starts_at, ends_at, duration_minutes, languages, batches, published)
     VALUES (${TITLE}, now() - interval '5 minutes', now() + interval '3 hours', 120, ${["c", "cpp", "java", "python"]}, ${[BATCH]}, true)
     RETURNING id`;
-  await sql`INSERT INTO exam_questions (exam_id, question_id, ord, points) VALUES (${exam.id}, ${question.id}, 0, 100)`;
+  await sql`INSERT INTO exam_questions (exam_id, question_id, ord, slot, points) VALUES (${exam.id}, ${question.id}, 0, 0, 100)`;
 
   // One shared hash keeps setup fast; the load test does not exercise sign-in.
   const passwordHash = await hashPassword(randomBytes(12).toString("base64url"));
@@ -106,6 +106,11 @@ async function setup(count: number) {
         INSERT INTO attempts ${sql(users.slice(index, index + 1000).map((user) => ({ exam_id: exam.id, user_id: user.id, deadline_at: new Date(Date.now() + 2 * 3600_000) })))}
         RETURNING id, user_id`),
     );
+  }
+  for (let index = 0; index < attempts.length; index += 1000) {
+    await sql`INSERT INTO attempt_questions ${sql(
+      attempts.slice(index, index + 1000).map((attempt) => ({ attempt_id: attempt.id, slot: 0, question_id: question.id, points: 100 })),
+    )}`;
   }
   const attemptByUser = new Map(attempts.map((attempt) => [attempt.user_id, attempt.id]));
   return {

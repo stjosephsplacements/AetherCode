@@ -53,12 +53,12 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
   }
 
   const questions = await sql<Array<{ id: string; title: string; statement: string; points: number; time_limit_ms: number; memory_limit_kb: number }>>`
-    SELECT q.id, q.title, q.statement, eq.points, q.time_limit_ms, q.memory_limit_kb
-    FROM exam_questions eq JOIN questions q ON q.id = eq.question_id
-    WHERE eq.exam_id = ${examId} ORDER BY eq.ord`;
+    SELECT q.id, q.title, q.statement, aq.points, q.time_limit_ms, q.memory_limit_kb
+    FROM attempt_questions aq JOIN questions q ON q.id = aq.question_id
+    WHERE aq.attempt_id = ${attempt.id} ORDER BY aq.slot`;
   const samples = await sql<Array<{ question_id: string; input: string; expected_output: string }>>`
     SELECT t.question_id, t.input, t.expected_output FROM test_cases t
-    JOIN exam_questions eq ON eq.question_id = t.question_id AND eq.exam_id = ${examId}
+    JOIN attempt_questions aq ON aq.question_id = t.question_id AND aq.attempt_id = ${attempt.id}
     WHERE t.is_sample ORDER BY t.ord`;
   const drafts = await sql<Array<{ question_id: string; language: LanguageId; source: string }>>`
     SELECT question_id, language, source FROM drafts WHERE attempt_id = ${attempt.id}`;

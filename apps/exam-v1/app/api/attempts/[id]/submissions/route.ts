@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { handle, HttpError, questionInExam, requireOpenAttempt, requireStudent } from "@/lib/attempts";
+import { handle, HttpError, questionInAttempt, requireOpenAttempt, requireStudent } from "@/lib/attempts";
 import { sql } from "@/lib/db";
 
 const body = z.object({
@@ -20,7 +20,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!parsed.success) throw new HttpError(400, parsed.error.issues[0].message);
     const input = parsed.data;
     if (!attempt.languages.includes(input.language)) throw new HttpError(400, "That language is not allowed in this exam.");
-    if (!(await questionInExam(attempt.examId, input.questionId))) throw new HttpError(404, "Question not found.");
+    if (!(await questionInAttempt(attempt.id, input.questionId))) throw new HttpError(404, "Question not found.");
     const [{ pending }] = await sql<{ pending: number }[]>`
       SELECT count(*)::int AS pending FROM submissions WHERE attempt_id = ${attempt.id} AND status IN ('queued', 'running')`;
     if (pending >= MAX_PENDING) throw new HttpError(429, "Your previous run is still being judged. Wait for it to finish.");

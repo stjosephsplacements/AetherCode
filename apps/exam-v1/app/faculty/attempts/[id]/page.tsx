@@ -4,7 +4,6 @@ import { requireUser } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { formatWhen } from "@/lib/exam-status";
 import { LANGUAGES, isLanguageId } from "@/lib/languages";
-import { examQuestions } from "@/lib/results";
 import { VERDICT_LABEL, VERDICT_TONE } from "@/lib/verdicts";
 import { AppShell } from "@/components/app-shell";
 import { Badge, Card, PageHeader, buttonClass } from "@/components/ui";
@@ -20,7 +19,10 @@ export default async function AttemptPage({ params }: { params: Promise<{ id: st
     SELECT a.exam_id, e.title AS exam_title, u.username, u.name, u.batch, a.started_at, a.deadline_at, a.finished_at
     FROM attempts a JOIN exams e ON e.id = a.exam_id JOIN users u ON u.id = a.user_id WHERE a.id = ${id}`;
   if (!attempt) notFound();
-  const questions = await examQuestions(attempt.exam_id);
+  // The questions this student drew, one per slot.
+  const questions = await sql<{ id: string; title: string; points: number }[]>`
+    SELECT aq.question_id AS id, q.title, aq.points FROM attempt_questions aq JOIN questions q ON q.id = aq.question_id
+    WHERE aq.attempt_id = ${id} ORDER BY aq.slot`;
   const submissions = await sql<
     Array<{ id: string; question_id: string; kind: string; language: string; source: string; status: string; verdict: string | null; passed: number; total: number; earned_weight: number; total_weight: number; created_at: Date }>
   >`

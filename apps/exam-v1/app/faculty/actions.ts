@@ -91,7 +91,13 @@ const examInput = z.object({
   requireFullscreen: z.boolean(),
   blockExternalPaste: z.boolean(),
   questions: z
-    .array(z.object({ questionId: z.string().uuid(), points: z.coerce.number().int().min(1).max(1000) }))
+    .array(
+      z.object({
+        questionId: z.string().uuid(),
+        points: z.coerce.number().int().min(1).max(1000),
+        slot: z.coerce.number().int().min(0).max(1000),
+      }),
+    )
     .min(1, "Add at least one question")
     .max(50),
 });
@@ -110,6 +116,13 @@ export async function saveExam(id: string | null, input: ExamInput): Promise<{ e
   if (endsAt <= startsAt) return { error: "The window must end after it starts" };
   if (new Set(exam.questions.map((question) => question.questionId)).size !== exam.questions.length) {
     return { error: "A question appears twice" };
+  }
+  // Renumber slots 0..n-1 in order; every question in a pool is worth the same.
+  const slotOrder = [...new Set(exam.questions.map((question) => question.slot))].sort((a, b) => a - b);
+  for (const slot of slotOrder) {
+    if (new Set(exam.questions.filter((question) => question.slot === slot).map((question) => question.points)).size > 1) {
+      return { error: "Questions in the same pool must be worth the same points" };
+    }
   }
 
   const examId = await sql.begin(async (tx) => {
@@ -136,7 +149,13 @@ export async function saveExam(id: string | null, input: ExamInput): Promise<{ e
       examId = created.id;
     }
     await tx`INSERT INTO exam_questions ${tx(
-      exam.questions.map((question, ord) => ({ exam_id: examId, question_id: question.questionId, ord, points: question.points })),
+      exam.questions.map((question, ord) => ({
+        exam_id: examId,
+        question_id: question.questionId,
+        ord,
+        slot: slotOrder.indexOf(question.slot),
+        points: question.points,
+      })),
     )}`;
     return examId as string;
   });

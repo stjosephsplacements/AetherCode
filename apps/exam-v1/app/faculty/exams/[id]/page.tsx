@@ -32,8 +32,8 @@ export default async function EditExamPage({ params, searchParams }: { params: P
       allowed_networks, require_fullscreen, block_external_paste
     FROM exams WHERE id = ${id}`;
   if (!exam) notFound();
-  const questions = await sql<{ question_id: string; points: number }[]>`
-    SELECT question_id, points FROM exam_questions WHERE exam_id = ${id} ORDER BY ord`;
+  const questions = await sql<{ question_id: string; points: number; slot: number }[]>`
+    SELECT question_id, points, slot FROM exam_questions WHERE exam_id = ${id} ORDER BY ord`;
   const [{ started }] = await sql<{ started: boolean }[]>`SELECT exists(SELECT 1 FROM attempts WHERE exam_id = ${id}) AS started`;
   return (
     <AppShell user={user}>
@@ -64,7 +64,7 @@ export default async function EditExamPage({ params, searchParams }: { params: P
           allowedNetworks: exam.allowed_networks,
           requireFullscreen: exam.require_fullscreen,
           blockExternalPaste: exam.block_external_paste,
-          questions: questions.map((question) => ({ questionId: question.question_id, points: question.points })),
+          questions: questions.map((question) => ({ questionId: question.question_id, points: question.points, slot: question.slot })),
         }}
       />
     </AppShell>
