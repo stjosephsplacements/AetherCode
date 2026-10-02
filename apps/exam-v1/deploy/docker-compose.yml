@@ -1,0 +1,103 @@
+# Single-server deployment: app + grading worker + Postgres + Judge0.
+# Usage: see ../README.md "Deploying on the campus server".
+name: aethercode-exam
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: exam
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in deploy/.env}
+      POSTGRES_DB: exam
+    command: ["postgres", "-c", "max_connections=200", "-c", "shared_buffers=512MB"]
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U exam"]
+      interval: 5s
+      retries: 10
+
+  migrate:
+    build: ..
+    command: ["pnpm", "migrate"]
+    environment: &app-env
+      DATABASE_URL: postgres://exam:${DB_PASSWORD}@db:5432/exam
+      ENGINE: ${ENGINE:-judge0}
+      ENGINE_URL: ${ENGINE_URL:-http://judge0-server:2358}
+      ENGINE_AUTH_TOKEN: ${JUDGE0_AUTH_TOKEN:-}
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-16}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  app:
+    build: ..
+    restart: always
+    environment: *app-env
+    ports:
+      - "${APP_PORT:-80}:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  worker:
+    build: ..
+    restart: always
+    command: ["pnpm", "worker"]
+    environment: *app-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  judge0-server:
+    image: judge0/judge0:1.13.1
+    restart: always
+    privileged: true
+    volumes:
+      - ./judge0.conf:/judge0.conf:ro
+    depends_on: [judge0-db, judge0-redis]
+
+  judge0-workers:
+    image: judge0/judge0:1.13.1
+    restart: always
+    privileged: true
+    command: ["./scripts/workers"]
+    volumes:
+      - ./judge0.conf:/judge0.conf:ro
+    depends_on: [judge0-db, judge0-redis]
+
+  judge0-db:
+    image: postgres:16-alpine
+    restart: always
+    env_file: judge0.conf
+    volumes:
+      - judge0-db-data:/var/lib/postgresql/data
+
+  judge0-redis:
+    image: redis:7-alpine
+    restart: always
+    command: ["sh", "-c", 'redis-server --appendonly no --requirepass "$$REDIS_PASSWORD"']
+    env_file: judge0.conf
+
+  # Alternative engine for cgroup v2 hosts: `docker compose --profile piston up -d`,
+  # then install runtimes once (see README) and set ENGINE=piston, ENGINE_URL=http://piston:2000.
+  piston:
+    image: ghcr.io/engineer-man/piston
+    profiles: ["piston"]
+    restart: always
+    privileged: true
+    environment:
+      # Piston's defaults (3 s run cap, 1 KB output) are too small for exams.
+      PISTON_RUN_TIMEOUT: "40000"
+      PISTON_COMPILE_TIMEOUT: "20000"
+      PISTON_OUTPUT_MAX_SIZE: "1048576"
+      PISTON_MAX_CONCURRENT_JOBS: "64"
+    volumes:
+      - piston-packages:/piston/packages
+
+volumes:
+  db-data:
+  judge0-db-data:
+  piston-packages:

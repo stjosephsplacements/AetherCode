@@ -1,0 +1,31 @@
+"use server";
+
+import { redirect } from "next/navigation";
+import { sql } from "@/lib/db";
+import { homeFor, startSession, type Role } from "@/lib/auth";
+import { verifyPassword } from "@/lib/password";
+
+const failures = new Map<string, { count: number; until: number }>();
+const MAX_FAILURES = 5;
+const LOCK_MS = 60_000;
+
+export async function login(_: string | null, form: FormData): Promise<string | null> {
+  const username = String(form.get("username") ?? "").trim();
+  const password = String(form.get("password") ?? "");
+  if (!username || !password) return "Enter your username and password.";
+
+  const key = username.toLowerCase();
+  const lock = failures.get(key);
+  if (lock && lock.count >= MAX_FAILURES && lock.until > Date.now()) return "Too many attempts. Wait a minute and try again.";
+
+  const [user] = await sql<{ id: string; role: Role; password_hash: string; disabled: boolean }[]>`
+    SELECT id, role, password_hash, disabled FROM users WHERE lower(username) = ${key}`;
+  if (!user || user.disabled || !(await verifyPassword(password, user.password_hash))) {
+    const count = (lock && lock.until > Date.now() ? lock.count : 0) + 1;
+    failures.set(key, { count, until: Date.now() + LOCK_MS });
+    return "Incorrect username or password.";
+  }
+  failures.delete(key);
+  await startSession(user);
+  redirect(homeFor(user.role));
+}

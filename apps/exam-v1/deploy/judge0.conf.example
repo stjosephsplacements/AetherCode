@@ -1,0 +1,25 @@
+# Judge0 settings (copy to judge0.conf and set the passwords).
+# Every key not listed keeps Judge0's default.
+
+# Workers that execute code in parallel: set to the server's CPU core count.
+COUNT=16
+MAX_QUEUE_SIZE=5000
+
+MAX_CPU_TIME_LIMIT=15
+MAX_WALL_TIME_LIMIT=30
+MAX_MEMORY_LIMIT=512000
+MAX_PROCESSES_AND_OR_THREADS=128
+ENABLE_NETWORK=false
+ENABLE_CALLBACKS=false
+ENABLE_BATCHED_SUBMISSIONS=true
+ENABLE_WAIT_RESULT=false
+
+REDIS_HOST=judge0-redis
+REDIS_PORT=6379
+REDIS_PASSWORD=change-me-redis
+
+POSTGRES_HOST=judge0-db
+POSTGRES_PORT=5432
+POSTGRES_DB=judge0
+POSTGRES_USER=judge0
+POSTGRES_PASSWORD=change-me-postgres

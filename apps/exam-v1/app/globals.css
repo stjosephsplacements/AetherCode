@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-heading), var(--font-manrope), ui-sans-serif, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+
+  --color-canvas: #faf9f6;
+  --color-surface: #ffffff;
+  --color-sunken: #f3f2ee;
+  --color-line: #e6e4de;
+  --color-line-strong: #d6d3cb;
+  --color-ink: #1e2033;
+  --color-ink-soft: #2a2c33;
+  --color-muted: #5f6275;
+  --color-faint: #8b8e9e;
+
+  --color-brand: #4f46e5;
+  --color-brand-soft: #eef0ff;
+  --color-brand-ink: #3730a3;
+  --color-accent: #ea580c;
+  --color-accent-soft: #fff4ec;
+
+  --color-pass: #15803d;
+  --color-pass-soft: #e8f6ec;
+  --color-go: #1ba94c;
+  --color-go-hover: #178f40;
+  --color-fail: #c2410c;
+  --color-fail-soft: #fdf0e8;
+  --color-error: #b91c1c;
+  --color-error-soft: #fdecec;
+
+  --radius-card: 1rem;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+  }
+  ::selection {
+    background: #c7d2fe;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+}
+
+.hero-glow {
+  background:
+    radial-gradient(60% 55% at 18% 20%, rgba(129, 140, 248, 0.32), transparent 70%),
+    radial-gradient(45% 45% at 85% 25%, rgba(249, 115, 22, 0.22), transparent 70%),
+    radial-gradient(50% 50% at 60% 90%, rgba(165, 180, 252, 0.28), transparent 70%);
+}
+
+.prose-exam {
+  line-height: 1.7;
+  font-size: 0.95rem;
+  color: var(--color-ink-soft);
+}
+.prose-exam h1,
+.prose-exam h2,
+.prose-exam h3 {
+  color: var(--color-ink);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 1.4em 0 0.5em;
+}
+.prose-exam h1 { font-size: 1.35rem; }
+.prose-exam h2 { font-size: 1.15rem; }
+.prose-exam h3 { font-size: 1rem; }
+.prose-exam p { margin: 0.7em 0; }
+.prose-exam ul,
+.prose-exam ol { margin: 0.6em 0; padding-left: 1.4em; }
+.prose-exam ul { list-style: disc; }
+.prose-exam ol { list-style: decimal; }
+.prose-exam code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--color-sunken);
+  border: 1px solid var(--color-line);
+  border-radius: 0.3rem;
+  padding: 0.05em 0.35em;
+}
+.prose-exam pre {
+  background: var(--color-sunken);
+  border: 1px solid var(--color-line);
+  border-radius: 0.6rem;
+  padding: 0.8rem 1rem;
+  overflow-x: auto;
+}
+.prose-exam pre code { background: none; border: 0; padding: 0; }
+.prose-exam table { border-collapse: collapse; margin: 0.8em 0; }
+.prose-exam th,
+.prose-exam td { border: 1px solid var(--color-line); padding: 0.35em 0.7em; }
+.prose-exam strong { color: var(--color-ink); }
