@@ -11,7 +11,8 @@ import { ExamIde, type IdeQuestion } from "./exam-ide";
 export const dynamic = "force-dynamic";
 
 export default async function ExamPage({ params }: { params: Promise<{ examId: string }> }) {
-  const user = await requireUser("student");
+  const user = await requireUser();
+  const staff = user.role !== "student";
   const { examId } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(examId)) notFound();
   const [attempt] = await sql<
@@ -29,9 +30,10 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
     SELECT a.id, e.title, e.languages, a.deadline_at, (a.finished_at IS NULL AND a.deadline_at > now()) AS open,
       e.allowed_networks, e.require_fullscreen, e.block_external_paste
     FROM attempts a JOIN exams e ON e.id = a.exam_id
-    WHERE a.exam_id = ${examId} AND a.user_id = ${user.id}`;
-  if (!attempt) redirect("/student");
-  if (attempt.open && !ipAllowed(await clientIp(), attempt.allowed_networks)) redirect("/student?network=1");
+    -- Staff only ever see their own preview attempt.
+    WHERE a.exam_id = ${examId} AND a.user_id = ${user.id} AND a.is_preview = ${staff}`;
+  if (!attempt) redirect(staff ? `/faculty/exams/${examId}` : "/student");
+  if (!staff && attempt.open && !ipAllowed(await clientIp(), attempt.allowed_networks)) redirect("/student?network=1");
 
   if (!attempt.open) {
     return (
@@ -44,8 +46,8 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
             Your answers for <strong className="text-ink">{attempt.title}</strong> have been recorded. Your best submission for each question
             counts. You can close this window.
           </p>
-          <Link href="/student" className={`${buttonClass("secondary")} mt-8`}>
-            Back to my exams
+          <Link href={staff ? `/faculty/exams/${examId}` : "/student"} className={`${buttonClass("secondary")} mt-8`}>
+            {staff ? "Back to the exam editor" : "Back to my exams"}
           </Link>
         </div>
       </main>
@@ -89,6 +91,7 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
       deadline={attempt.deadline_at.toISOString()}
       serverNow={new Date().toISOString()}
       questions={ideQuestions}
+      preview={staff}
       requireFullscreen={attempt.require_fullscreen}
       blockExternalPaste={attempt.block_external_paste}
     />

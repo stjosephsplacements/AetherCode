@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { handle, HttpError, questionInAttempt, requireOpenAttempt, requireStudent } from "@/lib/attempts";
+import { handle, HttpError, questionInAttempt, requireOpenAttempt, requireExamTaker } from "@/lib/attempts";
 import { DRAFT_GRACE_SECONDS } from "@/lib/attempt-rules";
 import { sql } from "@/lib/db";
 
@@ -7,7 +7,7 @@ const body = z.object({ questionId: z.string(), language: z.string(), source: z.
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   return handle(async () => {
-    const user = await requireStudent();
+    const user = await requireExamTaker();
     const attempt = await requireOpenAttempt((await params).id, user, DRAFT_GRACE_SECONDS);
     const parsed = body.safeParse(await request.json());
     if (!parsed.success || !attempt.languages.includes(parsed.data.language)) throw new HttpError(400, "Invalid draft.");

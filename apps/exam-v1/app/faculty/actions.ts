@@ -185,7 +185,7 @@ export async function saveExam(id: string | null, input: ExamInput): Promise<{ e
   const examId = await sql.begin(async (tx) => {
     let examId = id;
     if (examId) {
-      const started = await tx`SELECT 1 FROM attempts WHERE exam_id = ${examId} LIMIT 1`;
+      const started = await tx`SELECT 1 FROM attempts WHERE exam_id = ${examId} AND NOT is_preview LIMIT 1`;
       const updated = await tx`
         UPDATE exams SET title = ${exam.title}, instructions = ${exam.instructions}, starts_at = ${startsAt},
           ends_at = ${endsAt}, duration_minutes = ${exam.durationMinutes}, languages = ${exam.languages},
@@ -350,4 +350,28 @@ export async function importQuestions(_: unknown, form: FormData): Promise<{ err
   await audit(user, "questions.import", file.name, { count: questions.length });
   revalidatePath("/faculty/questions");
   return { imported: questions.length };
+}
+
+// Starts a fresh preview attempt so staff can take the exam exactly as a student
+// would. Any earlier preview by this person is discarded first.
+export async function previewExam(examId: string): Promise<void> {
+  const user = await requireUser("faculty", "admin");
+  await sql.begin(async (tx) => {
+    const old = (await tx<{ id: string }[]>`SELECT id FROM attempts WHERE exam_id = ${examId} AND user_id = ${user.id} AND is_preview`).map(
+      (row) => row.id,
+    );
+    await tx`DELETE FROM submissions WHERE attempt_id = ANY(${old})`;
+    await tx`DELETE FROM attempts WHERE id = ANY(${old})`;
+    await tx`
+      WITH started AS (
+        INSERT INTO attempts (exam_id, user_id, deadline_at, is_preview)
+        SELECT id, ${user.id}, now() + make_interval(mins => duration_minutes), true FROM exams WHERE id = ${examId}
+        RETURNING id, exam_id
+      )
+      INSERT INTO attempt_questions (attempt_id, slot, question_id, points)
+      SELECT DISTINCT ON (eq.slot) started.id, eq.slot, eq.question_id, eq.points
+      FROM started JOIN exam_questions eq ON eq.exam_id = started.exam_id
+      ORDER BY eq.slot, random()`;
+  });
+  redirect(`/exam/${examId}`);
 }

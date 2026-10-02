@@ -1,10 +1,10 @@
-import { handle, HttpError, requireStudent } from "@/lib/attempts";
+import { handle, HttpError, ownsAttempt, requireExamTaker } from "@/lib/attempts";
 import { sql } from "@/lib/db";
 
 // Sample tests are shown in full; hidden tests only reveal pass/fail.
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   return handle(async () => {
-    const user = await requireStudent();
+    const user = await requireExamTaker();
     const id = (await params).id;
     if (!/^[0-9a-f-]{36}$/i.test(id)) throw new HttpError(404, "Not found.");
     const [submission] = await sql<
@@ -12,7 +12,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
     >`
       SELECT s.id, s.kind, s.status, s.verdict, s.passed, s.total, s.compile_output, s.custom_input
       FROM submissions s JOIN attempts a ON a.id = s.attempt_id
-      WHERE s.id = ${id} AND a.user_id = ${user.id}`;
+      WHERE s.id = ${id} AND ${ownsAttempt(user)}`;
     if (!submission) throw new HttpError(404, "Not found.");
     if (submission.status === "queued" || submission.status === "running") return Response.json({ id, status: submission.status });
     const results = await sql<

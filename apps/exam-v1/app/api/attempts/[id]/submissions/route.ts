@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { handle, HttpError, questionInAttempt, requireOpenAttempt, requireStudent } from "@/lib/attempts";
+import { handle, HttpError, ownsAttempt, questionInAttempt, requireOpenAttempt, requireExamTaker } from "@/lib/attempts";
 import { sql } from "@/lib/db";
 
 const body = z.object({
@@ -14,7 +14,7 @@ const MAX_PENDING = 2;
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   return handle(async () => {
-    const user = await requireStudent();
+    const user = await requireExamTaker();
     const attempt = await requireOpenAttempt((await params).id, user);
     const parsed = body.safeParse(await request.json());
     if (!parsed.success) throw new HttpError(400, parsed.error.issues[0].message);
@@ -39,14 +39,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   return handle(async () => {
-    const user = await requireStudent();
+    const user = await requireExamTaker();
     const attemptId = (await params).id;
     const questionId = new URL(request.url).searchParams.get("questionId") ?? "";
     if (!/^[0-9a-f-]{36}$/i.test(attemptId) || !/^[0-9a-f-]{36}$/i.test(questionId)) throw new HttpError(400, "Invalid request.");
     const rows = await sql`
       SELECT s.id, s.language, s.status, s.verdict, s.passed, s.total, s.created_at
       FROM submissions s JOIN attempts a ON a.id = s.attempt_id
-      WHERE s.attempt_id = ${attemptId} AND a.user_id = ${user.id} AND s.question_id = ${questionId} AND s.kind = 'submit'
+      WHERE s.attempt_id = ${attemptId} AND ${ownsAttempt(user)} AND s.question_id = ${questionId} AND s.kind = 'submit'
       ORDER BY s.created_at DESC LIMIT 20`;
     return Response.json({ submissions: rows });
   });

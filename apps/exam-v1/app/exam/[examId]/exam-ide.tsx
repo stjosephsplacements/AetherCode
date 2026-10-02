@@ -33,6 +33,7 @@ interface Props {
   deadline: string;
   serverNow: string;
   questions: IdeQuestion[];
+  preview: boolean;
   requireFullscreen: boolean;
   blockExternalPaste: boolean;
 }
@@ -68,6 +69,7 @@ export function ExamIde({
   deadline,
   serverNow,
   questions,
+  preview,
   requireFullscreen,
   blockExternalPaste,
 }: Props) {
@@ -437,6 +439,13 @@ export function ExamIde({
           </Button>
         </div>
       </header>
+
+      {preview && (
+        <div className="flex items-center gap-3 bg-ink px-4 py-2 text-sm text-white">
+          <strong>Preview</strong>
+          <span className="text-white/80">You are taking this exam as a student would. Nothing here appears in results; opening Preview again starts over.</span>
+        </div>
+      )}
 
       {unseenAnnouncement && (
         <div role="status" className="flex items-center gap-3 bg-brand px-4 py-2.5 text-sm text-white">

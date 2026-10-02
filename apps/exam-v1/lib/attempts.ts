@@ -21,25 +21,33 @@ export class HttpError extends Error {
   }
 }
 
-export async function requireStudent(): Promise<User> {
+// Anyone signed in may call the exam APIs, but only on attempts they own:
+// students on real attempts, staff on their own preview attempts (`ownsAttempt`).
+export async function requireExamTaker(): Promise<User> {
   const user = await currentUser();
   if (!user) throw new HttpError(401, "Your session has ended. Sign in again.");
-  if (user.role !== "student") throw new HttpError(403, "Only students can do this.");
   return user;
 }
 
-// The attempt must belong to the student and still be within its deadline.
+// SQL guard for an `attempts a` row: owned by this user, and a preview exactly
+// when the user is staff. Students can never reach previews or vice versa.
+export function ownsAttempt(user: User) {
+  return sql`a.user_id = ${user.id} AND a.is_preview = ${user.role !== "student"}`;
+}
+
+// The attempt must belong to the caller and still be within its deadline. Preview
+// attempts skip the network allow-list so staff can try exams from anywhere.
 export async function requireOpenAttempt(attemptId: string, user: User, graceSeconds = 0): Promise<ActiveAttempt> {
   if (!/^[0-9a-f-]{36}$/i.test(attemptId)) throw new HttpError(404, "Attempt not found.");
   const [attempt] = await sql<
-    Array<{ id: string; exam_id: string; languages: string[]; deadline_at: Date; open: boolean; allowed_networks: string[] }>
+    Array<{ id: string; exam_id: string; languages: string[]; deadline_at: Date; open: boolean; is_preview: boolean; allowed_networks: string[] }>
   >`
-    SELECT a.id, a.exam_id, e.languages, a.deadline_at, e.allowed_networks, (a.finished_at IS NULL AND a.deadline_at > now() - make_interval(secs => ${graceSeconds})) AS open
+    SELECT a.id, a.exam_id, e.languages, a.deadline_at, a.is_preview, e.allowed_networks, (a.finished_at IS NULL AND a.deadline_at > now() - make_interval(secs => ${graceSeconds})) AS open
     FROM attempts a JOIN exams e ON e.id = a.exam_id
-    WHERE a.id = ${attemptId} AND a.user_id = ${user.id}`;
+    WHERE a.id = ${attemptId} AND ${ownsAttempt(user)}`;
   if (!attempt) throw new HttpError(404, "Attempt not found.");
   if (!attempt.open) throw new HttpError(409, "Time is up. Your exam has been submitted.");
-  if (!ipAllowed(await clientIp(), attempt.allowed_networks)) throw new HttpError(403, NETWORK_MESSAGE);
+  if (!attempt.is_preview && !ipAllowed(await clientIp(), attempt.allowed_networks)) throw new HttpError(403, NETWORK_MESSAGE);
   return { id: attempt.id, examId: attempt.exam_id, languages: attempt.languages, deadlineAt: attempt.deadline_at };
 }
 

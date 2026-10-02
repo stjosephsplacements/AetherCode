@@ -19,7 +19,7 @@ or database). Those remain the long-term multi-college platform.
 | Role | What they can do |
 |---|---|
 | **Admin** (`/admin`) | Import students from CSV with generated passwords; download credentials or print cut-out login slips; reissue passwords for a whole batch; create faculty/admin accounts; reset one password; enable/disable users; see system health at `/admin/system` and every staff action at `/admin/audit`. Admins can do everything faculty can. |
-| **Faculty** (`/faculty`) | Write questions in Markdown with sample and hidden tests (typed or imported from files/zip), and **verify them against a model solution**; build exams for batches with a time window, per-student duration, languages, **question pools** and **lab lockdown**; watch the **live monitor**; post **announcements**; grant extra time to one student or **everyone at once**; view any student's code, submissions and flags; **regrade** after fixing a test; export results as CSV; **release results**; open the **similarity report**; **duplicate** an exam; **export/import** questions as a file. |
+| **Faculty** (`/faculty`) | Write questions in Markdown with sample and hidden tests (typed or imported from files/zip), and **verify them against a model solution**; build exams for batches with a time window, per-student duration, languages, **question pools** and **lab lockdown**; watch the **live monitor**; post **announcements**; grant extra time to one student or **everyone at once**; view any student's code, submissions and flags; **regrade** after fixing a test; export results as CSV; **release results**; open the **similarity report**; **duplicate** an exam; **preview** it as a student; **export/import** questions as a file. |
 | **Student** (`/student`, `/exam/[id]`) | See exams for their batch; start once the window opens; solve in C, C++, Java or Python with Run, custom input and Submit; see per-test results (hidden tests as pass/fail only); after release, see their score breakdown. |
 
 ## How it works
@@ -49,7 +49,7 @@ or database). Those remain the long-term multi-college platform.
 | `users`, `sessions` | Accounts (`admin`/`faculty`/`student`, batch) and hashed session tokens. Passwords are scrypt hashes. |
 | `questions`, `test_cases` | Problem statement, limits, and ordered tests (`is_sample`, `weight`). |
 | `exams`, `exam_questions` | Window, duration, languages, batches, lockdown settings, `results_released`; questions grouped into `slot`s (pools). |
-| `attempts`, `attempt_questions` | One attempt per student per exam with its deadline; the question drawn for each slot. |
+| `attempts`, `attempt_questions` | One attempt per student per exam with its deadline (or a staff member's `is_preview` try-out); the question drawn for each slot. |
 | `drafts` | Latest autosaved code per attempt and question. |
 | `submissions`, `submission_results` | Runs and submits, their status and score inputs, and per-test verdicts/output. |
 | `attempt_events` | Flags: window blur, fullscreen exit, blocked paste. |
@@ -74,6 +74,11 @@ or database). Those remain the long-term multi-college platform.
   - It uses MOSS-style winnowing over a token stream that ignores names, literals, comments and layout.
   - Code shared by more than half the class (capped at 50 students) is ignored as boilerplate.
   - Pairs scoring ≥ 60% are listed with a side-by-side view. A score is a reason to look, not proof.
+- **Preview as student:** the exam editor's *Preview as student* opens the real exam screen on a preview attempt (`attempts.is_preview`) with a fresh clock and a random pool draw. Run and Submit go to the real judge.
+  - Previews are excluded from results, exports, the similarity report, the "started" count and the question-list freeze.
+  - Previews skip the network allow-list; the fullscreen and paste settings still apply.
+  - Staff can only act on their own preview attempts and students only on real ones (`ownsAttempt` in `lib/attempts.ts`).
+  - Opening Preview again discards the previous preview.
 - **Audit log:** every staff change is recorded with actor, action, target and details:
   - imports, staff accounts, password resets and batch reissues, enabling and disabling users;
   - creating and editing questions and exams, and regrades;

@@ -12,7 +12,7 @@ export default async function FacultyHome() {
   >`
     SELECT e.id, e.title, e.published, e.starts_at, e.ends_at, e.duration_minutes, e.batches,
       (SELECT count(DISTINCT eq.slot)::int FROM exam_questions eq WHERE eq.exam_id = e.id) AS questions,
-      (SELECT count(*)::int FROM attempts a WHERE a.exam_id = e.id) AS started
+      (SELECT count(*)::int FROM attempts a WHERE a.exam_id = e.id AND NOT a.is_preview) AS started
     FROM exams e ORDER BY e.starts_at DESC`;
   return (
     <AppShell user={user}>

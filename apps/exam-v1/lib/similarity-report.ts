@@ -29,7 +29,7 @@ export async function finalCode(examId: string) {
       ORDER BY created_at DESC LIMIT 1
     ) s ON true
     LEFT JOIN drafts d ON d.attempt_id = a.id AND d.question_id = aq.question_id
-    WHERE a.exam_id = ${examId} AND coalesce(s.source, d.source) IS NOT NULL`;
+    WHERE a.exam_id = ${examId} AND NOT a.is_preview AND coalesce(s.source, d.source) IS NOT NULL`;
 }
 
 export async function similarityReport(examId: string): Promise<SlotReport[]> {

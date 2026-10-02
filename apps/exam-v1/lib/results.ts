@@ -55,13 +55,14 @@ export async function examResults(examId: string): Promise<{ questions: ExamSlot
       SELECT u.id, u.username, u.name, u.batch FROM users u, exams e
       WHERE e.id = ${examId} AND u.role = 'student' AND u.batch = ANY(e.batches)
       UNION
-      SELECT u.id, u.username, u.name, u.batch FROM attempts a JOIN users u ON u.id = a.user_id WHERE a.exam_id = ${examId}
+      SELECT u.id, u.username, u.name, u.batch FROM attempts a JOIN users u ON u.id = a.user_id
+      WHERE a.exam_id = ${examId} AND NOT a.is_preview
     ),
     best AS (
       SELECT s.attempt_id, aq.slot,
         max(round(aq.points * s.earned_weight::numeric / nullif(s.total_weight, 0), 2)) AS score
       FROM submissions s
-      JOIN attempts a ON a.id = s.attempt_id AND a.exam_id = ${examId}
+      JOIN attempts a ON a.id = s.attempt_id AND a.exam_id = ${examId} AND NOT a.is_preview
       JOIN attempt_questions aq ON aq.attempt_id = s.attempt_id AND aq.question_id = s.question_id
       WHERE s.kind = 'submit' AND s.status = 'done'
       GROUP BY s.attempt_id, aq.slot
@@ -72,7 +73,7 @@ export async function examResults(examId: string): Promise<{ questions: ExamSlot
       (SELECT count(*)::int FROM submissions s WHERE s.attempt_id = a.id AND s.kind = 'submit' AND s.status IN ('queued', 'running')) AS pending,
       (SELECT count(*)::int FROM attempt_events ev WHERE ev.attempt_id = a.id) AS focus_losses
     FROM roster r
-    LEFT JOIN attempts a ON a.user_id = r.id AND a.exam_id = ${examId}
+    LEFT JOIN attempts a ON a.user_id = r.id AND a.exam_id = ${examId} AND NOT a.is_preview
     ORDER BY r.batch NULLS LAST, r.username`;
   return {
     questions,

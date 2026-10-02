@@ -6,7 +6,7 @@ import type { LanguageId } from "@/lib/languages";
 import { AppShell } from "@/components/app-shell";
 import { PageHeader, buttonClass } from "@/components/ui";
 import { ExamForm } from "../exam-form";
-import { cloneExam } from "../../actions";
+import { cloneExam, previewExam } from "../../actions";
 import { formOptions } from "../load";
 import { clientIp } from "@/lib/client-ip";
 
@@ -35,7 +35,7 @@ export default async function EditExamPage({ params, searchParams }: { params: P
   if (!exam) notFound();
   const questions = await sql<{ question_id: string; points: number; slot: number }[]>`
     SELECT question_id, points, slot FROM exam_questions WHERE exam_id = ${id} ORDER BY ord`;
-  const [{ started }] = await sql<{ started: boolean }[]>`SELECT exists(SELECT 1 FROM attempts WHERE exam_id = ${id}) AS started`;
+  const [{ started }] = await sql<{ started: boolean }[]>`SELECT exists(SELECT 1 FROM attempts WHERE exam_id = ${id} AND NOT is_preview) AS started`;
   return (
     <AppShell user={user}>
       <PageHeader
@@ -45,6 +45,9 @@ export default async function EditExamPage({ params, searchParams }: { params: P
           <>
             <form action={cloneExam.bind(null, id)}>
               <button className={buttonClass("ghost")}>Duplicate</button>
+            </form>
+            <form action={previewExam.bind(null, id)}>
+              <button className={buttonClass("secondary")}>Preview as student</button>
             </form>
             <Link href={`/faculty/exams/${id}/results`} className={buttonClass("secondary")}>
               Results
