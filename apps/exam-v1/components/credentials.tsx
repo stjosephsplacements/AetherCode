@@ -1,6 +1,7 @@
 "use client";
 
 import type { Credential } from "@/app/admin/actions";
+import { LoginSlips } from "./login-slips";
 import { Button } from "./ui";
 
 export function downloadCsv(fileName: string, rows: string[][]) {
@@ -20,6 +21,10 @@ export function CredentialsTable({ credentials }: { credentials: Credential[] })
         <p className="text-sm text-muted">
           Passwords are shown <strong className="text-ink">only once</strong>. Download them now.
         </p>
+        <div className="flex gap-2">
+        <Button variant="secondary" size="sm" onClick={() => window.print()}>
+          Print login slips
+        </Button>
         <Button
           variant="secondary"
           size="sm"
@@ -32,7 +37,9 @@ export function CredentialsTable({ credentials }: { credentials: Credential[] })
         >
           Download CSV
         </Button>
+        </div>
       </div>
+      <LoginSlips credentials={credentials} />
       <div className="max-h-80 overflow-auto rounded-xl border border-line">
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-sunken text-left text-xs uppercase tracking-wide text-muted">

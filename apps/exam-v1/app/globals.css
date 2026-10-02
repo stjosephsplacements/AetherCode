@@ -100,3 +100,27 @@
 .prose-exam th,
 .prose-exam td { border: 1px solid var(--color-line); padding: 0.35em 0.7em; }
 .prose-exam strong { color: var(--color-ink); }
+
+/* Login slips: only the slip sheet is printed. */
+.print-only {
+  display: none;
+}
+@media print {
+  @page {
+    size: A4;
+    margin: 8mm;
+  }
+  body * {
+    visibility: hidden;
+  }
+  .print-only,
+  .print-only * {
+    visibility: visible;
+  }
+  .print-only {
+    display: block;
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+  }
+}

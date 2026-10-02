@@ -131,3 +131,20 @@ export async function setDisabled(userId: string, disabled: boolean): Promise<vo
   if (disabled) await sql`DELETE FROM sessions WHERE user_id = ${userId}`;
   revalidatePath("/admin");
 }
+
+// Issues fresh passwords to every active student in a batch and signs them out,
+// for reprinting lost login slips.
+export async function reissueBatch(_: unknown, form: FormData): Promise<{ error?: string; credentials?: Credential[] }> {
+  await requireUser("admin");
+  const batch = String(form.get("batch") ?? "").trim();
+  if (String(form.get("confirm") ?? "") !== batch) return { error: "Type the batch name exactly to confirm." };
+  const students = await sql<{ id: string; username: string; name: string; batch: string }[]>`
+    SELECT id, username, name, batch FROM users WHERE role = 'student' AND batch = ${batch} AND NOT disabled ORDER BY username`;
+  if (students.length === 0) return { error: "No active students in that batch." };
+  const hashed = await withPasswords(students);
+  await sql.begin(async (tx) => {
+    for (const student of hashed) await tx`UPDATE users SET password_hash = ${student.hash} WHERE id = ${student.id}`;
+    await tx`DELETE FROM sessions WHERE user_id = ANY(${hashed.map((student) => student.id)})`;
+  });
+  return { credentials: hashed.map(({ username, name, batch, password }) => ({ username, name, batch, password })) };
+}

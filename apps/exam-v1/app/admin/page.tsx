@@ -4,7 +4,7 @@ import { sql } from "@/lib/db";
 import { AppShell } from "@/components/app-shell";
 import { Badge, Card, PageHeader, inputClass, buttonClass } from "@/components/ui";
 import { ImportStudents } from "./import-students";
-import { CreateStaff, ResetPassword } from "./staff-forms";
+import { CreateStaff, ReissueBatch, ResetPassword } from "./staff-forms";
 import { setDisabled } from "./actions";
 
 const PAGE = 100;
@@ -32,6 +32,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           <CreateStaff />
           <ResetPassword />
         </div>
+      </div>
+
+      <div className="mt-6">
+        <ReissueBatch batches={batches.map((row) => row.batch)} />
       </div>
 
       <section className="mt-12">
