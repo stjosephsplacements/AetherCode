@@ -7,6 +7,8 @@ import { attemptStatus, examResults } from "@/lib/results";
 import { AppShell } from "@/components/app-shell";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { Badge, Card, PageHeader, buttonClass } from "@/components/ui";
+import { setResultsReleased } from "../../../actions";
+import { AnnounceForm } from "./announce-form";
 
 const STATUS_TONE = { absent: "neutral", in_progress: "brand", finished: "pass" } as const;
 const STATUS_LABEL = { absent: "Not started", in_progress: "In progress", finished: "Finished" } as const;
@@ -16,10 +18,12 @@ export default async function ResultsPage({ params, searchParams }: { params: Pr
   const { id } = await params;
   const { batch = "" } = await searchParams;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
-  const [exam] = await sql<{ title: string; published: boolean; starts_at: Date; ends_at: Date; batches: string[] }[]>`
-    SELECT title, published, starts_at, ends_at, batches FROM exams WHERE id = ${id}`;
+  const [exam] = await sql<{ title: string; published: boolean; starts_at: Date; ends_at: Date; batches: string[]; results_released: boolean }[]>`
+    SELECT title, published, starts_at, ends_at, batches, results_released FROM exams WHERE id = ${id}`;
   if (!exam) notFound();
   const phase = examPhase(exam);
+  const announcements = await sql<{ id: string; message: string; created_at: Date }[]>`
+    SELECT id, message, created_at FROM announcements WHERE exam_id = ${id} ORDER BY id DESC`;
   const { questions, rows: allRows } = await examResults(id);
   const rows = batch ? allRows.filter((row) => row.batch === batch) : allRows;
   const statuses = rows.map((row) => attemptStatus(row));
@@ -62,6 +66,36 @@ export default async function ResultsPage({ params, searchParams }: { params: Pr
             <div className="mt-1 font-display text-2xl font-semibold tracking-tight">{value}</div>
           </Card>
         ))}
+      </div>
+      <div className="mb-6 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+        <Card className="p-5">
+          <h2 className="mb-1 font-display text-lg font-semibold tracking-tight">Announce to students</h2>
+          <p className="mb-3 text-sm text-muted">Shown as a banner on every student&apos;s exam screen within about 15 seconds.</p>
+          <AnnounceForm examId={id} />
+          {announcements.length > 0 && (
+            <ul className="mt-4 space-y-1.5 text-sm">
+              {announcements.map((entry) => (
+                <li key={entry.id} className="flex gap-3">
+                  <span className="w-16 shrink-0 text-faint">{entry.created_at.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit" })}</span>
+                  <span>{entry.message}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+        <Card className="flex flex-col p-5">
+          <h2 className="mb-1 font-display text-lg font-semibold tracking-tight">Results for students</h2>
+          <p className="text-sm text-muted">
+            {exam.results_released
+              ? "Released: students can see their scores and per-test results."
+              : "Hidden: students only see that their exam was submitted."}
+          </p>
+          <form action={setResultsReleased.bind(null, id, !exam.results_released)} className="mt-auto pt-4">
+            <button className={buttonClass(exam.results_released ? "secondary" : "go", "sm")}>
+              {exam.results_released ? "Hide results" : "Release results"}
+            </button>
+          </form>
+        </Card>
       </div>
       {pending > 0 && (
         <p className="mb-4 rounded-xl bg-brand-soft px-4 py-3 text-sm text-brand-ink">

@@ -11,11 +11,30 @@ export default async function StudentHome({ searchParams }: { searchParams: Prom
   const user = await requireUser("student");
   const { network } = await searchParams;
   const exams = await sql<
-    Array<{ id: string; title: string; instructions: string; published: boolean; starts_at: Date; ends_at: Date; duration_minutes: number; questions: number; attempt_open: boolean | null }>
+    Array<{
+      id: string;
+      title: string;
+      instructions: string;
+      published: boolean;
+      starts_at: Date;
+      ends_at: Date;
+      duration_minutes: number;
+      questions: number;
+      attempt_open: boolean | null;
+      results_released: boolean;
+      score: string | null;
+      max_score: number | null;
+    }>
   >`
     SELECT e.id, e.title, e.instructions, e.published, e.starts_at, e.ends_at, e.duration_minutes,
       (SELECT count(DISTINCT eq.slot)::int FROM exam_questions eq WHERE eq.exam_id = e.id) AS questions,
-      (a.finished_at IS NULL AND a.deadline_at > now()) AS attempt_open
+      (a.finished_at IS NULL AND a.deadline_at > now()) AS attempt_open,
+      e.results_released,
+      (SELECT sum(best.score) FROM attempt_questions aq, LATERAL (
+         SELECT max(round(aq.points * s.earned_weight::numeric / nullif(s.total_weight, 0), 2)) AS score FROM submissions s
+         WHERE s.attempt_id = aq.attempt_id AND s.question_id = aq.question_id AND s.kind = 'submit' AND s.status = 'done'
+       ) best WHERE aq.attempt_id = a.id) AS score,
+      (SELECT sum(points)::int FROM attempt_questions aq WHERE aq.attempt_id = a.id) AS max_score
     FROM exams e
     LEFT JOIN attempts a ON a.exam_id = e.id AND a.user_id = ${user.id}
     WHERE e.published AND ${user.batch} = ANY(e.batches) AND e.ends_at > now() - interval '14 days'
@@ -56,7 +75,16 @@ export default async function StudentHome({ searchParams }: { searchParams: Prom
                 {exam.instructions && !done && <p className="mt-4 max-w-2xl whitespace-pre-line text-sm leading-relaxed text-ink-soft">{exam.instructions}</p>}
               </div>
               <div>
-                {exam.attempt_open ? (
+                {done && exam.results_released ? (
+                  <div className="text-right">
+                    <p className="font-display text-3xl font-semibold tracking-tight">
+                      {Number(exam.score ?? 0)} <span className="text-base font-normal text-muted">/ {exam.max_score}</span>
+                    </p>
+                    <Link href={`/student/results/${exam.id}`} className={`${buttonClass("secondary", "sm")} mt-2`}>
+                      View results
+                    </Link>
+                  </div>
+                ) : exam.attempt_open ? (
                   <Link href={`/exam/${exam.id}`} className={buttonClass("go")}>
                     Resume exam →
                   </Link>

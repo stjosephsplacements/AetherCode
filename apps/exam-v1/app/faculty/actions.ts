@@ -173,3 +173,18 @@ export async function extendAttempt(attemptId: string, form: FormData): Promise<
     WHERE id = ${attemptId}`;
   revalidatePath(`/faculty/attempts/${attemptId}`);
 }
+
+export async function announce(examId: string, _: unknown, form: FormData): Promise<{ error?: string; ok?: boolean }> {
+  const user = await requireUser("faculty", "admin");
+  const message = String(form.get("message") ?? "").trim();
+  if (message.length === 0 || message.length > 1000) return { error: "Write a message under 1000 characters." };
+  await sql`INSERT INTO announcements (exam_id, message, created_by) VALUES (${examId}, ${message}, ${user.id})`;
+  revalidatePath(`/faculty/exams/${examId}/results`);
+  return { ok: true };
+}
+
+export async function setResultsReleased(examId: string, released: boolean): Promise<void> {
+  await requireUser("faculty", "admin");
+  await sql`UPDATE exams SET results_released = ${released} WHERE id = ${examId}`;
+  revalidatePath(`/faculty/exams/${examId}/results`);
+}

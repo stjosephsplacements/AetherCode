@@ -106,7 +106,10 @@ export function ExamIde({
   const [customInput, setCustomInput] = useState<Record<string, string>>({});
   const [saveState, setSaveState] = useState<"saved" | "saving" | "offline">("saved");
   const [notice, setNotice] = useState<string | null>(null);
-  const [fullscreen, setFullscreen] = useState(true);
+  const [announcements, setAnnouncements] = useState<Array<{ id: number; message: string; at: string }>>([]);
+  const [unseenAnnouncement, setUnseenAnnouncement] = useState<string | null>(null);
+  // Start gated so the exam never flashes before the fullscreen check runs.
+  const [fullscreen, setFullscreen] = useState(!requireFullscreen);
   const [confirmEnd, setConfirmEnd] = useState(false);
   const [split, setSplit] = useState(42);
   const [consoleHeight, setConsoleHeight] = useState(38);
@@ -184,6 +187,31 @@ export function ExamIde({
     const nextSource = code[key(question.id, next)] ?? LANGUAGES[next].template;
     dirty.current.set(question.id, { questionId: question.id, language: next, source: nextSource });
   }
+
+  // ---- announcements from faculty ----
+  useEffect(() => {
+    let lastId = 0;
+    const poll = async () => {
+      try {
+        const response = await fetch(`/api/attempts/${attemptId}/announcements?after=${lastId}`);
+        if (!response.ok) return;
+        const { announcements: fresh } = (await response.json()) as { announcements: Array<{ id: number; message: string; at: string }> };
+        if (fresh.length === 0) return;
+        lastId = Math.max(lastId, fresh[fresh.length - 1].id);
+        // Merge by id: overlapping polls may return the same announcement twice.
+        setAnnouncements((current) => {
+          const known = new Set(current.map((entry) => entry.id));
+          return [...current, ...fresh.filter((entry) => !known.has(entry.id))];
+        });
+        setUnseenAnnouncement(fresh[fresh.length - 1].message);
+      } catch {
+        // Next poll retries.
+      }
+    };
+    void poll();
+    const timer = setInterval(poll, 15_000);
+    return () => clearInterval(timer);
+  }, [attemptId]);
 
   // ---- focus, fullscreen and paste tracking ----
   const logEvent = useCallback(
@@ -399,6 +427,16 @@ export function ExamIde({
         </div>
       </header>
 
+      {unseenAnnouncement && (
+        <div role="status" className="flex items-center gap-3 bg-brand px-4 py-2.5 text-sm text-white">
+          <strong className="shrink-0">Announcement</strong>
+          <span className="min-w-0">{unseenAnnouncement}</span>
+          <button type="button" onClick={() => setUnseenAnnouncement(null)} className="ml-auto shrink-0 font-semibold hover:underline">
+            Got it
+          </button>
+        </div>
+      )}
+
       {notice && (
         <div className="flex items-center gap-3 bg-accent-soft px-4 py-2 text-sm font-medium text-accent">
           {notice}
@@ -412,6 +450,21 @@ export function ExamIde({
         {/* problem */}
         <section style={{ width: `${split}%` }} className="min-w-0 overflow-y-auto border-r border-line bg-surface">
           <div className="px-6 py-6">
+            {announcements.length > 0 && (
+              <div className="mb-5 rounded-xl border border-brand/20 bg-brand-soft/60 px-4 py-3 text-sm">
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-brand-ink">Announcements</p>
+                <ul className="space-y-1">
+                  {announcements.map((entry) => (
+                    <li key={entry.id} className="text-ink">
+                      <span className="mr-2 text-xs text-faint">
+                        {new Date(entry.at).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}
+                      </span>
+                      {entry.message}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <p className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-accent">
               Question {active + 1} of {questions.length}
             </p>
