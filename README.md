@@ -1,25 +1,78 @@
 # AetherCode
 
-AetherCode is a multi-tenant coding-assessment platform for colleges. This
-repository delivers the v1 backend foundation and core workflows: service-owned
-PostgreSQL schemas, identity and authorization, tenant/user management,
-immutable question and assessment authoring, candidate attempts, event-fed
-analytics, notifications, Gateway/SEB enforcement, and an isolated Judge
-control-plane boundary. It is **not** a production-promotion declaration:
-external integrations and operational evidence remain tracked in
-[TASKLIST.md](TASKLIST.md). The Next.js frontend is intentionally out of scope
-for this delivery.
+AetherCode is a coding-assessment platform for colleges. The repository holds
+two independent codebases:
 
-## Repository layout
+| | Exam app v1 | Platform |
+|---|---|---|
+| **Path** | [`apps/exam-v1/`](apps/exam-v1/README.md) | `services/`, `libs/`, `deploy/` |
+| **What it is** | One Next.js app + PostgreSQL + a grading worker over Judge0 (or Piston), deployed with Docker Compose behind nginx on a single campus server. | Multi-tenant Go microservices with PostgreSQL RLS, signed authorization capabilities, an isolated Judge0 wrapper and SEB enforcement, for Kubernetes on bare metal. |
+| **Status** | Built for the first real graded exams (October 2026). Feature-complete for a supervised lab exam; needs on-server verification (below). | Strong foundation, but **cannot run an exam yet**: submissions are never dispatched to the judge, nothing accepts raw code or test cases, and `web/` is empty. |
+| **Start here** | [apps/exam-v1/README.md](apps/exam-v1/README.md) | [PLAN.md](PLAN.md), [TASKLIST.md](TASKLIST.md), [Prompt.md](Prompt.md), [PENDING.md](PENDING.md) |
+
+The split, and why it exists, is recorded in
+[ADR-0016](docs/adr/0016-lean-exam-app-for-first-launch.md). The two share no
+code or database.
+
+## Exam app v1
+
+Everything a college needs to run a graded coding exam in a supervised lab:
+
+- **Admin:**
+  - CSV student import with generated passwords and printable login slips;
+  - batch password reissue, faculty accounts, enable/disable;
+  - a system status page (database, worker, engine, grading queue).
+- **Faculty:**
+  - questions with sample and hidden tests (typed, or imported from files or a
+    HackerRank-style zip);
+  - exams per batch with a time window and per-student duration;
+  - question pools (each student draws one per slot);
+  - lab lockdown: allowed networks, fullscreen gate, outside-paste blocking;
+  - a live monitor with announcements, per-student extra time and regrading;
+  - CSV export, result release, and a code-similarity report.
+- **Students:**
+  - a HackerRank-style exam screen in C, C++, Java or Python;
+  - Run against samples, Submit against all tests, custom input;
+  - per-test results, with hidden tests shown as pass/fail only;
+  - autosave, a server-owned timer, and auto-submission at time-up.
+- **Grading:**
+  - a worker that compiles once and runs every test in one Judge0 job;
+  - Piston and per-test fallbacks;
+  - retries, crash recovery, and runs prioritised over submits.
+- **Operations:**
+  - Docker Compose with nginx, Postgres, Judge0, and 15-minute backups;
+  - `pnpm engine-check` and `pnpm loadtest`.
+
+```sh
+make exam-check          # typecheck + unit tests
+make exam-build          # production build
+make exam-up             # full deployment (configure apps/exam-v1/deploy first)
+```
+
+**Before the first graded exam on a new server:**
+1. Run `pnpm engine-check` inside the worker container. It must print "Engine OK".
+2. Run a load test at the real student count.
+3. Hold a mock exam in the lab.
+
+Judge0 1.13 needs cgroup v1 on the host. The full deployment guide and every
+rule (scoring, timing, visibility, limits) are in the
+[app README](apps/exam-v1/README.md).
+
+## Platform: repository layout
 
 - `services/` contains independently deployable Go services.
 - `libs/pkg/` contains shared, framework-neutral platform packages.
 - `libs/proto/` is the source of truth for internal gRPC contracts.
 - `deploy/` contains local, Kubernetes, and database provisioning assets.
-- `docs/` contains architecture records, database documentation, and API output.
+- `docs/` contains architecture records, database documentation, runbooks and
+  API output.
+- `web/` is reserved for the platform's Next.js frontend and is currently empty.
 
 Start with [the implementation plan](PLAN.md), [the documentation index](docs/README.md),
-and [the delivery status](TASKLIST.md).
+[the delivery status](TASKLIST.md), and the latest hand-off in [Prompt.md](Prompt.md).
+Nothing here is a production-promotion declaration: external integrations and
+operational evidence are tracked in [TASKLIST.md](TASKLIST.md) and
+[PENDING.md](PENDING.md).
 
 ## Security and database model
 
@@ -61,11 +114,30 @@ Judge control-plane state is isolated in `aether_judge_wrapper` with its own
 PostgreSQL HA deployment and RabbitMQ quorum cluster. It does not own or share
 Redis with the platform; Redis is an internal dependency of the separately
 operated Judge0 engine after approval. The wrapper accepts durable, encrypted
-references and leases completions through private mTLS gRPC. Submission has a
-completion-only bridge that persists a leased result before ACKing it and then
-publishes the platform-owned completion event. That bridge cannot admit work to
-the wrapper. The foundation does **not** include a Judge0 engine dispatcher, a
-safe admission adapter, or a proven grading path.
+references and leases completions through private mTLS gRPC.
+
+Implemented on the judge side:
+- a real Judge0 HTTP client (`services/judge/internal/adapters/judge0`), selected
+  with `JUDGE_ENGINE` and only enabled when `JUDGE_ENGINE_COMPATIBILITY_APPROVED`
+  is set;
+- fan-out of an evaluation bundle into one execution unit per test case
+  (ADR-0014);
+- per-unit results surfaced to submission, with a candidate-versus-faculty
+  visibility boundary (ADR-0015).
+
+Submission has a completion-only bridge that persists a leased result before
+ACKing it and then publishes the platform-owned completion event.
+
+**The grading path is still not closed:**
+- nothing consumes `submission.evaluation_requested.v1` to admit work to the
+  judge;
+- `FetchQueuedJob` hands encrypted object references to the engine without
+  decrypting them;
+- the `judge-control` Helm chart's engine variables do not match the names the
+  Go config reads.
+
+These items, and the candidate run-code work in progress, are tracked in
+[Prompt.md](Prompt.md).
 
 The Judge0 engine chart is disabled by default. It must remain blocked until
 the gVisor, no-network, non-privileged compatibility gate has approved an
@@ -73,24 +145,30 @@ immutable image and recorded queue-replay, node-failure, and 10,000-candidate /
 five-minute load evidence, including the 60-second final-verdict P95 target.
 See [the compatibility-gate runbook](docs/runbooks/judge0-compatibility-gate.md).
 
-## Current backend scope
+## Platform: current backend scope
 
-Implemented HTTP/gRPC backend workflows include identity registration, login,
-MFA and recovery; college, department, batch, role, placement and student
-affiliation management; immutable question/exam version publication and
-assignments; candidate attempts and append-only answers; in-app notification
-preferences; and event-fed progress/reporting projections. Gateway uses an
-explicit private-upstream allow-list, verifies protected identity assertions on
-every request, and calls SEB validation before configured exam routes are
-forwarded.
+Implemented HTTP/gRPC backend workflows include:
+- identity registration, login, MFA and recovery;
+- college, department, batch, role, placement and student affiliation
+  management;
+- immutable question and exam version publication, and assignments;
+- candidate attempts and append-only answers;
+- in-app notification preferences;
+- event-fed progress and reporting projections;
+- cursor-paginated list endpoints and soft delete (ADR-0013).
 
-The services deliberately persist encrypted object references rather than
-pretending to provide an object-storage/KMS implementation. Likewise, email
-delivery, analytics-export storage, a platform-side **admission** adapter, and
-the Judge0 dispatcher require their separate approved external integrations.
-They must not be replaced with local mock behavior in a production deployment.
+Gateway uses an explicit private-upstream allow-list, verifies protected
+identity assertions on every request, and calls SEB validation before
+configured exam routes are forwarded.
 
-## First run
+Shared adapters exist for MinIO object storage (`libs/pkg/storage/minio`) and a
+local KMS (`libs/pkg/kms/local`) for development. Most services still persist
+encrypted object references supplied by the caller. Production needs approved
+India-resident object storage and KMS, an email provider, and analytics-export
+storage (see [PENDING.md](PENDING.md)). They must not be replaced with local mock
+behaviour in a production deployment.
+
+## Platform: first run
 
 A fresh deployment has no principals and no role assignments, so there is no way
 to call any authenticated endpoint. Run the one-time bootstrap command to create
@@ -113,7 +191,7 @@ repaired by running it again — each half independently no-ops if its row alrea
 exists. Once the platform has any principal or any `super_admin`, both functions
 permanently refuse further calls.
 
-## HMAC capability key rotation
+## Platform: HMAC capability key rotation
 
 `authz.context_keys` (present in the `analytics`, `assessment`, `identity`,
 `notification`, `question-bank`, `seb`, `submission`, `tenant`, and `user`
@@ -163,14 +241,22 @@ whose secret is supplied externally rather than generated locally.
 
 ## Local prerequisites
 
-Install Go, Docker, GNU Make, Buf, and golangci-lint. The pinned
-`golang-migrate` runner is built through Go, so no separately installed
-migration CLI is needed. Copy `.env.example` to `.env` and replace development
-passwords before running the local stack.
+- **Exam app:** Node.js 24, pnpm 12, Docker. See
+  [apps/exam-v1/README.md](apps/exam-v1/README.md#local-development).
+- **Platform:** Go, Docker, GNU Make, Buf, and golangci-lint. The pinned
+  `golang-migrate` runner is built through Go, so no separately installed
+  migration CLI is needed. Copy `.env.example` to `.env` and replace development
+  passwords before running the local stack.
 
 ## Common commands
 
 ```sh
+# exam app
+make exam-check
+make exam-build
+make exam-up            # / make exam-down
+
+# platform
 make dev-up
 make dev-judge-up
 make build
@@ -184,4 +270,5 @@ make migrate SVC=identity DIR=up
 the isolated Judge control-plane profile using an untracked `.judge-control.env`
 file; it intentionally does not start Judge0. `make test-integration` requires
 Docker. Production credentials and database roles are provisioned through the
-deployment configuration, never from this repository.
+deployment configuration, never from this repository. The full command list is
+in [CLAUDE.md](CLAUDE.md#commands).

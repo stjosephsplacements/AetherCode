@@ -4,10 +4,10 @@ SHELL := /usr/bin/env bash
 SERVICES := gateway identity tenant user question-bank assessment submission judge seb notification analytics
 MODULES := libs/pkg $(addprefix services/,$(SERVICES))
 
-.PHONY: help dev-up dev-down dev-judge-up dev-judge-down build test test-integration test-migrations lint proto migrate bootstrap rotate-authz-key fmt fmt-check vet vuln verify-workspace
+.PHONY: help dev-up dev-down dev-judge-up dev-judge-down build test test-integration test-migrations lint proto migrate bootstrap rotate-authz-key fmt fmt-check vet vuln verify-workspace exam-check exam-build exam-up exam-down
 
 help:
-	@printf '%s\n' 'Targets: dev-up dev-down dev-judge-up dev-judge-down build test test-integration test-migrations lint proto migrate bootstrap rotate-authz-key fmt fmt-check vet vuln'
+	@printf '%s\n' 'Targets: exam-check exam-build exam-up exam-down dev-up dev-down dev-judge-up dev-judge-down build test test-integration test-migrations lint proto migrate bootstrap rotate-authz-key fmt fmt-check vet vuln'
 
 verify-workspace:
 	@go work sync
@@ -82,3 +82,15 @@ vet: verify-workspace
 vuln: verify-workspace
 	@command -v govulncheck >/dev/null
 	@for module in $(MODULES); do (cd $$module && govulncheck ./...); done
+
+exam-check:
+	@cd apps/exam-v1 && pnpm install --frozen-lockfile && pnpm typecheck && pnpm test
+
+exam-build:
+	@cd apps/exam-v1 && pnpm install --frozen-lockfile && pnpm build
+
+exam-up:
+	@cd apps/exam-v1/deploy && docker compose up -d --build
+
+exam-down:
+	@cd apps/exam-v1/deploy && docker compose down
