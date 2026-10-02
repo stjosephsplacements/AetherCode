@@ -6,7 +6,9 @@ import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { OUTPUT_LIMIT_BYTES } from "@/lib/batch";
-import { LANGUAGE_IDS } from "@/lib/languages";
+import { engineFromEnv } from "@/lib/engine";
+import { createLimiter, grade } from "@/lib/grade";
+import { LANGUAGE_IDS, isLanguageId } from "@/lib/languages";
 import { isValidNetwork } from "@/lib/net";
 
 const questionInput = z.object({
@@ -26,6 +28,8 @@ const questionInput = z.object({
     )
     .min(1, "Add at least one test case")
     .max(100),
+  referenceLanguage: z.enum(LANGUAGE_IDS as [string, ...string[]]).nullable(),
+  referenceSource: z.string().max(65_536, "Model solution must be under 64 KB").nullable(),
 });
 
 export type QuestionInput = z.input<typeof questionInput>;
@@ -36,20 +40,26 @@ export async function saveQuestion(id: string | null, input: QuestionInput): Pro
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const question = parsed.data;
   if (!question.tests.some((test) => test.isSample)) return { error: "Mark at least one test case as a sample so students can Run." };
+  // A blank model solution is stored as none.
+  const reference = question.referenceSource?.trim()
+    ? { language: question.referenceLanguage, source: question.referenceSource }
+    : { language: null, source: null };
 
   const questionId = await sql.begin(async (tx) => {
     let questionId = id;
     if (questionId) {
       const updated = await tx`
         UPDATE questions SET title = ${question.title}, statement = ${question.statement},
-          time_limit_ms = ${question.timeLimitMs}, memory_limit_kb = ${question.memoryLimitMb * 1024}, updated_at = now()
+          time_limit_ms = ${question.timeLimitMs}, memory_limit_kb = ${question.memoryLimitMb * 1024}, updated_at = now(),
+          reference_language = ${reference.language}, reference_source = ${reference.source}
         WHERE id = ${questionId} RETURNING id`;
       if (updated.length === 0) throw new Error("question not found");
       await tx`DELETE FROM test_cases WHERE question_id = ${questionId}`;
     } else {
       const [created] = await tx<{ id: string }[]>`
-        INSERT INTO questions (title, statement, time_limit_ms, memory_limit_kb, created_by)
-        VALUES (${question.title}, ${question.statement}, ${question.timeLimitMs}, ${question.memoryLimitMb * 1024}, ${user.id})
+        INSERT INTO questions (title, statement, time_limit_ms, memory_limit_kb, reference_language, reference_source, created_by)
+        VALUES (${question.title}, ${question.statement}, ${question.timeLimitMs}, ${question.memoryLimitMb * 1024},
+          ${reference.language}, ${reference.source}, ${user.id})
         RETURNING id`;
       questionId = created.id;
     }
@@ -67,6 +77,43 @@ export async function saveQuestion(id: string | null, input: QuestionInput): Pro
   });
   revalidatePath("/faculty/questions");
   redirect(`/faculty/questions/${questionId}?saved=1`);
+}
+
+const solutionCheckInput = z.object({
+  language: z.string().refine(isLanguageId, "Pick a language"),
+  source: z.string().trim().min(1, "Paste a model solution first").max(65_536),
+  timeLimitMs: z.coerce.number().int().min(100).max(20_000),
+  memoryLimitMb: z.coerce.number().int().min(16).max(1024),
+  tests: z.array(z.object({ input: z.string().max(2_000_000), expectedOutput: z.string(), isSample: z.boolean() })).min(1).max(100),
+});
+
+export interface SolutionCheck {
+  error?: string;
+  compileOutput?: string;
+  tests?: Array<{ verdict: string; actual: string; timeMs: number | null }>;
+}
+
+// Runs the model solution against the editor's current (possibly unsaved) tests
+// through the real engine, so wrong expected outputs are caught before an exam.
+export async function checkSolution(input: z.input<typeof solutionCheckInput>): Promise<SolutionCheck> {
+  await requireUser("faculty", "admin");
+  const parsed = solutionCheckInput.safeParse(input);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const check = parsed.data;
+  if (!isLanguageId(check.language)) return { error: "Pick a language" };
+  try {
+    const outcome = await grade(engineFromEnv(), createLimiter(4), {
+      language: check.language,
+      source: check.source,
+      timeLimitMs: check.timeLimitMs,
+      memoryLimitKb: check.memoryLimitMb * 1024,
+      tests: check.tests.map((test) => ({ id: null, input: test.input, expectedOutput: test.expectedOutput, isSample: test.isSample, weight: 1 })),
+    });
+    if (outcome.verdict === "compile_error") return { compileOutput: outcome.compileOutput };
+    return { tests: outcome.outcomes.map((result) => ({ verdict: result.verdict, actual: result.stdout, timeMs: result.timeMs })) };
+  } catch (error) {
+    return { error: `The judge could not run the solution: ${error instanceof Error ? error.message : "unknown error"}` };
+  }
 }
 
 // Re-queues every final submission for a question, e.g. after fixing a test case.

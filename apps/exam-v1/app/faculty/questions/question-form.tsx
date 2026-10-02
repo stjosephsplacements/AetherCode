@@ -3,7 +3,10 @@
 import { useState, useTransition } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { saveQuestion, type QuestionInput } from "../actions";
+import { checkSolution, saveQuestion, type QuestionInput, type SolutionCheck } from "../actions";
+import { LANGUAGES, LANGUAGE_IDS } from "@/lib/languages";
+import { normalizeOutput } from "@/lib/compare";
+import { VERDICT_LABEL } from "@/lib/verdicts";
 import { pairTestFiles, readZip } from "@/lib/test-files";
 import { Button, Card, Field, buttonClass, inputClass, cx } from "@/components/ui";
 
@@ -26,11 +29,21 @@ Print one integer.
 - 1 ≤ n ≤ 10^6
 `;
 
-export function QuestionForm({ id, initial }: { id: string | null; initial?: QuestionInput & { tests: Test[] } }) {
+export function QuestionForm({
+  id,
+  initial,
+}: {
+  id: string | null;
+  initial?: Omit<QuestionInput, "tests"> & { tests: Test[]; referenceLanguage: string | null; referenceSource: string | null };
+}) {
   const [title, setTitle] = useState(initial?.title ?? "");
   const [statement, setStatement] = useState(initial?.statement ?? STARTER);
   const [timeLimitMs, setTimeLimitMs] = useState(Number(initial?.timeLimitMs ?? 2000));
   const [memoryLimitMb, setMemoryLimitMb] = useState(Number(initial?.memoryLimitMb ?? 256));
+  const [referenceLanguage, setReferenceLanguage] = useState(initial?.referenceLanguage ?? "cpp");
+  const [referenceSource, setReferenceSource] = useState(initial?.referenceSource ?? "");
+  const [check, setCheck] = useState<SolutionCheck | null>(null);
+  const [checking, startChecking] = useTransition();
   const [tests, setTests] = useState<Test[]>(
     initial?.tests ?? [
       { input: "", expectedOutput: "", isSample: true, weight: 1 },
@@ -75,10 +88,34 @@ export function QuestionForm({ id, initial }: { id: string | null; initial?: Que
     }
   }
 
+  function runCheck() {
+    setCheck(null);
+    startChecking(async () =>
+      setCheck(await checkSolution({ language: referenceLanguage, source: referenceSource, timeLimitMs, memoryLimitMb, tests })),
+    );
+  }
+
+  // Replace expected outputs with the solution's output for tests it ran successfully.
+  function adoptOutputs(indexes: number[]) {
+    if (!check?.tests) return;
+    setTests((current) => current.map((test, index) => (indexes.includes(index) ? { ...test, expectedOutput: check.tests![index].actual } : test)));
+    setCheck((current) =>
+      current?.tests ? { ...current, tests: current.tests.map((entry, index) => (indexes.includes(index) ? { ...entry, verdict: "accepted" } : entry)) } : current,
+    );
+  }
+
   function submit() {
     setError(null);
     startTransition(async () => {
-      const result = await saveQuestion(id, { title, statement, timeLimitMs, memoryLimitMb, tests });
+      const result = await saveQuestion(id, {
+        title,
+        statement,
+        timeLimitMs,
+        memoryLimitMb,
+        tests,
+        referenceLanguage: referenceSource.trim() ? referenceLanguage : null,
+        referenceSource: referenceSource.trim() ? referenceSource : null,
+      });
       if (result?.error) setError(result.error);
     });
   }
@@ -184,6 +221,41 @@ export function QuestionForm({ id, initial }: { id: string | null; initial?: Que
         </Card>
       ))}
 
+      <Card className="grid gap-4 p-6">
+        <div>
+          <h2 className="font-display text-xl font-semibold tracking-tight">Model solution</h2>
+          <p className="mt-1 text-sm text-muted">
+            Faculty only, never shown to students. Run it against the tests above to catch wrong expected outputs before the exam, or to fill outputs in
+            automatically from inputs.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <select value={referenceLanguage} onChange={(event) => setReferenceLanguage(event.target.value)} className={`${inputClass} w-auto`}>
+            {LANGUAGE_IDS.map((language) => (
+              <option key={language} value={language}>
+                {LANGUAGES[language].label}
+              </option>
+            ))}
+          </select>
+          <Button type="button" variant="secondary" onClick={runCheck} disabled={checking || !referenceSource.trim()}>
+            {checking ? "Running on the judge…" : "Check tests with this solution"}
+          </Button>
+        </div>
+        <textarea
+          value={referenceSource}
+          onChange={(event) => setReferenceSource(event.target.value)}
+          rows={10}
+          spellCheck={false}
+          placeholder="Paste a correct solution"
+          className={`${inputClass} font-mono text-[13px]`}
+        />
+        {check?.error && <p className="rounded-xl bg-error-soft px-4 py-3 text-sm text-error">{check.error}</p>}
+        {check?.compileOutput !== undefined && (
+          <pre className="max-h-48 overflow-auto rounded-xl bg-error-soft px-4 py-3 font-mono text-xs text-error">{check.compileOutput || "Compilation failed."}</pre>
+        )}
+        {check?.tests && <CheckResults check={check.tests} tests={tests} limitMs={timeLimitMs * LANGUAGES[referenceLanguage as keyof typeof LANGUAGES].timeMultiplier} onAdopt={adoptOutputs} />}
+      </Card>
+
       <div className="sticky bottom-0 -mx-5 flex items-center justify-end gap-3 border-t border-line bg-canvas/90 px-5 py-4 backdrop-blur">
         {error && <p className="mr-auto text-sm font-medium text-error">{error}</p>}
         <Button type="button" onClick={submit} disabled={pending}>
@@ -210,4 +282,71 @@ function TestText({ value, onChange, placeholder }: { value: string; onChange: (
     );
   }
   return <textarea value={value} onChange={(event) => onChange(event.target.value)} rows={5} placeholder={placeholder} className={`${inputClass} font-mono text-[13px]`} />;
+}
+
+function CheckResults({
+  check,
+  tests,
+  limitMs,
+  onAdopt,
+}: {
+  check: NonNullable<SolutionCheck["tests"]>;
+  tests: Test[];
+  limitMs: number;
+  onAdopt: (indexes: number[]) => void;
+}) {
+  const ran = (verdict: string) => verdict === "accepted" || verdict === "wrong_answer";
+  const mismatched = check.flatMap((entry, index) => (entry.verdict === "wrong_answer" ? [index] : []));
+  const passed = check.filter((entry) => entry.verdict === "accepted").length;
+  const slowest = Math.max(0, ...check.map((entry) => entry.timeMs ?? 0));
+  return (
+    <div className="grid gap-3">
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        <strong className={passed === check.length ? "text-pass" : "text-fail"}>
+          {passed}/{check.length} tests match the solution
+        </strong>
+        {slowest > limitMs * 0.5 && (
+          <span className="text-accent">
+            Slowest test took {slowest} ms of the {limitMs} ms limit. Slower but correct student solutions may time out.
+          </span>
+        )}
+        {mismatched.length > 0 && (
+          <Button type="button" variant="secondary" size="sm" className="ml-auto" onClick={() => onAdopt(mismatched)}>
+            Use solution output for {mismatched.length} test{mismatched.length === 1 ? "" : "s"}
+          </Button>
+        )}
+      </div>
+      <ul className="grid gap-2">
+        {check.map((entry, index) => (
+          <li key={index} className="rounded-xl border border-line px-4 py-2.5 text-sm">
+            <div className="flex items-center gap-3">
+              <span className="font-semibold">Test {index + 1}</span>
+              <span className={entry.verdict === "accepted" ? "text-pass" : "text-fail"}>{VERDICT_LABEL[entry.verdict] ?? entry.verdict}</span>
+              {entry.timeMs !== null && <span className="text-xs text-faint">{entry.timeMs} ms</span>}
+              {entry.verdict === "wrong_answer" && (
+                <button type="button" onClick={() => onAdopt([index])} className="ml-auto text-xs font-semibold text-brand hover:underline">
+                  Use solution output
+                </button>
+              )}
+            </div>
+            {entry.verdict === "wrong_answer" && ran(entry.verdict) && (
+              <div className="mt-2 grid gap-2 md:grid-cols-2">
+                <OutputPreview label="Expected (test case)" value={normalizeOutput(tests[index]?.expectedOutput ?? "")} />
+                <OutputPreview label="Solution printed" value={normalizeOutput(entry.actual)} />
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function OutputPreview({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-faint">{label}</p>
+      <pre className="max-h-32 overflow-auto rounded-lg bg-sunken px-3 py-2 font-mono text-xs">{value === "" ? "(empty)" : value.slice(0, 2000)}</pre>
+    </div>
+  );
 }

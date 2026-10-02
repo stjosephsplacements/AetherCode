@@ -19,7 +19,7 @@ or database). Those remain the long-term multi-college platform.
 | Role | What they can do |
 |---|---|
 | **Admin** (`/admin`) | Import students from CSV with generated passwords; download credentials or print cut-out login slips; reissue passwords for a whole batch; create faculty/admin accounts; reset one password; enable/disable users; see system health at `/admin/system`. Admins can do everything faculty can. |
-| **Faculty** (`/faculty`) | Write questions in Markdown with sample and hidden tests (typed or imported from files/zip); build exams for batches with a time window, per-student duration, languages, **question pools** and **lab lockdown**; watch the **live monitor**; post **announcements**; grant one student extra time; view any student's code, submissions and flags; **regrade** after fixing a test; export results as CSV; **release results**; open the **similarity report**. |
+| **Faculty** (`/faculty`) | Write questions in Markdown with sample and hidden tests (typed or imported from files/zip), and **verify them against a model solution**; build exams for batches with a time window, per-student duration, languages, **question pools** and **lab lockdown**; watch the **live monitor**; post **announcements**; grant extra time to one student or **everyone at once**; view any student's code, submissions and flags; **regrade** after fixing a test; export results as CSV; **release results**; open the **similarity report**. |
 | **Student** (`/student`, `/exam/[id]`) | See exams for their batch; start once the window opens; solve in C, C++, Java or Python with Run, custom input and Submit; see per-test results (hidden tests as pass/fail only); after release, see their score breakdown. |
 
 ## How it works
@@ -79,6 +79,12 @@ or database). Those remain the long-term multi-college platform.
   - source ≤ 64 KB;
   - expected output ≤ 256 KB per test;
   - Java and Python get 2× the time limit.
+- **Model solution:**
+  - On the question editor, faculty can paste a solution and run it against the current (even unsaved) tests through the real engine.
+  - Mismatched expected outputs are shown side by side and can be replaced with the solution's output in one click. Leaving outputs blank and adopting them is a quick way to generate them.
+  - A warning appears if the solution uses over half the time limit.
+  - The solution is stored with the question (`reference_language`, `reference_source`) and is never sent to students.
+- **Extend everyone:** the live monitor can add N minutes to every attempt still in progress and push the exam window back by the same amount. Optionally it reopens attempts the clock ended in the last 30 minutes, never ones a student ended themselves. Use it after a lab-wide outage.
 - **After students start:**
   - an exam's question list is frozen; timing, batches, lockdown and publishing stay editable;
   - faculty can grant extra minutes to one student from their attempt page;
