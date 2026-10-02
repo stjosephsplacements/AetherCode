@@ -7,8 +7,9 @@ import { Badge, Card, PageHeader, buttonClass } from "@/components/ui";
 import Link from "next/link";
 import { startExam } from "./actions";
 
-export default async function StudentHome() {
+export default async function StudentHome({ searchParams }: { searchParams: Promise<{ network?: string }> }) {
   const user = await requireUser("student");
+  const { network } = await searchParams;
   const exams = await sql<
     Array<{ id: string; title: string; instructions: string; published: boolean; starts_at: Date; ends_at: Date; duration_minutes: number; questions: number; attempt_open: boolean | null }>
   >`
@@ -24,6 +25,11 @@ export default async function StudentHome() {
     <AppShell user={user}>
       <AutoRefresh seconds={30} />
       <PageHeader eyebrow={`Hello, ${user.name.split(" ")[0]}`} title="Your exams" />
+      {network && (
+        <p role="alert" className="mb-6 rounded-xl bg-error-soft px-4 py-3 text-sm font-medium text-error">
+          This exam can only be taken from the exam lab network. Ask your invigilator for help.
+        </p>
+      )}
       <div className="grid gap-5">
         {exams.map((exam) => {
           const phase = examPhase(exam);

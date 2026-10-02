@@ -7,6 +7,7 @@ import { AppShell } from "@/components/app-shell";
 import { PageHeader, buttonClass } from "@/components/ui";
 import { ExamForm } from "../exam-form";
 import { formOptions } from "../load";
+import { clientIp } from "@/lib/client-ip";
 
 export default async function EditExamPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ saved?: string }> }) {
   const user = await requireUser("faculty", "admin");
@@ -14,8 +15,22 @@ export default async function EditExamPage({ params, searchParams }: { params: P
   const { saved } = await searchParams;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const [exam] = await sql<
-    Array<{ title: string; instructions: string; starts_at: Date; ends_at: Date; duration_minutes: number; languages: LanguageId[]; batches: string[]; published: boolean }>
-  >`SELECT title, instructions, starts_at, ends_at, duration_minutes, languages, batches, published FROM exams WHERE id = ${id}`;
+    Array<{
+      title: string;
+      instructions: string;
+      starts_at: Date;
+      ends_at: Date;
+      duration_minutes: number;
+      languages: LanguageId[];
+      batches: string[];
+      published: boolean;
+      allowed_networks: string[];
+      require_fullscreen: boolean;
+      block_external_paste: boolean;
+    }>
+  >`SELECT title, instructions, starts_at, ends_at, duration_minutes, languages, batches, published,
+      allowed_networks, require_fullscreen, block_external_paste
+    FROM exams WHERE id = ${id}`;
   if (!exam) notFound();
   const questions = await sql<{ question_id: string; points: number }[]>`
     SELECT question_id, points FROM exam_questions WHERE exam_id = ${id} ORDER BY ord`;
@@ -35,6 +50,7 @@ export default async function EditExamPage({ params, searchParams }: { params: P
       <ExamForm
         id={id}
         locked={started}
+        viewerIp={await clientIp()}
         {...(await formOptions())}
         initial={{
           title: exam.title,
@@ -45,6 +61,9 @@ export default async function EditExamPage({ params, searchParams }: { params: P
           languages: exam.languages,
           batches: exam.batches,
           published: exam.published,
+          allowedNetworks: exam.allowed_networks,
+          requireFullscreen: exam.require_fullscreen,
+          blockExternalPaste: exam.block_external_paste,
           questions: questions.map((question) => ({ questionId: question.question_id, points: question.points })),
         }}
       />

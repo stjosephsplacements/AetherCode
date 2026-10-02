@@ -14,6 +14,9 @@ export interface ExamFormValues {
   languages: LanguageId[];
   batches: string[];
   published: boolean;
+  allowedNetworks: string[];
+  requireFullscreen: boolean;
+  blockExternalPaste: boolean;
   questions: Array<{ questionId: string; points: number }>;
 }
 
@@ -31,13 +34,16 @@ export function ExamForm({
   questionBank,
   knownBatches,
   locked,
+  viewerIp,
 }: {
   id: string | null;
   initial: ExamFormValues;
   questionBank: Array<{ id: string; title: string }>;
   knownBatches: string[];
   locked: boolean;
+  viewerIp: string | null;
 }) {
+  const [networksText, setNetworksText] = useState(initial.allowedNetworks.join("\n"));
   const [values, setValues] = useState(initial);
   const [newBatch, setNewBatch] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +57,11 @@ export function ExamForm({
   function submit() {
     setError(null);
     startTransition(async () => {
-      const result = await saveExam(id, values);
+      const allowedNetworks = networksText
+        .split(/[\s,]+/)
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+      const result = await saveExam(id, { ...values, allowedNetworks });
       if (result?.error) setError(result.error);
     });
   }
@@ -125,6 +135,31 @@ export function ExamForm({
             />
           </div>
         </div>
+      </Card>
+
+      <Card className="grid gap-5 p-6">
+        <div>
+          <h2 className="font-display text-xl font-semibold tracking-tight">Lab lockdown</h2>
+          <p className="mt-1 text-sm text-muted">Safe Exam Browser is not used, so these keep the exam in the lab and in the editor.</p>
+        </div>
+        <Field
+          label="Allowed networks"
+          hint={`One IPv4 address or range per line, e.g. 10.20.0.0/16. Leave empty to allow any network. Your IP as seen by the server: ${viewerIp ?? "unknown"}`}
+        >
+          <textarea value={networksText} onChange={(event) => setNetworksText(event.target.value)} rows={3} placeholder="10.20.0.0/16" className={`${inputClass} font-mono text-[13px]`} />
+        </Field>
+        <label className="flex items-start gap-3 text-sm">
+          <input type="checkbox" checked={values.requireFullscreen} onChange={(event) => set("requireFullscreen", event.target.checked)} className="mt-0.5 size-4 accent-brand" />
+          <span>
+            <strong>Require fullscreen.</strong> The exam is hidden until the student enters fullscreen; every exit is logged.
+          </span>
+        </label>
+        <label className="flex items-start gap-3 text-sm">
+          <input type="checkbox" checked={values.blockExternalPaste} onChange={(event) => set("blockExternalPaste", event.target.checked)} className="mt-0.5 size-4 accent-brand" />
+          <span>
+            <strong>Block pasting from outside the editor.</strong> Copy-paste within their own code still works; outside pastes are blocked and logged.
+          </span>
+        </label>
       </Card>
 
       <Card className="p-6">

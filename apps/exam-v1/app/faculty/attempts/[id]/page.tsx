@@ -49,7 +49,7 @@ export default async function AttemptPage({ params }: { params: Promise<{ id: st
             <span className="text-faint">Finished</span> {attempt.finished_at ? formatWhen(attempt.finished_at) : live ? "In progress" : "Time ran out"}
           </span>
           <span>
-            <span className="text-faint">Focus lost</span> {events.length}×
+            <span className="text-faint">Flags</span> {events.length}×
           </span>
         </Card>
         <Card className="p-5">
@@ -108,7 +108,7 @@ export default async function AttemptPage({ params }: { params: Promise<{ id: st
 
       {events.length > 0 && (
         <section>
-          <h2 className="mb-3 font-display text-xl font-semibold tracking-tight">Focus events</h2>
+          <h2 className="mb-3 font-display text-xl font-semibold tracking-tight">Flags</h2>
           <Card className="p-4 text-sm text-muted">
             {events.map((event, index) => (
               <span key={index} className="mr-4 inline-block">

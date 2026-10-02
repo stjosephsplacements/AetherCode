@@ -86,7 +86,7 @@ export default async function ResultsPage({ params, searchParams }: { params: Pr
                 </th>
               ))}
               <th className="px-4 py-2.5 text-right">Total</th>
-              <th className="px-4 py-2.5 text-right" title="Times the student left the exam window">Focus lost</th>
+              <th className="px-4 py-2.5 text-right" title="Window switches, fullscreen exits and blocked pastes">Flags</th>
             </tr>
           </thead>
           <tbody>

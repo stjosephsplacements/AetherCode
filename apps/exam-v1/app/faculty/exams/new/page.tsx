@@ -3,6 +3,7 @@ import { AppShell } from "@/components/app-shell";
 import { PageHeader } from "@/components/ui";
 import { ExamForm } from "../exam-form";
 import { formOptions } from "../load";
+import { clientIp } from "@/lib/client-ip";
 
 export default async function NewExamPage() {
   const user = await requireUser("faculty", "admin");
@@ -15,6 +16,7 @@ export default async function NewExamPage() {
       <ExamForm
         id={null}
         locked={false}
+        viewerIp={await clientIp()}
         {...options}
         initial={{
           title: "",
@@ -25,6 +27,9 @@ export default async function NewExamPage() {
           languages: ["c", "cpp", "java", "python"],
           batches: [],
           published: false,
+          allowedNetworks: [],
+          requireFullscreen: true,
+          blockExternalPaste: true,
           questions: [],
         }}
       />

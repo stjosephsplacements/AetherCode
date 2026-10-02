@@ -2,10 +2,14 @@
 
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
+import { clientIp } from "@/lib/client-ip";
 import { sql } from "@/lib/db";
+import { ipAllowed } from "@/lib/net";
 
 export async function startExam(examId: string): Promise<void> {
   const user = await requireUser("student");
+  const [exam] = await sql<{ allowed_networks: string[] }[]>`SELECT allowed_networks FROM exams WHERE id = ${examId}`;
+  if (exam && !ipAllowed(await clientIp(), exam.allowed_networks)) redirect("/student?network=1");
   // Visible and inside its window; the deadline never extends past the window close.
   await sql`
     INSERT INTO attempts (exam_id, user_id, deadline_at)

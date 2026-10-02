@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { OUTPUT_LIMIT_BYTES } from "@/lib/batch";
 import { LANGUAGE_IDS } from "@/lib/languages";
+import { isValidNetwork } from "@/lib/net";
 
 const questionInput = z.object({
   title: z.string().trim().min(1, "Title is required").max(200),
@@ -86,6 +87,9 @@ const examInput = z.object({
   languages: z.array(z.enum(LANGUAGE_IDS as [string, ...string[]])).min(1, "Pick at least one language"),
   batches: z.array(z.string().trim().min(1).max(64)).min(1, "Pick at least one batch"),
   published: z.boolean(),
+  allowedNetworks: z.array(z.string().trim().refine(isValidNetwork, "Networks must be IPv4 addresses or ranges like 10.20.0.0/16")).max(50),
+  requireFullscreen: z.boolean(),
+  blockExternalPaste: z.boolean(),
   questions: z
     .array(z.object({ questionId: z.string().uuid(), points: z.coerce.number().int().min(1).max(1000) }))
     .min(1, "Add at least one question")
@@ -115,7 +119,8 @@ export async function saveExam(id: string | null, input: ExamInput): Promise<{ e
       const updated = await tx`
         UPDATE exams SET title = ${exam.title}, instructions = ${exam.instructions}, starts_at = ${startsAt},
           ends_at = ${endsAt}, duration_minutes = ${exam.durationMinutes}, languages = ${exam.languages},
-          batches = ${exam.batches}, published = ${exam.published}
+          batches = ${exam.batches}, published = ${exam.published}, allowed_networks = ${exam.allowedNetworks},
+          require_fullscreen = ${exam.requireFullscreen}, block_external_paste = ${exam.blockExternalPaste}
         WHERE id = ${examId} RETURNING id`;
       if (updated.length === 0) throw new Error("exam not found");
       // Once students have started, the question set is frozen; timing and access stay editable.
@@ -123,9 +128,10 @@ export async function saveExam(id: string | null, input: ExamInput): Promise<{ e
       await tx`DELETE FROM exam_questions WHERE exam_id = ${examId}`;
     } else {
       const [created] = await tx<{ id: string }[]>`
-        INSERT INTO exams (title, instructions, starts_at, ends_at, duration_minutes, languages, batches, published, created_by)
+        INSERT INTO exams (title, instructions, starts_at, ends_at, duration_minutes, languages, batches, published,
+          allowed_networks, require_fullscreen, block_external_paste, created_by)
         VALUES (${exam.title}, ${exam.instructions}, ${startsAt}, ${endsAt}, ${exam.durationMinutes}, ${exam.languages},
-          ${exam.batches}, ${exam.published}, ${user.id})
+          ${exam.batches}, ${exam.published}, ${exam.allowedNetworks}, ${exam.requireFullscreen}, ${exam.blockExternalPaste}, ${user.id})
         RETURNING id`;
       examId = created.id;
     }

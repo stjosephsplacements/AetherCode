@@ -1,6 +1,6 @@
 "use client";
 
-import CodeMirror from "@uiw/react-codemirror";
+import CodeMirror, { EditorView } from "@uiw/react-codemirror";
 import { cpp } from "@codemirror/lang-cpp";
 import { java } from "@codemirror/lang-java";
 import { python } from "@codemirror/lang-python";
@@ -33,6 +33,8 @@ interface Props {
   deadline: string;
   serverNow: string;
   questions: IdeQuestion[];
+  requireFullscreen: boolean;
+  blockExternalPaste: boolean;
 }
 
 const EXTENSIONS = {
@@ -57,7 +59,18 @@ function storageKey(attemptId: string) {
   return `exam-code:${attemptId}`;
 }
 
-export function ExamIde({ attemptId, title, studentName, username, languages, deadline, serverNow, questions }: Props) {
+export function ExamIde({
+  attemptId,
+  title,
+  studentName,
+  username,
+  languages,
+  deadline,
+  serverNow,
+  questions,
+  requireFullscreen,
+  blockExternalPaste,
+}: Props) {
   const [active, setActive] = useState(0);
   const question = questions[active];
 
@@ -92,7 +105,8 @@ export function ExamIde({ attemptId, title, studentName, username, languages, de
   const [useCustom, setUseCustom] = useState(false);
   const [customInput, setCustomInput] = useState<Record<string, string>>({});
   const [saveState, setSaveState] = useState<"saved" | "saving" | "offline">("saved");
-  const [focusWarning, setFocusWarning] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [fullscreen, setFullscreen] = useState(true);
   const [confirmEnd, setConfirmEnd] = useState(false);
   const [split, setSplit] = useState(42);
   const [consoleHeight, setConsoleHeight] = useState(38);
@@ -171,18 +185,63 @@ export function ExamIde({ attemptId, title, studentName, username, languages, de
     dirty.current.set(question.id, { questionId: question.id, language: next, source: nextSource });
   }
 
-  // ---- focus tracking ----
+  // ---- focus, fullscreen and paste tracking ----
+  const logEvent = useCallback(
+    (kind: "blur" | "paste" | "fullscreen_exit") => {
+      if (finished.current) return;
+      void fetch(`/api/attempts/${attemptId}/events`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ kind }),
+      });
+    },
+    [attemptId],
+  );
+
+  useEffect(() => {
+    if (!requireFullscreen) return;
+    const sync = () => {
+      const active = document.fullscreenElement !== null;
+      setFullscreen((was) => {
+        if (was && !active) logEvent("fullscreen_exit");
+        return active;
+      });
+    };
+    sync();
+    document.addEventListener("fullscreenchange", sync);
+    return () => document.removeEventListener("fullscreenchange", sync);
+  }, [requireFullscreen, logEvent]);
+
+  // Text copied inside the editor may be pasted back; anything else is blocked.
+  const copiedInside = useRef<string[]>([]);
+  const pasteGuard = useMemo(
+    () =>
+      EditorView.domEventHandlers({
+        copy: (_, view) => {
+          copiedInside.current = [...copiedInside.current.slice(-19), view.state.sliceDoc(view.state.selection.main.from, view.state.selection.main.to).trim()];
+        },
+        cut: (_, view) => {
+          copiedInside.current = [...copiedInside.current.slice(-19), view.state.sliceDoc(view.state.selection.main.from, view.state.selection.main.to).trim()];
+        },
+        paste: (event) => {
+          const text = event.clipboardData?.getData("text/plain").trim() ?? "";
+          if (!blockExternalPaste || text === "" || copiedInside.current.includes(text)) return false;
+          event.preventDefault();
+          setNotice("Pasting from outside the exam is disabled. This attempt has been recorded.");
+          logEvent("paste");
+          return true;
+        },
+      }),
+    [blockExternalPaste, logEvent],
+  );
+
   useEffect(() => {
     let last = 0;
     const report = () => {
       if (finished.current || Date.now() - last < 3000) return;
       last = Date.now();
-      setFocusWarning(true);
-      void fetch(`/api/attempts/${attemptId}/events`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ kind: "blur" }),
-      });
+      setNotice("You left the exam window. This has been recorded and is visible to your invigilator.");
+      logEvent("blur");
     };
     const onVisibility = () => document.visibilityState === "hidden" && report();
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -196,7 +255,7 @@ export function ExamIde({ attemptId, title, studentName, username, languages, de
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("beforeunload", onBeforeUnload);
     };
-  }, [attemptId]);
+  }, [logEvent]);
 
   // ---- run / submit ----
   // A run blocks only further runs; a submit grades in the background so the
@@ -340,10 +399,10 @@ export function ExamIde({ attemptId, title, studentName, username, languages, de
         </div>
       </header>
 
-      {focusWarning && (
-        <div className="flex items-center gap-3 bg-accent-soft px-4 py-2 text-sm text-accent">
-          <strong>You left the exam window.</strong> This has been recorded and is visible to your invigilator.
-          <button type="button" onClick={() => setFocusWarning(false)} className="ml-auto font-semibold hover:underline">
+      {notice && (
+        <div className="flex items-center gap-3 bg-accent-soft px-4 py-2 text-sm font-medium text-accent">
+          {notice}
+          <button type="button" onClick={() => setNotice(null)} className="ml-auto font-semibold hover:underline">
             Dismiss
           </button>
         </div>
@@ -420,7 +479,7 @@ export function ExamIde({ attemptId, title, studentName, username, languages, de
               onChange={edit}
               height="100%"
               style={{ height: "100%", fontSize: 14 }}
-              extensions={EXTENSIONS[language]}
+              extensions={[...EXTENSIONS[language], pasteGuard]}
               basicSetup={{ tabSize: 4, foldGutter: false, highlightActiveLine: true, autocompletion: false }}
             />
           </div>
@@ -497,6 +556,21 @@ export function ExamIde({ attemptId, title, studentName, username, languages, de
           </footer>
         </section>
       </div>
+
+      {requireFullscreen && !fullscreen && !confirmEnd && (
+        <div className="fixed inset-0 z-40 grid place-items-center bg-canvas px-4">
+          <div className="max-w-md text-center">
+            <h2 className="font-display text-3xl font-semibold tracking-tight">Fullscreen required</h2>
+            <p className="mt-3 text-muted">
+              This exam must be taken in fullscreen. Leaving fullscreen is recorded. Your timer keeps running:{" "}
+              <strong className="font-mono text-ink">{formatClock(remaining)}</strong> left.
+            </p>
+            <Button className="mt-8" variant="go" onClick={() => void document.documentElement.requestFullscreen().catch(() => undefined)}>
+              Enter fullscreen
+            </Button>
+          </div>
+        </div>
+      )}
 
       {confirmEnd && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-ink/40 px-4 backdrop-blur-sm" role="dialog" aria-modal="true">

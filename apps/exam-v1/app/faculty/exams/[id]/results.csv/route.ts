@@ -14,7 +14,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const batch = new URL(request.url).searchParams.get("batch");
   const { questions, rows } = await examResults(id);
   const lines = [
-    ["roll_no", "name", "batch", "status", ...questions.map((question, index) => `Q${index + 1} ${question.title} (/${question.points})`), "total", "focus_lost", "started_at", "finished_at"],
+    ["roll_no", "name", "batch", "status", ...questions.map((question, index) => `Q${index + 1} ${question.title} (/${question.points})`), "total", "flags", "started_at", "finished_at"],
     ...rows
       .filter((row) => !batch || row.batch === batch)
       .map((row) => [

@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
+import { clientIp } from "@/lib/client-ip";
 import { sql } from "@/lib/db";
+import { ipAllowed } from "@/lib/net";
 import type { LanguageId } from "@/lib/languages";
 import { buttonClass, Logo } from "@/components/ui";
 import { ExamIde, type IdeQuestion } from "./exam-ide";
@@ -12,11 +14,24 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
   const user = await requireUser("student");
   const { examId } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(examId)) notFound();
-  const [attempt] = await sql<Array<{ id: string; title: string; languages: LanguageId[]; deadline_at: Date; open: boolean }>>`
-    SELECT a.id, e.title, e.languages, a.deadline_at, (a.finished_at IS NULL AND a.deadline_at > now()) AS open
+  const [attempt] = await sql<
+    Array<{
+      id: string;
+      title: string;
+      languages: LanguageId[];
+      deadline_at: Date;
+      open: boolean;
+      allowed_networks: string[];
+      require_fullscreen: boolean;
+      block_external_paste: boolean;
+    }>
+  >`
+    SELECT a.id, e.title, e.languages, a.deadline_at, (a.finished_at IS NULL AND a.deadline_at > now()) AS open,
+      e.allowed_networks, e.require_fullscreen, e.block_external_paste
     FROM attempts a JOIN exams e ON e.id = a.exam_id
     WHERE a.exam_id = ${examId} AND a.user_id = ${user.id}`;
   if (!attempt) redirect("/student");
+  if (attempt.open && !ipAllowed(await clientIp(), attempt.allowed_networks)) redirect("/student?network=1");
 
   if (!attempt.open) {
     return (
@@ -74,6 +89,8 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
       deadline={attempt.deadline_at.toISOString()}
       serverNow={new Date().toISOString()}
       questions={ideQuestions}
+      requireFullscreen={attempt.require_fullscreen}
+      blockExternalPaste={attempt.block_external_paste}
     />
   );
 }

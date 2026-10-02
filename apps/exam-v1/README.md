@@ -28,7 +28,8 @@ alongside the AetherCode microservices, which remain the long-term platform.
 - **Scoring:** a question's score is its *best* submission: `points × passed weight ÷ total weight`. Every test (sample and hidden) counts by weight.
 - **Time-up:** the browser saves the last edits (drafts are accepted for 15 s after the deadline), then the worker submits each question's latest draft unless that exact code was already submitted.
 - **Visibility:** students see full input/output for sample tests and only pass/fail for hidden tests.
-- **Focus tracking:** leaving the exam window is logged and shown to faculty as "Focus lost".
+- **Lab lockdown (per exam):** an IPv4 allow-list of lab networks (checked when starting and on every exam request), an optional fullscreen gate, and optional blocking of pastes that did not come from the student's own editor. Window switches, fullscreen exits and blocked pastes are logged and shown to faculty as **Flags**.
+- **Network check needs nginx:** the allow-list trusts `X-Forwarded-For`, which `deploy/nginx.conf` overwrites with the real client address. Never publish the `app` container's port directly. The exam settings page shows "Your IP as seen by the server": confirm it shows a lab address before relying on the allow-list.
 - **Limits:** at most 2 queued runs per student at once; source ≤ 64 KB; Java and Python get 2× the time limit.
 - **After students start**, an exam's question list is frozen; timing, batches and publishing stay editable. Faculty can grant extra minutes to one student from their attempt page, and regrade all submissions for a question after fixing a test case.
 
