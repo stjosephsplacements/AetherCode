@@ -40,6 +40,9 @@ export default async function ResultsPage({ params, searchParams }: { params: Pr
             <Link href={`/faculty/exams/${id}`} className={buttonClass("ghost")}>
               Edit exam
             </Link>
+            <Link href={`/faculty/exams/${id}/similarity`} className={buttonClass("secondary")}>
+              Similarity report
+            </Link>
             <a href={`/faculty/exams/${id}/results.csv${batch ? `?batch=${encodeURIComponent(batch)}` : ""}`} className={buttonClass()}>
               Export CSV
             </a>
