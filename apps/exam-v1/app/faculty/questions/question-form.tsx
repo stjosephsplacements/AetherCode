@@ -4,7 +4,8 @@ import { useState, useTransition } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { saveQuestion, type QuestionInput } from "../actions";
-import { Button, Card, Field, inputClass, cx } from "@/components/ui";
+import { pairTestFiles, readZip } from "@/lib/test-files";
+import { Button, Card, Field, buttonClass, inputClass, cx } from "@/components/ui";
 
 interface Test {
   input: string;
@@ -37,11 +38,42 @@ export function QuestionForm({ id, initial }: { id: string | null; initial?: Que
     ],
   );
   const [preview, setPreview] = useState(false);
+  const [importNote, setImportNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const update = (index: number, patch: Partial<Test>) =>
     setTests((current) => current.map((test, at) => (at === index ? { ...test, ...patch } : test)));
+
+  async function importFiles(fileList: FileList) {
+    setImportNote(null);
+    try {
+      const files: Array<{ path: string; content: string }> = [];
+      for (const file of Array.from(fileList)) {
+        if (file.name.toLowerCase().endsWith(".zip")) files.push(...(await readZip(await file.arrayBuffer())));
+        else files.push({ path: file.webkitRelativePath || file.name, content: await file.text() });
+      }
+      const { tests: paired, unmatched } = pairTestFiles(files);
+      if (paired.length === 0) {
+        setImportNote("No input/output pairs found. Name files like input00.txt + output00.txt, or 1.in + 1.out.");
+        return;
+      }
+      setTests((current) => {
+        // Drop the untouched starter rows so imports don't sit behind empty tests.
+        const kept = current.filter((test) => test.input.trim() !== "" || test.expectedOutput.trim() !== "");
+        const hasSample = kept.some((test) => test.isSample);
+        return [
+          ...kept,
+          ...paired.map((test, index) => ({ input: test.input, expectedOutput: test.expectedOutput, isSample: !hasSample && index === 0, weight: 1 })),
+        ];
+      });
+      setImportNote(
+        `Imported ${paired.length} test${paired.length === 1 ? "" : "s"}.` + (unmatched.length ? ` Skipped: ${unmatched.slice(0, 5).join(", ")}${unmatched.length > 5 ? "…" : ""}` : ""),
+      );
+    } catch (failure) {
+      setImportNote(failure instanceof Error ? failure.message : "Could not read those files.");
+    }
+  }
 
   function submit() {
     setError(null);
@@ -103,10 +135,26 @@ export function QuestionForm({ id, initial }: { id: string | null; initial?: Que
             Samples are shown to students and used by <strong>Run</strong>. Every test, sample and hidden, counts toward the score by weight.
           </p>
         </div>
-        <Button type="button" variant="secondary" size="sm" onClick={() => setTests((current) => [...current, { input: "", expectedOutput: "", isSample: false, weight: 1 }])}>
-          + Add test
-        </Button>
+        <div className="flex gap-2">
+          <label className={`${buttonClass("secondary", "sm")} cursor-pointer`}>
+            Import files / .zip
+            <input
+              type="file"
+              multiple
+              accept=".zip,.txt,.in,.out,.ans"
+              className="sr-only"
+              onChange={(event) => {
+                if (event.target.files?.length) void importFiles(event.target.files);
+                event.target.value = "";
+              }}
+            />
+          </label>
+          <Button type="button" variant="secondary" size="sm" onClick={() => setTests((current) => [...current, { input: "", expectedOutput: "", isSample: false, weight: 1 }])}>
+            + Add test
+          </Button>
+        </div>
       </div>
+      {importNote && <p className="-mt-3 rounded-xl bg-brand-soft px-4 py-2.5 text-sm text-brand-ink">{importNote}</p>}
 
       {tests.map((test, index) => (
         <Card key={index} className="p-5">
@@ -130,8 +178,8 @@ export function QuestionForm({ id, initial }: { id: string | null; initial?: Que
             </button>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
-            <textarea value={test.input} onChange={(event) => update(index, { input: event.target.value })} rows={5} placeholder="Input (stdin)" className={`${inputClass} font-mono text-[13px]`} />
-            <textarea value={test.expectedOutput} onChange={(event) => update(index, { expectedOutput: event.target.value })} rows={5} placeholder="Expected output" className={`${inputClass} font-mono text-[13px]`} />
+            <TestText value={test.input} onChange={(value) => update(index, { input: value })} placeholder="Input (stdin)" />
+            <TestText value={test.expectedOutput} onChange={(value) => update(index, { expectedOutput: value })} placeholder="Expected output" />
           </div>
         </Card>
       ))}
@@ -144,4 +192,22 @@ export function QuestionForm({ id, initial }: { id: string | null; initial?: Que
       </div>
     </div>
   );
+}
+
+const LARGE_TEXT = 20_000;
+
+// Huge imported tests would make a textarea sluggish; show a summary instead.
+function TestText({ value, onChange, placeholder }: { value: string; onChange: (value: string) => void; placeholder: string }) {
+  if (value.length > LARGE_TEXT) {
+    const lines = value.split("\n").length;
+    return (
+      <div className={`${inputClass} font-mono text-[13px]`}>
+        <p className="mb-1 font-sans text-xs font-semibold text-muted">
+          Large file: {(value.length / 1024).toFixed(0)} KB, {lines.toLocaleString()} lines
+        </p>
+        <pre className="max-h-24 overflow-hidden whitespace-pre-wrap text-faint">{value.slice(0, 300)}…</pre>
+      </div>
+    );
+  }
+  return <textarea value={value} onChange={(event) => onChange(event.target.value)} rows={5} placeholder={placeholder} className={`${inputClass} font-mono text-[13px]`} />;
 }
