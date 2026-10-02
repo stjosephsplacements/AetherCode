@@ -88,7 +88,9 @@ Before proposing a change as complete:
   - any deploy or IaC change;
   - anything that modifies or deletes data in a database holding real exam
     results.
-- **Never:** commit secrets, disable security controls, push to the default
+- **Never:** add AI attribution to commits, PRs or comments (no
+  `Co-Authored-By:` trailers, no "Generated with" lines; commits are authored by
+  the repository owner only), commit secrets, disable security controls, push to the default
   branch, run destructive commands against real data, introduce a network path
   out of the judge sandbox, edit an already-applied exam-app migration, or
   publish the exam app's `app` container port instead of nginx.

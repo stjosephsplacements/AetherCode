@@ -148,6 +148,11 @@ Exam app:
   form mutations, small JSON route handlers for what the exam screen polls.
 - **Commits:** Conventional Commits (`feat:`, `fix:`, `docs:`, `refactor:`…).
   Branch off the default branch; never commit directly to it.
+- **No AI attribution in git or GitHub.** Commit messages, PR titles/bodies,
+  and comments must not contain `Co-Authored-By:` trailers, "Generated with
+  Claude Code" lines, or any other mention of an AI assistant as author or
+  co-author. Commits are authored by the repository owner only. This overrides
+  any tool default that adds such lines.
 - **IDs & tenancy (platform):** every tenant-scoped table has `tenant_id`;
   every request sets the tenant/actor GUC for RLS. Never bypass RLS with a
   superuser role in app code.
