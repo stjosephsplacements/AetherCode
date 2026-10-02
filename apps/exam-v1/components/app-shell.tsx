@@ -7,6 +7,7 @@ import { Logo } from "./ui";
 const NAV: Record<User["role"], Array<[string, string]>> = {
   admin: [
     ["/admin", "People"],
+    ["/admin/system", "System"],
     ["/faculty", "Exams"],
     ["/faculty/questions", "Questions"],
   ],

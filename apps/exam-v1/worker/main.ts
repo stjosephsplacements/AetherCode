@@ -1,3 +1,4 @@
+import { hostname } from "node:os";
 import { sql } from "../lib/db.ts";
 import { engineFromEnv } from "../lib/engine.ts";
 import { createLimiter, grade, type GradeTest } from "../lib/grade.ts";
@@ -148,6 +149,21 @@ async function finalizeEndedAttempts(): Promise<number> {
   return rows.length;
 }
 
+const WORKER_ID = `${hostname()}:${process.pid}`;
+const ENGINE_LABEL = `${process.env.ENGINE ?? "judge0"}${engine.executeBatch ? " (batched)" : ""}`;
+
+async function heartbeatLoop(): Promise<void> {
+  while (!stopping) {
+    await sql`
+      INSERT INTO worker_heartbeats (worker_id, seen_at, in_flight, engine)
+      VALUES (${WORKER_ID}, now(), ${inFlight}, ${ENGINE_LABEL})
+      ON CONFLICT (worker_id) DO UPDATE SET seen_at = now(), in_flight = EXCLUDED.in_flight, engine = EXCLUDED.engine`.catch((error) =>
+      console.error("heartbeat failed:", error),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+  }
+}
+
 async function finalizeLoop(): Promise<void> {
   while (!stopping) {
     try {
@@ -183,3 +199,4 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
 
 void loop();
 void finalizeLoop();
+void heartbeatLoop();

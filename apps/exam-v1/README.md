@@ -91,7 +91,9 @@ docker compose exec app pnpm piston-runtimes   # downloads gcc, python, java onc
 ### Operations
 
 - **Watch grading:** `docker compose logs -f worker`.
-- **Back up:** `docker compose exec db pg_dump -U exam exam > backup-$(date +%F-%H%M).sql`, before and after every exam.
+- **Backups are automatic:** the `backup` service writes `deploy/backups/exam-YYYYMMDD-HHMM.dump` every 15 minutes and keeps 7 days (`BACKUP_INTERVAL_MINUTES`, `BACKUP_RETENTION_DAYS`). Copy the folder off the server after every exam. Check it with `docker compose logs backup`.
+- **Restore** a dump into an empty database: `docker compose exec -T db pg_restore -U exam -d exam --clean --if-exists < backups/exam-YYYYMMDD-HHMM.dump`.
+- **Status:** admins see database, worker, engine and grading-queue health at **/admin/system**. `GET /api/health` returns `200` when everything is up and `503` otherwise, for external monitors.
 - **Restart safely:** submissions a crashed worker was holding are reclaimed after 5 minutes; failed engine calls are retried 3 times, then marked as a system error that the student can resubmit.
 
 ## Configuration
