@@ -114,21 +114,18 @@ policy, contract, events and service README:
 
 ---
 
-## Open decisions (needed before the phase that uses them)
+## Decisions (2026-10-02)
 
-- **D1, Phase 2: who authors questions?** `PLAN.md` says only Golden users
-  (super admin, placement) author the global bank. The exam app lets faculty
-  author. Options:
-  - (a) department users author tenant-local questions;
-  - (b) keep Golden-only authoring;
-  - (c) both: a global bank plus a tenant bank.
-- **D2, Phase 0: deployment.** Docker Compose on one server (recommended for
-  the campus), or k3s using the existing kustomize overlays.
-- **D3, Phase 4: SEB.** Keep the platform's SEB enforcement off for lab exams
-  (network allow-list + fullscreen instead), or require SEB.
-- **D4, Phase 0: Judge0 sandbox gate.** The platform blocks Judge0 until the
-  gVisor compatibility gate is approved. For the campus server, record a manual
-  approval with the evidence from `engine-check`, or run the gate first.
+- **D1, authoring:** anyone on staff can author questions. They go into the
+  single master (global) question bank, which every college uses. Students
+  can't author. This replaces `PLAN.md`'s Golden-only rule and needs an ADR and
+  a policy change in Phase 2.
+- **D2, deployment:** Docker Compose on one server (Phase 0).
+- **D3, SEB:** **required** for exams. The platform's SEB enforcement
+  (gateway + `seb` service) must work end to end, and lab PCs need SEB
+  installed with the exam's configuration. It moves into Phase 1 scope.
+- **D4, Judge0 gate:** approved for the campus server with `engine-check`
+  evidence recorded per the compatibility-gate runbook.
 
 ## Timeline risk
 
