@@ -9,6 +9,7 @@ import { AutoRefresh } from "@/components/auto-refresh";
 import { Badge, Card, PageHeader, buttonClass } from "@/components/ui";
 import { setResultsReleased } from "../../../actions";
 import { AnnounceForm } from "./announce-form";
+import { ExtendExamForm } from "./extend-form";
 
 const STATUS_TONE = { absent: "neutral", in_progress: "brand", finished: "pass" } as const;
 const STATUS_LABEL = { absent: "Not started", in_progress: "In progress", finished: "Finished" } as const;
@@ -83,6 +84,12 @@ export default async function ResultsPage({ params, searchParams }: { params: Pr
             </ul>
           )}
         </Card>
+        <div className="grid gap-4">
+        <Card className="p-5">
+          <h2 className="mb-1 font-display text-lg font-semibold tracking-tight">Extend time</h2>
+          <p className="mb-3 text-sm text-muted">For a lab-wide problem. For one student, use their attempt page.</p>
+          <ExtendExamForm examId={id} />
+        </Card>
         <Card className="flex flex-col p-5">
           <h2 className="mb-1 font-display text-lg font-semibold tracking-tight">Results for students</h2>
           <p className="text-sm text-muted">
@@ -96,6 +103,7 @@ export default async function ResultsPage({ params, searchParams }: { params: Pr
             </button>
           </form>
         </Card>
+        </div>
       </div>
       {pending > 0 && (
         <p className="mb-4 rounded-xl bg-brand-soft px-4 py-3 text-sm text-brand-ink">

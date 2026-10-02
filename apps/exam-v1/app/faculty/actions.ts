@@ -188,3 +188,25 @@ export async function setResultsReleased(examId: string, released: boolean): Pro
   await sql`UPDATE exams SET results_released = ${released} WHERE id = ${examId}`;
   revalidatePath(`/faculty/exams/${examId}/results`);
 }
+
+// Adds minutes for everyone in an exam, e.g. after a lab-wide outage. Attempts
+// the clock ended within the last 30 minutes can be reopened; attempts a student
+// ended themselves never are.
+export async function extendExam(examId: string, _: unknown, form: FormData): Promise<{ error?: string; extended?: number }> {
+  await requireUser("faculty", "admin");
+  const minutes = Number(form.get("minutes"));
+  const reopen = form.get("reopen") === "on";
+  if (!Number.isInteger(minutes) || minutes < 1 || minutes > 240) return { error: "Enter 1–240 minutes." };
+  const extended = await sql.begin(async (tx) => {
+    await tx`UPDATE exams SET ends_at = greatest(ends_at, now()) + make_interval(mins => ${minutes}) WHERE id = ${examId}`;
+    const rows = await tx`
+      UPDATE attempts
+      SET deadline_at = greatest(deadline_at, now()) + make_interval(mins => ${minutes}), finalized_at = NULL
+      WHERE exam_id = ${examId} AND finished_at IS NULL
+        AND (deadline_at > now() OR (${reopen} AND deadline_at > now() - interval '30 minutes'))
+      RETURNING id`;
+    return rows.length;
+  });
+  revalidatePath(`/faculty/exams/${examId}/results`);
+  return { extended };
+}
