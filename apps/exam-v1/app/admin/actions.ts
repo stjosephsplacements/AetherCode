@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { audit } from "@/lib/audit";
 import { requireUser } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { generatePassword, hashPassword } from "@/lib/password";
@@ -45,7 +46,7 @@ async function withPasswords<T extends { username: string }>(rows: T[]) {
 }
 
 export async function importStudents(rows: Array<Record<string, string>>): Promise<ImportResult> {
-  await requireUser("admin");
+  const admin = await requireUser("admin");
   if (rows.length > 5000) return { created: [], skipped: [], errors: ["Upload at most 5000 students at a time."] };
 
   const errors: string[] = [];
@@ -82,6 +83,10 @@ export async function importStudents(rows: Array<Record<string, string>>): Promi
       )}
       ON CONFLICT DO NOTHING`;
   }
+  await audit(admin, "students.import", [...new Set(valid.map((row) => row.batch))].join(", "), {
+    created: hashed.length,
+    skipped: valid.length - hashed.length,
+  });
   revalidatePath("/admin");
   return {
     created: hashed.map(({ username, name, batch, password }) => ({ username, name, batch, password })),
@@ -91,7 +96,7 @@ export async function importStudents(rows: Array<Record<string, string>>): Promi
 }
 
 export async function createStaff(_: unknown, form: FormData): Promise<{ error?: string; credential?: Credential }> {
-  await requireUser("admin");
+  const admin = await requireUser("admin");
   const parsed = z
     .object({
       username: z.string().trim().regex(USERNAME, "Username may use letters, digits, . _ @ -"),
@@ -107,12 +112,13 @@ export async function createStaff(_: unknown, form: FormData): Promise<{ error?:
     ON CONFLICT DO NOTHING
     RETURNING id`;
   if (rows.length === 0) return { error: "That username is already taken." };
+  await audit(admin, "staff.create", parsed.data.username, { role: parsed.data.role });
   revalidatePath("/admin");
   return { credential: { username: parsed.data.username, name: parsed.data.name, batch: null, password } };
 }
 
 export async function resetPassword(_: unknown, form: FormData): Promise<{ error?: string; credential?: Credential }> {
-  await requireUser("admin");
+  const admin = await requireUser("admin");
   const username = String(form.get("username") ?? "").trim();
   const password = generatePassword();
   const [user] = await sql<{ id: string; name: string; batch: string | null }[]>`
@@ -121,21 +127,23 @@ export async function resetPassword(_: unknown, form: FormData): Promise<{ error
     RETURNING id, name, batch`;
   if (!user) return { error: "No user with that username." };
   await sql`DELETE FROM sessions WHERE user_id = ${user.id}`;
+  await audit(admin, "password.reset", username);
   return { credential: { username, name: user.name, batch: user.batch, password } };
 }
 
 export async function setDisabled(userId: string, disabled: boolean): Promise<void> {
   const admin = await requireUser("admin");
   if (admin.id === userId) return;
-  await sql`UPDATE users SET disabled = ${disabled} WHERE id = ${userId}`;
+  const [target] = await sql<{ username: string }[]>`UPDATE users SET disabled = ${disabled} WHERE id = ${userId} RETURNING username`;
   if (disabled) await sql`DELETE FROM sessions WHERE user_id = ${userId}`;
+  if (target) await audit(admin, disabled ? "user.disable" : "user.enable", target.username);
   revalidatePath("/admin");
 }
 
 // Issues fresh passwords to every active student in a batch and signs them out,
 // for reprinting lost login slips.
 export async function reissueBatch(_: unknown, form: FormData): Promise<{ error?: string; credentials?: Credential[] }> {
-  await requireUser("admin");
+  const admin = await requireUser("admin");
   const batch = String(form.get("batch") ?? "").trim();
   if (String(form.get("confirm") ?? "") !== batch) return { error: "Type the batch name exactly to confirm." };
   const students = await sql<{ id: string; username: string; name: string; batch: string }[]>`
@@ -146,5 +154,6 @@ export async function reissueBatch(_: unknown, form: FormData): Promise<{ error?
     for (const student of hashed) await tx`UPDATE users SET password_hash = ${student.hash} WHERE id = ${student.id}`;
     await tx`DELETE FROM sessions WHERE user_id = ANY(${hashed.map((student) => student.id)})`;
   });
+  await audit(admin, "batch.reissue", batch, { students: hashed.length });
   return { credentials: hashed.map(({ username, name, batch, password }) => ({ username, name, batch, password })) };
 }

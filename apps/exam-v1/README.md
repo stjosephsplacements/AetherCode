@@ -18,7 +18,7 @@ or database). Those remain the long-term multi-college platform.
 
 | Role | What they can do |
 |---|---|
-| **Admin** (`/admin`) | Import students from CSV with generated passwords; download credentials or print cut-out login slips; reissue passwords for a whole batch; create faculty/admin accounts; reset one password; enable/disable users; see system health at `/admin/system`. Admins can do everything faculty can. |
+| **Admin** (`/admin`) | Import students from CSV with generated passwords; download credentials or print cut-out login slips; reissue passwords for a whole batch; create faculty/admin accounts; reset one password; enable/disable users; see system health at `/admin/system` and every staff action at `/admin/audit`. Admins can do everything faculty can. |
 | **Faculty** (`/faculty`) | Write questions in Markdown with sample and hidden tests (typed or imported from files/zip), and **verify them against a model solution**; build exams for batches with a time window, per-student duration, languages, **question pools** and **lab lockdown**; watch the **live monitor**; post **announcements**; grant extra time to one student or **everyone at once**; view any student's code, submissions and flags; **regrade** after fixing a test; export results as CSV; **release results**; open the **similarity report**. |
 | **Student** (`/student`, `/exam/[id]`) | See exams for their batch; start once the window opens; solve in C, C++, Java or Python with Run, custom input and Submit; see per-test results (hidden tests as pass/fail only); after release, see their score breakdown. |
 
@@ -54,6 +54,7 @@ or database). Those remain the long-term multi-college platform.
 | `submissions`, `submission_results` | Runs and submits, their status and score inputs, and per-test verdicts/output. |
 | `attempt_events` | Flags: window blur, fullscreen exit, blocked paste. |
 | `announcements` | Faculty messages per exam. |
+| `audit_log` | Append-only staff actions (who, what, target, details); rows outlive deleted accounts. |
 | `worker_heartbeats` | Liveness of each grading worker. |
 
 ## Rules
@@ -73,6 +74,12 @@ or database). Those remain the long-term multi-college platform.
   - It uses MOSS-style winnowing over a token stream that ignores names, literals, comments and layout.
   - Code shared by more than half the class (capped at 50 students) is ignored as boilerplate.
   - Pairs scoring ≥ 60% are listed with a side-by-side view. A score is a reason to look, not proof.
+- **Audit log:** every staff change is recorded with actor, action, target and details:
+  - imports, staff accounts, password resets and batch reissues, enabling and disabling users;
+  - creating and editing questions and exams, and regrades;
+  - extra time for one student or everyone, announcements, and releasing or hiding results.
+
+  Admins search it at `/admin/audit`. Model-solution checks and the student's own actions are not staff changes and are not logged there.
 - **Announcements:** faculty post from the live monitor; every student in that exam sees a banner within ~15 s and the full list above the problem.
 - **Result release:** students see nothing but "submitted" until faculty click *Release results*; then they see their total, per-question scores and per-test verdicts (hidden tests by number only).
 - **Limits:**
@@ -170,8 +177,11 @@ E2E_BASE_URL=http://localhost:3000 pnpm e2e
 
 Run it before every release and before each exam season.
 
-`next dev` hot-reloads the exam screen while you edit it, which can reset its
-state. Test timing and exam-ending behaviour against `pnpm build && pnpm start`.
+`next dev` hot-reloads the exam screen while you edit it and resets its state
+when hooks change, so test timing and exam-ending behaviour against
+`pnpm build && pnpm start`. If the Playwright browser window is visible, don't
+click in it during automated tests: the server logs can't tell your clicks
+from the test's.
 
 ## Deploying on the campus server
 

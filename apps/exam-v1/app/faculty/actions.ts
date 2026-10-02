@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { audit } from "@/lib/audit";
 import { requireUser } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { OUTPUT_LIMIT_BYTES } from "@/lib/batch";
@@ -75,6 +76,7 @@ export async function saveQuestion(id: string | null, input: QuestionInput): Pro
     )}`;
     return questionId as string;
   });
+  await audit(user, id ? "question.update" : "question.create", question.title, { questionId, tests: question.tests.length });
   revalidatePath("/faculty/questions");
   redirect(`/faculty/questions/${questionId}?saved=1`);
 }
@@ -116,12 +118,20 @@ export async function checkSolution(input: z.input<typeof solutionCheckInput>): 
   }
 }
 
+async function examTitle(examId: string): Promise<string> {
+  const [exam] = await sql<{ title: string }[]>`SELECT title FROM exams WHERE id = ${examId}`;
+  return exam?.title ?? examId;
+}
+
 // Re-queues every final submission for a question, e.g. after fixing a test case.
 export async function regradeQuestion(questionId: string): Promise<void> {
-  await requireUser("faculty", "admin");
-  await sql`
+  const user = await requireUser("faculty", "admin");
+  const requeued = await sql`
     UPDATE submissions SET status = 'queued', tries = 0, claimed_at = NULL
-    WHERE question_id = ${questionId} AND kind = 'submit' AND status IN ('done', 'error')`;
+    WHERE question_id = ${questionId} AND kind = 'submit' AND status IN ('done', 'error')
+    RETURNING id`;
+  const [question] = await sql<{ title: string }[]>`SELECT title FROM questions WHERE id = ${questionId}`;
+  await audit(user, "question.regrade", question?.title ?? questionId, { questionId, requeued: requeued.length });
   revalidatePath(`/faculty/questions/${questionId}`);
 }
 
@@ -206,18 +216,28 @@ export async function saveExam(id: string | null, input: ExamInput): Promise<{ e
     )}`;
     return examId as string;
   });
+  await audit(user, id ? "exam.update" : "exam.create", exam.title, {
+    examId,
+    published: exam.published,
+    start: startsAt.toISOString(),
+    end: endsAt.toISOString(),
+    durationMinutes: exam.durationMinutes,
+  });
   revalidatePath("/faculty");
   redirect(`/faculty/exams/${examId}?saved=1`);
 }
 
 // Gives one student extra minutes, e.g. after a machine failure.
 export async function extendAttempt(attemptId: string, form: FormData): Promise<void> {
-  await requireUser("faculty", "admin");
+  const user = await requireUser("faculty", "admin");
   const minutes = Number(form.get("minutes"));
   if (!Number.isInteger(minutes) || minutes < 1 || minutes > 240) return;
-  await sql`
-    UPDATE attempts SET deadline_at = greatest(deadline_at, now()) + make_interval(mins => ${minutes}), finished_at = NULL, finalized_at = NULL
-    WHERE id = ${attemptId}`;
+  const [target] = await sql<{ username: string; title: string }[]>`
+    UPDATE attempts a SET deadline_at = greatest(a.deadline_at, now()) + make_interval(mins => ${minutes}), finished_at = NULL, finalized_at = NULL
+    FROM users u, exams e
+    WHERE a.id = ${attemptId} AND u.id = a.user_id AND e.id = a.exam_id
+    RETURNING u.username, e.title`;
+  if (target) await audit(user, "attempt.extend", `${target.username} in ${target.title}`, { attemptId, minutes });
   revalidatePath(`/faculty/attempts/${attemptId}`);
 }
 
@@ -226,13 +246,15 @@ export async function announce(examId: string, _: unknown, form: FormData): Prom
   const message = String(form.get("message") ?? "").trim();
   if (message.length === 0 || message.length > 1000) return { error: "Write a message under 1000 characters." };
   await sql`INSERT INTO announcements (exam_id, message, created_by) VALUES (${examId}, ${message}, ${user.id})`;
+  await audit(user, "exam.announce", await examTitle(examId), { examId, message });
   revalidatePath(`/faculty/exams/${examId}/results`);
   return { ok: true };
 }
 
 export async function setResultsReleased(examId: string, released: boolean): Promise<void> {
-  await requireUser("faculty", "admin");
+  const user = await requireUser("faculty", "admin");
   await sql`UPDATE exams SET results_released = ${released} WHERE id = ${examId}`;
+  await audit(user, released ? "results.release" : "results.hide", await examTitle(examId), { examId });
   revalidatePath(`/faculty/exams/${examId}/results`);
 }
 
@@ -240,7 +262,7 @@ export async function setResultsReleased(examId: string, released: boolean): Pro
 // the clock ended within the last 30 minutes can be reopened; attempts a student
 // ended themselves never are.
 export async function extendExam(examId: string, _: unknown, form: FormData): Promise<{ error?: string; extended?: number }> {
-  await requireUser("faculty", "admin");
+  const user = await requireUser("faculty", "admin");
   const minutes = Number(form.get("minutes"));
   const reopen = form.get("reopen") === "on";
   if (!Number.isInteger(minutes) || minutes < 1 || minutes > 240) return { error: "Enter 1–240 minutes." };
@@ -254,6 +276,7 @@ export async function extendExam(examId: string, _: unknown, form: FormData): Pr
       RETURNING id`;
     return rows.length;
   });
+  await audit(user, "exam.extend", await examTitle(examId), { examId, minutes, reopen, extended });
   revalidatePath(`/faculty/exams/${examId}/results`);
   return { extended };
 }

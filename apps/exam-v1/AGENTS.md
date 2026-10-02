@@ -84,8 +84,8 @@ rejected, pin the previous release; don't relax the policy.
 - `make exam-check` and `make exam-build` pass.
 - New logic has table-style tests in `lib/*.test.ts`.
 - Changes to grading, timing, access control or the exam screen were exercised
-  in a browser against a running worker, using a production build (`next dev`
-  hot reload can reset exam-screen state and hide or create timing bugs).
+  in a browser against a running worker, preferably a production build
+  (`next dev` hot reload resets exam-screen state when hooks change).
 - Engine changes pass `pnpm engine-check`.
 - Changes to any step of the exam flow keep `pnpm e2e` passing (see README "End-to-end test"); extend the spec when you add a step.
 - `README.md` is updated: features, rules, config, data model as relevant.

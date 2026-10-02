@@ -8,6 +8,7 @@ const NAV: Record<User["role"], Array<[string, string]>> = {
   admin: [
     ["/admin", "People"],
     ["/admin/system", "System"],
+    ["/admin/audit", "Audit log"],
     ["/faculty", "Exams"],
     ["/faculty/questions", "Questions"],
   ],
