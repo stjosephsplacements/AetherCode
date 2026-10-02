@@ -19,7 +19,7 @@ or database). Those remain the long-term multi-college platform.
 | Role | What they can do |
 |---|---|
 | **Admin** (`/admin`) | Import students from CSV with generated passwords; download credentials or print cut-out login slips; reissue passwords for a whole batch; create faculty/admin accounts; reset one password; enable/disable users; see system health at `/admin/system` and every staff action at `/admin/audit`. Admins can do everything faculty can. |
-| **Faculty** (`/faculty`) | Write questions in Markdown with sample and hidden tests (typed or imported from files/zip), and **verify them against a model solution**; build exams for batches with a time window, per-student duration, languages, **question pools** and **lab lockdown**; watch the **live monitor**; post **announcements**; grant extra time to one student or **everyone at once**; view any student's code, submissions and flags; **regrade** after fixing a test; export results as CSV; **release results**; open the **similarity report**. |
+| **Faculty** (`/faculty`) | Write questions in Markdown with sample and hidden tests (typed or imported from files/zip), and **verify them against a model solution**; build exams for batches with a time window, per-student duration, languages, **question pools** and **lab lockdown**; watch the **live monitor**; post **announcements**; grant extra time to one student or **everyone at once**; view any student's code, submissions and flags; **regrade** after fixing a test; export results as CSV; **release results**; open the **similarity report**; **duplicate** an exam; **export/import** questions as a file. |
 | **Student** (`/student`, `/exam/[id]`) | See exams for their batch; start once the window opens; solve in C, C++, Java or Python with Run, custom input and Submit; see per-test results (hidden tests as pass/fail only); after release, see their score breakdown. |
 
 ## How it works
@@ -128,6 +128,12 @@ Supported naming schemes:
 Files are paired by number. If the question has no sample yet, the first
 imported test becomes the sample. Unpaired files are listed as skipped. Inputs
 over 20 KB show as a size summary instead of a text box.
+
+## Reusing questions and exams
+
+- **Duplicate exam** (exam editor) copies questions, pools, batches, languages and lockdown into a new **unpublished** exam whose window starts tomorrow (same length). Review and publish it.
+- **Export** (question bank, or one question's editor) downloads an `aethercode-questions` v1 JSON file: statement, limits, tests and the model solution. It contains hidden tests and solutions, so share it only with staff.
+- **Import file** (question bank) adds every question in such a file as new questions, validated exactly like the editor (each needs a sample test). Use it to move questions between servers or semesters.
 
 ## Local development
 

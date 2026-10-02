@@ -280,3 +280,74 @@ export async function extendExam(examId: string, _: unknown, form: FormData): Pr
   revalidatePath(`/faculty/exams/${examId}/results`);
   return { extended };
 }
+
+// Copies an exam (questions, pools, settings) as an unpublished draft whose
+// window starts tomorrow, ready to be edited and published.
+export async function cloneExam(examId: string): Promise<void> {
+  const user = await requireUser("faculty", "admin");
+  const newId = await sql.begin(async (tx) => {
+    const [copy] = await tx<{ id: string; title: string }[]>`
+      INSERT INTO exams (title, instructions, starts_at, ends_at, duration_minutes, languages, batches, published,
+        allowed_networks, require_fullscreen, block_external_paste, created_by)
+      SELECT 'Copy of ' || title, instructions,
+        date_trunc('hour', now()) + interval '1 day',
+        date_trunc('hour', now()) + interval '1 day' + (ends_at - starts_at),
+        duration_minutes, languages, batches, false, allowed_networks, require_fullscreen, block_external_paste, ${user.id}
+      FROM exams WHERE id = ${examId}
+      RETURNING id, title`;
+    if (!copy) throw new Error("exam not found");
+    await tx`
+      INSERT INTO exam_questions (exam_id, question_id, ord, slot, points)
+      SELECT ${copy.id}, question_id, ord, slot, points FROM exam_questions WHERE exam_id = ${examId}`;
+    await audit(user, "exam.clone", copy.title, { examId: copy.id, clonedFrom: examId });
+    return copy.id;
+  });
+  revalidatePath("/faculty");
+  redirect(`/faculty/exams/${newId}?saved=1`);
+}
+
+const QUESTION_FILE_FORMAT = "aethercode-questions";
+
+export async function importQuestions(_: unknown, form: FormData): Promise<{ error?: string; imported?: number }> {
+  const user = await requireUser("faculty", "admin");
+  const file = form.get("file");
+  if (!(file instanceof File) || file.size === 0) return { error: "Choose a question file." };
+  let data: unknown;
+  try {
+    data = JSON.parse(await file.text());
+  } catch {
+    return { error: "That file is not valid JSON." };
+  }
+  const parsed = z
+    .object({ format: z.literal(QUESTION_FILE_FORMAT), version: z.literal(1), questions: z.array(questionInput).min(1).max(500) })
+    .safeParse(data);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    return { error: `Not a valid question file (${issue.path.join(".") || "file"}: ${issue.message}).` };
+  }
+  const questions = parsed.data.questions;
+  const unsampled = questions.find((question) => !question.tests.some((test) => test.isSample));
+  if (unsampled) return { error: `"${unsampled.title}" has no sample test.` };
+  await sql.begin(async (tx) => {
+    for (const question of questions) {
+      const [created] = await tx<{ id: string }[]>`
+        INSERT INTO questions (title, statement, time_limit_ms, memory_limit_kb, reference_language, reference_source, created_by)
+        VALUES (${question.title}, ${question.statement}, ${question.timeLimitMs}, ${question.memoryLimitMb * 1024},
+          ${question.referenceSource ? question.referenceLanguage : null}, ${question.referenceSource || null}, ${user.id})
+        RETURNING id`;
+      await tx`INSERT INTO test_cases ${tx(
+        question.tests.map((test, ord) => ({
+          question_id: created.id,
+          ord,
+          input: test.input,
+          expected_output: test.expectedOutput,
+          is_sample: test.isSample,
+          weight: test.weight,
+        })),
+      )}`;
+    }
+  });
+  await audit(user, "questions.import", file.name, { count: questions.length });
+  revalidatePath("/faculty/questions");
+  return { imported: questions.length };
+}

@@ -28,7 +28,15 @@ export default async function EditQuestionPage({
 
   return (
     <AppShell user={user}>
-      <PageHeader eyebrow="Question bank" title={question.title} />
+      <PageHeader
+        eyebrow="Question bank"
+        title={question.title}
+        actions={
+          <a href={`/faculty/questions/export?id=${id}`} className={buttonClass("secondary")}>
+            Export
+          </a>
+        }
+      />
       {saved && <p className="mb-6 rounded-xl bg-pass-soft px-4 py-3 text-sm font-medium text-pass">Saved.</p>}
       {count > 0 && (
         <Card className="mb-6 flex flex-wrap items-center gap-3 border-accent/30 bg-accent-soft/50 p-5">

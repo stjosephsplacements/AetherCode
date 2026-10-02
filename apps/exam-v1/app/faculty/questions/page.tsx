@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { AppShell } from "@/components/app-shell";
 import { Badge, Card, PageHeader, buttonClass } from "@/components/ui";
+import { ImportQuestions } from "./import-questions";
 
 export default async function QuestionsPage() {
   const user = await requireUser("faculty", "admin");
@@ -20,9 +21,17 @@ export default async function QuestionsPage() {
         eyebrow="Question bank"
         title="Questions"
         actions={
-          <Link href="/faculty/questions/new" className={buttonClass()}>
-            New question
-          </Link>
+          <>
+            <ImportQuestions />
+            {questions.length > 0 && (
+              <a href="/faculty/questions/export" className={buttonClass("secondary")}>
+                Export all
+              </a>
+            )}
+            <Link href="/faculty/questions/new" className={buttonClass()}>
+              New question
+            </Link>
+          </>
         }
       />
       <Card className="divide-y divide-line">

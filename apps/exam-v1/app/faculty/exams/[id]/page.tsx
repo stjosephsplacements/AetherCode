@@ -6,6 +6,7 @@ import type { LanguageId } from "@/lib/languages";
 import { AppShell } from "@/components/app-shell";
 import { PageHeader, buttonClass } from "@/components/ui";
 import { ExamForm } from "../exam-form";
+import { cloneExam } from "../../actions";
 import { formOptions } from "../load";
 import { clientIp } from "@/lib/client-ip";
 
@@ -41,9 +42,14 @@ export default async function EditExamPage({ params, searchParams }: { params: P
         eyebrow="Assessments"
         title={exam.title}
         actions={
-          <Link href={`/faculty/exams/${id}/results`} className={buttonClass("secondary")}>
-            Results
-          </Link>
+          <>
+            <form action={cloneExam.bind(null, id)}>
+              <button className={buttonClass("ghost")}>Duplicate</button>
+            </form>
+            <Link href={`/faculty/exams/${id}/results`} className={buttonClass("secondary")}>
+              Results
+            </Link>
+          </>
         }
       />
       {saved && <p className="mb-6 rounded-xl bg-pass-soft px-4 py-3 text-sm font-medium text-pass">Saved.</p>}
