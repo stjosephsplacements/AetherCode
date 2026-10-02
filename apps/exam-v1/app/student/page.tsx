@@ -30,10 +30,7 @@ export default async function StudentHome({ searchParams }: { searchParams: Prom
       (SELECT count(DISTINCT eq.slot)::int FROM exam_questions eq WHERE eq.exam_id = e.id) AS questions,
       (a.finished_at IS NULL AND a.deadline_at > now()) AS attempt_open,
       e.results_released,
-      (SELECT sum(best.score) FROM attempt_questions aq, LATERAL (
-         SELECT max(round(aq.points * s.earned_weight::numeric / nullif(s.total_weight, 0), 2)) AS score FROM submissions s
-         WHERE s.attempt_id = aq.attempt_id AND s.question_id = aq.question_id AND s.kind = 'submit' AND s.status = 'done'
-       ) best WHERE aq.attempt_id = a.id) AS score,
+      (SELECT sum(ss.score) FROM slot_scores ss WHERE ss.attempt_id = a.id) AS score,
       (SELECT sum(points)::int FROM attempt_questions aq WHERE aq.attempt_id = a.id) AS max_score
     FROM exams e
     LEFT JOIN attempts a ON a.exam_id = e.id AND a.user_id = ${user.id}

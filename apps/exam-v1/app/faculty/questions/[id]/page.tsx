@@ -18,8 +18,19 @@ export default async function EditQuestionPage({
   const { saved } = await searchParams;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const [question] = await sql<
-    { title: string; statement: string; time_limit_ms: number; memory_limit_kb: number; reference_language: string | null; reference_source: string | null }[]
-  >`SELECT title, statement, time_limit_ms, memory_limit_kb, reference_language, reference_source FROM questions WHERE id = ${id}`;
+    {
+      title: string;
+      statement: string;
+      time_limit_ms: number;
+      memory_limit_kb: number;
+      reference_language: string | null;
+      reference_source: string | null;
+      kind: "coding" | "mcq";
+      mcq_options: string[] | null;
+      mcq_correct: number[] | null;
+    }[]
+  >`SELECT title, statement, time_limit_ms, memory_limit_kb, reference_language, reference_source, kind, mcq_options, mcq_correct
+    FROM questions WHERE id = ${id}`;
   if (!question) notFound();
   const tests = await sql<{ input: string; expected_output: string; is_sample: boolean; weight: number }[]>`
     SELECT input, expected_output, is_sample, weight FROM test_cases WHERE question_id = ${id} ORDER BY ord`;
@@ -57,6 +68,9 @@ export default async function EditQuestionPage({
           timeLimitMs: question.time_limit_ms,
           memoryLimitMb: Math.round(question.memory_limit_kb / 1024),
           tests: tests.map((test) => ({ input: test.input, expectedOutput: test.expected_output, isSample: test.is_sample, weight: test.weight })),
+          kind: question.kind,
+          options: question.mcq_options ?? undefined,
+          correct: question.mcq_correct ?? undefined,
           referenceLanguage: question.reference_language,
           referenceSource: question.reference_source,
         }}

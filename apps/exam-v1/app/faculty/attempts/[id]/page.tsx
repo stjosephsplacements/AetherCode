@@ -20,8 +20,14 @@ export default async function AttemptPage({ params }: { params: Promise<{ id: st
     FROM attempts a JOIN exams e ON e.id = a.exam_id JOIN users u ON u.id = a.user_id WHERE a.id = ${id}`;
   if (!attempt) notFound();
   // The questions this student drew, one per slot.
-  const questions = await sql<{ id: string; title: string; points: number }[]>`
-    SELECT aq.question_id AS id, q.title, aq.points FROM attempt_questions aq JOIN questions q ON q.id = aq.question_id
+  const questions = await sql<
+    { id: string; title: string; points: number; kind: "coding" | "mcq"; options: string[] | null; correct: number[] | null; selected: number[] | null; score: string | null }[]
+  >`
+    SELECT aq.question_id AS id, q.title, aq.points, q.kind, q.mcq_options AS options, q.mcq_correct AS correct, m.selected, ss.score
+    FROM attempt_questions aq
+    JOIN questions q ON q.id = aq.question_id
+    LEFT JOIN mcq_answers m ON m.attempt_id = aq.attempt_id AND m.question_id = aq.question_id
+    LEFT JOIN slot_scores ss ON ss.attempt_id = aq.attempt_id AND ss.slot = aq.slot
     WHERE aq.attempt_id = ${id} ORDER BY aq.slot`;
   const submissions = await sql<
     Array<{ id: string; question_id: string; kind: string; language: string; source: string; status: string; verdict: string | null; passed: number; total: number; earned_weight: number; total_weight: number; created_at: Date }>
@@ -65,6 +71,34 @@ export default async function AttemptPage({ params }: { params: Promise<{ id: st
       </div>
 
       {questions.map((question, index) => {
+        if (question.kind === "mcq") {
+          return (
+            <section key={question.id} className="mb-10">
+              <div className="mb-3 flex flex-wrap items-baseline gap-3">
+                <h2 className="font-display text-xl font-semibold tracking-tight">
+                  Q{index + 1}. {question.title}
+                </h2>
+                <span className="text-sm text-muted">
+                  Score <strong className="text-ink">{Number(question.score ?? 0)}</strong> / {question.points} · multiple choice
+                </span>
+              </div>
+              <Card className="divide-y divide-line">
+                {(question.options ?? []).map((option, optionIndex) => {
+                  const chosen = question.selected?.includes(optionIndex) ?? false;
+                  const right = question.correct?.includes(optionIndex) ?? false;
+                  return (
+                    <div key={optionIndex} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+                      <span className="w-20 shrink-0">{chosen ? <Badge tone={right ? "pass" : "fail"}>Chosen</Badge> : null}</span>
+                      <span className="flex-1">{option}</span>
+                      {right && <span className="text-xs font-semibold text-pass">Correct answer</span>}
+                    </div>
+                  );
+                })}
+              </Card>
+              {!question.selected?.length && <p className="mt-2 text-sm text-muted">Not answered.</p>}
+            </section>
+          );
+        }
         const mine = submissions.filter((submission) => submission.question_id === question.id);
         const best = mine.reduce<number | null>((top, submission) => {
           if (submission.status !== "done" || submission.total_weight === 0) return top;

@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { clientIp } from "@/lib/client-ip";
 import { sql } from "@/lib/db";
+import { optionOrder } from "@/lib/mcq";
 import { ipAllowed } from "@/lib/net";
 import type { LanguageId } from "@/lib/languages";
 import { buttonClass, Logo } from "@/components/ui";
@@ -54,8 +55,22 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
     );
   }
 
-  const questions = await sql<Array<{ id: string; title: string; statement: string; points: number; time_limit_ms: number; memory_limit_kb: number }>>`
-    SELECT q.id, q.title, q.statement, aq.points, q.time_limit_ms, q.memory_limit_kb
+  const questions = await sql<
+    Array<{
+      id: string;
+      title: string;
+      statement: string;
+      points: number;
+      time_limit_ms: number;
+      memory_limit_kb: number;
+      kind: "coding" | "mcq";
+      mcq_options: string[] | null;
+      multiple: boolean | null;
+    }>
+  >`
+    -- Correct answers are never selected here; only whether there is more than one.
+    SELECT q.id, q.title, q.statement, aq.points, q.time_limit_ms, q.memory_limit_kb, q.kind, q.mcq_options,
+      array_length(q.mcq_correct, 1) > 1 AS multiple
     FROM attempt_questions aq JOIN questions q ON q.id = aq.question_id
     WHERE aq.attempt_id = ${attempt.id} ORDER BY aq.slot`;
   const samples = await sql<Array<{ question_id: string; input: string; expected_output: string }>>`
@@ -64,6 +79,8 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
     WHERE t.is_sample ORDER BY t.ord`;
   const drafts = await sql<Array<{ question_id: string; language: LanguageId; source: string }>>`
     SELECT question_id, language, source FROM drafts WHERE attempt_id = ${attempt.id}`;
+  const answers = await sql<Array<{ question_id: string; selected: number[] }>>`
+    SELECT question_id, selected FROM mcq_answers WHERE attempt_id = ${attempt.id}`;
   const best = await sql<Array<{ question_id: string; passed: number; total: number }>>`
     SELECT DISTINCT ON (question_id) question_id, passed, total FROM submissions
     WHERE attempt_id = ${attempt.id} AND kind = 'submit' AND status = 'done'
@@ -79,6 +96,18 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
     samples: samples.filter((sample) => sample.question_id === question.id).map((sample) => ({ input: sample.input, expected: sample.expected_output })),
     draft: drafts.find((draft) => draft.question_id === question.id) ?? null,
     best: best.find((entry) => entry.question_id === question.id) ?? null,
+    mcq:
+      question.kind === "mcq" && question.mcq_options
+        ? {
+            multiple: Boolean(question.multiple),
+            // Shown in this student's own shuffled order; values stay original indexes.
+            options: optionOrder(question.mcq_options.length, `${attempt.id}:${question.id}`).map((index) => ({
+              index,
+              text: question.mcq_options![index],
+            })),
+            selected: answers.find((answer) => answer.question_id === question.id)?.selected ?? [],
+          }
+        : null,
   }));
 
   return (

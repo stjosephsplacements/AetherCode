@@ -7,8 +7,10 @@ import { ImportQuestions } from "./import-questions";
 
 export default async function QuestionsPage() {
   const user = await requireUser("faculty", "admin");
-  const questions = await sql<{ id: string; title: string; samples: number; hidden: number; updated_at: Date; author: string | null }[]>`
-    SELECT q.id, q.title, q.updated_at, u.name AS author,
+  const questions = await sql<
+    { id: string; title: string; kind: string; options: number | null; samples: number; hidden: number; updated_at: Date; author: string | null }[]
+  >`
+    SELECT q.id, q.title, q.kind, array_length(q.mcq_options, 1) AS options, q.updated_at, u.name AS author,
       count(t.*) FILTER (WHERE t.is_sample)::int AS samples,
       count(t.*) FILTER (WHERE NOT t.is_sample)::int AS hidden
     FROM questions q
@@ -38,8 +40,14 @@ export default async function QuestionsPage() {
         {questions.map((question) => (
           <Link key={question.id} href={`/faculty/questions/${question.id}`} className="flex flex-wrap items-center gap-3 px-5 py-4 hover:bg-sunken/60">
             <span className="mr-auto font-semibold">{question.title}</span>
-            <Badge tone="brand">{question.samples} sample</Badge>
-            <Badge>{question.hidden} hidden</Badge>
+            {question.kind === "mcq" ? (
+              <Badge tone="accent">Multiple choice · {question.options} options</Badge>
+            ) : (
+              <>
+                <Badge tone="brand">{question.samples} sample</Badge>
+                <Badge>{question.hidden} hidden</Badge>
+              </>
+            )}
             <span className="w-40 text-right text-xs text-faint">
               {question.author ?? "—"} · {question.updated_at.toLocaleDateString("en-IN")}
             </span>

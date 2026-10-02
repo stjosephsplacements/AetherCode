@@ -59,13 +59,8 @@ export async function examResults(examId: string): Promise<{ questions: ExamSlot
       WHERE a.exam_id = ${examId} AND NOT a.is_preview
     ),
     best AS (
-      SELECT s.attempt_id, aq.slot,
-        max(round(aq.points * s.earned_weight::numeric / nullif(s.total_weight, 0), 2)) AS score
-      FROM submissions s
-      JOIN attempts a ON a.id = s.attempt_id AND a.exam_id = ${examId} AND NOT a.is_preview
-      JOIN attempt_questions aq ON aq.attempt_id = s.attempt_id AND aq.question_id = s.question_id
-      WHERE s.kind = 'submit' AND s.status = 'done'
-      GROUP BY s.attempt_id, aq.slot
+      SELECT ss.attempt_id, ss.slot, ss.score
+      FROM slot_scores ss JOIN attempts a ON a.id = ss.attempt_id AND a.exam_id = ${examId} AND NOT a.is_preview
     )
     SELECT r.id AS user_id, r.username, r.name, r.batch,
       a.id AS attempt_id, a.started_at, a.finished_at, a.deadline_at,

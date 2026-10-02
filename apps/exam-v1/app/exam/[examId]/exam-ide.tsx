@@ -22,6 +22,8 @@ export interface IdeQuestion {
   samples: Array<{ input: string; expected: string }>;
   draft: { language: LanguageId; source: string } | null;
   best: { passed: number; total: number } | null;
+  // Present for multiple-choice questions; options are in this student's order.
+  mcq: { multiple: boolean; options: Array<{ index: number; text: string }>; selected: number[] } | null;
 }
 
 interface Props {
@@ -108,6 +110,9 @@ export function ExamIde({
   const [customInput, setCustomInput] = useState<Record<string, string>>({});
   const [saveState, setSaveState] = useState<"saved" | "saving" | "offline">("saved");
   const [notice, setNotice] = useState<string | null>(null);
+  const [mcqAnswers, setMcqAnswers] = useState<Record<string, number[]>>(() =>
+    Object.fromEntries(questions.flatMap((entry) => (entry.mcq ? [[entry.id, entry.mcq.selected]] : []))),
+  );
   const [announcements, setAnnouncements] = useState<Array<{ id: number; message: string; at: string }>>([]);
   const [unseenAnnouncement, setUnseenAnnouncement] = useState<string | null>(null);
   // Start gated so the exam never flashes before the fullscreen check runs.
@@ -298,6 +303,21 @@ export function ExamIde({
     };
   }, [logEvent]);
 
+  // ---- multiple choice: every change is saved immediately ----
+  async function choose(questionId: string, index: number, multiple: boolean) {
+    const current = mcqAnswers[questionId] ?? [];
+    const next = multiple ? (current.includes(index) ? current.filter((entry) => entry !== index) : [...current, index]) : [index];
+    setMcqAnswers((answers) => ({ ...answers, [questionId]: next }));
+    setSaveState("saving");
+    try {
+      await api(`/api/attempts/${attemptId}/mcq`, { method: "PUT", body: JSON.stringify({ questionId, selected: next }) });
+      setSaveState("saved");
+    } catch {
+      setSaveState("offline");
+      setNotice("Your answer could not be saved. Check the connection and choose again.");
+    }
+  }
+
   // ---- run / submit ----
   // A run blocks only further runs; a submit grades in the background so the
   // student can keep working (its score is recorded either way).
@@ -396,6 +416,8 @@ export function ExamIde({
         <nav className="flex gap-1.5 overflow-x-auto">
           {questions.map((entry, index) => {
             const score = best[entry.id];
+            // Multiple choice shows only "answered", never whether it is right.
+            const answered = entry.mcq !== null && (mcqAnswers[entry.id]?.length ?? 0) > 0;
             const solved = score && score.total > 0 && score.passed === score.total;
             const partial = score && !solved;
             return (
@@ -412,6 +434,7 @@ export function ExamIde({
                 {index + 1}
                 {solved && <span className="size-1.5 rounded-full bg-go" />}
                 {partial && <span className="size-1.5 rounded-full bg-accent" />}
+                {answered && <span className="size-1.5 rounded-full bg-brand" />}
               </button>
             );
           })}
@@ -517,7 +540,44 @@ export function ExamIde({
 
         <div onPointerDown={drag("x")} className="w-1.5 shrink-0 cursor-col-resize bg-line/40 hover:bg-brand/40" role="separator" aria-orientation="vertical" />
 
-        {/* editor + console */}
+        {question.mcq ? (
+          <section className="min-w-0 flex-1 overflow-y-auto bg-surface px-6 py-6">
+            <div className="mb-4 flex items-center gap-3">
+              <h2 className="font-display text-lg font-semibold tracking-tight">Your answer</h2>
+              <span className="text-sm text-muted">{question.mcq.multiple ? "Select all that apply" : "Choose one"}</span>
+              <span className={cx("ml-auto text-xs", saveState === "offline" ? "font-semibold text-error" : "text-faint")}>
+                {saveState === "saved" ? "Saved" : saveState === "saving" ? "Saving…" : "Not saved"}
+              </span>
+            </div>
+            <div role={question.mcq.multiple ? "group" : "radiogroup"} className="grid gap-3">
+              {question.mcq.options.map((option, position) => {
+                const chosen = (mcqAnswers[question.id] ?? []).includes(option.index);
+                return (
+                  <label
+                    key={option.index}
+                    className={cx(
+                      "flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 text-sm transition-colors",
+                      chosen ? "border-brand bg-brand-soft" : "border-line-strong hover:bg-sunken",
+                    )}
+                  >
+                    <input
+                      type={question.mcq!.multiple ? "checkbox" : "radio"}
+                      name={`mcq-${question.id}`}
+                      checked={chosen}
+                      onChange={() => void choose(question.id, option.index, question.mcq!.multiple)}
+                      className="mt-0.5 size-4 accent-brand"
+                    />
+                    <span className="font-semibold text-faint">{String.fromCharCode(65 + position)}.</span>
+                    <span className="prose-exam min-w-0 flex-1 [&_p]:my-0">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{option.text}</ReactMarkdown>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+            <p className="mt-6 text-xs text-faint">Answers save as soon as you choose. You can change them until time is up.</p>
+          </section>
+        ) : (
         <section ref={editorColumn} className="flex min-w-0 flex-1 flex-col">
           <div className="flex h-11 shrink-0 items-center gap-3 border-b border-line bg-surface px-3">
             <select
@@ -628,6 +688,7 @@ export function ExamIde({
             </div>
           </footer>
         </section>
+        )}
       </div>
 
       {requireFullscreen && !fullscreen && !confirmEnd && (
@@ -658,9 +719,13 @@ export function ExamIde({
                   <span>
                     Q{index + 1}. {entry.title}
                   </span>
-                  <span className={best[entry.id] ? "text-pass" : "text-error"}>
-                    {best[entry.id] ? `${best[entry.id]!.passed}/${best[entry.id]!.total} passed` : "Not submitted"}
-                  </span>
+                  {entry.mcq ? (
+                    <span className={mcqAnswers[entry.id]?.length ? "text-pass" : "text-error"}>{mcqAnswers[entry.id]?.length ? "Answered" : "Not answered"}</span>
+                  ) : (
+                    <span className={best[entry.id] ? "text-pass" : "text-error"}>
+                      {best[entry.id] ? `${best[entry.id]!.passed}/${best[entry.id]!.total} passed` : "Not submitted"}
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>

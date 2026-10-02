@@ -19,8 +19,8 @@ or database). Those remain the long-term multi-college platform.
 | Role | What they can do |
 |---|---|
 | **Admin** (`/admin`) | Import students from CSV with generated passwords; download credentials or print cut-out login slips; reissue passwords for a whole batch; create faculty/admin accounts; reset one password; enable/disable users; see system health at `/admin/system` and every staff action at `/admin/audit`. Admins can do everything faculty can. |
-| **Faculty** (`/faculty`) | Write questions in Markdown with sample and hidden tests (typed or imported from files/zip), and **verify them against a model solution**; build exams for batches with a time window, per-student duration, languages, **question pools** and **lab lockdown**; watch the **live monitor**; post **announcements**; grant extra time to one student or **everyone at once**; view any student's code, submissions and flags; **regrade** after fixing a test; export results as CSV; **release results**; open the **similarity report**; **duplicate** an exam; **preview** it as a student; **export/import** questions as a file. |
-| **Student** (`/student`, `/exam/[id]`) | See exams for their batch; start once the window opens; solve in C, C++, Java or Python with Run, custom input and Submit; see per-test results (hidden tests as pass/fail only); after release, see their score breakdown. |
+| **Faculty** (`/faculty`) | Write **coding** questions in Markdown with sample and hidden tests, or **multiple-choice** questions (typed or imported from files/zip), and **verify them against a model solution**; build exams for batches with a time window, per-student duration, languages, **question pools** and **lab lockdown**; watch the **live monitor**; post **announcements**; grant extra time to one student or **everyone at once**; view any student's code, submissions and flags; **regrade** after fixing a test; export results as CSV; **release results**; open the **similarity report**; **duplicate** an exam; **preview** it as a student; **export/import** questions as a file. |
+| **Student** (`/student`, `/exam/[id]`) | See exams for their batch; start once the window opens; solve coding questions in C, C++, Java or Python with Run, custom input and Submit, and answer multiple-choice questions; see per-test results (hidden tests as pass/fail only); after release, see their score breakdown. |
 
 ## How it works
 
@@ -47,10 +47,12 @@ or database). Those remain the long-term multi-college platform.
 | Table | Holds |
 |---|---|
 | `users`, `sessions` | Accounts (`admin`/`faculty`/`student`, batch) and hashed session tokens. Passwords are scrypt hashes. |
-| `questions`, `test_cases` | Problem statement, limits, and ordered tests (`is_sample`, `weight`). |
+| `questions`, `test_cases` | Problem statement, kind (`coding`/`mcq`), limits, model solution, MCQ options and correct indexes; ordered tests (`is_sample`, `weight`) for coding. |
 | `exams`, `exam_questions` | Window, duration, languages, batches, lockdown settings, `results_released`; questions grouped into `slot`s (pools). |
 | `attempts`, `attempt_questions` | One attempt per student per exam with its deadline (or a staff member's `is_preview` try-out); the question drawn for each slot. |
 | `drafts` | Latest autosaved code per attempt and question. |
+| `mcq_answers` | Current choice per attempt and multiple-choice question (option indexes). |
+| `slot_scores` (view) | Score per attempt and slot: the single scoring rule used by results, exports and the student's score. |
 | `submissions`, `submission_results` | Runs and submits, their status and score inputs, and per-test verdicts/output. |
 | `attempt_events` | Flags: window blur, fullscreen exit, blocked paste. |
 | `announcements` | Faculty messages per exam. |
@@ -64,7 +66,15 @@ or database). Those remain the long-term multi-college platform.
 - **CSV exports are spreadsheet-safe:** cells starting with `=`, `+`, `-` or `@` are prefixed with `'` so they can't run as formulas.
 - **Timing:** each student's clock starts when they click Start: deadline = min(start + duration, window close). The server is the source of truth; the browser clock is anchored to server time.
 - **Question pools:** an exam question can have alternatives. Each student is assigned one question per slot at random when they click Start; results and exports are by slot (Q1, Q2…), so everyone is graded on the same scale. Alternatives in a pool must be worth the same points.
-- **Scoring:** a question's score is its *best* submission: `points × passed weight ÷ total weight`. Every test (sample and hidden) counts by weight.
+- **Scoring** (one rule, the `slot_scores` view):
+  - coding: a question's score is its *best* submission, `points × passed weight ÷ total weight`, with every test (sample and hidden) counted by weight;
+  - multiple choice: full points only if the chosen set equals the correct set, otherwise 0.
+- **Multiple choice:**
+  - 2–10 options, written in Markdown; ticking more than one correct option makes it "select all that apply".
+  - Each student sees the options in their own stable shuffled order (`lib/mcq.ts`).
+  - Answers save on every click (`/api/attempts/[id]/mcq`, with the same deadline grace as drafts).
+  - Correct answers never reach the student's browser. The question nav shows only "answered".
+  - A question's kind can't change after it is saved.
 - **Time-up:** the browser saves the last edits (drafts are accepted for 15 s after the deadline), then the worker submits each question's latest draft unless that exact code was already submitted.
 - **Visibility:** students see full input/output for sample tests and only pass/fail for hidden tests. In batch grading, samples and hidden tests run in separate jobs so a program can never read hidden inputs while its output is shown.
 - **Lab lockdown (per exam):** an IPv4 allow-list of lab networks (checked when starting and on every exam request), an optional fullscreen gate, and optional blocking of pastes and drag-and-drop text that did not come from the student's own editor. Window switches, fullscreen exits and blocked pastes are logged and shown to faculty as **Flags**.

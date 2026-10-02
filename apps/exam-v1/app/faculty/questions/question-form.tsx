@@ -34,8 +34,17 @@ export function QuestionForm({
   initial,
 }: {
   id: string | null;
-  initial?: Omit<QuestionInput, "tests"> & { tests: Test[]; referenceLanguage: string | null; referenceSource: string | null };
+  initial?: Omit<QuestionInput, "tests" | "options" | "correct"> & {
+    tests: Test[];
+    referenceLanguage: string | null;
+    referenceSource: string | null;
+    options?: string[];
+    correct?: number[];
+  };
 }) {
+  const [kind, setKind] = useState<"coding" | "mcq">(initial?.kind ?? "coding");
+  const [options, setOptions] = useState<string[]>(initial?.options?.length ? initial.options : ["", "", "", ""]);
+  const [correct, setCorrect] = useState<number[]>(initial?.correct ?? []);
   const [title, setTitle] = useState(initial?.title ?? "");
   const [statement, setStatement] = useState(initial?.statement ?? STARTER);
   const [timeLimitMs, setTimeLimitMs] = useState(Number(initial?.timeLimitMs ?? 2000));
@@ -112,7 +121,11 @@ export function QuestionForm({
         statement,
         timeLimitMs,
         memoryLimitMb,
-        tests,
+        tests: kind === "coding" ? tests : [],
+        kind,
+        options: kind === "mcq" ? options.map((option) => option.trim()).filter(Boolean) : [],
+        // Indexes refer to the non-empty options that are actually saved.
+        correct: kind === "mcq" ? savedCorrect(options, correct) : [],
         referenceLanguage: referenceSource.trim() ? referenceLanguage : null,
         referenceSource: referenceSource.trim() ? referenceSource : null,
       });
@@ -123,6 +136,24 @@ export function QuestionForm({
   return (
     <div className="grid gap-6">
       <Card className="grid gap-5 p-6">
+        <div className="flex rounded-full bg-sunken p-0.5 text-sm font-semibold sm:w-fit">
+          {(
+            [
+              ["coding", "Coding"],
+              ["mcq", "Multiple choice"],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              disabled={id !== null && kind !== value}
+              onClick={() => setKind(value)}
+              className={cx("flex-1 rounded-full px-4 py-1.5 disabled:opacity-40", kind === value ? "bg-surface text-ink shadow-sm" : "text-muted")}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <Field label="Title">
           <input value={title} onChange={(event) => setTitle(event.target.value)} className={inputClass} placeholder="Sum of N numbers" />
         </Field>
@@ -155,6 +186,7 @@ export function QuestionForm({
             />
           )}
         </div>
+        {kind === "coding" && (
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Time limit (ms)" hint="Per test. Java and Python get 2× automatically.">
             <input type="number" min={100} max={20000} value={timeLimitMs} onChange={(event) => setTimeLimitMs(Number(event.target.value))} className={inputClass} />
@@ -163,7 +195,13 @@ export function QuestionForm({
             <input type="number" min={16} max={1024} value={memoryLimitMb} onChange={(event) => setMemoryLimitMb(Number(event.target.value))} className={inputClass} />
           </Field>
         </div>
+        )}
       </Card>
+
+      {kind === "mcq" && <McqOptions options={options} correct={correct} onOptions={setOptions} onCorrect={setCorrect} />}
+
+      {kind === "coding" && (
+      <>
 
       <div className="flex items-end justify-between">
         <div>
@@ -255,6 +293,8 @@ export function QuestionForm({
         )}
         {check?.tests && <CheckResults check={check.tests} tests={tests} limitMs={timeLimitMs * LANGUAGES[referenceLanguage as keyof typeof LANGUAGES].timeMultiplier} onAdopt={adoptOutputs} />}
       </Card>
+      </>
+      )}
 
       <div className="sticky bottom-0 -mx-5 flex items-center justify-end gap-3 border-t border-line bg-canvas/90 px-5 py-4 backdrop-blur">
         {error && <p className="mr-auto text-sm font-medium text-error">{error}</p>}
@@ -348,5 +388,65 @@ function OutputPreview({ label, value }: { label: string; value: string }) {
       <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-faint">{label}</p>
       <pre className="max-h-32 overflow-auto rounded-lg bg-sunken px-3 py-2 font-mono text-xs">{value === "" ? "(empty)" : value.slice(0, 2000)}</pre>
     </div>
+  );
+}
+
+// Maps correct-answer indexes onto the options that survive dropping blanks.
+function savedCorrect(options: string[], correct: number[]): number[] {
+  const kept = options.flatMap((option, index) => (option.trim() ? [index] : []));
+  return correct.filter((index) => kept.includes(index)).map((index) => kept.indexOf(index));
+}
+
+function McqOptions({
+  options,
+  correct,
+  onOptions,
+  onCorrect,
+}: {
+  options: string[];
+  correct: number[];
+  onOptions: (next: string[]) => void;
+  onCorrect: (next: number[]) => void;
+}) {
+  const toggle = (index: number) => onCorrect(correct.includes(index) ? correct.filter((entry) => entry !== index) : [...correct, index]);
+  const remove = (index: number) => {
+    onOptions(options.filter((_, at) => at !== index));
+    onCorrect(correct.filter((entry) => entry !== index).map((entry) => (entry > index ? entry - 1 : entry)));
+  };
+  return (
+    <Card className="grid gap-4 p-6">
+      <div>
+        <h2 className="font-display text-xl font-semibold tracking-tight">Options</h2>
+        <p className="mt-1 text-sm text-muted">
+          Tick every correct option. One correct option shows radio buttons; more than one means &quot;select all that apply&quot;. Scoring is
+          all-or-nothing. Each student sees the options in their own shuffled order.
+        </p>
+      </div>
+      {options.map((option, index) => (
+        <div key={index} className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={correct.includes(index)}
+            onChange={() => toggle(index)}
+            aria-label={`Option ${index + 1} is correct`}
+            className="size-5 accent-[var(--color-go)]"
+          />
+          <input
+            value={option}
+            onChange={(event) => onOptions(options.map((entry, at) => (at === index ? event.target.value : entry)))}
+            placeholder={`Option ${index + 1}`}
+            className={inputClass}
+          />
+          <button type="button" disabled={options.length <= 2} onClick={() => remove(index)} className="text-sm text-muted hover:text-error disabled:opacity-40">
+            Remove
+          </button>
+        </div>
+      ))}
+      {options.length < 10 && (
+        <Button type="button" variant="secondary" size="sm" className="w-fit" onClick={() => onOptions([...options, ""])}>
+          + Add option
+        </Button>
+      )}
+    </Card>
   );
 }

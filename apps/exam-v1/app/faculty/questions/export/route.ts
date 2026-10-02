@@ -8,9 +8,21 @@ export async function GET(request: Request) {
   if (!user || user.role === "student") return new Response("Forbidden", { status: 403 });
   const ids = new URL(request.url).searchParams.getAll("id").filter((id) => /^[0-9a-f-]{36}$/i.test(id));
   const questions = await sql<
-    Array<{ id: string; title: string; statement: string; time_limit_ms: number; memory_limit_kb: number; reference_language: string | null; reference_source: string | null }>
+    Array<{
+      id: string;
+      title: string;
+      statement: string;
+      time_limit_ms: number;
+      memory_limit_kb: number;
+      reference_language: string | null;
+      reference_source: string | null;
+      kind: "coding" | "mcq";
+      mcq_options: string[] | null;
+      mcq_correct: number[] | null;
+    }>
   >`
-    SELECT id, title, statement, time_limit_ms, memory_limit_kb, reference_language, reference_source FROM questions
+    SELECT id, title, statement, time_limit_ms, memory_limit_kb, reference_language, reference_source, kind, mcq_options, mcq_correct
+    FROM questions
     WHERE ${ids.length === 0} OR id = ANY(${ids}) ORDER BY title`;
   const tests = await sql<Array<{ question_id: string; input: string; expected_output: string; is_sample: boolean; weight: number }>>`
     SELECT question_id, input, expected_output, is_sample, weight FROM test_cases
@@ -21,11 +33,14 @@ export async function GET(request: Request) {
     exportedAt: new Date().toISOString(),
     questions: questions.map((question) => ({
       title: question.title,
+      kind: question.kind,
       statement: question.statement,
       timeLimitMs: question.time_limit_ms,
       memoryLimitMb: Math.round(question.memory_limit_kb / 1024),
       referenceLanguage: question.reference_language,
       referenceSource: question.reference_source,
+      options: question.mcq_options ?? [],
+      correct: question.mcq_correct ?? [],
       tests: tests
         .filter((test) => test.question_id === question.id)
         .map((test) => ({ input: test.input, expectedOutput: test.expected_output, isSample: test.is_sample, weight: test.weight })),

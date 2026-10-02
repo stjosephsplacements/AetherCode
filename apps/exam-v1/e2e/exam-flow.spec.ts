@@ -11,6 +11,7 @@ const batch = `E2E-${run}`;
 const adminName = `e2eadmin${run}`;
 const adminPassword = `Pw-${randomBytes(6).toString("hex")}`;
 const questionTitle = `E2E sum ${run}`;
+const mcqTitle = `E2E mcq ${run}`;
 const examTitle = `E2E exam ${run}`;
 const students = [`e2e${run}a`, `e2e${run}b`];
 const CORRECT = "n = int(input())\nprint(n * (n + 1) // 2)\n";
@@ -39,7 +40,7 @@ test.afterAll(async () => {
     await tx`DELETE FROM submissions WHERE attempt_id = ANY(${attempts})`;
     await tx`DELETE FROM attempts WHERE id = ANY(${attempts})`;
     await tx`DELETE FROM exams WHERE id = ANY(${exams})`;
-    await tx`DELETE FROM questions WHERE title = ${questionTitle}`;
+    await tx`DELETE FROM questions WHERE title = ${questionTitle} OR title = ${mcqTitle}`;
     await tx`DELETE FROM users WHERE batch = ${batch} OR username = ${adminName} OR username = ${`e2efac${run}`}`;
   });
   await sql.end();
@@ -76,6 +77,15 @@ test("import → author → exam → run/submit → auto-submit → results", as
   await faculty.getByRole("button", { name: "Save question" }).click();
   await expect(faculty.getByText("Saved.")).toBeVisible();
 
+  // Faculty: a multiple-choice question whose answer is "3".
+  await faculty.goto("/faculty/questions/new");
+  await faculty.getByRole("button", { name: "Multiple choice" }).click();
+  await faculty.getByPlaceholder("Sum of N numbers").fill(mcqTitle);
+  for (const [index, text] of ["2", "3", "4", "5"].entries()) await faculty.getByPlaceholder(`Option ${index + 1}`).fill(text);
+  await faculty.getByLabel("Option 2 is correct").check();
+  await faculty.getByRole("button", { name: "Save question" }).click();
+  await expect(faculty.getByText("Saved.")).toBeVisible();
+
   // Faculty: an exam open now for the batch, without lockdown.
   await faculty.goto("/faculty/exams/new");
   await faculty.getByPlaceholder("CS201 Lab Test 1").fill(examTitle);
@@ -88,6 +98,7 @@ test("import → author → exam → run/submit → auto-submit → results", as
   await faculty.getByLabel("Require fullscreen", { exact: false }).uncheck();
   await faculty.getByLabel("Block pasting", { exact: false }).uncheck();
   await faculty.locator("select", { hasText: "+ Add question" }).selectOption({ label: questionTitle });
+  await faculty.locator("select", { hasText: "+ Add question" }).selectOption({ label: mcqTitle });
   await faculty.getByLabel("Published (visible to students)").check();
   await faculty.getByRole("button", { name: "Save exam" }).click();
   await expect(faculty.getByText("Saved.")).toBeVisible();
@@ -105,6 +116,9 @@ test("import → author → exam → run/submit → auto-submit → results", as
   await a.locator(".cm-content").fill(CORRECT);
   await a.getByRole("button", { name: "Submit" }).click();
   await expect(a.getByText("All test cases passed")).toBeVisible();
+  await a.locator("nav").getByRole("button", { name: "2" }).click();
+  await a.getByRole("radio", { name: /\b3$/ }).check();
+  await expect(a.getByText("Saved", { exact: true })).toBeVisible();
   a.on("dialog", (dialog) => void dialog.accept());
   await a.locator("header").getByRole("button", { name: "End exam" }).click();
   await a.getByRole("dialog").getByRole("button", { name: "End exam" }).click();
@@ -116,6 +130,13 @@ test("import → author → exam → run/submit → auto-submit → results", as
   await b.waitForURL(`**/exam/${examId}`);
   await b.getByLabel("Language").selectOption("python");
   await b.locator(".cm-content").fill(CORRECT);
+  await b.locator("nav").getByRole("button", { name: "2" }).click();
+  await b.getByRole("radio", { name: /\b5$/ }).check();
+  await expect
+    .poll(async () => (await sql`
+      SELECT 1 FROM mcq_answers m JOIN attempts at ON at.id = m.attempt_id JOIN users u ON u.id = at.user_id
+      WHERE at.exam_id = ${examId} AND u.username = ${students[1]}`).length, { timeout: 30_000 })
+    .toBe(1);
   await expect
     .poll(async () => (await sql`
       SELECT 1 FROM drafts d JOIN attempts at ON at.id = d.attempt_id JOIN users u ON u.id = at.user_id
@@ -138,7 +159,9 @@ test("import → author → exam → run/submit → auto-submit → results", as
 
   // Faculty: both students score full marks; release and export.
   await faculty.goto(`/faculty/exams/${examId}/results`);
-  for (const username of students) await expect(faculty.locator("tr", { hasText: username })).toContainText("100");
+  // A: coding 100 + MCQ 100. B: coding 100 (auto-submitted) + wrong MCQ 0.
+  await expect(faculty.locator("tr", { hasText: students[0] }).locator("td").nth(6)).toHaveText("200");
+  await expect(faculty.locator("tr", { hasText: students[1] }).locator("td").nth(6)).toHaveText("100");
   await faculty.getByRole("button", { name: "Release results" }).click();
   await expect(faculty.getByRole("button", { name: "Hide results" })).toBeVisible();
   const exported = await (await faculty.request.get(`/faculty/exams/${examId}/results.csv`)).text();
@@ -148,7 +171,8 @@ test("import → author → exam → run/submit → auto-submit → results", as
 
   // Student A sees the released score.
   await a.goto("/student");
-  await expect(a.locator("div", { hasText: examTitle }).getByText("/ 100")).toBeVisible();
+  await expect(a.locator("div", { hasText: examTitle }).getByText("/ 200")).toBeVisible();
   await a.getByRole("link", { name: "View results" }).click();
   await expect(a.getByText("Best submission: 2/2 test cases")).toBeVisible();
+  await expect(a.getByText("correct", { exact: true })).toBeVisible();
 });

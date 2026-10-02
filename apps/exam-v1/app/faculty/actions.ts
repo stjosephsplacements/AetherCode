@@ -27,24 +27,45 @@ const questionInput = z.object({
         weight: z.coerce.number().int().min(1).max(100),
       }),
     )
-    .min(1, "Add at least one test case")
     .max(100),
+  kind: z.enum(["coding", "mcq"]).default("coding"),
+  options: z.array(z.string().trim().min(1, "Options can't be empty").max(2000)).max(10).default([]),
+  correct: z.array(z.coerce.number().int().min(0)).default([]),
   referenceLanguage: z.enum(LANGUAGE_IDS as [string, ...string[]]).nullable(),
   referenceSource: z.string().max(65_536, "Model solution must be under 64 KB").nullable(),
 });
 
 export type QuestionInput = z.input<typeof questionInput>;
 
+// What's wrong with a question as a whole, beyond field-level validation.
+function questionProblem(question: z.infer<typeof questionInput>): string | null {
+  if (question.kind === "mcq") {
+    if (question.options.length < 2) return "A multiple-choice question needs at least 2 options.";
+    if (question.correct.length === 0) return "Mark at least one option as correct.";
+    if (question.correct.some((index) => index >= question.options.length)) return "A correct answer points at a missing option.";
+    return null;
+  }
+  if (question.tests.length === 0) return "Add at least one test case";
+  if (!question.tests.some((test) => test.isSample)) return "Mark at least one test case as a sample so students can Run.";
+  return null;
+}
+
 export async function saveQuestion(id: string | null, input: QuestionInput): Promise<{ error?: string }> {
   const user = await requireUser("faculty", "admin");
   const parsed = questionInput.safeParse(input);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const question = parsed.data;
-  if (!question.tests.some((test) => test.isSample)) return { error: "Mark at least one test case as a sample so students can Run." };
+  const problem = questionProblem(question);
+  if (problem) return { error: problem };
   // A blank model solution is stored as none.
-  const reference = question.referenceSource?.trim()
-    ? { language: question.referenceLanguage, source: question.referenceSource }
-    : { language: null, source: null };
+  const reference =
+    question.kind === "coding" && question.referenceSource?.trim()
+      ? { language: question.referenceLanguage, source: question.referenceSource }
+      : { language: null, source: null };
+  const mcq =
+    question.kind === "mcq"
+      ? { options: question.options, correct: [...new Set(question.correct)].sort((a, b) => a - b) }
+      : { options: null, correct: null };
 
   const questionId = await sql.begin(async (tx) => {
     let questionId = id;
@@ -52,18 +73,21 @@ export async function saveQuestion(id: string | null, input: QuestionInput): Pro
       const updated = await tx`
         UPDATE questions SET title = ${question.title}, statement = ${question.statement},
           time_limit_ms = ${question.timeLimitMs}, memory_limit_kb = ${question.memoryLimitMb * 1024}, updated_at = now(),
-          reference_language = ${reference.language}, reference_source = ${reference.source}
+          reference_language = ${reference.language}, reference_source = ${reference.source},
+          kind = ${question.kind}, mcq_options = ${mcq.options}, mcq_correct = ${mcq.correct}
         WHERE id = ${questionId} RETURNING id`;
       if (updated.length === 0) throw new Error("question not found");
       await tx`DELETE FROM test_cases WHERE question_id = ${questionId}`;
     } else {
       const [created] = await tx<{ id: string }[]>`
-        INSERT INTO questions (title, statement, time_limit_ms, memory_limit_kb, reference_language, reference_source, created_by)
+        INSERT INTO questions (title, statement, time_limit_ms, memory_limit_kb, reference_language, reference_source,
+          kind, mcq_options, mcq_correct, created_by)
         VALUES (${question.title}, ${question.statement}, ${question.timeLimitMs}, ${question.memoryLimitMb * 1024},
-          ${reference.language}, ${reference.source}, ${user.id})
+          ${reference.language}, ${reference.source}, ${question.kind}, ${mcq.options}, ${mcq.correct}, ${user.id})
         RETURNING id`;
       questionId = created.id;
     }
+    if (question.kind === "mcq") return questionId as string;
     await tx`INSERT INTO test_cases ${tx(
       question.tests.map((test, ord) => ({
         question_id: questionId,
@@ -326,15 +350,20 @@ export async function importQuestions(_: unknown, form: FormData): Promise<{ err
     return { error: `Not a valid question file (${issue.path.join(".") || "file"}: ${issue.message}).` };
   }
   const questions = parsed.data.questions;
-  const unsampled = questions.find((question) => !question.tests.some((test) => test.isSample));
-  if (unsampled) return { error: `"${unsampled.title}" has no sample test.` };
+  for (const question of questions) {
+    const problem = questionProblem(question);
+    if (problem) return { error: `"${question.title}": ${problem}` };
+  }
   await sql.begin(async (tx) => {
     for (const question of questions) {
       const [created] = await tx<{ id: string }[]>`
-        INSERT INTO questions (title, statement, time_limit_ms, memory_limit_kb, reference_language, reference_source, created_by)
+        INSERT INTO questions (title, statement, time_limit_ms, memory_limit_kb, reference_language, reference_source,
+          kind, mcq_options, mcq_correct, created_by)
         VALUES (${question.title}, ${question.statement}, ${question.timeLimitMs}, ${question.memoryLimitMb * 1024},
-          ${question.referenceSource ? question.referenceLanguage : null}, ${question.referenceSource || null}, ${user.id})
+          ${question.referenceSource ? question.referenceLanguage : null}, ${question.referenceSource || null}, ${question.kind},
+          ${question.kind === "mcq" ? question.options : null}, ${question.kind === "mcq" ? question.correct : null}, ${user.id})
         RETURNING id`;
+      if (question.kind === "mcq") continue;
       await tx`INSERT INTO test_cases ${tx(
         question.tests.map((test, ord) => ({
           question_id: created.id,

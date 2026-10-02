@@ -19,13 +19,27 @@ export default async function StudentResultsPage({ params }: { params: Promise<{
       AND (a.finished_at IS NOT NULL OR a.deadline_at <= now())`;
   if (!attempt) notFound();
   const slots = await sql<
-    Array<{ slot: number; title: string; points: number; submission_id: string | null; score: string | null; passed: number | null; total: number | null; verdict: string | null }>
+    Array<{
+      slot: number;
+      title: string;
+      points: number;
+      kind: "coding" | "mcq";
+      answered: boolean;
+      slot_score: string | null;
+      submission_id: string | null;
+      passed: number | null;
+      total: number | null;
+      verdict: string | null;
+    }>
   >`
-    SELECT aq.slot, q.title, aq.points, best.id AS submission_id, best.score, best.passed, best.total, best.verdict
+    SELECT aq.slot, q.title, aq.points, q.kind, (m.attempt_id IS NOT NULL AND cardinality(m.selected) > 0) AS answered,
+      ss.score AS slot_score, best.id AS submission_id, best.passed, best.total, best.verdict
     FROM attempt_questions aq
     JOIN questions q ON q.id = aq.question_id
+    LEFT JOIN slot_scores ss ON ss.attempt_id = aq.attempt_id AND ss.slot = aq.slot
+    LEFT JOIN mcq_answers m ON m.attempt_id = aq.attempt_id AND m.question_id = aq.question_id
     LEFT JOIN LATERAL (
-      SELECT s.id, round(aq.points * s.earned_weight::numeric / nullif(s.total_weight, 0), 2) AS score, s.passed, s.total, s.verdict
+      SELECT s.id, s.passed, s.total, s.verdict
       FROM submissions s
       WHERE s.attempt_id = aq.attempt_id AND s.question_id = aq.question_id AND s.kind = 'submit' AND s.status = 'done'
       ORDER BY s.earned_weight::numeric / nullif(s.total_weight, 0) DESC NULLS LAST, s.created_at DESC
@@ -37,7 +51,7 @@ export default async function StudentResultsPage({ params }: { params: Promise<{
     SELECT submission_id, ord, is_sample, verdict FROM submission_results
     WHERE submission_id = ANY(${slots.map((slot) => slot.submission_id).filter((id): id is string => id !== null)})
     ORDER BY ord`;
-  const total = slots.reduce((sum, slot) => sum + Number(slot.score ?? 0), 0);
+  const total = slots.reduce((sum, slot) => sum + Number(slot.slot_score ?? 0), 0);
   const max = slots.reduce((sum, slot) => sum + slot.points, 0);
 
   return (
@@ -58,10 +72,15 @@ export default async function StudentResultsPage({ params }: { params: Promise<{
                 Q{slot.slot + 1}. {slot.title}
               </h2>
               <span className="ml-auto text-sm">
-                <strong className="text-ink">{slot.score === null ? 0 : Number(slot.score)}</strong> <span className="text-muted">/ {slot.points}</span>
+                <strong className="text-ink">{slot.slot_score === null ? 0 : Number(slot.slot_score)}</strong> <span className="text-muted">/ {slot.points}</span>
               </span>
             </div>
-            {slot.submission_id ? (
+            {slot.kind === "mcq" ? (
+              <p className="mt-1 text-sm text-muted">
+                Multiple choice ·{" "}
+                {!slot.answered ? "not answered" : Number(slot.slot_score ?? 0) > 0 ? <span className="text-pass">correct</span> : <span className="text-fail">incorrect</span>}
+              </p>
+            ) : slot.submission_id ? (
               <>
                 <p className="mt-1 text-sm text-muted">
                   Best submission: {slot.passed}/{slot.total} test cases · {VERDICT_LABEL[slot.verdict ?? ""] ?? slot.verdict}
