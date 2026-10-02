@@ -67,3 +67,44 @@ test("limiter caps concurrency", async () => {
   );
   assert.equal(peak, 2);
 });
+
+test("batched grading compiles once per group and keeps test order", async () => {
+  const calls: string[][] = [];
+  const engine: Engine = {
+    execute: () => Promise.reject(new Error("per-test path must not be used")),
+    executeBatch: async (request) => {
+      calls.push(request.inputs);
+      return {
+        results: request.inputs.map((input) => ({
+          status: "ok" as const,
+          stdout: `out:${input}\n`,
+          stderr: "",
+          compileOutput: "",
+          timeMs: 1,
+          memoryKb: null,
+        })),
+      };
+    },
+  };
+  const tests = [t("h1", "out:h1"), { ...t("s1", "out:s1"), isSample: true }, t("h2", "bad")];
+  const outcome = await grade(engine, createLimiter(2), job(tests));
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls.flat().sort(), ["h1", "h2", "s1"]);
+  assert.deepEqual(outcome.outcomes.map((entry) => [entry.ord, entry.verdict]), [
+    [0, "accepted"],
+    [1, "accepted"],
+    [2, "wrong_answer"],
+  ]);
+  assert.equal(outcome.verdict, "wrong_answer");
+});
+
+test("batched compile error marks every test", async () => {
+  const engine: Engine = {
+    execute: () => Promise.reject(new Error("unused")),
+    executeBatch: async () => ({ compileError: "main.c:1: error" }),
+  };
+  const outcome = await grade(engine, createLimiter(2), job([t("a", "x"), { ...t("b", "y"), isSample: true }]));
+  assert.equal(outcome.verdict, "compile_error");
+  assert.equal(outcome.compileOutput, "main.c:1: error");
+  assert.equal(outcome.outcomes.length, 2);
+});

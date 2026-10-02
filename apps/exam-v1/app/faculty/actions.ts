@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { sql } from "@/lib/db";
+import { OUTPUT_LIMIT_BYTES } from "@/lib/batch";
 import { LANGUAGE_IDS } from "@/lib/languages";
 
 const questionInput = z.object({
@@ -16,7 +17,8 @@ const questionInput = z.object({
     .array(
       z.object({
         input: z.string().max(2_000_000),
-        expectedOutput: z.string().max(2_000_000),
+        // The judge captures at most this much output per test (lib/batch.ts).
+        expectedOutput: z.string().max(OUTPUT_LIMIT_BYTES, "Expected output must be under 256 KB per test"),
         isSample: z.boolean(),
         weight: z.coerce.number().int().min(1).max(100),
       }),

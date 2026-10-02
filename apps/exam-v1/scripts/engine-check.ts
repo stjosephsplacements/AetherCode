@@ -47,6 +47,7 @@ const EXPECT: Record<keyof (typeof PROGRAMS)["c"], Verdict> = {
 
 const engine = engineFromEnv();
 const limit = createLimiter(4);
+console.log(`engine=${process.env.ENGINE ?? "judge0"} mode=${engine.executeBatch ? "compile-once batches" : "one job per test"}\n`);
 let failures = 0;
 for (const [language, programs] of Object.entries(PROGRAMS) as Array<[LanguageId, (typeof PROGRAMS)["c"]]>) {
   for (const [name, source] of Object.entries(programs) as Array<[keyof typeof EXPECT, string]>) {

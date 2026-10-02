@@ -16,7 +16,8 @@ alongside the AetherCode microservices, which remain the long-term platform.
 | `app/` | Next.js App Router UI and API routes. Server components query Postgres directly. |
 | `worker/main.ts` | Claims queued submissions (`FOR UPDATE SKIP LOCKED`), runs each test through the engine, stores per-test verdicts. Also auto-submits each student's latest draft when their attempt ends. |
 | `lib/engine.ts` | Engine adapters. `Judge0Engine` (production) and `PistonEngine` (local dev / cgroup v2 hosts). Add your own engine by implementing `Engine.execute`. |
-| `lib/grade.ts` | Runs the first test alone (so a compile error costs one call), fans the rest out, picks the worst verdict, sums passed weight. |
+| `lib/grade.ts` | With Judge0, compiles once per group (samples, hidden) and runs every test in that one job (`lib/batch.ts`). Otherwise runs the first test alone (so a compile error costs one call) and fans the rest out. Picks the worst verdict, sums passed weight. |
+| `lib/batch.ts` | Builds the compile-once job: source, a `compile` script, a `run` script that executes each input under its own CPU limit, and framed base64 output per test. Samples and hidden tests never share a job, so a program cannot read hidden inputs while its output is shown to the student. |
 | `db/*.sql` | Schema, applied in order by `pnpm migrate`. |
 
 ### Rules
@@ -101,6 +102,7 @@ docker compose exec app pnpm piston-runtimes   # downloads gcc, python, java onc
 | `ENGINE` | `judge0` | `judge0` or `piston`. |
 | `ENGINE_URL` | — | Engine base URL. |
 | `ENGINE_AUTH_TOKEN` | empty | Judge0 `X-Auth-Token`, if configured. |
+| `ENGINE_BATCH` | `true` | Judge0 only: compile once per submission and run all tests in one job (~5–8× less work). Set `false` to fall back to one Judge0 job per test if `engine-check` fails in batch mode. |
 | `WORKER_CONCURRENCY` | `8` | Parallel engine calls from the worker. Judge0: about 2× `COUNT` (extra jobs wait in Judge0's queue). Piston: at most CPU cores − 2, because Piston times by wall clock and CPU contention causes false time-limit verdicts. |
 | `COOKIE_SECURE` | `true` | Set `false` only for plain HTTP on a trusted LAN. |
 
