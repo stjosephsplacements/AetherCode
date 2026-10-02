@@ -3,3 +3,5 @@ node_modules/
 next-env.d.ts
 *.tsbuildinfo
 .env
+test-results/
+playwright-report/

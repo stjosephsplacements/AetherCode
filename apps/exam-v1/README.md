@@ -150,6 +150,26 @@ Checks:
 - `pnpm engine-check`, which runs correct, wrong, infinite-loop and broken programs in
   every language through the configured engine and must print "Engine OK".
 
+### End-to-end test
+
+`e2e/exam-flow.spec.ts` drives a real browser through the whole flow:
+1. Admin imports students and creates a faculty account.
+2. Faculty write a question and publish an exam.
+3. A student gets a wrong Run, then an accepted Submit, and ends the exam.
+4. A second student's unsubmitted draft is auto-submitted at time-up.
+5. Faculty check scores, release results and export the CSV.
+6. The student sees their released score.
+
+It needs the app, the worker and an engine running against `DATABASE_URL`. It
+creates uniquely named data and deletes it afterwards.
+
+```bash
+npx playwright install chromium        # once; or set E2E_BROWSER_CHANNEL=chrome to use installed Chrome
+E2E_BASE_URL=http://localhost:3000 pnpm e2e
+```
+
+Run it before every release and before each exam season.
+
 `next dev` hot-reloads the exam screen while you edit it, which can reset its
 state. Test timing and exam-ending behaviour against `pnpm build && pnpm start`.
 

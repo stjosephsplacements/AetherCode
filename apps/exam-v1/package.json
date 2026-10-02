@@ -13,12 +13,14 @@
     "test": "tsx --test lib/*.test.ts",
     "piston-runtimes": "tsx scripts/install-piston-runtimes.ts",
     "loadtest": "tsx scripts/loadtest.ts",
-    "engine-check": "tsx scripts/engine-check.ts"
+    "engine-check": "tsx scripts/engine-check.ts",
+    "e2e": "playwright test -c e2e"
   },
   "dependencies": {
     "@codemirror/lang-cpp": "6.0.3",
     "@codemirror/lang-java": "6.0.2",
     "@codemirror/lang-python": "6.2.1",
+    "@codemirror/language": "6.12.4",
     "@uiw/react-codemirror": "4.25.12",
     "next": "16.3.8",
     "papaparse": "5.7.0",
@@ -28,10 +30,10 @@
     "react-markdown": "10.1.0",
     "remark-gfm": "4.0.1",
     "tsx": "4.23.15",
-    "zod": "4.6.5",
-    "@codemirror/language": "6.12.4"
+    "zod": "4.6.5"
   },
   "devDependencies": {
+    "@playwright/test": "1.63.0",
     "@tailwindcss/postcss": "4.3.3",
     "@types/node": "24.19.0",
     "@types/papaparse": "5.5.2",

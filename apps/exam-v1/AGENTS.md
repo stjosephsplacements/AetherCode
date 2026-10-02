@@ -73,6 +73,7 @@ module-level code that needs one.
 | First admin | `pnpm create-admin <username> [name]` |
 | Verify the engine | `pnpm engine-check` (must print "Engine OK") |
 | Load test | `pnpm loadtest --url <base> --students N` / `pnpm loadtest --cleanup` |
+| End-to-end browser test | `E2E_BASE_URL=<base> pnpm e2e` (app, worker and engine running) |
 | Full deployment | `make exam-up` / `make exam-down` (repo root) |
 
 Dependencies: pnpm enforces `minimumReleaseAge`. If a fresh version is
@@ -86,4 +87,5 @@ rejected, pin the previous release; don't relax the policy.
   in a browser against a running worker, using a production build (`next dev`
   hot reload can reset exam-screen state and hide or create timing bugs).
 - Engine changes pass `pnpm engine-check`.
+- Changes to any step of the exam flow keep `pnpm e2e` passing (see README "End-to-end test"); extend the spec when you add a step.
 - `README.md` is updated: features, rules, config, data model as relevant.
