@@ -1,12 +1,12 @@
 "use client";
 
 import type { Credential } from "@/app/admin/actions";
+import { toCsv } from "@/lib/csv";
 import { LoginSlips } from "./login-slips";
 import { Button } from "./ui";
 
 export function downloadCsv(fileName: string, rows: string[][]) {
-  const escape = (value: string) => (/[",\n]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value);
-  const blob = new Blob([rows.map((row) => row.map(escape).join(",")).join("\n")], { type: "text/csv" });
+  const blob = new Blob([toCsv(rows)], { type: "text/csv" });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
   link.download = fileName;

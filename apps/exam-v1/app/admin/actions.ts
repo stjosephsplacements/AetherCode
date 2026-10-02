@@ -80,7 +80,7 @@ export async function importStudents(rows: Array<Record<string, string>>): Promi
       INSERT INTO users ${sql(
         hashed.map((row) => ({ username: row.username, name: row.name, batch: row.batch, role: "student", password_hash: row.hash })),
       )}
-      ON CONFLICT (username) DO NOTHING`;
+      ON CONFLICT DO NOTHING`;
   }
   revalidatePath("/admin");
   return {
@@ -104,7 +104,7 @@ export async function createStaff(_: unknown, form: FormData): Promise<{ error?:
   const rows = await sql`
     INSERT INTO users (username, name, role, password_hash)
     VALUES (${parsed.data.username}, ${parsed.data.name}, ${parsed.data.role}, ${await hashPassword(password)})
-    ON CONFLICT (username) DO NOTHING
+    ON CONFLICT DO NOTHING
     RETURNING id`;
   if (rows.length === 0) return { error: "That username is already taken." };
   revalidatePath("/admin");

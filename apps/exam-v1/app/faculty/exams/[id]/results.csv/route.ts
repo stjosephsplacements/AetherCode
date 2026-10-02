@@ -1,8 +1,8 @@
 import { currentUser } from "@/lib/auth";
 import { sql } from "@/lib/db";
+import { toCsv } from "@/lib/csv";
 import { attemptStatus, examResults } from "@/lib/results";
 
-const escape = (value: string) => (/[",\n]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value);
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await currentUser();
@@ -30,7 +30,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       ]),
   ];
   const fileName = `${exam.title.replace(/[^A-Za-z0-9]+/g, "-")}${batch ? `-${batch}` : ""}-results.csv`;
-  return new Response("﻿" + lines.map((line) => line.map(escape).join(",")).join("\r\n"), {
+  return new Response("\uFEFF" + toCsv(lines), {
     headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": `attachment; filename="${fileName}"` },
   });
 }

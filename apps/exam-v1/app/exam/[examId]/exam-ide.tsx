@@ -251,6 +251,17 @@ export function ExamIde({
         cut: (_, view) => {
           copiedInside.current = [...copiedInside.current.slice(-19), view.state.sliceDoc(view.state.selection.main.from, view.state.selection.main.to).trim()];
         },
+        // Dropping text dragged from outside is the same as pasting it; moving the
+        // editor's own selection by drag stays allowed.
+        drop: (event, view) => {
+          const text = event.dataTransfer?.getData("text/plain").trim() ?? "";
+          const selection = view.state.sliceDoc(view.state.selection.main.from, view.state.selection.main.to).trim();
+          if (!blockExternalPaste || text === "" || text === selection || copiedInside.current.includes(text)) return false;
+          event.preventDefault();
+          setNotice("Dropping text from outside the exam is disabled. This attempt has been recorded.");
+          logEvent("paste");
+          return true;
+        },
         paste: (event) => {
           const text = event.clipboardData?.getData("text/plain").trim() ?? "";
           if (!blockExternalPaste || text === "" || copiedInside.current.includes(text)) return false;

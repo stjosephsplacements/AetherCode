@@ -59,13 +59,14 @@ or database). Those remain the long-term multi-college platform.
 ## Rules
 
 - **Roles:** `admin` (people + everything faculty can do), `faculty` (questions, exams, results), `student`. Every page, server action and API route checks the role on the server.
-- **Sign-in:** username/roll number + password. A student signing in elsewhere ends their other session. Five failed attempts lock that username for a minute. Sessions last 12 hours.
+- **Sign-in:** username/roll number + password, case-insensitive (usernames are unique ignoring case). A student signing in elsewhere ends their other session. Five failed attempts lock that username for a minute. Unknown usernames cost the same time as wrong passwords, so accounts can't be discovered by timing. Sessions last 12 hours.
+- **CSV exports are spreadsheet-safe:** cells starting with `=`, `+`, `-` or `@` are prefixed with `'` so they can't run as formulas.
 - **Timing:** each student's clock starts when they click Start: deadline = min(start + duration, window close). The server is the source of truth; the browser clock is anchored to server time.
 - **Question pools:** an exam question can have alternatives. Each student is assigned one question per slot at random when they click Start; results and exports are by slot (Q1, Q2…), so everyone is graded on the same scale. Alternatives in a pool must be worth the same points.
 - **Scoring:** a question's score is its *best* submission: `points × passed weight ÷ total weight`. Every test (sample and hidden) counts by weight.
 - **Time-up:** the browser saves the last edits (drafts are accepted for 15 s after the deadline), then the worker submits each question's latest draft unless that exact code was already submitted.
 - **Visibility:** students see full input/output for sample tests and only pass/fail for hidden tests. In batch grading, samples and hidden tests run in separate jobs so a program can never read hidden inputs while its output is shown.
-- **Lab lockdown (per exam):** an IPv4 allow-list of lab networks (checked when starting and on every exam request), an optional fullscreen gate, and optional blocking of pastes that did not come from the student's own editor. Window switches, fullscreen exits and blocked pastes are logged and shown to faculty as **Flags**.
+- **Lab lockdown (per exam):** an IPv4 allow-list of lab networks (checked when starting and on every exam request), an optional fullscreen gate, and optional blocking of pastes and drag-and-drop text that did not come from the student's own editor. Window switches, fullscreen exits and blocked pastes are logged and shown to faculty as **Flags**.
 - **Network check needs nginx:** the allow-list trusts `X-Forwarded-For`, which `deploy/nginx.conf` overwrites with the real client address. Never publish the `app` container's port directly. The exam settings page shows "Your IP as seen by the server": confirm it shows a lab address before relying on the allow-list.
 - **Similarity report:**
   - Per question slot, it compares every student's final code (latest submission, else draft).
@@ -238,7 +239,7 @@ removes everything it created.
 - **Backups are automatic:** the `backup` service writes `deploy/backups/exam-YYYYMMDD-HHMM.dump` every 15 minutes and keeps 7 days. Copy the folder off the server after every exam. Check it with `docker compose logs backup`.
 - **Restore** a dump: `docker compose exec -T db pg_restore -U exam -d exam --clean --if-exists < backups/exam-YYYYMMDD-HHMM.dump`.
 - **Health:** `GET /api/health` returns `200` when database, worker and engine are up and `503` otherwise, for external monitors. It reveals nothing else.
-- **Restart safely:** submissions a crashed worker was holding are reclaimed after 5 minutes; failed engine calls are retried 3 times, then marked as a system error the student can resubmit.
+- **Restart safely:** submissions a crashed worker was holding are reclaimed after 10 minutes (longer than the slowest Judge0 batch); failed engine calls are retried 3 times, then marked as a system error the student can resubmit.
 - **A student's machine failed:** sign them in on another machine (their old session ends), then grant extra time from their attempt page. Their autosaved code is waiting.
 
 ## Configuration (app and worker)
@@ -266,5 +267,8 @@ removes everything it created.
 - **Piston and Java.** Piston compiles Java inside the timed run; the adapter
   adds a 3 s allowance and maps `error: compilation failed` to a compile error.
 - **No email.** Passwords are distributed on slips or CSV, not by email.
+- **Regrading lowers scores briefly.** While a regrade runs, a question's re-queued submissions don't count, so totals can dip until the worker finishes.
+- **Times show in IST.** Dates are formatted in `Asia/Kolkata` on the server.
+- **One-process rate limit.** The login lockout counter lives in the app process, which is fine for one app container.
 - **No proctoring.** There is no proctoring beyond lab lockdown and flags, and
   SEB is not used.

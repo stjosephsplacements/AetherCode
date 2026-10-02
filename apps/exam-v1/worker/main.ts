@@ -30,14 +30,15 @@ interface Claimed {
 const clip = (value: string) => (value.length > OUTPUT_LIMIT ? value.slice(0, OUTPUT_LIMIT) + "\n…[truncated]" : value);
 
 async function claim(count: number): Promise<Claimed[]> {
-  // A crashed worker leaves rows in "running"; reclaim them after 5 minutes.
+  // A crashed worker leaves rows in "running"; reclaim them after 10 minutes,
+  // longer than the slowest legitimate Judge0 batch (~5.5 minutes).
   // Runs go first: they are small (sample tests only) and a student is waiting on
   // them, while a submit is already saved and only its score is pending.
   return sql<Claimed[]>`
     UPDATE submissions SET status = 'running', claimed_at = now(), tries = tries + 1
     WHERE id IN (
       SELECT id FROM submissions
-      WHERE status = 'queued' OR (status = 'running' AND claimed_at < now() - interval '5 minutes')
+      WHERE status = 'queued' OR (status = 'running' AND claimed_at < now() - interval '10 minutes')
       ORDER BY kind = 'run' DESC, created_at
       LIMIT ${count}
       FOR UPDATE SKIP LOCKED
