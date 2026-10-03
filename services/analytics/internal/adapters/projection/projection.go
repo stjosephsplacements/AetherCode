@@ -369,12 +369,21 @@ type judgeCompleted struct {
 	ResultObjectKey        *string `json:"result_object_key"`
 	ResultChecksum         *string `json:"result_checksum"`
 	EncryptionKeyReference *string `json:"encryption_key_reference"`
+	CompletedAt            string  `json:"completed_at"`
 }
 
-func (store *Store) ApplyJudgeCompleted(ctx context.Context, event messaging.Event) error {
+// decodeJudgeCompleted validates a judge.completed.v1 event and returns its
+// canonical completion time from the payload.
+func decodeJudgeCompleted(event messaging.Event) (judgeCompleted, time.Time, error) {
 	var payload judgeCompleted
-	if err := decodeEvent(event, JudgeCompletedEventType, &payload); err != nil ||
-		!sameUUID(payload.TenantID, event.TenantID) || !validUUID(payload.EvaluationRequestID) ||
+	if err := decodeEvent(event, JudgeCompletedEventType, &payload); err != nil {
+		return judgeCompleted{}, time.Time{}, err
+	}
+	completedAt, err := time.Parse(time.RFC3339Nano, payload.CompletedAt)
+	if err != nil {
+		return judgeCompleted{}, time.Time{}, fmt.Errorf("completed_at must be an RFC 3339 timestamp: %w", err)
+	}
+	if !sameUUID(payload.TenantID, event.TenantID) || !validUUID(payload.EvaluationRequestID) ||
 		!validUUID(payload.JudgeJobID) || !validUUID(payload.JudgeEventID) || !validVerdict(payload.Verdict) ||
 		(payload.ExecutionTimeMS != nil && *payload.ExecutionTimeMS < 0) ||
 		(payload.MemoryKiB != nil && *payload.MemoryKiB < 0) ||
@@ -382,6 +391,14 @@ func (store *Store) ApplyJudgeCompleted(ctx context.Context, event messaging.Eve
 		(payload.ResultChecksum != nil && !validSHA256(*payload.ResultChecksum)) ||
 		(payload.ResultObjectKey != nil && strings.TrimSpace(*payload.ResultObjectKey) == "") ||
 		(payload.EncryptionKeyReference != nil && strings.TrimSpace(*payload.EncryptionKeyReference) == "") {
+		return judgeCompleted{}, time.Time{}, fmt.Errorf("judge completion payload fields are invalid")
+	}
+	return payload, completedAt.UTC(), nil
+}
+
+func (store *Store) ApplyJudgeCompleted(ctx context.Context, event messaging.Event) error {
+	payload, completedAt, err := decodeJudgeCompleted(event)
+	if err != nil {
 		return permanent("Judge completion event is invalid", err)
 	}
 	return store.process(ctx, "analytics_judge_completed_v1", event, func(tx pgx.Tx) error {
@@ -396,7 +413,7 @@ func (store *Store) ApplyJudgeCompleted(ctx context.Context, event messaging.Eve
 			SET verdict = EXCLUDED.verdict, source_event_id = EXCLUDED.source_event_id,
 				completed_at = EXCLUDED.completed_at, updated_at = clock_timestamp()
 			WHERE EXCLUDED.completed_at >= analytics.judge_completion_projections.completed_at
-		`, payload.TenantID, payload.EvaluationRequestID, payload.Verdict, event.ID, event.OccurredAt.UTC())
+		`, payload.TenantID, payload.EvaluationRequestID, payload.Verdict, event.ID, completedAt)
 		if err != nil {
 			return projectionError(err, "upsert Judge completion projection")
 		}

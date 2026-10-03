@@ -211,3 +211,53 @@ func TestDecodeStudentBatchAffiliationSnapshotContract(t *testing.T) {
 		})
 	}
 }
+
+// judgeCompletedPayload mirrors the exact object built by Submission's
+// record_judge_completion (migration 000018), the only producer of this event.
+const judgeCompletedPayload = `{
+	"tenant_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099",
+	"evaluation_request_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099",
+	"judge_job_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099",
+	"judge_event_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099",
+	"verdict":"accepted","execution_time_ms":12,"memory_kib":2048,
+	"result_object_key":null,"result_checksum":null,"encryption_key_reference":null,
+	"completed_at":"2026-10-03T08:15:30.123456Z"
+}`
+
+func TestDecodeJudgeCompletedContract(t *testing.T) {
+	event := messaging.Event{
+		ID: projectionUUID, Type: JudgeCompletedEventType, SchemaVersion: 1,
+		AggregateType: "evaluation_request", AggregateID: projectionUUID, TenantID: projectionUUID,
+		OccurredAt: time.Date(2026, 10, 3, 9, 0, 0, 0, time.UTC), Payload: json.RawMessage(judgeCompletedPayload),
+	}
+	payload, completedAt, err := decodeJudgeCompleted(event)
+	if err != nil {
+		t.Fatalf("decodeJudgeCompleted() error = %v", err)
+	}
+	if payload.Verdict != "accepted" {
+		t.Fatalf("verdict = %q", payload.Verdict)
+	}
+	// The canonical completion time comes from the payload, not the envelope.
+	if want := time.Date(2026, 10, 3, 8, 15, 30, 123456000, time.UTC); !completedAt.Equal(want) {
+		t.Fatalf("completedAt = %v, want %v", completedAt, want)
+	}
+}
+
+func TestDecodeJudgeCompletedRejectsInvalidCompletionTime(t *testing.T) {
+	for name, value := range map[string]string{"missing": "", "malformed": `"yesterday"`} {
+		payload := judgeCompletedPayload
+		if value == "" {
+			payload = `{"tenant_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099","evaluation_request_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099","judge_job_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099","judge_event_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099","verdict":"accepted","execution_time_ms":null,"memory_kib":null,"result_object_key":null,"result_checksum":null,"encryption_key_reference":null}`
+		} else {
+			payload = fmt.Sprintf(`{"tenant_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099","evaluation_request_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099","judge_job_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099","judge_event_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099","verdict":"accepted","execution_time_ms":null,"memory_kib":null,"result_object_key":null,"result_checksum":null,"encryption_key_reference":null,"completed_at":%s}`, value)
+		}
+		event := messaging.Event{
+			ID: projectionUUID, Type: JudgeCompletedEventType, SchemaVersion: 1,
+			AggregateType: "evaluation_request", AggregateID: projectionUUID, TenantID: projectionUUID,
+			OccurredAt: time.Now().UTC(), Payload: json.RawMessage(payload),
+		}
+		if _, _, err := decodeJudgeCompleted(event); err == nil {
+			t.Fatalf("%s completed_at was accepted", name)
+		}
+	}
+}
