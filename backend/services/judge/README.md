@@ -134,16 +134,31 @@ dispatcher variables are optional when `JUDGE_DISPATCHER_ENABLED=false`.
 | Variable | Default | Description |
 |---|---|---|
 | `JUDGE_DISPATCHER_ENABLED` | `false` | Set to `true` to start the RabbitMQ consumer and dispatch worker. The server starts normally when false. |
-| `JUDGE_ENGINE` | `stub` | Evaluation engine: `stub` (deterministic accept, no external deps) or `judge0` (requires gVisor gate). |
+| `JUDGE_ENGINE` | `stub` | Evaluation engine: `stub` (deterministic accept, no external deps), `judge0` or `piston` (both require the compatibility gate). |
 | `JUDGE_WORKER_CONCURRENCY` | `4` | Number of concurrent dispatch goroutines. Must be 1–32. |
 | `JUDGE_POLL_INTERVAL_MS` | `2000` | Milliseconds between engine verdict poll attempts. |
 | `JUDGE_MAX_POLL_ATTEMPTS` | `30` | Maximum poll attempts before a synthetic `internal_error` verdict is recorded (the engine never reported a terminal state — an engine/infrastructure failure, not evidence the candidate's code timed out). |
 | `JUDGE0_BASE_URL` | *(required when `JUDGE_ENGINE=judge0` and the dispatcher is enabled)* | Base URL of the Judge0 HTTP API the `judge0` engine submits to and polls. Not required for any other engine or deployment, even when `JUDGE_ENGINE_COMPATIBILITY_APPROVED=true` — that flag is independently required in production/staging regardless of engine choice. |
 | `JUDGE0_TIMEOUT_SECONDS` | `10` | Per-request HTTP timeout for the Judge0 client. Must be 1–120. |
+| `PISTON_BASE_URL` | *(required when `JUDGE_ENGINE=piston` and the dispatcher is enabled)* | Base URL of the Piston API, e.g. `http://piston:2000`. |
+| `PISTON_TIMEOUT_SECONDS` | `60` | HTTP timeout for one Piston execution (compile + run). Must be 1–300. |
 | `JUDGE0_AUTH_TOKEN` | *(optional)* | Bearer/auth token forwarded to Judge0 as `X-Auth-Token` on every request. Leave unset for a local/dev Judge0 instance with no auth configured. |
 
 `JUDGE_RABBITMQ_URL` is also required when `JUDGE_DISPATCHER_ENABLED=true` (it
 is already required for the admission publisher in production/staging).
+
+### The `piston` engine
+
+`JUDGE_ENGINE=piston` (`internal/adapters/piston`, ADR-0018) runs units on a
+self-hosted Piston instance, which works on cgroup v2 hosts where Judge0's
+isolate cannot. Piston has no queue: `Submit` executes the unit synchronously
+and keeps its verdict in memory until the next `Poll`; a verdict lost to a
+restart in between resolves to `internal_error`. Piston does not compare
+output, so the adapter does: outputs match after normalizing line endings,
+trailing whitespace per line and trailing blank lines. Language keys are the
+same as the Judge0 adapter's (`c`, `cpp17`, `java`, `python3`, `javascript`,
+`go`); Java and Python get twice the unit's time limit and Java 3 s more for
+compiling inside the run.
 
 ### The `judge0` engine
 

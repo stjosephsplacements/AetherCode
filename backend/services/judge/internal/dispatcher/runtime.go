@@ -55,8 +55,8 @@ func LoadRuntime() (Runtime, error) {
 	}
 
 	if r.Enabled {
-		if r.EngineType != "stub" && r.EngineType != "judge0" {
-			return Runtime{}, fmt.Errorf("dispatcher: JUDGE_ENGINE must be stub or judge0, got %q", r.EngineType)
+		if r.EngineType != "stub" && r.EngineType != "judge0" && r.EngineType != "piston" {
+			return Runtime{}, fmt.Errorf("dispatcher: JUDGE_ENGINE must be stub, judge0 or piston, got %q", r.EngineType)
 		}
 		if r.Concurrency < 1 || r.Concurrency > 32 {
 			return Runtime{}, fmt.Errorf("dispatcher: JUDGE_WORKER_CONCURRENCY must be 1-32")

@@ -26,6 +26,8 @@ type Runtime struct {
 	Judge0BaseURL               string
 	Judge0Timeout               time.Duration
 	Judge0AuthToken             string
+	PistonBaseURL               string
+	PistonTimeout               time.Duration
 }
 
 // Load returns a safe listener configuration for the supplied environment.
@@ -104,6 +106,14 @@ func Load(environment string) (Runtime, error) {
 	runtime.SubmitRate = submitRate
 	runtime.SubmitBurst = submitBurst
 	runtime.Judge0AuthToken = strings.TrimSpace(value("JUDGE0_AUTH_TOKEN", ""))
+	runtime.PistonBaseURL = strings.TrimSpace(value("PISTON_BASE_URL", ""))
+	// Piston answers only after compiling and running, so this covers the
+	// compile limit plus the longest scaled run limit.
+	pistonTimeoutSeconds, err := positiveInt("PISTON_TIMEOUT_SECONDS", "60", 1, 300)
+	if err != nil {
+		return Runtime{}, err
+	}
+	runtime.PistonTimeout = time.Duration(pistonTimeoutSeconds) * time.Second
 	return runtime, nil
 }
 

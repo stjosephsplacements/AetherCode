@@ -3,8 +3,9 @@ package dispatcher
 
 import "context"
 
-// Engine is the evaluation engine port. The stub is used by default;
-// the Judge0 adapter activates when JUDGE_ENGINE=judge0 (gVisor gate required).
+// Engine is the evaluation engine port. The stub is used by default; the
+// Judge0 (JUDGE_ENGINE=judge0) and Piston (JUDGE_ENGINE=piston) adapters
+// require the engine compatibility gate.
 type Engine interface {
 	Submit(ctx context.Context, req UnitRequest) (token string, err error)
 	Poll(ctx context.Context, token string) (*UnitVerdict, error)
