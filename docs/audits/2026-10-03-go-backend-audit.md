@@ -111,3 +111,4 @@ moves into Phase 1 because D3 makes it required.
 |---|---|---|
 | A11 | Fixed | judge-control now sets `JUDGE_DISPATCHER_ENABLED`, `JUDGE_ENGINE=judge0`, `JUDGE0_BASE_URL` and `JUDGE0_AUTH_TOKEN`. The compatibility evidence moves to a pod annotation. `services/judge/internal/config/chart_env_test.go` fails if the chart sets a variable the judge never reads. |
 | B1 | Fixed | The analytics `judge.completed.v1` decoder accepts the producer's `completed_at` and uses it as the canonical completion time instead of the envelope's publish time. Contract tests use the producer's exact payload. |
+| A4 | Fixed | Assessment migration `000019` defines `extensions.uuid_generate_v7()` as PostgreSQL 18's `uuidv7()`. `TestExtensionFunctionCallsResolve` scans every routine for calls to undefined `extensions.*` functions (it failed on `materialize_from_enrollment`, `materialize_from_batch_affiliation` and `backfill_from_assignment_rule` before the fix). |

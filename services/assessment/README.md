@@ -168,6 +168,12 @@ owner role. The application never owns tables and has no `BYPASSRLS` privilege.
   lowercase, and adds optimistic revocation with the same versioned event
   contract.
 
+- `000019_uuid_generate_v7` defines `extensions.uuid_generate_v7()`, which
+  `000010`/`000011` call but never created, as PostgreSQL 18's built-in
+  `uuidv7()`. Without it every batch, department and enrollment
+  materialization failed at run time. `TestExtensionFunctionCallsResolve`
+  fails if any routine calls an `extensions.*` function that does not exist.
+
 Use `make test-migrations` to exercise fresh application, full rollback, and
 reapplication with dedicated non-superuser migration logins.
 

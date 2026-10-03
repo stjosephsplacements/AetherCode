@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 
 	"github.com/aethercode/aethercode/libs/pkg/testutil/integration"
@@ -42,34 +43,7 @@ func TestRLSIsolateTenants(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
-	pool := integration.StartPostgres(ctx, t)
-
-	// --- pre-migration role and schema setup -----------------------------------
-	for _, stmt := range []string{
-		`CREATE ROLE aether_assessment_owner       NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
-		`CREATE ROLE aether_assessment_migrator    NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
-		`CREATE ROLE aether_assessment_app         NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
-		`CREATE ROLE aether_assessment_authz_reader NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
-		`CREATE ROLE aether_assessment_projection_worker NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
-		// Migrator must be a member of owner so SET ROLE aether_assessment_owner works.
-		`GRANT aether_assessment_owner TO aether_assessment_migrator`,
-		// Transfer ownership so the migration can REVOKE on the public schema.
-		`ALTER DATABASE testdb OWNER TO aether_assessment_owner`,
-		`ALTER SCHEMA public OWNER TO aether_assessment_owner`,
-		// Pre-create the migration version table owned by aether_assessment_owner.
-		`CREATE TABLE public.schema_migrations (version bigint NOT NULL PRIMARY KEY, dirty boolean NOT NULL)`,
-		`ALTER TABLE public.schema_migrations OWNER TO aether_assessment_owner`,
-	} {
-		_, err := pool.Exec(ctx, stmt)
-		require.NoError(t, err, "pre-migration setup: %s", stmt[:min(len(stmt), 60)])
-	}
-
-	// --- apply migrations ------------------------------------------------------
-	_, file, _, _ := runtime.Caller(0)
-	svcRoot := filepath.Join(filepath.Dir(file), "../../..")
-	migrationsDir, err := filepath.Abs(filepath.Join(svcRoot, "migrations"))
-	require.NoError(t, err)
-	integration.ApplyMigrations(ctx, t, pool, migrationsDir)
+	pool := migratedPool(ctx, t)
 
 	// --- committed test data ---------------------------------------------------
 	tenantA := uuid.MustParse("018f4b0d-08f8-7c09-9ba7-efdf9c330001")
@@ -79,7 +53,7 @@ func TestRLSIsolateTenants(t *testing.T) {
 	createdBy := uuid.New()
 
 	// Insert an exam for tenant A. The postgres superuser bypasses all RLS.
-	_, err = pool.Exec(ctx,
+	_, err := pool.Exec(ctx,
 		`INSERT INTO assessment.exams (id, tenant_id, external_reference, created_by)
 		 VALUES ($1, $2, 'RLIST-001', $3)`,
 		examID, tenantA, createdBy,
@@ -182,4 +156,39 @@ func TestRLSIsolateTenants(t *testing.T) {
 			}
 		})
 	}
+}
+
+// migratedPool starts PostgreSQL 18.4, creates the assessment roles, and applies
+// every migration. The pool connects as the container superuser.
+func migratedPool(ctx context.Context, t *testing.T) *pgxpool.Pool {
+	t.Helper()
+	pool := integration.StartPostgres(ctx, t)
+
+	// --- pre-migration role and schema setup -----------------------------------
+	for _, stmt := range []string{
+		`CREATE ROLE aether_assessment_owner       NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
+		`CREATE ROLE aether_assessment_migrator    NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
+		`CREATE ROLE aether_assessment_app         NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
+		`CREATE ROLE aether_assessment_authz_reader NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
+		`CREATE ROLE aether_assessment_projection_worker NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
+		// Migrator must be a member of owner so SET ROLE aether_assessment_owner works.
+		`GRANT aether_assessment_owner TO aether_assessment_migrator`,
+		// Transfer ownership so the migration can REVOKE on the public schema.
+		`ALTER DATABASE testdb OWNER TO aether_assessment_owner`,
+		`ALTER SCHEMA public OWNER TO aether_assessment_owner`,
+		// Pre-create the migration version table owned by aether_assessment_owner.
+		`CREATE TABLE public.schema_migrations (version bigint NOT NULL PRIMARY KEY, dirty boolean NOT NULL)`,
+		`ALTER TABLE public.schema_migrations OWNER TO aether_assessment_owner`,
+	} {
+		_, err := pool.Exec(ctx, stmt)
+		require.NoError(t, err, "pre-migration setup: %s", stmt[:min(len(stmt), 60)])
+	}
+
+	// --- apply migrations ------------------------------------------------------
+	_, file, _, _ := runtime.Caller(0)
+	svcRoot := filepath.Join(filepath.Dir(file), "../../..")
+	migrationsDir, err := filepath.Abs(filepath.Join(svcRoot, "migrations"))
+	require.NoError(t, err)
+	integration.ApplyMigrations(ctx, t, pool, migrationsDir)
+	return pool
 }
