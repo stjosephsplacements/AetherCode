@@ -104,3 +104,9 @@ Method:
 These map onto the phases in
 `docs/superpowers/plans/2026-10-02-go-platform-exam-parity.md`. SEB (A5/A6)
 moves into Phase 1 because D3 makes it required.
+
+## Fix log
+
+| Item | Status | Fix |
+|---|---|---|
+| A11 | Fixed | judge-control now sets `JUDGE_DISPATCHER_ENABLED`, `JUDGE_ENGINE=judge0`, `JUDGE0_BASE_URL` and `JUDGE0_AUTH_TOKEN`. The compatibility evidence moves to a pod annotation. `services/judge/internal/config/chart_env_test.go` fails if the chart sets a variable the judge never reads. |

@@ -19,9 +19,15 @@ spec:
       {{- include "judge-control.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
+      {{- if or .Values.podAnnotations .Values.engine.enabled }}
       annotations:
+        {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.engine.enabled }}
+        # The approval record for the Judge0 compatibility gate (runbook).
+        aethercode.dev/engine-compatibility-evidence: {{ .Values.engine.compatibilityEvidenceRef | quote }}
+        {{- end }}
       {{- end }}
       labels:
         {{- include "judge-control.selectorLabels" . | nindent 8 }}
@@ -86,7 +92,7 @@ spec:
                   name: {{ .Values.runtimeSecret.name }}
                   key: {{ .Values.runtimeSecret.rabbitMQURLKey }}
             {{- if .Values.engine.enabled }}
-            - name: JUDGE_ENGINE_AUTH_TOKEN
+            - name: JUDGE0_AUTH_TOKEN
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.engine.authSecretName }}
