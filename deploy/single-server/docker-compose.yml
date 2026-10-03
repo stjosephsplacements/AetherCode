@@ -1,0 +1,68 @@
+# Single-server AetherCode platform (ADR-0017, parity plan Phase 0).
+# Usage: ./setup.sh once, then `docker compose up -d --build`.
+name: aethercode-platform
+
+services:
+  postgres:
+    image: postgres:18.4
+    restart: always
+    env_file: .env
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: aether_admin
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:?run setup.sh first}
+    command: ["postgres", "-c", "password_encryption=scram-sha-256", "-c", "max_connections=400"]
+    volumes:
+      - postgres-data:/var/lib/postgresql
+      - ../database/platform/dev-init.sh:/docker-entrypoint-initdb.d/00-aethercode-roles.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aether_admin -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  nats:
+    image: nats:2.14.3-alpine
+    restart: always
+    command: ["-js", "-sd", "/data", "-m", "8222"]
+    volumes:
+      - nats-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    # MinIO stopped publishing images; this is Chainguard's maintained build,
+    # pinned by digest. It has bash but no curl/wget/mc, hence the health check.
+    image: cgr.dev/chainguard/minio@sha256:0f95aa412a12351a95bb43c3b54b66440eb0aa022bb3f3458942678a489e915b
+    restart: always
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?run setup.sh first}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?run setup.sh first}
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /minio/health/live HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && read -r status <&3 && [[ $$status == *' 200 '* ]]"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  migrate:
+    build:
+      context: ../..
+      dockerfile: deploy/single-server/Dockerfile.tools
+    image: aethercode/tools:local
+    env_file: .env
+    environment:
+      PGHOST: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+  nats-data:
+  minio-data:

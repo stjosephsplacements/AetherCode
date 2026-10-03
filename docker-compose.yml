@@ -35,7 +35,7 @@ services:
       retries: 20
 
   nats:
-    image: nats:2.14.3
+    image: nats:2.14.3-alpine
     profiles: ["platform"]
     command: ["-js", "-sd", "/data"]
     volumes:
@@ -64,9 +64,11 @@ services:
       retries: 20
 
   minio:
-    image: minio/minio:RELEASE.2024-10-13T13-34-11Z
+    # MinIO stopped publishing images; this is Chainguard's maintained build,
+    # pinned by digest. It has bash but no curl/wget/mc, hence the health check.
+    image: cgr.dev/chainguard/minio@sha256:0f95aa412a12351a95bb43c3b54b66440eb0aa022bb3f3458942678a489e915b
     profiles: ["platform"]
-    command: server /data --console-address :9001
+    command: ["server", "/data", "--console-address", ":9001"]
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD}
@@ -76,7 +78,7 @@ services:
       - 127.0.0.1:9000:9000
       - 127.0.0.1:9001:9001
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /minio/health/live HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && read -r status <&3 && [[ $$status == *' 200 '* ]]"]
       interval: 10s
       timeout: 5s
       retries: 12
