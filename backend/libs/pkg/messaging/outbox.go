@@ -3,7 +3,6 @@ package messaging
 import (
 	"context"
 	"crypto/sha256"
-	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -176,11 +175,11 @@ func PublishBatch(contextValue context.Context, store *OutboxStore, stream nats.
 		return fmt.Errorf("JetStream context is required")
 	}
 	for _, event := range events {
-		payload, err := json.Marshal(Event{
+		payload, err := Event{
 			ID: event.EventID, Type: event.EventType, SchemaVersion: event.SchemaVersion,
 			AggregateType: event.AggregateType, AggregateID: event.AggregateID,
 			TenantID: event.TenantID, OccurredAt: event.OccurredAt.UTC(), Payload: event.Payload,
-		})
+		}.Encode()
 		if err != nil {
 			return fmt.Errorf("encode outbox event %s: %w", event.EventID, err)
 		}

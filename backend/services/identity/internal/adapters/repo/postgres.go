@@ -534,11 +534,10 @@ func (repository *Postgres) ResetPassword(contextValue context.Context, command 
 		SELECT token.id, principal.id, token.expires_at, token.consumed_at
 		FROM identity.password_reset_tokens AS token
 		JOIN identity.principals AS principal ON principal.id = token.principal_id
-		JOIN identity.password_credentials AS credential ON credential.principal_id = principal.id
 		WHERE token.token_hash = $1
 		  AND principal.deleted_at IS NULL
 		  AND principal.status IN ('active', 'locked')
-		FOR UPDATE OF token, principal, credential
+		FOR UPDATE OF token, principal
 	`, command.TokenHash).Scan(&tokenID, &principalID, &expiresAt, &consumedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return unauthorized("password reset token is invalid")
@@ -556,10 +555,13 @@ func (repository *Postgres) ResetPassword(contextValue context.Context, command 
 	`, tokenID); err != nil {
 		return fmt.Errorf("consume password reset token: %w", err)
 	}
+	// A bootstrapped principal has no credential until its first reset sets one.
 	if _, err := transaction.Exec(contextValue, `
-		UPDATE identity.password_credentials
-		SET password_hash = $2, changed_at = clock_timestamp(), must_change = false, version = version + 1
-		WHERE principal_id = $1
+		INSERT INTO identity.password_credentials (principal_id, password_hash)
+		VALUES ($1, $2)
+		ON CONFLICT (principal_id) DO UPDATE
+		SET password_hash = EXCLUDED.password_hash, changed_at = clock_timestamp(), must_change = false,
+		    version = identity.password_credentials.version + 1
 	`, principalID, command.PasswordHash); err != nil {
 		return fmt.Errorf("update password credential: %w", err)
 	}

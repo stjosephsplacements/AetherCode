@@ -2,6 +2,7 @@
 package messaging
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -21,6 +22,31 @@ type Event struct {
 	TenantID      string          `json:"tenant_id,omitempty"`
 	OccurredAt    time.Time       `json:"occurred_at"`
 	Payload       json.RawMessage `json:"payload"`
+}
+
+// Encode serializes the envelope with Payload's bytes exactly as stored.
+// encoding/json compacts a json.RawMessage, but producers sign or hash the
+// stored payload text (for example PostgreSQL's jsonb::text), so consumers
+// must receive those same bytes.
+func (event Event) Encode() ([]byte, error) {
+	payload := event.Payload
+	if !json.Valid(payload) {
+		return nil, fmt.Errorf("event payload is not valid JSON")
+	}
+	event.Payload = json.RawMessage("null")
+	envelope, err := json.Marshal(event)
+	if err != nil {
+		return nil, err
+	}
+	const placeholder = `"payload":null}`
+	if !bytes.HasSuffix(envelope, []byte(placeholder)) {
+		return nil, fmt.Errorf("event envelope does not end with its payload")
+	}
+	prefix := envelope[:len(envelope)-len("null}")]
+	encoded := make([]byte, 0, len(prefix)+len(payload)+1)
+	encoded = append(encoded, prefix...)
+	encoded = append(encoded, payload...)
+	return append(encoded, '}'), nil
 }
 
 // Validate rejects incomplete or non-versioned events before an outbox write.

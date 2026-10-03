@@ -11,6 +11,7 @@ require (
 )
 
 require (
+	github.com/aethercode/aethercode/libs/proto v0.0.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.6.1 // indirect
 	github.com/casbin/casbin/v2 v2.135.0 // indirect
@@ -72,3 +73,5 @@ require (
 )
 
 replace github.com/aethercode/aethercode/libs/pkg => ../../libs/pkg
+
+replace github.com/aethercode/aethercode/libs/proto => ../../libs/proto

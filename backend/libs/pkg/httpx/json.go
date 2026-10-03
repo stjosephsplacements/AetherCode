@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -88,6 +89,10 @@ func WriteError(writer http.ResponseWriter, err error) {
 		case apperrors.CodeUnavailable:
 			status = http.StatusServiceUnavailable
 		}
+	}
+	if status == http.StatusInternalServerError {
+		// The client sees a generic message; the cause must reach the logs.
+		slog.Error("internal server error", "error", err)
 	}
 	WriteJSON(writer, status, problem)
 }

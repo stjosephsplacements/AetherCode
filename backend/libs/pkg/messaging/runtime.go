@@ -15,6 +15,16 @@ import (
 
 const platformStream = "AETHERCODE_EVENTS"
 
+// platformSubjects lists every event-type domain (the first token of an event
+// type such as "identity.principal.registered.v1"). JetStream refuses an
+// acknowledged stream on ">" or any wildcard overlapping its own "$JS" API, so
+// a new domain must be added here; until then its publishes fail and stay in
+// the outbox.
+var platformSubjects = []string{
+	"analytics.>", "assessment.>", "authz.>", "execution.>", "identity.>", "judge.>",
+	"notification.>", "qbank.>", "seb.>", "submission.>", "tenant.>", "user.>",
+}
+
 // Runtime holds the broker setting shared by platform services. Production
 // deployments may not silently disable durable event publication.
 type Runtime struct {
@@ -87,7 +97,7 @@ func ensurePlatformStream(stream nats.JetStreamContext) error {
 	}
 	_, err := stream.AddStream(&nats.StreamConfig{
 		Name:       platformStream,
-		Subjects:   []string{">"},
+		Subjects:   platformSubjects,
 		Retention:  nats.LimitsPolicy,
 		Storage:    nats.FileStorage,
 		Discard:    nats.DiscardOld,

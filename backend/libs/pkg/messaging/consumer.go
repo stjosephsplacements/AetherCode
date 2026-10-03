@@ -116,7 +116,7 @@ func (consumer *PullConsumer) Run(contextValue context.Context) {
 		messages, err := consumer.subscription.Fetch(consumer.batchSize, nats.Context(fetchContext))
 		cancel()
 		if err != nil {
-			if contextValue.Err() != nil || errors.Is(err, nats.ErrTimeout) {
+			if contextValue.Err() != nil || isEmptyFetch(err) {
 				continue
 			}
 			consumer.recordFailure("fetch durable event", err)
@@ -188,4 +188,11 @@ func (consumer *PullConsumer) recordFailure(operation string, err error) {
 	}
 	consumer.lastFailure.Store(err.Error())
 	consumer.logger.Error(operation, "error", err)
+}
+
+// isEmptyFetch reports whether a pull fetch ended only because no event
+// arrived before its deadline. With nats.Context the client reports this as
+// the context's DeadlineExceeded rather than nats.ErrTimeout.
+func isEmptyFetch(err error) bool {
+	return errors.Is(err, nats.ErrTimeout) || errors.Is(err, context.DeadlineExceeded)
 }

@@ -7,11 +7,15 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 
 	"github.com/aethercode/aethercode/libs/pkg/testutil/integration"
+	"github.com/aethercode/aethercode/services/identity/internal/adapters/repo"
+	"github.com/aethercode/aethercode/services/identity/internal/app"
 )
 
 // TestRLSIsolateTenants proves the access boundary identity actually
@@ -53,39 +57,12 @@ func TestRLSIsolateTenants(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
-	pool := integration.StartPostgres(ctx, t)
-
-	// --- pre-migration role and schema setup -----------------------------------
-	for _, stmt := range []string{
-		`CREATE ROLE aether_identity_owner       NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
-		`CREATE ROLE aether_identity_migrator    NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
-		`CREATE ROLE aether_identity_app         NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
-		`CREATE ROLE aether_identity_authz_reader NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
-		`CREATE ROLE aether_identity_projection_worker NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
-		// Migrator must be a member of owner so SET ROLE aether_identity_owner works.
-		`GRANT aether_identity_owner TO aether_identity_migrator`,
-		// Transfer ownership so the migration can REVOKE on the public schema.
-		`ALTER DATABASE testdb OWNER TO aether_identity_owner`,
-		`ALTER SCHEMA public OWNER TO aether_identity_owner`,
-		// Pre-create the migration version table owned by aether_identity_owner.
-		`CREATE TABLE public.schema_migrations (version bigint NOT NULL PRIMARY KEY, dirty boolean NOT NULL)`,
-		`ALTER TABLE public.schema_migrations OWNER TO aether_identity_owner`,
-	} {
-		_, err := pool.Exec(ctx, stmt)
-		require.NoError(t, err, "pre-migration setup: %s", stmt[:min(len(stmt), 60)])
-	}
-
-	// --- apply migrations ------------------------------------------------------
-	_, file, _, _ := runtime.Caller(0)
-	svcRoot := filepath.Join(filepath.Dir(file), "../../..")
-	migrationsDir, err := filepath.Abs(filepath.Join(svcRoot, "migrations"))
-	require.NoError(t, err)
-	integration.ApplyMigrations(ctx, t, pool, migrationsDir)
+	pool := migratedPool(ctx, t)
 
 	// --- committed test data ---------------------------------------------------
 	principalID := uuid.New()
 
-	_, err = pool.Exec(ctx,
+	_, err := pool.Exec(ctx,
 		`INSERT INTO identity.principals (id, email, display_name) VALUES ($1, $2, 'RLS Delete-Block Test')`,
 		principalID, "rls-delete-block-"+principalID.String()+"@example.com",
 	)
@@ -130,4 +107,78 @@ func TestRLSIsolateTenants(t *testing.T) {
 		require.NoError(t, err, "select count")
 		require.Equal(t, 0, count, "the row must be physically gone after hard_delete")
 	})
+}
+
+// migratedPool starts PostgreSQL 18.4 with identity's role topology and
+// applies every identity migration. The pool connects as the superuser.
+func migratedPool(ctx context.Context, t *testing.T) *pgxpool.Pool {
+	t.Helper()
+	pool := integration.StartPostgres(ctx, t)
+
+	// --- pre-migration role and schema setup -----------------------------------
+	for _, stmt := range []string{
+		`CREATE ROLE aether_identity_owner       NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
+		`CREATE ROLE aether_identity_migrator    NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
+		`CREATE ROLE aether_identity_app         NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
+		`CREATE ROLE aether_identity_authz_reader NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
+		`CREATE ROLE aether_identity_projection_worker NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
+		// Migrator must be a member of owner so SET ROLE aether_identity_owner works.
+		`GRANT aether_identity_owner TO aether_identity_migrator`,
+		// Transfer ownership so the migration can REVOKE on the public schema.
+		`ALTER DATABASE testdb OWNER TO aether_identity_owner`,
+		`ALTER SCHEMA public OWNER TO aether_identity_owner`,
+		// Pre-create the migration version table owned by aether_identity_owner.
+		`CREATE TABLE public.schema_migrations (version bigint NOT NULL PRIMARY KEY, dirty boolean NOT NULL)`,
+		`ALTER TABLE public.schema_migrations OWNER TO aether_identity_owner`,
+	} {
+		_, err := pool.Exec(ctx, stmt)
+		require.NoError(t, err, "pre-migration setup: %s", stmt[:min(len(stmt), 60)])
+	}
+
+	// --- apply migrations ------------------------------------------------------
+	_, file, _, _ := runtime.Caller(0)
+	svcRoot := filepath.Join(filepath.Dir(file), "../../..")
+	migrationsDir, err := filepath.Abs(filepath.Join(svcRoot, "migrations"))
+	require.NoError(t, err)
+	integration.ApplyMigrations(ctx, t, pool, migrationsDir)
+	return pool
+}
+
+// TestBootstrapPrincipalActivatesThroughReset follows the documented day-zero
+// path: bootstrap creates a verified principal with no credential, and the
+// first password reset gives it one.
+func TestBootstrapPrincipalActivatesThroughReset(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	pool := migratedPool(ctx, t)
+
+	// The explicit transaction puts its start (CURRENT_TIMESTAMP) before the
+	// row's clock_timestamp() created_at, as in production.
+	tx, err := pool.Begin(ctx)
+	require.NoError(t, err)
+	_, err = tx.Exec(ctx, `SELECT pg_sleep(0.01)`)
+	require.NoError(t, err)
+	var principalID uuid.UUID
+	err = tx.QueryRow(ctx, `SELECT identity.bootstrap_first_principal($1, 'admin@example.com', 'Admin')`,
+		uuid.New()).Scan(&principalID)
+	require.NoError(t, err, "bootstrap must satisfy the principals CHECK constraints")
+	require.NoError(t, tx.Commit(ctx))
+
+	repository, err := repo.NewPostgres(pool, map[string][]byte{"k": make([]byte, 32)}, "k")
+	require.NoError(t, err)
+	tokenHash := make([]byte, 32)
+	tokenHash[0] = 1
+	require.NoError(t, repository.RequestPasswordReset(ctx, app.PasswordResetRequest{
+		TokenID: uuid.NewString(), Email: "admin@example.com", TokenHash: tokenHash,
+		ExpiresAt: time.Now().UTC().Add(time.Hour), RequestIP: "127.0.0.1", RequestID: uuid.NewString(),
+	}))
+	require.NoError(t, repository.ResetPassword(ctx, app.PasswordReset{
+		TokenHash: tokenHash, PasswordHash: "$argon2id$v=19$m=65536,t=3,p=4$c2FsdA$aGFzaA",
+		RequestIP: "127.0.0.1", RequestID: uuid.NewString(),
+	}), "the first reset must create the missing credential")
+
+	var credentials int
+	require.NoError(t, pool.QueryRow(ctx,
+		`SELECT count(*) FROM identity.password_credentials WHERE principal_id = $1`, principalID).Scan(&credentials))
+	require.Equal(t, 1, credentials)
 }

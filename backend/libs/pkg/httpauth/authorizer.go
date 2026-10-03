@@ -5,6 +5,7 @@ package httpauth
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -91,6 +92,10 @@ func (authorizer *Authorizer) authorize(
 		IdentityAssertion: assertion,
 	})
 	if err != nil {
+		// The caller sees only a generic denial; operators need the cause
+		// (policy denial, mTLS failure, stale projection, ...).
+		slog.WarnContext(contextValue, "authorization denied", "request_id", requestID,
+			"action", action, "resource_type", resourceType, "error", err)
 		return Decision{}, apperrors.New(apperrors.CodeForbidden, "authorization denied")
 	}
 	return Decision{PrincipalID: principalID, RequestID: requestID, Capability: centralDecision.Capability}, nil
