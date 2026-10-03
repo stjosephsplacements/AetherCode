@@ -14,6 +14,29 @@ every capability `apps/exam-v1` has. Then `apps/exam-v1` is deleted.
 - a phase is not done until its slice of the e2e spec passes through the
   gateway.
 
+## Execution order (2026-10-03): milestones on the critical path
+
+Work in this order. Each milestone ends with something demonstrable, and the
+phases below give the detail. M0–M5 are the minimum for a graded SEB exam on
+the platform (≈10–12 focused days). Until M8, exams run on `apps/exam-v1`.
+
+| # | Milestone | Done when | Status |
+|---|---|---|---|
+| M0 | Platform runs on one server | `deploy/single-server` brings up all 11 services, the judge stack and Judge0 healthy. An admin bootstraps and signs in through the gateway. | in progress |
+| M1 | Accounts | An admin creates a college and batch, bulk-imports students from CSV with generated passwords, creates staff, and anyone signs in by username or roll number. | — |
+| M2 | Authoring | Staff write a question with plaintext tests (bundles built and encrypted server-side), build an exam from it, and assign it to a batch. | — |
+| M3 | Take and grade | A student starts, saves code, runs samples and submits. Dispatch → judge (decrypt) → Judge0 → score. Time-up submits latest answers. | — |
+| M4 | SEB | Per-request config-key validation that works with a real SEB browser, plus `.seb` configuration generation and download. | — |
+| M5 | Frontend | `frontend/` ports the exam-app screens (login, admin, authoring, exam screen, results) onto the gateway. | — |
+| M6 | Results and operations | Faculty results/CSV, result release, live monitor, extend time, announcements, backups and system status. | — |
+| M7 | Remaining parity | Pools, MCQ, network allow-list, preview, similarity, audit log, model-solution check, import/export, duplicate, login slips. | — |
+| M8 | Cut-over | The ported e2e spec, `engine-check` and a 1000-student load test pass on the stack. `apps/exam-v1` is deleted. | — |
+
+Already done (2026-10-03):
+- audit fixes A4, A11 and B1;
+- the go.sum completeness fix (images build);
+- the move into `backend/`.
+
 ---
 
 ## Phase 0: Run the platform on one server (≈3 days)
