@@ -1,15 +1,18 @@
 # Operational tools for the single-server stack: database migrations, first
-# administrator bootstrap and authorization-key rotation, plus every service's
-# migrations. Built from the repository root.
+# administrator bootstrap, authorization-key rotation and out-of-band
+# password-reset delivery, plus every service's migrations. Built from the repository root.
 ARG GO_BUILDER_IMAGE=golang:1.26.7@sha256:45a5f7a810238aabcbad211d70b9ae082022d96f7c7259e94041ad1b933575ac
 FROM ${GO_BUILDER_IMAGE} AS build
 WORKDIR /src
 COPY backend/libs/pkg ./libs/pkg
 COPY backend/libs/proto ./libs/proto
+COPY backend/services/identity ./services/identity
 RUN cd libs/pkg \
  && CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /out/migrate ./cmd/migrate \
  && CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /out/bootstrap ./cmd/bootstrap \
- && CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /out/rotate-authz-key ./cmd/rotate-authz-key
+ && CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /out/rotate-authz-key ./cmd/rotate-authz-key \
+ && cd ../../services/identity \
+ && CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /out/deliver-reset ./cmd/deliver-reset
 
 FROM postgres:18.4
 COPY --from=build /out/ /usr/local/bin/
@@ -20,5 +23,7 @@ RUN mkdir -p /migrations \
     done \
  && rm -rf /tmp/services
 COPY deploy/single-server/migrate-all.sh /usr/local/bin/migrate-all
+COPY deploy/single-server/provision-keys.sh /usr/local/bin/provision-keys
 USER postgres
-ENTRYPOINT ["/usr/local/bin/migrate-all"]
+# Migrate every database, then install its authorization capability key.
+ENTRYPOINT ["/bin/sh", "-c", "migrate-all && provision-keys"]

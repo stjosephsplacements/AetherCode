@@ -22,7 +22,7 @@ the platform (≈10–12 focused days). Until M8, exams run on `apps/exam-v1`.
 
 | # | Milestone | Done when | Status |
 |---|---|---|---|
-| M0 | Platform runs on one server | `deploy/single-server` brings up all 11 services, the judge stack and Judge0 healthy. An admin bootstraps and signs in through the gateway. | in progress |
+| M0 | Platform runs on one server | `deploy/single-server` brings up all 11 services, the judge stack and the engine healthy. An admin bootstraps and signs in through the gateway. | done (2026-10-03, campus server; engine is Piston, ADR-0018) |
 | M1 | Accounts | An admin creates a college and batch, bulk-imports students from CSV with generated passwords, creates staff, and anyone signs in by username or roll number. | — |
 | M2 | Authoring | Staff write a question with plaintext tests (bundles built and encrypted server-side), build an exam from it, and assign it to a batch. | — |
 | M3 | Take and grade | A student starts, saves code, runs samples and submits. Dispatch → judge (decrypt) → Judge0 → score. Time-up submits latest answers. | — |
@@ -35,7 +35,9 @@ the platform (≈10–12 focused days). Until M8, exams run on `apps/exam-v1`.
 Already done (2026-10-03):
 - audit fixes A4, A11 and B1;
 - the go.sum completeness fix (images build);
-- the move into `backend/`.
+- the move into `backend/`;
+- M0 on the campus server, which surfaced and fixed the bugs listed in the
+  audit's fix log (NATS stream, event payload hashing, bootstrap, reset).
 
 ---
 

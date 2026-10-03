@@ -2,6 +2,29 @@
 # Usage: ./setup.sh once, then `docker compose up -d --build`.
 name: aethercode-platform
 
+x-common-env: &common-env
+  AETHERCODE_ENV: production
+  HTTP_ADDR: 0.0.0.0:8080
+  LOG_LEVEL: info
+  NATS_URL: nats://nats:4222
+
+x-authz-client: &authz-client
+  AUTHZ_ENDPOINT: user:9443
+  AUTHZ_CLIENT_TLS_CA_FILE: /certs/ca.crt
+  AUTHZ_CLIENT_TLS_SERVER_NAME: user
+
+x-service: &service
+  restart: always
+  volumes:
+    - ./certs:/certs:ro
+  depends_on:
+    migrate:
+      condition: service_completed_successfully
+    buckets:
+      condition: service_completed_successfully
+    nats:
+      condition: service_healthy
+
 services:
   postgres:
     image: postgres:18.4
@@ -62,7 +85,327 @@ services:
       postgres:
         condition: service_healthy
 
+  judge-db:
+    image: postgres:18.4
+    restart: always
+    environment:
+      POSTGRES_DB: aether_judge_wrapper
+      POSTGRES_USER: aether_judge_admin
+      POSTGRES_PASSWORD: ${JUDGE_DB_PASSWORD:?run setup.sh first}
+      JUDGE_DB_PASSWORD: ${JUDGE_DB_PASSWORD}
+    volumes:
+      - judge-db-data:/var/lib/postgresql
+      - ../database/judge-control/init/001-local-roles.sql:/docker-entrypoint-initdb.d/judge-roles.sql.in:ro
+      - ./judge-db-init.sh:/docker-entrypoint-initdb.d/00-judge-roles.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aether_judge_admin -d aether_judge_wrapper"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  judge-rabbitmq:
+    image: rabbitmq:4.3.3-management@sha256:d8b3d416236ae5ba3f6a9f4e4651fdacda01780181a7d83a71b640248d8f0a69
+    restart: always
+    hostname: judge-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: judge
+      RABBITMQ_DEFAULT_PASS: ${JUDGE_RABBITMQ_PASSWORD:?run setup.sh first}
+      RABBITMQ_DEFAULT_VHOST: judge
+    volumes:
+      - judge-rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  judge-migrate:
+    image: aethercode/tools:local
+    entrypoint: ["migrate", "--source", "file:///migrations/judge", "--direction", "up",
+      "--database-url", "postgres://aether_judge_migrator:${JUDGE_DB_PASSWORD}@judge-db:5432/aether_judge_wrapper?sslmode=disable"]
+    depends_on:
+      judge-db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  buckets:
+    image: cgr.dev/chainguard/minio-client@sha256:231c5976b6145971a5440dcd99257b23840513999f87cbcb68cd6a8ba674ca51
+    # The image has no shell: MC_HOST_local configures the alias inline.
+    command: ["mb", "--ignore-existing", "local/aethercode"]
+    environment:
+      MC_HOST_local: http://${MINIO_ROOT_USER}:${MINIO_ROOT_PASSWORD}@minio:9000
+    depends_on:
+      minio:
+        condition: service_healthy
+
+  identity:
+    <<: *service
+    environment:
+      <<: *common-env
+      SERVICE_NAME: identity
+      IDENTITY_DATABASE_URL: postgres://aether_identity_app:${IDENTITY_DB_PASSWORD}@postgres:5432/aether_identity?sslmode=disable
+      IDENTITY_PROJECTION_DATABASE_URL: postgres://aether_identity_projection_worker:${IDENTITY_DB_PASSWORD}@postgres:5432/aether_identity?sslmode=disable
+      IDENTITY_ACCESS_TOKEN_ISSUER: aethercode-identity
+      IDENTITY_ACCESS_TOKEN_AUDIENCE: aethercode
+      IDENTITY_ACCESS_TOKEN_KEY_ID: ${IDENTITY_ACCESS_TOKEN_KEY_ID}
+      IDENTITY_ACCESS_TOKEN_PRIVATE_KEY_BASE64: ${IDENTITY_ACCESS_TOKEN_PRIVATE_KEY_BASE64}
+      IDENTITY_DELIVERY_TOKEN_HMAC_KEY_BASE64: ${IDENTITY_DELIVERY_TOKEN_HMAC_KEY_BASE64}
+      IDENTITY_MFA_KEY_REFERENCE: ${IDENTITY_MFA_KEY_REFERENCE}
+      IDENTITY_MFA_MASTER_KEYS_JSON: ${IDENTITY_MFA_MASTER_KEYS_JSON}
+      IDENTITY_INTROSPECTION_ADDR: 0.0.0.0:9444
+      IDENTITY_INTROSPECTION_TLS_CERT_FILE: /certs/identity.crt
+      IDENTITY_INTROSPECTION_TLS_KEY_FILE: /certs/identity.key
+      IDENTITY_INTROSPECTION_CLIENT_CA_FILE: /certs/ca.crt
+      IDENTITY_INTROSPECTION_TRUSTED_CLIENT_SPIFFE_ID: spiffe://aethercode.local/user
+    build: { context: ../../backend, dockerfile: services/identity/Dockerfile }
+
+  user:
+    <<: *service
+    environment:
+      <<: [*common-env, *authz-client]
+      SERVICE_NAME: user
+      AUTHZ_CLIENT_TLS_CERT_FILE: /certs/user.crt
+      AUTHZ_CLIENT_TLS_KEY_FILE: /certs/user.key
+      USER_DATABASE_URL: postgres://aether_user_app:${USERS_DB_PASSWORD}@postgres:5432/aether_users?sslmode=disable
+      USER_AUTHZ_DATABASE_URL: postgres://aether_user_authz_reader:${USERS_DB_PASSWORD}@postgres:5432/aether_users?sslmode=disable
+      USER_PROJECTION_DATABASE_URL: postgres://aether_user_projection_worker:${USERS_DB_PASSWORD}@postgres:5432/aether_users?sslmode=disable
+      AUTHZ_GRPC_ADDR: 0.0.0.0:9443
+      AUTHZ_TLS_CERT_FILE: /certs/user.crt
+      AUTHZ_TLS_KEY_FILE: /certs/user.key
+      AUTHZ_CLIENT_CA_FILE: /certs/ca.crt
+      AUTHZ_MTLS_SERVICE_TARGETS: '{"spiffe://aethercode.local/tenant":"tenant","spiffe://aethercode.local/user":"user","spiffe://aethercode.local/question-bank":"question-bank","spiffe://aethercode.local/assessment":"assessment","spiffe://aethercode.local/submission":"submission","spiffe://aethercode.local/seb":"seb","spiffe://aethercode.local/notification":"notification","spiffe://aethercode.local/analytics":"analytics"}'
+      AUTHZ_IDENTITY_ASSERTION_ISSUER: aethercode-identity
+      AUTHZ_IDENTITY_ASSERTION_AUDIENCE: aethercode
+      AUTHZ_IDENTITY_ASSERTION_PUBLIC_KEYS: ${IDENTITY_ASSERTION_PUBLIC_KEYS}
+      AUTHZ_IDENTITY_INTROSPECTION_URL: https://identity:9444/v1/internal/access-token/validate
+      AUTHZ_IDENTITY_INTROSPECTION_TLS_CERT_FILE: /certs/user.crt
+      AUTHZ_IDENTITY_INTROSPECTION_TLS_KEY_FILE: /certs/user.key
+      AUTHZ_IDENTITY_INTROSPECTION_TLS_CA_FILE: /certs/ca.crt
+      AUTHZ_IDENTITY_INTROSPECTION_TLS_SERVER_NAME: identity
+      AUTHZ_CAPABILITY_KEYS: ${AUTHZ_CAPABILITY_KEYS}
+    build: { context: ../../backend, dockerfile: services/user/Dockerfile }
+
+  tenant:
+    <<: *service
+    environment:
+      <<: [*common-env, *authz-client]
+      SERVICE_NAME: tenant
+      AUTHZ_CLIENT_TLS_CERT_FILE: /certs/tenant.crt
+      AUTHZ_CLIENT_TLS_KEY_FILE: /certs/tenant.key
+      TENANT_DATABASE_URL: postgres://aether_tenant_app:${TENANT_DB_PASSWORD}@postgres:5432/aether_tenant?sslmode=disable
+      TENANT_PROJECTION_DATABASE_URL: postgres://aether_tenant_projection_worker:${TENANT_DB_PASSWORD}@postgres:5432/aether_tenant?sslmode=disable
+    build: { context: ../../backend, dockerfile: services/tenant/Dockerfile }
+
+  question-bank:
+    <<: *service
+    environment:
+      <<: [*common-env, *authz-client]
+      SERVICE_NAME: question-bank
+      AUTHZ_CLIENT_TLS_CERT_FILE: /certs/question-bank.crt
+      AUTHZ_CLIENT_TLS_KEY_FILE: /certs/question-bank.key
+      QBANK_DATABASE_URL: postgres://aether_question_bank_app:${QBANK_DB_PASSWORD}@postgres:5432/aether_qbank?sslmode=disable
+      QBANK_PROJECTION_DATABASE_URL: postgres://aether_question_bank_projection_worker:${QBANK_DB_PASSWORD}@postgres:5432/aether_qbank?sslmode=disable
+      QBANK_STORAGE_ENDPOINT: minio:9000
+      QBANK_STORAGE_ACCESS_KEY: ${MINIO_ROOT_USER}
+      QBANK_STORAGE_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      QBANK_STORAGE_BUCKET: aethercode
+      QBANK_STORAGE_USE_SSL: "false"
+      QBANK_KMS_LOCAL_KEY: ${PLATFORM_KMS_LOCAL_KEY}
+    build: { context: ../../backend, dockerfile: services/question-bank/Dockerfile }
+
+  assessment:
+    <<: *service
+    environment:
+      <<: [*common-env, *authz-client]
+      SERVICE_NAME: assessment
+      AUTHZ_CLIENT_TLS_CERT_FILE: /certs/assessment.crt
+      AUTHZ_CLIENT_TLS_KEY_FILE: /certs/assessment.key
+      ASSESSMENT_DATABASE_URL: postgres://aether_assessment_app:${ASSESSMENT_DB_PASSWORD}@postgres:5432/aether_assessment?sslmode=disable
+      ASSESSMENT_PROJECTION_DATABASE_URL: postgres://aether_assessment_projection_worker:${ASSESSMENT_DB_PASSWORD}@postgres:5432/aether_assessment?sslmode=disable
+    build: { context: ../../backend, dockerfile: services/assessment/Dockerfile }
+
+  submission:
+    <<: *service
+    environment:
+      <<: [*common-env, *authz-client]
+      SERVICE_NAME: submission
+      AUTHZ_CLIENT_TLS_CERT_FILE: /certs/submission.crt
+      AUTHZ_CLIENT_TLS_KEY_FILE: /certs/submission.key
+      SUBMISSION_DATABASE_URL: postgres://aether_submission_app:${SUBMISSION_DB_PASSWORD}@postgres:5432/aether_submission?sslmode=disable
+      SUBMISSION_PROJECTION_DATABASE_URL: postgres://aether_submission_projection_worker:${SUBMISSION_DB_PASSWORD}@postgres:5432/aether_submission?sslmode=disable
+      SUBMISSION_EXPIRY_ENABLED: "true"
+      SUBMISSION_EXPIRY_DATABASE_URL: postgres://aether_submission_expiry_worker:${SUBMISSION_DB_PASSWORD}@postgres:5432/aether_submission?sslmode=disable
+      JUDGE_COMPLETION_ENABLED: "true"
+      SUBMISSION_JUDGE_ADAPTER_DATABASE_URL: postgres://aether_submission_judge_adapter:${SUBMISSION_DB_PASSWORD}@postgres:5432/aether_submission?sslmode=disable
+      JUDGE_COMPLETION_GRPC_ADDR: judge:8443
+      JUDGE_COMPLETION_TLS_CERT_FILE: /certs/submission.crt
+      JUDGE_COMPLETION_TLS_KEY_FILE: /certs/submission.key
+      JUDGE_COMPLETION_TLS_CA_FILE: /certs/ca.crt
+      JUDGE_COMPLETION_TLS_SERVER_NAME: judge
+      JUDGE_COMPLETION_CONSUMER_ID: submission-single-server
+      SUBMISSION_STORAGE_ENDPOINT: minio:9000
+      SUBMISSION_STORAGE_ACCESS_KEY: ${MINIO_ROOT_USER}
+      SUBMISSION_STORAGE_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      SUBMISSION_STORAGE_BUCKET: aethercode
+      SUBMISSION_STORAGE_USE_SSL: "false"
+      SUBMISSION_KMS_LOCAL_KEY: ${PLATFORM_KMS_LOCAL_KEY}
+    build: { context: ../../backend, dockerfile: services/submission/Dockerfile }
+
+  seb:
+    <<: *service
+    environment:
+      <<: [*common-env, *authz-client]
+      SERVICE_NAME: seb
+      AUTHZ_CLIENT_TLS_CERT_FILE: /certs/seb.crt
+      AUTHZ_CLIENT_TLS_KEY_FILE: /certs/seb.key
+      SEB_DATABASE_URL: postgres://aether_seb_app:${SEB_DB_PASSWORD}@postgres:5432/aether_seb?sslmode=disable
+      SEB_PROJECTION_DATABASE_URL: postgres://aether_seb_projection_worker:${SEB_DB_PASSWORD}@postgres:5432/aether_seb?sslmode=disable
+      SEB_STORAGE_ENDPOINT: minio:9000
+      SEB_STORAGE_ACCESS_KEY: ${MINIO_ROOT_USER}
+      SEB_STORAGE_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      SEB_STORAGE_BUCKET: aethercode
+      SEB_STORAGE_USE_SSL: "false"
+      SEB_KMS_LOCAL_KEY: ${PLATFORM_KMS_LOCAL_KEY}
+    build: { context: ../../backend, dockerfile: services/seb/Dockerfile }
+
+  notification:
+    <<: *service
+    environment:
+      <<: [*common-env, *authz-client]
+      SERVICE_NAME: notification
+      AUTHZ_CLIENT_TLS_CERT_FILE: /certs/notification.crt
+      AUTHZ_CLIENT_TLS_KEY_FILE: /certs/notification.key
+      NOTIFICATION_DATABASE_URL: postgres://aether_notification_app:${NOTIFICATION_DB_PASSWORD}@postgres:5432/aether_notification?sslmode=disable
+      NOTIFICATION_PROJECTION_DATABASE_URL: postgres://aether_notification_projection_worker:${NOTIFICATION_DB_PASSWORD}@postgres:5432/aether_notification?sslmode=disable
+      NOTIFICATION_RETENTION_ENABLED: "true"
+      NOTIFICATION_RETENTION_DATABASE_URL: postgres://aether_notification_retention_worker:${NOTIFICATION_DB_PASSWORD}@postgres:5432/aether_notification?sslmode=disable
+    build: { context: ../../backend, dockerfile: services/notification/Dockerfile }
+
+  analytics:
+    <<: *service
+    environment:
+      <<: [*common-env, *authz-client]
+      SERVICE_NAME: analytics
+      AUTHZ_CLIENT_TLS_CERT_FILE: /certs/analytics.crt
+      AUTHZ_CLIENT_TLS_KEY_FILE: /certs/analytics.key
+      ANALYTICS_DATABASE_URL: postgres://aether_analytics_app:${ANALYTICS_DB_PASSWORD}@postgres:5432/aether_analytics?sslmode=disable
+      ANALYTICS_PROJECTION_DATABASE_URL: postgres://aether_analytics_projection_worker:${ANALYTICS_DB_PASSWORD}@postgres:5432/aether_analytics?sslmode=disable
+    build: { context: ../../backend, dockerfile: services/analytics/Dockerfile }
+
+  judge:
+    <<: *service
+    environment:
+      <<: *common-env
+      SERVICE_NAME: judge
+      JUDGE_DATABASE_URL: postgres://aether_judge_app:${JUDGE_DB_PASSWORD}@judge-db:5432/aether_judge_wrapper?sslmode=disable
+      JUDGE_RABBITMQ_URL: amqp://judge:${JUDGE_RABBITMQ_PASSWORD}@judge-rabbitmq:5672/judge
+      JUDGE_GRPC_ADDR: 0.0.0.0:8443
+      JUDGE_TLS_CERT_FILE: /certs/judge.crt
+      JUDGE_TLS_KEY_FILE: /certs/judge.key
+      JUDGE_CLIENT_CA_FILE: /certs/ca.crt
+      JUDGE_ALLOWED_CLIENT_SUBJECTS: submission
+      # Approved for the campus server with engine-check evidence (decision D4).
+      JUDGE_ENGINE_COMPATIBILITY_APPROVED: "true"
+      JUDGE_STORAGE_ENDPOINT: minio:9000
+      JUDGE_STORAGE_ACCESS_KEY: ${MINIO_ROOT_USER}
+      JUDGE_STORAGE_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      JUDGE_STORAGE_BUCKET: aethercode
+      JUDGE_STORAGE_USE_SSL: "false"
+      JUDGE_KMS_LOCAL_KEY: ${PLATFORM_KMS_LOCAL_KEY}
+      JUDGE_DISPATCHER_ENABLED: "true"
+      JUDGE_WORKER_CONCURRENCY: "32"
+      # piston (default) runs on cgroup v2 hosts; judge0 needs cgroup v1 and
+      # `--profile judge0`.
+      JUDGE_ENGINE: ${JUDGE_ENGINE:-piston}
+      PISTON_BASE_URL: http://piston:2000
+      JUDGE0_BASE_URL: http://judge0-server:2358
+      JUDGE0_AUTH_TOKEN: ${JUDGE0_AUTH_TOKEN:?run setup.sh first}
+    build: { context: ../../backend, dockerfile: services/judge/Dockerfile }
+    depends_on:
+      judge-migrate:
+        condition: service_completed_successfully
+      judge-rabbitmq:
+        condition: service_healthy
+      piston-packages:
+        condition: service_completed_successfully
+
+  piston:
+    image: ghcr.io/engineer-man/piston@sha256:2f66b7456189c4d713aa986d98eccd0b6ee16d26c7ec5f21b30e942756fd127a
+    restart: always
+    # Piston's sandbox (isolate on cgroup v2) needs a privileged container.
+    privileged: true
+    environment:
+      # Piston's defaults (3 s run cap, 1 KB output) are too small for exams;
+      # the judge passes each unit's own limits below these caps.
+      PISTON_RUN_TIMEOUT: "40000"
+      PISTON_COMPILE_TIMEOUT: "20000"
+      PISTON_OUTPUT_MAX_SIZE: "1048576"
+      PISTON_MAX_CONCURRENT_JOBS: "128"
+    volumes:
+      - piston-packages:/piston/packages
+
+  piston-packages:
+    image: ghcr.io/engineer-man/piston@sha256:2f66b7456189c4d713aa986d98eccd0b6ee16d26c7ec5f21b30e942756fd127a
+    entrypoint: ["node", "/piston-packages.js"]
+    volumes:
+      - ./piston-packages.js:/piston-packages.js:ro
+    depends_on: [piston]
+
+  # Judge0 runs only with `--profile judge0`: its isolate sandbox needs
+  # cgroup v1 on the host and ~7 GB of disk (see README).
+  judge0-server:
+    profiles: ["judge0"]
+    image: judge0/judge0:1.13.1
+    restart: always
+    privileged: true
+    volumes:
+      - ./judge0.conf:/judge0.conf:ro
+    depends_on: [judge0-db, judge0-redis]
+
+  judge0-workers:
+    profiles: ["judge0"]
+    image: judge0/judge0:1.13.1
+    restart: always
+    privileged: true
+    command: ["./scripts/workers"]
+    volumes:
+      - ./judge0.conf:/judge0.conf:ro
+    depends_on: [judge0-db, judge0-redis]
+
+  judge0-db:
+    profiles: ["judge0"]
+    image: postgres:16-alpine
+    restart: always
+    env_file: judge0.conf
+    volumes:
+      - judge0-db-data:/var/lib/postgresql/data
+
+  judge0-redis:
+    profiles: ["judge0"]
+    image: redis:7-alpine
+    restart: always
+    command: ["sh", "-c", 'redis-server --appendonly no --requirepass "$$REDIS_PASSWORD"']
+    env_file: judge0.conf
+
+  gateway:
+    <<: *service
+    environment:
+      <<: *common-env
+      SERVICE_NAME: gateway
+      GATEWAY_IDENTITY_ASSERTION_ISSUER: aethercode-identity
+      GATEWAY_IDENTITY_ASSERTION_AUDIENCE: aethercode
+      GATEWAY_IDENTITY_ASSERTION_PUBLIC_KEYS: ${IDENTITY_ASSERTION_PUBLIC_KEYS}
+      GATEWAY_UPSTREAMS: '{"identity":"http://identity:8080","tenant":"http://tenant:8080","user":"http://user:8080","question-bank":"http://question-bank:8080","assessment":"http://assessment:8080","submission":"http://submission:8080","seb":"http://seb:8080","notification":"http://notification:8080","analytics":"http://analytics:8080"}'
+    build: { context: ../../backend, dockerfile: services/gateway/Dockerfile }
+    ports:
+      - "${GATEWAY_PORT:-8080}:8080"
+
 volumes:
+  piston-packages:
+  judge0-db-data:
+  judge-db-data:
+  judge-rabbitmq-data:
   postgres-data:
   nats-data:
   minio-data:
