@@ -14,7 +14,7 @@ A coding-exam platform for colleges, in **two independent codebases**:
 
 | Codebase | Path | Status | Use it for |
 |---|---|---|---|
-| **Platform** | `services/`, `libs/`, `deploy/`, `web/` | **The only backend going forward (ADR-0017).** Multi-tenant Go microservices; the exam loop is being completed per `docs/superpowers/plans/2026-10-02-go-platform-exam-parity.md`. | **All new work.** |
+| **Platform** | `backend/services/`, `backend/libs/`, `deploy/`, `frontend/` | **The only backend going forward (ADR-0017).** Multi-tenant Go microservices; the exam loop is being completed per `docs/superpowers/plans/2026-10-02-go-platform-exam-parity.md`. | **All new work.** |
 | **Exam app v1** | `apps/exam-v1/` | **Frozen fallback.** Feature-complete single-server app used for exams until the platform reaches parity, then deleted. | Running exams before parity; the behavioural spec (`README.md`) and acceptance test (`e2e/`) for the port. |
 
 History: ADR-0016 built the exam app when the platform could not grade or show
@@ -66,20 +66,20 @@ following the parity plan's phases.
 ## Repository map
 
 ```
-apps/exam-v1/       Exam app v1 (Next.js App Router + worker); own README
-  app/              pages, server actions, API routes
-  lib/              domain logic: grading, engines, batching, similarity, auth
-  worker/main.ts    grading worker (queue claim, auto-submit, heartbeat)
-  db/NNN_*.sql      schema migrations, applied in order by `pnpm migrate`
-  scripts/          migrate, create-admin, engine-check, loadtest
-  deploy/           docker-compose (nginx, app, worker, db, backup, Judge0)
-services/<svc>/     platform microservice; hexagonal internal layout
-libs/pkg/*          shared Go: config, logging, database, messaging, authz,
-                    storage (MinIO), kms (local), ratelimit, pagination, ...
-libs/proto/         gRPC/protobuf contracts (source of truth for internal APIs)
-web/                reserved for the platform's Next.js frontend — empty
-deploy/             platform Helm + Kustomize + bare-metal bootstrap
-docs/{adr,api,architecture,database,runbooks,superpowers}
+backend/                    Go platform (one Go workspace: backend/go.work)
+  services/<svc>/           platform microservice; hexagonal internal layout
+  libs/pkg/*                shared Go: config, logging, database, messaging, authz,
+                            storage (MinIO), kms (local), ratelimit, pagination, ...
+  libs/proto/               gRPC/protobuf contracts (source of truth for internal APIs)
+  scripts/                  migration verifier, service/migration scaffolds, key provisioning
+frontend/                   platform web UI (Next.js) — not started yet (parity plan Phase 3)
+apps/exam-v1/               standalone exam app (frozen fallback, ADR-0017); own README
+  app/  lib/  worker/       pages + actions, domain logic, grading worker
+  db/NNN_*.sql              schema migrations, applied in order by `pnpm migrate`
+  scripts/  deploy/         migrate/engine-check/loadtest; its own docker-compose
+deploy/                     shared deployment: Helm, single-server compose, database bootstrap
+docs/{adr,api,architecture,audits,database,runbooks,superpowers}
+Makefile                    entry point for everything (run `make` from the repo root)
 ```
 
 Platform services: `gateway, identity, tenant, user, question-bank,
@@ -89,11 +89,11 @@ ownership per service are in `PLAN.md` §6.
 ### Where things go
 
 Platform:
-- Business rules → `services/<svc>/internal/domain`.
+- Business rules → `backend/services/<svc>/internal/domain`.
 - Use cases / orchestration → `internal/app`.
 - HTTP/gRPC/DB/broker code → `internal/adapters/*`, behind `internal/ports`.
-- Cross-service logic → `libs/pkg/*` (never copy-paste between services).
-- DB schema changes → `services/<svc>/migrations/` (golang-migrate).
+- Cross-service logic → `backend/libs/pkg/*` (never copy-paste between services).
+- DB schema changes → `backend/services/<svc>/migrations/` (golang-migrate).
 
 Exam app:
 - Pure logic with tests → `apps/exam-v1/lib/*.ts` + `lib/*.test.ts`.
@@ -201,7 +201,7 @@ per-test-case fan-out, and per-unit results.
   objects in storage.
 - The judge's `FetchQueuedJob` passes ciphertext references to the engine
   without decrypting them (Plan D Task 4 must close this).
-- No bulk student import; `web/` is empty.
+- No bulk student import; `frontend/` is empty.
 - Known open bugs and external gates: `Prompt.md` and `PENDING.md`.
 
 Resume platform work from `Prompt.md` and

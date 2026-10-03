@@ -8,7 +8,7 @@ coverage.out
 *.test
 vendor/
 # Local service binaries produced by ad-hoc `go build -o server` commands.
-services/*/server
+backend/services/*/server
 
 # JavaScript
 node_modules/

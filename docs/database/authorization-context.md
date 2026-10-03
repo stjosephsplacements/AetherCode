@@ -62,6 +62,6 @@ active key only to the User authorization service and its matching target
 database, and rotate by adding a new key before switching
 `AUTHZ_CAPABILITY_KEYS`. Do not place a key in source control or a migration.
 After a database bootstrap migration, an operator with the owner/migration
-credential can use [`scripts/provision-authz-context-key`](../../scripts/provision-authz-context-key)
+credential can use [`backend/scripts/provision-authz-context-key`](../../scripts/provision-authz-context-key)
 with an explicit expiry. The script verifies that its audience is the connected
 logical database and never prints secret material.

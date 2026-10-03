@@ -28,7 +28,7 @@ awaiting broader verification · `[ ]` not delivered or a blocking release gate.
   databases with non-login owners and separate migrator, application,
   authorization-reader, and projection-worker roles; public schema creation and
   `BYPASSRLS` are prohibited.
-- [x] `scripts/new-service`, `scripts/new-migration`, and the post-bootstrap
+- [x] `backend/scripts/new-service`, `backend/scripts/new-migration`, and the post-bootstrap
   audience-key provisioner establish the repeatable foundation workflow.
 - [x] Database-per-service architecture, immutable version snapshots,
   append-only histories, encrypted object-reference rules, partitioned

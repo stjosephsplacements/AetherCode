@@ -18,11 +18,11 @@ A coding-exam platform for colleges, in two independent codebases:
   per-test results, auto-submit at time-up), lab lockdown, a live monitor,
   announcements, result release, a similarity report and CSV export. See
   `apps/exam-v1/README.md` and ADR-0016.
-- **`services/`, `libs/`, `deploy/` — the long-term platform.** Multi-tenant
+- **`backend/services/`, `backend/libs/`, `deploy/` — the long-term platform.** Multi-tenant
   Go microservices with PostgreSQL RLS, an isolated Judge0 wrapper,
   SEB-enforced exams, Kubernetes on bare metal. It **cannot yet run an exam**:
   submissions are never dispatched to the judge, there is no raw code or test
-  upload path, and `web/` is empty. Full context in `PLAN.md`; current state in
+  upload path, and `frontend/` is empty. Full context in `PLAN.md`; current state in
   `Prompt.md` and `PENDING.md`.
 
 The two share no code or database. Never couple them. Per ADR-0017 the Go
@@ -108,7 +108,7 @@ task.
 
 ## Contract-first workflow (platform cross-service work)
 
-1. Update `libs/proto/*.proto` (or the service `api/openapi.yaml`).
+1. Update `backend/libs/proto/*.proto` (or the service `api/openapi.yaml`).
 2. `make proto`; check `buf breaking`.
 3. Implement provider, then consumers.
 4. Add/adjust contract + integration tests.

@@ -3,7 +3,7 @@
 ## Stack
 
 - Backend services are written in Go using the repository module path github.com/aethercode/aethercode and Go 1.26.x.
-- The repo uses a Go workspace in go.work for shared libraries and service modules under services/.
+- The repo uses a Go workspace in go.work for shared libraries and service modules under backend/services/.
 - Frontend work should target Next.js App Router with TypeScript and Tailwind when a web app is present.
 
 ## Formatting and linting
@@ -20,7 +20,7 @@
 
 ## Repository-specific conventions
 
-- Follow the service-oriented layout under services/ and shared libraries under libs/.
+- Follow the service-oriented layout under backend/services/ and shared libraries under backend/libs/.
 - Preserve the existing module boundaries; avoid introducing cross-service coupling without a clear reason.
-- Keep deployment and migration concerns aligned with the docs and scripts in deploy/ and scripts/.
+- Keep deployment and migration concerns aligned with the docs and scripts in deploy/ and backend/scripts/.
 - Respect the repository’s focus on Go services and the existing documentation in docs/ and README.md.

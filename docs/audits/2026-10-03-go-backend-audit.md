@@ -1,5 +1,8 @@
 # Go Backend Audit (2026-10-03)
 
+> Paths below predate the move into `backend/` (later the same day): read
+> `services/…` and `libs/…` as `backend/services/…` and `backend/libs/…`.
+
 Scope: the 11 services in `services/`, the shared libraries in `libs/`, the
 contracts in `libs/proto`, and `deploy/`. The question asked was: what is
 missing before a college can run a graded, SEB-locked coding exam on the

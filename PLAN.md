@@ -51,7 +51,7 @@ reworking the core.
 | Layer | Choice | Target version | Notes |
 |---|---|---|---|
 | Backend services | Go | `1.26.5` | Go workspaces (`go.work`) monorepo |
-| Sync inter-service | gRPC + Protobuf | `1.82.1` / `1.36.11` | Contracts in `libs/proto` |
+| Sync inter-service | gRPC + Protobuf | `1.82.1` / `1.36.11` | Contracts in `backend/libs/proto` |
 | Platform event bus | NATS JetStream | `2.14.3` | Domain events, at-least-once |
 | Judge queue/broker | RabbitMQ | `4.3.3` | **Isolated** to the Judge wrapper |
 | Primary DB | PostgreSQL | `18.4` | Three-node HA cluster; database per platform service |
@@ -172,7 +172,7 @@ event-fed projections.
 | 10 | **notification** | Notifications, preferences, provider idempotency and delivery attempts | `aether_notification` |
 | 11 | **analytics** | Event-fed progress, exam, batch, placement and export read models | `aether_analytics` |
 
-Shared cross-cutting concerns live in `libs/` (config, logging, auth middleware,
+Shared cross-cutting concerns live in `backend/libs/` (config, logging, auth middleware,
 db, messaging, telemetry, errors) — **never** copy-pasted per service.
 
 ### 6.1 Judge0 Wrapper (hard isolation requirement)
@@ -282,37 +282,42 @@ durable completion acknowledgement. A legal hold defeats scheduled deletion.
 ```
 aethercode/
 ├── PLAN.md  CLAUDE.md  AGENTS.md  TASKLIST.md  README.md
-├── go.work                      # Go multi-module workspace
-├── Makefile                     # dev/build/test/lint entrypoints
+├── Makefile                     # dev/build/test/lint entrypoints (run from repo root)
 ├── docker-compose.yml           # local platform profile (pg, redis, nats, object storage)
-├── .golangci.yml  .editorconfig
+├── .editorconfig
+├── backend/                     # Go platform
+│   ├── go.work                  # Go multi-module workspace
+│   ├── .golangci.yml
+│   ├── libs/                    # shared Go modules
+│   │   ├── proto/               # gRPC/protobuf contracts + generated code
+│   │   └── pkg/{config,logging,database,messaging,authz,httpx,telemetry,errors}
+│   ├── services/
+│   │   └── <service>/
+│   │       ├── cmd/server/main.go
+│   │       ├── internal/
+│   │       │   ├── domain/      # entities + business rules (no deps)
+│   │       │   ├── app/         # use cases
+│   │       │   ├── ports/       # interfaces (in/out)
+│   │       │   └── adapters/{http,grpc,repo,messaging}
+│   │       ├── migrations/
+│   │       ├── api/openapi.yaml
+│   │       ├── Dockerfile       # build context: backend/
+│   │       ├── go.mod
+│   │       └── README.md        # required per module
+│   └── scripts/                 # migration verifier, scaffolds, key provisioning
+├── frontend/                    # platform web UI: Next.js (App Router, TS)
+├── apps/                        # standalone apps kept apart from the platform
+│   └── exam-v1/                 # frozen fallback exam app (ADR-0017)
 ├── docs/
 │   ├── architecture/            # C4 diagrams, sequence flows
 │   ├── adr/                     # Architecture Decision Records
+│   ├── audits/                  # dated audits with fix logs
 │   └── api/                     # rendered OpenAPI
-├── deploy/
-│   ├── helm/                    # HA database and per-service charts
-│   ├── kustomize/{base,overlays/{dev,staging,prod}}
-│   └── bootstrap/               # node prep, k3s/kubeadm, storage classes
-├── libs/                        # shared Go modules
-│   ├── proto/                   # gRPC/protobuf contracts + generated code
-│   └── pkg/{config,logging,database,messaging,authz,httpx,telemetry,errors}
-├── services/
-│   └── <service>/
-│       ├── cmd/server/main.go
-│       ├── internal/
-│       │   ├── domain/          # entities + business rules (no deps)
-│       │   ├── app/             # use cases
-│       │   ├── ports/           # interfaces (in/out)
-│       │   └── adapters/{http,grpc,repo,messaging}
-│       ├── migrations/
-│       ├── api/openapi.yaml
-│       ├── Dockerfile
-│       ├── go.mod
-│       └── README.md            # required per module
-├── web/                         # Next.js app (App Router, TS)
-│   ├── app/  components/  lib/  README.md
-└── scripts/
+└── deploy/
+    ├── helm/                    # HA database and per-service charts
+    ├── single-server/           # one-machine Docker Compose stack
+    ├── kustomize/{base,overlays/{dev,staging,prod}}
+    └── bootstrap/               # node prep, k3s/kubeadm, storage classes
 ```
 
 **Per-service internal architecture:** hexagonal (ports & adapters).
@@ -322,7 +327,7 @@ aethercode/
 
 ## 10. Cross-Cutting Concerns
 
-- **Config:** 12-factor, env-driven, validated on boot (`libs/pkg/config`).
+- **Config:** 12-factor, env-driven, validated on boot (`backend/libs/pkg/config`).
 - **Logging:** structured JSON (`slog`), correlation/trace IDs propagated.
 - **Errors:** typed domain errors → mapped to HTTP/gRPC codes at the edge only.
 - **Telemetry:** OpenTelemetry traces + Prometheus metrics + Loki logs; every

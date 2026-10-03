@@ -2,7 +2,8 @@ SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
 SERVICES := gateway identity tenant user question-bank assessment submission judge seb notification analytics
-MODULES := libs/pkg $(addprefix services/,$(SERVICES))
+# Go code lives under backend/; the web UI under frontend/; apps/ holds standalone apps.
+MODULES := backend/libs/pkg $(addprefix backend/services/,$(SERVICES))
 
 .PHONY: help dev-up dev-down dev-judge-up dev-judge-down build test test-integration test-migrations lint proto migrate bootstrap rotate-authz-key fmt fmt-check vet vuln verify-workspace exam-check exam-build exam-up exam-down
 
@@ -10,7 +11,7 @@ help:
 	@printf '%s\n' 'Targets: exam-check exam-build exam-up exam-down dev-up dev-down dev-judge-up dev-judge-down build test test-integration test-migrations lint proto migrate bootstrap rotate-authz-key fmt fmt-check vet vuln'
 
 verify-workspace:
-	@go work sync
+	@cd backend && go work sync
 
 dev-up:
 	@docker compose --env-file .env --profile platform up -d
@@ -41,22 +42,22 @@ lint: verify-workspace
 
 proto:
 	@command -v buf >/dev/null
-	@(cd libs/proto && buf lint && buf generate)
+	@(cd backend/libs/proto && buf lint && buf generate)
 
 migrate:
 	@test -n "$(SVC)" && test -n "$(DIR)"
 	@test -n "$$DATABASE_URL"
-	@(cd libs/pkg && go run ./cmd/migrate --database-url "$$DATABASE_URL" --source "file://$(CURDIR)/services/$(SVC)/migrations" --direction "$(DIR)")
+	@(cd backend/libs/pkg && go run ./cmd/migrate --database-url "$$DATABASE_URL" --source "file://$(CURDIR)/backend/services/$(SVC)/migrations" --direction "$(DIR)")
 
 test-migrations: verify-workspace
-	@scripts/verify-migrations
+	@backend/scripts/verify-migrations
 
 bootstrap:
 	@test -n "$(EMAIL)" || { echo "EMAIL is required"; exit 1; }
 	@test -n "$(NAME)" || { echo "NAME is required"; exit 1; }
 	@test -n "$$IDENTITY_DATABASE_URL" || { echo "IDENTITY_DATABASE_URL is required"; exit 1; }
 	@test -n "$$USER_DATABASE_URL" || { echo "USER_DATABASE_URL is required"; exit 1; }
-	@(cd libs/pkg && go run ./cmd/bootstrap \
+	@(cd backend/libs/pkg && go run ./cmd/bootstrap \
 		--identity-database-url "$$IDENTITY_DATABASE_URL" \
 		--user-database-url "$$USER_DATABASE_URL" \
 		--email "$(EMAIL)" --display-name "$(NAME)")
@@ -65,7 +66,7 @@ rotate-authz-key:
 	@test -n "$(ACTION)" || { echo "ACTION is required (publish|retire)"; exit 1; }
 	@test -n "$(AUDIENCE)" || { echo "AUDIENCE is required"; exit 1; }
 	@test -n "$$DATABASE_URL" || { echo "DATABASE_URL is required"; exit 1; }
-	@(cd libs/pkg && go run ./cmd/rotate-authz-key \
+	@(cd backend/libs/pkg && go run ./cmd/rotate-authz-key \
 		--action "$(ACTION)" --audience "$(AUDIENCE)" --database-url "$$DATABASE_URL" \
 		$(if $(KEY_ID),--key-id "$(KEY_ID)") $(if $(NOT_BEFORE),--not-before "$(NOT_BEFORE)") $(if $(NOT_AFTER),--not-after "$(NOT_AFTER)"))
 

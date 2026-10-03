@@ -5,7 +5,7 @@ two independent codebases:
 
 | | Exam app v1 | Platform |
 |---|---|---|
-| **Path** | [`apps/exam-v1/`](apps/exam-v1/README.md) | `services/`, `libs/`, `deploy/` |
+| **Path** | [`apps/exam-v1/`](apps/exam-v1/README.md) | `backend/services/`, `backend/libs/`, `deploy/` |
 | **What it is** | One Next.js app + PostgreSQL + a grading worker over Judge0 (or Piston), deployed with Docker Compose behind nginx on a single campus server. | Multi-tenant Go microservices with PostgreSQL RLS, signed authorization capabilities, an isolated Judge0 wrapper and SEB enforcement, for Kubernetes on bare metal. |
 | **Status** | **Frozen fallback** (ADR-0017): feature-complete for a supervised lab exam; used until the platform reaches parity, then deleted. | **The only backend going forward.** Cannot run an exam yet; being completed per the [parity plan](docs/superpowers/plans/2026-10-02-go-platform-exam-parity.md). |
 | **Start here** | [apps/exam-v1/README.md](apps/exam-v1/README.md) | [PLAN.md](PLAN.md), [TASKLIST.md](TASKLIST.md), [Prompt.md](Prompt.md), [PENDING.md](PENDING.md) |
@@ -60,13 +60,13 @@ rule (scoring, timing, visibility, limits) are in the
 
 ## Platform: repository layout
 
-- `services/` contains independently deployable Go services.
-- `libs/pkg/` contains shared, framework-neutral platform packages.
-- `libs/proto/` is the source of truth for internal gRPC contracts.
+- `backend/services/` contains independently deployable Go services.
+- `backend/libs/pkg/` contains shared, framework-neutral platform packages.
+- `backend/libs/proto/` is the source of truth for internal gRPC contracts.
 - `deploy/` contains local, Kubernetes, and database provisioning assets.
 - `docs/` contains architecture records, database documentation, runbooks and
   API output.
-- `web/` is reserved for the platform's Next.js frontend and is currently empty.
+- `frontend/` is reserved for the platform's Next.js frontend and is currently empty.
 
 Start with [the implementation plan](PLAN.md), [the documentation index](docs/README.md),
 [the delivery status](TASKLIST.md), and the latest hand-off in [Prompt.md](Prompt.md).
@@ -99,7 +99,7 @@ applications, and authorization-projection workers use separate least-privilege
 identities. Run migrations only as the service migrator after the role/database
 provisioner has run. Authorization HMAC material is supplied by the approved
 KMS/secret controller after bootstrap with
-[`scripts/provision-authz-context-key`](scripts/provision-authz-context-key);
+[`backend/scripts/provision-authz-context-key`](backend/scripts/provision-authz-context-key);
 the script neither generates nor stores a secret.
 
 The platform HA chart is deliberately render-gated on client certificates and
@@ -117,7 +117,7 @@ operated Judge0 engine after approval. The wrapper accepts durable, encrypted
 references and leases completions through private mTLS gRPC.
 
 Implemented on the judge side:
-- a real Judge0 HTTP client (`services/judge/internal/adapters/judge0`), selected
+- a real Judge0 HTTP client (`backend/services/judge/internal/adapters/judge0`), selected
   with `JUDGE_ENGINE` and only enabled when `JUDGE_ENGINE_COMPATIBILITY_APPROVED`
   is set;
 - fan-out of an evaluation bundle into one execution unit per test case
@@ -161,8 +161,8 @@ Gateway uses an explicit private-upstream allow-list, verifies protected
 identity assertions on every request, and calls SEB validation before
 configured exam routes are forwarded.
 
-Shared adapters exist for MinIO object storage (`libs/pkg/storage/minio`) and a
-local KMS (`libs/pkg/kms/local`) for development. Most services still persist
+Shared adapters exist for MinIO object storage (`backend/libs/pkg/storage/minio`) and a
+local KMS (`backend/libs/pkg/kms/local`) for development. Most services still persist
 encrypted object references supplied by the caller. Production needs approved
 India-resident object storage and KMS, an email provider, and analytics-export
 storage (see [PENDING.md](PENDING.md)). They must not be replaced with local mock
@@ -222,10 +222,10 @@ Full rotation procedure:
 2. Wait until `not-before` has passed on every database, then confirm the new
    key works before relying on it.
 3. Update `AUTHZ_CAPABILITY_KEYS` in the User service's configuration (the
-   canonical signing service, per `libs/pkg/authz`) to the new key.
+   canonical signing service, per `backend/libs/pkg/authz`) to the new key.
 4. Once confident no capability signed with the old key is still in flight —
    capabilities have a five-second TTL (`capabilityTTL` in
-   `libs/pkg/authz/capability.go`), so the safe window is generous — retire the
+   `backend/libs/pkg/authz/capability.go`), so the safe window is generous — retire the
    old key on all nine databases:
 
 ```sh
@@ -236,7 +236,7 @@ make rotate-authz-key ACTION=retire AUDIENCE=aether_submission KEY_ID=<old-key-i
 `retire` fails if the key is already retired or does not exist for that
 audience. This CLI is for operational key rotation; the KMS-provisioned
 first key for a freshly bootstrapped database still comes from
-[`scripts/provision-authz-context-key`](scripts/provision-authz-context-key),
+[`backend/scripts/provision-authz-context-key`](backend/scripts/provision-authz-context-key),
 whose secret is supplied externally rather than generated locally.
 
 ## Local prerequisites

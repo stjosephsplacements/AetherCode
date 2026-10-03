@@ -40,7 +40,7 @@ Platform-wide soft delete ensures data safety and compliance:
 
 - **ADR-0013**: [Soft delete architecture decision record](adr/0013-soft-delete-architecture.md)
 - **Template**: `docs/templates/soft-delete-migration.sql` for adding to services
-- **Shared utilities**: `libs/pkg/database/softdelete.go` provides GORM scopes
+- **Shared utilities**: `backend/libs/pkg/database/softdelete.go` provides GORM scopes
 - **Authorization**: Only SuperAdmin can hard delete via security-definer function
 
 All services implement soft delete for tenant-scoped entities.

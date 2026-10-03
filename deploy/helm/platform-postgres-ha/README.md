@@ -26,7 +26,7 @@ corresponding Secret into each workload.
 
 After the `DatabaseRole` and `Database` resources reconcile, run one short,
 certificate-authenticated migration Job per service with its migrator identity.
-The Job must invoke the repository runner (`libs/pkg/cmd/migrate`, or
+The Job must invoke the repository runner (`backend/libs/pkg/cmd/migrate`, or
 `make migrate` in a trusted build environment), not a generic CLI as the
 cluster administrator. The runner verifies the non-superuser/non-`BYPASSRLS`
 role topology, creates the version ledger through the migrator's permitted
