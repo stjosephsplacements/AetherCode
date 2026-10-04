@@ -26,6 +26,10 @@ fresh capability, because a capability lasts five seconds. If enrollment fails,
 the new accounts are discarded so a retry can reuse the usernames. Responses
 that contain passwords are sent with `Cache-Control: no-store`.
 
+`user.student_batch_affiliation.snapshot.v1` carries `principal_id` as well as
+`student_id` (migration 000026), because consumers that grant access identify
+students by principal.
+
 ## Two-department invariant
 
 Every active student has exactly one active college and one active placement

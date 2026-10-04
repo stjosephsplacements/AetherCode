@@ -160,13 +160,6 @@ func run(ctx context.Context) error {
 		if materializationStoreErr != nil {
 			return materializationStoreErr
 		}
-		enrolledConsumer, enrolledConsumerErr := messaging.NewPullConsumer(
-			ctx, messagingRuntime.URL, serviceConfig.Name+"-student-enrolled",
-			"assessment_student_enrolled_v1", projection.StudentEnrolledEventType, logger, materializationStore.ApplyStudentEnrolled,
-		)
-		if enrolledConsumerErr != nil {
-			return enrolledConsumerErr
-		}
 		affiliationConsumer, affiliationConsumerErr := messaging.NewPullConsumer(
 			ctx, messagingRuntime.URL, serviceConfig.Name+"-batch-affiliation",
 			"assessment_batch_affiliation_v1", projection.StudentBatchAffiliationEventType, logger, materializationStore.ApplyBatchAffiliation,
@@ -191,7 +184,6 @@ func run(ctx context.Context) error {
 		go snapshotConsumer.Run(ctx)
 		go resyncSnapshotConsumer.Run(ctx)
 		go resyncCompletedConsumer.Run(ctx)
-		go enrolledConsumer.Run(ctx)
 		go affiliationConsumer.Run(ctx)
 		go batchCreatedConsumer.Run(ctx)
 		go ruleCreatedConsumer.Run(ctx)
@@ -222,7 +214,7 @@ func run(ctx context.Context) error {
 			}
 			for _, consumer := range []*messaging.PullConsumer{
 				snapshotConsumer, resyncSnapshotConsumer, resyncCompletedConsumer,
-				enrolledConsumer, affiliationConsumer, batchCreatedConsumer, ruleCreatedConsumer,
+				affiliationConsumer, batchCreatedConsumer, ruleCreatedConsumer,
 			} {
 				if err := consumer.Ready(readinessContext); err != nil {
 					return err

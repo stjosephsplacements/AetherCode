@@ -111,8 +111,11 @@ func (store *Store) ApplyStudentEnrolled(ctx context.Context, event messaging.Ev
 // view. Analytics normalizes inactive snapshots to no current batch, even when
 // the producer includes a prior batch identifier for audit context.
 type studentBatchAffiliationSnapshot struct {
-	TenantID       string  `json:"tenant_id"`
-	StudentID      string  `json:"student_id"`
+	TenantID  string `json:"tenant_id"`
+	StudentID string `json:"student_id"`
+	// PrincipalID is published since user migration 000026; analytics keys on
+	// the student record and only accepts it.
+	PrincipalID    string  `json:"principal_id"`
 	BatchID        *string `json:"batch_id"`
 	LifecycleState string  `json:"lifecycle_state"`
 	Version        int64   `json:"version"`

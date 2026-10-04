@@ -60,10 +60,15 @@ Assessment stores a tenant- and actor-scoped request fingerprint and returns
 the first committed response for an identical retry; reuse with a different
 request is rejected.
 
-Department, batch, and placement rules are deliberately not expanded from
-caller-provided affiliation data. They remain durable rules until an
-authoritative, versioned User affiliation projection is available; that avoids
-creating candidate access from stale or untrusted membership data.
+Batch and department rules are expanded only from User's versioned
+`user.student_batch_affiliation.snapshot.v1`, never from caller-provided
+membership. The projection worker keeps `student_batch_enrollments` (newest
+version wins) and materializes an assignment for each published, open rule
+targeting the student's batch or its department, both when the student joins
+and when a rule is created afterwards (`backfill_from_assignment_rule`). The
+candidate is the student's **principal**, as every access check expects
+(migration 000023); a candidate holds at most one assignment per exam version.
+Placement-department rules are not expanded yet.
 
 Direct materialization atomically persists and publishes
 `assessment.candidate_assignment.snapshot.v1` (schema version 1) from the

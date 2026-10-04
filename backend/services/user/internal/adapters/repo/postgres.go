@@ -764,7 +764,13 @@ func studentBatchAffiliationCommandScope(operation, tenantID, studentID, actorID
 }
 
 func (repository *Postgres) enqueueStudentBatchAffiliationSnapshot(contextValue context.Context, transaction pgx.Tx, affiliation app.StudentBatchAffiliation) error {
-	payload, err := studentBatchAffiliationSnapshotPayload(affiliation)
+	var principalID string
+	if err := transaction.QueryRow(contextValue, `
+		SELECT users.student_batch_principal($1, $2)::text
+	`, affiliation.TenantID, affiliation.StudentID).Scan(&principalID); err != nil {
+		return mapWriteError(err, "student batch affiliation snapshot could not be built")
+	}
+	payload, err := studentBatchAffiliationSnapshotPayload(affiliation, principalID)
 	if err != nil {
 		return err
 	}
@@ -774,15 +780,18 @@ func (repository *Postgres) enqueueStudentBatchAffiliationSnapshot(contextValue 
 	)
 }
 
-func studentBatchAffiliationSnapshotPayload(affiliation app.StudentBatchAffiliation) (json.RawMessage, error) {
+// studentBatchAffiliationSnapshotPayload names the student's principal as well
+// as its student record: consumers grant access by principal.
+func studentBatchAffiliationSnapshotPayload(affiliation app.StudentBatchAffiliation, principalID string) (json.RawMessage, error) {
 	payload, err := json.Marshal(struct {
 		TenantID       string  `json:"tenant_id"`
 		StudentID      string  `json:"student_id"`
+		PrincipalID    string  `json:"principal_id"`
 		BatchID        *string `json:"batch_id"`
 		LifecycleState string  `json:"lifecycle_state"`
 		Version        int     `json:"version"`
 	}{
-		TenantID: affiliation.TenantID, StudentID: affiliation.StudentID,
+		TenantID: affiliation.TenantID, StudentID: affiliation.StudentID, PrincipalID: principalID,
 		BatchID: affiliation.BatchID, LifecycleState: affiliation.LifecycleState,
 		Version: affiliation.Version,
 	})

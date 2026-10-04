@@ -9,166 +9,10 @@ import (
 	"github.com/google/uuid"
 )
 
-func TestParseStudentEnrolledRejectsInvalidPayloads(t *testing.T) {
-	tenantID := uuid.NewString()
-	studentID := uuid.NewString()
-	batchID := uuid.NewString()
-	departmentID := uuid.NewString()
-
-	validPayload := studentEnrolledPayload{
-		TenantID:     tenantID,
-		StudentID:    studentID,
-		BatchID:      batchID,
-		DepartmentID: departmentID,
-	}
-	validPayloadBytes, _ := json.Marshal(validPayload)
-
-	tests := []struct {
-		name    string
-		event   messaging.Event
-		wantErr bool
-	}{
-		{
-			name: "valid student enrolled event",
-			event: messaging.Event{
-				ID:            uuid.NewString(),
-				Type:          StudentEnrolledEventType,
-				SchemaVersion: 1,
-				TenantID:      tenantID,
-				AggregateType: "student",
-				AggregateID:   studentID,
-				Payload:       validPayloadBytes,
-				OccurredAt:    time.Now(),
-			},
-			wantErr: false,
-		},
-		{
-			name: "missing tenant ID",
-			event: messaging.Event{
-				ID:            uuid.NewString(),
-				Type:          StudentEnrolledEventType,
-				SchemaVersion: 1,
-				TenantID:      tenantID,
-				AggregateType: "student",
-				AggregateID:   studentID,
-				Payload:       mustMarshalJSON(studentEnrolledPayload{StudentID: studentID, BatchID: batchID, DepartmentID: departmentID}),
-				OccurredAt:    time.Now(),
-			},
-			wantErr: true,
-		},
-		{
-			name: "missing student ID",
-			event: messaging.Event{
-				ID:            uuid.NewString(),
-				Type:          StudentEnrolledEventType,
-				SchemaVersion: 1,
-				TenantID:      tenantID,
-				AggregateType: "student",
-				AggregateID:   studentID,
-				Payload:       mustMarshalJSON(studentEnrolledPayload{TenantID: tenantID, BatchID: batchID, DepartmentID: departmentID}),
-				OccurredAt:    time.Now(),
-			},
-			wantErr: true,
-		},
-		{
-			name: "missing batch ID",
-			event: messaging.Event{
-				ID:            uuid.NewString(),
-				Type:          StudentEnrolledEventType,
-				SchemaVersion: 1,
-				TenantID:      tenantID,
-				AggregateType: "student",
-				AggregateID:   studentID,
-				Payload:       mustMarshalJSON(studentEnrolledPayload{TenantID: tenantID, StudentID: studentID, DepartmentID: departmentID}),
-				OccurredAt:    time.Now(),
-			},
-			wantErr: true,
-		},
-		{
-			name: "missing department ID",
-			event: messaging.Event{
-				ID:            uuid.NewString(),
-				Type:          StudentEnrolledEventType,
-				SchemaVersion: 1,
-				TenantID:      tenantID,
-				AggregateType: "student",
-				AggregateID:   studentID,
-				Payload:       mustMarshalJSON(studentEnrolledPayload{TenantID: tenantID, StudentID: studentID, BatchID: batchID}),
-				OccurredAt:    time.Now(),
-			},
-			wantErr: true,
-		},
-		{
-			name: "invalid tenant ID",
-			event: messaging.Event{
-				ID:            uuid.NewString(),
-				Type:          StudentEnrolledEventType,
-				SchemaVersion: 1,
-				TenantID:      tenantID,
-				AggregateType: "student",
-				AggregateID:   studentID,
-				Payload:       mustMarshalJSON(studentEnrolledPayload{TenantID: "not-a-uuid", StudentID: studentID, BatchID: batchID, DepartmentID: departmentID}),
-				OccurredAt:    time.Now(),
-			},
-			wantErr: true,
-		},
-		{
-			name: "unknown field in payload",
-			event: messaging.Event{
-				ID:            uuid.NewString(),
-				Type:          StudentEnrolledEventType,
-				SchemaVersion: 1,
-				TenantID:      tenantID,
-				AggregateType: "student",
-				AggregateID:   studentID,
-				Payload:       []byte(`{"tenant_id":"` + tenantID + `","student_id":"` + studentID + `","batch_id":"` + batchID + `","department_id":"` + departmentID + `","unknown_field":"value"}`),
-				OccurredAt:    time.Now(),
-			},
-			wantErr: true,
-		},
-		{
-			name: "wrong event type",
-			event: messaging.Event{
-				ID:            uuid.NewString(),
-				Type:          "wrong.event.type",
-				SchemaVersion: 1,
-				TenantID:      tenantID,
-				AggregateType: "student",
-				AggregateID:   studentID,
-				Payload:       validPayloadBytes,
-				OccurredAt:    time.Now(),
-			},
-			wantErr: true,
-		},
-		{
-			name: "wrong schema version",
-			event: messaging.Event{
-				ID:            uuid.NewString(),
-				Type:          StudentEnrolledEventType,
-				SchemaVersion: 2,
-				TenantID:      tenantID,
-				AggregateType: "student",
-				AggregateID:   studentID,
-				Payload:       validPayloadBytes,
-				OccurredAt:    time.Now(),
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := parseStudentEnrolled(tt.event)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("parseStudentEnrolled() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
 func TestParseBatchAffiliationRejectsInvalidPayloads(t *testing.T) {
 	tenantID := uuid.NewString()
 	studentID := uuid.NewString()
+	principalID := uuid.NewString()
 	batchID := uuid.NewString()
 
 	tests := []struct {
@@ -185,7 +29,7 @@ func TestParseBatchAffiliationRejectsInvalidPayloads(t *testing.T) {
 				TenantID:      tenantID,
 				AggregateType: "student_batch_affiliation",
 				AggregateID:   studentID,
-				Payload:       mustMarshalJSON(batchAffiliationPayload{TenantID: tenantID, StudentID: studentID, BatchID: &batchID, LifecycleState: "active", Version: 1}),
+				Payload:       mustMarshalJSON(batchAffiliationPayload{TenantID: tenantID, StudentID: studentID, PrincipalID: principalID, BatchID: &batchID, LifecycleState: "active", Version: 1}),
 				OccurredAt:    time.Now(),
 			},
 			wantErr: false,
@@ -199,7 +43,7 @@ func TestParseBatchAffiliationRejectsInvalidPayloads(t *testing.T) {
 				TenantID:      tenantID,
 				AggregateType: "student_batch_affiliation",
 				AggregateID:   studentID,
-				Payload:       mustMarshalJSON(batchAffiliationPayload{TenantID: tenantID, StudentID: studentID, BatchID: &batchID, LifecycleState: "inactive", Version: 2}),
+				Payload:       mustMarshalJSON(batchAffiliationPayload{TenantID: tenantID, StudentID: studentID, PrincipalID: principalID, BatchID: &batchID, LifecycleState: "inactive", Version: 2}),
 				OccurredAt:    time.Now(),
 			},
 			wantErr: false,
@@ -213,10 +57,24 @@ func TestParseBatchAffiliationRejectsInvalidPayloads(t *testing.T) {
 				TenantID:      tenantID,
 				AggregateType: "student_batch_affiliation",
 				AggregateID:   studentID,
-				Payload:       mustMarshalJSON(batchAffiliationPayload{TenantID: tenantID, StudentID: studentID, BatchID: nil, LifecycleState: "inactive", Version: 1}),
+				Payload:       mustMarshalJSON(batchAffiliationPayload{TenantID: tenantID, StudentID: studentID, PrincipalID: principalID, BatchID: nil, LifecycleState: "inactive", Version: 1}),
 				OccurredAt:    time.Now(),
 			},
 			wantErr: false,
+		},
+		{
+			name: "snapshot without a principal",
+			event: messaging.Event{
+				ID:            uuid.NewString(),
+				Type:          StudentBatchAffiliationEventType,
+				SchemaVersion: 1,
+				TenantID:      tenantID,
+				AggregateType: "student_batch_affiliation",
+				AggregateID:   studentID,
+				Payload:       mustMarshalJSON(batchAffiliationPayload{TenantID: tenantID, StudentID: studentID, BatchID: &batchID, LifecycleState: "active", Version: 1}),
+				OccurredAt:    time.Now(),
+			},
+			wantErr: true,
 		},
 		{
 			name: "active affiliation missing batch ID",
@@ -227,7 +85,7 @@ func TestParseBatchAffiliationRejectsInvalidPayloads(t *testing.T) {
 				TenantID:      tenantID,
 				AggregateType: "student_batch_affiliation",
 				AggregateID:   studentID,
-				Payload:       mustMarshalJSON(batchAffiliationPayload{TenantID: tenantID, StudentID: studentID, BatchID: nil, LifecycleState: "active", Version: 1}),
+				Payload:       mustMarshalJSON(batchAffiliationPayload{TenantID: tenantID, StudentID: studentID, PrincipalID: principalID, BatchID: nil, LifecycleState: "active", Version: 1}),
 				OccurredAt:    time.Now(),
 			},
 			wantErr: true,
@@ -241,7 +99,7 @@ func TestParseBatchAffiliationRejectsInvalidPayloads(t *testing.T) {
 				TenantID:      tenantID,
 				AggregateType: "student_batch_affiliation",
 				AggregateID:   studentID,
-				Payload:       mustMarshalJSON(batchAffiliationPayload{TenantID: tenantID, StudentID: studentID, BatchID: &batchID, LifecycleState: "active", Version: 0}),
+				Payload:       mustMarshalJSON(batchAffiliationPayload{TenantID: tenantID, StudentID: studentID, PrincipalID: principalID, BatchID: &batchID, LifecycleState: "active", Version: 0}),
 				OccurredAt:    time.Now(),
 			},
 			wantErr: true,
@@ -255,7 +113,7 @@ func TestParseBatchAffiliationRejectsInvalidPayloads(t *testing.T) {
 				TenantID:      tenantID,
 				AggregateType: "student_batch_affiliation",
 				AggregateID:   studentID,
-				Payload:       mustMarshalJSON(batchAffiliationPayload{TenantID: tenantID, StudentID: studentID, BatchID: &batchID, LifecycleState: "active", Version: -1}),
+				Payload:       mustMarshalJSON(batchAffiliationPayload{TenantID: tenantID, StudentID: studentID, PrincipalID: principalID, BatchID: &batchID, LifecycleState: "active", Version: -1}),
 				OccurredAt:    time.Now(),
 			},
 			wantErr: true,
@@ -269,7 +127,7 @@ func TestParseBatchAffiliationRejectsInvalidPayloads(t *testing.T) {
 				TenantID:      tenantID,
 				AggregateType: "student_batch_affiliation",
 				AggregateID:   studentID,
-				Payload:       mustMarshalJSON(batchAffiliationPayload{TenantID: tenantID, StudentID: studentID, BatchID: &batchID, LifecycleState: "unknown", Version: 1}),
+				Payload:       mustMarshalJSON(batchAffiliationPayload{TenantID: tenantID, StudentID: studentID, PrincipalID: principalID, BatchID: &batchID, LifecycleState: "unknown", Version: 1}),
 				OccurredAt:    time.Now(),
 			},
 			wantErr: true,

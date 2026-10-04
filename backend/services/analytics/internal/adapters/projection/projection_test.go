@@ -196,6 +196,13 @@ func TestDecodeStudentBatchAffiliationSnapshotContract(t *testing.T) {
 			"batch_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099",
 			"lifecycle_state":"active","version":1,"unexpected":true
 		}`, wantErr: true},
+		{name: "with principal", payload: `{
+			"tenant_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099",
+			"student_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099",
+			"principal_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220098",
+			"batch_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099",
+			"lifecycle_state":"active","version":1
+		}`},
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {

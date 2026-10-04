@@ -112,10 +112,32 @@ func TestResolvedBundlesAreSnapshotted(t *testing.T) {
 	      VALUES ($1, $2, $3, $4, $5, now(), now() + interval '20 days')`, assignmentID, tenant, directRuleID, versionID, uuid.New())
 	require.Equal(t, want, snapshotItem(`SELECT assessment.enqueue_candidate_assignment_snapshot(gen_random_uuid(), $1, $2)`, tenant, assignmentID))
 
-	require.Equal(t, want, snapshotItem(`SELECT assessment.materialize_from_enrollment(gen_random_uuid(), $1, $2, $3)`, tenant, student, batch))
+	// Joining a batch materializes against the principal, not the student record.
+	principal := uuid.New()
+	require.Equal(t, want, snapshotItem(`SELECT assessment.materialize_from_batch_affiliation(gen_random_uuid(), $1, $2, $3, $4, 'active', 2)`,
+		tenant, student, principal, batch))
+	var candidates int
+	require.NoError(t, tx.QueryRow(ctx, `SELECT count(*) FROM assessment.candidate_assignments WHERE assignment_rule_id = $1 AND candidate_id = $2`,
+		ruleID, principal).Scan(&candidates))
+	require.Equal(t, 1, candidates, "the candidate is the student's principal")
 
-	otherStudent := uuid.New()
-	require.Equal(t, want, snapshotItem(`SELECT assessment.materialize_from_batch_affiliation(gen_random_uuid(), $1, $2, $3, 'active')`, tenant, otherStudent, batch))
+	// An older, redelivered snapshot cannot undo the newer membership.
+	exec(`SELECT assessment.materialize_from_batch_affiliation(gen_random_uuid(), $1, $2, $3, NULL, 'inactive', 1)`, tenant, student, principal)
+	var status string
+	require.NoError(t, tx.QueryRow(ctx, `SELECT status FROM assessment.student_batch_enrollments WHERE tenant_id = $1 AND student_id = $2`,
+		tenant, student).Scan(&status))
+	require.Equal(t, "active", status)
+
+	// A rule created after students joined reaches every one of them.
+	laterBatch, firstStudent, firstPrincipal, secondStudent, secondPrincipal, laterRuleID := uuid.New(), uuid.New(), uuid.New(), uuid.New(), uuid.New(), uuid.New()
+	exec(`SELECT assessment.materialize_from_batch_affiliation(gen_random_uuid(), $1, $2, $3, $4, 'active', 1)`, tenant, firstStudent, firstPrincipal, laterBatch)
+	exec(`SELECT assessment.materialize_from_batch_affiliation(gen_random_uuid(), $1, $2, $3, $4, 'active', 1)`, tenant, secondStudent, secondPrincipal, laterBatch)
+	exec(`INSERT INTO assessment.assignment_rules (id, tenant_id, exam_version_id, target_type, target_id, available_from, available_until, created_by)
+	      VALUES ($1, $2, $3, 'batch', $4, now(), now() + interval '20 days', $5)`, laterRuleID, tenant, versionID, laterBatch, actor)
+	exec(`SELECT assessment.backfill_from_assignment_rule(gen_random_uuid(), $1, $2, 'batch', $3)`, tenant, laterRuleID, laterBatch)
+	require.NoError(t, tx.QueryRow(ctx, `SELECT count(*) FROM assessment.candidate_assignments WHERE assignment_rule_id = $1 AND candidate_id IN ($2, $3)`,
+		laterRuleID, firstPrincipal, secondPrincipal).Scan(&candidates))
+	require.Equal(t, 2, candidates, "backfill materializes the existing roster by principal")
 }
 
 func outboxItem(t *testing.T, ctx context.Context, tx pgx.Tx) map[string]any {

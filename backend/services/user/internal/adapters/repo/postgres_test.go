@@ -15,10 +15,11 @@ import (
 )
 
 const (
-	snapshotTenantID  = "018f4b0d-08f8-7c09-9ba7-efdf9c220911"
-	snapshotStudentID = "018f4b0d-08f8-7c09-9ba7-efdf9c220912"
-	snapshotBatchID   = "018f4b0d-08f8-7c09-9ba7-efdf9c220913"
-	snapshotActorID   = "018f4b0d-08f8-7c09-9ba7-efdf9c220914"
+	snapshotTenantID    = "018f4b0d-08f8-7c09-9ba7-efdf9c220911"
+	snapshotStudentID   = "018f4b0d-08f8-7c09-9ba7-efdf9c220912"
+	snapshotPrincipalID = "018f4b0d-08f8-7c09-9ba7-efdf9c220915"
+	snapshotBatchID     = "018f4b0d-08f8-7c09-9ba7-efdf9c220913"
+	snapshotActorID     = "018f4b0d-08f8-7c09-9ba7-efdf9c220914"
 )
 
 func TestStudentBatchAffiliationSnapshotPayloadIsStrictAndRetainsNullBatch(t *testing.T) {
@@ -34,7 +35,7 @@ func TestStudentBatchAffiliationSnapshotPayloadIsStrictAndRetainsNullBatch(t *te
 			LifecycleState: "inactive", Version: 3, UpdatedAt: time.Now().UTC(),
 		},
 	} {
-		payload, err := studentBatchAffiliationSnapshotPayload(affiliation)
+		payload, err := studentBatchAffiliationSnapshotPayload(affiliation, snapshotPrincipalID)
 		if err != nil {
 			t.Fatalf("studentBatchAffiliationSnapshotPayload() error = %v", err)
 		}
@@ -42,10 +43,10 @@ func TestStudentBatchAffiliationSnapshotPayloadIsStrictAndRetainsNullBatch(t *te
 		if err := json.Unmarshal(payload, &fields); err != nil {
 			t.Fatalf("decode payload: %v", err)
 		}
-		if len(fields) != 5 {
-			t.Fatalf("payload fields = %d, want exactly 5: %s", len(fields), payload)
+		if len(fields) != 6 {
+			t.Fatalf("payload fields = %d, want exactly 6: %s", len(fields), payload)
 		}
-		for _, field := range []string{"tenant_id", "student_id", "batch_id", "lifecycle_state", "version"} {
+		for _, field := range []string{"tenant_id", "student_id", "principal_id", "batch_id", "lifecycle_state", "version"} {
 			if _, found := fields[field]; !found {
 				t.Fatalf("payload omitted required field %q: %s", field, payload)
 			}

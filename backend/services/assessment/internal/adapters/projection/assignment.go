@@ -20,7 +20,6 @@ import (
 )
 
 const (
-	StudentEnrolledEventType         = "user.student.enrolled.v1"
 	StudentBatchAffiliationEventType = "user.student_batch_affiliation.snapshot.v1"
 	BatchCreatedEventType            = "tenant.batch.created.v1"
 	AssignmentRuleCreatedEventType   = "assessment.assignment_rule.created.v1"
@@ -47,55 +46,27 @@ func (store *MaterializationStore) Ping(ctx context.Context) error {
 	return nil
 }
 
-type studentEnrolledPayload struct {
-	TenantID     string `json:"tenant_id"`
-	StudentID    string `json:"student_id"`
-	BatchID      string `json:"batch_id"`
-	DepartmentID string `json:"department_id"`
-}
-
-func (store *MaterializationStore) ApplyStudentEnrolled(ctx context.Context, event messaging.Event) error {
-	payload, err := parseStudentEnrolled(event)
-	if err != nil {
-		return messaging.Permanent(err)
-	}
-	return store.apply(ctx, "assessment_student_enrolled_v1", event, func(transaction pgx.Tx) error {
-		if _, err := transaction.Exec(ctx, `
-			SELECT assessment.apply_student_enrollment($1, $2, $3, $4)
-		`, event.ID, payload.TenantID, payload.StudentID, payload.BatchID); err != nil {
-			return materializationError(err, "apply student enrollment projection")
-		}
-		if _, err := transaction.Exec(ctx, `
-			SELECT assessment.materialize_from_enrollment($1, $2, $3, $4)
-		`, event.ID, payload.TenantID, payload.StudentID, payload.BatchID); err != nil {
-			return materializationError(err, "materialize candidate assignments from enrollment")
-		}
-		return nil
-	})
-}
-
 type batchAffiliationPayload struct {
 	TenantID       string  `json:"tenant_id"`
 	StudentID      string  `json:"student_id"`
+	PrincipalID    string  `json:"principal_id"`
 	BatchID        *string `json:"batch_id"`
 	LifecycleState string  `json:"lifecycle_state"`
 	Version        int64   `json:"version"`
 }
 
+// ApplyBatchAffiliation keeps the batch roster current and materializes the
+// student's assignments when they join a batch.
 func (store *MaterializationStore) ApplyBatchAffiliation(ctx context.Context, event messaging.Event) error {
 	payload, err := parseBatchAffiliation(event)
 	if err != nil {
 		return messaging.Permanent(err)
 	}
-	if payload.LifecycleState != "active" {
-		return store.apply(ctx, "assessment_batch_affiliation_v1", event, func(transaction pgx.Tx) error {
-			return nil
-		})
-	}
 	return store.apply(ctx, "assessment_batch_affiliation_v1", event, func(transaction pgx.Tx) error {
 		if _, err := transaction.Exec(ctx, `
-			SELECT assessment.materialize_from_batch_affiliation($1, $2, $3, $4, $5)
-		`, event.ID, payload.TenantID, payload.StudentID, *payload.BatchID, payload.LifecycleState); err != nil {
+			SELECT assessment.materialize_from_batch_affiliation($1, $2, $3, $4, $5, $6, $7)
+		`, event.ID, payload.TenantID, payload.StudentID, payload.PrincipalID, payload.BatchID,
+			payload.LifecycleState, payload.Version); err != nil {
 			return materializationError(err, "materialize candidate assignments from batch affiliation")
 		}
 		return nil
@@ -194,21 +165,6 @@ func (store *MaterializationStore) apply(ctx context.Context, consumer string, e
 	return nil
 }
 
-func parseStudentEnrolled(event messaging.Event) (studentEnrolledPayload, error) {
-	if event.Type != StudentEnrolledEventType || event.SchemaVersion != 1 || !validUUID(event.ID) {
-		return studentEnrolledPayload{}, fmt.Errorf("unsupported student enrollment event")
-	}
-	var payload studentEnrolledPayload
-	if err := decodePayload(event.Payload, &payload); err != nil {
-		return studentEnrolledPayload{}, err
-	}
-	if !validUUID(payload.TenantID) || !validUUID(payload.StudentID) ||
-		!validUUID(payload.BatchID) || !validUUID(payload.DepartmentID) {
-		return studentEnrolledPayload{}, fmt.Errorf("student enrollment payload is invalid")
-	}
-	return payload, nil
-}
-
 func parseBatchAffiliation(event messaging.Event) (batchAffiliationPayload, error) {
 	if event.Type != StudentBatchAffiliationEventType || event.SchemaVersion != 1 || !validUUID(event.ID) {
 		return batchAffiliationPayload{}, fmt.Errorf("unsupported student batch affiliation event")
@@ -217,7 +173,9 @@ func parseBatchAffiliation(event messaging.Event) (batchAffiliationPayload, erro
 	if err := decodePayload(event.Payload, &payload); err != nil {
 		return batchAffiliationPayload{}, err
 	}
-	if !validUUID(payload.TenantID) || !validUUID(payload.StudentID) || payload.Version <= 0 {
+	// Snapshots from before user migration 000026 lack principal_id and cannot
+	// name the candidate; they are rejected.
+	if !validUUID(payload.TenantID) || !validUUID(payload.StudentID) || !validUUID(payload.PrincipalID) || payload.Version <= 0 {
 		return batchAffiliationPayload{}, fmt.Errorf("student batch affiliation payload is invalid")
 	}
 	if payload.LifecycleState != "active" && payload.LifecycleState != "inactive" {
