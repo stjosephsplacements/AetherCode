@@ -19,6 +19,8 @@ type fakeUseCases struct {
 	registerToken      string
 	getPrincipalID     string
 	getPrincipalResult *app.Principal
+	loginIdentifier    string
+	loginIP            string
 }
 
 func (fake *fakeUseCases) Register(_ context.Context, email, _, _, _, _ string) (string, string, error) {
@@ -30,7 +32,8 @@ func (fake *fakeUseCases) VerifyEmail(context.Context, string) (string, error) {
 	return "019b11a0-0000-7000-8000-000000000001", nil
 }
 
-func (fake *fakeUseCases) Login(context.Context, string, string, string, string, string, string) (app.TokenPair, error) {
+func (fake *fakeUseCases) Login(_ context.Context, identifier, _, _, requestIP, _, _ string) (app.TokenPair, error) {
+	fake.loginIdentifier, fake.loginIP = identifier, requestIP
 	return app.TokenPair{}, nil
 }
 
@@ -650,5 +653,24 @@ func TestGetPrincipalRejectsMalformedID(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("malformed UUID: status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+// The gateway stamps the verified client address into X-Forwarded-For; the
+// audit trail must record it, not the gateway's own address.
+func TestLoginRecordsGatewayForwardedClientAddress(t *testing.T) {
+	t.Parallel()
+	fake := &fakeUseCases{}
+	_, handler, err := NewHandler("identity", fake, nil, fakeVerifier{}, false, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("NewHandler() error = %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/v1/auth/login", strings.NewReader(`{"identifier":"22cs001","password":"Generated2345"}`))
+	req.RemoteAddr = "172.27.0.7:40000"
+	req.Header.Set("X-Forwarded-For", "27.5.149.100")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || fake.loginIdentifier != "22cs001" || fake.loginIP != "27.5.149.100" {
+		t.Fatalf("status = %d, identifier = %q, ip = %q", rec.Code, fake.loginIdentifier, fake.loginIP)
 	}
 }
