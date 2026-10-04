@@ -26,7 +26,7 @@ func (handler *Handler) listTenants(writer http.ResponseWriter, request *http.Re
 		httpx.WriteError(writer, err)
 		return
 	}
-	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "tenants", "", "")
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "tenants", "all", "")
 	if err != nil {
 		httpx.WriteError(writer, err)
 		return
@@ -119,7 +119,7 @@ func (handler *Handler) listPlacementOrganizations(writer http.ResponseWriter, r
 		httpx.WriteError(writer, err)
 		return
 	}
-	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "placement_organizations", "", "")
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "placement_organizations", "all", "")
 	if err != nil {
 		httpx.WriteError(writer, err)
 		return
