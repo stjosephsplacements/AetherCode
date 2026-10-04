@@ -2,3 +2,4 @@
 certs/
 judge0.conf
 backups/
+__pycache__/

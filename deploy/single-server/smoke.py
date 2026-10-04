@@ -15,10 +15,12 @@ BASE = (sys.argv[2] if len(sys.argv) > 2 else "http://127.0.0.1:8380") + "/api"
 admin_email, admin_password = open(CREDENTIALS).read().split()[:2]
 run = uuid.uuid4().hex[:6]
 
-def call(method, path, body=None, token=None, expect=None):
+def call(method, path, body=None, token=None, expect=None, retries=5):
     data = json.dumps(body).encode() if body is not None else None
     request = urllib.request.Request(BASE + path, data=data, method=method)
     request.add_header("Content-Type", "application/json")
+    if method != "GET":
+        request.add_header("Idempotency-Key", str(uuid.uuid4()))
     if token:
         request.add_header("Authorization", "Bearer " + token)
     try:
@@ -30,6 +32,10 @@ def call(method, path, body=None, token=None, expect=None):
         payload = json.loads(raw) if raw else None
     except ValueError:
         payload = raw.decode(errors="replace")
+    if status == 503 and retries > 0:
+        # Permissions or projections still settling; a real client retries.
+        time.sleep(float(headers.get("Retry-After", "2")))
+        return call(method, path, body, token, expect, retries - 1)
     if expect is not None and status != expect:
         sys.exit(f"FAIL {method} {path}: HTTP {status} {payload}")
     return status, payload, headers
@@ -106,3 +112,76 @@ _, staff, _ = call("POST", f"/user/v1/tenants/{tenant}/staff", {"username": f"fa
 login(f"faculty.{run}", staff["password"])
 ok(f"faculty account created ({staff['role_assignment']['scope_kind']} scope) and signs in")
 print("ALL M1 CHECKS PASSED")
+
+# --- M2: authoring --------------------------------------------------------
+faculty = login(f"faculty.{run}", staff["password"])
+student = login(first["roll_number"], reset["password"])  # earlier tokens were revoked by the reissue
+question_body = {
+    "slug": f"sum-{run}", "title": "Sum two numbers", "prompt_markdown": "Print a + b.",
+    "difficulty": "easy", "supported_languages": ["c", "python3"],
+    "time_limit_ms": 2000, "memory_limit_kib": 262144, "tags": [],
+}
+status, _, _ = call("POST", "/question-bank/v1/questions", question_body, token=student)
+assert status == 403, status
+ok("a student cannot author questions")
+_, question, _ = call("POST", "/question-bank/v1/questions", question_body, token=faculty, expect=201)
+version_id = question["question_version"]["id"]
+ok("faculty authors into the global question bank")
+tests = [
+    {"input": "1 2\n", "expected_output": "3\n", "sample": True},
+    {"input": "5 7\n", "expected_output": "12\n", "sample": True, "weight": 2},
+    {"input": "100 200\n", "expected_output": "300\n", "sample": False, "weight": 3},
+    {"input": "-4 4\n", "expected_output": "0\n", "sample": False},
+]
+status, _, _ = call("PUT", f"/question-bank/v1/question-versions/{version_id}/tests",
+                    {"expected_question_version": 1, "tests": [t for t in tests if t["sample"]]}, token=faculty)
+assert status == 400, status
+_, version, _ = call("PUT", f"/question-bank/v1/question-versions/{version_id}/tests",
+                     {"expected_question_version": 1, "tests": tests}, token=faculty, expect=200)
+assert version["sample_test_case_count"] == 2 and version["hidden_test_case_count"] == 2, version
+assert "input" not in json.dumps(version) and "expected_output" not in json.dumps(version), version
+ok("plaintext tests become encrypted bundles; the response shows counts only")
+status, _, _ = call("GET", f"/question-bank/v1/question-versions/{version_id}/bundle", token=faculty)
+assert status in (404, 405), status
+ok("the hidden-test download endpoint is gone")
+call("POST", f"/question-bank/v1/question-versions/{version_id}/publish",
+     {"expected_question_version": version["version"]}, token=faculty, expect=200)
+ok("question published")
+
+_, policy, _ = call("POST", f"/assessment/v1/tenants/{tenant}/proctor-policies", {"name": f"Lab {run}"}, token=faculty, expect=201)
+_, policy_version, _ = call("POST", f"/assessment/v1/tenants/{tenant}/proctor-policies/{policy['id']}/versions",
+                           {"expected_policy_version": policy["version"], "policy": {"seb_required": False}}, token=faculty, expect=201)
+call("POST", f"/assessment/v1/tenants/{tenant}/proctor-policy-versions/{policy_version['id']}/publish", {}, token=faculty, expect=200)
+_, exam, _ = call("POST", f"/assessment/v1/tenants/{tenant}/exams", {"external_reference": f"smoke-{run}"}, token=faculty, expect=201)
+now = time.time()
+iso = lambda seconds: time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(seconds))
+_, exam_version, _ = call("POST", f"/assessment/v1/tenants/{tenant}/exams/{exam['id']}/versions", {
+    "expected_exam_version": exam["version"], "title": "Smoke test", "instructions_markdown": "Solve it.",
+    "opens_at": iso(now + 120), "closes_at": iso(now + 7200), "duration_seconds": 3600,
+    "proctor_policy_version_id": policy_version["id"]}, token=faculty, expect=201)
+content = lambda: call("GET", f"/assessment/v1/tenants/{tenant}/exam-versions/{exam_version['id']}", token=faculty, expect=200)[1]["content_version"]
+versions_path = f"/assessment/v1/tenants/{tenant}/exam-versions/{exam_version['id']}"
+_, section, _ = call("POST", f"{versions_path}/sections", {"expected_content_version": content(), "position": 1,
+                     "title": "Coding", "instructions_markdown": "", "time_limit_seconds": None}, token=faculty, expect=201)
+status, _, _ = call("POST", f"{versions_path}/sections/{section['id']}/items", {"expected_content_version": content(), "position": 1,
+                    "question_version_id": str(uuid.uuid4()), "maximum_score": "10"}, token=faculty)
+assert status == 404, status
+ok("an unknown or unpublished question cannot be added to an exam")
+_, item, _ = call("POST", f"{versions_path}/sections/{section['id']}/items", {"expected_content_version": content(), "position": 1,
+                  "question_version_id": version_id, "maximum_score": "10"}, token=faculty, expect=201)
+assert item["question_version_id"] == version_id and len(item["evaluation_bundle_checksum"]) == 64, item
+ok("exam item pins the published question's bundles, resolved from the bank over mTLS")
+call("POST", f"{versions_path}/publish", {"expected_content_version": content()}, token=faculty, expect=200)
+call("POST", f"{versions_path}/assignment-rules", {"target_type": "batch", "target_id": batch["id"],
+     "available_from": exam_version["opens_at"], "available_until": exam_version["closes_at"], "accommodations": {}},
+     token=faculty, expect=201)
+ok("exam published and assigned to the batch")
+for _ in range(15):
+    _, mine, _ = call("GET", f"/assessment/v1/tenants/{tenant}/candidate-assignments", token=student, expect=200)
+    if any(a.get("exam_version_id") == exam_version["id"] for a in mine["items"]):
+        break
+    time.sleep(2)
+else:
+    sys.exit(f"FAIL the batch's student never received the exam: {mine}")
+ok("a student in the batch sees the assigned exam")
+print("ALL M2 CHECKS PASSED")
