@@ -83,3 +83,13 @@ git pull && docker compose build && docker compose up -d
 
 `migrate` and `judge-migrate` run again on every `up` and apply only new
 migrations.
+
+After every upgrade, run the end-to-end smoke test through the gateway:
+
+```sh
+python3 smoke.py   # reads ~/aethercode-admin.txt; prints PASS lines, exits non-zero on failure
+```
+
+It creates fresh test data each run (a placement department, a batch,
+students, a faculty account) and checks sign-in, account management and the
+authorization boundaries.
