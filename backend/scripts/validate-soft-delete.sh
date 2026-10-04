@@ -11,7 +11,7 @@ for svc in "${SERVICES[@]}"; do
     echo "Checking $svc service..."
 
     # Verify migration files exist
-    up_migration=$(find "services/$svc/migrations" -name "*soft_delete*.up.sql" | head -1)
+    up_migration=$(find "services/$svc/migrations" -name "*soft_delete*.up.sql" | sort | head -1)
     if [[ -z "$up_migration" ]]; then
         echo "ERROR: No soft delete up migration for $svc"
         exit 1
