@@ -257,9 +257,14 @@ components:
         principal_id: {$ref: '#/components/schemas/UUID'}
     LoginRequest:
       type: object
-      required: [email, password]
+      required: [password]
       additionalProperties: false
+      description: >-
+        Name the account by identifier: an email address, or the username of an
+        administrator-provisioned account (a student's roll number). email is
+        the original field and is used when identifier is absent.
       properties:
+        identifier: {type: string, minLength: 1, maxLength: 320}
         email: {$ref: '#/components/schemas/Email'}
         password: {type: string, format: password, writeOnly: true}
         tenant_id: {$ref: '#/components/schemas/UUID'}

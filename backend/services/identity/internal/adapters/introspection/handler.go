@@ -1,5 +1,8 @@
-// Package introspection exposes Identity's private, mTLS-bound session
-// validation endpoint for the canonical User authorization service.
+// Package introspection exposes Identity's private, mTLS-bound endpoints for
+// the User service: session validation for central authorization, and
+// account provisioning for administrators (ADR-0019). The User service
+// authorizes the administrator before calling; only its certificate is
+// trusted here.
 package introspection
 
 import (
@@ -12,10 +15,19 @@ import (
 	"github.com/aethercode/aethercode/libs/pkg/authn"
 	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
 	"github.com/aethercode/aethercode/libs/pkg/httpx"
+	"github.com/aethercode/aethercode/services/identity/internal/app"
 )
 
 type SessionValidator interface {
 	ValidateAccessToken(context.Context, string, string) error
+}
+
+// Accounts provisions and manages administrator-created accounts.
+type Accounts interface {
+	ProvisionAccounts(context.Context, []app.AccountRequest, app.AccountAudit) ([]app.IssuedCredential, error)
+	ReissuePasswords(context.Context, []string, app.AccountAudit) ([]app.IssuedCredential, error)
+	SetAccountStatus(context.Context, []string, string, app.AccountAudit) error
+	DiscardAccounts(context.Context, []string, app.AccountAudit) error
 }
 
 type AccessVerifier interface {
@@ -24,25 +36,116 @@ type AccessVerifier interface {
 
 type Handler struct {
 	service         SessionValidator
+	accounts        Accounts
 	accessVerifier  AccessVerifier
 	trustedSPIFFEID string
 	requireMTLS     bool
 }
 
-func NewHandler(service SessionValidator, accessVerifier AccessVerifier, trustedSPIFFEID string, requireMTLS bool) (http.Handler, error) {
-	if service == nil || accessVerifier == nil {
-		return nil, fmt.Errorf("identity session validator and access-token verifier are required")
+func NewHandler(service SessionValidator, accounts Accounts, accessVerifier AccessVerifier, trustedSPIFFEID string, requireMTLS bool) (http.Handler, error) {
+	if service == nil || accounts == nil || accessVerifier == nil {
+		return nil, fmt.Errorf("identity session validator, accounts, and access-token verifier are required")
 	}
 	if requireMTLS && strings.TrimSpace(trustedSPIFFEID) == "" {
 		return nil, fmt.Errorf("trusted Identity introspection SPIFFE ID is required with mTLS")
 	}
 	handler := &Handler{
-		service: service, accessVerifier: accessVerifier,
+		service: service, accounts: accounts, accessVerifier: accessVerifier,
 		trustedSPIFFEID: strings.TrimSpace(trustedSPIFFEID), requireMTLS: requireMTLS,
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /v1/internal/access-token/validate", handler.validateAccessToken)
+	mux.HandleFunc("POST /v1/internal/accounts", handler.provisionAccounts)
+	mux.HandleFunc("POST /v1/internal/accounts/passwords", handler.reissuePasswords)
+	mux.HandleFunc("POST /v1/internal/accounts/status", handler.setAccountStatus)
+	mux.HandleFunc("POST /v1/internal/accounts/discard", handler.discardAccounts)
 	return noStore(mux), nil
+}
+
+type accountAudit struct {
+	ActorID   string `json:"actor_id"`
+	RequestID string `json:"request_id"`
+}
+
+func (audit accountAudit) toApp() app.AccountAudit {
+	return app.AccountAudit{ActorID: audit.ActorID, RequestID: audit.RequestID}
+}
+
+type credentialsResponse struct {
+	Accounts []app.IssuedCredential `json:"accounts"`
+}
+
+func (handler *Handler) provisionAccounts(writer http.ResponseWriter, request *http.Request) {
+	var body struct {
+		accountAudit
+		Accounts []app.AccountRequest `json:"accounts"`
+	}
+	if !handler.decodeTrusted(writer, request, &body) {
+		return
+	}
+	credentials, err := handler.accounts.ProvisionAccounts(request.Context(), body.Accounts, body.toApp())
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusCreated, credentialsResponse{Accounts: credentials})
+}
+
+type principalsRequest struct {
+	accountAudit
+	PrincipalIDs []string `json:"principal_ids"`
+	Status       string   `json:"status,omitempty"`
+}
+
+func (handler *Handler) reissuePasswords(writer http.ResponseWriter, request *http.Request) {
+	var body principalsRequest
+	if !handler.decodeTrusted(writer, request, &body) {
+		return
+	}
+	credentials, err := handler.accounts.ReissuePasswords(request.Context(), body.PrincipalIDs, body.toApp())
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, credentialsResponse{Accounts: credentials})
+}
+
+func (handler *Handler) setAccountStatus(writer http.ResponseWriter, request *http.Request) {
+	var body principalsRequest
+	if !handler.decodeTrusted(writer, request, &body) {
+		return
+	}
+	if err := handler.accounts.SetAccountStatus(request.Context(), body.PrincipalIDs, body.Status, body.toApp()); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.WriteHeader(http.StatusNoContent)
+}
+
+func (handler *Handler) discardAccounts(writer http.ResponseWriter, request *http.Request) {
+	var body principalsRequest
+	if !handler.decodeTrusted(writer, request, &body) {
+		return
+	}
+	if err := handler.accounts.DiscardAccounts(request.Context(), body.PrincipalIDs, body.toApp()); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.WriteHeader(http.StatusNoContent)
+}
+
+// decodeTrusted rejects callers without the trusted certificate before
+// reading the body, then decodes it.
+func (handler *Handler) decodeTrusted(writer http.ResponseWriter, request *http.Request, body any) bool {
+	if handler.requireMTLS && !handler.hasTrustedPeer(request) {
+		httpx.WriteError(writer, apperrors.New(apperrors.CodeForbidden, "trusted client certificate is required"))
+		return false
+	}
+	if err := httpx.DecodeJSON(request, body); err != nil {
+		httpx.WriteError(writer, err)
+		return false
+	}
+	return true
 }
 
 type validationRequest struct {

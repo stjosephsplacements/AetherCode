@@ -25,6 +25,7 @@ type memoryStore struct {
 	reset        PasswordReset
 	mfaChallenge MFAChallenge
 	session      Session
+	provisioned  []NewAccount
 }
 
 func (store *memoryStore) Register(_ context.Context, command Registration) error {
@@ -81,15 +82,7 @@ func (store *memoryStore) GetPrincipal(context.Context, string) (*Principal, err
 	return nil, nil
 }
 
-func (store *memoryStore) GetPrincipalIncludeDeleted(context.Context, string) (*Principal, error) {
-	return nil, nil
-}
-
 func (store *memoryStore) SoftDeletePrincipal(context.Context, DeletePrincipal) error {
-	return nil
-}
-
-func (store *memoryStore) HardDeletePrincipal(context.Context, DeletePrincipal) error {
 	return nil
 }
 
@@ -165,7 +158,7 @@ func TestLoginRejectsMalformedTenantBeforeStorage(t *testing.T) {
 	if _, err := service.Login(context.Background(), "user@example.com", "AetherCode2026", "not-a-uuid", "", "", ""); err == nil {
 		t.Fatal("Login() accepted a malformed tenant ID")
 	}
-	if store.login.Email != "" {
+	if store.login.Identifier != "" {
 		t.Fatal("Login() invoked storage after tenant validation failure")
 	}
 }
@@ -241,3 +234,15 @@ func (service *Service) signerPublicKey(t *testing.T) ed25519.PublicKey {
 	}
 	return ed25519.NewKeyFromSeed(seed).Public().(ed25519.PublicKey)
 }
+
+func (store *memoryStore) ProvisionAccounts(_ context.Context, accounts []NewAccount, _ AccountAudit) error {
+	store.provisioned = accounts
+	return nil
+}
+func (store *memoryStore) SetPasswords(context.Context, []PasswordAssignment, AccountAudit) ([]AccountName, error) {
+	return nil, nil
+}
+func (store *memoryStore) SetAccountStatus(context.Context, []string, string, AccountAudit) error {
+	return nil
+}
+func (store *memoryStore) DiscardAccounts(context.Context, []string, AccountAudit) error { return nil }

@@ -7,6 +7,7 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
 	"unicode"
@@ -39,6 +40,28 @@ func ValidatePassword(password string) error {
 		return fmt.Errorf("password must contain at least one letter and one number")
 	}
 	return nil
+}
+
+// generatedAlphabet omits 0/O/1/l/I so printed passwords are unambiguous.
+const generatedAlphabet = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+// GeneratePassword returns a random 12-character password that satisfies
+// ValidatePassword, for accounts an administrator provisions.
+func GeneratePassword() (string, error) {
+	limit := big.NewInt(int64(len(generatedAlphabet)))
+	for {
+		var builder strings.Builder
+		for range 12 {
+			index, err := rand.Int(rand.Reader, limit)
+			if err != nil {
+				return "", fmt.Errorf("generate password: %w", err)
+			}
+			builder.WriteByte(generatedAlphabet[index.Int64()])
+		}
+		if password := builder.String(); ValidatePassword(password) == nil {
+			return password, nil
+		}
+	}
 }
 
 // HashPassword returns a self-describing Argon2id PHC string.

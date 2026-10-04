@@ -19,9 +19,11 @@ import (
 	"github.com/aethercode/aethercode/libs/pkg/httpauth"
 	"github.com/aethercode/aethercode/libs/pkg/testutil/integration"
 	authzv1 "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/authz/v1"
+	authnadapter "github.com/aethercode/aethercode/services/user/internal/adapters/authn"
 	httpadapter "github.com/aethercode/aethercode/services/user/internal/adapters/http"
 	"github.com/aethercode/aethercode/services/user/internal/adapters/repo"
 	"github.com/aethercode/aethercode/services/user/internal/app"
+	userconfig "github.com/aethercode/aethercode/services/user/internal/config"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
@@ -47,8 +49,14 @@ func TestSoftDeleteFlow_EndToEnd(t *testing.T) {
 
 	authorizer := createTestAuthorizer(ctx, t, pool)
 
+	// Account routes are not exercised here; the Identity client is never dialed.
+	identityAccounts, err := authnadapter.NewAccountsClient(userconfig.IdentityIntrospectionRuntime{URL: "http://127.0.0.1:9/v1/internal/access-token/validate"})
+	require.NoError(t, err)
+	accountService, err := app.NewAccountService(pool, store, identityAccounts)
+	require.NoError(t, err)
+
 	readinessFunc := func(ctx context.Context) error { return nil }
-	handler, err := httpadapter.NewHandler("user-test", service, readinessFunc, authorizer)
+	handler, err := httpadapter.NewHandler("user-test", service, accountService, readinessFunc, authorizer)
 	require.NoError(t, err)
 
 	// Test data
@@ -145,8 +153,14 @@ func TestHardDeleteFlow_SuperAdminOnly(t *testing.T) {
 	require.NoError(t, err)
 
 	authorizer := createTestAuthorizer(ctx, t, pool)
+	// Account routes are not exercised here; the Identity client is never dialed.
+	identityAccounts, err := authnadapter.NewAccountsClient(userconfig.IdentityIntrospectionRuntime{URL: "http://127.0.0.1:9/v1/internal/access-token/validate"})
+	require.NoError(t, err)
+	accountService, err := app.NewAccountService(pool, store, identityAccounts)
+	require.NoError(t, err)
+
 	readinessFunc := func(ctx context.Context) error { return nil }
-	handler, err := httpadapter.NewHandler("user-test", service, readinessFunc, authorizer)
+	handler, err := httpadapter.NewHandler("user-test", service, accountService, readinessFunc, authorizer)
 	require.NoError(t, err)
 
 	tenantID := uuid.New()

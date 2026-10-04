@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/aethercode/aethercode/libs/pkg/authn"
+	"github.com/aethercode/aethercode/services/identity/internal/app"
 )
 
 const (
@@ -28,6 +29,30 @@ func (service *fakeValidationService) ValidateAccessToken(_ context.Context, sub
 	return service.err
 }
 
+type fakeAccounts struct {
+	requests []app.AccountRequest
+	audit    app.AccountAudit
+	status   string
+}
+
+func (accounts *fakeAccounts) ProvisionAccounts(_ context.Context, requests []app.AccountRequest, audit app.AccountAudit) ([]app.IssuedCredential, error) {
+	accounts.requests, accounts.audit = requests, audit
+	return []app.IssuedCredential{{PrincipalID: introspectionTestPrincipal, Username: requests[0].Username, Password: "generated2345"}}, nil
+}
+
+func (accounts *fakeAccounts) ReissuePasswords(context.Context, []string, app.AccountAudit) ([]app.IssuedCredential, error) {
+	return nil, nil
+}
+
+func (accounts *fakeAccounts) SetAccountStatus(_ context.Context, _ []string, status string, audit app.AccountAudit) error {
+	accounts.status, accounts.audit = status, audit
+	return nil
+}
+
+func (accounts *fakeAccounts) DiscardAccounts(context.Context, []string, app.AccountAudit) error {
+	return nil
+}
+
 type fakeAccessVerifier struct {
 	claims authn.Claims
 	err    error
@@ -40,7 +65,7 @@ func (verifier fakeAccessVerifier) Verify(string, time.Time) (authn.Claims, erro
 func TestValidateAccessTokenChecksSignedClaimsAndLiveSession(t *testing.T) {
 	t.Parallel()
 	service := &fakeValidationService{}
-	handler, err := NewHandler(service, fakeAccessVerifier{claims: authn.Claims{
+	handler, err := NewHandler(service, &fakeAccounts{}, fakeAccessVerifier{claims: authn.Claims{
 		Subject: introspectionTestPrincipal, TokenID: introspectionTestTokenID,
 	}}, "", false)
 	if err != nil {
@@ -74,7 +99,7 @@ func TestValidateAccessTokenFailsClosed(t *testing.T) {
 	} {
 		t.Run(scenario.name, func(t *testing.T) {
 			service := &fakeValidationService{err: scenario.serviceErr}
-			handler, err := NewHandler(service, scenario.verifier, "spiffe://aethercode/user", scenario.mtls)
+			handler, err := NewHandler(service, &fakeAccounts{}, scenario.verifier, "spiffe://aethercode/user", scenario.mtls)
 			if err != nil {
 				t.Fatalf("NewHandler() error = %v", err)
 			}
@@ -85,5 +110,48 @@ func TestValidateAccessTokenFailsClosed(t *testing.T) {
 				t.Fatalf("status = %d, want fail-closed 401/403", response.Code)
 			}
 		})
+	}
+}
+
+func TestProvisionAccountsReturnsCredentialsOnce(t *testing.T) {
+	t.Parallel()
+	accounts := &fakeAccounts{}
+	handler, err := NewHandler(&fakeValidationService{}, accounts, fakeAccessVerifier{}, "", false)
+	if err != nil {
+		t.Fatalf("NewHandler() error = %v", err)
+	}
+	body := `{"actor_id":"` + introspectionTestPrincipal + `","request_id":"` + introspectionTestTokenID +
+		`","accounts":[{"username":"22cs001","display_name":"Asha Kumar"}]}`
+	request := httptest.NewRequest(http.MethodPost, "/v1/internal/accounts", strings.NewReader(body))
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d: %s", response.Code, http.StatusCreated, response.Body)
+	}
+	if accounts.audit.ActorID != introspectionTestPrincipal || accounts.audit.RequestID != introspectionTestTokenID {
+		t.Fatalf("audit = %#v", accounts.audit)
+	}
+	if len(accounts.requests) != 1 || accounts.requests[0].Username != "22cs001" || accounts.requests[0].DisplayName != "Asha Kumar" {
+		t.Fatalf("requests = %#v", accounts.requests)
+	}
+	if !strings.Contains(response.Body.String(), `"password":"generated2345"`) || response.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("response = %s (Cache-Control %q)", response.Body, response.Header().Get("Cache-Control"))
+	}
+}
+
+func TestAccountEndpointsRequireTrustedPeer(t *testing.T) {
+	t.Parallel()
+	for _, path := range []string{"/v1/internal/accounts", "/v1/internal/accounts/passwords", "/v1/internal/accounts/status", "/v1/internal/accounts/discard"} {
+		accounts := &fakeAccounts{}
+		handler, err := NewHandler(&fakeValidationService{}, accounts, fakeAccessVerifier{}, "spiffe://aethercode/user", true)
+		if err != nil {
+			t.Fatalf("NewHandler() error = %v", err)
+		}
+		request := httptest.NewRequest(http.MethodPost, path, strings.NewReader(`{"status":"disabled"}`))
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		if response.Code != http.StatusForbidden || accounts.status != "" {
+			t.Fatalf("%s: status = %d, want 403 without reaching the use case", path, response.Code)
+		}
 	}
 }

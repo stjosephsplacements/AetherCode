@@ -8,10 +8,8 @@ import (
 )
 
 type mockStore struct {
-	getPrincipalFunc               func(context.Context, string) (*Principal, error)
-	getPrincipalIncludeDeletedFunc func(context.Context, string) (*Principal, error)
-	softDeletePrincipalFunc        func(context.Context, DeletePrincipal) error
-	hardDeletePrincipalFunc        func(context.Context, DeletePrincipal) error
+	getPrincipalFunc        func(context.Context, string) (*Principal, error)
+	softDeletePrincipalFunc func(context.Context, DeletePrincipal) error
 }
 
 func (m *mockStore) Register(context.Context, Registration) error         { return nil }
@@ -40,23 +38,9 @@ func (m *mockStore) GetPrincipal(ctx context.Context, id string) (*Principal, er
 	return nil, errors.New("not implemented")
 }
 
-func (m *mockStore) GetPrincipalIncludeDeleted(ctx context.Context, id string) (*Principal, error) {
-	if m.getPrincipalIncludeDeletedFunc != nil {
-		return m.getPrincipalIncludeDeletedFunc(ctx, id)
-	}
-	return nil, errors.New("not implemented")
-}
-
 func (m *mockStore) SoftDeletePrincipal(ctx context.Context, cmd DeletePrincipal) error {
 	if m.softDeletePrincipalFunc != nil {
 		return m.softDeletePrincipalFunc(ctx, cmd)
-	}
-	return nil
-}
-
-func (m *mockStore) HardDeletePrincipal(ctx context.Context, cmd DeletePrincipal) error {
-	if m.hardDeletePrincipalFunc != nil {
-		return m.hardDeletePrincipalFunc(ctx, cmd)
 	}
 	return nil
 }
@@ -159,96 +143,11 @@ func TestService_DeletePrincipal(t *testing.T) {
 	})
 }
 
-func TestService_HardDeletePrincipal(t *testing.T) {
-	ctx := context.Background()
-	principalID := "550e8400-e29b-41d4-a716-446655440000"
-	actorID := "550e8400-e29b-41d4-a716-446655440001"
-
-	t.Run("successful hard delete with SuperAdmin", func(t *testing.T) {
-		store := &mockStore{
-			getPrincipalIncludeDeletedFunc: func(ctx context.Context, id string) (*Principal, error) {
-				deletedAt := time.Now()
-				return &Principal{
-					ID:          id,
-					Email:       "test@example.com",
-					DisplayName: "Test User",
-					Status:      "active",
-					DeletedAt:   &deletedAt,
-					CreatedAt:   time.Now(),
-					UpdatedAt:   time.Now(),
-				}, nil
-			},
-			hardDeletePrincipalFunc: func(ctx context.Context, cmd DeletePrincipal) error {
-				return nil
-			},
-		}
-
-		service := &Service{store: store}
-
-		command := DeletePrincipal{
-			ID:      principalID,
-			ActorID: actorID,
-			Reason:  "Permanent deletion",
-		}
-
-		err := service.HardDeletePrincipal(ctx, command)
-		if err != nil {
-			t.Fatalf("expected no error, got %v", err)
-		}
-	})
-
-	// Role authorization (super_admin check) is enforced by the Casbin service
-	// via AuthorizeHTTP(action="delete"), not by the service layer.
-
-	t.Run("requires deletion reason", func(t *testing.T) {
-		store := &mockStore{}
-		service := &Service{store: store}
-
-		command := DeletePrincipal{
-			ID:      principalID,
-			ActorID: actorID,
-			Reason:  "",
-		}
-
-		err := service.HardDeletePrincipal(ctx, command)
-		if err == nil {
-			t.Error("expected error for missing deletion reason")
-		}
-	})
-
-	t.Run("validates UUID format", func(t *testing.T) {
-		store := &mockStore{}
-		service := &Service{store: store}
-
-		command := DeletePrincipal{
-			ID:      "invalid-uuid",
-			ActorID: actorID,
-			Reason:  "Test",
-		}
-
-		err := service.HardDeletePrincipal(ctx, command)
-		if err == nil {
-			t.Error("expected error for invalid UUID")
-		}
-	})
-
-	t.Run("verifies principal exists", func(t *testing.T) {
-		store := &mockStore{
-			getPrincipalIncludeDeletedFunc: func(ctx context.Context, id string) (*Principal, error) {
-				return nil, errors.New("principal not found")
-			},
-		}
-		service := &Service{store: store}
-
-		command := DeletePrincipal{
-			ID:      principalID,
-			ActorID: actorID,
-			Reason:  "Permanent deletion",
-		}
-
-		err := service.HardDeletePrincipal(ctx, command)
-		if err == nil {
-			t.Error("expected error when principal not found")
-		}
-	})
+func (m *mockStore) ProvisionAccounts(context.Context, []NewAccount, AccountAudit) error { return nil }
+func (m *mockStore) SetPasswords(context.Context, []PasswordAssignment, AccountAudit) ([]AccountName, error) {
+	return nil, nil
 }
+func (m *mockStore) SetAccountStatus(context.Context, []string, string, AccountAudit) error {
+	return nil
+}
+func (m *mockStore) DiscardAccounts(context.Context, []string, AccountAudit) error { return nil }

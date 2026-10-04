@@ -44,7 +44,6 @@ type UseCases interface {
 	ValidateAccessToken(context.Context, string, string) error
 	GetPrincipal(context.Context, string) (*app.Principal, error)
 	DeletePrincipal(context.Context, app.DeletePrincipal) error
-	HardDeletePrincipal(context.Context, app.DeletePrincipal) error
 }
 
 // AccessVerifier verifies the locally minted access assertion for Identity's
@@ -97,7 +96,6 @@ func NewHandler(serviceName string, service UseCases, readiness httpx.ReadinessF
 	mux.HandleFunc("DELETE /v1/auth/mfa/totp/{factor_id}", handler.disableTOTP)
 	mux.HandleFunc("GET /v1/principals/{id}", handler.getPrincipal)
 	mux.HandleFunc("DELETE /v1/principals/{id}", handler.deletePrincipal)
-	mux.HandleFunc("DELETE /v1/principals/{id}/hard", handler.hardDeletePrincipal)
 	return handler, noStore(mux), nil
 }
 
@@ -165,10 +163,13 @@ func (handler *Handler) verifyEmail(writer http.ResponseWriter, request *http.Re
 	}{PrincipalID: principalID})
 }
 
+// loginRequest names the account by identifier (email or username). Email is
+// the original field and is still accepted when identifier is absent.
 type loginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	TenantID string `json:"tenant_id"`
+	Identifier string `json:"identifier"`
+	Email      string `json:"email"`
+	Password   string `json:"password"`
+	TenantID   string `json:"tenant_id"`
 }
 
 func (handler *Handler) login(writer http.ResponseWriter, request *http.Request) {
@@ -190,8 +191,12 @@ func (handler *Handler) login(writer http.ResponseWriter, request *http.Request)
 		httpx.WriteError(writer, err)
 		return
 	}
+	identifier := body.Identifier
+	if identifier == "" {
+		identifier = body.Email
+	}
 	pair, err := handler.service.Login(
-		request.Context(), body.Email, body.Password, body.TenantID, clientIP(request), request.UserAgent(), requestID,
+		request.Context(), identifier, body.Password, body.TenantID, clientIP(request), request.UserAgent(), requestID,
 	)
 	if err != nil {
 		httpx.WriteError(writer, err)
@@ -427,8 +432,15 @@ func (handler *Handler) getPrincipal(writer http.ResponseWriter, request *http.R
 		httpx.WriteError(writer, err)
 		return
 	}
-	if _, err := handler.authenticatedPrincipal(request); err != nil {
+	actorID, err := handler.authenticatedPrincipal(request)
+	if err != nil {
 		httpx.WriteError(writer, err)
+		return
+	}
+	// Identity has no central authorization client, so a principal may read
+	// only itself. Administrators manage accounts through the User service.
+	if actorID != principalID {
+		httpx.WriteError(writer, apperrors.New(apperrors.CodeForbidden, "authorization denied"))
 		return
 	}
 	principal, err := handler.service.GetPrincipal(request.Context(), principalID)
@@ -460,6 +472,11 @@ func (handler *Handler) deletePrincipal(writer http.ResponseWriter, request *htt
 		httpx.WriteError(writer, err)
 		return
 	}
+	// A principal may close only its own account (see getPrincipal).
+	if actorID != principalID {
+		httpx.WriteError(writer, apperrors.New(apperrors.CodeForbidden, "authorization denied"))
+		return
+	}
 
 	var body deletePrincipalRequest
 	if err := httpx.DecodeJSON(request, &body); err != nil {
@@ -474,40 +491,6 @@ func (handler *Handler) deletePrincipal(writer http.ResponseWriter, request *htt
 	}
 
 	if err := handler.service.DeletePrincipal(request.Context(), command); err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-
-	writer.WriteHeader(http.StatusNoContent)
-}
-
-func (handler *Handler) hardDeletePrincipal(writer http.ResponseWriter, request *http.Request) {
-	principalID, err := httpx.ParseUUIDPathValue(request, "id")
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-
-	// Extract actor from access token
-	actorID, err := handler.authenticatedPrincipal(request)
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-
-	var body deletePrincipalRequest
-	if err := httpx.DecodeJSON(request, &body); err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-
-	command := app.DeletePrincipal{
-		ID:      principalID,
-		ActorID: actorID,
-		Reason:  body.Reason,
-	}
-
-	if err := handler.service.HardDeletePrincipal(request.Context(), command); err != nil {
 		httpx.WriteError(writer, err)
 		return
 	}

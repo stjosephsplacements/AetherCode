@@ -28,7 +28,8 @@ limited to this service's mTLS runtime role and service API.
 
 ## Implemented authentication workflows
 
-The HTTP API implements registration and email activation, password login,
+The HTTP API implements registration and email activation, password login
+(by email or, for provisioned accounts, username),
 MFA challenges, refresh-family rotation and replay detection, logout,
 password reset, and authenticated TOTP enrollment/activation/disable. Every
 access token is also checked against durable session state, so logout, reset,
@@ -40,6 +41,31 @@ HTTP response includes them solely when the explicitly development-only secret
 exposure setting is enabled. TOTP seeds and recovery codes are similarly
 one-time, no-store responses. The full public contract is in
 [api/openapi.yaml](api/openapi.yaml).
+
+`GET` and `DELETE /v1/principals/{id}` act only on the caller's own
+principal: Identity has no central authorization client, so administrators
+manage other accounts through the User service.
+
+## Administrator-provisioned accounts
+
+The private mTLS listener (`IDENTITY_INTROSPECTION_ADDR`, trusting only the
+User service's SPIFFE ID) serves, besides session validation, the account
+endpoints the User service calls after authorizing an administrator
+(ADR-0019):
+
+| Endpoint | Effect |
+|---|---|
+| `POST /v1/internal/accounts` | Create up to 500 active accounts (username, optional email, display name) with generated passwords; a taken username or email rejects the whole batch and is named. |
+| `POST /v1/internal/accounts/passwords` | New generated passwords; unlocks and signs the accounts out. |
+| `POST /v1/internal/accounts/status` | `active` or `disabled`; disabling signs out at once. |
+| `POST /v1/internal/accounts/discard` | Soft-delete just-provisioned accounts that never signed in, freeing their usernames. |
+
+Every request carries `actor_id` and `request_id`. Each affected principal
+gets an `identity.account.*` row in `identity.auth_events` naming the
+administrator. Passwords are 12 characters from an alphabet without
+`0 O 1 l I` and are returned once, never stored. Hashing runs on 16 workers
+(about 1 GiB of Argon2id memory), which takes about 4 s for 500 accounts on
+the campus server.
 
 ## Signed request context
 
@@ -76,7 +102,7 @@ authentication, token rotation, MFA, lockout, and HTTP boundary coverage.
 Principals and credentials support soft delete for account deactivation:
 
 - **Soft delete**: Archives authentication records while preserving audit history
-- **Hard delete**: SuperAdmin can permanently remove principals after retention period
+- **Hard delete**: no HTTP route; a platform operator removes principals in the database (ADR-0019)
 - **Refresh tokens**: Already use `revoked_at` (similar to soft delete)
 - **MFA enrollments**: Soft-deleted when principal archived
 

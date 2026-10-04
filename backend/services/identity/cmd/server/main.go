@@ -222,7 +222,7 @@ func run(contextValue context.Context) error {
 	}
 	handler = telemetry.HTTPMiddleware("identity", handler)
 	introspectionHandler, err := introspectionadapter.NewHandler(
-		identityService, runtime.AccessVerifier, runtime.IntrospectionTrustedSPIFFEID, runtime.RequireIntrospectionMTLS,
+		identityService, identityService, runtime.AccessVerifier, runtime.IntrospectionTrustedSPIFFEID, runtime.RequireIntrospectionMTLS,
 	)
 	if err != nil {
 		return err

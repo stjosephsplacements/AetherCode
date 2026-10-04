@@ -135,7 +135,7 @@ var routes = map[string]route{
 	"user": {
 		Audience: "aether_users", ActionPrefix: "user", ResourcePrefix: "users",
 		OptionalTenantResources: resourceSet("role_assignments", "placement_department_memberships"),
-		Resources:               resourceSet("profiles", "students", "student_department_memberships", "current_student_affiliations", "student_batch_affiliations", "mentor_batch_assignments", "role_assignments", "placement_department_memberships"),
+		Resources:               resourceSet("accounts", "profiles", "students", "student_department_memberships", "current_student_affiliations", "student_batch_affiliations", "mentor_batch_assignments", "role_assignments", "placement_department_memberships"),
 	},
 	"question-bank": {
 		Audience: "aether_qbank", ActionPrefix: "qbank", ResourcePrefix: "qbank", Global: true,

@@ -16,6 +16,7 @@ import (
 	"github.com/aethercode/aethercode/libs/pkg/testutil/integration"
 	"github.com/aethercode/aethercode/services/identity/internal/adapters/repo"
 	"github.com/aethercode/aethercode/services/identity/internal/app"
+	"github.com/aethercode/aethercode/services/identity/internal/domain"
 )
 
 // TestRLSIsolateTenants proves the access boundary identity actually
@@ -181,4 +182,75 @@ func TestBootstrapPrincipalActivatesThroughReset(t *testing.T) {
 	require.NoError(t, pool.QueryRow(ctx,
 		`SELECT count(*) FROM identity.password_credentials WHERE principal_id = $1`, principalID).Scan(&credentials))
 	require.Equal(t, 1, credentials)
+}
+
+// TestProvisionedAccountLifecycle covers ADR-0019 against real PostgreSQL:
+// username sign-in without email, all-or-nothing conflicts, reissue,
+// disable, and discard freeing the username.
+func TestProvisionedAccountLifecycle(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	pool := migratedPool(ctx, t)
+	repository, err := repo.NewPostgres(pool, map[string][]byte{"k": make([]byte, 32)}, "k")
+	require.NoError(t, err)
+	audit := app.AccountAudit{ActorID: uuid.NewString(), RequestID: uuid.NewString()}
+
+	hash, err := domain.HashPassword("Generated2345")
+	require.NoError(t, err)
+	student := app.NewAccount{PrincipalID: uuid.NewString(), Username: "22cs001", DisplayName: "Asha Kumar", PasswordHash: hash}
+	faculty := app.NewAccount{PrincipalID: uuid.NewString(), Username: "faculty.one", Email: "faculty@college.edu", DisplayName: "Faculty One", PasswordHash: hash}
+	require.NoError(t, repository.ProvisionAccounts(ctx, []app.NewAccount{student, faculty}, audit))
+
+	login := func(identifier string) error {
+		_, err := repository.Authenticate(ctx, app.Login{
+			Identifier: identifier, Password: "Generated2345",
+			RefreshFamilyID: uuid.NewString(), RefreshTokenID: uuid.NewString(), RefreshTokenHash: []byte(uuid.NewString()[:32]),
+			RefreshExpiresAt: time.Now().Add(time.Hour), AccessTokenID: uuid.NewString(), AccessExpiresAt: time.Now().Add(time.Minute),
+			RequestID: uuid.NewString(), LockoutThreshold: 5, LockoutDuration: time.Minute,
+		})
+		return err
+	}
+	require.NoError(t, login("22cs001"), "a provisioned student signs in by username without an email")
+	require.NoError(t, login("faculty@college.edu"), "a provisioned account with an email signs in by email too")
+
+	duplicate := app.NewAccount{PrincipalID: uuid.NewString(), Username: "22cs001", DisplayName: "Other", PasswordHash: hash}
+	fresh := app.NewAccount{PrincipalID: uuid.NewString(), Username: "22cs002", DisplayName: "Fresh", PasswordHash: hash}
+	err = repository.ProvisionAccounts(ctx, []app.NewAccount{fresh, duplicate}, audit)
+	require.ErrorContains(t, err, "already in use: 22cs001")
+	var freshRows int
+	require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM identity.principals WHERE username = '22cs002'`).Scan(&freshRows))
+	require.Zero(t, freshRows, "a conflict rejects the whole batch")
+
+	newHash, err := domain.HashPassword("Reissued23456")
+	require.NoError(t, err)
+	names, err := repository.SetPasswords(ctx, []app.PasswordAssignment{{PrincipalID: student.PrincipalID, PasswordHash: newHash}}, audit)
+	require.NoError(t, err)
+	require.Equal(t, []app.AccountName{{PrincipalID: student.PrincipalID, Username: "22cs001", DisplayName: "Asha Kumar"}}, names)
+	var liveFamilies int
+	require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM identity.refresh_session_families WHERE principal_id = $1 AND state = 'active'`,
+		student.PrincipalID).Scan(&liveFamilies))
+	require.Zero(t, liveFamilies, "reissue signs the student out")
+	require.Error(t, login("22cs001"), "the old password stops working")
+
+	require.NoError(t, repository.SetAccountStatus(ctx, []string{faculty.PrincipalID}, "disabled", audit))
+	require.Error(t, login("faculty.one"), "a disabled account cannot sign in")
+	require.NoError(t, repository.SetAccountStatus(ctx, []string{faculty.PrincipalID}, "active", audit))
+	require.NoError(t, login("faculty.one"))
+
+	_, err = repository.SetPasswords(ctx, []app.PasswordAssignment{{PrincipalID: uuid.NewString(), PasswordHash: newHash}}, audit)
+	require.ErrorContains(t, err, "not found")
+
+	never := app.NewAccount{PrincipalID: uuid.NewString(), Username: "22cs003", DisplayName: "Never", PasswordHash: hash}
+	require.NoError(t, repository.ProvisionAccounts(ctx, []app.NewAccount{never}, audit))
+	require.NoError(t, repository.DiscardAccounts(ctx, []string{never.PrincipalID, faculty.PrincipalID}, audit))
+	var faculties int
+	require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM identity.principals WHERE id = $1 AND deleted_at IS NULL`, faculty.PrincipalID).Scan(&faculties))
+	require.Equal(t, 1, faculties, "discard never removes an account that has signed in")
+	require.NoError(t, repository.ProvisionAccounts(ctx, []app.NewAccount{{PrincipalID: uuid.NewString(), Username: "22cs003", DisplayName: "Retry", PasswordHash: hash}}, audit),
+		"a discarded username can be imported again")
+
+	var audits int
+	require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM identity.auth_events WHERE event_type LIKE 'identity.account.%' AND metadata->>'actor_id' = $1`,
+		audit.ActorID).Scan(&audits))
+	require.Equal(t, 8, audits, "every account change is audited with its administrator")
 }

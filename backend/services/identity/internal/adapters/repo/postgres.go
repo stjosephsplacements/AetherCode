@@ -197,7 +197,7 @@ func (repository *Postgres) Authenticate(contextValue context.Context, command a
 	}
 	defer func() { _ = transaction.Rollback(contextValue) }()
 
-	principal, found, err := repository.lockPrincipalByEmail(contextValue, transaction, command.Email)
+	principal, found, err := repository.lockPrincipalByIdentifier(contextValue, transaction, command.Identifier)
 	if err != nil {
 		return app.Session{}, err
 	}
@@ -213,7 +213,7 @@ func (repository *Postgres) Authenticate(contextValue context.Context, command a
 		if err := transaction.Commit(contextValue); err != nil {
 			return app.Session{}, fmt.Errorf("commit unknown-principal login audit: %w", err)
 		}
-		return app.Session{}, unauthorized("invalid email or password")
+		return app.Session{}, unauthorized("invalid username or password")
 	}
 
 	lockout, err := lockAccountLockout(contextValue, transaction, principal.ID)
@@ -235,7 +235,7 @@ func (repository *Postgres) Authenticate(contextValue context.Context, command a
 		if err := transaction.Commit(contextValue); err != nil {
 			return app.Session{}, fmt.Errorf("commit locked login audit: %w", err)
 		}
-		return app.Session{}, unauthorized("invalid email or password")
+		return app.Session{}, unauthorized("invalid username or password")
 	}
 	if lockout.LockedUntil != nil {
 		// A completed lockout is cleared before evaluating the new password.
@@ -268,7 +268,7 @@ func (repository *Postgres) Authenticate(contextValue context.Context, command a
 		if err := transaction.Commit(contextValue); err != nil {
 			return app.Session{}, fmt.Errorf("commit failed login: %w", err)
 		}
-		return app.Session{}, unauthorized("invalid email or password")
+		return app.Session{}, unauthorized("invalid username or password")
 	}
 
 	if _, err := transaction.Exec(contextValue, `
@@ -1186,15 +1186,17 @@ type principalRecord struct {
 	PasswordHash string
 }
 
-func (repository *Postgres) lockPrincipalByEmail(contextValue context.Context, transaction pgx.Tx, email string) (principalRecord, bool, error) {
+// lockPrincipalByIdentifier finds a sign-in principal by email address or
+// username. The identifier is already lowercase.
+func (repository *Postgres) lockPrincipalByIdentifier(contextValue context.Context, transaction pgx.Tx, identifier string) (principalRecord, bool, error) {
 	var principal principalRecord
 	err := transaction.QueryRow(contextValue, `
 		SELECT principal.id, principal.status, credential.password_hash
 		FROM identity.principals AS principal
 		JOIN identity.password_credentials AS credential ON credential.principal_id = principal.id
-		WHERE lower(principal.email) = lower($1) AND principal.deleted_at IS NULL
+		WHERE (lower(principal.email) = $1 OR principal.username = $1) AND principal.deleted_at IS NULL
 		FOR UPDATE OF principal, credential
-	`, email).Scan(&principal.ID, &principal.Status, &principal.PasswordHash)
+	`, identifier).Scan(&principal.ID, &principal.Status, &principal.PasswordHash)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return principalRecord{}, false, nil
 	}
@@ -1439,38 +1441,12 @@ func (repository *Postgres) GetPrincipal(contextValue context.Context, principal
 	var principal app.Principal
 	var deletedBy, deletionReason *string
 	err := repository.pool.QueryRow(contextValue, `
-		SELECT id, email, display_name, status, email_verified_at, last_authenticated_at,
+		SELECT id, COALESCE(email, ''), COALESCE(username, ''), display_name, status, email_verified_at, last_authenticated_at,
 		       version, created_at, updated_at, deleted_at, deleted_by::text, deletion_reason
 		FROM identity.principals
 		WHERE id = $1 AND deleted_at IS NULL
 	`, principalID).Scan(
-		&principal.ID, &principal.Email, &principal.DisplayName, &principal.Status,
-		&principal.EmailVerifiedAt, &principal.LastAuthenticatedAt, &principal.Version,
-		&principal.CreatedAt, &principal.UpdatedAt, &principal.DeletedAt, &deletedBy, &deletionReason,
-	)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, apperrors.New(apperrors.CodeNotFound, "principal not found")
-	}
-	if err != nil {
-		return nil, fmt.Errorf("query principal: %w", err)
-	}
-	principal.DeletedBy = deletedBy
-	principal.DeletionReason = deletionReason
-	return &principal, nil
-}
-
-// GetPrincipalIncludeDeleted retrieves a principal including soft-deleted records.
-// Requires authorization check before calling (SuperAdmin or role with archive access).
-func (repository *Postgres) GetPrincipalIncludeDeleted(contextValue context.Context, principalID string) (*app.Principal, error) {
-	var principal app.Principal
-	var deletedBy, deletionReason *string
-	err := repository.pool.QueryRow(contextValue, `
-		SELECT id, email, display_name, status, email_verified_at, last_authenticated_at,
-		       version, created_at, updated_at, deleted_at, deleted_by::text, deletion_reason
-		FROM identity.principals
-		WHERE id = $1
-	`, principalID).Scan(
-		&principal.ID, &principal.Email, &principal.DisplayName, &principal.Status,
+		&principal.ID, &principal.Email, &principal.Username, &principal.DisplayName, &principal.Status,
 		&principal.EmailVerifiedAt, &principal.LastAuthenticatedAt, &principal.Version,
 		&principal.CreatedAt, &principal.UpdatedAt, &principal.DeletedAt, &deletedBy, &deletionReason,
 	)
@@ -1542,50 +1518,6 @@ func (repository *Postgres) SoftDeletePrincipal(contextValue context.Context, co
 		return fmt.Errorf("encode principal deleted event: %w", err)
 	}
 	if err := repository.enqueue(contextValue, transaction, command.ID, "identity.principal.soft_deleted.v1", payload); err != nil {
-		return err
-	}
-
-	return transaction.Commit(contextValue)
-}
-
-// HardDeletePrincipal permanently removes a principal via security-definer function.
-// Only SuperAdmin can execute this (enforced via RLS and function).
-func (repository *Postgres) HardDeletePrincipal(contextValue context.Context, command app.DeletePrincipal) error {
-	transaction, err := repository.pool.BeginTx(contextValue, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
-	if err != nil {
-		return fmt.Errorf("begin principal hard delete: %w", err)
-	}
-	defer func() { _ = transaction.Rollback(contextValue) }()
-
-	// Parse UUIDs
-	principalID, err := parseUUID(command.ID)
-	if err != nil {
-		return fmt.Errorf("parse principal ID: %w", err)
-	}
-	actorID, err := parseUUID(command.ActorID)
-	if err != nil {
-		return fmt.Errorf("parse actor ID: %w", err)
-	}
-
-	// Call security-definer function that checks SuperAdmin role via RLS
-	var success bool
-	err = transaction.QueryRow(contextValue, `
-		SELECT app.hard_delete($1, $2, $3, $4)
-	`, "identity.principals", principalID, actorID, command.Reason).Scan(&success)
-	if err != nil {
-		return fmt.Errorf("hard delete principal: %w", err)
-	}
-	if !success {
-		return apperrors.New(apperrors.CodeUnauthorized, "hard delete denied: insufficient permissions or record not found")
-	}
-
-	// Record auth event
-	if err := repository.recordAuthEvent(contextValue, transaction, authEvent{
-		PrincipalID: command.ID,
-		EventType:   "identity.principal.hard_deleted.v1",
-		Outcome:     "success",
-		Metadata:    map[string]string{"deleted_by": command.ActorID, "reason": command.Reason},
-	}); err != nil {
 		return err
 	}
 

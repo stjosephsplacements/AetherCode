@@ -333,7 +333,17 @@ func run(contextValue context.Context) error {
 			return nil
 		}
 	}
-	handler, err := httpadapter.NewHandler(serviceConfig.Name, managementService, readiness, authorizer)
+	accountsClient, err := authnadapter.NewAccountsClient(runtime.IdentityIntrospection)
+	if err != nil {
+		grpcServer.Stop()
+		return err
+	}
+	accountService, err := app.NewAccountService(userPool, managementStore, accountsClient)
+	if err != nil {
+		grpcServer.Stop()
+		return err
+	}
+	handler, err := httpadapter.NewHandler(serviceConfig.Name, managementService, accountService, readiness, authorizer)
 	if err != nil {
 		grpcServer.Stop()
 		return err

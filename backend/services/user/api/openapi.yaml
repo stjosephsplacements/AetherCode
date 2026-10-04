@@ -239,6 +239,106 @@ paths:
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '409': {$ref: '#/components/responses/Problem409'}
+  /v1/tenants/{tenant_id}/students/import:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    post:
+      summary: Import students with generated passwords (ADR-0019)
+      description: >-
+        Creates an account for each new roll number (username = lowercase roll
+        number), enrolls it in the college and places it in the batch. Roll
+        numbers the college already has are skipped. Any invalid row, or a
+        username already taken anywhere, rejects the whole file. Generated
+        passwords appear only in this response, which is never cached. At most
+        500 rows per call; authorized as write on accounts.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ImportStudents'}
+      responses:
+        '201':
+          description: Imported students with their one-time passwords, and skipped roll numbers
+          content: {application/json: {schema: {$ref: '#/components/schemas/StudentImportResult'}}}
+        '400': {$ref: '#/components/responses/Problem400'}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '409': {$ref: '#/components/responses/Problem409'}
+  /v1/tenants/{tenant_id}/batches/{batch_id}/passwords:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/BatchID'
+    post:
+      summary: Reissue every password in a batch
+      description: >-
+        Gives each student currently in the batch a new generated password and
+        signs them out. Returns the new credentials once, ordered by roll number.
+      responses:
+        '200': {$ref: '#/components/responses/IssuedCredentials'}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
+  /v1/tenants/{tenant_id}/accounts/{principal_id}/password:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/PrincipalID'
+    post:
+      summary: Reset one account's password
+      description: >-
+        The account must be a student or staff member of this college and hold
+        no role anywhere else. Returns the new generated password once and
+        signs the account out.
+      responses:
+        '200':
+          description: The new one-time credential
+          content: {application/json: {schema: {$ref: '#/components/schemas/IssuedCredential'}}}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '404': {$ref: '#/components/responses/Problem404'}
+  /v1/tenants/{tenant_id}/accounts/{principal_id}/status:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/PrincipalID'
+    put:
+      summary: Enable or disable one account
+      description: >-
+        Same ownership rule as password reset. Disabling signs the account out
+        at once; an administrator cannot change their own status.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [status]
+              properties:
+                status: {enum: [active, disabled]}
+      responses:
+        '204': {description: Status applied}
+        '400': {$ref: '#/components/responses/Problem400'}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '404': {$ref: '#/components/responses/Problem404'}
+  /v1/tenants/{tenant_id}/staff:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    post:
+      summary: Create a college administrator or faculty account
+      description: >-
+        college_admin is scoped to the college; department_user (faculty)
+        requires one of the college's departments. Returns the generated
+        password once.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateStaff'}
+      responses:
+        '201':
+          description: The staff credential and its role assignment
+          content: {application/json: {schema: {$ref: '#/components/schemas/StaffAccount'}}}
+        '400': {$ref: '#/components/responses/Problem400'}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '409': {$ref: '#/components/responses/Problem409'}
 components:
   securitySchemes:
     bearerAuth:
@@ -288,6 +388,16 @@ components:
       description: UUID request key retained for 24 hours within the caller, tenant, student, and operation scope.
       schema: {$ref: '#/components/schemas/UUID'}
   responses:
+    IssuedCredentials:
+      description: One-time generated credentials
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [accounts]
+            properties:
+              accounts: {type: array, items: {$ref: '#/components/schemas/IssuedCredential'}}
     Profile:
       description: Profile state
       content: {application/json: {schema: {$ref: '#/components/schemas/Profile'}}}
@@ -502,3 +612,68 @@ components:
         lifecycle_state: {enum: [active, inactive]}
         version: {type: integer, minimum: 1}
         updated_at: {$ref: '#/components/schemas/Timestamp'}
+    ImportStudents:
+      type: object
+      additionalProperties: false
+      required: [batch_id, college_department_id, placement_department_id, students]
+      properties:
+        batch_id: {$ref: '#/components/schemas/UUID'}
+        college_department_id: {$ref: '#/components/schemas/UUID'}
+        placement_department_id: {$ref: '#/components/schemas/UUID'}
+        students:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            type: object
+            additionalProperties: false
+            required: [roll_number, name]
+            properties:
+              roll_number: {type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$'}
+              name: {type: string, minLength: 1, maxLength: 200}
+              email: {type: string, format: email}
+    StudentImportResult:
+      type: object
+      additionalProperties: false
+      required: [imported, skipped]
+      properties:
+        imported:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [student_id, principal_id, roll_number, name, username, password]
+            properties:
+              student_id: {$ref: '#/components/schemas/UUID'}
+              principal_id: {$ref: '#/components/schemas/UUID'}
+              roll_number: {type: string}
+              name: {type: string}
+              username: {type: string}
+              password: {type: string, format: password}
+        skipped: {type: array, items: {type: string}}
+    IssuedCredential:
+      type: object
+      additionalProperties: false
+      required: [principal_id, display_name, password]
+      properties:
+        principal_id: {$ref: '#/components/schemas/UUID'}
+        username: {type: string}
+        display_name: {type: string}
+        password: {type: string, format: password}
+    CreateStaff:
+      type: object
+      additionalProperties: false
+      required: [username, display_name, role]
+      properties:
+        username: {type: string, pattern: '^[a-z0-9][a-z0-9._-]{0,63}$'}
+        email: {type: string, format: email}
+        display_name: {type: string, minLength: 1, maxLength: 200}
+        role: {enum: [college_admin, department_user]}
+        department_id: {$ref: '#/components/schemas/UUID'}
+    StaffAccount:
+      allOf:
+        - $ref: '#/components/schemas/IssuedCredential'
+        - type: object
+          required: [role_assignment]
+          properties:
+            role_assignment: {$ref: '#/components/schemas/RoleAssignment'}

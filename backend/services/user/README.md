@@ -4,6 +4,28 @@ The user service is the canonical source for profiles, student records,
 medallion role assignments, mentor-to-batch links, placement-staff membership,
 student department history, and authorization revisions in `aether_users`.
 
+## Account management (ADR-0019)
+
+Administrators manage accounts through these routes, authorized as `write`
+on the `accounts` resource. Identity creates the credentials over its private
+mTLS endpoints; this service decides who may act and records college
+membership.
+
+| Method | Path | Effect |
+|--------|------|--------|
+| `POST` | `/v1/tenants/{tenant_id}/students/import` | Up to 500 `{roll_number, name, email?}` rows into one batch. Username is the lowercase roll number. Existing roll numbers are skipped; any invalid row or taken username rejects the file. Returns one-time passwords. |
+| `POST` | `/v1/tenants/{tenant_id}/batches/{batch_id}/passwords` | Reissue every password in the batch and sign the students out. |
+| `POST` | `/v1/tenants/{tenant_id}/accounts/{principal_id}/password` | Reset one account's password. |
+| `PUT` | `/v1/tenants/{tenant_id}/accounts/{principal_id}/status` | `active` or `disabled`. |
+| `POST` | `/v1/tenants/{tenant_id}/staff` | Create a `college_admin`, or a `department_user` (faculty) with `department_id`. |
+
+A college may manage only its own students and staff that hold no role
+anywhere else (`users.tenant_only_principals`). An import validates its
+targets, waits for Identity to hash the passwords, then enrolls under a second
+fresh capability, because a capability lasts five seconds. If enrollment fails,
+the new accounts are discarded so a retry can reuse the usernames. Responses
+that contain passwords are sent with `Cache-Control: no-store`.
+
 ## Two-department invariant
 
 Every active student has exactly one active college and one active placement

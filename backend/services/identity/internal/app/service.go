@@ -14,7 +14,10 @@ import (
 	"github.com/aethercode/aethercode/services/identity/internal/domain"
 )
 
-var emailPattern = regexp.MustCompile(`^[^\s@]+@[^\s@]+\.[^\s@]+$`)
+var (
+	emailPattern    = regexp.MustCompile(`^[^\s@]+@[^\s@]+\.[^\s@]+$`)
+	usernamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,63}$`)
+)
 
 // Store is the port implemented by Identity's persistence adapter.
 type Store interface {
@@ -32,9 +35,8 @@ type Store interface {
 	ActivateTOTP(context.Context, TOTPActivation) ([]string, error)
 	DisableTOTP(context.Context, TOTPDisable) error
 	GetPrincipal(context.Context, string) (*Principal, error)
-	GetPrincipalIncludeDeleted(context.Context, string) (*Principal, error)
 	SoftDeletePrincipal(context.Context, DeletePrincipal) error
-	HardDeletePrincipal(context.Context, DeletePrincipal) error
+	AccountStore
 	Ping(context.Context) error
 }
 
@@ -54,8 +56,9 @@ type Registration struct {
 
 // Login is a persistence-safe login command. The raw password remains in
 // process memory only and is never included in logs, SQL strings, or events.
+// Identifier is a normalized email address or username.
 type Login struct {
-	Email            string
+	Identifier       string
 	Password         string
 	RefreshFamilyID  string
 	RefreshTokenID   string
@@ -167,7 +170,8 @@ type MFAChallengeCompletion struct {
 // Principal is the domain entity exposed by the service layer.
 type Principal struct {
 	ID                  string     `json:"id"`
-	Email               string     `json:"email"`
+	Email               string     `json:"email,omitempty"`
+	Username            string     `json:"username,omitempty"`
 	DisplayName         string     `json:"display_name"`
 	Status              string     `json:"status"`
 	EmailVerifiedAt     *time.Time `json:"email_verified_at,omitempty"`
@@ -304,10 +308,13 @@ func (service *Service) VerifyEmail(contextValue context.Context, token string) 
 	return service.store.VerifyEmail(contextValue, hash[:])
 }
 
-// Login authenticates a password and returns a rotated session pair.
-func (service *Service) Login(contextValue context.Context, email, password, tenantID, requestIP, userAgent, requestID string) (TokenPair, error) {
-	if email = normalizeEmail(email); !emailPattern.MatchString(email) || password == "" {
-		return TokenPair{}, apperrors.New(apperrors.CodeUnauthorized, "invalid email or password")
+// Login authenticates a password and returns a rotated session pair. The
+// identifier is an email address or, for provisioned accounts, a username;
+// usernames cannot contain "@", so the two never collide.
+func (service *Service) Login(contextValue context.Context, identifier, password, tenantID, requestIP, userAgent, requestID string) (TokenPair, error) {
+	identifier = normalizeEmail(identifier)
+	if (!emailPattern.MatchString(identifier) && !usernamePattern.MatchString(identifier)) || password == "" {
+		return TokenPair{}, apperrors.New(apperrors.CodeUnauthorized, "invalid username or password")
 	}
 	tenantID = strings.ToLower(strings.TrimSpace(tenantID))
 	if tenantID != "" && !isUUID(tenantID) {
@@ -332,7 +339,7 @@ func (service *Service) Login(contextValue context.Context, email, password, ten
 	}
 	now := service.now().UTC()
 	session, err := service.store.Authenticate(contextValue, Login{
-		Email: email, Password: password, RefreshFamilyID: refreshFamilyID, RefreshTokenID: refreshTokenID,
+		Identifier: identifier, Password: password, RefreshFamilyID: refreshFamilyID, RefreshTokenID: refreshTokenID,
 		RefreshTokenHash: refreshHash[:], RefreshExpiresAt: now.Add(service.refreshTokenLifetime),
 		AccessTokenID: accessTokenID, AccessExpiresAt: now.Add(service.accessTokenLifetime), TenantID: tenantID, RequestIP: strings.TrimSpace(requestIP),
 		UserAgent: strings.TrimSpace(userAgent), RequestID: strings.TrimSpace(requestID),
@@ -643,24 +650,4 @@ func (service *Service) DeletePrincipal(contextValue context.Context, command De
 	}
 
 	return service.store.SoftDeletePrincipal(contextValue, command)
-}
-
-// HardDeletePrincipal permanently removes a principal (SuperAdmin only).
-// Authorization is enforced at both HTTP layer and domain layer.
-func (service *Service) HardDeletePrincipal(contextValue context.Context, command DeletePrincipal) error {
-	command.Reason = strings.TrimSpace(command.Reason)
-	command.ID = strings.ToLower(strings.TrimSpace(command.ID))
-	command.ActorID = strings.ToLower(strings.TrimSpace(command.ActorID))
-
-	if !isUUID(command.ID) || !isUUID(command.ActorID) || command.Reason == "" {
-		return apperrors.New(apperrors.CodeInvalidArgument, "principal ID, actor ID, and deletion reason are required")
-	}
-
-	// Verify principal exists (including soft-deleted)
-	_, err := service.store.GetPrincipalIncludeDeleted(contextValue, command.ID)
-	if err != nil {
-		return fmt.Errorf("get principal: %w", err)
-	}
-
-	return service.store.HardDeletePrincipal(contextValue, command)
 }

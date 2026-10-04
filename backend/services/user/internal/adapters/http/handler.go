@@ -17,18 +17,24 @@ import (
 
 type Handler struct {
 	service    *app.ManagementService
+	accounts   *app.AccountService
 	authorizer *httpauth.Authorizer
 }
 
-func NewHandler(serviceName string, service *app.ManagementService, readiness httpx.ReadinessFunc, authorizer *httpauth.Authorizer) (http.Handler, error) {
-	if service == nil || authorizer == nil {
-		return nil, fmt.Errorf("user management service and authorizer are required")
+func NewHandler(serviceName string, service *app.ManagementService, accounts *app.AccountService, readiness httpx.ReadinessFunc, authorizer *httpauth.Authorizer) (http.Handler, error) {
+	if service == nil || accounts == nil || authorizer == nil {
+		return nil, fmt.Errorf("user management service, account service, and authorizer are required")
 	}
-	handler := &Handler{service: service, authorizer: authorizer}
+	handler := &Handler{service: service, accounts: accounts, authorizer: authorizer}
 	mux := httpx.NewOperationalMux(serviceName, readiness)
 	mux.HandleFunc("PUT /v1/profiles/{principal_id}", handler.upsertProfile)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/students", handler.listStudents)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/students", handler.enrollStudent)
+	mux.HandleFunc("POST /v1/tenants/{tenant_id}/students/import", handler.importStudents)
+	mux.HandleFunc("POST /v1/tenants/{tenant_id}/batches/{batch_id}/passwords", handler.reissueBatchPasswords)
+	mux.HandleFunc("POST /v1/tenants/{tenant_id}/accounts/{principal_id}/password", handler.resetAccountPassword)
+	mux.HandleFunc("PUT /v1/tenants/{tenant_id}/accounts/{principal_id}/status", handler.setAccountStatus)
+	mux.HandleFunc("POST /v1/tenants/{tenant_id}/staff", handler.createStaff)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/students/{student_id}", handler.getStudent)
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/students/{student_id}", handler.deleteStudent)
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/students/{student_id}/hard", handler.hardDeleteStudent)

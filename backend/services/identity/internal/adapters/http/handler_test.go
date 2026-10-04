@@ -74,10 +74,6 @@ func (fake *fakeUseCases) GetPrincipal(_ context.Context, id string) (*app.Princ
 
 func (fake *fakeUseCases) DeletePrincipal(context.Context, app.DeletePrincipal) error { return nil }
 
-func (fake *fakeUseCases) HardDeletePrincipal(context.Context, app.DeletePrincipal) error {
-	return nil
-}
-
 type fakeVerifier struct{}
 
 func (fakeVerifier) Verify(string, time.Time) (authn.Claims, error) {
@@ -596,12 +592,32 @@ func TestGetPrincipalReturns404WhenNotFound(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewHandler() error = %v", err)
 	}
-	req := httptest.NewRequest(http.MethodGet, "/v1/principals/019b11a0-0000-7000-8000-000000000099", nil)
+	req := httptest.NewRequest(http.MethodGet, "/v1/principals/019b11a0-0000-7000-8000-000000000001", nil)
 	req.Header.Set("Authorization", "Bearer valid-token")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+// Identity has no central authorization, so another principal's record must
+// stay out of reach whatever role the caller holds.
+func TestPrincipalEndpointsRejectOtherPrincipals(t *testing.T) {
+	t.Parallel()
+	for _, method := range []string{http.MethodGet, http.MethodDelete} {
+		fake := &fakeUseCases{getPrincipalResult: &app.Principal{ID: "019b11a0-0000-7000-8000-000000000099"}}
+		_, handler, err := NewHandler("identity", fake, nil, fakeVerifier{}, false, nil, nil, nil)
+		if err != nil {
+			t.Fatalf("NewHandler() error = %v", err)
+		}
+		req := httptest.NewRequest(method, "/v1/principals/019b11a0-0000-7000-8000-000000000099", strings.NewReader(`{"reason":"x"}`))
+		req.Header.Set("Authorization", "Bearer valid-token")
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusForbidden || fake.getPrincipalID != "" {
+			t.Fatalf("%s: status = %d, body = %s; want 403 without a lookup", method, rec.Code, rec.Body.String())
+		}
 	}
 }
 

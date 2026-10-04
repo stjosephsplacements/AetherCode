@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 
 	"github.com/aethercode/aethercode/libs/pkg/testutil/integration"
@@ -31,43 +32,7 @@ func TestRLSIsolateTenants(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
-	pool := integration.StartPostgres(ctx, t)
-
-	// --- pre-migration role and schema setup -----------------------------------
-	// The user service bootstrap migration starts with SET ROLE aether_user_owner
-	// and validates that the five service roles exist. We create them here as the
-	// postgres superuser, mirroring what deploy/database/platform/dev-init.sh
-	// does in production before any migration runs.
-	//
-	// schema_migrations is pre-created and owned by aether_user_owner because
-	// golang-migrate's bookkeeping INSERT runs inside the same transaction as the
-	// migration SQL — after SET ROLE aether_user_owner has taken effect.
-	for _, stmt := range []string{
-		`CREATE ROLE aether_user_owner       NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
-		`CREATE ROLE aether_user_migrator    NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
-		`CREATE ROLE aether_user_app         NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
-		`CREATE ROLE aether_user_authz_reader NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
-		`CREATE ROLE aether_user_projection_worker NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
-		// Migrator must be a member of owner so SET ROLE aether_user_owner works.
-		`GRANT aether_user_owner TO aether_user_migrator`,
-		// Transfer ownership so the migration can REVOKE on the public schema.
-		`ALTER DATABASE testdb OWNER TO aether_user_owner`,
-		`ALTER SCHEMA public OWNER TO aether_user_owner`,
-		// Pre-create the migration version table owned by aether_user_owner.
-		`CREATE TABLE public.schema_migrations (version bigint NOT NULL PRIMARY KEY, dirty boolean NOT NULL)`,
-		`ALTER TABLE public.schema_migrations OWNER TO aether_user_owner`,
-	} {
-		_, err := pool.Exec(ctx, stmt)
-		require.NoError(t, err, "pre-migration setup: %s", stmt[:min(len(stmt), 60)])
-	}
-
-	// --- apply migrations ------------------------------------------------------
-	_, file, _, _ := runtime.Caller(0)
-	// Walk three directories up from this file to reach services/user/.
-	svcRoot := filepath.Join(filepath.Dir(file), "../../..")
-	migrationsDir, err := filepath.Abs(filepath.Join(svcRoot, "migrations"))
-	require.NoError(t, err)
-	integration.ApplyMigrations(ctx, t, pool, migrationsDir)
+	pool := migratedPool(ctx, t)
 
 	// --- committed test data ---------------------------------------------------
 	tenantA := uuid.MustParse("018f4b0d-08f8-7c09-9ba7-efdf9c330001")
@@ -78,7 +43,7 @@ func TestRLSIsolateTenants(t *testing.T) {
 	grantSourceID := uuid.New() // non-NULL required by actor_tenant_authorizations CHECK
 
 	// Insert a student for tenant A. The postgres superuser bypasses all RLS.
-	_, err = pool.Exec(ctx,
+	_, err := pool.Exec(ctx,
 		`INSERT INTO users.students (id, principal_id, tenant_id, enrollment_number, status)
 		 VALUES ($1, $2, $3, 'RLIST-001', 'pending')`,
 		studentID, principalID, tenantA,
@@ -175,4 +140,46 @@ func TestRLSIsolateTenants(t *testing.T) {
 			}
 		})
 	}
+}
+
+// migratedPool starts PostgreSQL, creates the user service roles as
+// deploy/database/platform/dev-init.sh does, and applies every migration.
+//
+// The user service bootstrap migration starts with SET ROLE aether_user_owner
+// and validates that the five service roles exist. schema_migrations is
+// pre-created and owned by aether_user_owner because golang-migrate's
+// bookkeeping INSERT runs inside the same transaction as the migration SQL,
+// after SET ROLE aether_user_owner has taken effect.
+func migratedPool(ctx context.Context, t *testing.T) *pgxpool.Pool {
+	t.Helper()
+	pool := integration.StartPostgres(ctx, t)
+
+	for _, stmt := range []string{
+		`CREATE ROLE aether_user_owner       NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
+		`CREATE ROLE aether_user_migrator    NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
+		`CREATE ROLE aether_user_app         NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
+		`CREATE ROLE aether_user_authz_reader NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
+		`CREATE ROLE aether_user_projection_worker NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`,
+		// Migrator must be a member of owner so SET ROLE aether_user_owner works.
+		`GRANT aether_user_owner TO aether_user_migrator`,
+		// Transfer ownership so the migration can REVOKE on the public schema.
+		`ALTER DATABASE testdb OWNER TO aether_user_owner`,
+		`ALTER SCHEMA public OWNER TO aether_user_owner`,
+		// Pre-create the migration version table owned by aether_user_owner.
+		`CREATE TABLE public.schema_migrations (version bigint NOT NULL PRIMARY KEY, dirty boolean NOT NULL)`,
+		`ALTER TABLE public.schema_migrations OWNER TO aether_user_owner`,
+	} {
+		_, err := pool.Exec(ctx, stmt)
+		require.NoError(t, err, "pre-migration setup: %s", stmt[:min(len(stmt), 60)])
+	}
+
+	// --- apply migrations ------------------------------------------------------
+	_, file, _, _ := runtime.Caller(0)
+	// Walk three directories up from this file to reach services/user/.
+	svcRoot := filepath.Join(filepath.Dir(file), "../../..")
+	migrationsDir, err := filepath.Abs(filepath.Join(svcRoot, "migrations"))
+	require.NoError(t, err)
+	integration.ApplyMigrations(ctx, t, pool, migrationsDir)
+
+	return pool
 }

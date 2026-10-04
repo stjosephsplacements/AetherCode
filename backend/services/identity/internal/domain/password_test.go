@@ -1,6 +1,9 @@
 package domain
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestHashAndVerifyPassword(t *testing.T) {
 	t.Parallel()
@@ -42,5 +45,26 @@ func TestDeriveDeliveryTokenIsPurposeBoundAndStable(t *testing.T) {
 	reset, err := DeriveDeliveryToken(key, "password-reset", "019b11a0-0000-7000-8000-000000000001")
 	if err != nil || reset == verification {
 		t.Fatalf("delivery token purpose binding failed: %q / %q / %v", verification, reset, err)
+	}
+}
+
+func TestGeneratePasswordSatisfiesPolicy(t *testing.T) {
+	t.Parallel()
+	seen := map[string]bool{}
+	for range 200 {
+		password, err := GeneratePassword()
+		if err != nil {
+			t.Fatalf("GeneratePassword() error = %v", err)
+		}
+		if err := ValidatePassword(password); err != nil {
+			t.Fatalf("GeneratePassword() = %q violates policy: %v", password, err)
+		}
+		if strings.ContainsAny(password, "0O1lI") {
+			t.Fatalf("GeneratePassword() = %q contains an ambiguous character", password)
+		}
+		seen[password] = true
+	}
+	if len(seen) != 200 {
+		t.Fatalf("GeneratePassword() repeated a password in 200 draws")
 	}
 }
