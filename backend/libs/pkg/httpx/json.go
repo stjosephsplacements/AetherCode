@@ -88,6 +88,7 @@ func WriteError(writer http.ResponseWriter, err error) {
 			status = http.StatusPreconditionFailed
 		case apperrors.CodeUnavailable:
 			status = http.StatusServiceUnavailable
+			writer.Header().Set("Retry-After", "2")
 		}
 	}
 	if status == http.StatusInternalServerError {

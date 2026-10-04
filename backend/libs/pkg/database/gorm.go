@@ -103,7 +103,7 @@ func WithTenantGormTx(
 		`, capability.ActorID, tenantID, capability.AuthzRevision,
 			capability.Decision, capability.CapabilityID, capability.Action, capability.Resource,
 			capability.IssuedAt.UTC(), capability.ExpiresAt.UTC(), capability.KeyID, capability.Signature).Error; err != nil {
-			return fmt.Errorf("set signed transaction authorization context: %w", err)
+			return contextError(err)
 		}
 		return fn(transaction)
 	})

@@ -2,11 +2,14 @@ package database
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
+	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -40,7 +43,7 @@ func WithTenantTx(
 	`, capability.ActorID, tenantID, capability.AuthzRevision,
 		capability.Decision, capability.CapabilityID, capability.Action, capability.Resource,
 		capability.IssuedAt.UTC(), capability.ExpiresAt.UTC(), capability.KeyID, capability.Signature); err != nil {
-		return fmt.Errorf("set signed transaction authorization context: %w", err)
+		return contextError(err)
 	}
 	if err := fn(transaction); err != nil {
 		return err
@@ -49,4 +52,19 @@ func WithTenantTx(
 		return fmt.Errorf("commit transaction: %w", err)
 	}
 	return nil
+}
+
+// projectionLagMessage is raised by every service's authz.set_context when its
+// local copy of a principal's grants has not caught up with the revision the
+// central decision used, for example seconds after a role is granted.
+const projectionLagMessage = "local authorization projection is not current"
+
+// contextError reports projection lag as a retryable unavailable error; any
+// other set_context failure (bad signature, replay, expiry) stays internal.
+func contextError(err error) error {
+	var postgresError *pgconn.PgError
+	if errors.As(err, &postgresError) && postgresError.Code == "28000" && postgresError.Message == projectionLagMessage {
+		return &apperrors.Error{Code: apperrors.CodeUnavailable, Message: "permissions are still being updated; retry in a few seconds", Cause: err}
+	}
+	return fmt.Errorf("set signed transaction authorization context: %w", err)
 }
