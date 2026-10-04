@@ -78,8 +78,9 @@ curl -s -X POST localhost:${GATEWAY_PORT:-8080}/api/identity/v1/auth/password-re
 ## Public address
 
 The campus server's own nginx terminates TLS for
-`aethercode.stjosephsplacements.in`, which Cloudflare proxies. Install the site
-once:
+`aethercode.stjosephsplacements.in`, which Cloudflare proxies through the host's
+cloudflared tunnel. Requests therefore reach nginx from loopback, and the site
+restores the student's address from `CF-Connecting-IP`. Install the site once:
 
 ```sh
 sudo cp nginx-site.conf /etc/nginx/sites-available/aethercode
