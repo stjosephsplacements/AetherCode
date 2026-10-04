@@ -3,9 +3,12 @@ package httpadapter
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
+	"github.com/aethercode/aethercode/libs/pkg/httpauth"
 	"github.com/aethercode/aethercode/libs/pkg/pagination"
+	"github.com/aethercode/aethercode/services/question-bank/internal/app"
 )
 
 func TestIdempotencyKeyRequiresPrintableHeader(t *testing.T) {
@@ -32,21 +35,52 @@ func TestIdempotencyKeyRequiresPrintableHeader(t *testing.T) {
 	}
 }
 
-func TestManifestKindValidation(t *testing.T) {
+func TestTestsRouteRejectsMalformedRequestsBeforeAuthorization(t *testing.T) {
 	t.Parallel()
+	handler, err := NewHandler("question-bank", new(app.Service), nil, new(httpauth.Authorizer))
+	if err != nil {
+		t.Fatalf("NewHandler() error = %v", err)
+	}
+	const versionPath = "/v1/question-versions/019b11a0-0000-7000-8000-000000000001/tests"
 	for _, testCase := range []struct {
-		kind  string
-		valid bool
+		name string
+		path string
+		body string
 	}{
-		{"sample", true},
-		{"hidden", true},
-		{"SAMPLE", false},
-		{"evaluation", false},
-		{"", false},
+		{name: "invalid version ID", path: "/v1/question-versions/not-a-uuid/tests", body: `{"expected_question_version":1,"tests":[]}`},
+		{name: "unknown field", path: versionPath, body: `{"expected_question_version":1,"tests":[],"object_key":"x"}`},
+		{name: "unknown test field", path: versionPath, body: `{"expected_question_version":1,"tests":[{"input":"1","expected_output":"1","sample":true,"checksum":"x"}]}`},
+		{name: "not JSON", path: versionPath, body: `nope`},
 	} {
-		valid := testCase.kind == "sample" || testCase.kind == "hidden"
-		if valid != testCase.valid {
-			t.Fatalf("manifest kind %q validity = %t, want %t", testCase.kind, valid, testCase.valid)
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			recorder := httptest.NewRecorder()
+			handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodPut, testCase.path, strings.NewReader(testCase.body)))
+			if recorder.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d; body %s", recorder.Code, http.StatusBadRequest, recorder.Body)
+			}
+		})
+	}
+}
+
+func TestRemovedBundleAndManifestRoutesAreGone(t *testing.T) {
+	t.Parallel()
+	handler, err := NewHandler("question-bank", new(app.Service), nil, new(httpauth.Authorizer))
+	if err != nil {
+		t.Fatalf("NewHandler() error = %v", err)
+	}
+	const versionPath = "/v1/question-versions/019b11a0-0000-7000-8000-000000000001"
+	for _, testCase := range []struct {
+		method string
+		path   string
+	}{
+		{http.MethodGet, versionPath + "/bundle"},
+		{http.MethodPut, versionPath + "/manifests/hidden"},
+	} {
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, httptest.NewRequest(testCase.method, testCase.path, strings.NewReader(`{}`)))
+		if recorder.Code != http.StatusNotFound && recorder.Code != http.StatusMethodNotAllowed {
+			t.Fatalf("%s %s status = %d, want 404 or 405", testCase.method, testCase.path, recorder.Code)
 		}
 	}
 }

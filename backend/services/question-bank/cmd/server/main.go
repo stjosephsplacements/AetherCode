@@ -14,11 +14,9 @@ import (
 	"github.com/aethercode/aethercode/libs/pkg/database"
 	"github.com/aethercode/aethercode/libs/pkg/httpauth"
 	"github.com/aethercode/aethercode/libs/pkg/httpx"
-	"github.com/aethercode/aethercode/libs/pkg/kms"
 	localkms "github.com/aethercode/aethercode/libs/pkg/kms/local"
 	"github.com/aethercode/aethercode/libs/pkg/logging"
 	"github.com/aethercode/aethercode/libs/pkg/messaging"
-	"github.com/aethercode/aethercode/libs/pkg/storage"
 	minioclient "github.com/aethercode/aethercode/libs/pkg/storage/minio"
 	"github.com/aethercode/aethercode/libs/pkg/telemetry"
 	httpadapter "github.com/aethercode/aethercode/services/question-bank/internal/adapters/http"
@@ -184,30 +182,23 @@ func run(contextValue context.Context) error {
 		}
 	}
 
-	// NOTE: Storage and KMS are optional. Set QBANK_STORAGE_ENDPOINT and
-	// QBANK_KMS_LOCAL_KEY to enable content-retrieval endpoints. They return
-	// 503 Unavailable when these variables are absent.
-	var storageClient storage.Object
-	var kmsClient kms.KeyManager
-	if os.Getenv("QBANK_STORAGE_ENDPOINT") != "" {
-		storageCfg, storageErr := minioclient.LoadConfig("QBANK_STORAGE")
-		if storageErr != nil {
-			return storageErr
-		}
-		storageClient, storageErr = minioclient.New(storageCfg)
-		if storageErr != nil {
-			return storageErr
-		}
+	// Storage and KMS are required: Question Bank encrypts and stores test
+	// bundles itself, so a missing variable must stop startup, not 503 later.
+	storageCfg, err := minioclient.LoadConfig("QBANK_STORAGE")
+	if err != nil {
+		return err
 	}
-	if os.Getenv("QBANK_KMS_LOCAL_KEY") != "" {
-		kmsCfg, kmsErr := localkms.LoadConfig("QBANK")
-		if kmsErr != nil {
-			return kmsErr
-		}
-		kmsClient = localkms.New(kmsCfg)
+	storageClient, err := minioclient.New(storageCfg)
+	if err != nil {
+		return err
 	}
+	kmsCfg, err := localkms.LoadConfig("QBANK")
+	if err != nil {
+		return err
+	}
+	kmsClient := localkms.New(kmsCfg)
 
-	questionBank, err := app.NewService(pool, store, storageClient, kmsClient)
+	questionBank, err := app.NewService(pool, store, storageClient, kmsClient, logger)
 	if err != nil {
 		return err
 	}

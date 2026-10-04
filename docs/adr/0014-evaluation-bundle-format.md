@@ -39,7 +39,7 @@ referenced by `evaluation_bundle_object_key` /
 ```
 
 `schema_version` allows the shape to evolve later without breaking bundles
-already in flight or already stored. `internal/bundle.Parse` is the sole
+already in flight or already stored. `evalbundle.Parse` (`backend/libs/pkg/evalbundle`) is the sole
 parser: it decodes with `DisallowUnknownFields`, rejects any
 `schema_version` other than the one version it currently supports, rejects
 zero test cases, and bounds the test-case count (`maxTestCases = 500`) so a
@@ -83,7 +83,7 @@ Any future bundle-producing tooling (question-bank/exam-authoring — not yet
 built anywhere in this codebase) must emit exactly this JSON shape:
 `schema_version` (currently must be `1`) and a non-empty, bounded
 `test_cases` array of `{"stdin": string, "expected_output": string}`
-objects, with no other top-level or per-test-case fields. `internal/bundle`
+objects, with no other top-level or per-test-case fields. `evalbundle`
 enforces this strictly (unknown fields, wrong schema version, empty or
 oversized `test_cases`, and oversized raw ciphertext are all rejected with a
 clear error) rather than silently accepting a malformed bundle and
@@ -100,3 +100,22 @@ KMS encrypt and one storage `Put` per test case per submission — a real but
 bounded cost (capped by `maxTestCases`), and one that must be cleaned up on
 the storage side if the owning database transaction does not commit (see
 `Postgres.Submit`'s orphaned-object cleanup, added alongside this format).
+
+## Schema version 2
+
+Question Bank now builds bundles itself from plaintext tests, so the format
+lives in `backend/libs/pkg/evalbundle` (`Build` for producers, `Parse` for
+Judge). Version 2 adds a required per-test-case `weight` (integer 1 to 100):
+
+```json
+{ "schema_version": 2,
+  "test_cases": [ { "stdin": "5\n3\n", "expected_output": "8\n", "weight": 3 } ] }
+```
+
+Scoring is `points x passed weight / total weight`. `Build` always emits
+version 2; `Parse` accepts version 1 (no `weight`, every test case weighs 1)
+and version 2, and rejects a `weight` in version 1 or a missing or
+out-of-range one in version 2. All other rules are unchanged, including
+`DisallowUnknownFields` and the 1 to 500 test-case bound. Judge's per-unit
+objects keep the `{"stdin", "expected_output"}` shape; weights are not copied
+into them.

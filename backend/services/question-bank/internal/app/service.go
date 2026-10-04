@@ -4,12 +4,14 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"regexp"
 	"sort"
 	"strconv"
@@ -20,6 +22,7 @@ import (
 	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
 	"github.com/aethercode/aethercode/libs/pkg/database"
 	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
+	"github.com/aethercode/aethercode/libs/pkg/evalbundle"
 	"github.com/aethercode/aethercode/libs/pkg/kms"
 	"github.com/aethercode/aethercode/libs/pkg/pagination"
 	"github.com/aethercode/aethercode/libs/pkg/storage"
@@ -33,6 +36,7 @@ const (
 	maximumPromptRunes       = 200000
 	maximumObjectKeyBytes    = 1024
 	maximumKeyReferenceBytes = 1024
+	maximumTestTextBytes     = 1 << 20
 )
 
 var (
@@ -50,7 +54,9 @@ type Store interface {
 	CompleteIdempotency(context.Context, pgx.Tx, IdempotencyClaim, int, json.RawMessage) error
 	CreateQuestion(context.Context, pgx.Tx, CreateQuestion) (QuestionDetail, error)
 	CreateDraftQuestionVersion(context.Context, pgx.Tx, CreateDraftQuestionVersion) (QuestionDetail, error)
-	UpsertTestCaseManifest(context.Context, pgx.Tx, UpsertTestCaseManifest) (QuestionVersion, error)
+	// SetQuestionVersionTests records the three bundles of a draft version and
+	// returns the object keys they replaced.
+	SetQuestionVersionTests(context.Context, pgx.Tx, StoreQuestionVersionTests) (QuestionVersion, []string, error)
 	AddQuestionAsset(context.Context, pgx.Tx, AddQuestionAsset) (QuestionVersion, error)
 	ReplaceQuestionVersionTags(context.Context, pgx.Tx, ReplaceQuestionVersionTags) (QuestionVersion, error)
 	PublishQuestionVersion(context.Context, pgx.Tx, PublishQuestionVersion) (QuestionDetail, error)
@@ -68,31 +74,19 @@ type Store interface {
 	// GetAssetObjectRef returns the storage key, encryption key reference, and
 	// content-type for a specific asset attached to a question version.
 	GetAssetObjectRef(context.Context, pgx.Tx, string, string) (objectKey, encKeyRef, contentType string, err error)
-	// GetBundleObjectRef returns the storage key and encryption key reference for
-	// the evaluation bundle of a question version.
-	GetBundleObjectRef(context.Context, pgx.Tx, string) (objectKey, encKeyRef string, err error)
 	Ping(context.Context) error
 }
 
-// AssetContent is the result of a question asset retrieval.
-// For encrypted asset kinds (attachment, starter_code, reference_solution), Data
-// and ContentType are populated.  For test_cases, PresignURL is populated
-// instead and Data is nil — the caller should redirect or return the URL.
+// AssetContent is the decrypted result of a question asset retrieval.
 type AssetContent struct {
 	Data        []byte
 	ContentType string
-	PresignURL  string
 }
 
 // GetAssetCmd identifies one asset to retrieve.
 type GetAssetCmd struct {
 	QuestionVersionID string
 	AssetKind         string
-}
-
-// GetBundleCmd identifies the evaluation bundle to retrieve.
-type GetBundleCmd struct {
-	QuestionVersionID string
 }
 
 type ObjectReference struct {
@@ -109,14 +103,13 @@ type Tag struct {
 }
 
 type VersionContent struct {
-	Title              string          `json:"title"`
-	PromptMarkdown     string          `json:"prompt_markdown"`
-	Difficulty         string          `json:"difficulty"`
-	SupportedLanguages []string        `json:"supported_languages"`
-	TimeLimitMS        int             `json:"time_limit_ms"`
-	MemoryLimitKiB     int             `json:"memory_limit_kib"`
-	EvaluationBundle   ObjectReference `json:"evaluation_bundle"`
-	Tags               []Tag           `json:"tags"`
+	Title              string   `json:"title"`
+	PromptMarkdown     string   `json:"prompt_markdown"`
+	Difficulty         string   `json:"difficulty"`
+	SupportedLanguages []string `json:"supported_languages"`
+	TimeLimitMS        int      `json:"time_limit_ms"`
+	MemoryLimitKiB     int      `json:"memory_limit_kib"`
+	Tags               []Tag    `json:"tags"`
 }
 
 type Question struct {
@@ -129,7 +122,7 @@ type Question struct {
 }
 
 // QuestionVersion is intentionally metadata-only. Encrypted object keys,
-// checksums, and KMS references are accepted on writes but never returned by
+// checksums, and KMS references are never returned by
 // the browser-facing API; object access is separately controlled.
 type QuestionVersion struct {
 	ID                  string     `json:"id"`
@@ -204,14 +197,36 @@ type CreateDraftQuestionVersion struct {
 	Content                  VersionContent
 }
 
-type UpsertTestCaseManifest struct {
-	WriteCommand
-	ID                      string
+// TestCase is one plaintext test supplied by staff.
+type TestCase struct {
+	Input          string
+	ExpectedOutput string
+	Sample         bool
+	Weight         int
+}
+
+// SetQuestionVersionTests replaces all tests of a draft question version.
+type SetQuestionVersionTests struct {
 	QuestionVersionID       string
-	ManifestKind            string
-	ObjectReference         ObjectReference
-	TestCaseCount           int
 	ExpectedQuestionVersion int64
+	Tests                   []TestCase
+}
+
+// TestBundle is one stored, encrypted bundle and the number of tests in it.
+type TestBundle struct {
+	ObjectReference
+	TestCaseCount int
+}
+
+// StoreQuestionVersionTests is the persisted outcome of SetQuestionVersionTests:
+// the evaluation bundle (all tests, in order) plus the sample-only and
+// hidden-only bundles.
+type StoreQuestionVersionTests struct {
+	QuestionVersionID       string
+	ExpectedQuestionVersion int64
+	Evaluation              TestBundle
+	Sample                  TestBundle
+	Hidden                  TestBundle
 }
 
 type AddQuestionAsset struct {
@@ -271,15 +286,16 @@ type Service struct {
 	store   Store
 	storage storage.Object
 	kms     kms.KeyManager
+	logger  *slog.Logger
 }
 
-// NewService creates a new Question Bank service. storage and kms may both be
-// nil; content retrieval endpoints return 503 Unavailable until they are wired.
-func NewService(pool *pgxpool.Pool, store Store, storage storage.Object, kms kms.KeyManager) (*Service, error) {
-	if pool == nil || store == nil {
-		return nil, fmt.Errorf("question-bank database pool and store are required")
+// NewService creates a new Question Bank service. Storage and KMS are required:
+// test bundles are encrypted and stored by the service itself.
+func NewService(pool *pgxpool.Pool, store Store, storage storage.Object, kms kms.KeyManager, logger *slog.Logger) (*Service, error) {
+	if pool == nil || store == nil || storage == nil || kms == nil || logger == nil {
+		return nil, fmt.Errorf("question-bank database pool, store, object storage, KMS and logger are required")
 	}
-	return &Service{pool: pool, store: store, storage: storage, kms: kms}, nil
+	return &Service{pool: pool, store: store, storage: storage, kms: kms, logger: logger}, nil
 }
 
 func (service *Service) CreateQuestion(contextValue context.Context, capability centralauthz.Capability, command CreateQuestion) (QuestionDetail, error) {
@@ -320,26 +336,115 @@ func (service *Service) CreateDraftQuestionVersion(contextValue context.Context,
 	)
 }
 
-func (service *Service) UpsertTestCaseManifest(contextValue context.Context, capability centralauthz.Capability, command UpsertTestCaseManifest) (QuestionVersion, error) {
-	command.ManifestKind = strings.ToLower(strings.TrimSpace(command.ManifestKind))
-	if !isUUID(command.ID) || !isUUID(command.QuestionVersionID) || command.ExpectedQuestionVersion <= 0 || command.TestCaseCount <= 0 || (command.ManifestKind != "sample" && command.ManifestKind != "hidden") {
-		return QuestionVersion{}, apperrors.New(apperrors.CodeInvalidArgument, "test manifest fields are invalid")
+// SetQuestionVersionTests builds the evaluation, sample and hidden bundles from
+// plaintext tests, encrypts and stores them, and records them on the draft
+// version. The checksum is the SHA-256 of the stored ciphertext. A failure
+// after the uploads removes the new objects; after a successful commit the
+// superseded ones are removed. Cleanup failures are logged, not returned.
+func (service *Service) SetQuestionVersionTests(contextValue context.Context, capability centralauthz.Capability, command SetQuestionVersionTests) (QuestionVersion, error) {
+	if !isUUID(command.QuestionVersionID) || command.ExpectedQuestionVersion <= 0 {
+		return QuestionVersion{}, apperrors.New(apperrors.CodeInvalidArgument, "question version identifier or expected revision is invalid")
 	}
-	if err := normalizeObjectReference(&command.ObjectReference); err != nil {
+	evaluation, sample, hidden, err := splitTests(command.Tests)
+	if err != nil {
 		return QuestionVersion{}, err
 	}
-	return runWrite(service, contextValue, capability, "question.manifest.upsert", command.IdempotencyKey,
-		struct {
-			QuestionVersionID       string          `json:"question_version_id"`
-			ManifestKind            string          `json:"manifest_kind"`
-			ObjectReference         ObjectReference `json:"object_reference"`
-			TestCaseCount           int             `json:"test_case_count"`
-			ExpectedQuestionVersion int64           `json:"expected_question_version"`
-		}{command.QuestionVersionID, command.ManifestKind, command.ObjectReference, command.TestCaseCount, command.ExpectedQuestionVersion}, 200,
-		func(transaction pgx.Tx) (QuestionVersion, error) {
-			return service.store.UpsertTestCaseManifest(contextValue, transaction, command)
-		},
-	)
+	command.QuestionVersionID = strings.ToLower(strings.TrimSpace(command.QuestionVersionID))
+	stored := StoreQuestionVersionTests{QuestionVersionID: command.QuestionVersionID, ExpectedQuestionVersion: command.ExpectedQuestionVersion}
+	var written []string
+	for _, bundle := range []struct {
+		kind  string
+		cases []evalbundle.TestCase
+		out   *TestBundle
+	}{
+		{"evaluation", evaluation, &stored.Evaluation},
+		{"sample", sample, &stored.Sample},
+		{"hidden", hidden, &stored.Hidden},
+	} {
+		objectKey, reference, err := service.storeBundle(contextValue, command.QuestionVersionID, bundle.kind, bundle.cases)
+		if err != nil {
+			service.deleteObjects(contextValue, written)
+			return QuestionVersion{}, err
+		}
+		written = append(written, objectKey)
+		*bundle.out = TestBundle{ObjectReference: reference, TestCaseCount: len(bundle.cases)}
+	}
+
+	var result QuestionVersion
+	var replaced []string
+	err = database.WithTenantTx(contextValue, service.pool, capability, func(transaction pgx.Tx) error {
+		var err error
+		result, replaced, err = service.store.SetQuestionVersionTests(contextValue, transaction, stored)
+		return err
+	})
+	if err != nil {
+		service.deleteObjects(contextValue, written)
+		return QuestionVersion{}, err
+	}
+	service.deleteObjects(contextValue, replaced)
+	return result, nil
+}
+
+// splitTests validates staff tests and returns the evaluation bundle's cases
+// (all tests, in order) plus the sample-only and hidden-only subsets.
+func splitTests(tests []TestCase) (evaluation, sample, hidden []evalbundle.TestCase, err error) {
+	if len(tests) < 1 || len(tests) > evalbundle.MaxTestCases {
+		return nil, nil, nil, apperrors.New(apperrors.CodeInvalidArgument, fmt.Sprintf("tests must contain 1 to %d entries", evalbundle.MaxTestCases))
+	}
+	for _, test := range tests {
+		if test.Weight < evalbundle.MinWeight || test.Weight > evalbundle.MaxWeight {
+			return nil, nil, nil, apperrors.New(apperrors.CodeInvalidArgument, fmt.Sprintf("test weight must be between %d and %d", evalbundle.MinWeight, evalbundle.MaxWeight))
+		}
+		if len(test.Input) > maximumTestTextBytes || len(test.ExpectedOutput) > maximumTestTextBytes {
+			return nil, nil, nil, apperrors.New(apperrors.CodeInvalidArgument, "test input and expected output must each be at most 1 MiB")
+		}
+		testCase := evalbundle.TestCase{Stdin: test.Input, ExpectedOutput: test.ExpectedOutput, Weight: test.Weight}
+		evaluation = append(evaluation, testCase)
+		if test.Sample {
+			sample = append(sample, testCase)
+		} else {
+			hidden = append(hidden, testCase)
+		}
+	}
+	if len(sample) == 0 || len(hidden) == 0 {
+		return nil, nil, nil, apperrors.New(apperrors.CodeInvalidArgument, "tests must include at least one sample and one hidden test")
+	}
+	return evaluation, sample, hidden, nil
+}
+
+// storeBundle builds, encrypts and uploads one bundle under a server-generated
+// key; clients never see the key.
+func (service *Service) storeBundle(contextValue context.Context, questionVersionID, kind string, cases []evalbundle.TestCase) (string, ObjectReference, error) {
+	plaintext, err := evalbundle.Build(cases)
+	if err != nil {
+		return "", ObjectReference{}, fmt.Errorf("build %s bundle: %w", kind, err)
+	}
+	ciphertext, keyReference, err := service.kms.Encrypt(contextValue, plaintext)
+	if err != nil {
+		return "", ObjectReference{}, fmt.Errorf("encrypt %s bundle: %w", kind, err)
+	}
+	objectID, err := database.NewUUIDv7()
+	if err != nil {
+		return "", ObjectReference{}, fmt.Errorf("generate %s bundle object ID: %w", kind, err)
+	}
+	objectKey := fmt.Sprintf("qbank/question-versions/%s/%s-%s.bundle", questionVersionID, objectID, kind)
+	if err := service.storage.Put(contextValue, objectKey, bytes.NewReader(ciphertext), int64(len(ciphertext)), "application/octet-stream"); err != nil {
+		return "", ObjectReference{}, fmt.Errorf("store %s bundle: %w", kind, err)
+	}
+	digest := sha256.Sum256(ciphertext)
+	return objectKey, ObjectReference{ObjectKey: objectKey, Checksum: hex.EncodeToString(digest[:]), EncryptionKeyReference: keyReference}, nil
+}
+
+// deleteObjects best-effort removes superseded or orphaned objects. It outlives
+// a cancelled request so a client disconnect cannot leak ciphertext.
+func (service *Service) deleteObjects(contextValue context.Context, keys []string) {
+	cleanupContext, cancel := context.WithTimeout(context.WithoutCancel(contextValue), 30*time.Second)
+	defer cancel()
+	for _, key := range keys {
+		if err := service.storage.Delete(cleanupContext, key); err != nil {
+			service.logger.Warn("delete unreferenced test bundle object", "object_key", key, "error", err)
+		}
+	}
 }
 
 func (service *Service) AddQuestionAsset(contextValue context.Context, capability centralauthz.Capability, command AddQuestionAsset) (QuestionVersion, error) {
@@ -569,9 +674,6 @@ func normalizeVersionContent(content *VersionContent) error {
 	if err := normalizeLanguages(&content.SupportedLanguages); err != nil {
 		return err
 	}
-	if err := normalizeObjectReference(&content.EvaluationBundle); err != nil {
-		return err
-	}
 	return normalizeTags(&content.Tags)
 }
 
@@ -579,14 +681,13 @@ func normalizeVersionContent(content *VersionContent) error {
 // must bind to the same idempotency record even though the first attempt
 // assigns UUIDv7 IDs to new global tags.
 type versionContentFingerprint struct {
-	Title              string          `json:"title"`
-	PromptMarkdown     string          `json:"prompt_markdown"`
-	Difficulty         string          `json:"difficulty"`
-	SupportedLanguages []string        `json:"supported_languages"`
-	TimeLimitMS        int             `json:"time_limit_ms"`
-	MemoryLimitKiB     int             `json:"memory_limit_kib"`
-	EvaluationBundle   ObjectReference `json:"evaluation_bundle"`
-	Tags               []string        `json:"tags"`
+	Title              string   `json:"title"`
+	PromptMarkdown     string   `json:"prompt_markdown"`
+	Difficulty         string   `json:"difficulty"`
+	SupportedLanguages []string `json:"supported_languages"`
+	TimeLimitMS        int      `json:"time_limit_ms"`
+	MemoryLimitKiB     int      `json:"memory_limit_kib"`
+	Tags               []string `json:"tags"`
 }
 
 func fingerprintVersionContent(content VersionContent) versionContentFingerprint {
@@ -594,7 +695,7 @@ func fingerprintVersionContent(content VersionContent) versionContentFingerprint
 		Title: content.Title, PromptMarkdown: content.PromptMarkdown,
 		Difficulty: content.Difficulty, SupportedLanguages: content.SupportedLanguages,
 		TimeLimitMS: content.TimeLimitMS, MemoryLimitKiB: content.MemoryLimitKiB,
-		EvaluationBundle: content.EvaluationBundle, Tags: tagNames(content.Tags),
+		Tags: tagNames(content.Tags),
 	}
 }
 
@@ -772,20 +873,14 @@ func (service *Service) HardDeleteQuestionVersion(contextValue context.Context, 
 	})
 }
 
-// GetAsset fetches a named asset for a question version.
-// For test_cases: returns a presigned URL valid for 15 minutes (no KMS decryption).
-// For other kinds: decrypts with KMS and returns the plaintext bytes.
-// Returns CodeUnavailable when storage (or KMS, for encrypted kinds) is not configured.
+// GetAsset fetches a named asset for a question version and decrypts it with KMS.
 func (service *Service) GetAsset(contextValue context.Context, capability centralauthz.Capability, cmd GetAssetCmd) (AssetContent, error) {
-	if service.storage == nil {
-		return AssetContent{}, apperrors.New(apperrors.CodeUnavailable, "content storage is not configured on this instance")
-	}
 	if !isUUID(cmd.QuestionVersionID) {
 		return AssetContent{}, apperrors.New(apperrors.CodeInvalidArgument, "question version ID must be a UUID")
 	}
 	cmd.AssetKind = strings.TrimSpace(cmd.AssetKind)
-	if cmd.AssetKind != "attachment" && cmd.AssetKind != "starter_code" && cmd.AssetKind != "reference_solution" && cmd.AssetKind != "test_cases" {
-		return AssetContent{}, apperrors.New(apperrors.CodeInvalidArgument, "asset_kind must be attachment, starter_code, reference_solution, or test_cases")
+	if cmd.AssetKind != "attachment" && cmd.AssetKind != "starter_code" && cmd.AssetKind != "reference_solution" {
+		return AssetContent{}, apperrors.New(apperrors.CodeInvalidArgument, "asset_kind must be attachment, starter_code, or reference_solution")
 	}
 
 	var objectKey, encKeyRef, contentType string
@@ -796,19 +891,6 @@ func (service *Service) GetAsset(contextValue context.Context, capability centra
 	})
 	if err != nil {
 		return AssetContent{}, err
-	}
-
-	if cmd.AssetKind == "test_cases" {
-		// Test cases are stored unencrypted; issue a presigned URL for direct download.
-		url, err := service.storage.PresignGet(contextValue, objectKey, 15*time.Minute)
-		if err != nil {
-			return AssetContent{}, fmt.Errorf("presign test cases: %w", err)
-		}
-		return AssetContent{PresignURL: url}, nil
-	}
-
-	if service.kms == nil {
-		return AssetContent{}, apperrors.New(apperrors.CodeUnavailable, "content decryption is not configured on this instance")
 	}
 
 	reader, _, err := service.storage.Get(contextValue, objectKey)
@@ -827,44 +909,6 @@ func (service *Service) GetAsset(contextValue context.Context, capability centra
 		return AssetContent{}, fmt.Errorf("decrypt asset: %w", err)
 	}
 	return AssetContent{Data: plaintext, ContentType: contentType}, nil
-}
-
-// GetBundle fetches, decrypts, and returns the evaluation bundle for a question version.
-// Returns CodeUnavailable when storage or KMS is not configured.
-func (service *Service) GetBundle(contextValue context.Context, capability centralauthz.Capability, cmd GetBundleCmd) ([]byte, error) {
-	if service.storage == nil || service.kms == nil {
-		return nil, apperrors.New(apperrors.CodeUnavailable, "content storage is not configured on this instance")
-	}
-	if !isUUID(cmd.QuestionVersionID) {
-		return nil, apperrors.New(apperrors.CodeInvalidArgument, "question version ID must be a UUID")
-	}
-
-	var objectKey, encKeyRef string
-	err := database.WithTenantTx(contextValue, service.pool, capability, func(tx pgx.Tx) error {
-		var err error
-		objectKey, encKeyRef, err = service.store.GetBundleObjectRef(contextValue, tx, cmd.QuestionVersionID)
-		return err
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	reader, _, err := service.storage.Get(contextValue, objectKey)
-	if err != nil {
-		return nil, fmt.Errorf("storage get bundle: %w", err)
-	}
-	defer func() { _ = reader.Close() }()
-
-	ciphertext, err := io.ReadAll(reader)
-	if err != nil {
-		return nil, fmt.Errorf("read bundle: %w", err)
-	}
-
-	plaintext, err := service.kms.Decrypt(contextValue, ciphertext, encKeyRef)
-	if err != nil {
-		return nil, fmt.Errorf("decrypt bundle: %w", err)
-	}
-	return plaintext, nil
 }
 
 func isUUID(value string) bool {

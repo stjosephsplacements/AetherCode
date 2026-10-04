@@ -15,7 +15,7 @@ import (
 // would fail on every time.
 //
 // Invariant: maxUnitResults must stay >= judge's per-bundle test-case bound
-// (services/judge/internal/bundle/bundle.go's maxTestCases) and must match
+// (libs/pkg/evalbundle.MaxTestCases) and must match
 // the jsonb_array_length(p_unit_results) > 1000 CHECK in
 // services/submission/migrations/000018_judge_receipt_units.up.sql's
 // ingest_judge_completion. If judge's bound is ever raised above this one

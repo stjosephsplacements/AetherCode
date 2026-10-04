@@ -9,6 +9,7 @@ import (
 
 	"github.com/aethercode/aethercode/libs/pkg/database"
 	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
+	"github.com/aethercode/aethercode/libs/pkg/evalbundle"
 	"github.com/aethercode/aethercode/libs/pkg/httpauth"
 	"github.com/aethercode/aethercode/libs/pkg/httpx"
 	"github.com/aethercode/aethercode/libs/pkg/pagination"
@@ -33,7 +34,7 @@ func NewHandler(serviceName string, service *app.Service, readiness httpx.Readin
 	mux.HandleFunc("POST /v1/questions/{question_id}/versions", handler.createDraftQuestionVersion)
 	mux.HandleFunc("POST /v1/questions/{question_id}/archive", handler.archiveQuestion)
 	mux.HandleFunc("GET /v1/question-versions/{question_version_id}", handler.getQuestionVersion)
-	mux.HandleFunc("PUT /v1/question-versions/{question_version_id}/manifests/{manifest_kind}", handler.upsertTestCaseManifest)
+	mux.HandleFunc("PUT /v1/question-versions/{question_version_id}/tests", handler.setQuestionVersionTests)
 	mux.HandleFunc("POST /v1/question-versions/{question_version_id}/assets", handler.addQuestionAsset)
 	mux.HandleFunc("PUT /v1/question-versions/{question_version_id}/tags", handler.replaceQuestionVersionTags)
 	mux.HandleFunc("POST /v1/question-versions/{question_version_id}/publish", handler.publishQuestionVersion)
@@ -42,7 +43,6 @@ func NewHandler(serviceName string, service *app.Service, readiness httpx.Readin
 	mux.HandleFunc("DELETE /v1/question-versions/{question_version_id}", handler.deleteQuestionVersion)
 	mux.HandleFunc("DELETE /v1/question-versions/{question_version_id}/hard", handler.hardDeleteQuestionVersion)
 	mux.HandleFunc("GET /v1/question-versions/{question_version_id}/assets/{asset_kind}", handler.getAsset)
-	mux.HandleFunc("GET /v1/question-versions/{question_version_id}/bundle", handler.getBundle)
 	return mux, nil
 }
 
@@ -53,14 +53,13 @@ type objectReferenceRequest struct {
 }
 
 type versionContentRequest struct {
-	Title              string                 `json:"title"`
-	PromptMarkdown     string                 `json:"prompt_markdown"`
-	Difficulty         string                 `json:"difficulty"`
-	SupportedLanguages []string               `json:"supported_languages"`
-	TimeLimitMS        int                    `json:"time_limit_ms"`
-	MemoryLimitKiB     int                    `json:"memory_limit_kib"`
-	EvaluationBundle   objectReferenceRequest `json:"evaluation_bundle"`
-	Tags               []string               `json:"tags"`
+	Title              string   `json:"title"`
+	PromptMarkdown     string   `json:"prompt_markdown"`
+	Difficulty         string   `json:"difficulty"`
+	SupportedLanguages []string `json:"supported_languages"`
+	TimeLimitMS        int      `json:"time_limit_ms"`
+	MemoryLimitKiB     int      `json:"memory_limit_kib"`
+	Tags               []string `json:"tags"`
 }
 
 func (request versionContentRequest) commandContent() app.VersionContent {
@@ -72,10 +71,6 @@ func (request versionContentRequest) commandContent() app.VersionContent {
 		Title: request.Title, PromptMarkdown: request.PromptMarkdown,
 		Difficulty: request.Difficulty, SupportedLanguages: request.SupportedLanguages,
 		TimeLimitMS: request.TimeLimitMS, MemoryLimitKiB: request.MemoryLimitKiB,
-		EvaluationBundle: app.ObjectReference{
-			ObjectKey: request.EvaluationBundle.ObjectKey, Checksum: request.EvaluationBundle.Checksum,
-			EncryptionKeyReference: request.EvaluationBundle.EncryptionKeyReference,
-		},
 		Tags: tags,
 	}
 }
@@ -175,48 +170,49 @@ func (handler *Handler) createDraftQuestionVersion(writer http.ResponseWriter, r
 	httpx.WriteJSON(writer, http.StatusCreated, question)
 }
 
-type manifestRequest struct {
-	ExpectedQuestionVersion int64                  `json:"expected_question_version"`
-	ObjectReference         objectReferenceRequest `json:"object_reference"`
-	TestCaseCount           int                    `json:"test_case_count"`
+type testRequest struct {
+	Input          string `json:"input"`
+	ExpectedOutput string `json:"expected_output"`
+	Sample         bool   `json:"sample"`
+	Weight         *int   `json:"weight"`
 }
 
-func (handler *Handler) upsertTestCaseManifest(writer http.ResponseWriter, request *http.Request) {
+type testsRequest struct {
+	ExpectedQuestionVersion int64         `json:"expected_question_version"`
+	Tests                   []testRequest `json:"tests"`
+}
+
+// setQuestionVersionTests replaces every test of a draft version from plaintext.
+// The body is bounded by httpx's 1 MiB JSON limit, which therefore also bounds
+// the total size of all inputs and outputs. It is deliberately not
+// Idempotency-Key based: expected_question_version already makes a replayed
+// request fail with a conflict instead of rewriting the tests.
+func (handler *Handler) setQuestionVersionTests(writer http.ResponseWriter, request *http.Request) {
 	questionVersionID, err := httpx.ParseUUIDPathValue(request, "question_version_id")
 	if err != nil {
 		httpx.WriteError(writer, err)
 		return
 	}
-	manifestKind := strings.ToLower(strings.TrimSpace(request.PathValue("manifest_kind")))
-	if manifestKind != "sample" && manifestKind != "hidden" {
-		httpx.WriteError(writer, apperrors.New(apperrors.CodeInvalidArgument, "manifest_kind must be sample or hidden"))
-		return
-	}
-	var body manifestRequest
+	var body testsRequest
 	if err := httpx.DecodeJSON(request, &body); err != nil {
 		httpx.WriteError(writer, err)
 		return
 	}
-	key, err := idempotencyKey(request)
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "test_case_manifests", questionVersionID, "")
 	if err != nil {
 		httpx.WriteError(writer, err)
 		return
 	}
-	manifestID, err := database.NewUUIDv7()
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
+	tests := make([]app.TestCase, len(body.Tests))
+	for index, test := range body.Tests {
+		weight := evalbundle.DefaultWeight
+		if test.Weight != nil {
+			weight = *test.Weight
+		}
+		tests[index] = app.TestCase{Input: test.Input, ExpectedOutput: test.ExpectedOutput, Sample: test.Sample, Weight: weight}
 	}
-	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "test_case_manifests", manifestID, "")
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	version, err := handler.service.UpsertTestCaseManifest(request.Context(), decision.Capability, app.UpsertTestCaseManifest{
-		WriteCommand: app.WriteCommand{IdempotencyKey: key}, ID: manifestID,
-		QuestionVersionID: questionVersionID, ManifestKind: manifestKind,
-		ObjectReference: objectReference(body.ObjectReference), TestCaseCount: body.TestCaseCount,
-		ExpectedQuestionVersion: body.ExpectedQuestionVersion,
+	version, err := handler.service.SetQuestionVersionTests(request.Context(), decision.Capability, app.SetQuestionVersionTests{
+		QuestionVersionID: questionVersionID, ExpectedQuestionVersion: body.ExpectedQuestionVersion, Tests: tests,
 	})
 	if err != nil {
 		httpx.WriteError(writer, err)
@@ -650,38 +646,8 @@ func (handler *Handler) getAsset(writer http.ResponseWriter, request *http.Reque
 		httpx.WriteError(writer, err)
 		return
 	}
-	if content.PresignURL != "" {
-		http.Redirect(writer, request, content.PresignURL, http.StatusFound)
-		return
-	}
 	writer.Header().Set("Content-Type", content.ContentType)
 	writer.Header().Set("Content-Length", strconv.Itoa(len(content.Data)))
 	writer.WriteHeader(http.StatusOK)
 	_, _ = writer.Write(content.Data)
-}
-
-// getBundle decrypts and streams the evaluation bundle for a question version.
-// Requires read authorization on the question_versions resource.
-func (handler *Handler) getBundle(writer http.ResponseWriter, request *http.Request) {
-	questionVersionID, err := httpx.ParseUUIDPathValue(request, "question_version_id")
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "question_versions", questionVersionID, "")
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	data, err := handler.service.GetBundle(request.Context(), decision.Capability, app.GetBundleCmd{
-		QuestionVersionID: questionVersionID,
-	})
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	writer.Header().Set("Content-Type", "application/octet-stream")
-	writer.Header().Set("Content-Length", strconv.Itoa(len(data)))
-	writer.WriteHeader(http.StatusOK)
-	_, _ = writer.Write(data)
 }

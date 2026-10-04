@@ -122,13 +122,11 @@ func (repository *Postgres) CreateQuestion(contextValue context.Context, transac
 	var raw json.RawMessage
 	err = transaction.QueryRow(contextValue, `
 		SELECT qbank.create_question(
-			$1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11, $12, $13, $14::jsonb
+			$1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, NULL, NULL, NULL, $11::jsonb
 		)
 	`, command.ID, command.VersionID, command.EventID, command.Slug,
 		command.Content.Title, command.Content.PromptMarkdown, command.Content.Difficulty,
-		languages, command.Content.TimeLimitMS, command.Content.MemoryLimitKiB,
-		command.Content.EvaluationBundle.ObjectKey, command.Content.EvaluationBundle.Checksum,
-		command.Content.EvaluationBundle.EncryptionKeyReference, tags).Scan(&raw)
+		languages, command.Content.TimeLimitMS, command.Content.MemoryLimitKiB, tags).Scan(&raw)
 	if err != nil {
 		return app.QuestionDetail{}, mapCommandError(err, "create question")
 	}
@@ -143,31 +141,33 @@ func (repository *Postgres) CreateDraftQuestionVersion(contextValue context.Cont
 	var raw json.RawMessage
 	err = transaction.QueryRow(contextValue, `
 		SELECT qbank.create_draft_question_version(
-			$1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11, $12, $13, $14::jsonb
+			$1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, NULL, NULL, NULL, $11::jsonb
 		)
 	`, command.ID, command.EventID, command.QuestionID, command.ExpectedQuestionRevision,
 		command.Content.Title, command.Content.PromptMarkdown, command.Content.Difficulty,
-		languages, command.Content.TimeLimitMS, command.Content.MemoryLimitKiB,
-		command.Content.EvaluationBundle.ObjectKey, command.Content.EvaluationBundle.Checksum,
-		command.Content.EvaluationBundle.EncryptionKeyReference, tags).Scan(&raw)
+		languages, command.Content.TimeLimitMS, command.Content.MemoryLimitKiB, tags).Scan(&raw)
 	if err != nil {
 		return app.QuestionDetail{}, mapCommandError(err, "create draft question version")
 	}
 	return decodeQuestionDetail(raw)
 }
 
-func (repository *Postgres) UpsertTestCaseManifest(contextValue context.Context, transaction pgx.Tx, command app.UpsertTestCaseManifest) (app.QuestionVersion, error) {
+func (repository *Postgres) SetQuestionVersionTests(contextValue context.Context, transaction pgx.Tx, command app.StoreQuestionVersionTests) (app.QuestionVersion, []string, error) {
 	var raw json.RawMessage
+	var replaced []string
 	err := transaction.QueryRow(contextValue, `
-		SELECT qbank.upsert_test_case_manifest($1, $2, $3, $4, $5, $6, $7, $8)
-	`, command.ID, command.QuestionVersionID, command.ManifestKind,
-		command.ObjectReference.ObjectKey, command.ObjectReference.Checksum,
-		command.ObjectReference.EncryptionKeyReference, command.TestCaseCount,
-		command.ExpectedQuestionVersion).Scan(&raw)
+		SELECT out_summary, out_replaced_object_keys
+		FROM qbank.set_question_version_tests($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+	`, command.QuestionVersionID, command.ExpectedQuestionVersion,
+		command.Evaluation.ObjectKey, command.Evaluation.Checksum, command.Evaluation.EncryptionKeyReference,
+		command.Sample.ObjectKey, command.Sample.Checksum, command.Sample.EncryptionKeyReference, command.Sample.TestCaseCount,
+		command.Hidden.ObjectKey, command.Hidden.Checksum, command.Hidden.EncryptionKeyReference, command.Hidden.TestCaseCount,
+	).Scan(&raw, &replaced)
 	if err != nil {
-		return app.QuestionVersion{}, mapCommandError(err, "upsert test manifest")
+		return app.QuestionVersion{}, nil, mapCommandError(err, "set question version tests")
 	}
-	return decodeQuestionVersion(raw)
+	version, err := decodeQuestionVersion(raw)
+	return version, replaced, err
 }
 
 func (repository *Postgres) AddQuestionAsset(contextValue context.Context, transaction pgx.Tx, command app.AddQuestionAsset) (app.QuestionVersion, error) {
@@ -432,21 +432,6 @@ func (repository *Postgres) GetAssetObjectRef(contextValue context.Context, tran
 		return "", "", "", fmt.Errorf("get asset object ref: %w", err)
 	}
 	return objectKey, encKeyRef, contentType, nil
-}
-
-func (repository *Postgres) GetBundleObjectRef(contextValue context.Context, transaction pgx.Tx, questionVersionID string) (objectKey, encKeyRef string, err error) {
-	err = transaction.QueryRow(contextValue, `
-		SELECT evaluation_bundle_object_key, encryption_key_reference
-		FROM qbank.question_versions
-		WHERE id = $1
-	`, questionVersionID).Scan(&objectKey, &encKeyRef)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return "", "", apperrors.New(apperrors.CodeNotFound, "question version was not found")
-	}
-	if err != nil {
-		return "", "", fmt.Errorf("get bundle object ref: %w", err)
-	}
-	return objectKey, encKeyRef, nil
 }
 
 func decodeQuestionDetail(raw json.RawMessage) (app.QuestionDetail, error) {

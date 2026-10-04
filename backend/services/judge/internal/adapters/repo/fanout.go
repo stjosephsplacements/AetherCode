@@ -7,16 +7,16 @@ import (
 	"io"
 
 	"github.com/aethercode/aethercode/libs/pkg/database"
+	"github.com/aethercode/aethercode/libs/pkg/evalbundle"
 	"github.com/aethercode/aethercode/libs/pkg/kms"
 	"github.com/aethercode/aethercode/libs/pkg/storage"
 	"github.com/aethercode/aethercode/services/judge/internal/app"
-	"github.com/aethercode/aethercode/services/judge/internal/bundle"
 	"github.com/jackc/pgx/v5"
 )
 
 // maxBundleCiphertextBytes bounds how much of a bundle object fan-out will
-// read into memory before decrypting it. bundle.Parse already bounds the
-// parsed test-case COUNT (maxTestCases = 500), but that check only runs
+// read into memory before decrypting it. evalbundle.Parse already bounds the
+// parsed test-case COUNT (MaxTestCases = 500), but that check only runs
 // after the whole object has already been read and decrypted -- an
 // oversized object would otherwise still cause unbounded memory use on the
 // way there. 10 MiB comfortably fits 500 test cases at an average of ~20KiB
@@ -57,7 +57,7 @@ func fanOutTestCases(
 	if err != nil {
 		return nil, fmt.Errorf("fan-out: decrypt bundle: %w", err)
 	}
-	testCases, err := bundle.Parse(plaintext)
+	testCases, err := evalbundle.Parse(plaintext)
 	if err != nil {
 		return nil, fmt.Errorf("fan-out: parse bundle: %w", err)
 	}
@@ -65,7 +65,7 @@ func fanOutTestCases(
 	refs := make([]unitObjectRef, 0, len(testCases))
 	storedKeys := make([]string, 0, len(testCases))
 	for i, testCase := range testCases {
-		unitPlaintext, err := bundle.MarshalTestCase(testCase)
+		unitPlaintext, err := evalbundle.MarshalTestCase(testCase)
 		if err != nil {
 			cleanupOrphanedObjects(ctx, objectStorage, storedKeys)
 			return nil, fmt.Errorf("fan-out: encode unit %d: %w", i, err)

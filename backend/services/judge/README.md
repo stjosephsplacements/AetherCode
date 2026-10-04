@@ -106,8 +106,8 @@ busiest hour of an exam, with headroom).
 ## Test-case fan-out configuration
 
 `SubmitExecution` fans a submission's evaluation bundle out into one
-`judge.execution_units` row per test case (see `internal/bundle` for the bundle
-format), re-encrypting and storing each test case as its own object. This
+`judge.execution_units` row per test case (see `libs/pkg/evalbundle` for the bundle
+format, ADR-0014), re-encrypting and storing each test case as its own object. This
 requires object storage and a KMS key manager to be configured; both are
 optional at the process level, but when either is absent, `Submit` fails
 clearly with `app.ErrFanOutUnavailable` (mapped to `codes.FailedPrecondition`)
