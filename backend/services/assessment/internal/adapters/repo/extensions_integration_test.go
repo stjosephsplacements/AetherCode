@@ -77,3 +77,26 @@ func TestUUIDGenerateV7ReturnsVersion7(t *testing.T) {
 	require.Equal(t, uuid.Version(7), second.Version())
 	require.NotEqual(t, first, second)
 }
+
+// TestProjectionWorkerCanClaimMaterializationEvents guards migration 000021:
+// the materialization consumers run as the projection worker and claim each
+// event in app.projection_inbox_messages before materializing assignments.
+func TestProjectionWorkerCanClaimMaterializationEvents(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	pool := migratedPool(ctx, t)
+	transaction, err := pool.Begin(ctx)
+	require.NoError(t, err)
+	defer transaction.Rollback(ctx) //nolint:errcheck
+	_, err = transaction.Exec(ctx, `SET LOCAL ROLE aether_assessment_projection_worker`)
+	require.NoError(t, err)
+	eventID := uuid.New()
+	_, err = transaction.Exec(ctx, `
+		INSERT INTO app.projection_inbox_messages (consumer_name, event_id, payload_sha256, occurred_at)
+		VALUES ('assessment_batch_affiliation_v1', $1, sha256('payload'), now())`, eventID)
+	require.NoError(t, err, "the projection worker claims materialization events")
+	_, err = transaction.Exec(ctx, `
+		UPDATE app.projection_inbox_messages SET processed_at = clock_timestamp(), last_error = NULL
+		WHERE consumer_name = 'assessment_batch_affiliation_v1' AND event_id = $1`, eventID)
+	require.NoError(t, err, "the projection worker completes materialization events")
+}
