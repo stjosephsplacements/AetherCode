@@ -150,6 +150,22 @@ Verify the service module with:
 make test-migrations
 ```
 
+## Internal service contract
+
+`QuestionBankInternalService.ResolvePublishedQuestionVersion`
+(`libs/proto/proto/aethercode/questionbank/v1`) lets Assessment pin a
+published version to an exam item: its limits, languages and the encrypted
+evaluation and sample bundle references. It never returns test content, and
+anything other than a published version of a live question is `NOT_FOUND`.
+It reads `qbank.resolve_published_question_version` (migration 000012)
+without a user capability; mTLS is the gate.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `QBANK_GRPC_ADDR` | `127.0.0.1:9445` | Listener address. |
+| `QBANK_GRPC_TLS_CERT_FILE`, `QBANK_GRPC_TLS_KEY_FILE`, `QBANK_GRPC_CLIENT_CA_FILE` | — | Server certificate and the CA that signs client certificates; required in staging and production, all-or-none elsewhere. |
+| `QBANK_GRPC_ALLOWED_CLIENT_SUBJECTS` | — | Comma-separated client certificate common names allowed to call (`assessment`); required with mTLS. |
+
 ## Authorization projection recovery
 
 `000004_authorization_projection_resync` moves Question Bank's normal grant

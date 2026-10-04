@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
+	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -12,6 +14,7 @@ import (
 	"github.com/aethercode/aethercode/libs/pkg/authzprojection"
 	"github.com/aethercode/aethercode/libs/pkg/config"
 	"github.com/aethercode/aethercode/libs/pkg/database"
+	"github.com/aethercode/aethercode/libs/pkg/grpcmtls"
 	"github.com/aethercode/aethercode/libs/pkg/httpauth"
 	"github.com/aethercode/aethercode/libs/pkg/httpx"
 	localkms "github.com/aethercode/aethercode/libs/pkg/kms/local"
@@ -19,9 +22,14 @@ import (
 	"github.com/aethercode/aethercode/libs/pkg/messaging"
 	minioclient "github.com/aethercode/aethercode/libs/pkg/storage/minio"
 	"github.com/aethercode/aethercode/libs/pkg/telemetry"
+	questionbankv1 "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/questionbank/v1"
+	grpcadapter "github.com/aethercode/aethercode/services/question-bank/internal/adapters/grpc"
 	httpadapter "github.com/aethercode/aethercode/services/question-bank/internal/adapters/http"
 	"github.com/aethercode/aethercode/services/question-bank/internal/adapters/repo"
 	"github.com/aethercode/aethercode/services/question-bank/internal/app"
+	qbankconfig "github.com/aethercode/aethercode/services/question-bank/internal/config"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 func main() {
@@ -206,5 +214,55 @@ func run(contextValue context.Context) error {
 	if err != nil {
 		return err
 	}
-	return httpx.Serve(contextValue, serviceConfig, logger, telemetry.HTTPMiddleware("question-bank", handler))
+
+	// QuestionBankInternalService: Assessment resolves published versions here.
+	grpcRuntime, err := qbankconfig.LoadGRPC(serviceConfig.Environment)
+	if err != nil {
+		return err
+	}
+	resolver, err := app.NewResolver(store)
+	if err != nil {
+		return err
+	}
+	grpcServer, err := newInternalServer(grpcRuntime, resolver)
+	if err != nil {
+		return err
+	}
+	listener, err := net.Listen("tcp", grpcRuntime.Address)
+	if err != nil {
+		return fmt.Errorf("listen for Question Bank gRPC: %w", err)
+	}
+	grpcErrors := make(chan error, 1)
+	go func() {
+		logger.Info("Question Bank gRPC listening", "address", grpcRuntime.Address, "mtls", grpcRuntime.RequireMTLS)
+		grpcErrors <- grpcServer.Serve(listener)
+	}()
+	httpErrors := make(chan error, 1)
+	go func() {
+		httpErrors <- httpx.Serve(contextValue, serviceConfig, logger, telemetry.HTTPMiddleware("question-bank", handler))
+	}()
+	select {
+	case err := <-grpcErrors:
+		return fmt.Errorf("serve Question Bank gRPC: %w", err)
+	case err := <-httpErrors:
+		grpcServer.GracefulStop()
+		return err
+	}
+}
+
+func newInternalServer(runtime qbankconfig.GRPC, resolver *app.Resolver) (*grpc.Server, error) {
+	var options []grpc.ServerOption
+	if runtime.RequireMTLS {
+		tlsConfig, err := config.LoadMTLSServerConfig(runtime.CertificateFile, runtime.KeyFile, runtime.ClientCAFile)
+		if err != nil {
+			return nil, fmt.Errorf("load Question Bank gRPC mTLS configuration: %w", err)
+		}
+		options = append(options,
+			grpc.Creds(credentials.NewTLS(tlsConfig)),
+			grpc.UnaryInterceptor(grpcmtls.RequireClientSubjects("Question Bank", runtime.AllowedSubjects)),
+		)
+	}
+	server := grpc.NewServer(options...)
+	questionbankv1.RegisterQuestionBankInternalServiceServer(server, grpcadapter.NewServer(resolver))
+	return server, nil
 }

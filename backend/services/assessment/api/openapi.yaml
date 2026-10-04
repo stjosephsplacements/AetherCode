@@ -171,7 +171,7 @@ paths:
     post:
       summary: Snapshot a question version into a draft exam section
       parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
-      description: The Question Bank IDs remain opaque; Assessment stores immutable IDs plus an encrypted evaluation-bundle object reference and checksum.
+      description: Assessment resolves the published question version through the Question Bank and pins its immutable question ID and encrypted evaluation and sample bundle references (object key, checksum, KMS key reference). An unknown or unpublished version returns 404; an unreachable Question Bank returns 503.
       requestBody:
         required: true
         content:
@@ -512,15 +512,12 @@ components:
     AddExamItem:
       type: object
       additionalProperties: false
-      required: [expected_content_version, position, question_id, question_version_id, maximum_score, evaluation_bundle_object_key, evaluation_bundle_checksum]
+      required: [expected_content_version, position, question_version_id, maximum_score]
       properties:
         expected_content_version: {type: integer, minimum: 1}
         position: {type: integer, minimum: 1}
-        question_id: {$ref: '#/components/schemas/UUID'}
         question_version_id: {$ref: '#/components/schemas/UUID'}
         maximum_score: {type: string, pattern: '^(?:0\.[0-9]{1,4}|[1-9][0-9]{0,7}(?:\.[0-9]{1,4})?)$'}
-        evaluation_bundle_object_key: {type: string, minLength: 1, maxLength: 1024, pattern: '^[A-Za-z0-9][A-Za-z0-9._/=@+-]*$'}
-        evaluation_bundle_checksum: {type: string, pattern: '^[0-9a-f]{64}$'}
     ExamItem:
       type: object
       required: [id, tenant_id, exam_version_id, section_id, position, question_id, question_version_id, maximum_score, evaluation_bundle_checksum, created_at]

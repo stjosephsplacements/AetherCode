@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -234,106 +235,91 @@ func TestPublishExamVersionEnforcesOptimisticConcurrency(t *testing.T) {
 	}
 }
 
-func TestAddExamItemRejectsTraversalObjectKeys(t *testing.T) {
+type fakeQuestionBank struct {
+	resolved ResolvedQuestionVersion
+	err      error
+	calls    int
+}
+
+func (fake *fakeQuestionBank) ResolvePublishedQuestionVersion(_ context.Context, _ string) (ResolvedQuestionVersion, error) {
+	fake.calls++
+	return fake.resolved, fake.err
+}
+
+func TestAddExamItemResolvesThroughQuestionBank(t *testing.T) {
 	t.Parallel()
-	service := &Service{pool: nil, store: nil}
 	validUUID := "00000000-0000-7000-8000-000000000001"
-
-	testCases := []struct {
-		name      string
-		objectKey string
-	}{
-		{
-			name:      "object key containing ..",
-			objectKey: "path/../traversal",
-		},
-		{
-			name:      "object key starting with /",
-			objectKey: "/absolute/path",
-		},
-		{
-			name:      "object key with control character",
-			objectKey: "path\nwith\nnewline",
-		},
-		{
-			name:      "object key with tab",
-			objectKey: "path\twith\ttab",
-		},
+	resolved := func(mutate func(*ResolvedQuestionVersion)) ResolvedQuestionVersion {
+		value := ResolvedQuestionVersion{
+			QuestionID:        validUUID,
+			QuestionVersionID: validUUID,
+			EvaluationBundle:  EncryptedBundle{ObjectKey: "qbank/eval.bin", SHA256: strings.Repeat("a", 64), KeyReference: "local/key-1"},
+			SampleBundle:      EncryptedBundle{ObjectKey: "qbank/sample.bin", SHA256: strings.Repeat("b", 64), KeyReference: "local/key-1"},
+		}
+		mutate(&value)
+		return value
 	}
-
+	testCases := []struct {
+		name     string
+		bank     *fakeQuestionBank
+		wantCode apperrors.Code
+		wantCall bool
+	}{
+		// A valid resolution reaches runWrite, which rejects the empty capability.
+		{name: "published version passes validation", bank: &fakeQuestionBank{resolved: resolved(func(*ResolvedQuestionVersion) {})}, wantCode: apperrors.CodeForbidden, wantCall: true},
+		{name: "not found is returned", bank: &fakeQuestionBank{err: apperrors.New(apperrors.CodeNotFound, "missing")}, wantCode: apperrors.CodeNotFound, wantCall: true},
+		{name: "unavailable is returned", bank: &fakeQuestionBank{err: apperrors.New(apperrors.CodeUnavailable, "down")}, wantCode: apperrors.CodeUnavailable, wantCall: true},
+		{name: "different version id is rejected", bank: &fakeQuestionBank{resolved: resolved(func(v *ResolvedQuestionVersion) { v.QuestionVersionID = "00000000-0000-7000-8000-000000000002" })}, wantCall: true},
+		{name: "traversal object key is rejected", bank: &fakeQuestionBank{resolved: resolved(func(v *ResolvedQuestionVersion) { v.EvaluationBundle.ObjectKey = "path/../traversal" })}, wantCall: true},
+		{name: "missing sample bundle is rejected", bank: &fakeQuestionBank{resolved: resolved(func(v *ResolvedQuestionVersion) { v.SampleBundle = EncryptedBundle{} })}, wantCall: true},
+		{name: "missing key reference is rejected", bank: &fakeQuestionBank{resolved: resolved(func(v *ResolvedQuestionVersion) { v.EvaluationBundle.KeyReference = "" })}, wantCall: true},
+		{name: "bad checksum is rejected", bank: &fakeQuestionBank{resolved: resolved(func(v *ResolvedQuestionVersion) { v.SampleBundle.SHA256 = "xyz" })}, wantCall: true},
+	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+			service := &Service{questionBank: tc.bank}
 			_, err := service.AddExamItem(t.Context(), centralauthz.Capability{}, AddExamItem{
-				WriteCommand:              WriteCommand{IdempotencyKey: "test:key"},
-				ID:                        validUUID,
-				TenantID:                  validUUID,
-				ExamVersionID:             validUUID,
-				SectionID:                 validUUID,
-				ExpectedContentVersion:    1,
-				Position:                  1,
-				QuestionID:                validUUID,
-				QuestionVersionID:         validUUID,
-				MaximumScore:              "10.0000",
-				EvaluationBundleObjectKey: tc.objectKey,
-				EvaluationBundleChecksum:  strings.Repeat("a", 64),
+				WriteCommand:           WriteCommand{IdempotencyKey: "test:key"},
+				ID:                     validUUID,
+				TenantID:               validUUID,
+				ExamVersionID:          validUUID,
+				SectionID:              validUUID,
+				ExpectedContentVersion: 1,
+				Position:               1,
+				QuestionVersionID:      validUUID,
+				MaximumScore:           "10.0000",
 			})
-			assertInvalid(t, err)
+			if (tc.bank.calls == 1) != tc.wantCall {
+				t.Fatalf("question bank calls = %d, want called = %t", tc.bank.calls, tc.wantCall)
+			}
+			var appErr *apperrors.Error
+			if tc.wantCode == "" {
+				if err == nil || errors.As(err, &appErr) {
+					t.Fatalf("error = %v, want a non-client internal error", err)
+				}
+				return
+			}
+			if !errors.As(err, &appErr) || appErr.Code != tc.wantCode {
+				t.Fatalf("error = %v, want code %s", err, tc.wantCode)
+			}
 		})
 	}
 }
 
-func TestAddExamItemSampleBundlePairing(t *testing.T) {
+func TestAddExamItemRejectsInvalidFieldsBeforeCallingQuestionBank(t *testing.T) {
 	t.Parallel()
-	service := &Service{pool: nil, store: nil}
 	validUUID := "00000000-0000-7000-8000-000000000001"
-
-	baseCommand := func() AddExamItem {
-		return AddExamItem{
-			WriteCommand:              WriteCommand{IdempotencyKey: "test:key"},
-			ID:                        validUUID,
-			TenantID:                  validUUID,
-			ExamVersionID:             validUUID,
-			SectionID:                 validUUID,
-			ExpectedContentVersion:    1,
-			Position:                  1,
-			QuestionID:                validUUID,
-			QuestionVersionID:         validUUID,
-			MaximumScore:              "10.0000",
-			EvaluationBundleObjectKey: "evaluation/bundle.zip",
-			EvaluationBundleChecksum:  strings.Repeat("a", 64),
-		}
-	}
-
-	testCases := []struct {
-		name          string
-		sampleKey     string
-		sampleSum     string
-		wantForbidden bool
-	}{
-		{name: "both empty is valid", sampleKey: "", sampleSum: ""},
-		{name: "both populated is valid", sampleKey: "sample/bundle.zip", sampleSum: strings.Repeat("b", 64), wantForbidden: true},
-		{name: "object key without checksum is invalid", sampleKey: "sample/bundle.zip", sampleSum: ""},
-		{name: "checksum without object key is invalid", sampleKey: "", sampleSum: strings.Repeat("b", 64)},
-	}
-	testCases[0].wantForbidden = true
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			command := baseCommand()
-			command.SampleBundleObjectKey = tc.sampleKey
-			command.SampleBundleChecksum = tc.sampleSum
-			_, err := service.AddExamItem(t.Context(), centralauthz.Capability{}, command)
-			if tc.wantForbidden {
-				var appErr *apperrors.Error
-				if !errors.As(err, &appErr) || appErr.Code != apperrors.CodeForbidden {
-					t.Fatalf("error = %v, want forbidden (validation should have passed)", err)
-				}
-				return
-			}
-			assertInvalid(t, err)
-		})
+	bank := &fakeQuestionBank{}
+	service := &Service{questionBank: bank}
+	_, err := service.AddExamItem(t.Context(), centralauthz.Capability{}, AddExamItem{
+		WriteCommand: WriteCommand{IdempotencyKey: "test:key"},
+		ID:           validUUID, TenantID: validUUID, ExamVersionID: validUUID, SectionID: validUUID,
+		ExpectedContentVersion: 1, Position: 1, QuestionVersionID: "not-a-uuid", MaximumScore: "10.0000",
+	})
+	assertInvalid(t, err)
+	if bank.calls != 0 {
+		t.Fatalf("question bank calls = %d, want 0", bank.calls)
 	}
 }
 

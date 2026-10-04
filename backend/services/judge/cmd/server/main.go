@@ -13,6 +13,7 @@ import (
 
 	"github.com/aethercode/aethercode/libs/pkg/config"
 	"github.com/aethercode/aethercode/libs/pkg/database"
+	"github.com/aethercode/aethercode/libs/pkg/grpcmtls"
 	"github.com/aethercode/aethercode/libs/pkg/httpx"
 	"github.com/aethercode/aethercode/libs/pkg/kms"
 	localkms "github.com/aethercode/aethercode/libs/pkg/kms/local"
@@ -261,7 +262,7 @@ func grpcOptionsFor(runtime judgeconfig.Runtime) ([]grpc.ServerOption, error) {
 	}
 	return []grpc.ServerOption{
 		grpc.Creds(credentials.NewTLS(tlsConfig)),
-		grpc.UnaryInterceptor(grpcadapter.RequireClientSubjects(runtime.AllowedSubjects)),
+		grpc.UnaryInterceptor(grpcmtls.RequireClientSubjects("Judge", runtime.AllowedSubjects)),
 	}, nil
 }
 

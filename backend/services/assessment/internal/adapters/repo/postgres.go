@@ -258,11 +258,11 @@ func (repository *Postgres) AddExamSection(ctx context.Context, transaction pgx.
 
 func (repository *Postgres) AddExamItem(ctx context.Context, transaction pgx.Tx, command app.AddExamItem) (app.ExamItem, error) {
 	if _, err := transaction.Exec(ctx, `
-		SELECT assessment.add_exam_item($1, $2, $3, $4, $5, $6, $7, $8, $9::numeric, $10, $11, $12, $13)
+		SELECT assessment.add_exam_item($1, $2, $3, $4, $5, $6, $7, $8, $9::numeric, $10, $11, $12, $13, $14, $15)
 	`, command.ID, command.TenantID, command.ExamVersionID, command.SectionID, command.ExpectedContentVersion,
-		command.Position, command.QuestionID, command.QuestionVersionID, command.MaximumScore,
-		command.EvaluationBundleObjectKey, command.EvaluationBundleChecksum,
-		nullableText(command.SampleBundleObjectKey), nullableText(command.SampleBundleChecksum)); err != nil {
+		command.Position, command.Resolved.QuestionID, command.QuestionVersionID, command.MaximumScore,
+		command.Resolved.EvaluationBundle.ObjectKey, command.Resolved.EvaluationBundle.SHA256, command.Resolved.EvaluationBundle.KeyReference,
+		command.Resolved.SampleBundle.ObjectKey, command.Resolved.SampleBundle.SHA256, command.Resolved.SampleBundle.KeyReference); err != nil {
 		return app.ExamItem{}, mapWriteError(err, "exam item could not be added")
 	}
 	item, err := selectExamItem(ctx, transaction, command.ID, command.TenantID)

@@ -247,6 +247,12 @@ services:
       QBANK_STORAGE_BUCKET: aethercode
       QBANK_STORAGE_USE_SSL: "false"
       QBANK_KMS_LOCAL_KEY: ${PLATFORM_KMS_LOCAL_KEY}
+      # Internal contract for Assessment (QuestionBankInternalService), mTLS only.
+      QBANK_GRPC_ADDR: 0.0.0.0:9445
+      QBANK_GRPC_TLS_CERT_FILE: /certs/question-bank.crt
+      QBANK_GRPC_TLS_KEY_FILE: /certs/question-bank.key
+      QBANK_GRPC_CLIENT_CA_FILE: /certs/ca.crt
+      QBANK_GRPC_ALLOWED_CLIENT_SUBJECTS: assessment
     build: { context: ../../backend, dockerfile: services/question-bank/Dockerfile }
 
   assessment:
@@ -258,6 +264,11 @@ services:
       AUTHZ_CLIENT_TLS_KEY_FILE: /certs/assessment.key
       ASSESSMENT_DATABASE_URL: postgres://aether_assessment_app:${ASSESSMENT_DB_PASSWORD}@postgres:5432/aether_assessment?sslmode=disable
       ASSESSMENT_PROJECTION_DATABASE_URL: postgres://aether_assessment_projection_worker:${ASSESSMENT_DB_PASSWORD}@postgres:5432/aether_assessment?sslmode=disable
+      ASSESSMENT_QBANK_GRPC_ADDR: question-bank:9445
+      ASSESSMENT_QBANK_TLS_CERT_FILE: /certs/assessment.crt
+      ASSESSMENT_QBANK_TLS_KEY_FILE: /certs/assessment.key
+      ASSESSMENT_QBANK_TLS_CA_FILE: /certs/ca.crt
+      ASSESSMENT_QBANK_TLS_SERVER_NAME: question-bank
     build: { context: ../../backend, dockerfile: services/assessment/Dockerfile }
 
   submission:

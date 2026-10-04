@@ -245,7 +245,7 @@ func TestDecodeJudgeCompletedContract(t *testing.T) {
 
 func TestDecodeJudgeCompletedRejectsInvalidCompletionTime(t *testing.T) {
 	for name, value := range map[string]string{"missing": "", "malformed": `"yesterday"`} {
-		payload := judgeCompletedPayload
+		var payload string
 		if value == "" {
 			payload = `{"tenant_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099","evaluation_request_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099","judge_job_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099","judge_event_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099","verdict":"accepted","execution_time_ms":null,"memory_kib":null,"result_object_key":null,"result_checksum":null,"encryption_key_reference":null}`
 		} else {
@@ -258,6 +258,26 @@ func TestDecodeJudgeCompletedRejectsInvalidCompletionTime(t *testing.T) {
 		}
 		if _, _, err := decodeJudgeCompleted(event); err == nil {
 			t.Fatalf("%s completed_at was accepted", name)
+		}
+	}
+}
+
+// Assessment migration 000020 adds pinned key references and the sample
+// bundle to each item (null on older items); the strict decoder accepts both.
+func TestDecodeAssignmentSnapshotAcceptsPinnedBundleReferences(t *testing.T) {
+	for _, extra := range []string{
+		`"evaluation_bundle_key_reference":"local:k","sample_bundle_object_key":"s","sample_bundle_checksum":"c","sample_bundle_key_reference":"local:k"`,
+		`"evaluation_bundle_key_reference":null,"sample_bundle_object_key":null,"sample_bundle_checksum":null,"sample_bundle_key_reference":null`,
+	} {
+		event := messaging.Event{
+			ID: projectionUUID, Type: AssignmentSnapshotEventType, SchemaVersion: 1,
+			AggregateType: "candidate_assignment", AggregateID: projectionUUID, TenantID: projectionUUID,
+			OccurredAt: time.Now().UTC(), Payload: json.RawMessage(`{"items":[{"exam_item_id":"` + projectionUUID +
+				`","evaluation_bundle_object_key":"e","evaluation_bundle_checksum":"c","maximum_score":10,` + extra + `}]}`),
+		}
+		var payload assignmentSnapshot
+		if err := decodeEvent(event, AssignmentSnapshotEventType, &payload); err != nil || len(payload.Items) != 1 {
+			t.Fatalf("decodeEvent() = %#v, %v", payload, err)
 		}
 	}
 }

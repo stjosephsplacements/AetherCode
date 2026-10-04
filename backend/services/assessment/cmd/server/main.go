@@ -19,6 +19,7 @@ import (
 	"github.com/aethercode/aethercode/libs/pkg/telemetry"
 	httpadapter "github.com/aethercode/aethercode/services/assessment/internal/adapters/http"
 	"github.com/aethercode/aethercode/services/assessment/internal/adapters/projection"
+	"github.com/aethercode/aethercode/services/assessment/internal/adapters/questionbank"
 	"github.com/aethercode/aethercode/services/assessment/internal/adapters/repo"
 	"github.com/aethercode/aethercode/services/assessment/internal/app"
 )
@@ -79,7 +80,16 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	assessmentService, err := app.NewService(pool, store)
+	questionBankRuntime, err := questionbank.LoadRuntime(serviceConfig.Environment)
+	if err != nil {
+		return err
+	}
+	questionBankClient, questionBankConnection, err := questionbank.Dial(questionBankRuntime)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = questionBankConnection.Close() }()
+	assessmentService, err := app.NewService(pool, store, questionBankClient)
 	if err != nil {
 		return err
 	}

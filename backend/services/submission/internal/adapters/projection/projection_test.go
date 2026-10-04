@@ -45,6 +45,63 @@ func TestParseAssignmentSnapshotAcceptsImmutableItemManifest(t *testing.T) {
 	}
 }
 
+func TestParseAssignmentSnapshotAcceptsKeyReferencesAndSampleBundle(t *testing.T) {
+	checksum := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	for _, testCase := range []struct {
+		name string
+		item map[string]any
+	}{
+		{name: "pinned", item: map[string]any{
+			"evaluation_bundle_key_reference": "local/key-1",
+			"sample_bundle_object_key":        "qbank/sample/manifest.enc",
+			"sample_bundle_checksum":          checksum,
+			"sample_bundle_key_reference":     "local/key-1",
+		}},
+		{name: "legacy nulls", item: map[string]any{
+			"evaluation_bundle_key_reference": nil,
+			"sample_bundle_object_key":        nil,
+			"sample_bundle_checksum":          nil,
+			"sample_bundle_key_reference":     nil,
+		}},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			testCase.item["exam_item_id"] = projectionTestUUID
+			testCase.item["evaluation_bundle_object_key"] = "qbank/evaluation/manifest.enc"
+			testCase.item["evaluation_bundle_checksum"] = checksum
+			testCase.item["maximum_score"] = 10.0
+			payload, err := json.Marshal(map[string]any{
+				"tenant_id":               projectionTestUUID,
+				"candidate_assignment_id": projectionTestUUID,
+				"candidate_id":            projectionTestUUID,
+				"exam_id":                 projectionTestUUID,
+				"exam_version_id":         projectionTestUUID,
+				"available_from":          "2026-07-24T10:00:00Z",
+				"available_until":         "2026-07-24T11:00:00Z",
+				"attempt_limit":           1,
+				"lifecycle_state":         "active",
+				"version":                 1,
+				"items":                   []map[string]any{testCase.item},
+			})
+			if err != nil {
+				t.Fatalf("marshal payload: %v", err)
+			}
+			parsed, err := parseAssignmentSnapshot(messaging.Event{
+				ID: projectionTestUUID, Type: AssignmentSnapshotEventType, SchemaVersion: 1,
+				AggregateType: "candidate_assignment", AggregateID: projectionTestUUID, TenantID: projectionTestUUID,
+				OccurredAt: time.Now().UTC(), Payload: payload,
+			})
+			if err != nil {
+				t.Fatalf("parseAssignmentSnapshot() error = %v", err)
+			}
+			item := parsed.Items[0]
+			wantKey := testCase.item["evaluation_bundle_key_reference"] != nil
+			if (item.EvaluationBundleKeyReference != "") != wantKey || (item.SampleBundleObjectKey != "") != wantKey {
+				t.Fatalf("parsed item = %#v", item)
+			}
+		})
+	}
+}
+
 func TestParseAssignmentSnapshotAcceptsRevocationWithoutLegacyItems(t *testing.T) {
 	payload, err := json.Marshal(map[string]any{
 		"tenant_id":               projectionTestUUID,

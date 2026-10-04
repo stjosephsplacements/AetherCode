@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package aethercode.questionbank.v1;
+
+option go_package = "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/questionbank/v1;questionbankv1";
+
+// QuestionBankInternalService is the private service-to-service contract of
+// the Question Bank. Callers are platform services authenticated by mTLS, never
+// users, so no tenant or actor context is carried.
+service QuestionBankInternalService {
+  // ResolvePublishedQuestionVersion returns the pinned, encrypted evaluation
+  // artifacts of one question version. Only PUBLISHED versions resolve; a draft,
+  // archived, deleted or unknown version yields NOT_FOUND so callers cannot
+  // probe unpublished content.
+  rpc ResolvePublishedQuestionVersion(ResolvePublishedQuestionVersionRequest) returns (ResolvePublishedQuestionVersionResponse);
+}
+
+message ResolvePublishedQuestionVersionRequest {
+  string question_version_id = 1;
+}
+
+// EncryptedBundle references one server-built encrypted test bundle in object
+// storage. key_reference names the KMS key needed to decrypt it.
+message EncryptedBundle {
+  string object_key = 1;
+  // Lowercase hex SHA-256 of the stored ciphertext.
+  string sha256 = 2;
+  string key_reference = 3;
+  uint32 test_case_count = 4;
+}
+
+message ResolvePublishedQuestionVersionResponse {
+  string question_id = 1;
+  string question_version_id = 2;
+  uint32 version_number = 3;
+  string title = 4;
+  repeated string supported_languages = 5;
+  uint32 time_limit_ms = 6;
+  uint32 memory_limit_kib = 7;
+  // All tests; used for grading.
+  EncryptedBundle evaluation_bundle = 8;
+  // Sample tests only; used for candidate "run code".
+  EncryptedBundle sample_bundle = 9;
+}

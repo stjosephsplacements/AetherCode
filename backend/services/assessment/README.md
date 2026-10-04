@@ -33,12 +33,14 @@ database layers.
 - Create an exam aggregate, then create a draft exam version from a published
   proctor-policy version.
 - Add sections and question-version snapshots using `content_version` for
-  optimistic concurrency. Question IDs, encrypted evaluation-bundle object
-  references, and checksums are opaque; Assessment never reads Question Bank
-  tables. An exam item may also optionally pin a sample-test bundle
-  (`sample_bundle_object_key`/`sample_bundle_checksum`) alongside its
-  mandatory hidden evaluation bundle; both fields must be set together or both
-  left empty.
+  optimistic concurrency. The request carries only `question_version_id` and
+  `maximum_score`; Assessment resolves the version through the Question Bank's
+  private gRPC contract (`QuestionBankInternalService`) and pins the returned
+  question ID plus the encrypted evaluation and sample bundles (object key,
+  SHA-256, KMS key reference). Only published versions resolve: an unknown or
+  unpublished version is a 404, an unreachable Question Bank a 503. Callers can
+  no longer supply bundle references, and Assessment never reads Question Bank
+  tables.
 - Remove a draft section (`DELETE
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/sections/{section_id}`)
   or item (`DELETE
@@ -88,6 +90,10 @@ evaluations when it applies the newer revoked snapshot. Its payload is:
       "exam_item_id": "uuid",
       "evaluation_bundle_object_key": "immutable object key",
       "evaluation_bundle_checksum": "lowercase SHA-256",
+      "evaluation_bundle_key_reference": "KMS key reference",
+      "sample_bundle_object_key": "immutable object key",
+      "sample_bundle_checksum": "lowercase SHA-256",
+      "sample_bundle_key_reference": "KMS key reference",
       "maximum_score": 1
     }
   ]
@@ -101,7 +107,8 @@ for later policy expansion. Active snapshots always contain one or more
 distinct complete item snapshots. Revoked snapshots retain their immutable
 items when available; a legacy revoked assignment with incomplete historical
 bundle references emits an empty `items` array, which is valid only for the
-`revoked` lifecycle state.
+`revoked` lifecycle state. Items pinned before `000020` have null key
+references and sample bundle fields.
 
 ## Collection endpoints
 
@@ -174,6 +181,12 @@ owner role. The application never owns tables and has no `BYPASSRLS` privilege.
   materialization failed at run time. `TestExtensionFunctionCallsResolve`
   fails if any routine calls an `extensions.*` function that does not exist.
 
+- `000020_question_bank_resolved_bundles` adds the evaluation and sample
+  bundle KMS key references to `exam_items`, replaces `add_exam_item` with an
+  overload that requires both bundles fully pinned (the previous overload stays
+  installed but is no longer executable by the app role), and extends the
+  snapshot builders with the new item fields.
+
 Use `make test-migrations` to exercise fresh application, full rollback, and
 reapplication with dedicated non-superuser migration logins.
 
@@ -183,6 +196,17 @@ reapplication with dedicated non-superuser migration logins.
 go test ./services/assessment/...
 make test-migrations
 ```
+
+## Question Bank client
+
+Assessment dials the Question Bank's internal gRPC service lazily, so it
+starts without it and exam-item writes return 503 until it is reachable.
+
+| Variable | Purpose |
+|---|---|
+| `ASSESSMENT_QBANK_GRPC_ADDR` | `host:port` (default `127.0.0.1:9445`) |
+| `ASSESSMENT_QBANK_TLS_CERT_FILE` / `_KEY_FILE` / `_CA_FILE` | mTLS client identity and server CA; all three required in staging and production, all-or-none elsewhere (none means insecure development transport) |
+| `ASSESSMENT_QBANK_TLS_SERVER_NAME` | optional TLS server name override (defaults to the address host) |
 
 ## Authorization projection recovery
 

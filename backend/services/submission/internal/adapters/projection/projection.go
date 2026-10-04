@@ -51,11 +51,18 @@ func (store *Store) Ping(contextValue context.Context) error {
 	return nil
 }
 
+// assignmentItem decodes every field Assessment emits. The key references and
+// sample bundle are accepted so the strict decoder keeps working, but are not
+// stored yet; they are null for items pinned before Assessment migration 000020.
 type assignmentItem struct {
-	ExamItemID                string      `json:"exam_item_id"`
-	EvaluationBundleObjectKey string      `json:"evaluation_bundle_object_key"`
-	EvaluationBundleChecksum  string      `json:"evaluation_bundle_checksum"`
-	MaximumScore              json.Number `json:"maximum_score"`
+	ExamItemID                   string      `json:"exam_item_id"`
+	EvaluationBundleObjectKey    string      `json:"evaluation_bundle_object_key"`
+	EvaluationBundleChecksum     string      `json:"evaluation_bundle_checksum"`
+	EvaluationBundleKeyReference string      `json:"evaluation_bundle_key_reference"`
+	SampleBundleObjectKey        string      `json:"sample_bundle_object_key"`
+	SampleBundleChecksum         string      `json:"sample_bundle_checksum"`
+	SampleBundleKeyReference     string      `json:"sample_bundle_key_reference"`
+	MaximumScore                 json.Number `json:"maximum_score"`
 }
 
 type assignmentSnapshot struct {

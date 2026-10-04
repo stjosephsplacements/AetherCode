@@ -376,15 +376,10 @@ func (handler *Handler) addExamSection(writer http.ResponseWriter, request *http
 }
 
 type addExamItemRequest struct {
-	ExpectedContentVersion    int64  `json:"expected_content_version"`
-	Position                  int    `json:"position"`
-	QuestionID                string `json:"question_id"`
-	QuestionVersionID         string `json:"question_version_id"`
-	MaximumScore              string `json:"maximum_score"`
-	EvaluationBundleObjectKey string `json:"evaluation_bundle_object_key"`
-	EvaluationBundleChecksum  string `json:"evaluation_bundle_checksum"`
-	SampleBundleObjectKey     string `json:"sample_bundle_object_key"`
-	SampleBundleChecksum      string `json:"sample_bundle_checksum"`
+	ExpectedContentVersion int64  `json:"expected_content_version"`
+	Position               int    `json:"position"`
+	QuestionVersionID      string `json:"question_version_id"`
+	MaximumScore           string `json:"maximum_score"`
 }
 
 func (handler *Handler) addExamItem(writer http.ResponseWriter, request *http.Request) {
@@ -426,10 +421,7 @@ func (handler *Handler) addExamItem(writer http.ResponseWriter, request *http.Re
 	item, err := handler.service.AddExamItem(request.Context(), decision.Capability, app.AddExamItem{
 		WriteCommand: app.WriteCommand{IdempotencyKey: key}, ID: id, TenantID: tenantID, ExamVersionID: versionID, SectionID: sectionID,
 		ExpectedContentVersion: body.ExpectedContentVersion, Position: body.Position,
-		QuestionID: body.QuestionID, QuestionVersionID: body.QuestionVersionID,
-		MaximumScore: body.MaximumScore, EvaluationBundleObjectKey: body.EvaluationBundleObjectKey,
-		EvaluationBundleChecksum: body.EvaluationBundleChecksum,
-		SampleBundleObjectKey:    body.SampleBundleObjectKey, SampleBundleChecksum: body.SampleBundleChecksum,
+		QuestionVersionID: body.QuestionVersionID, MaximumScore: body.MaximumScore,
 	})
 	if err != nil {
 		httpx.WriteError(writer, err)

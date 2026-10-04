@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/aethercode/aethercode/libs/pkg/testutil/integration"
+	"github.com/aethercode/aethercode/services/question-bank/internal/adapters/repo"
 )
 
 // newMigratedPool starts PostgreSQL, creates the roles the migrations expect
@@ -360,8 +361,27 @@ func TestSetQuestionVersionTests(t *testing.T) {
 	})
 	requirePgCode(t, err, "42501")
 
+	// The internal contract resolves only published versions.
+	repository, err := repo.NewPostgres(pool)
+	require.NoError(t, err)
+	_, err = repository.ResolvePublishedQuestionVersion(ctx, questionVersionID.String())
+	require.ErrorContains(t, err, "not found", "a draft does not resolve")
+
 	// With both bundles recorded the version publishes, then is fully immutable.
 	require.NoError(t, publish(3))
+	resolved, err := repository.ResolvePublishedQuestionVersion(ctx, questionVersionID.String())
+	require.NoError(t, err)
+	require.Equal(t, questionID.String(), resolved.QuestionID)
+	require.Equal(t, []string{"python3"}, resolved.SupportedLanguages)
+	require.Equal(t, "local:k", resolved.Evaluation.KeyReference)
+	require.Equal(t, 2, resolved.Sample.TestCaseCount)
+	require.Equal(t, 5, resolved.Evaluation.TestCaseCount, "sample plus hidden")
+	_, err = pool.Exec(ctx, `UPDATE qbank.questions SET lifecycle_state = 'archived', archived_at = now() WHERE id = $1`, questionID)
+	require.NoError(t, err)
+	_, err = repository.ResolvePublishedQuestionVersion(ctx, questionVersionID.String())
+	require.ErrorContains(t, err, "not found", "an archived question does not resolve")
+	_, err = pool.Exec(ctx, `UPDATE qbank.questions SET lifecycle_state = 'published', archived_at = NULL WHERE id = $1`, questionID)
+	require.NoError(t, err)
 	_, _, err = setTests(4, "after-publish")
 	requirePgCode(t, err, "55000")
 	_, err = pool.Exec(ctx, `UPDATE qbank.test_case_manifests SET object_key = 'x' WHERE question_version_id = $1 AND manifest_kind = 'hidden'`, questionVersionID)

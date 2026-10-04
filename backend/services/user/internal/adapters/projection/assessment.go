@@ -61,6 +61,12 @@ type assignmentSnapshotItem struct {
 	EvaluationBundleObjectKey string      `json:"evaluation_bundle_object_key"`
 	EvaluationBundleChecksum  string      `json:"evaluation_bundle_checksum"`
 	MaximumScore              json.Number `json:"maximum_score"`
+	// Pinned bundle references for grading (null on items pinned before
+	// assessment migration 000020); decoded only because the decoder is strict.
+	EvaluationBundleKeyReference *string `json:"evaluation_bundle_key_reference"`
+	SampleBundleObjectKey        *string `json:"sample_bundle_object_key"`
+	SampleBundleChecksum         *string `json:"sample_bundle_checksum"`
+	SampleBundleKeyReference     *string `json:"sample_bundle_key_reference"`
 }
 
 // Apply atomically claims, validates, and materializes a version-one snapshot.

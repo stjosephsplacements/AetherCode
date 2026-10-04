@@ -475,50 +475,42 @@ func addExamItemRequestBody(t *testing.T, body string) *http.Request {
 	return request
 }
 
-func TestAddExamItemThreadsSampleBundleFieldsThroughToTheCommand(t *testing.T) {
+func TestAddExamItemPassesOnlyTheQuestionVersionToTheCommand(t *testing.T) {
 	t.Parallel()
-	testCases := []struct {
-		name          string
-		body          string
-		wantObjectKey string
-		wantChecksum  string
-	}{
-		{
-			name: "sample bundle omitted",
-			body: `{"expected_content_version":1,"position":1,"question_id":"` + testExamID + `","question_version_id":"` + testExamID +
-				`","maximum_score":"10.0000","evaluation_bundle_object_key":"eval/bundle.zip","evaluation_bundle_checksum":"` + strings.Repeat("a", 64) + `"}`,
-		},
-		{
-			name: "sample bundle populated",
-			body: `{"expected_content_version":1,"position":1,"question_id":"` + testExamID + `","question_version_id":"` + testExamID +
-				`","maximum_score":"10.0000","evaluation_bundle_object_key":"eval/bundle.zip","evaluation_bundle_checksum":"` + strings.Repeat("a", 64) +
-				`","sample_bundle_object_key":"sample/bundle.zip","sample_bundle_checksum":"` + strings.Repeat("b", 64) + `"}`,
-			wantObjectKey: "sample/bundle.zip",
-			wantChecksum:  strings.Repeat("b", 64),
+	var captured app.AddExamItem
+	svc := &stubService{
+		addExamItemFn: func(_ context.Context, _ centralauthz.Capability, cmd app.AddExamItem) (app.ExamItem, error) {
+			captured = cmd
+			return app.ExamItem{ID: testItemID}, nil
 		},
 	}
+	handler := &Handler{service: svc, authorizer: allowedAuthorizer()}
+	writer := httptest.NewRecorder()
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	handler.addExamItem(writer, addExamItemRequestBody(t,
+		`{"expected_content_version":3,"position":2,"question_version_id":"`+testExamID+`","maximum_score":"10.0000"}`))
+
+	if writer.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want 201, body = %s", writer.Code, writer.Body.String())
+	}
+	if captured.QuestionVersionID != testExamID || captured.ExpectedContentVersion != 3 || captured.Position != 2 || captured.MaximumScore != "10.0000" {
+		t.Fatalf("command = %+v, want question version, version 3, position 2, score 10.0000", captured)
+	}
+}
+
+func TestAddExamItemRejectsCallerSuppliedBundles(t *testing.T) {
+	t.Parallel()
+	for _, field := range []string{"question_id", "evaluation_bundle_object_key", "evaluation_bundle_checksum", "sample_bundle_object_key", "sample_bundle_checksum"} {
+		t.Run(field, func(t *testing.T) {
 			t.Parallel()
-			var captured app.AddExamItem
-			svc := &stubService{
-				addExamItemFn: func(_ context.Context, _ centralauthz.Capability, cmd app.AddExamItem) (app.ExamItem, error) {
-					captured = cmd
-					return app.ExamItem{ID: testItemID}, nil
-				},
-			}
-			handler := &Handler{service: svc, authorizer: allowedAuthorizer()}
+			handler := &Handler{service: &stubService{}, authorizer: allowedAuthorizer()}
 			writer := httptest.NewRecorder()
 
-			handler.addExamItem(writer, addExamItemRequestBody(t, tc.body))
+			handler.addExamItem(writer, addExamItemRequestBody(t,
+				`{"expected_content_version":1,"position":1,"question_version_id":"`+testExamID+`","maximum_score":"10.0000","`+field+`":"x"}`))
 
-			if writer.Code != http.StatusCreated {
-				t.Fatalf("status = %d, want 201, body = %s", writer.Code, writer.Body.String())
-			}
-			if captured.SampleBundleObjectKey != tc.wantObjectKey || captured.SampleBundleChecksum != tc.wantChecksum {
-				t.Fatalf("sample bundle fields = (%q, %q), want (%q, %q)",
-					captured.SampleBundleObjectKey, captured.SampleBundleChecksum, tc.wantObjectKey, tc.wantChecksum)
+			if writer.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want 400, body = %s", writer.Code, writer.Body.String())
 			}
 		})
 	}

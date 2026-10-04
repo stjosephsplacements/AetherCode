@@ -71,6 +71,30 @@ type Store interface {
 	Ping(context.Context) error
 }
 
+// QuestionBank resolves a question version through the Question Bank's private
+// contract. Only published versions resolve; an unknown or unpublished version
+// is a not-found error and an unreachable Question Bank is an unavailable error.
+type QuestionBank interface {
+	ResolvePublishedQuestionVersion(ctx context.Context, questionVersionID string) (ResolvedQuestionVersion, error)
+}
+
+// EncryptedBundle references one encrypted test bundle and the KMS key that
+// decrypts it.
+type EncryptedBundle struct {
+	ObjectKey    string
+	SHA256       string
+	KeyReference string
+}
+
+// ResolvedQuestionVersion is the pinned evaluation material of a published
+// question version: the grading bundle and the sample-only "run code" bundle.
+type ResolvedQuestionVersion struct {
+	QuestionID        string
+	QuestionVersionID string
+	EvaluationBundle  EncryptedBundle
+	SampleBundle      EncryptedBundle
+}
+
 // Page is one keyset page. NextCursor is empty on the final page.
 type Page[T any] struct {
 	Items      []T    `json:"items"`
@@ -309,19 +333,16 @@ type AddExamSection struct {
 
 type AddExamItem struct {
 	WriteCommand
-	ID                        string
-	TenantID                  string
-	ExamVersionID             string
-	SectionID                 string
-	ExpectedContentVersion    int64
-	Position                  int
-	QuestionID                string
-	QuestionVersionID         string
-	MaximumScore              string
-	EvaluationBundleObjectKey string
-	EvaluationBundleChecksum  string
-	SampleBundleObjectKey     string
-	SampleBundleChecksum      string
+	ID                     string
+	TenantID               string
+	ExamVersionID          string
+	SectionID              string
+	ExpectedContentVersion int64
+	Position               int
+	QuestionVersionID      string
+	MaximumScore           string
+	// Resolved is filled by the service from the Question Bank; callers never supply it.
+	Resolved ResolvedQuestionVersion
 }
 
 type RemoveExamSection struct {
@@ -403,15 +424,16 @@ type GetCandidateAssignment struct {
 
 // Service owns validation and the secure local transaction boundary.
 type Service struct {
-	pool  *pgxpool.Pool
-	store Store
+	pool         *pgxpool.Pool
+	store        Store
+	questionBank QuestionBank
 }
 
-func NewService(pool *pgxpool.Pool, store Store) (*Service, error) {
-	if pool == nil || store == nil {
-		return nil, fmt.Errorf("assessment database pool and store are required")
+func NewService(pool *pgxpool.Pool, store Store, questionBank QuestionBank) (*Service, error) {
+	if pool == nil || store == nil || questionBank == nil {
+		return nil, fmt.Errorf("assessment database pool, store and question bank are required")
 	}
-	return &Service{pool: pool, store: store}, nil
+	return &Service{pool: pool, store: store, questionBank: questionBank}, nil
 }
 
 func (service *Service) CreateProctorPolicy(ctx context.Context, capability centralauthz.Capability, command CreateProctorPolicy) (ProctorPolicy, error) {
@@ -532,37 +554,32 @@ func (service *Service) AddExamSection(ctx context.Context, capability centralau
 
 func (service *Service) AddExamItem(ctx context.Context, capability centralauthz.Capability, command AddExamItem) (ExamItem, error) {
 	command.ID, command.TenantID, command.ExamVersionID, command.SectionID = normalizeID(command.ID), normalizeID(command.TenantID), normalizeID(command.ExamVersionID), normalizeID(command.SectionID)
-	command.QuestionID, command.QuestionVersionID = normalizeID(command.QuestionID), normalizeID(command.QuestionVersionID)
+	command.QuestionVersionID = normalizeID(command.QuestionVersionID)
 	command.MaximumScore = strings.TrimSpace(command.MaximumScore)
-	command.EvaluationBundleObjectKey = strings.TrimSpace(command.EvaluationBundleObjectKey)
-	command.EvaluationBundleChecksum = strings.ToLower(strings.TrimSpace(command.EvaluationBundleChecksum))
-	command.SampleBundleObjectKey = strings.TrimSpace(command.SampleBundleObjectKey)
-	command.SampleBundleChecksum = strings.ToLower(strings.TrimSpace(command.SampleBundleChecksum))
-	if !validID(command.ID) || !validID(command.TenantID) || !validID(command.ExamVersionID) || !validID(command.SectionID) || !validID(command.QuestionID) || !validID(command.QuestionVersionID) || command.ExpectedContentVersion <= 0 || command.Position <= 0 || !validScore(command.MaximumScore) || !validObjectKey(command.EvaluationBundleObjectKey) || !checksumPattern.MatchString(command.EvaluationBundleChecksum) {
+	if !validID(command.ID) || !validID(command.TenantID) || !validID(command.ExamVersionID) || !validID(command.SectionID) || !validID(command.QuestionVersionID) || command.ExpectedContentVersion <= 0 || command.Position <= 0 || !validScore(command.MaximumScore) {
 		return ExamItem{}, invalid("exam item fields are invalid")
 	}
-	if (command.SampleBundleObjectKey == "") != (command.SampleBundleChecksum == "") {
-		return ExamItem{}, invalid("sample bundle object key and checksum must both be set or both be empty")
+	// Resolve before the write transaction so a slow Question Bank never holds a
+	// database transaction open.
+	resolved, err := service.questionBank.ResolvePublishedQuestionVersion(ctx, command.QuestionVersionID)
+	if err != nil {
+		return ExamItem{}, err
 	}
-	if command.SampleBundleObjectKey != "" && (!validObjectKey(command.SampleBundleObjectKey) || !checksumPattern.MatchString(command.SampleBundleChecksum)) {
-		return ExamItem{}, invalid("sample bundle fields are invalid")
+	if resolved.QuestionVersionID != command.QuestionVersionID || !validID(resolved.QuestionID) ||
+		!validBundle(resolved.EvaluationBundle) || !validBundle(resolved.SampleBundle) {
+		return ExamItem{}, fmt.Errorf("question bank returned an invalid question version")
 	}
+	command.Resolved = resolved
 	return runWrite(service, ctx, capability, command.TenantID, "assessment.exam_item.create", command.IdempotencyKey,
 		struct {
-			ExamVersionID             string `json:"exam_version_id"`
-			SectionID                 string `json:"section_id"`
-			ExpectedContentVersion    int64  `json:"expected_content_version"`
-			Position                  int    `json:"position"`
-			QuestionID                string `json:"question_id"`
-			QuestionVersionID         string `json:"question_version_id"`
-			MaximumScore              string `json:"maximum_score"`
-			EvaluationBundleObjectKey string `json:"evaluation_bundle_object_key"`
-			EvaluationBundleChecksum  string `json:"evaluation_bundle_checksum"`
-			SampleBundleObjectKey     string `json:"sample_bundle_object_key"`
-			SampleBundleChecksum      string `json:"sample_bundle_checksum"`
+			ExamVersionID          string `json:"exam_version_id"`
+			SectionID              string `json:"section_id"`
+			ExpectedContentVersion int64  `json:"expected_content_version"`
+			Position               int    `json:"position"`
+			QuestionVersionID      string `json:"question_version_id"`
+			MaximumScore           string `json:"maximum_score"`
 		}{command.ExamVersionID, command.SectionID, command.ExpectedContentVersion, command.Position,
-			command.QuestionID, command.QuestionVersionID, command.MaximumScore, command.EvaluationBundleObjectKey, command.EvaluationBundleChecksum,
-			command.SampleBundleObjectKey, command.SampleBundleChecksum}, httpStatusCreated,
+			command.QuestionVersionID, command.MaximumScore}, httpStatusCreated,
 		func(transaction pgx.Tx) (ExamItem, error) {
 			return service.store.AddExamItem(ctx, transaction, command)
 		},
@@ -798,6 +815,11 @@ func validTargetType(value string) bool {
 
 func validObjectKey(value string) bool {
 	return len(value) <= 1024 && objectKeyPattern.MatchString(value) && !strings.Contains(value, "..")
+}
+
+func validBundle(bundle EncryptedBundle) bool {
+	return validObjectKey(bundle.ObjectKey) && checksumPattern.MatchString(bundle.SHA256) &&
+		validText(bundle.KeyReference, 255)
 }
 
 func validIdempotencyKey(value string) bool {
