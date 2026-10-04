@@ -78,13 +78,27 @@ func TestUUIDGenerateV7ReturnsVersion7(t *testing.T) {
 	require.NotEqual(t, first, second)
 }
 
-// TestProjectionWorkerCanClaimMaterializationEvents guards migration 000021:
-// the materialization consumers run as the projection worker and claim each
-// event in app.projection_inbox_messages before materializing assignments.
+// TestProjectionWorkerCanClaimMaterializationEvents guards migrations 000021
+// and 000022: the materialization consumers run as the projection worker,
+// claim each event in app.projection_inbox_messages, and call the
+// materialization functions in schema assessment.
 func TestProjectionWorkerCanClaimMaterializationEvents(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	pool := migratedPool(ctx, t)
+	for _, function := range []string{
+		"assessment.apply_student_enrollment(uuid, uuid, uuid, uuid)",
+		"assessment.materialize_from_enrollment(uuid, uuid, uuid, uuid)",
+		"assessment.materialize_from_batch_affiliation(uuid, uuid, uuid, uuid, text)",
+		"assessment.apply_batch_projection(uuid, uuid, uuid, uuid)",
+		"assessment.backfill_from_assignment_rule(uuid, uuid, uuid, text, uuid)",
+	} {
+		var usable bool
+		require.NoError(t, pool.QueryRow(ctx, `
+			SELECT has_schema_privilege('aether_assessment_projection_worker', 'assessment', 'USAGE')
+			   AND has_function_privilege('aether_assessment_projection_worker', $1, 'EXECUTE')`, function).Scan(&usable))
+		require.True(t, usable, "the projection worker must be able to call %s", function)
+	}
 	transaction, err := pool.Begin(ctx)
 	require.NoError(t, err)
 	defer transaction.Rollback(ctx) //nolint:errcheck
