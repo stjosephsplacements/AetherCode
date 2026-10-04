@@ -57,35 +57,41 @@ func (repository *Postgres) LeaseAdmissions(
 	}
 	defer rows.Close()
 
+	// Read every locked row before leasing: a connection cannot run the
+	// UPDATE while the SELECT's rows are still open ("conn busy").
 	leases := make([]AdmissionLease, 0, limit)
-	leaseExpiresAt := time.Now().UTC().Add(leaseFor)
 	for rows.Next() {
 		var lease AdmissionLease
 		if err := rows.Scan(&lease.EventID, &lease.JobID); err != nil {
 			return nil, fmt.Errorf("scan admission outbox row: %w", err)
 		}
+		leases = append(leases, lease)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate admission outbox rows: %w", err)
+	}
+	rows.Close()
+
+	leaseExpiresAt := time.Now().UTC().Add(leaseFor)
+	for index := range leases {
 		leaseID, err := database.NewUUIDv7()
 		if err != nil {
 			return nil, err
 		}
-		lease.LeaseID = leaseID
+		leases[index].LeaseID = leaseID
 		command, err := transaction.Exec(contextValue, `
 			UPDATE judge.admission_outbox
 			SET state = 'leased', lease_owner = $2, lease_id = $3,
 				lease_expires_at = $4, publish_attempt_count = publish_attempt_count + 1,
 				last_publish_error = NULL, updated_at = clock_timestamp()
 			WHERE event_id = $1
-		`, lease.EventID, owner, lease.LeaseID, leaseExpiresAt)
+		`, leases[index].EventID, owner, leaseID, leaseExpiresAt)
 		if err != nil {
 			return nil, fmt.Errorf("lease admission outbox row: %w", err)
 		}
 		if command.RowsAffected() != 1 {
-			return nil, fmt.Errorf("admission outbox row %s disappeared while locked", lease.EventID)
+			return nil, fmt.Errorf("admission outbox row %s disappeared while locked", leases[index].EventID)
 		}
-		leases = append(leases, lease)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate admission outbox rows: %w", err)
 	}
 	if err := transaction.Commit(contextValue); err != nil {
 		return nil, fmt.Errorf("commit admission lease: %w", err)

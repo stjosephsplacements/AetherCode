@@ -72,6 +72,14 @@ func TestSubmitDispatchCompleteAndPull(t *testing.T) {
 	})
 	require.NoError(t, err, "Submit without request_ciphertext_ref")
 
+	// The admission publisher leases the job's wake-up row; leasing used to
+	// fail with "conn busy" and no job ever reached a worker.
+	leases, err := store.LeaseAdmissions(ctx, "test-publisher", 10, 30*time.Second)
+	require.NoError(t, err, "lease admission rows")
+	require.Len(t, leases, 1)
+	require.Equal(t, execution.ID, leases[0].JobID)
+	require.NotEmpty(t, leases[0].LeaseID)
+
 	var weights []int
 	rows, err := pool.Query(ctx, `SELECT weight FROM judge.execution_units WHERE job_id = $1 ORDER BY unit_number`, execution.ID)
 	require.NoError(t, err)
