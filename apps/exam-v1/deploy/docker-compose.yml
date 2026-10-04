@@ -48,7 +48,8 @@ services:
     ports:
       - "${APP_PORT:-80}:80"
     volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # nginx.behind-proxy.conf when a host proxy terminates TLS (README).
+      - ${NGINX_CONF:-./nginx.conf}:/etc/nginx/conf.d/default.conf:ro
     depends_on: [app]
 
   worker:

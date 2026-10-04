@@ -233,6 +233,22 @@ Students and faculty open `http://<server-ip>/` (nginx on `APP_PORT`, default 80
 | `JUDGE0_AUTH_TOKEN` | empty | Judge0 `X-Auth-Token`, if set in `judge0.conf`. |
 | `BACKUP_INTERVAL_MINUTES`, `BACKUP_RETENTION_DAYS` | `15`, `7` | Backup schedule and retention. |
 
+### Behind a host reverse proxy
+
+On a shared server whose own nginx already serves ports 80/443 (the campus
+server, behind Cloudflare), publish the exam app on loopback and let the host
+proxy terminate TLS. In `deploy/.env`:
+
+```bash
+APP_PORT=127.0.0.1:8480
+NGINX_CONF=./nginx.behind-proxy.conf   # trusts X-Forwarded-For only from the Docker bridge
+COOKIE_SECURE=true
+```
+
+Install `deploy/host-nginx-site.conf` as the host site and reload nginx. The
+client address then flows Cloudflare → host nginx → exam nginx → app, so the
+network allow-list sees each student's real address.
+
 ### Judge0 needs cgroup v1
 
 Judge0 1.13's sandbox (isolate) only works with cgroup v1. Check with
