@@ -75,6 +75,37 @@ curl -s -X POST localhost:${GATEWAY_PORT:-8080}/v1/auth/password-reset/complete 
   -d '{"token":"<token>","password":"<new password>"}'
 ```
 
+## Backups
+
+Two services write to `deploy/single-server/backups/` (gitignored):
+
+| Service | What | When |
+|---|---|---|
+| `backup` | `platform-YYYYMMDD-HHMM.sql.gz` and `judge-….sql.gz`: whole-cluster `pg_dumpall` (roles and every database) | every `BACKUP_INTERVAL_MINUTES` (15), kept `BACKUP_RETENTION_DAYS` (7) |
+| `backup-objects` | `objects/`: a continuous mirror of the MinIO bucket (encrypted test bundles and code). It never deletes. | on every change |
+
+The objects are encrypted with `PLATFORM_KMS_LOCAL_KEY` from `.env`. **Without
+`.env` the object backup cannot be decrypted**, so keep a copy of `.env` (and
+`certs/`) somewhere safe off the server. After every exam, copy `backups/` off
+the server too. Check that backups are running with
+`docker compose logs --tail 5 backup backup-objects`.
+
+Restore onto a fresh server, after running `setup.sh` with the **old** `.env`
+and `certs/` in place:
+
+```sh
+docker compose up -d postgres judge-db minio buckets
+gunzip -c backups/platform-YYYYMMDD-HHMM.sql.gz | docker compose exec -T postgres psql -U aether_admin -d postgres
+gunzip -c backups/judge-YYYYMMDD-HHMM.sql.gz | docker compose exec -T judge-db psql -U aether_judge_admin -d aether_judge_wrapper
+docker run --rm --network aethercode-platform_default -v "$PWD/backups:/backups" \
+  -e MC_HOST_local="http://$MINIO_ROOT_USER:$MINIO_ROOT_PASSWORD@minio:9000" \
+  cgr.dev/chainguard/minio-client mirror /backups/objects local/aethercode
+docker compose up -d
+```
+
+The dump recreates roles and databases, so `psql` reports "already exists"
+errors for the ones the fresh containers made; they are harmless.
+
 ## Upgrades
 
 ```sh

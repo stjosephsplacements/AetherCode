@@ -139,6 +139,41 @@ services:
       minio:
         condition: service_healthy
 
+  # Whole-cluster dumps every 15 minutes (see backup.sh and README "Backups").
+  backup:
+    image: postgres:18.4
+    restart: always
+    entrypoint: ["/bin/bash", "/backup.sh"]
+    environment:
+      PLATFORM_DB_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD}
+      JUDGE_DB_PASSWORD: ${JUDGE_DB_PASSWORD}
+      BACKUP_INTERVAL_MINUTES: ${BACKUP_INTERVAL_MINUTES:-15}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
+    volumes:
+      - ./backup.sh:/backup.sh:ro
+      - ./backups:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+      judge-db:
+        condition: service_healthy
+
+  # Continuous copy of every stored object (encrypted bundles and code). It
+  # never deletes, so an object removed in MinIO stays in the backup. Root
+  # only so it can write the host directory.
+  backup-objects:
+    image: cgr.dev/chainguard/minio-client@sha256:231c5976b6145971a5440dcd99257b23840513999f87cbcb68cd6a8ba674ca51
+    restart: always
+    user: "0:0"
+    command: ["mirror", "--watch", "--overwrite", "local/aethercode", "/backups/objects"]
+    environment:
+      MC_HOST_local: http://${MINIO_ROOT_USER}:${MINIO_ROOT_PASSWORD}@minio:9000
+    volumes:
+      - ./backups:/backups
+    depends_on:
+      buckets:
+        condition: service_completed_successfully
+
   identity:
     <<: *service
     environment:

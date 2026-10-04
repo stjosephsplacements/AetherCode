@@ -1,3 +1,4 @@
 .env
 certs/
 judge0.conf
+backups/
