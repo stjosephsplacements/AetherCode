@@ -315,11 +315,11 @@ func bearerAssertion(request *http.Request) (string, error) {
 }
 
 func rejectUnsafeInboundHeaders(request *http.Request) error {
+	// Hop-by-hop headers (browsers send Connection: keep-alive, nginx sends
+	// Connection: close) are legitimate here; they are dropped when the
+	// request is copied upstream, as RFC 9110 requires of a proxy.
 	for name := range request.Header {
 		lower := strings.ToLower(name)
-		if _, hopByHop := hopByHopHeaders[lower]; hopByHop {
-			return fmt.Errorf("hop-by-hop header %q", name)
-		}
 		switch lower {
 		case "forwarded", "x-forwarded-host", "x-forwarded-proto", "x-forwarded-port", "x-real-ip", "x-original-url", "x-rewrite-url", "x-accel-redirect", "x-aethercode-principal-id", "x-aethercode-actor-id", "x-aethercode-tenant-id", "x-aethercode-user-id", "x-aethercode-service", "x-aethercode-verified-principal-id":
 			return fmt.Errorf("spoofable header %q", name)

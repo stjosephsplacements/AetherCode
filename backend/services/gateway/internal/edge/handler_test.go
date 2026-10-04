@@ -83,6 +83,9 @@ func TestHandlerVerifiesProtectedRouteAndStripsServicePrefix(t *testing.T) {
 		if got := request.Header.Get("X-Forwarded-For"); got != "192.0.2.44" {
 			t.Errorf("unexpected forwarded address: %q", got)
 		}
+		if got := request.Header.Get("Keep-Alive"); got != "" {
+			t.Errorf("hop-by-hop Keep-Alive was forwarded: %q", got)
+		}
 		writer.WriteHeader(http.StatusCreated)
 	}))
 	defer upstream.Close()
@@ -92,6 +95,9 @@ func TestHandlerVerifiesProtectedRouteAndStripsServicePrefix(t *testing.T) {
 	request.Header.Set("Authorization", "Bearer assertion")
 	request.Header.Set("Idempotency-Key", "key-1")
 	request.Header.Set("Traceparent", "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00")
+	// Browsers and nginx send hop-by-hop headers; they are accepted and dropped.
+	request.Header.Set("Connection", "keep-alive")
+	request.Header.Set("Keep-Alive", "timeout=5")
 	recorder := httptest.NewRecorder()
 
 	handler.ServeHTTP(recorder, request)
