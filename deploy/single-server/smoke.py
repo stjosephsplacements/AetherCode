@@ -157,7 +157,7 @@ now = time.time()
 iso = lambda seconds: time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(seconds))
 _, exam_version, _ = call("POST", f"/assessment/v1/tenants/{tenant}/exams/{exam['id']}/versions", {
     "expected_exam_version": exam["version"], "title": "Smoke test", "instructions_markdown": "Solve it.",
-    "opens_at": iso(now + 120), "closes_at": iso(now + 7200), "duration_seconds": 3600,
+    "opens_at": iso(now + 20), "closes_at": iso(now + 7200), "duration_seconds": 3600,
     "proctor_policy_version_id": policy_version["id"]}, token=faculty, expect=201)
 content = lambda: call("GET", f"/assessment/v1/tenants/{tenant}/exam-versions/{exam_version['id']}", token=faculty, expect=200)[1]["content_version"]
 versions_path = f"/assessment/v1/tenants/{tenant}/exam-versions/{exam_version['id']}"
@@ -185,3 +185,33 @@ else:
     sys.exit(f"FAIL the batch's student never received the exam: {mine}")
 ok("a student in the batch sees the assigned exam")
 print("ALL M2 CHECKS PASSED")
+
+# --- M3: take and grade ---------------------------------------------------
+assignment = next(a for a in mine["items"] if a.get("exam_version_id") == exam_version["id"])
+time.sleep(max(0, now + 22 - time.time()))  # the exam opens 20 s after it was created
+attempts = f"/submission/v1/tenants/{tenant}/attempts"
+_, attempt, _ = call("POST", attempts, {"candidate_assignment_id": assignment["id"]}, token=student, expect=201)
+ok("student starts the exam")
+status, _, _ = call("PUT", f"{attempts}/{attempt['id']}/answers/{item['id']}",
+                    {"language": "java", "source": "class Main {}", "expected_attempt_version": attempt["version"]}, token=student)
+assert status == 400, status
+ok("a language the question does not allow is rejected")
+# Correct except for negative first operands: fails only the weight-1 hidden test.
+source = "a, b = map(int, input().split())\nprint(a + b if a >= 0 else 1)\n"
+_, revision, _ = call("PUT", f"{attempts}/{attempt['id']}/answers/{item['id']}",
+                      {"language": "python3", "source": source, "expected_attempt_version": attempt["version"]}, token=student, expect=201)
+assert "source_object_key" not in revision and "encryption_key_reference" not in revision, revision
+ok("code saved; storage details stay server-side")
+call("POST", f"{attempts}/{attempt['id']}/submit", {"expected_attempt_version": revision["attempt_version"]}, token=student, expect=202)
+for _ in range(60):
+    _, attempt, _ = call("GET", f"{attempts}/{attempt['id']}", token=student, expect=200)
+    if attempt["lifecycle_state"] == "graded":
+        break
+    time.sleep(2)
+else:
+    sys.exit(f"FAIL the attempt was never graded: {attempt}")
+_, results, _ = call("GET", f"{attempts}/{attempt['id']}/unit-results", token=student, expect=200)
+print("DEBUG unit-results", json.dumps(results)[:400])
+ok("submission dispatched, judged by the engine, and graded")
+print(f"ATTEMPT {attempt['id']}")
+print("ALL M3 CHECKS PASSED")

@@ -129,6 +129,20 @@ services:
       migrate:
         condition: service_completed_successfully
 
+  # Enables the exam languages in Judge for JUDGE_ENGINE (judge-languages.sh).
+  judge-languages:
+    image: postgres:18.4
+    entrypoint: ["/bin/bash", "/judge-languages.sh"]
+    environment:
+      PGPASSWORD: ${JUDGE_DB_PASSWORD}
+      JUDGE_ENGINE: ${JUDGE_ENGINE:-piston}
+      JUDGE_WORKER_CONCURRENCY: "32"
+    volumes:
+      - ./judge-languages.sh:/judge-languages.sh:ro
+    depends_on:
+      judge-migrate:
+        condition: service_completed_successfully
+
   buckets:
     image: cgr.dev/chainguard/minio-client@sha256:231c5976b6145971a5440dcd99257b23840513999f87cbcb68cd6a8ba674ca51
     # The image has no shell: MC_HOST_local configures the alias inline.
@@ -371,7 +385,7 @@ services:
       JUDGE0_AUTH_TOKEN: ${JUDGE0_AUTH_TOKEN:?run setup.sh first}
     build: { context: ../../backend, dockerfile: services/judge/Dockerfile }
     depends_on:
-      judge-migrate:
+      judge-languages:
         condition: service_completed_successfully
       judge-rabbitmq:
         condition: service_healthy

@@ -132,6 +132,14 @@ docker compose up -d
 The dump recreates roles and databases, so `psql` reports "already exists"
 errors for the ones the fresh containers made; they are harmless.
 
+## Exam languages
+
+Judge accepts a submission only in a language listed and enabled in
+`judge.language_mappings`. The `judge-languages` one-shot (`judge-languages.sh`)
+enables C, C++17, Java, Python 3, JavaScript and Go for `JUDGE_ENGINE` after
+every migration run; the judge starts only after it succeeds. To withdraw a
+language, set `enabled = false` on its row.
+
 ## Upgrades
 
 ```sh
