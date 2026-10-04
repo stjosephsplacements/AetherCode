@@ -23,8 +23,8 @@ the platform (≈10–12 focused days). Until M8, exams run on `apps/exam-v1`.
 | # | Milestone | Done when | Status |
 |---|---|---|---|
 | M0 | Platform runs on one server | `deploy/single-server` brings up all 11 services, the judge stack and the engine healthy. An admin bootstraps and signs in through the gateway. | done (2026-10-03, campus server; engine is Piston, ADR-0018) |
-| M1 | Accounts | An admin creates a college and batch, bulk-imports students from CSV with generated passwords, creates staff, and anyone signs in by username or roll number. | — |
-| M2 | Authoring | Staff write a question with plaintext tests (bundles built and encrypted server-side), build an exam from it, and assign it to a batch. | — |
+| M1 | Accounts | An admin creates a college and batch, bulk-imports students from CSV with generated passwords, creates staff, and anyone signs in by username or roll number. | done (2026-10-04, ADR-0019; `deploy/single-server/smoke.py`) |
+| M2 | Authoring | Staff write a question with plaintext tests (bundles built and encrypted server-side), build an exam from it, and assign it to a batch. | done (2026-10-04, ADR-0020; `smoke.py`) |
 | M3 | Take and grade | A student starts, saves code, runs samples and submits. Dispatch → judge (decrypt) → Judge0 → score. Time-up submits latest answers. | — |
 | M4 | SEB | Per-request config-key validation that works with a real SEB browser, plus `.seb` configuration generation and download. | — |
 | M5 | Frontend | `frontend/` ports the exam-app screens (login, admin, authoring, exam screen, results) onto the gateway. | — |
@@ -38,6 +38,24 @@ Already done (2026-10-03):
 - the move into `backend/`;
 - M0 on the campus server, which surfaced and fixed the bugs listed in the
   audit's fix log (NATS stream, event payload hashing, bootstrap, reset).
+
+Done 2026-10-04, each verified end to end through the gateway at
+https://aethercode.stjosephsplacements.in by `deploy/single-server/smoke.py`:
+- M1 accounts (ADR-0019), and Identity's principal endpoints restricted to
+  the caller (any user could delete any account);
+- M2 authoring: D1 staff authoring (ADR-0020), server-built encrypted test
+  bundles with weights (`libs/pkg/evalbundle`), exam items resolved from the
+  bank over the internal gRPC contract, and batch assignment that actually
+  reaches students (candidate = principal; roster from the versioned batch
+  snapshot);
+- platform bugs found on the way: gateway rejected browser/nginx requests
+  (hop-by-hop headers); tenant lists sent an empty resource ID; projection
+  workers lacked grants in assessment (schema, inbox) and analytics (RLS read
+  for ON CONFLICT); authorization projection lag returned 500 (now 503 with
+  Retry-After); audit log recorded the gateway's address;
+- operations: backups every 15 minutes with a verified restore, the public
+  domain behind Cloudflare → tunnel → nginx with the gateway on loopback, and
+  key-only SSH for the deploy account.
 
 ---
 
