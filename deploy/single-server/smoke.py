@@ -211,7 +211,7 @@ for _ in range(60):
 else:
     sys.exit(f"FAIL the attempt was never graded: {attempt}")
 _, results, _ = call("GET", f"{attempts}/{attempt['id']}/unit-results", token=student, expect=200)
-print("DEBUG unit-results", json.dumps(results)[:400])
-ok("submission dispatched, judged by the engine, and graded")
-print(f"ATTEMPT {attempt['id']}")
+unit = results["items"][0]
+assert (unit["passed_units"], unit["total_units"]) == (3, 4), results
+ok("submission dispatched, judged by the engine, and graded: 3 of 4 tests passed")
 print("ALL M3 CHECKS PASSED")
