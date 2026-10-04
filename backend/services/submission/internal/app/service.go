@@ -2,6 +2,7 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -20,10 +21,17 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// MaxSourceBytes bounds one saved answer. It matches the 64 KB limit of the
+// exam app this platform replaces, and keeps a candidate from using answer
+// saves as bulk storage.
+const MaxSourceBytes = 64 * 1024
+
 var (
-	uuidPattern       = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
-	sha256Pattern     = regexp.MustCompile(`^[0-9a-f]{64}$`)
-	languageIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._+:-]{0,79}$`)
+	uuidPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+	// languagePattern is the vocabulary shared with the Question Bank's
+	// supported languages and Judge's language keys (c, cpp17, java, python3,
+	// javascript, go): the candidate-facing name is the Judge key.
+	languagePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9+_.-]{0,79}$`)
 )
 
 // Page is one keyset page. NextCursor is empty on the final page.
@@ -127,15 +135,16 @@ type Attempt struct {
 
 // AnswerRevision is append-only evidence of one candidate answer save.
 type AnswerRevision struct {
-	ID                     string    `json:"id"`
-	TenantID               string    `json:"tenant_id"`
-	AttemptID              string    `json:"attempt_id"`
-	ExamItemID             string    `json:"exam_item_id"`
-	RevisionNumber         int       `json:"revision_number"`
-	LanguageID             string    `json:"language_id"`
-	SourceObjectKey        string    `json:"source_object_key"`
-	SourceChecksum         string    `json:"source_checksum"`
-	EncryptionKeyReference string    `json:"encryption_key_reference"`
+	ID             string `json:"id"`
+	TenantID       string `json:"tenant_id"`
+	AttemptID      string `json:"attempt_id"`
+	ExamItemID     string `json:"exam_item_id"`
+	RevisionNumber int    `json:"revision_number"`
+	LanguageID     string `json:"language_id"`
+	// Storage details stay server-side: no client needs them.
+	SourceObjectKey        string    `json:"-"`
+	SourceChecksum         string    `json:"-"`
+	EncryptionKeyReference string    `json:"-"`
 	CreatedAt              time.Time `json:"created_at"`
 	CreatedBy              string    `json:"created_by"`
 	AttemptVersion         int64     `json:"attempt_version"`
@@ -183,17 +192,22 @@ type GetAttempt struct {
 	AttemptID string
 }
 
+// AppendAnswerRevision carries the candidate's plaintext source. The object
+// key, checksum and key reference are produced by the service when it encrypts
+// and stores the source; a client can never supply them.
 type AppendAnswerRevision struct {
 	ID                     string
 	EventID                string
 	TenantID               string
 	AttemptID              string
 	ExamItemID             string
-	LanguageID             string
+	Language               string
+	Source                 string
+	ExpectedAttemptVersion int64
+
 	SourceObjectKey        string
 	SourceChecksum         string
 	EncryptionKeyReference string
-	ExpectedAttemptVersion int64
 }
 
 type PrepareSubmission struct {
@@ -238,8 +252,7 @@ type Service struct {
 }
 
 // NewService creates a new Submission service. storage and kms may both be
-// nil; workflows that need to encrypt or fetch candidate-run source (such as
-// run-code) return 503 Unavailable until they are wired.
+// nil; saving an answer returns 503 Unavailable until they are wired.
 func NewService(pool *pgxpool.Pool, store Store, storage storage.Object, kms kms.KeyManager) (*Service, error) {
 	if pool == nil || store == nil {
 		return nil, fmt.Errorf("submission database pool and store are required")
@@ -334,13 +347,9 @@ func (service *Service) AppendAnswerRevision(contextValue context.Context, capab
 	command.AttemptID = normalizeUUID(command.AttemptID)
 	command.ExamItemID = normalizeUUID(command.ExamItemID)
 	command.ID = normalizeUUID(command.ID)
-	command.LanguageID = strings.TrimSpace(command.LanguageID)
-	command.SourceObjectKey = strings.TrimSpace(command.SourceObjectKey)
-	command.SourceChecksum = strings.ToLower(strings.TrimSpace(command.SourceChecksum))
-	command.EncryptionKeyReference = strings.TrimSpace(command.EncryptionKeyReference)
+	command.Language = strings.TrimSpace(command.Language)
 	if !isUUID(command.TenantID) || !isUUID(command.AttemptID) || !isUUID(command.ExamItemID) || !isUUID(command.ID) ||
-		!languageIDPattern.MatchString(command.LanguageID) || !validText(command.SourceObjectKey, 2048) ||
-		!sha256Pattern.MatchString(command.SourceChecksum) || !validText(command.EncryptionKeyReference, 1024) ||
+		!languagePattern.MatchString(command.Language) || len(command.Source) > MaxSourceBytes ||
 		command.ExpectedAttemptVersion <= 0 {
 		return AnswerRevision{}, apperrors.New(apperrors.CodeInvalidArgument, "answer revision fields are invalid")
 	}
@@ -349,6 +358,9 @@ func (service *Service) AppendAnswerRevision(contextValue context.Context, capab
 		return AnswerRevision{}, err
 	}
 	command.EventID = eventID
+	if err := service.storeSource(contextValue, &command); err != nil {
+		return AnswerRevision{}, err
+	}
 
 	var revision AnswerRevision
 	err = database.WithTenantTx(contextValue, service.pool, capability, func(transaction pgx.Tx) error {
@@ -356,7 +368,34 @@ func (service *Service) AppendAnswerRevision(contextValue context.Context, capab
 		revision, storeErr = service.store.AppendAnswerRevision(contextValue, transaction, command)
 		return storeErr
 	})
+	if err != nil {
+		// The revision was not recorded, so nothing references the object.
+		_ = service.storage.Delete(context.WithoutCancel(contextValue), command.SourceObjectKey)
+	}
 	return revision, err
+}
+
+// storeSource encrypts the candidate's source and stores the ciphertext under a
+// key the server chooses, then fills the references the revision records.
+// Judge later fetches and decrypts it by those references; the plaintext never
+// reaches the database.
+func (service *Service) storeSource(contextValue context.Context, command *AppendAnswerRevision) error {
+	if service.storage == nil || service.kms == nil {
+		return apperrors.New(apperrors.CodeUnavailable, "candidate source storage is not configured")
+	}
+	ciphertext, keyReference, err := service.kms.Encrypt(contextValue, []byte(command.Source))
+	if err != nil {
+		return fmt.Errorf("encrypt candidate source: %w", err)
+	}
+	objectKey := fmt.Sprintf("candidate-source/%s/%s/%s", command.TenantID, command.AttemptID, command.ID)
+	if err := service.storage.Put(contextValue, objectKey, bytes.NewReader(ciphertext), int64(len(ciphertext)), "application/octet-stream"); err != nil {
+		return fmt.Errorf("store candidate source: %w", err)
+	}
+	digest := sha256.Sum256(ciphertext)
+	command.SourceObjectKey = objectKey
+	command.SourceChecksum = hex.EncodeToString(digest[:])
+	command.EncryptionKeyReference = keyReference
+	return nil
 }
 
 func (service *Service) SubmitAttempt(contextValue context.Context, capability centralauthz.Capability, command SubmitAttempt) (SubmitResult, error) {

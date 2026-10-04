@@ -39,3 +39,21 @@ leased completion against the locally recorded `judge_job_id`, records an
 immutable payload fingerprint and delivery history, and writes the
 platform-owned `judge.completed.v1` outbox event in the same transaction.
 Rollback refuses to discard terminal ingress evidence.
+
+`000020_assignment_item_execution` persists each assignment item's evaluation
+key reference, sample bundle, limits and languages from the Assessment
+snapshot, and makes `append_answer_revision` refuse a language the item does
+not list.
+
+`000021_evaluation_dispatch` adds the claim lease columns to
+`evaluation_requests` and two execute-only routines for the Judge adapter role:
+`claim_evaluation_requests` (`FOR UPDATE SKIP LOCKED`, doubling lease capped at
+five minutes) and `mark_evaluation_dispatched`. Rollback refuses while any
+request is still queued.
+
+`000022_weighted_grading` records each test's weight, scores an item by passed
+weight over total weight (all or nothing when no units were reported), writes
+score summaries with `calculation_version` 2, moves attempt closing into the
+internal `finalize_attempt_grading`, and adds `mark_evaluation_failed` so a
+permanently failed dispatch still grades the attempt. Rollback refuses once any
+non-default weight exists.

@@ -36,14 +36,16 @@ func TestParseAssignmentSnapshotRejectsUnknownFields(t *testing.T) {
 	}
 }
 
-// Assessment migration 000020 pins key references and the sample bundle on
-// every item; items pinned earlier carry nulls. Both must decode.
+// Assessment migrations 000020 and 000024 pin key references, the sample bundle,
+// limits and languages on every item; items pinned earlier carry nulls. All
+// shapes must decode.
 func TestParseAssignmentSnapshotAcceptsPinnedBundleReferences(t *testing.T) {
 	t.Parallel()
 	item := `{"exam_item_id":"018f4b0d-08f8-7c09-9ba7-efdf9c223427","evaluation_bundle_object_key":"qbank/e.bundle","evaluation_bundle_checksum":"` + strings.Repeat("a", 64) + `","maximum_score":10,%s}`
 	for name, extra := range map[string]string{
-		"pinned": `"evaluation_bundle_key_reference":"local:k","sample_bundle_object_key":"qbank/s.bundle","sample_bundle_checksum":"` + strings.Repeat("b", 64) + `","sample_bundle_key_reference":"local:k"`,
-		"legacy": `"evaluation_bundle_key_reference":null,"sample_bundle_object_key":null,"sample_bundle_checksum":null,"sample_bundle_key_reference":null`,
+		"pinned":     `"evaluation_bundle_key_reference":"local:k","sample_bundle_object_key":"qbank/s.bundle","sample_bundle_checksum":"` + strings.Repeat("b", 64) + `","sample_bundle_key_reference":"local:k"`,
+		"legacy":     `"evaluation_bundle_key_reference":null,"sample_bundle_object_key":null,"sample_bundle_checksum":null,"sample_bundle_key_reference":null,"time_limit_ms":null,"memory_limit_kib":null,"supported_languages":null`,
+		"executable": `"time_limit_ms":2000,"memory_limit_kib":262144,"supported_languages":["c","python3"]`,
 	} {
 		event := messaging.Event{
 			ID: "018f4b0d-08f8-7c09-9ba7-efdf9c223421", Type: assessmentCandidateAssignmentEvent,

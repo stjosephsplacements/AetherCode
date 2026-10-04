@@ -152,23 +152,24 @@ paths:
               type: object
               additionalProperties: false
               required:
-                - language_id
-                - source_object_key
-                - source_checksum
-                - encryption_key_reference
+                - language
+                - source
                 - expected_attempt_version
               properties:
-                language_id:
+                language:
                   type: string
-                  maxLength: 80
-                source_object_key:
+                  pattern: '^[a-z0-9][a-z0-9+_.-]{0,79}$'
+                  description: >-
+                    Judge language key (c, cpp17, java, python3, javascript, go).
+                    Must be one of the exam item's supported languages, which
+                    are pinned from the question version; otherwise 400.
+                source:
                   type: string
-                  maxLength: 2048
-                source_checksum:
-                  $ref: '#/components/schemas/SHA256'
-                encryption_key_reference:
-                  type: string
-                  maxLength: 1024
+                  maxLength: 65536
+                  description: >-
+                    The candidate's source code, at most 64 KiB. The service
+                    encrypts it and stores the ciphertext under a key it
+                    chooses; the plaintext is never persisted in PostgreSQL.
                 expected_attempt_version:
                   type: integer
                   minimum: 1
@@ -183,6 +184,7 @@ paths:
         '403': { $ref: '#/components/responses/Problem403' }
         '404': { $ref: '#/components/responses/Problem404' }
         '409': { $ref: '#/components/responses/Problem409' }
+        '503': { $ref: '#/components/responses/Problem503' }
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/submit:
     post:
       summary: Submit an attempt and accept durable grading work
@@ -301,9 +303,6 @@ components:
         - exam_item_id
         - revision_number
         - language_id
-        - source_object_key
-        - source_checksum
-        - encryption_key_reference
         - created_at
         - created_by
         - attempt_version
@@ -314,9 +313,6 @@ components:
         exam_item_id: { $ref: '#/components/schemas/UUID' }
         revision_number: { type: integer, minimum: 1 }
         language_id: { type: string }
-        source_object_key: { type: string }
-        source_checksum: { $ref: '#/components/schemas/SHA256' }
-        encryption_key_reference: { type: string }
         created_at: { type: string, format: date-time }
         created_by: { $ref: '#/components/schemas/UUID' }
         attempt_version: { type: integer, minimum: 1 }
@@ -367,6 +363,11 @@ components:
           schema: { $ref: '#/components/schemas/Problem' }
     Problem409:
       description: State, deadline, idempotency, or optimistic-version conflict.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Problem503:
+      description: Candidate source storage or key management is not configured or reachable.
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Problem' }

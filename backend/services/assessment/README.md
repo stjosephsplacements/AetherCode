@@ -99,7 +99,10 @@ evaluations when it applies the newer revoked snapshot. Its payload is:
       "sample_bundle_object_key": "immutable object key",
       "sample_bundle_checksum": "lowercase SHA-256",
       "sample_bundle_key_reference": "KMS key reference",
-      "maximum_score": 1
+      "maximum_score": 1,
+      "time_limit_ms": 2000,
+      "memory_limit_kib": 262144,
+      "supported_languages": ["c", "python3"]
     }
   ]
 }
@@ -113,7 +116,11 @@ distinct complete item snapshots. Revoked snapshots retain their immutable
 items when available; a legacy revoked assignment with incomplete historical
 bundle references emits an empty `items` array, which is valid only for the
 `revoked` lifecycle state. Items pinned before `000020` have null key
-references and sample bundle fields.
+references and sample bundle fields, and items pinned before `000024` have null
+`time_limit_ms`, `memory_limit_kib` and `supported_languages`. Those three are
+the question version's execution limits and the Judge language keys a
+candidate may answer in; Submission needs them to validate an answer's language
+and to hand Judge the limits without calling the Question Bank during an exam.
 
 ## Collection endpoints
 
@@ -191,6 +198,13 @@ owner role. The application never owns tables and has no `BYPASSRLS` privilege.
   overload that requires both bundles fully pinned (the previous overload stays
   installed but is no longer executable by the app role), and extends the
   snapshot builders with the new item fields.
+
+- `000024_exam_item_execution_limits` pins the resolved question version's
+  `time_limit_ms`, `memory_limit_kib` and `supported_languages` on `exam_items`
+  (all-or-none; null on legacy items), replaces `add_exam_item` with an
+  overload that requires them (the previous one stays installed but is not
+  executable by the app role), and adds the three fields to both snapshot
+  builders, `enqueue_candidate_assignment_snapshot` and `materialize_candidate`.
 
 Use `make test-migrations` to exercise fresh application, full rollback, and
 reapplication with dedicated non-superuser migration logins.

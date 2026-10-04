@@ -136,10 +136,8 @@ func (handler *Handler) getAttempt(writer http.ResponseWriter, request *http.Req
 }
 
 type appendAnswerRevisionRequest struct {
-	LanguageID             string `json:"language_id"`
-	SourceObjectKey        string `json:"source_object_key"`
-	SourceChecksum         string `json:"source_checksum"`
-	EncryptionKeyReference string `json:"encryption_key_reference"`
+	Language               string `json:"language"`
+	Source                 string `json:"source"`
 	ExpectedAttemptVersion int64  `json:"expected_attempt_version"`
 }
 
@@ -181,9 +179,7 @@ func (handler *Handler) appendAnswerRevision(writer http.ResponseWriter, request
 	}
 	revision, err := handler.service.AppendAnswerRevision(request.Context(), decision.Capability, app.AppendAnswerRevision{
 		ID: revisionID, TenantID: tenantID, AttemptID: attemptID, ExamItemID: examItemID,
-		LanguageID: body.LanguageID, SourceObjectKey: body.SourceObjectKey,
-		SourceChecksum: body.SourceChecksum, EncryptionKeyReference: body.EncryptionKeyReference,
-		ExpectedAttemptVersion: body.ExpectedAttemptVersion,
+		Language: body.Language, Source: body.Source, ExpectedAttemptVersion: body.ExpectedAttemptVersion,
 	})
 	if err != nil {
 		httpx.WriteError(writer, err)

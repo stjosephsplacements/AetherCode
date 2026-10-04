@@ -171,7 +171,7 @@ paths:
     post:
       summary: Snapshot a question version into a draft exam section
       parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
-      description: Assessment resolves the published question version through the Question Bank and pins its immutable question ID and encrypted evaluation and sample bundle references (object key, checksum, KMS key reference). An unknown or unpublished version returns 404; an unreachable Question Bank returns 503.
+      description: Assessment resolves the published question version through the Question Bank and pins its immutable question ID encrypted evaluation and sample bundle references (object key, checksum, KMS key reference), and the version's time limit, memory limit and supported languages, all carried in candidate assignment snapshots. An unknown or unpublished version returns 404; an unreachable Question Bank returns 503.
       requestBody:
         required: true
         content:

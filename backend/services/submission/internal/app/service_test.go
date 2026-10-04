@@ -2,13 +2,18 @@ package app
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"io"
+	"slices"
 	"strings"
 	"testing"
 
 	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
 	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
+	"github.com/aethercode/aethercode/libs/pkg/storage"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -66,19 +71,6 @@ func TestStartAttemptRejectsInvalidCommandBeforeTransaction(t *testing.T) {
 	_, err = service.StartAttempt(context.Background(), centralauthz.Capability{}, StartAttempt{
 		ID: validSubmissionTestUUID, TenantID: "not-a-uuid", CandidateAssignmentID: validSubmissionTestUUID,
 		IdempotencyKey: "start-1",
-	})
-	assertInvalidArgument(t, err)
-}
-
-func TestAppendAnswerRevisionRejectsUntrustedSourceMetadata(t *testing.T) {
-	service, err := NewService(&pgxpool.Pool{}, validationStore{}, nil, nil)
-	if err != nil {
-		t.Fatalf("NewService() error = %v", err)
-	}
-	_, err = service.AppendAnswerRevision(context.Background(), centralauthz.Capability{}, AppendAnswerRevision{
-		ID: validSubmissionTestUUID, TenantID: validSubmissionTestUUID, AttemptID: validSubmissionTestUUID,
-		ExamItemID: validSubmissionTestUUID, LanguageID: "go", SourceObjectKey: "tenant/object",
-		SourceChecksum: "not-a-sha256", EncryptionKeyReference: "kms/key", ExpectedAttemptVersion: 1,
 	})
 	assertInvalidArgument(t, err)
 }
@@ -189,38 +181,6 @@ func assertInvalidArgument(t *testing.T, err error) {
 	}
 }
 
-func TestAppendAnswerRevisionEnforcesDeterministicChecksum(t *testing.T) {
-	t.Parallel()
-	// Verify that identical fields produce identical fingerprints
-	fp1 := checksum("answer.append.v1", "tenant1", "attempt1", "item1", "go", "obj/key", "abc123", "kms/ref", "1")
-	fp2 := checksum("answer.append.v1", "tenant1", "attempt1", "item1", "go", "obj/key", "abc123", "kms/ref", "1")
-	if fp1 != fp2 {
-		t.Fatal("checksum must be deterministic for identical inputs")
-	}
-
-	// Verify that changing any field produces a different fingerprint
-	baseline := checksum("answer.append.v1", "tenant1", "attempt1", "item1", "go", "obj/key", "abc123", "kms/ref", "1")
-	variations := []struct {
-		name string
-		fp   string
-	}{
-		{"domain", checksum("answer.append.v2", "tenant1", "attempt1", "item1", "go", "obj/key", "abc123", "kms/ref", "1")},
-		{"tenant", checksum("answer.append.v1", "tenant2", "attempt1", "item1", "go", "obj/key", "abc123", "kms/ref", "1")},
-		{"attempt", checksum("answer.append.v1", "tenant1", "attempt2", "item1", "go", "obj/key", "abc123", "kms/ref", "1")},
-		{"item", checksum("answer.append.v1", "tenant1", "attempt1", "item2", "go", "obj/key", "abc123", "kms/ref", "1")},
-		{"language", checksum("answer.append.v1", "tenant1", "attempt1", "item1", "python", "obj/key", "abc123", "kms/ref", "1")},
-		{"objectKey", checksum("answer.append.v1", "tenant1", "attempt1", "item1", "go", "obj/key2", "abc123", "kms/ref", "1")},
-		{"checksum", checksum("answer.append.v1", "tenant1", "attempt1", "item1", "go", "obj/key", "def456", "kms/ref", "1")},
-		{"keyRef", checksum("answer.append.v1", "tenant1", "attempt1", "item1", "go", "obj/key", "abc123", "kms/ref2", "1")},
-		{"version", checksum("answer.append.v1", "tenant1", "attempt1", "item1", "go", "obj/key", "abc123", "kms/ref", "2")},
-	}
-	for _, v := range variations {
-		if v.fp == baseline {
-			t.Errorf("changing %s did not change checksum", v.name)
-		}
-	}
-}
-
 func TestStartAttemptRejectsDuplicateIDFormat(t *testing.T) {
 	t.Parallel()
 	service, err := NewService(&pgxpool.Pool{}, validationStore{}, nil, nil)
@@ -284,60 +244,105 @@ func TestSubmitAttemptEnforcesVersionMonotonicity(t *testing.T) {
 	assertInvalidArgument(t, err)
 }
 
-func TestAppendAnswerRevisionRejectsNonSHA256Checksums(t *testing.T) {
+func TestAppendAnswerRevisionRejectsInvalidSource(t *testing.T) {
 	t.Parallel()
-	service, err := NewService(&pgxpool.Pool{}, validationStore{}, nil, nil)
+	service, err := NewService(&pgxpool.Pool{}, validationStore{}, &memoryStorage{}, &fakeKMS{})
 	if err != nil {
 		t.Fatalf("NewService() error = %v", err)
 	}
-
-	tests := []struct {
-		name     string
-		checksum string
-	}{
-		{"not-a-sha256", "not-a-sha256"},
-		{"empty string", ""},
-		{"63 hex chars", strings.Repeat("a", 63)},
-		{"65 hex chars", strings.Repeat("a", 65)},
+	valid := AppendAnswerRevision{
+		ID: validSubmissionTestUUID, TenantID: validSubmissionTestUUID, AttemptID: validSubmissionTestUUID,
+		ExamItemID: validSubmissionTestUUID, Language: "python3", Source: "print(1)", ExpectedAttemptVersion: 1,
 	}
-
+	tests := []struct {
+		name   string
+		mutate func(*AppendAnswerRevision)
+	}{
+		{"uppercase language", func(c *AppendAnswerRevision) { c.Language = "Python3" }},
+		{"empty language", func(c *AppendAnswerRevision) { c.Language = " " }},
+		{"language with a path", func(c *AppendAnswerRevision) { c.Language = "../go" }},
+		{"source over the limit", func(c *AppendAnswerRevision) { c.Source = strings.Repeat("a", MaxSourceBytes+1) }},
+		{"missing attempt version", func(c *AppendAnswerRevision) { c.ExpectedAttemptVersion = 0 }},
+		{"bad attempt id", func(c *AppendAnswerRevision) { c.AttemptID = "not-a-uuid" }},
+	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := service.AppendAnswerRevision(context.Background(), centralauthz.Capability{}, AppendAnswerRevision{
-				ID: validSubmissionTestUUID, TenantID: validSubmissionTestUUID, AttemptID: validSubmissionTestUUID,
-				ExamItemID: validSubmissionTestUUID, LanguageID: "go", SourceObjectKey: "tenant/object",
-				SourceChecksum: tt.checksum, EncryptionKeyReference: "kms/key", ExpectedAttemptVersion: 1,
-			})
+			command := valid
+			tt.mutate(&command)
+			_, err := service.AppendAnswerRevision(context.Background(), centralauthz.Capability{}, command)
 			assertInvalidArgument(t, err)
 		})
 	}
 }
 
-func TestAppendAnswerRevisionRejectsTraversalSourceKeys(t *testing.T) {
+func TestAppendAnswerRevisionNeedsSourceStorage(t *testing.T) {
 	t.Parallel()
 	service, err := NewService(&pgxpool.Pool{}, validationStore{}, nil, nil)
 	if err != nil {
 		t.Fatalf("NewService() error = %v", err)
 	}
-
-	tests := []struct {
-		name      string
-		objectKey string
-	}{
-		{"empty string", ""},
-		{"only whitespace", "   "},
-		{"exceeds 2048 runes", strings.Repeat("a", 2049)},
-	}
-
-	validChecksum := strings.Repeat("a", 64)
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := service.AppendAnswerRevision(context.Background(), centralauthz.Capability{}, AppendAnswerRevision{
-				ID: validSubmissionTestUUID, TenantID: validSubmissionTestUUID, AttemptID: validSubmissionTestUUID,
-				ExamItemID: validSubmissionTestUUID, LanguageID: "go", SourceObjectKey: tt.objectKey,
-				SourceChecksum: validChecksum, EncryptionKeyReference: "kms/key", ExpectedAttemptVersion: 1,
-			})
-			assertInvalidArgument(t, err)
-		})
+	_, err = service.AppendAnswerRevision(context.Background(), centralauthz.Capability{}, AppendAnswerRevision{
+		ID: validSubmissionTestUUID, TenantID: validSubmissionTestUUID, AttemptID: validSubmissionTestUUID,
+		ExamItemID: validSubmissionTestUUID, Language: "go", Source: "package main", ExpectedAttemptVersion: 1,
+	})
+	var applicationError *apperrors.Error
+	if !errors.As(err, &applicationError) || applicationError.Code != apperrors.CodeUnavailable {
+		t.Fatalf("error = %#v, want unavailable", err)
 	}
 }
+
+func TestStoreSourceEncryptsAndRecordsCiphertextReferences(t *testing.T) {
+	t.Parallel()
+	storage := &memoryStorage{objects: map[string][]byte{}}
+	service, err := NewService(&pgxpool.Pool{}, validationStore{}, storage, &fakeKMS{})
+	if err != nil {
+		t.Fatalf("NewService() error = %v", err)
+	}
+	command := AppendAnswerRevision{
+		ID: validSubmissionTestUUID, TenantID: validSubmissionTestUUID, AttemptID: validSubmissionTestUUID,
+		Language: "go", Source: "package main",
+	}
+	if err := service.storeSource(context.Background(), &command); err != nil {
+		t.Fatalf("storeSource() error = %v", err)
+	}
+	stored, found := storage.objects[command.SourceObjectKey]
+	if !found || strings.Contains(string(stored), "package main") {
+		t.Fatalf("stored object = %q (found %t), want ciphertext", stored, found)
+	}
+	digest := sha256.Sum256(stored)
+	if command.SourceChecksum != hex.EncodeToString(digest[:]) {
+		t.Fatalf("checksum = %s, want the SHA-256 of the stored ciphertext", command.SourceChecksum)
+	}
+	if command.EncryptionKeyReference != "test/key-1" ||
+		!strings.HasPrefix(command.SourceObjectKey, "candidate-source/"+validSubmissionTestUUID+"/") {
+		t.Fatalf("references = %q, %q", command.SourceObjectKey, command.EncryptionKeyReference)
+	}
+}
+
+// memoryStorage and fakeKMS stand in for MinIO and the key manager.
+type memoryStorage struct {
+	storage.Object
+	objects map[string][]byte
+}
+
+func (fake *memoryStorage) Put(_ context.Context, key string, reader io.Reader, _ int64, _ string) error {
+	data, err := io.ReadAll(reader)
+	fake.objects[key] = data
+	return err
+}
+
+func (fake *memoryStorage) Delete(_ context.Context, key string) error {
+	delete(fake.objects, key)
+	return nil
+}
+
+type fakeKMS struct{}
+
+// Encrypt reverses the plaintext so the test can tell ciphertext from source.
+func (*fakeKMS) Encrypt(_ context.Context, plaintext []byte) ([]byte, string, error) {
+	ciphertext := slices.Clone(plaintext)
+	slices.Reverse(ciphertext)
+	return ciphertext, "test/key-1", nil
+}
+
+func (*fakeKMS) Decrypt(context.Context, []byte, string) ([]byte, error) { return nil, nil }

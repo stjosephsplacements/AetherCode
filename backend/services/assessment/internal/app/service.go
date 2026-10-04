@@ -87,12 +87,16 @@ type EncryptedBundle struct {
 }
 
 // ResolvedQuestionVersion is the pinned evaluation material of a published
-// question version: the grading bundle and the sample-only "run code" bundle.
+// question version: the grading bundle, the sample-only "run code" bundle, and
+// the execution limits and languages Submission grades under.
 type ResolvedQuestionVersion struct {
-	QuestionID        string
-	QuestionVersionID string
-	EvaluationBundle  EncryptedBundle
-	SampleBundle      EncryptedBundle
+	QuestionID         string
+	QuestionVersionID  string
+	EvaluationBundle   EncryptedBundle
+	SampleBundle       EncryptedBundle
+	TimeLimitMS        int
+	MemoryLimitKiB     int
+	SupportedLanguages []string
 }
 
 // Page is one keyset page. NextCursor is empty on the final page.
@@ -566,7 +570,7 @@ func (service *Service) AddExamItem(ctx context.Context, capability centralauthz
 		return ExamItem{}, err
 	}
 	if resolved.QuestionVersionID != command.QuestionVersionID || !validID(resolved.QuestionID) ||
-		!validBundle(resolved.EvaluationBundle) || !validBundle(resolved.SampleBundle) {
+		!validBundle(resolved.EvaluationBundle) || !validBundle(resolved.SampleBundle) || !validExecution(resolved) {
 		return ExamItem{}, fmt.Errorf("question bank returned an invalid question version")
 	}
 	command.Resolved = resolved
@@ -820,6 +824,22 @@ func validObjectKey(value string) bool {
 func validBundle(bundle EncryptedBundle) bool {
 	return validObjectKey(bundle.ObjectKey) && checksumPattern.MatchString(bundle.SHA256) &&
 		validText(bundle.KeyReference, 255)
+}
+
+// validExecution mirrors the bounds the exam_items columns enforce, so a bad
+// Question Bank response fails here rather than inside the write transaction.
+func validExecution(resolved ResolvedQuestionVersion) bool {
+	if resolved.TimeLimitMS < 50 || resolved.TimeLimitMS > 600_000 ||
+		resolved.MemoryLimitKiB < 1024 || resolved.MemoryLimitKiB > 4_194_304 ||
+		len(resolved.SupportedLanguages) < 1 || len(resolved.SupportedLanguages) > 32 {
+		return false
+	}
+	for _, language := range resolved.SupportedLanguages {
+		if !validText(language, 80) {
+			return false
+		}
+	}
+	return true
 }
 
 func validIdempotencyKey(value string) bool {

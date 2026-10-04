@@ -13,9 +13,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestResolvedBundlesAreSnapshotted proves that an item added through the
-// resolved-bundle add_exam_item pins both bundles with their key references,
-// and that every snapshot builder carries them to Submission.
+// TestResolvedBundlesAreSnapshotted proves that an item added through
+// add_exam_item pins both bundles with their key references plus the execution
+// limits and languages, and that every snapshot builder carries them to
+// Submission.
 func TestResolvedBundlesAreSnapshotted(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -56,13 +57,14 @@ func TestResolvedBundlesAreSnapshotted(t *testing.T) {
 		contextID, uuid.New(), actor, tenant)
 	exec(`SELECT set_config('app.authz_context_id', $1, true)`, contextID.String())
 
-	addItem := func(sampleObjectKey any, keyReference any) error {
+	addItem := func(sampleObjectKey any, keyReference any, timeLimit any) error {
 		_, addErr := tx.Exec(ctx, `SAVEPOINT add_item`)
 		require.NoError(t, addErr)
 		_, addErr = tx.Exec(ctx, `SET LOCAL ROLE aether_assessment_app`)
 		require.NoError(t, addErr)
-		_, addErr = tx.Exec(ctx, `SELECT assessment.add_exam_item($1, $2, $3, $4, 1, 1, $5, $6, 10::numeric, 'qb/eval.bin', $7, $8, $9, $10, $11)`,
-			itemID, tenant, versionID, sectionID, questionID, questionVersionID, evalKey, keyReference, sampleObjectKey, sampleKey, keyReference)
+		_, addErr = tx.Exec(ctx, `SELECT assessment.add_exam_item($1, $2, $3, $4, 1, 1, $5, $6, 10::numeric, 'qb/eval.bin', $7, $8, $9, $10, $11, $12, $13, $14)`,
+			itemID, tenant, versionID, sectionID, questionID, questionVersionID, evalKey, keyReference, sampleObjectKey, sampleKey, keyReference,
+			timeLimit, 262144, []string{"c", "python3"})
 		if addErr != nil {
 			// Rolling back to the savepoint also restores the session role.
 			_, rollbackErr := tx.Exec(ctx, `ROLLBACK TO SAVEPOINT add_item`)
@@ -73,14 +75,16 @@ func TestResolvedBundlesAreSnapshotted(t *testing.T) {
 		require.NoError(t, resetErr)
 		return addErr
 	}
-	require.Error(t, addItem(nil, "local/key-1"), "a missing sample bundle must be rejected")
-	require.Error(t, addItem("qb/sample.bin", nil), "a missing key reference must be rejected")
-	require.NoError(t, addItem("qb/sample.bin", "local/key-1"))
+	require.Error(t, addItem(nil, "local/key-1", 2000), "a missing sample bundle must be rejected")
+	require.Error(t, addItem("qb/sample.bin", nil, 2000), "a missing key reference must be rejected")
+	require.Error(t, addItem("qb/sample.bin", "local/key-1", nil), "missing execution limits must be rejected")
+	require.Error(t, addItem("qb/sample.bin", "local/key-1", 0), "an out-of-range time limit must be rejected")
+	require.NoError(t, addItem("qb/sample.bin", "local/key-1", 2000))
 
 	var hasLegacy bool
 	require.NoError(t, tx.QueryRow(ctx, `SELECT has_function_privilege('aether_assessment_app',
-		'assessment.add_exam_item(uuid, uuid, uuid, uuid, bigint, integer, uuid, uuid, numeric, text, text, text, text)', 'EXECUTE')`).Scan(&hasLegacy))
-	require.False(t, hasLegacy, "the caller-supplied bundle overload must not be executable by the app role")
+		'assessment.add_exam_item(uuid, uuid, uuid, uuid, bigint, integer, uuid, uuid, numeric, text, text, text, text, text, text)', 'EXECUTE')`).Scan(&hasLegacy))
+	require.False(t, hasLegacy, "the overload without execution limits must not be executable by the app role")
 
 	exec(`UPDATE assessment.exam_versions SET status = 'published', published_at = now() WHERE id = $1`, versionID)
 	exec(`INSERT INTO assessment.assignment_rules (id, tenant_id, exam_version_id, target_type, target_id, available_from, available_until, created_by)
@@ -101,6 +105,9 @@ func TestResolvedBundlesAreSnapshotted(t *testing.T) {
 		"sample_bundle_checksum":          sampleKey,
 		"sample_bundle_key_reference":     "local/key-1",
 		"maximum_score":                   float64(10),
+		"time_limit_ms":                   float64(2000),
+		"memory_limit_kib":                float64(262144),
+		"supported_languages":             []any{"c", "python3"},
 	}
 
 	// Direct materialization goes through enqueue_candidate_assignment_snapshot.

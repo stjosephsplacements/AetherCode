@@ -104,13 +104,18 @@ func TestParseCompletionMapsUnitResults(t *testing.T) {
 		{
 			name: "verdict and optional metrics are preserved per unit",
 			units: []*judgev1.UnitResult{
-				{UnitNumber: 0, VerdictCode: judgev1.CompletionVerdict_COMPLETION_VERDICT_ACCEPTED, ExecutionTimeMs: &executionTimeMS, MemoryKib: &memoryKiB},
-				{UnitNumber: 1, VerdictCode: judgev1.CompletionVerdict_COMPLETION_VERDICT_WRONG_ANSWER},
+				{UnitNumber: 0, VerdictCode: judgev1.CompletionVerdict_COMPLETION_VERDICT_ACCEPTED, ExecutionTimeMs: &executionTimeMS, MemoryKib: &memoryKiB, Weight: 3},
+				{UnitNumber: 1, VerdictCode: judgev1.CompletionVerdict_COMPLETION_VERDICT_WRONG_ANSWER, Weight: 100},
 			},
 			want: []UnitResult{
-				{UnitNumber: 0, Verdict: "accepted", ExecutionTimeMS: intPointer(12), MemoryKiB: intPointer(1024)},
-				{UnitNumber: 1, Verdict: "wrong_answer"},
+				{UnitNumber: 0, Verdict: "accepted", ExecutionTimeMS: intPointer(12), MemoryKiB: intPointer(1024), Weight: 3},
+				{UnitNumber: 1, Verdict: "wrong_answer", Weight: 100},
 			},
+		},
+		{
+			name:    "weight above the 1-100 range is rejected",
+			units:   []*judgev1.UnitResult{{UnitNumber: 0, VerdictCode: judgev1.CompletionVerdict_COMPLETION_VERDICT_ACCEPTED, Weight: 101}},
+			wantErr: true,
 		},
 		{
 			name:    "unspecified unit verdict is rejected",
@@ -156,7 +161,7 @@ func TestParseCompletionMapsUnitResults(t *testing.T) {
 				got := completion.UnitResults[index]
 				if got.UnitNumber != want.UnitNumber || got.Verdict != want.Verdict ||
 					!sameOptionalInt(got.ExecutionTimeMS, want.ExecutionTimeMS) ||
-					!sameOptionalInt(got.MemoryKiB, want.MemoryKiB) {
+					!sameOptionalInt(got.MemoryKiB, want.MemoryKiB) || got.Weight != want.Weight {
 					t.Fatalf("unit %d = %#v, want %#v", index, got, want)
 				}
 			}
@@ -173,6 +178,8 @@ func TestValidateRejectsUnboundedUnitBreakdown(t *testing.T) {
 	}{
 		{name: "negative unit number", units: []UnitResult{{UnitNumber: -1, Verdict: "accepted"}}},
 		{name: "unknown unit verdict", units: []UnitResult{{UnitNumber: 0, Verdict: "partially_accepted"}}},
+		{name: "negative weight", units: []UnitResult{{UnitNumber: 0, Verdict: "accepted", Weight: -1}}},
+		{name: "weight above range", units: []UnitResult{{UnitNumber: 0, Verdict: "accepted", Weight: 101}}},
 		{name: "negative unit metric", units: []UnitResult{{UnitNumber: 0, Verdict: "accepted", MemoryKiB: intPointer(-1)}}},
 		{name: "unit metric beyond the database bound", units: []UnitResult{{UnitNumber: 0, Verdict: "accepted", ExecutionTimeMS: intPointer(maxUnitMetric + 1)}}},
 		{name: "more units than the database accepts", units: manyUnits(maxUnitResults + 1)},

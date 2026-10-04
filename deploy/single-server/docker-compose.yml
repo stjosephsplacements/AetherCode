@@ -290,6 +290,8 @@ services:
       JUDGE_COMPLETION_TLS_CA_FILE: /certs/ca.crt
       JUDGE_COMPLETION_TLS_SERVER_NAME: judge
       JUDGE_COMPLETION_CONSUMER_ID: submission-single-server
+      # Admits graded work to the same Judge, over the JUDGE_COMPLETION_* endpoint and certificates.
+      JUDGE_DISPATCH_ENABLED: "true"
       SUBMISSION_STORAGE_ENDPOINT: minio:9000
       SUBMISSION_STORAGE_ACCESS_KEY: ${MINIO_ROOT_USER}
       SUBMISSION_STORAGE_SECRET_KEY: ${MINIO_ROOT_PASSWORD}

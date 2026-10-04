@@ -48,6 +48,7 @@ func TestResolvePublishedQuestionVersion(t *testing.T) {
 		QuestionId: "q", QuestionVersionId: "qv",
 		EvaluationBundle: &questionbankv1.EncryptedBundle{ObjectKey: "eval", Sha256: "e", KeyReference: "k1"},
 		SampleBundle:     &questionbankv1.EncryptedBundle{ObjectKey: "sample", Sha256: "s", KeyReference: "k2"},
+		TimeLimitMs:      2000, MemoryLimitKib: 262144, SupportedLanguages: []string{"c", "python3"},
 	}
 	testCases := []struct {
 		name     string
@@ -69,7 +70,8 @@ func TestResolvePublishedQuestionVersion(t *testing.T) {
 					t.Fatalf("error = %v", err)
 				}
 				if resolved.QuestionID != "q" || resolved.EvaluationBundle.KeyReference != "k1" ||
-					resolved.SampleBundle.ObjectKey != "sample" || resolved.SampleBundle.KeyReference != "k2" {
+					resolved.SampleBundle.ObjectKey != "sample" || resolved.SampleBundle.KeyReference != "k2" ||
+					resolved.TimeLimitMS != 2000 || resolved.MemoryLimitKiB != 262144 || len(resolved.SupportedLanguages) != 2 {
 					t.Fatalf("resolved = %+v", resolved)
 				}
 				return

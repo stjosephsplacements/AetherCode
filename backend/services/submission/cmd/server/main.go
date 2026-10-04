@@ -25,6 +25,7 @@ import (
 	"github.com/aethercode/aethercode/libs/pkg/telemetry"
 	httpadapter "github.com/aethercode/aethercode/services/submission/internal/adapters/http"
 	"github.com/aethercode/aethercode/services/submission/internal/adapters/judgecompletion"
+	"github.com/aethercode/aethercode/services/submission/internal/adapters/judgedispatch"
 	"github.com/aethercode/aethercode/services/submission/internal/adapters/projection"
 	"github.com/aethercode/aethercode/services/submission/internal/adapters/repo"
 	"github.com/aethercode/aethercode/services/submission/internal/app"
@@ -90,8 +91,8 @@ func run(contextValue context.Context) error {
 	}
 
 	// NOTE: Storage and KMS are optional. Set SUBMISSION_STORAGE_ENDPOINT and
-	// SUBMISSION_KMS_LOCAL_KEY to enable candidate-source encryption/retrieval
-	// workflows such as run-code. They return 503 Unavailable when these
+	// SUBMISSION_KMS_LOCAL_KEY to enable saving candidate answers, which are
+	// encrypted and stored here. Saving returns 503 Unavailable when these
 	// variables are absent.
 	var storageClient storage.Object
 	var kmsClient kms.KeyManager
@@ -123,6 +124,14 @@ func run(contextValue context.Context) error {
 		return err
 	}
 	var judgeCompletionWorker *judgecompletion.Worker
+	judgeDispatchRuntime, err := judgedispatch.LoadRuntime(serviceConfig.Environment)
+	if err != nil {
+		return err
+	}
+	if judgeDispatchRuntime.Enabled && !judgeCompletionRuntime.Enabled {
+		return fmt.Errorf("JUDGE_COMPLETION_ENABLED=true is required for Judge dispatch, which shares its endpoint and certificates")
+	}
+	var judgeDispatchWorker *judgedispatch.Worker
 
 	messagingRuntime, err := messaging.LoadRuntime(serviceConfig.Environment)
 	if err != nil {
@@ -161,7 +170,9 @@ func run(contextValue context.Context) error {
 				return judgeClientErr
 			}
 			defer func() { _ = judgeClient.Close() }()
-			judgeCompletionWorker, judgeWorkerErr := judgecompletion.NewWorker(
+			// Assign the outer variable: readiness below checks this worker.
+			var judgeWorkerErr error
+			judgeCompletionWorker, judgeWorkerErr = judgecompletion.NewWorker(
 				judgeClient, adapterStore, judgeCompletionRuntime, logger,
 			)
 			if judgeWorkerErr != nil {
@@ -171,6 +182,27 @@ func run(contextValue context.Context) error {
 				return fmt.Errorf("initial Judge completion pull: %w", judgePullErr)
 			}
 			go judgeCompletionWorker.Run(contextValue)
+
+			if judgeDispatchRuntime.Enabled {
+				dispatchConnection, dispatchConnectionErr := judgecompletion.DialConnection(contextValue, judgeCompletionRuntime)
+				if dispatchConnectionErr != nil {
+					return dispatchConnectionErr
+				}
+				defer func() { _ = dispatchConnection.Close() }()
+				dispatchStore, dispatchStoreErr := judgedispatch.NewStore(adapterPool)
+				if dispatchStoreErr != nil {
+					return dispatchStoreErr
+				}
+				var dispatchWorkerErr error
+				judgeDispatchWorker, dispatchWorkerErr = judgedispatch.NewWorker(
+					judgedispatch.NewClient(dispatchConnection, judgeCompletionRuntime.RPCTimeout),
+					dispatchStore, judgeDispatchRuntime, logger,
+				)
+				if dispatchWorkerErr != nil {
+					return dispatchWorkerErr
+				}
+				go judgeDispatchWorker.Run(contextValue)
+			}
 		}
 
 		projectionDatabaseConfig, projectionConfigErr := config.LoadDatabase("SUBMISSION_PROJECTION")
@@ -274,6 +306,11 @@ func run(contextValue context.Context) error {
 			}
 			if judgeCompletionWorker != nil {
 				if err := judgeCompletionWorker.Ready(readinessContext); err != nil {
+					return err
+				}
+			}
+			if judgeDispatchWorker != nil {
+				if err := judgeDispatchWorker.Ready(readinessContext); err != nil {
 					return err
 				}
 			}

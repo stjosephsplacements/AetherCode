@@ -67,6 +67,11 @@ type assignmentSnapshotItem struct {
 	SampleBundleObjectKey        *string `json:"sample_bundle_object_key"`
 	SampleBundleChecksum         *string `json:"sample_bundle_checksum"`
 	SampleBundleKeyReference     *string `json:"sample_bundle_key_reference"`
+	// Execution settings for grading (null on items pinned before assessment
+	// migration 000024); decoded only because the decoder is strict.
+	TimeLimitMS        *int     `json:"time_limit_ms"`
+	MemoryLimitKiB     *int     `json:"memory_limit_kib"`
+	SupportedLanguages []string `json:"supported_languages"`
 }
 
 // Apply atomically claims, validates, and materializes a version-one snapshot.

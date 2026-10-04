@@ -27,6 +27,8 @@ import (
 const (
 	maxUnitResults = 1000
 	maxUnitMetric  = 999999999
+	// maxUnitWeight is the top of the 1-100 test weight range Judge reports.
+	maxUnitWeight = 100
 )
 
 // Completion contains only the metadata required to durably reconcile a
@@ -56,6 +58,10 @@ type UnitResult struct {
 	Verdict         string `json:"verdict"`
 	ExecutionTimeMS *int   `json:"execution_time_ms"`
 	MemoryKiB       *int   `json:"memory_kib"`
+	// Weight is the test's weight in the evaluation bundle (1-100). Zero means
+	// Judge did not report one (a completion stored before weights existed) and
+	// is omitted from the stored breakdown; Submission then counts it as 1.
+	Weight int `json:"weight,omitempty"`
 }
 
 func parseCompletion(value *judgev1.Completion) (Completion, error) {
@@ -152,7 +158,8 @@ func (completion Completion) validateUnitResults() error {
 	}
 	seen := make(map[int]struct{}, len(completion.UnitResults))
 	for _, unit := range completion.UnitResults {
-		if unit.UnitNumber < 0 || unit.UnitNumber > maxUnitMetric || !validVerdict(unit.Verdict) {
+		if unit.UnitNumber < 0 || unit.UnitNumber > maxUnitMetric || !validVerdict(unit.Verdict) ||
+			unit.Weight < 0 || unit.Weight > maxUnitWeight {
 			return fmt.Errorf("judge completion unit number or verdict is invalid")
 		}
 		if !validUnitMetric(unit.ExecutionTimeMS) || !validUnitMetric(unit.MemoryKiB) {
@@ -184,12 +191,15 @@ func parseUnitResults(values []*judgev1.UnitResult) ([]UnitResult, error) {
 		if err != nil {
 			return nil, err
 		}
+		if value.GetWeight() > maxUnitWeight {
+			return nil, fmt.Errorf("judge completion unit weight exceeds %d", maxUnitWeight)
+		}
 		if value.GetUnitNumber() > maxUnitMetric {
 			return nil, fmt.Errorf("judge completion unit_number exceeds Submission's supported range")
 		}
 		units = append(units, UnitResult{
 			UnitNumber: int(value.GetUnitNumber()), Verdict: verdict,
-			ExecutionTimeMS: executionTimeMS, MemoryKiB: memoryKiB,
+			ExecutionTimeMS: executionTimeMS, MemoryKiB: memoryKiB, Weight: int(value.GetWeight()),
 		})
 	}
 	return units, nil

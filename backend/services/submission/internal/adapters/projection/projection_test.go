@@ -180,3 +180,51 @@ func TestParseJudgeCompletedBindsCanonicalCompletionTimeToEnvelope(t *testing.T)
 		t.Fatal("parseJudgeCompleted() accepted an envelope timestamp that differs from the signed payload")
 	}
 }
+
+func TestParseAssignmentSnapshotExecutionSettings(t *testing.T) {
+	checksum := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	testCases := []struct {
+		name    string
+		extra   map[string]any
+		wantErr bool
+	}{
+		{name: "legacy item without settings", extra: map[string]any{"time_limit_ms": nil, "memory_limit_kib": nil, "supported_languages": nil}},
+		{name: "complete settings", extra: map[string]any{"time_limit_ms": 2000, "memory_limit_kib": 262144, "supported_languages": []string{"c", "python3"}}},
+		{name: "partial settings", extra: map[string]any{"time_limit_ms": 2000}, wantErr: true},
+		{name: "time limit below the bound", extra: map[string]any{"time_limit_ms": 10, "memory_limit_kib": 262144, "supported_languages": []string{"c"}}, wantErr: true},
+		{name: "memory limit above the bound", extra: map[string]any{"time_limit_ms": 2000, "memory_limit_kib": 4194305, "supported_languages": []string{"c"}}, wantErr: true},
+		{name: "empty language list", extra: map[string]any{"time_limit_ms": 2000, "memory_limit_kib": 262144, "supported_languages": []string{}}, wantErr: true},
+		{name: "blank language", extra: map[string]any{"time_limit_ms": 2000, "memory_limit_kib": 262144, "supported_languages": []string{" "}}, wantErr: true},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			item := map[string]any{
+				"exam_item_id":                 projectionTestUUID,
+				"evaluation_bundle_object_key": "qbank/evaluation/manifest.enc",
+				"evaluation_bundle_checksum":   checksum,
+				"maximum_score":                10.0,
+			}
+			for key, value := range testCase.extra {
+				item[key] = value
+			}
+			payload, err := json.Marshal(map[string]any{
+				"tenant_id": projectionTestUUID, "candidate_assignment_id": projectionTestUUID,
+				"candidate_id": projectionTestUUID, "exam_id": projectionTestUUID, "exam_version_id": projectionTestUUID,
+				"available_from": "2026-07-24T10:00:00Z", "available_until": "2026-07-24T11:00:00Z",
+				"attempt_limit": 1, "lifecycle_state": "active", "version": 1,
+				"items": []map[string]any{item},
+			})
+			if err != nil {
+				t.Fatalf("marshal payload: %v", err)
+			}
+			_, err = parseAssignmentSnapshot(messaging.Event{
+				ID: projectionTestUUID, Type: AssignmentSnapshotEventType, SchemaVersion: 1,
+				AggregateType: "candidate_assignment", AggregateID: projectionTestUUID, TenantID: projectionTestUUID,
+				OccurredAt: time.Now().UTC(), Payload: payload,
+			})
+			if (err != nil) != testCase.wantErr {
+				t.Fatalf("parseAssignmentSnapshot() error = %v, wantErr %t", err, testCase.wantErr)
+			}
+		})
+	}
+}

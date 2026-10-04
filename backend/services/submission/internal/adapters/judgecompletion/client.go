@@ -16,7 +16,8 @@ import (
 )
 
 // Client is the narrow receive/acknowledge surface used by the worker.
-// SubmitExecution is deliberately absent so this bridge cannot admit work.
+// SubmitExecution is deliberately absent so this bridge cannot admit work;
+// the judgedispatch package owns that, with its own client.
 type Client interface {
 	Pull(context.Context, string, uint32, uint32) ([]Completion, error)
 	Acknowledge(context.Context, string, Completion) error
@@ -31,6 +32,19 @@ type grpcClient struct {
 
 // Dial opens a verified TLS 1.3 connection to the private wrapper API.
 func Dial(contextValue context.Context, runtime Runtime) (Client, error) {
+	connection, err := DialConnection(contextValue, runtime)
+	if err != nil {
+		return nil, err
+	}
+	return &grpcClient{
+		client: judgev1.NewJudgeServiceClient(connection), connection: connection, rpcTimeout: runtime.RPCTimeout,
+	}, nil
+}
+
+// DialConnection opens the mutually authenticated connection to the wrapper
+// that this bridge and the dispatcher (judgedispatch) each use for their own,
+// separately scoped, client.
+func DialConnection(contextValue context.Context, runtime Runtime) (*grpc.ClientConn, error) {
 	if !runtime.Enabled {
 		return nil, fmt.Errorf("judge completion bridge is disabled")
 	}
@@ -50,9 +64,7 @@ func Dial(contextValue context.Context, runtime Runtime) (Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("dial Judge completion API: %w", err)
 	}
-	return &grpcClient{
-		client: judgev1.NewJudgeServiceClient(connection), connection: connection, rpcTimeout: runtime.RPCTimeout,
-	}, nil
+	return connection, nil
 }
 
 func (client *grpcClient) Pull(contextValue context.Context, consumerID string, limit, leaseSeconds uint32) ([]Completion, error) {

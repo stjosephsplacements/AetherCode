@@ -92,7 +92,7 @@ func (repository *Postgres) AppendAnswerRevision(contextValue context.Context, t
 		       created_at, created_by, attempt_version
 		FROM submission.append_answer_revision($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`, command.ID, command.EventID, command.TenantID, command.AttemptID, command.ExamItemID,
-		command.LanguageID, command.SourceObjectKey, command.SourceChecksum,
+		command.Language, command.SourceObjectKey, command.SourceChecksum,
 		command.EncryptionKeyReference, command.ExpectedAttemptVersion).Scan(
 		&revision.ID, &revision.TenantID, &revision.AttemptID, &revision.ExamItemID,
 		&revision.RevisionNumber, &revision.LanguageID, &revision.SourceObjectKey,

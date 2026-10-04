@@ -114,10 +114,13 @@ func (client *Client) ResolvePublishedQuestionVersion(ctx context.Context, quest
 		return app.ResolvedQuestionVersion{}, apperrors.New(apperrors.CodeUnavailable, "question bank is unavailable")
 	}
 	return app.ResolvedQuestionVersion{
-		QuestionID:        response.GetQuestionId(),
-		QuestionVersionID: response.GetQuestionVersionId(),
-		EvaluationBundle:  bundle(response.GetEvaluationBundle()),
-		SampleBundle:      bundle(response.GetSampleBundle()),
+		QuestionID:         response.GetQuestionId(),
+		QuestionVersionID:  response.GetQuestionVersionId(),
+		EvaluationBundle:   bundle(response.GetEvaluationBundle()),
+		SampleBundle:       bundle(response.GetSampleBundle()),
+		TimeLimitMS:        int(response.GetTimeLimitMs()),
+		MemoryLimitKiB:     int(response.GetMemoryLimitKib()),
+		SupportedLanguages: response.GetSupportedLanguages(),
 	}, nil
 }
 

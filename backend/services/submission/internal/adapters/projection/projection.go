@@ -51,9 +51,9 @@ func (store *Store) Ping(contextValue context.Context) error {
 	return nil
 }
 
-// assignmentItem decodes every field Assessment emits. The key references and
-// sample bundle are accepted so the strict decoder keeps working, but are not
-// stored yet; they are null for items pinned before Assessment migration 000020.
+// assignmentItem decodes every field Assessment emits and Submission stores. The
+// key references and sample bundle are null for items pinned before Assessment
+// migration 000020, and the limits and languages for those before 000024.
 type assignmentItem struct {
 	ExamItemID                   string      `json:"exam_item_id"`
 	EvaluationBundleObjectKey    string      `json:"evaluation_bundle_object_key"`
@@ -63,6 +63,9 @@ type assignmentItem struct {
 	SampleBundleChecksum         string      `json:"sample_bundle_checksum"`
 	SampleBundleKeyReference     string      `json:"sample_bundle_key_reference"`
 	MaximumScore                 json.Number `json:"maximum_score"`
+	TimeLimitMS                  *int        `json:"time_limit_ms"`
+	MemoryLimitKiB               *int        `json:"memory_limit_kib"`
+	SupportedLanguages           []string    `json:"supported_languages"`
 }
 
 type assignmentSnapshot struct {
@@ -203,12 +206,35 @@ func parseAssignmentSnapshot(event messaging.Event) (assignmentSnapshot, error) 
 			!validSHA256(item.EvaluationBundleChecksum) || parseErr != nil || maximumScore <= 0 {
 			return assignmentSnapshot{}, fmt.Errorf("assessment assignment item is invalid")
 		}
+		if !validExecution(item) {
+			return assignmentSnapshot{}, fmt.Errorf("assessment assignment item execution limits are invalid")
+		}
 		if _, duplicate := seenItems[item.ExamItemID]; duplicate {
 			return assignmentSnapshot{}, fmt.Errorf("assessment assignment contains a duplicate exam item")
 		}
 		seenItems[item.ExamItemID] = struct{}{}
 	}
 	return payload, nil
+}
+
+// validExecution accepts either no execution settings (a legacy item) or all
+// of them within the bounds the projection columns enforce.
+func validExecution(item assignmentItem) bool {
+	if item.TimeLimitMS == nil && item.MemoryLimitKiB == nil && item.SupportedLanguages == nil {
+		return true
+	}
+	if item.TimeLimitMS == nil || item.MemoryLimitKiB == nil ||
+		*item.TimeLimitMS < 50 || *item.TimeLimitMS > 600_000 ||
+		*item.MemoryLimitKiB < 1024 || *item.MemoryLimitKiB > 4_194_304 ||
+		len(item.SupportedLanguages) < 1 || len(item.SupportedLanguages) > 32 {
+		return false
+	}
+	for _, language := range item.SupportedLanguages {
+		if strings.TrimSpace(language) == "" {
+			return false
+		}
+	}
+	return true
 }
 
 func parseJudgeCompleted(event messaging.Event) (judgeCompleted, error) {

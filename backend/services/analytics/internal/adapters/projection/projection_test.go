@@ -274,7 +274,8 @@ func TestDecodeJudgeCompletedRejectsInvalidCompletionTime(t *testing.T) {
 func TestDecodeAssignmentSnapshotAcceptsPinnedBundleReferences(t *testing.T) {
 	for _, extra := range []string{
 		`"evaluation_bundle_key_reference":"local:k","sample_bundle_object_key":"s","sample_bundle_checksum":"c","sample_bundle_key_reference":"local:k"`,
-		`"evaluation_bundle_key_reference":null,"sample_bundle_object_key":null,"sample_bundle_checksum":null,"sample_bundle_key_reference":null`,
+		`"evaluation_bundle_key_reference":null,"sample_bundle_object_key":null,"sample_bundle_checksum":null,"sample_bundle_key_reference":null,"time_limit_ms":null,"memory_limit_kib":null,"supported_languages":null`,
+		`"time_limit_ms":2000,"memory_limit_kib":262144,"supported_languages":["c","python3"]`,
 	} {
 		event := messaging.Event{
 			ID: projectionUUID, Type: AssignmentSnapshotEventType, SchemaVersion: 1,
