@@ -3,9 +3,9 @@
 The whole platform on one machine with Docker Compose (decision D2): the 11
 services, PostgreSQL 18, NATS JetStream, MinIO, the judge control plane (its
 own PostgreSQL and RabbitMQ) and the code-execution engine: Piston by default
-(ADR-0018), or Judge0 on cgroup v1 hosts. Only the gateway is published
-(`GATEWAY_PORT`, default 8080); put TLS termination (nginx or Caddy) in front
-of it on the campus network.
+(ADR-0018), or Judge0 on cgroup v1 hosts. Only the gateway is published,
+on loopback (`127.0.0.1:GATEWAY_PORT`, default 8080); the host nginx serves it
+publicly over TLS (see "Public address").
 
 Internal traffic uses mTLS just like the Kubernetes deployment: each service
 gets a certificate from a private CA with `CN=<service>`, `DNS:<service>` and
@@ -62,7 +62,7 @@ The account has no password. Activate it with the reset flow; with no email
 channel, the operator delivers the reset token out of band:
 
 ```sh
-curl -s -X POST localhost:${GATEWAY_PORT:-8080}/v1/auth/password-reset \
+curl -s -X POST localhost:${GATEWAY_PORT:-8080}/api/identity/v1/auth/password-reset \
   -H 'content-type: application/json' -d '{"email":"admin@college.edu"}'
 
 docker compose run --rm --entrypoint deliver-reset \
@@ -70,10 +70,35 @@ docker compose run --rm --entrypoint deliver-reset \
   -e IDENTITY_DELIVERY_TOKEN_HMAC_KEY_BASE64="$IDENTITY_DELIVERY_TOKEN_HMAC_KEY_BASE64" \
   migrate --email admin@college.edu         # prints the reset token
 
-curl -s -X POST localhost:${GATEWAY_PORT:-8080}/v1/auth/password-reset/complete \
+curl -s -X POST localhost:${GATEWAY_PORT:-8080}/api/identity/v1/auth/password-reset/complete \
   -H 'content-type: application/json' \
   -d '{"token":"<token>","password":"<new password>"}'
 ```
+
+## Public address
+
+The campus server's own nginx terminates TLS for
+`aethercode.stjosephsplacements.in`, which Cloudflare proxies. Install the site
+once:
+
+```sh
+sudo cp nginx-site.conf /etc/nginx/sites-available/aethercode
+sudo ln -sf /etc/nginx/sites-available/aethercode /etc/nginx/sites-enabled/aethercode
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+The gateway trusts `X-Forwarded-For` only from the address nginx connects
+from, which is the Compose network's bridge gateway. Find it and set it in
+`.env`, then recreate the gateway:
+
+```sh
+docker network inspect aethercode-platform_default -f '{{(index .IPAM.Config 0).Gateway}}'
+echo 'GATEWAY_TRUSTED_PROXY_CIDRS=["172.27.0.1/32"]' >> .env   # use the address printed above
+docker compose up -d gateway
+```
+
+Without it every request appears to come from nginx, so per-IP login limits
+and lab network rules would treat all students as one address.
 
 ## Backups
 

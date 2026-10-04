@@ -431,10 +431,13 @@ services:
       GATEWAY_IDENTITY_ASSERTION_ISSUER: aethercode-identity
       GATEWAY_IDENTITY_ASSERTION_AUDIENCE: aethercode
       GATEWAY_IDENTITY_ASSERTION_PUBLIC_KEYS: ${IDENTITY_ASSERTION_PUBLIC_KEYS}
+      # The host nginx reaches the gateway through the Docker bridge address.
+      GATEWAY_TRUSTED_PROXY_CIDRS: ${GATEWAY_TRUSTED_PROXY_CIDRS:-[]}
       GATEWAY_UPSTREAMS: '{"identity":"http://identity:8080","tenant":"http://tenant:8080","user":"http://user:8080","question-bank":"http://question-bank:8080","assessment":"http://assessment:8080","submission":"http://submission:8080","seb":"http://seb:8080","notification":"http://notification:8080","analytics":"http://analytics:8080"}'
     build: { context: ../../backend, dockerfile: services/gateway/Dockerfile }
     ports:
-      - "${GATEWAY_PORT:-8080}:8080"
+      # Loopback only: the public address is the host nginx (nginx-site.conf).
+      - "127.0.0.1:${GATEWAY_PORT:-8080}:8080"
 
 volumes:
   piston-packages:
