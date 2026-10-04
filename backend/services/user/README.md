@@ -41,6 +41,11 @@ service deliberately has no cross-database foreign keys.
 
 ## Canonical authorization data
 
+The global question bank is authored by every college's staff (ADR-0020). The
+`question-bank` route sets `StaffAuthoring`, so `college_admin` and
+`department_user` assignments apply to its tenant-less requests. Tenant grants
+from those two roles carry `"authoring": true` in `authz.grants_snapshot.v1`.
+
 `users.role_assignments` is the source for the Golden/Silver/Bronze scope
 model. It stores role, scope kind, optional tenant, scope UUID, lifecycle, and
 granting principal. `users.placement_department_memberships` supplies the

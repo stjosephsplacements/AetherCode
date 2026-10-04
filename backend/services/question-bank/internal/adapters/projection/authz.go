@@ -83,8 +83,8 @@ func (projection *GlobalAuthorizationProjection) Apply(contextValue context.Cont
 
 	if _, err := transaction.Exec(contextValue, `
 		SELECT authz.apply_global_authorization($1, $2, $3, $4, $5, $6)
-	`, payload.PrincipalID, payload.AuthorizationRevision, payload.HasPlatformGrant,
-		payload.HasPlatformGrant, payload.HasPlatformGrant, payload.PlatformExpiresAt); err != nil {
+	`, payload.PrincipalID, payload.AuthorizationRevision, payload.HasGlobalAccess,
+		payload.HasGlobalAccess, payload.HasGlobalAccess, payload.GlobalExpiresAt); err != nil {
 		return projectionWriteError(err, "apply Question Bank global authorization")
 	}
 	if _, err := transaction.Exec(contextValue, `
@@ -105,8 +105,10 @@ type authorizationSnapshot struct {
 	AuthorizationRevision int64   `json:"authz_revision"`
 	Reason                string  `json:"reason"`
 	Grants                []grant `json:"grants"`
-	HasPlatformGrant      bool
-	PlatformExpiresAt     *time.Time
+	// HasGlobalAccess is true for a platform grant or a staff authoring grant
+	// (ADR-0020); GlobalExpiresAt is nil when any such grant never expires.
+	HasGlobalAccess bool
+	GlobalExpiresAt *time.Time
 }
 
 type grant struct {
@@ -114,6 +116,7 @@ type grant struct {
 	TenantID      string `json:"tenant_id"`
 	GrantSourceID string `json:"grant_source_id"`
 	ExpiresAt     string `json:"expires_at"`
+	Authoring     bool   `json:"authoring,omitempty"`
 }
 
 func parseSnapshot(event messaging.Event) (authorizationSnapshot, error) {
@@ -145,9 +148,13 @@ func parseSnapshot(event messaging.Event) (authorizationSnapshot, error) {
 			return authorizationSnapshot{}, fmt.Errorf("authorization snapshot contains a duplicate grant")
 		}
 		seen[key] = struct{}{}
-		if item.GrantKind == "platform" {
-			payload.HasPlatformGrant = true
-			payload.PlatformExpiresAt = expiresAt
+		if item.GrantKind == "platform" || item.Authoring {
+			if !payload.HasGlobalAccess {
+				payload.GlobalExpiresAt = expiresAt
+			} else if payload.GlobalExpiresAt != nil && (expiresAt == nil || expiresAt.After(*payload.GlobalExpiresAt)) {
+				payload.GlobalExpiresAt = expiresAt
+			}
+			payload.HasGlobalAccess = true
 		}
 	}
 	return payload, nil
@@ -178,6 +185,9 @@ func validateGrant(item grant) (*time.Time, error) {
 		}
 	default:
 		return nil, fmt.Errorf("authorization snapshot grant kind is invalid")
+	}
+	if item.Authoring && item.GrantKind != "tenant" {
+		return nil, fmt.Errorf("only a tenant authorization grant may carry authoring")
 	}
 	return expiresAt, nil
 }

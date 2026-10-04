@@ -32,6 +32,9 @@ type grant struct {
 	TenantID      string `json:"tenant_id"`
 	GrantSourceID string `json:"grant_source_id"`
 	ExpiresAt     string `json:"expires_at"`
+	// Authoring marks a tenant grant held through a college_admin or
+	// department_user role (ADR-0020); only Question Bank acts on it.
+	Authoring bool `json:"authoring,omitempty"`
 }
 
 type snapshotPayload struct {
@@ -191,6 +194,9 @@ func validateGrant(item grant) error {
 		}
 	default:
 		return fmt.Errorf("authorization snapshot grant kind is invalid")
+	}
+	if item.Authoring && item.GrantKind != "tenant" {
+		return fmt.Errorf("only a tenant authorization grant may carry authoring")
 	}
 	return nil
 }

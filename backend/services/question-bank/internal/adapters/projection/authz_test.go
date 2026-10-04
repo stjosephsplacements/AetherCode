@@ -2,6 +2,7 @@ package projection
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -43,7 +44,7 @@ func TestParseSnapshotExtractsPlatformGrant(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parseSnapshot() error = %v", err)
 	}
-	if !parsed.HasPlatformGrant || parsed.PlatformExpiresAt == nil || parsed.AuthorizationRevision != 7 {
+	if !parsed.HasGlobalAccess || parsed.GlobalExpiresAt == nil || parsed.AuthorizationRevision != 7 {
 		t.Fatalf("parsed snapshot = %#v", parsed)
 	}
 }
@@ -58,7 +59,7 @@ func TestParseSnapshotTreatsEmptyGrantsAsRevocation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parseSnapshot() error = %v", err)
 	}
-	if parsed.HasPlatformGrant || parsed.PlatformExpiresAt != nil {
+	if parsed.HasGlobalAccess || parsed.GlobalExpiresAt != nil {
 		t.Fatalf("empty grants were not interpreted as a revoke: %#v", parsed)
 	}
 }
@@ -72,5 +73,47 @@ func TestParseSnapshotRejectsInvalidGlobalScope(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("parseSnapshot() accepted an invalid platform grant scope")
+	}
+}
+
+func parseTestSnapshot(t *testing.T, grants string) (authorizationSnapshot, error) {
+	t.Helper()
+	raw := []byte(`{"principal_id":"` + testPrincipalID + `","authz_revision":9,"reason":"staff_authoring_grant","grants":` + grants + `}`)
+	return parseSnapshot(messaging.Event{
+		ID: testEventID, Type: AuthorizationSnapshotEventType, SchemaVersion: 1,
+		AggregateType: "principal", AggregateID: testPrincipalID,
+		OccurredAt: time.Now().UTC(), Payload: raw,
+	})
+}
+
+// ADR-0020: a staff tenant grant authors the global bank; a plain tenant
+// grant (a student or mentor) does not.
+func TestParseSnapshotGrantsGlobalAccessToStaffAuthoring(t *testing.T) {
+	tenantGrant := `{"grant_kind":"tenant","tenant_id":"` + testTenantID + `","grant_source_id":"` + testTenantID + `","expires_at":"%s"%s}`
+	for _, scenario := range []struct {
+		name       string
+		grants     string
+		wantAccess bool
+		wantExpiry bool
+	}{
+		{"student tenant grant", "[" + fmt.Sprintf(tenantGrant, "", "") + "]", false, false},
+		{"staff tenant grant", "[" + fmt.Sprintf(tenantGrant, "", `,"authoring":true`) + "]", true, false},
+		{"expiring staff grant", "[" + fmt.Sprintf(tenantGrant, "2026-12-01T00:00:00Z", `,"authoring":true`) + "]", true, true},
+	} {
+		parsed, err := parseTestSnapshot(t, scenario.grants)
+		if err != nil {
+			t.Fatalf("%s: parseSnapshot() error = %v", scenario.name, err)
+		}
+		if parsed.HasGlobalAccess != scenario.wantAccess || (parsed.GlobalExpiresAt != nil) != scenario.wantExpiry {
+			t.Fatalf("%s: access = %v, expiry = %v", scenario.name, parsed.HasGlobalAccess, parsed.GlobalExpiresAt)
+		}
+	}
+	never := `{"grant_kind":"platform","tenant_id":"` + zeroUUID + `","grant_source_id":"` + zeroUUID + `","expires_at":""}`
+	parsed, err := parseTestSnapshot(t, "["+never+","+fmt.Sprintf(tenantGrant, "2026-12-01T00:00:00Z", `,"authoring":true`)+"]")
+	if err != nil || !parsed.HasGlobalAccess || parsed.GlobalExpiresAt != nil {
+		t.Fatalf("a non-expiring grant must win: %#v, %v", parsed, err)
+	}
+	if _, err := parseTestSnapshot(t, `[{"grant_kind":"platform","tenant_id":"`+zeroUUID+`","grant_source_id":"`+zeroUUID+`","expires_at":"","authoring":true}]`); err == nil {
+		t.Fatal("parseSnapshot() accepted authoring on a platform grant")
 	}
 }

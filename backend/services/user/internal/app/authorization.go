@@ -117,10 +117,13 @@ func (AuthenticationError) Error() string {
 }
 
 type route struct {
-	Audience                string
-	ActionPrefix            string
-	ResourcePrefix          string
-	Global                  bool
+	Audience       string
+	ActionPrefix   string
+	ResourcePrefix string
+	Global         bool
+	// StaffAuthoring lets college_admin and department_user assignments
+	// authorize this Global route, which carries no tenant (ADR-0020).
+	StaffAuthoring          bool
 	GlobalResources         map[string]struct{}
 	OptionalTenantResources map[string]struct{}
 	Resources               map[string]struct{}
@@ -138,7 +141,7 @@ var routes = map[string]route{
 		Resources:               resourceSet("accounts", "profiles", "students", "student_department_memberships", "current_student_affiliations", "student_batch_affiliations", "mentor_batch_assignments", "role_assignments", "placement_department_memberships"),
 	},
 	"question-bank": {
-		Audience: "aether_qbank", ActionPrefix: "qbank", ResourcePrefix: "qbank", Global: true,
+		Audience: "aether_qbank", ActionPrefix: "qbank", ResourcePrefix: "qbank", Global: true, StaffAuthoring: true,
 		Resources: resourceSet("questions", "question_versions", "test_case_manifests", "question_assets", "tags", "question_version_tags"),
 	},
 	"assessment": {
@@ -243,7 +246,7 @@ func (service *Service) Authorize(contextValue context.Context, request Request)
 	matchingScopes := make([]Scope, 0, len(snapshot.Assignments))
 	for _, assignment := range snapshot.Assignments {
 		if !assignmentApplies(
-			assignment, validated, snapshot.TargetStudentPlacementScopes,
+			assignment, validated, targetRoute.StaffAuthoring, snapshot.TargetStudentPlacementScopes,
 			snapshot.PlacementStaffScopes, snapshot.OwnedCandidateAssignments,
 		) {
 			continue
@@ -353,6 +356,7 @@ func (service *Service) verifyIdentityAssertion(contextValue context.Context, re
 func assignmentApplies(
 	assignment Assignment,
 	request Request,
+	staffAuthoring bool,
 	placementScopes map[string]struct{},
 	staffScopes map[string]struct{},
 	ownedCandidateAssignments map[string]struct{},
@@ -361,6 +365,11 @@ func assignmentApplies(
 	case "platform":
 		return true
 	case "college", "department", "batch":
+		if staffAuthoring && request.TenantID == "" {
+			// The global question bank is authored by every college's staff
+			// (ADR-0020); mentors and students stay excluded.
+			return assignment.Role == centralauthz.RoleCollegeAdmin || assignment.Role == centralauthz.RoleDepartmentUser
+		}
 		return request.TenantID != "" && assignment.TenantID == request.TenantID
 	case "placement_department":
 		if (request.ResourceType != "students" && request.ResourceType != "student_batch_affiliations") || request.TenantID == "" {

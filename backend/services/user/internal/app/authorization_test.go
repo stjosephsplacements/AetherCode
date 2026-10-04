@@ -150,13 +150,13 @@ func TestPlacementAssignmentRequiresCurrentStaffAndTargetMembership(t *testing.T
 		ResourceType: "students", ResourceID: "018f4b0d-08f8-7c09-9ba7-efdf9c223400",
 	}
 	targetScopes := map[string]struct{}{testPlacement: {}}
-	if assignmentApplies(assignment, request, targetScopes, nil, nil) {
+	if assignmentApplies(assignment, request, false, targetScopes, nil, nil) {
 		t.Fatal("placement assignment applied after the caller's staff membership was removed")
 	}
-	if !assignmentApplies(assignment, request, targetScopes, map[string]struct{}{testPlacement: {}}, nil) {
+	if !assignmentApplies(assignment, request, false, targetScopes, map[string]struct{}{testPlacement: {}}, nil) {
 		t.Fatal("placement assignment did not apply with both target and staff membership")
 	}
-	if assignmentApplies(assignment, request, nil, map[string]struct{}{testPlacement: {}}, nil) {
+	if assignmentApplies(assignment, request, false, nil, map[string]struct{}{testPlacement: {}}, nil) {
 		t.Fatal("placement assignment applied to a student outside the placement department")
 	}
 }
@@ -179,7 +179,7 @@ func TestStudentBatchAffiliationIsAProtectedPlacementScopedUserResource(t *testi
 		TenantID: testTenant, ScopeID: testPlacement,
 	}
 	placementScopes := map[string]struct{}{testPlacement: {}}
-	if !assignmentApplies(assignment, request, placementScopes, placementScopes, nil) {
+	if !assignmentApplies(assignment, request, false, placementScopes, placementScopes, nil) {
 		t.Fatal("placement assignment did not apply to a student batch affiliation in its placement scope")
 	}
 }
@@ -231,10 +231,10 @@ func TestStudentSelfScopeRequiresCandidateAssignmentOwnership(t *testing.T) {
 		PrincipalID: testPrincipal, TenantID: testTenant, Action: "read",
 		ResourceType: "candidate_assignments", ResourceID: "018f4b0d-08f8-7c09-9ba7-efdf9c223401",
 	}
-	if assignmentApplies(assignment, request, nil, nil, nil) {
+	if assignmentApplies(assignment, request, false, nil, nil, nil) {
 		t.Fatal("student self scope accepted an arbitrary candidate assignment")
 	}
-	if !assignmentApplies(assignment, request, nil, nil, map[string]struct{}{request.ResourceID: {}}) {
+	if !assignmentApplies(assignment, request, false, nil, nil, map[string]struct{}{request.ResourceID: {}}) {
 		t.Fatal("student self scope rejected its projected candidate assignment")
 	}
 }
@@ -249,11 +249,11 @@ func TestStudentSelfScopeBindsNotificationResourcesToTheBearer(t *testing.T) {
 			PrincipalID: testPrincipal, TenantID: testTenant, Action: "read",
 			ResourceType: resourceType, ResourceID: testPrincipal,
 		}
-		if !assignmentApplies(assignment, request, nil, nil, nil) {
+		if !assignmentApplies(assignment, request, false, nil, nil, nil) {
 			t.Fatalf("student self scope rejected own %s", resourceType)
 		}
 		request.ResourceID = "018f4b0d-08f8-7c09-9ba7-efdf9c223402"
-		if assignmentApplies(assignment, request, nil, nil, nil) {
+		if assignmentApplies(assignment, request, false, nil, nil, nil) {
 			t.Fatalf("student self scope accepted another recipient's %s", resourceType)
 		}
 	}
@@ -268,11 +268,11 @@ func TestStudentSelfScopeBindsSEBValidationToTheBearer(t *testing.T) {
 		PrincipalID: testPrincipal, TenantID: testTenant, Action: "write",
 		ResourceType: "validation_events", ResourceID: testPrincipal,
 	}
-	if !assignmentApplies(assignment, request, nil, nil, nil) {
+	if !assignmentApplies(assignment, request, false, nil, nil, nil) {
 		t.Fatal("student self scope rejected its own SEB validation resource")
 	}
 	request.ResourceID = "018f4b0d-08f8-7c09-9ba7-efdf9c223405"
-	if assignmentApplies(assignment, request, nil, nil, nil) {
+	if assignmentApplies(assignment, request, false, nil, nil, nil) {
 		t.Fatal("student self scope accepted another SEB validation resource")
 	}
 }
@@ -300,7 +300,7 @@ func TestAssignmentAppliesAllowsCandidateAssignmentCollection(t *testing.T) {
 		PrincipalID: principal, TenantID: tenant,
 		ResourceType: "candidate_assignments", ResourceID: principal, Action: "read",
 	}
-	if !assignmentApplies(assignment, request, nil, nil, nil) {
+	if !assignmentApplies(assignment, request, false, nil, nil, nil) {
 		t.Fatal("assignmentApplies() = false, want true for a candidate listing their own assignments")
 	}
 }
@@ -315,7 +315,7 @@ func TestAssignmentAppliesDeniesForeignCandidateAssignmentCollection(t *testing.
 		PrincipalID: principal, TenantID: tenant,
 		ResourceType: "candidate_assignments", ResourceID: other, Action: "read",
 	}
-	if assignmentApplies(assignment, request, nil, nil, nil) {
+	if assignmentApplies(assignment, request, false, nil, nil, nil) {
 		t.Fatal("assignmentApplies() = true, want false when the resource ID is another principal")
 	}
 }
@@ -329,7 +329,7 @@ func TestAssignmentAppliesAllowsOwnSessionCollection(t *testing.T) {
 		PrincipalID: principal, TenantID: tenant,
 		ResourceType: "sessions", ResourceID: principal, Action: "read",
 	}
-	if !assignmentApplies(assignment, request, nil, nil, nil) {
+	if !assignmentApplies(assignment, request, false, nil, nil, nil) {
 		t.Fatal("assignmentApplies() = false, want true for a candidate listing their own SEB sessions")
 	}
 }
@@ -344,7 +344,7 @@ func TestAssignmentAppliesDeniesForeignSessionCollection(t *testing.T) {
 		PrincipalID: principal, TenantID: tenant,
 		ResourceType: "sessions", ResourceID: other, Action: "read",
 	}
-	if assignmentApplies(assignment, request, nil, nil, nil) {
+	if assignmentApplies(assignment, request, false, nil, nil, nil) {
 		t.Fatal("assignmentApplies() = true, want false when the resource ID is another principal")
 	}
 }
@@ -360,7 +360,34 @@ func TestAssignmentAppliesDeniesSelfScopeInAnotherTenant(t *testing.T) {
 		PrincipalID: principal, TenantID: "018f4b0d-08f8-7c09-9ba7-efdf9c220303",
 		ResourceType: "sessions", ResourceID: principal, Action: "read",
 	}
-	if assignmentApplies(assignment, request, nil, nil, nil) {
+	if assignmentApplies(assignment, request, false, nil, nil, nil) {
 		t.Fatal("assignmentApplies() = true, want false when the self scope belongs to another tenant")
+	}
+}
+
+// ADR-0020: the global question bank accepts college_admin and
+// department_user assignments from any college, and nothing else that is
+// tenant-scoped. Routes without StaffAuthoring keep requiring a tenant.
+func TestStaffAuthoringAppliesOnlyToStaffRolesOnTheQuestionBank(t *testing.T) {
+	t.Parallel()
+	request := Request{PrincipalID: testPrincipal, Action: "write", ResourceType: "questions", ResourceID: testPrincipal}
+	for _, scenario := range []struct {
+		assignment Assignment
+		want       bool
+	}{
+		{Assignment{Role: centralauthz.RoleCollegeAdmin, ScopeKind: "college", TenantID: testTenant, ScopeID: testTenant}, true},
+		{Assignment{Role: centralauthz.RoleDepartmentUser, ScopeKind: "department", TenantID: testTenant, ScopeID: testPrincipal}, true},
+		{Assignment{Role: centralauthz.RoleMentor, ScopeKind: "batch", TenantID: testTenant, ScopeID: testPrincipal}, false},
+		{Assignment{Role: centralauthz.RoleStudent, ScopeKind: "self", TenantID: testTenant, ScopeID: testPrincipal}, false},
+	} {
+		if got := assignmentApplies(scenario.assignment, request, true, nil, nil, nil); got != scenario.want {
+			t.Fatalf("%s on the question bank = %v, want %v", scenario.assignment.Role, got, scenario.want)
+		}
+		if assignmentApplies(scenario.assignment, request, false, nil, nil, nil) {
+			t.Fatalf("%s applied to a tenant-less request on a route without staff authoring", scenario.assignment.Role)
+		}
+	}
+	if !routes["question-bank"].StaffAuthoring || routes["tenant"].StaffAuthoring {
+		t.Fatal("only the question-bank route may enable staff authoring")
 	}
 }

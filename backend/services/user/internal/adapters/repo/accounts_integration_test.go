@@ -5,6 +5,7 @@ package repo_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -129,6 +130,14 @@ func TestAccountManagementFunctions(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, []string{credentials[0].PrincipalID, credentials[1].PrincipalID}, inBatch)
 	})
+	// ADR-0020: staff tenant grants say they author the global bank; a
+	// student's tenant grant does not.
+	for principal, wantAuthoring := range map[string]bool{facultyMember: true, admin: true, credentials[0].PrincipalID: false} {
+		var grants string
+		require.NoError(t, pool.QueryRow(ctx, `SELECT users.effective_authz_grants($1)::text`, principal).Scan(&grants))
+		require.Equal(t, wantAuthoring, strings.Contains(grants, `"authoring": true`), grants)
+	}
+
 	withContext(ctx, t, pool, actor, otherTenant, "users.accounts", func(transaction pgx.Tx) {
 		_, err := repository.TenantAccountPrincipals(ctx, transaction, tenant, []string{admin})
 		require.ErrorContains(t, err, "authorization denied", "a context for another college cannot list this college's accounts")
