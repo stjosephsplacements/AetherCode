@@ -43,6 +43,7 @@ export function engineFromEnv(): Engine {
   const kind = process.env.ENGINE ?? "judge0";
   if (kind === "judge0") return new Judge0Engine(url, process.env.ENGINE_AUTH_TOKEN ?? "", process.env.ENGINE_BATCH !== "false");
   if (kind === "piston") return new PistonEngine(url);
+  if (kind === "aethercode") return new AetherCodeEngine(url);
   throw new Error(`unknown ENGINE ${kind}`);
 }
 
@@ -247,5 +248,159 @@ export class PistonEngine implements Engine {
       timeMs: run.cpu_time ?? run.wall_time ?? null,
       memoryKb: run.memory ? Math.round(run.memory / 1024) : null,
     };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// AetherCode Execution Engine (go-judge backed, SSE results)
+// ---------------------------------------------------------------------------
+
+const AC_SSE_TIMEOUT_MS = 300_000;
+
+interface AetherCodeTestResult {
+  test_index: number;
+  verdict: string;
+  cpu_time_ns: number;
+  memory_bytes: number;
+  stdout_preview?: string;
+  stderr_preview?: string;
+}
+
+interface AetherCodeVerdictData {
+  verdict: string;
+  compile_stderr?: string;
+  results?: AetherCodeTestResult[];
+  cpu_time_ns?: number;
+  memory_bytes?: number;
+}
+
+export class AetherCodeEngine implements Engine {
+  constructor(private readonly baseUrl: string) {}
+
+  executeBatch = async (request: BatchExecRequest): Promise<BatchExecResult> => {
+    const tests = request.inputs.map((input) => ({ input, expected_output: "" }));
+    const verdict = await this.submit(request.language, request.source, tests);
+
+    if (verdict.verdict === "compilation_error") {
+      return { compileError: verdict.compile_stderr ?? "compilation failed" };
+    }
+
+    const perTest = verdict.results ?? [];
+    const results: ExecResult[] = request.inputs.map((_, index) => {
+      const test = perTest.find((t) => t.test_index === index);
+      if (!test) return { status: "internal_error" as ExecStatus, stdout: "", stderr: "", compileOutput: "", timeMs: null, memoryKb: null };
+      return {
+        status: acVerdict(test.verdict),
+        stdout: test.stdout_preview ?? "",
+        stderr: test.stderr_preview ?? "",
+        compileOutput: "",
+        timeMs: Math.round(test.cpu_time_ns / 1_000_000),
+        memoryKb: Math.round(test.memory_bytes / 1024),
+      };
+    });
+    return { results };
+  };
+
+  async execute(request: ExecRequest): Promise<ExecResult> {
+    const tests = [{ input: request.stdin, expected_output: "" }];
+    const verdict = await this.submit(request.language, request.source, tests);
+
+    if (verdict.verdict === "compilation_error") {
+      return { status: "compile_error", stdout: "", stderr: "", compileOutput: verdict.compile_stderr ?? "compilation failed", timeMs: null, memoryKb: null };
+    }
+
+    const test = verdict.results?.[0];
+    if (!test) {
+      return {
+        status: acVerdict(verdict.verdict),
+        stdout: "",
+        stderr: "",
+        compileOutput: "",
+        timeMs: verdict.cpu_time_ns ? Math.round(verdict.cpu_time_ns / 1_000_000) : null,
+        memoryKb: verdict.memory_bytes ? Math.round(verdict.memory_bytes / 1024) : null,
+      };
+    }
+    return {
+      status: acVerdict(test.verdict),
+      stdout: test.stdout_preview ?? "",
+      stderr: test.stderr_preview ?? "",
+      compileOutput: "",
+      timeMs: Math.round(test.cpu_time_ns / 1_000_000),
+      memoryKb: Math.round(test.memory_bytes / 1024),
+    };
+  }
+
+  private async submit(
+    language: LanguageId,
+    sourceCode: string,
+    tests: { input: string; expected_output: string }[],
+  ): Promise<AetherCodeVerdictData> {
+    const created = await fetch(`${this.baseUrl}/api/v1/execute`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ language, source_code: sourceCode, mode: "run", tests }),
+    });
+    if (!created.ok) throw new Error(`aethercode execute failed: ${created.status} ${await created.text()}`);
+    const { job_id } = (await created.json()) as { job_id: string };
+    return this.awaitVerdict(job_id);
+  }
+
+  private async awaitVerdict(jobId: string): Promise<AetherCodeVerdictData> {
+    const response = await fetch(`${this.baseUrl}/api/v1/stream?job_id=${jobId}`, {
+      headers: { accept: "text/event-stream" },
+      signal: AbortSignal.timeout(AC_SSE_TIMEOUT_MS),
+    });
+    if (!response.ok) throw new Error(`aethercode stream failed: ${response.status}`);
+    if (!response.body) throw new Error("aethercode stream has no body");
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        let currentEvent = "";
+        let dataLines: string[] = [];
+
+        for (const line of lines) {
+          if (line.startsWith("event: ")) {
+            currentEvent = line.slice(7).trim();
+            dataLines = [];
+          } else if (line.startsWith("data: ")) {
+            dataLines.push(line.slice(6));
+          } else if (line === "" && currentEvent === "VERDICT" && dataLines.length > 0) {
+            const payload = JSON.parse(dataLines.join("\n")) as { data: AetherCodeVerdictData };
+            return payload.data;
+          } else if (line === "") {
+            currentEvent = "";
+            dataLines = [];
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+
+    throw new Error("aethercode stream ended without a VERDICT event");
+  }
+}
+
+function acVerdict(verdict: string): ExecStatus {
+  switch (verdict) {
+    case "accepted": return "ok";
+    case "wrong_answer": return "ok";
+    case "compilation_error": return "compile_error";
+    case "time_limit": return "time_limit";
+    case "memory_limit": return "time_limit";
+    case "output_limit": return "runtime_error";
+    case "runtime_error": return "runtime_error";
+    default: return "internal_error";
   }
 }

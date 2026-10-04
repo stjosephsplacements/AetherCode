@@ -13,7 +13,8 @@ const WORKER_STALE_SECONDS = 30;
 async function probeEngine(): Promise<{ ok: boolean; detail: string }> {
   const url = process.env.ENGINE_URL;
   if (!url) return { ok: false, detail: "ENGINE_URL is not set" };
-  const path = (process.env.ENGINE ?? "judge0") === "piston" ? "/api/v2/runtimes" : "/about";
+  const engine = process.env.ENGINE ?? "judge0";
+  const path = engine === "piston" ? "/api/v2/runtimes" : engine === "aethercode" ? "/api/v1/health" : "/about";
   try {
     const response = await fetch(`${url}${path}`, { signal: AbortSignal.timeout(3000) });
     return { ok: response.ok, detail: response.ok ? "reachable" : `HTTP ${response.status}` };
