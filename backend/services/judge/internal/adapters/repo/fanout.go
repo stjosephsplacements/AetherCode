@@ -14,16 +14,16 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// maxBundleCiphertextBytes bounds how much of a bundle object fan-out will
-// read into memory before decrypting it. evalbundle.Parse already bounds the
-// parsed test-case COUNT (MaxTestCases = 500), but that check only runs
+// maxObjectCiphertextBytes bounds how much of an encrypted object (bundle,
+// source, or test case) will be read into memory before decrypting it.
+// evalbundle.Parse already bounds the parsed test-case COUNT (MaxTestCases = 500), but that check only runs
 // after the whole object has already been read and decrypted -- an
 // oversized object would otherwise still cause unbounded memory use on the
 // way there. 10 MiB comfortably fits 500 test cases at an average of ~20KiB
 // of stdin+expected_output each (generous for typical test-case fixtures),
 // with headroom for encryption overhead, while still bounding a malicious or
 // accidental oversized upload.
-const maxBundleCiphertextBytes = 10 * 1024 * 1024
+const maxObjectCiphertextBytes = 10 * 1024 * 1024
 
 // unitObjectRef identifies one test case's independently encrypted storage
 // object, produced by fanOutTestCases and consumed when inserting
@@ -32,6 +32,33 @@ type unitObjectRef struct {
 	UnitNumber int
 	ObjectKey  string
 	KeyRef     string
+	// Weight is the test case's scoring weight from the bundle.
+	Weight int
+}
+
+// fetchDecrypted reads one encrypted object, bounded by
+// maxObjectCiphertextBytes, and decrypts it with keyRef. The plaintext is
+// returned to the caller only; it is never logged or persisted here.
+func fetchDecrypted(
+	ctx context.Context,
+	objectStorage storage.Object,
+	keyManager kms.KeyManager,
+	objectKey, keyRef string,
+) ([]byte, error) {
+	reader, _, err := objectStorage.Get(ctx, objectKey)
+	if err != nil {
+		return nil, fmt.Errorf("fetch object: %w", err)
+	}
+	defer func() { _ = reader.Close() }()
+	ciphertext, err := io.ReadAll(io.LimitReader(reader, maxObjectCiphertextBytes))
+	if err != nil {
+		return nil, fmt.Errorf("read object: %w", err)
+	}
+	plaintext, err := keyManager.Decrypt(ctx, ciphertext, keyRef)
+	if err != nil {
+		return nil, fmt.Errorf("decrypt object: %w", err)
+	}
+	return plaintext, nil
 }
 
 // fanOutTestCases decrypts one evaluation bundle and re-encrypts each test
@@ -44,18 +71,9 @@ func fanOutTestCases(
 	keyManager kms.KeyManager,
 	bundleObjectKey, bundleKeyRef, jobID string,
 ) ([]unitObjectRef, error) {
-	reader, _, err := objectStorage.Get(ctx, bundleObjectKey)
+	plaintext, err := fetchDecrypted(ctx, objectStorage, keyManager, bundleObjectKey, bundleKeyRef)
 	if err != nil {
-		return nil, fmt.Errorf("fan-out: fetch bundle: %w", err)
-	}
-	defer func() { _ = reader.Close() }()
-	ciphertext, err := io.ReadAll(io.LimitReader(reader, maxBundleCiphertextBytes))
-	if err != nil {
-		return nil, fmt.Errorf("fan-out: read bundle: %w", err)
-	}
-	plaintext, err := keyManager.Decrypt(ctx, ciphertext, bundleKeyRef)
-	if err != nil {
-		return nil, fmt.Errorf("fan-out: decrypt bundle: %w", err)
+		return nil, fmt.Errorf("fan-out: bundle: %w", err)
 	}
 	testCases, err := evalbundle.Parse(plaintext)
 	if err != nil {
@@ -87,7 +105,7 @@ func fanOutTestCases(
 			return nil, fmt.Errorf("fan-out: store unit %d: %w", i, err)
 		}
 		storedKeys = append(storedKeys, objectKey)
-		refs = append(refs, unitObjectRef{UnitNumber: i, ObjectKey: objectKey, KeyRef: keyRef})
+		refs = append(refs, unitObjectRef{UnitNumber: i, ObjectKey: objectKey, KeyRef: keyRef, Weight: testCase.Weight})
 	}
 	return refs, nil
 }
@@ -137,9 +155,9 @@ func (repository *Postgres) fanOutIntoExecutionUnits(
 		}
 		if _, err := transaction.Exec(contextValue, `
 			INSERT INTO judge.execution_units (
-				id, job_id, unit_number, test_case_ciphertext_ref, encryption_key_reference, state
-			) VALUES ($1, $2, $3, $4, $5, 'queued')
-		`, unitID, jobID, ref.UnitNumber, ref.ObjectKey, ref.KeyRef); err != nil {
+				id, job_id, unit_number, test_case_ciphertext_ref, encryption_key_reference, weight, state
+			) VALUES ($1, $2, $3, $4, $5, $6, 'queued')
+		`, unitID, jobID, ref.UnitNumber, ref.ObjectKey, ref.KeyRef, ref.Weight); err != nil {
 			return refs, fmt.Errorf("insert execution unit %d: %w", ref.UnitNumber, err)
 		}
 	}

@@ -167,3 +167,56 @@ func TestFanOutTestCasesCleansUpOrphanedObjectsOnPartialFailure(t *testing.T) {
 		t.Fatalf("fanOutTestCases() issued %d cleanup deletes, want 2 (one per successfully stored unit)", len(storage.deletedKeys))
 	}
 }
+
+func TestFanOutTestCasesCarriesBundleWeights(t *testing.T) {
+	t.Parallel()
+	storage := newFakeStorage()
+	// v1 bundles weigh 1; v2 bundles carry an explicit weight per case.
+	for name, wantWeights := range map[string][]int{
+		`{"schema_version": 1, "test_cases": [{"stdin": "1", "expected_output": "1"}, {"stdin": "2", "expected_output": "2"}]}`:                             {1, 1},
+		`{"schema_version": 2, "test_cases": [{"stdin": "1", "expected_output": "1", "weight": 7}, {"stdin": "2", "expected_output": "2", "weight": 100}]}`: {7, 100},
+	} {
+		bundleCiphertext, _, err := fakeKMS{}.Encrypt(context.Background(), []byte(name))
+		if err != nil {
+			t.Fatalf("encrypt fixture bundle: %v", err)
+		}
+		storage.objects["bundle-key"] = bundleCiphertext
+
+		refs, err := fanOutTestCases(context.Background(), storage, fakeKMS{}, "bundle-key", "ref", "job-weights")
+		if err != nil {
+			t.Fatalf("fanOutTestCases() error = %v", err)
+		}
+		for i, ref := range refs {
+			if ref.Weight != wantWeights[i] {
+				t.Errorf("unit %d weight = %d, want %d", i, ref.Weight, wantWeights[i])
+			}
+		}
+	}
+}
+
+func TestFetchDecrypted(t *testing.T) {
+	t.Parallel()
+	storage := newFakeStorage()
+	ciphertext, keyRef, err := fakeKMS{}.Encrypt(context.Background(), []byte("print(1)"))
+	if err != nil {
+		t.Fatalf("encrypt fixture: %v", err)
+	}
+	storage.objects["source"] = ciphertext
+	storage.objects["huge"] = make([]byte, maxObjectCiphertextBytes+1)
+
+	got, err := fetchDecrypted(context.Background(), storage, fakeKMS{}, "source", keyRef)
+	if err != nil || string(got) != "print(1)" {
+		t.Fatalf("fetchDecrypted() = %q, %v; want the decrypted source", got, err)
+	}
+	if _, err := fetchDecrypted(context.Background(), storage, fakeKMS{}, "missing", keyRef); err == nil {
+		t.Error("fetchDecrypted() on a missing object: error = nil")
+	}
+	// An oversized object is truncated at the read bound, never read whole.
+	plaintext, err := fetchDecrypted(context.Background(), storage, fakeKMS{}, "huge", keyRef)
+	if err != nil {
+		t.Fatalf("fetchDecrypted() on oversized object: %v", err)
+	}
+	if len(plaintext) != maxObjectCiphertextBytes {
+		t.Errorf("read %d bytes of an oversized object, want exactly the %d-byte bound", len(plaintext), maxObjectCiphertextBytes)
+	}
+}

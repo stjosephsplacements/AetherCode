@@ -50,8 +50,17 @@ func (w *Worker) DispatchJob(ctx context.Context, jobID string) error {
 		return nil
 	}
 
-	overallStatus := "accepted"
+	compileFailed := false
 	for _, unit := range job.Units {
+		// Every unit runs the same source, so once it fails to compile the
+		// remaining units cannot behave differently; record them without
+		// spending engine time.
+		if compileFailed {
+			if err := w.store.RecordVerdict(ctx, unit.ID, UnitVerdict{Status: "compile_error"}); err != nil {
+				return fmt.Errorf("record verdict for unit %s: %w", unit.ID, err)
+			}
+			continue
+		}
 		token := unit.Token
 		if token == "" {
 			submitted, submitErr := w.engine.Submit(ctx, UnitRequest{
@@ -78,12 +87,10 @@ func (w *Worker) DispatchJob(ctx context.Context, jobID string) error {
 		if err := w.store.RecordVerdict(ctx, unit.ID, *verdict); err != nil {
 			return fmt.Errorf("record verdict for unit %s: %w", unit.ID, err)
 		}
-		if overallStatus == "accepted" && verdict.Status != "accepted" {
-			overallStatus = verdict.Status
-		}
+		compileFailed = verdict.Status == "compile_error"
 	}
 
-	if err := w.store.MarkJobComplete(ctx, job.ID, overallStatus); err != nil {
+	if err := w.store.MarkJobComplete(ctx, job.ID); err != nil {
 		return fmt.Errorf("mark job %s complete: %w", job.ID, err)
 	}
 	return nil

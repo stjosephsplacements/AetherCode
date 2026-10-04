@@ -33,11 +33,19 @@ credentials beyond its explicitly scoped runtime configuration.
 The service implements the generated `judge/v1` gRPC contract:
 
 - `SubmitExecution` durably accepts a request after request validation and
-  idempotency checking.
+  idempotency checking. `evaluation_bundle_key_reference` and
+  `source_key_reference` (the KMS key references the bundle and the source
+  object were encrypted with) are required. `request_ciphertext_ref` is
+  optional: no component reads the object it points at, so callers have
+  nothing meaningful to send; when present it is still validated and bound
+  into the idempotency fingerprint.
 - `PullCompletedExecutions` creates bounded, expiring completion leases for the
   submission-side adapter. Each leased completion also carries `unit_results`,
-  one verdict/timing entry per test unit ordered by unit number, read back from
-  `judge.execution_units` — never raw stdout/stderr/expected-output content.
+  one verdict/timing/`weight` entry per test unit ordered by unit number, read
+  back from `judge.execution_units` — never raw stdout/stderr/expected-output
+  content. `weight` (1..100) is the test's scoring weight from the evaluation
+  bundle (schema v1 bundles weigh 1); Judge only reports it, scoring belongs to
+  Submission.
 - `AcknowledgeCompletion` accepts only the exact active
   `consumer_id`/`event_id`/`delivery_id`/`lease_id` tuple after the adapter has
   persisted the result.
@@ -126,6 +134,36 @@ and accepts jobs (matching a deployment that never calls `Submit`, e.g. an
 instance serving only `Pull`/`Acknowledge`), but any `Submit` call fails with
 `FailedPrecondition` instead of creating a job with no execution units.
 
+## Grading path
+
+1. **Fan-out (Submit).** The bundle is decrypted with
+   `evaluation_bundle_key_reference`, and each test case is re-encrypted as its
+   own object; its weight is stored in `execution_units.weight`.
+2. **Decrypt before dispatch.** `DispatchStoreAdapter.FetchQueuedJob` reads the
+   source object (decrypting it with `execution_jobs.source_key_reference`) and
+   every not-yet-submitted unit's test-case object (with the unit's
+   `encryption_key_reference`), and hands the engine real `SourceCode`, `Stdin`
+   and `ExpectedOutput`. Each object read is bounded to 10 MiB of ciphertext.
+   Plaintext exists only in the in-memory job value; it is never logged or
+   persisted. The dispatcher therefore needs `JUDGE_STORAGE_*` and
+   `JUDGE_KMS_LOCAL_KEY`, and refuses to start without them.
+3. **Run.** Units run sequentially in unit order. A `compile_error` on one unit
+   records the remaining units as `compile_error` without running them (they
+   all share one source).
+4. **Completion.** `MarkJobComplete` runs in one transaction: it derives the
+   overall verdict from the unit verdicts, sets the job terminal (`completed`
+   when accepted, otherwise `failed`), and inserts a `judge.completed.v1` row in
+   `judge.outbox_events` that `PullCompletedExecutions` leases. The payload is
+   `submission_correlation_id`, `verdict`, `completed_at`, `execution_time_ms`
+   (slowest unit) and `memory_kib` (largest unit); it has no encrypted result
+   reference because Judge stores no result object. A unit with no recorded
+   verdict counts as `internal_error`.
+
+The overall verdict is the most severe unit verdict, mirroring exam-v1's grader:
+`compile_error` > `internal_error` > `runtime_error` > `time_limit_exceeded` >
+`memory_limit_exceeded` > `wrong_answer` > `accepted`. Any other unit verdict
+(for example `cancelled`) is treated as `internal_error`, never as a pass.
+
 ## Dispatcher configuration
 
 The dispatcher worker is controlled by the following environment variables. All
@@ -144,8 +182,10 @@ dispatcher variables are optional when `JUDGE_DISPATCHER_ENABLED=false`.
 | `PISTON_TIMEOUT_SECONDS` | `60` | HTTP timeout for one Piston execution (compile + run). Must be 1–300. |
 | `JUDGE0_AUTH_TOKEN` | *(optional)* | Bearer/auth token forwarded to Judge0 as `X-Auth-Token` on every request. Leave unset for a local/dev Judge0 instance with no auth configured. |
 
-`JUDGE_RABBITMQ_URL` is also required when `JUDGE_DISPATCHER_ENABLED=true` (it
-is already required for the admission publisher in production/staging).
+`JUDGE_RABBITMQ_URL`, `JUDGE_STORAGE_*` and `JUDGE_KMS_LOCAL_KEY` are also
+required when `JUDGE_DISPATCHER_ENABLED=true` (RabbitMQ is already required for
+the admission publisher in production/staging; storage and KMS are needed to
+decrypt the source and test cases).
 
 ### The `piston` engine
 
@@ -172,15 +212,10 @@ this specific case (dispatcher enabled, `JUDGE_ENGINE=judge0`, gate approved) �
 the client is constructed, so no deployment that does not actually select the
 `judge0` engine is forced to set it.
 
-This client is not end-to-end functional yet: nothing in the judge service
-currently decrypts and fetches the actual source code or test case content
-referenced by the ciphertext refs a dispatch job carries (that decrypt/fetch
-step is separate, tracked work, not part of this adapter). `Submit` fails
-loudly with a clear error on an empty source rather than submitting an empty
-program to Judge0, so even with a real, reachable Judge0 instance and the
-compatibility gate approved, submissions will fail this validation rather than
-silently grading garbage. This is a known, sequenced gap, not a bug in the
-client itself.
+The dispatcher decrypts the candidate source and each test case before they
+reach this client (see [Grading path](#grading-path)), so it receives real
+source, stdin and expected output. `Submit` still fails loudly on an empty
+source rather than submitting an empty program to Judge0.
 
 Judge0's own default execution limits (commonly `max_cpu_time_limit` around
 15 seconds and `max_memory_limit` around 128 MB) are lower than this

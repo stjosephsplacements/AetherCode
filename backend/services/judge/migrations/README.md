@@ -89,3 +89,10 @@ and the wrapper's own verdict vocabulary) uses `'compile_error'`. Before this
 fix, a real compile-error verdict from the engine could never be recorded on a
 unit: `DispatchStoreAdapter.RecordVerdict`'s `UPDATE` would violate the
 constraint the moment a candidate's code failed to compile.
+
+`000009_execution_decrypt_keys_and_weights` adds `execution_jobs.source_key_reference`
+(the KMS key reference dispatch uses to decrypt the candidate source; nullable
+only for pre-existing rows, required by `SubmitExecution` validation for new
+ones), makes `execution_jobs.request_ciphertext_ref` optional (no reader
+consumes that object), and adds `execution_units.weight` (1..100, default 1),
+the per-test scoring weight copied from the evaluation bundle during fan-out.

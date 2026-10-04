@@ -60,6 +60,8 @@ func (server *Server) SubmitExecution(
 		SubmissionCorrelationID: request.GetSubmissionCorrelationId(),
 		EvaluationBundleRef:     request.GetEvaluationBundleRef(),
 		EvaluationBundleSHA256:  request.GetEvaluationBundleSha256(),
+		EvaluationBundleKeyRef:  request.GetEvaluationBundleKeyReference(),
+		SourceKeyRef:            request.GetSourceKeyReference(),
 		SourceCiphertextRef:     request.GetSourceCiphertextRef(),
 		SourceCiphertextSHA256:  request.GetSourceCiphertextSha256(),
 		RequestCiphertextRef:    request.GetRequestCiphertextRef(),
@@ -108,7 +110,7 @@ func (server *Server) PullCompletedExecutions(
 			if unitVerdictErr != nil {
 				return nil, status.Error(codes.Internal, "Judge completion vocabulary is invalid")
 			}
-			result := &judgev1.UnitResult{UnitNumber: uint32(unit.UnitNumber), VerdictCode: unitVerdictCode}
+			result := &judgev1.UnitResult{UnitNumber: uint32(unit.UnitNumber), VerdictCode: unitVerdictCode, Weight: uint32(unit.Weight)}
 			if unit.TimeMS != nil {
 				timeMS := uint32(*unit.TimeMS)
 				result.ExecutionTimeMs = &timeMS

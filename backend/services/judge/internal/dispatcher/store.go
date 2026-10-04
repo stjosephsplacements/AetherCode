@@ -15,9 +15,10 @@ type Store interface {
 	RecordToken(ctx context.Context, unitID, token string) error
 	// RecordVerdict persists the terminal engine verdict for one test unit.
 	RecordVerdict(ctx context.Context, unitID string, verdict UnitVerdict) error
-	// MarkJobComplete transitions the job to a terminal state with the
-	// provided overall verdict status.
-	MarkJobComplete(ctx context.Context, jobID, overallStatus string) error
+	// MarkJobComplete derives the job's overall verdict (OverallVerdict) from
+	// its recorded unit verdicts, transitions the job to a terminal state, and
+	// queues the completion for the platform to pull.
+	MarkJobComplete(ctx context.Context, jobID string) error
 	// FetchIncompleteTokens returns units that have been submitted to the
 	// engine but have not yet received a verdict. Used for crash recovery.
 	FetchIncompleteTokens(ctx context.Context) ([]PendingUnit, error)
@@ -56,6 +57,9 @@ type PendingUnit struct {
 type UnitResult struct {
 	UnitNumber int
 	Verdict    string
-	TimeMS     *int
-	MemoryKB   *int
+	// Weight is the test's scoring weight (1..100) copied from the evaluation
+	// bundle; Judge never scores, it only reports the weight.
+	Weight   int
+	TimeMS   *int
+	MemoryKB *int
 }

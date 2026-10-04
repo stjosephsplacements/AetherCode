@@ -55,19 +55,21 @@ type SubmitExecution struct {
 	SubmissionCorrelationID string
 	EvaluationBundleRef     string
 	EvaluationBundleSHA256  string
-	// EvaluationBundleKeyRef is the KMS key reference the evaluation bundle
-	// was encrypted with. It is optional today because the SubmitExecution
-	// wire contract (libs/proto/proto/aethercode/judge/v1/judge.proto) has no
-	// field to carry it yet; a job admitted without one still passes
-	// admission, but fan-out (see Postgres.Submit) fails with a real KMS
-	// error rather than silently mis-decrypting the bundle.
+	// EvaluationBundleKeyRef and SourceKeyRef are the KMS key references the
+	// evaluation bundle and the source object were encrypted with. Fan-out
+	// decrypts the bundle with the first; dispatch decrypts the source with
+	// the second.
 	EvaluationBundleKeyRef string
+	SourceKeyRef           string
 	SourceCiphertextRef    string
 	SourceCiphertextSHA256 string
-	RequestCiphertextRef   string
-	LanguageKey            string
-	Limits                 Limits
-	ExpiresAt              time.Time
+	// RequestCiphertextRef is optional: no component reads the object it
+	// points at, so callers have no meaningful value to send. When present it
+	// is still validated and bound into the idempotency fingerprint.
+	RequestCiphertextRef string
+	LanguageKey          string
+	Limits               Limits
+	ExpiresAt            time.Time
 }
 
 // Execution is the durable acceptance result.
@@ -202,12 +204,22 @@ func (request SubmitExecution) Validate(now time.Time) error {
 		return &ValidationError{Field: "submission_correlation_id", Reason: "must be a UUIDv7"}
 	}
 	for field, value := range map[string]string{
-		"evaluation_bundle_ref":  request.EvaluationBundleRef,
-		"source_ciphertext_ref":  request.SourceCiphertextRef,
-		"request_ciphertext_ref": request.RequestCiphertextRef,
+		"evaluation_bundle_ref": request.EvaluationBundleRef,
+		"source_ciphertext_ref": request.SourceCiphertextRef,
 	} {
 		if strings.TrimSpace(value) == "" || len(value) > 2048 {
 			return &ValidationError{Field: field, Reason: "must contain 1 to 2048 characters"}
+		}
+	}
+	if request.RequestCiphertextRef != "" && (strings.TrimSpace(request.RequestCiphertextRef) == "" || len(request.RequestCiphertextRef) > 2048) {
+		return &ValidationError{Field: "request_ciphertext_ref", Reason: "must contain 1 to 2048 characters when present"}
+	}
+	for field, value := range map[string]string{
+		"evaluation_bundle_key_reference": request.EvaluationBundleKeyRef,
+		"source_key_reference":            request.SourceKeyRef,
+	} {
+		if strings.TrimSpace(value) == "" || len(value) > 1024 {
+			return &ValidationError{Field: field, Reason: "must contain 1 to 1024 characters"}
 		}
 	}
 	for field, value := range map[string]string{
@@ -247,6 +259,7 @@ func (request SubmitExecution) Fingerprint() (string, error) {
 		EvaluationBundleRef     string `json:"evaluation_bundle_ref"`
 		EvaluationBundleSHA256  string `json:"evaluation_bundle_sha256"`
 		EvaluationBundleKeyRef  string `json:"evaluation_bundle_key_ref"`
+		SourceKeyRef            string `json:"source_key_ref"`
 		SourceCiphertextRef     string `json:"source_ciphertext_ref"`
 		SourceCiphertextSHA256  string `json:"source_ciphertext_sha256"`
 		RequestCiphertextRef    string `json:"request_ciphertext_ref"`
@@ -259,6 +272,7 @@ func (request SubmitExecution) Fingerprint() (string, error) {
 		EvaluationBundleRef:     request.EvaluationBundleRef,
 		EvaluationBundleSHA256:  request.EvaluationBundleSHA256,
 		EvaluationBundleKeyRef:  request.EvaluationBundleKeyRef,
+		SourceKeyRef:            request.SourceKeyRef,
 		SourceCiphertextRef:     request.SourceCiphertextRef,
 		SourceCiphertextSHA256:  request.SourceCiphertextSHA256,
 		RequestCiphertextRef:    request.RequestCiphertextRef,

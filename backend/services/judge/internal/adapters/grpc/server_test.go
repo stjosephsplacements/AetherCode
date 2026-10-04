@@ -88,18 +88,19 @@ func TestPullCompletedExecutionsMapsUnitResults(t *testing.T) {
 		{
 			name: "maps unit_number, verdict, timing, and memory for every unit in order",
 			unitResults: []dispatcher.UnitResult{
-				{UnitNumber: 0, Verdict: "accepted", TimeMS: &timeMS, MemoryKB: &memoryKB},
-				{UnitNumber: 1, Verdict: "wrong_answer"},
+				{UnitNumber: 0, Verdict: "accepted", Weight: 5, TimeMS: &timeMS, MemoryKB: &memoryKB},
+				{UnitNumber: 1, Verdict: "wrong_answer", Weight: 1},
 			},
 			wantCode: codes.OK,
 			wantUnits: []*judgev1.UnitResult{
 				{
 					UnitNumber:      0,
+					Weight:          5,
 					VerdictCode:     judgev1.CompletionVerdict_COMPLETION_VERDICT_ACCEPTED,
 					ExecutionTimeMs: uint32Ptr(120),
 					MemoryKib:       uint32Ptr(512),
 				},
-				{UnitNumber: 1, VerdictCode: judgev1.CompletionVerdict_COMPLETION_VERDICT_WRONG_ANSWER},
+				{UnitNumber: 1, Weight: 1, VerdictCode: judgev1.CompletionVerdict_COMPLETION_VERDICT_WRONG_ANSWER},
 			},
 		},
 		{
@@ -162,6 +163,9 @@ func TestPullCompletedExecutionsMapsUnitResults(t *testing.T) {
 				if got.GetUnitNumber() != want.GetUnitNumber() {
 					t.Fatalf("unit %d: unit_number = %d, want %d", i, got.GetUnitNumber(), want.GetUnitNumber())
 				}
+				if got.GetWeight() != want.GetWeight() {
+					t.Fatalf("unit %d: weight = %d, want %d", i, got.GetWeight(), want.GetWeight())
+				}
 				if got.GetVerdictCode() != want.GetVerdictCode() {
 					t.Fatalf("unit %d: verdict_code = %v, want %v", i, got.GetVerdictCode(), want.GetVerdictCode())
 				}
@@ -180,15 +184,17 @@ func TestPullCompletedExecutionsMapsUnitResults(t *testing.T) {
 
 func validSubmitExecutionRequest(tenantFairnessKey string) *judgev1.SubmitExecutionRequest {
 	return &judgev1.SubmitExecutionRequest{
-		IdempotencyKey:          "submission-1",
-		TenantFairnessKey:       tenantFairnessKey,
-		SubmissionCorrelationId: "0189c7a1-2f00-7000-8000-000000000001",
-		EvaluationBundleRef:     "encrypted/evaluations/1",
-		EvaluationBundleSha256:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-		SourceCiphertextRef:     "encrypted/sources/1",
-		SourceCiphertextSha256:  "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-		RequestCiphertextRef:    "encrypted/requests/1",
-		LanguageKey:             "go-1.26",
+		IdempotencyKey:               "submission-1",
+		TenantFairnessKey:            tenantFairnessKey,
+		SubmissionCorrelationId:      "0189c7a1-2f00-7000-8000-000000000001",
+		EvaluationBundleRef:          "encrypted/evaluations/1",
+		EvaluationBundleSha256:       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		EvaluationBundleKeyReference: "bundle-key-ref",
+		SourceKeyReference:           "source-key-ref",
+		SourceCiphertextRef:          "encrypted/sources/1",
+		SourceCiphertextSha256:       "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+		RequestCiphertextRef:         "encrypted/requests/1",
+		LanguageKey:                  "go-1.26",
 		Limits: &judgev1.ExecutionLimits{
 			CpuTimeMs:    1000,
 			WallTimeMs:   2000,
@@ -196,6 +202,53 @@ func validSubmitExecutionRequest(tenantFairnessKey string) *judgev1.SubmitExecut
 			ProcessLimit: 32,
 		},
 		ExpiresAt: time.Now().UTC().Add(5 * time.Minute).Format(time.RFC3339Nano),
+	}
+}
+
+// submitCapturingStore records the command Submit receives.
+type submitCapturingStore struct {
+	recordingStore
+	submitted app.SubmitExecution
+}
+
+func (store *submitCapturingStore) Submit(_ context.Context, command app.SubmitExecution) (app.Execution, error) {
+	store.submitted = command
+	return app.Execution{ID: "019b11a0-0000-7000-8000-000000000010", Status: "accepted"}, nil
+}
+
+func TestSubmitExecutionMapsKeyReferences(t *testing.T) {
+	t.Parallel()
+
+	store := &submitCapturingStore{}
+	server := NewServer(app.NewService(store), nil)
+
+	if _, err := server.SubmitExecution(context.Background(), validSubmitExecutionRequest("tenant-1")); err != nil {
+		t.Fatalf("SubmitExecution() error = %v", err)
+	}
+	if store.submitted.EvaluationBundleKeyRef != "bundle-key-ref" || store.submitted.SourceKeyRef != "source-key-ref" {
+		t.Fatalf("key references = %q / %q, want bundle-key-ref / source-key-ref",
+			store.submitted.EvaluationBundleKeyRef, store.submitted.SourceKeyRef)
+	}
+}
+
+func TestSubmitExecutionRequiresKeyReferencesButNotRequestRef(t *testing.T) {
+	t.Parallel()
+
+	server := NewServer(app.NewService(&recordingStore{}), nil)
+	for name, mutate := range map[string]func(*judgev1.SubmitExecutionRequest){
+		"missing bundle key reference": func(r *judgev1.SubmitExecutionRequest) { r.EvaluationBundleKeyReference = "" },
+		"missing source key reference": func(r *judgev1.SubmitExecutionRequest) { r.SourceKeyReference = "" },
+	} {
+		request := validSubmitExecutionRequest("tenant-1")
+		mutate(request)
+		if _, err := server.SubmitExecution(context.Background(), request); status.Code(err) != codes.InvalidArgument {
+			t.Errorf("%s: status = %v, want InvalidArgument", name, status.Code(err))
+		}
+	}
+	request := validSubmitExecutionRequest("tenant-1")
+	request.RequestCiphertextRef = ""
+	if _, err := server.SubmitExecution(context.Background(), request); err != nil {
+		t.Errorf("empty request_ciphertext_ref: error = %v, want accepted", err)
 	}
 }
 

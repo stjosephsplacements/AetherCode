@@ -85,10 +85,10 @@ func run(contextValue context.Context) error {
 		return err
 	}
 
-	// NOTE: Storage and KMS are optional. Set JUDGE_STORAGE_ENDPOINT and
-	// JUDGE_KMS_LOCAL_KEY to enable test-case fan-out (Postgres.Submit). Submit
-	// returns app.ErrFanOutUnavailable when they are absent, mirroring
-	// question-bank's cmd/server/main.go.
+	// NOTE: Storage and KMS are optional unless the dispatcher is enabled. Set
+	// JUDGE_STORAGE_ENDPOINT and JUDGE_KMS_LOCAL_KEY to enable test-case fan-out
+	// (Postgres.Submit, which returns app.ErrFanOutUnavailable without them,
+	// mirroring question-bank's cmd/server/main.go) and decrypt-before-dispatch.
 	var storageClient storage.Object
 	var kmsClient kms.KeyManager
 	if os.Getenv("JUDGE_STORAGE_ENDPOINT") != "" {
@@ -136,7 +136,7 @@ func run(contextValue context.Context) error {
 			if engErr != nil {
 				return fmt.Errorf("dispatcher: construct judge0 client: %w", engErr)
 			}
-			if err := startDispatchConsumer(pool, eng, dispatcherRuntime, runtime.RabbitURL, contextValue, logger); err != nil {
+			if err := startDispatchConsumer(pool, storageClient, kmsClient, eng, dispatcherRuntime, runtime.RabbitURL, contextValue, logger); err != nil {
 				return err
 			}
 		case "piston":
@@ -148,12 +148,12 @@ func run(contextValue context.Context) error {
 			if engErr != nil {
 				return fmt.Errorf("dispatcher: construct piston client: %w", engErr)
 			}
-			if err := startDispatchConsumer(pool, eng, dispatcherRuntime, runtime.RabbitURL, contextValue, logger); err != nil {
+			if err := startDispatchConsumer(pool, storageClient, kmsClient, eng, dispatcherRuntime, runtime.RabbitURL, contextValue, logger); err != nil {
 				return err
 			}
 		case "stub":
 			eng := judge0adapter.NewStub()
-			if err := startDispatchConsumer(pool, eng, dispatcherRuntime, runtime.RabbitURL, contextValue, logger); err != nil {
+			if err := startDispatchConsumer(pool, storageClient, kmsClient, eng, dispatcherRuntime, runtime.RabbitURL, contextValue, logger); err != nil {
 				return err
 			}
 		}
@@ -223,6 +223,8 @@ func run(contextValue context.Context) error {
 // case in run, which differ only in how the engine itself is constructed.
 func startDispatchConsumer(
 	pool *pgxpool.Pool,
+	objectStorage storage.Object,
+	keyManager kms.KeyManager,
 	eng dispatcher.Engine,
 	dispatcherRuntime dispatcher.Runtime,
 	rabbitURL string,
@@ -232,7 +234,10 @@ func startDispatchConsumer(
 	if rabbitURL == "" {
 		return fmt.Errorf("dispatcher: JUDGE_RABBITMQ_URL is required when JUDGE_DISPATCHER_ENABLED=true")
 	}
-	storeAdapter := repo.NewDispatchStoreAdapter(pool)
+	if objectStorage == nil || keyManager == nil {
+		return fmt.Errorf("dispatcher: JUDGE_STORAGE_ENDPOINT and JUDGE_KMS_LOCAL_KEY are required when JUDGE_DISPATCHER_ENABLED=true")
+	}
+	storeAdapter := repo.NewDispatchStoreAdapter(pool, objectStorage, keyManager)
 	worker, workerErr := dispatcher.NewWorker(storeAdapter, eng, dispatcherRuntime, logger)
 	if workerErr != nil {
 		return workerErr

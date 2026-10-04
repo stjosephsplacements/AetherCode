@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -23,6 +24,44 @@ func TestSubmitRejectsOutOfRangeWallTimeBeforePersistence(t *testing.T) {
 	}
 	if store.submitted {
 		t.Fatal("invalid request reached persistence")
+	}
+}
+
+func TestSubmitValidatesKeyAndRequestReferences(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 7, 24, 0, 0, 0, 0, time.UTC)
+	tests := []struct {
+		name      string
+		mutate    func(*SubmitExecution)
+		wantField string // empty means the request must be accepted
+	}{
+		{"valid", func(*SubmitExecution) {}, ""},
+		{"request ref is optional", func(r *SubmitExecution) { r.RequestCiphertextRef = "" }, ""},
+		{"request ref too long when present", func(r *SubmitExecution) { r.RequestCiphertextRef = strings.Repeat("x", 2049) }, "request_ciphertext_ref"},
+		{"request ref blank when present", func(r *SubmitExecution) { r.RequestCiphertextRef = "  " }, "request_ciphertext_ref"},
+		{"bundle key reference required", func(r *SubmitExecution) { r.EvaluationBundleKeyRef = "" }, "evaluation_bundle_key_reference"},
+		{"source key reference required", func(r *SubmitExecution) { r.SourceKeyRef = " " }, "source_key_reference"},
+		{"source key reference bounded", func(r *SubmitExecution) { r.SourceKeyRef = strings.Repeat("k", 1025) }, "source_key_reference"},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			request := validRequest()
+			testCase.mutate(&request)
+			err := request.Validate(now)
+			if testCase.wantField == "" {
+				if err != nil {
+					t.Fatalf("Validate() error = %v, want nil", err)
+				}
+				return
+			}
+			var validationError *ValidationError
+			if !errors.As(err, &validationError) || validationError.Field != testCase.wantField {
+				t.Fatalf("Validate() error = %v, want ValidationError on %q", err, testCase.wantField)
+			}
+		})
 	}
 }
 
@@ -113,6 +152,8 @@ func validRequest() SubmitExecution {
 		SubmissionCorrelationID: "0189c7a1-2f00-7000-8000-000000000001",
 		EvaluationBundleRef:     "encrypted/evaluations/1",
 		EvaluationBundleSHA256:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		EvaluationBundleKeyRef:  "bundle-key-ref",
+		SourceKeyRef:            "source-key-ref",
 		SourceCiphertextRef:     "encrypted/sources/1",
 		SourceCiphertextSHA256:  "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 		RequestCiphertextRef:    "encrypted/requests/1",

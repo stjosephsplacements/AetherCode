@@ -75,11 +75,17 @@ func (f *fakeStore) RecordVerdict(_ context.Context, unitID string, verdict Unit
 	return nil
 }
 
-func (f *fakeStore) MarkJobComplete(_ context.Context, jobID, overallStatus string) error {
+// MarkJobComplete mirrors the real store: the overall verdict is derived from
+// the unit verdicts recorded so far.
+func (f *fakeStore) MarkJobComplete(_ context.Context, jobID string) error {
 	if f.markCompleteErr != nil {
 		return f.markCompleteErr
 	}
-	f.completedJobs[jobID] = overallStatus
+	verdicts := make([]string, 0, len(f.recordedVerdicts))
+	for _, verdict := range f.recordedVerdicts {
+		verdicts = append(verdicts, verdict.Status)
+	}
+	f.completedJobs[jobID] = OverallVerdict(verdicts)
 	return nil
 }
 
@@ -236,5 +242,38 @@ func TestWorkerPartiallyDispatchedJob(t *testing.T) {
 	}
 	if status, ok := store.completedJobs["job-2"]; !ok || status != "accepted" {
 		t.Errorf("expected job-2 marked complete with accepted, got %q (ok=%v)", status, ok)
+	}
+}
+
+func TestWorkerCompileErrorShortCircuitsRemainingUnits(t *testing.T) {
+	job := &DispatchJob{
+		ID: "job-4",
+		Units: []DispatchUnit{
+			{ID: "unit-a", Language: "go", SourceCode: "bad"},
+			{ID: "unit-b", Language: "go", SourceCode: "bad"},
+			{ID: "unit-c", Language: "go", SourceCode: "bad"},
+		},
+	}
+	eng := &fakeEngine{verdict: &UnitVerdict{Status: "compile_error"}}
+	store := newFakeStore(job)
+	w, err := NewWorker(store, eng, enabledRuntime(), testLogger())
+	if err != nil {
+		t.Fatalf("NewWorker: %v", err)
+	}
+
+	if err := w.DispatchJob(context.Background(), "job-4"); err != nil {
+		t.Fatalf("DispatchJob: %v", err)
+	}
+
+	if eng.submitCalls != 1 {
+		t.Errorf("expected only the first unit to reach the engine, got %d Submit calls", eng.submitCalls)
+	}
+	for _, id := range []string{"unit-a", "unit-b", "unit-c"} {
+		if v, ok := store.recordedVerdicts[id]; !ok || v.Status != "compile_error" {
+			t.Errorf("expected compile_error recorded for %s, got %+v (ok=%v)", id, v, ok)
+		}
+	}
+	if status := store.completedJobs["job-4"]; status != "compile_error" {
+		t.Errorf("expected job-4 completed with compile_error, got %q", status)
 	}
 }

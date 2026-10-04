@@ -131,20 +131,20 @@ func (repository *Postgres) Submit(contextValue context.Context, request app.Sub
 		INSERT INTO judge.execution_jobs (
 			id, idempotency_key, request_fingerprint, tenant_fairness_key,
 			submission_correlation_id, evaluation_bundle_ref, evaluation_bundle_sha256,
-			evaluation_bundle_key_reference,
+			evaluation_bundle_key_reference, source_key_reference,
 			source_ciphertext_ref, source_ciphertext_sha256, request_ciphertext_ref, language_key,
 			cpu_time_limit_ms, wall_time_limit_ms, memory_limit_bytes, process_limit,
 			expires_at
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18
 		)
 		ON CONFLICT (idempotency_key) DO NOTHING
 		RETURNING id
 	`,
 		jobID, request.IdempotencyKey, fingerprint, request.TenantFairnessKey,
 		request.SubmissionCorrelationID, request.EvaluationBundleRef, request.EvaluationBundleSHA256,
-		nullableText(request.EvaluationBundleKeyRef),
-		request.SourceCiphertextRef, request.SourceCiphertextSHA256, request.RequestCiphertextRef, request.LanguageKey,
+		request.EvaluationBundleKeyRef, request.SourceKeyRef,
+		request.SourceCiphertextRef, request.SourceCiphertextSHA256, nullableText(request.RequestCiphertextRef), request.LanguageKey,
 		request.Limits.CPUTimeMS, request.Limits.WallTimeMS, request.Limits.Memory, request.Limits.Processes,
 		request.ExpiresAt.UTC(),
 	).Scan(&insertedJobID)
