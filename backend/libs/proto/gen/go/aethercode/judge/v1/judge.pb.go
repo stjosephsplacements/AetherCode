@@ -173,8 +173,12 @@ type SubmitExecutionRequest struct {
 	// An encrypted request metadata object. It may contain no platform foreign
 	// keys or plaintext source/test payloads.
 	RequestCiphertextRef string `protobuf:"bytes,11,opt,name=request_ciphertext_ref,json=requestCiphertextRef,proto3" json:"request_ciphertext_ref,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// KMS key references that decrypt the evaluation bundle and the source
+	// object. Judge decrypts both only inside its own dispatch path.
+	EvaluationBundleKeyReference string `protobuf:"bytes,12,opt,name=evaluation_bundle_key_reference,json=evaluationBundleKeyReference,proto3" json:"evaluation_bundle_key_reference,omitempty"`
+	SourceKeyReference           string `protobuf:"bytes,13,opt,name=source_key_reference,json=sourceKeyReference,proto3" json:"source_key_reference,omitempty"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
 }
 
 func (x *SubmitExecutionRequest) Reset() {
@@ -280,6 +284,20 @@ func (x *SubmitExecutionRequest) GetExpiresAt() string {
 func (x *SubmitExecutionRequest) GetRequestCiphertextRef() string {
 	if x != nil {
 		return x.RequestCiphertextRef
+	}
+	return ""
+}
+
+func (x *SubmitExecutionRequest) GetEvaluationBundleKeyReference() string {
+	if x != nil {
+		return x.EvaluationBundleKeyReference
+	}
+	return ""
+}
+
+func (x *SubmitExecutionRequest) GetSourceKeyReference() string {
+	if x != nil {
+		return x.SourceKeyReference
 	}
 	return ""
 }
@@ -402,8 +420,11 @@ type UnitResult struct {
 	VerdictCode     CompletionVerdict      `protobuf:"varint,2,opt,name=verdict_code,json=verdictCode,proto3,enum=aethercode.judge.v1.CompletionVerdict" json:"verdict_code,omitempty"`
 	ExecutionTimeMs *uint32                `protobuf:"varint,3,opt,name=execution_time_ms,json=executionTimeMs,proto3,oneof" json:"execution_time_ms,omitempty"`
 	MemoryKib       *uint32                `protobuf:"varint,4,opt,name=memory_kib,json=memoryKib,proto3,oneof" json:"memory_kib,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// The test's weight from the evaluation bundle (1-100); Submission scores
+	// maximum_score x passed weight / total weight.
+	Weight        uint32 `protobuf:"varint,5,opt,name=weight,proto3" json:"weight,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UnitResult) Reset() {
@@ -460,6 +481,13 @@ func (x *UnitResult) GetExecutionTimeMs() uint32 {
 func (x *UnitResult) GetMemoryKib() uint32 {
 	if x != nil && x.MemoryKib != nil {
 		return *x.MemoryKib
+	}
+	return 0
+}
+
+func (x *UnitResult) GetWeight() uint32 {
+	if x != nil {
+		return x.Weight
 	}
 	return 0
 }
@@ -971,7 +999,7 @@ const file_aethercode_judge_v1_judge_proto_rawDesc = "" +
 	"\fwall_time_ms\x18\x02 \x01(\rR\n" +
 	"wallTimeMs\x12!\n" +
 	"\fmemory_bytes\x18\x03 \x01(\x04R\vmemoryBytes\x12#\n" +
-	"\rprocess_limit\x18\x04 \x01(\rR\fprocessLimit\"\xbf\x04\n" +
+	"\rprocess_limit\x18\x04 \x01(\rR\fprocessLimit\"\xb8\x05\n" +
 	"\x16SubmitExecutionRequest\x12'\n" +
 	"\x0fidempotency_key\x18\x01 \x01(\tR\x0eidempotencyKey\x12.\n" +
 	"\x13tenant_fairness_key\x18\x02 \x01(\tR\x11tenantFairnessKey\x12:\n" +
@@ -985,7 +1013,9 @@ const file_aethercode_judge_v1_judge_proto_rawDesc = "" +
 	"\n" +
 	"expires_at\x18\n" +
 	" \x01(\tR\texpiresAt\x124\n" +
-	"\x16request_ciphertext_ref\x18\v \x01(\tR\x14requestCiphertextRef\"H\n" +
+	"\x16request_ciphertext_ref\x18\v \x01(\tR\x14requestCiphertextRef\x12E\n" +
+	"\x1fevaluation_bundle_key_reference\x18\f \x01(\tR\x1cevaluationBundleKeyReference\x120\n" +
+	"\x14source_key_reference\x18\r \x01(\tR\x12sourceKeyReference\"H\n" +
 	"\x17SubmitExecutionResponse\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\"|\n" +
@@ -993,7 +1023,7 @@ const file_aethercode_judge_v1_judge_proto_rawDesc = "" +
 	"\vconsumer_id\x18\x01 \x01(\tR\n" +
 	"consumerId\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\rR\x05limit\x12#\n" +
-	"\rlease_seconds\x18\x03 \x01(\rR\fleaseSeconds\"\xf2\x01\n" +
+	"\rlease_seconds\x18\x03 \x01(\rR\fleaseSeconds\"\x8a\x02\n" +
 	"\n" +
 	"UnitResult\x12\x1f\n" +
 	"\vunit_number\x18\x01 \x01(\rR\n" +
@@ -1001,7 +1031,8 @@ const file_aethercode_judge_v1_judge_proto_rawDesc = "" +
 	"\fverdict_code\x18\x02 \x01(\x0e2&.aethercode.judge.v1.CompletionVerdictR\vverdictCode\x12/\n" +
 	"\x11execution_time_ms\x18\x03 \x01(\rH\x00R\x0fexecutionTimeMs\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"memory_kib\x18\x04 \x01(\rH\x01R\tmemoryKib\x88\x01\x01B\x14\n" +
+	"memory_kib\x18\x04 \x01(\rH\x01R\tmemoryKib\x88\x01\x01\x12\x16\n" +
+	"\x06weight\x18\x05 \x01(\rR\x06weightB\x14\n" +
 	"\x12_execution_time_msB\r\n" +
 	"\v_memory_kib\"\x8b\x05\n" +
 	"\n" +
