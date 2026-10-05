@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
@@ -166,6 +167,9 @@ func TestTimeUpSubmitsTheLatestAnswers(t *testing.T) {
 	require.Equal(t, latest, revisionID, "the latest revision of the answered item is submitted")
 	require.Equal(t, "queued", requestState, "the dispatcher picks it up like any other request")
 	require.Equal(t, "time-up:"+latest, idempotencyKey)
+	parsed, err := uuid.Parse(requestID)
+	require.NoError(t, err)
+	require.Equal(t, uuid.Version(7), parsed.Version(), "Judge refuses a correlation id that is not a UUIDv7")
 
 	payloadKeys := func(eventType, aggregateID string) map[string]any {
 		var raw []byte

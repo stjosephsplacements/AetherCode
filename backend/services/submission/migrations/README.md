@@ -71,3 +71,7 @@ run routines: `start_code_run`, `get_code_run` and `list_code_runs` for the app
 role; `claim_code_runs`, `mark_code_run_dispatched`, `mark_code_run_failed`,
 `code_run_for_job` and `record_code_run_completion` for the Judge adapter role
 (ADR-0021).
+
+`000025_time_up_uuidv7` makes time-up mint its evaluation request and event
+ids with `uuidv7()`: Judge refuses a correlation id that is not a UUIDv7, so
+000023's version 4 ids failed every time-up request.
