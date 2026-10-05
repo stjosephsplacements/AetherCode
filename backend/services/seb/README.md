@@ -2,8 +2,10 @@
 
 The SEB control-plane owns encrypted Safe Exam Browser configuration references,
 one-way key hashes, attempt-bound sessions, configuration rotation/revocation,
-and partitioned validation audits. It never persists plaintext SEB keys or quit
-tokens.
+and partitioned validation audits, plus per-exam lockdown (ADR-0022). It never
+persists quit tokens. Exam lockdown stores the Browser Exam Keys and Config
+Keys staff accept in plaintext: checking SEB's per-URL hashes needs them, and
+they gate the browser, not data.
 
 ## Implemented API
 
@@ -27,6 +29,18 @@ snapshot before a signed RLS transaction begins.
 - Validate a `config_key` or `browser_exam_key` header. The HTTP adapter hashes
   the raw header before SQL; audit records store only the validation result and
   a required, already-hashed non-secret request fingerprint.
+
+- Exam lockdown (ADR-0022): staff lock an exam with the Browser Exam Keys and
+  Config Keys SEB reports (`PUT/GET /v1/tenants/{tenant_id}/exams/{exam_id}/seb-policy`);
+  Gateway posts every protected request's URL and SEB headers to
+  `POST /v1/tenants/{tenant_id}/request-checks`, which answers `matched` only
+  when a header equals sha256(URL + an accepted key) for an exam the bearer is
+  sitting, and `not_required` when they sit no locked exam.
+- `.seb` launch files (`internal/domain/launchfile`, the exam app's settings
+  and encoding): candidates download
+  `GET /v1/tenants/{tenant_id}/exams/{exam_id}/launch-file` for an exam they are
+  assigned to; staff download `.../seb-policy/launch-file` to read the keys
+  in the SEB Config Tool.
 
 The complete REST contract is in [api/openapi.yaml](api/openapi.yaml).
 
@@ -88,6 +102,15 @@ revocation.
   grants or a separate secret store. Application code refuses any durable
   idempotency response containing a `quit_token` key, including nested JSON.
 
+## Lifecycle projection
+
+The projection worker consumes `submission.attempt_submitted.v1` (closes the
+attempt's active sessions) and `assessment.candidate_assignment.snapshot.v1`
+(records the assignment in `seb.candidate_assignments` for the lockdown
+check; a revocation also closes the candidate's sessions). It ignores fields
+it does not use. Migration `000013_exam_lockdown` adds the lockdown tables and
+procedures and grants the worker `USAGE` on schema `seb`, which it lacked.
+
 ## Runtime configuration
 
 `SEB_DATABASE_URL` is the non-owner application role URL.
@@ -95,14 +118,17 @@ revocation.
 projection-worker role; it consumes normal grant snapshots plus targeted resync
 snapshots/completions. `NATS_URL` is required because the resync request is
 written through the SEB outbox and the database/RLS gate begins deny-by-default.
+`SEB_LAUNCH_BASE_URL` (the web app's public origin) and `SEB_LAUNCH_PASSWORD`
+(at least 16 characters; encrypts launch files and is SEB's quit password) are
+set together; without them the launch-file routes return 503.
 The normal shared authorization variables (`AUTHZ_*`) configure the mTLS User
 service client. Do not expose the SEB service directly to browsers: Gateway is
-the component that creates its non-secret request fingerprint and invokes both
-header validations.
+the component that rebuilds the requested URL and calls the request check.
 
 Run from the repository root:
 
 ```sh
 go test ./services/seb/...
+go test -tags integration ./services/seb/...   # needs Docker
 make test-migrations
 ```

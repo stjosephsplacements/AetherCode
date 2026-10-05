@@ -40,6 +40,11 @@ type service interface {
 	DeleteConfiguration(context.Context, centralauthz.Capability, app.DeleteConfiguration) error
 	HardDeleteConfiguration(context.Context, centralauthz.Capability, app.DeleteConfiguration) error
 	GetConfigurationPayload(context.Context, centralauthz.Capability, app.GetConfigurationPayload) ([]byte, error)
+	PutExamPolicy(context.Context, centralauthz.Capability, app.PutExamPolicy) (app.ExamPolicy, error)
+	GetExamPolicy(context.Context, centralauthz.Capability, string, string) (app.ExamPolicy, error)
+	StaffLaunchFile(context.Context, centralauthz.Capability, string, string) (app.LaunchFile, error)
+	CandidateLaunchFile(context.Context, centralauthz.Capability, string, string) (app.LaunchFile, error)
+	CheckExamRequest(context.Context, centralauthz.Capability, app.CheckExamRequest) (string, error)
 }
 
 type authorizer interface {
@@ -66,6 +71,11 @@ func NewHandler(serviceName string, service service, readiness httpx.ReadinessFu
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/configurations/{configuration_id}", handler.deleteConfiguration)
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/configurations/{configuration_id}/hard", handler.hardDeleteConfiguration)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/configurations/{configuration_id}/payload", handler.getConfigurationPayload)
+	mux.HandleFunc("PUT /v1/tenants/{tenant_id}/exams/{exam_id}/seb-policy", handler.putExamPolicy)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/exams/{exam_id}/seb-policy", handler.getExamPolicy)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/exams/{exam_id}/seb-policy/launch-file", handler.getStaffLaunchFile)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/exams/{exam_id}/launch-file", handler.getCandidateLaunchFile)
+	mux.HandleFunc("POST /v1/tenants/{tenant_id}/request-checks", handler.checkRequest)
 	return mux, nil
 }
 

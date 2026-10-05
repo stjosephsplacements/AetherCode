@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -152,23 +154,25 @@ func run(contextValue context.Context) error {
 		}
 		attemptSubmittedConsumer, attemptSubmittedErr := messaging.NewPullConsumer(
 			contextValue, messagingRuntime.URL, serviceConfig.Name+"-attempt-submitted",
-			"seb_attempt_submitted_v1", projection.AttemptSubmittedEventType, logger, lifecycleStore.ApplyAttemptSubmitted,
+			"seb_attempt_submitted_v2", projection.AttemptSubmittedEventType, logger, lifecycleStore.ApplyAttemptSubmitted,
 		)
 		if attemptSubmittedErr != nil {
 			return attemptSubmittedErr
 		}
-		assignmentRevokedConsumer, assignmentRevokedErr := messaging.NewPullConsumer(
-			contextValue, messagingRuntime.URL, serviceConfig.Name+"-assignment-revoked",
-			"seb_assignment_revoked_v1", projection.AssignmentRevokedEventType, logger, lifecycleStore.ApplyAssignmentRevoked,
+		// The v2 durables replay the stream from the start: the v1 durables
+		// rejected every real event (strict decoding), so nothing was applied.
+		assignmentSnapshotConsumer, assignmentSnapshotErr := messaging.NewPullConsumer(
+			contextValue, messagingRuntime.URL, serviceConfig.Name+"-assignment-snapshot",
+			"seb_assignment_snapshot_v2", projection.AssignmentSnapshotEventType, logger, lifecycleStore.ApplyAssignmentSnapshot,
 		)
-		if assignmentRevokedErr != nil {
-			return assignmentRevokedErr
+		if assignmentSnapshotErr != nil {
+			return assignmentSnapshotErr
 		}
 		go snapshotConsumer.Run(contextValue)
 		go resyncSnapshotConsumer.Run(contextValue)
 		go resyncCompletionConsumer.Run(contextValue)
 		go attemptSubmittedConsumer.Run(contextValue)
-		go assignmentRevokedConsumer.Run(contextValue)
+		go assignmentSnapshotConsumer.Run(contextValue)
 		resyncMonitor, resyncMonitorErr := authzprojection.NewResyncMonitor(
 			resyncProjection,
 			logger,
@@ -210,7 +214,7 @@ func run(contextValue context.Context) error {
 			if err := attemptSubmittedConsumer.Ready(readinessContext); err != nil {
 				return err
 			}
-			return assignmentRevokedConsumer.Ready(readinessContext)
+			return assignmentSnapshotConsumer.Ready(readinessContext)
 		}
 	}
 	// NOTE: Storage and KMS are optional. Set SEB_STORAGE_ENDPOINT and
@@ -236,7 +240,11 @@ func run(contextValue context.Context) error {
 		kmsClient = localkms.New(kmsCfg)
 	}
 
-	sebService, err := app.NewService(pool, store, storageClient, kmsClient)
+	launch, err := loadLaunchSettings()
+	if err != nil {
+		return err
+	}
+	sebService, err := app.NewService(pool, store, store, storageClient, kmsClient, launch)
 	if err != nil {
 		return err
 	}
@@ -245,4 +253,23 @@ func run(contextValue context.Context) error {
 		return err
 	}
 	return httpx.Serve(contextValue, serviceConfig, logger, telemetry.HTTPMiddleware("seb", handler))
+}
+
+// loadLaunchSettings reads the .seb file settings. Both variables are set or
+// neither is; without them the launch-file routes return 503.
+func loadLaunchSettings() (app.LaunchSettings, error) {
+	baseURL := strings.TrimSuffix(strings.TrimSpace(os.Getenv("SEB_LAUNCH_BASE_URL")), "/")
+	password := os.Getenv("SEB_LAUNCH_PASSWORD")
+	if baseURL == "" && password == "" {
+		return app.LaunchSettings{}, nil
+	}
+	parsed, err := url.Parse(baseURL)
+	if err != nil || (parsed.Scheme != "https" && parsed.Scheme != "http") || parsed.Host == "" ||
+		(parsed.Path != "" && parsed.Path != "/") || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return app.LaunchSettings{}, fmt.Errorf("SEB_LAUNCH_BASE_URL must be the web app's origin, such as https://exam.example.edu")
+	}
+	if len(password) < 16 {
+		return app.LaunchSettings{}, fmt.Errorf("SEB_LAUNCH_PASSWORD must be set with SEB_LAUNCH_BASE_URL and be at least 16 characters")
+	}
+	return app.LaunchSettings{BaseURL: baseURL, Password: password}, nil
 }

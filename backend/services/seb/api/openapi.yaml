@@ -237,6 +237,119 @@ paths:
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/exams/{exam_id}/seb-policy:
+    parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/ExamID'}
+    get:
+      security: [{bearerAuth: []}]
+      summary: Read an exam's Safe Exam Browser lock (staff)
+      responses:
+        '200':
+          description: The exam's lock and accepted keys.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ExamPolicy'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+    put:
+      security: [{bearerAuth: []}]
+      summary: Lock or unlock an exam to Safe Exam Browser (staff, ADR-0022)
+      description: >-
+        accepted_keys are the Browser Exam Keys and Config Keys the SEB Config
+        Tool reports for the exam's launch file (one per SEB version and
+        platform). While a candidate has an open assignment to a locked exam,
+        every Gateway-protected request must carry a SEB hash for one of them.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, enabled, accepted_keys]
+              properties:
+                title: {type: string, minLength: 1, maxLength: 200}
+                enabled: {type: boolean}
+                accepted_keys:
+                  type: array
+                  maxItems: 16
+                  description: Case-insensitive; at least one when enabled.
+                  items: {type: string, pattern: '^[0-9a-fA-F]{64}$'}
+      responses:
+        '200':
+          description: The saved lock.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ExamPolicy'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/exams/{exam_id}/seb-policy/launch-file:
+    parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/ExamID'}
+    get:
+      security: [{bearerAuth: []}]
+      summary: Download the exam's .seb launch file (staff)
+      description: Open it in the SEB Config Tool to read the keys to accept.
+      responses:
+        '200': {$ref: '#/components/responses/LaunchFile'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/exams/{exam_id}/launch-file:
+    parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/ExamID'}
+    get:
+      security: [{bearerAuth: []}]
+      summary: Download a locked exam's .seb launch file (candidate)
+      description: >-
+        Only for a locked exam the bearer candidate is assigned to and whose
+        window has not closed; anything else is 404.
+      responses:
+        '200': {$ref: '#/components/responses/LaunchFile'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/request-checks:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    post:
+      security: [{bearerAuth: []}]
+      summary: Check one request for Safe Exam Browser (Gateway only)
+      description: >-
+        Gateway posts the absolute URL the browser requested with the SEB
+        headers it carried, on behalf of the bearer. matched and not_required
+        let the request through; missing and mismatched deny it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url: {type: string, format: uri, maxLength: 8192, description: No fragment.}
+                request_hash: {$ref: '#/components/schemas/SHA256'}
+                config_key_hash: {$ref: '#/components/schemas/SHA256'}
+      responses:
+        '200':
+          description: The check result.
+          headers:
+            Cache-Control: {schema: {type: string, const: no-store}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [result]
+                properties:
+                  result: {type: string, enum: [not_required, missing, matched, mismatched]}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
 components:
   securitySchemes:
     bearerAuth: {type: http, scheme: bearer, bearerFormat: AetherCode access token}
@@ -248,6 +361,11 @@ components:
       schema: {$ref: '#/components/schemas/UUID'}
     ConfigurationID:
       name: configuration_id
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUID'}
+    ExamID:
+      name: exam_id
       in: path
       required: true
       schema: {$ref: '#/components/schemas/UUID'}
@@ -289,6 +407,17 @@ components:
       description: Non-secret session state
       content:
         application/json: {schema: {$ref: '#/components/schemas/Session'}}
+    LaunchFile:
+      description: >-
+        The .seb file: a gzipped, password-encrypted lockdown configuration
+        that starts SEB on <SEB_LAUNCH_BASE_URL>/exam/<exam_id>. The body is
+        already gzip data, so Content-Encoding is identity.
+      headers:
+        Content-Disposition: {schema: {type: string}}
+        Content-Encoding: {schema: {type: string, const: identity}}
+        Cache-Control: {schema: {type: string, const: no-store}}
+      content:
+        application/seb: {schema: {type: string, format: binary}}
     Problem:
       description: Stable error response
       content:
@@ -296,6 +425,18 @@ components:
   schemas:
     UUID: {type: string, format: uuid}
     SHA256: {type: string, pattern: '^[0-9a-f]{64}$'}
+    ExamPolicy:
+      type: object
+      required: [tenant_id, exam_id, title, enabled, accepted_keys, updated_by, updated_at, version]
+      properties:
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+        exam_id: {$ref: '#/components/schemas/UUID'}
+        title: {type: string}
+        enabled: {type: boolean}
+        accepted_keys: {type: array, items: {$ref: '#/components/schemas/SHA256'}}
+        updated_by: {$ref: '#/components/schemas/UUID'}
+        updated_at: {type: string, format: date-time}
+        version: {type: integer, minimum: 1}
     ConfigurationInput:
       type: object
       required: [exam_id, exam_version_id, configuration_version, config_object_key, config_checksum, encryption_key_reference, config_key_hash]

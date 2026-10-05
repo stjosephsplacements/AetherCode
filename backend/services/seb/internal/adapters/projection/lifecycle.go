@@ -1,6 +1,8 @@
-// Package projection consumes cross-service lifecycle events (attempt
-// submission, candidate assignment revocation) and auto-closes active SEB
-// sessions. It never reads Submission or Assessment databases directly.
+// Package projection consumes cross-service lifecycle events. Attempt
+// submission and assignment revocation close active SEB sessions, and every
+// assignment snapshot is kept so the exam lockdown check knows which exams a
+// candidate is sitting (ADR-0022). It never reads Submission or Assessment
+// databases directly.
 package projection
 
 import (
@@ -11,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/aethercode/aethercode/libs/pkg/messaging"
 	"github.com/google/uuid"
@@ -20,8 +23,8 @@ import (
 )
 
 const (
-	AttemptSubmittedEventType  = "submission.attempt_submitted.v1"
-	AssignmentRevokedEventType = "assessment.candidate_assignment.snapshot.v1"
+	AttemptSubmittedEventType   = "submission.attempt_submitted.v1"
+	AssignmentSnapshotEventType = "assessment.candidate_assignment.snapshot.v1"
 )
 
 type LifecycleStore struct {
@@ -52,10 +55,14 @@ type attemptSubmittedPayload struct {
 }
 
 type assignmentSnapshotPayload struct {
-	TenantID              string `json:"tenant_id"`
-	CandidateAssignmentID string `json:"candidate_assignment_id"`
-	CandidateID           string `json:"candidate_id"`
-	LifecycleState        string `json:"lifecycle_state"`
+	TenantID              string     `json:"tenant_id"`
+	CandidateAssignmentID string     `json:"candidate_assignment_id"`
+	CandidateID           string     `json:"candidate_id"`
+	ExamID                string     `json:"exam_id"`
+	AvailableFrom         *time.Time `json:"available_from"`
+	AvailableUntil        *time.Time `json:"available_until"`
+	LifecycleState        string     `json:"lifecycle_state"`
+	Version               int64      `json:"version"`
 }
 
 func (store *LifecycleStore) ApplyAttemptSubmitted(ctx context.Context, event messaging.Event) error {
@@ -63,7 +70,7 @@ func (store *LifecycleStore) ApplyAttemptSubmitted(ctx context.Context, event me
 	if err != nil {
 		return messaging.Permanent(err)
 	}
-	return store.apply(ctx, "seb_attempt_submitted_v1", event, func(transaction pgx.Tx) error {
+	return store.apply(ctx, "seb_attempt_submitted_v2", event, func(transaction pgx.Tx) error {
 		if _, err := transaction.Exec(ctx, `
 			SELECT seb.close_sessions_for_attempt($1, $2, $3, $4)
 		`, event.ID, payload.TenantID, payload.AttemptID, "submitted"); err != nil {
@@ -73,18 +80,23 @@ func (store *LifecycleStore) ApplyAttemptSubmitted(ctx context.Context, event me
 	})
 }
 
-func (store *LifecycleStore) ApplyAssignmentRevoked(ctx context.Context, event messaging.Event) error {
+// ApplyAssignmentSnapshot records the assignment and, when it is revoked,
+// closes the candidate's active sessions.
+func (store *LifecycleStore) ApplyAssignmentSnapshot(ctx context.Context, event messaging.Event) error {
 	payload, err := parseAssignmentSnapshot(event)
 	if err != nil {
 		return messaging.Permanent(err)
 	}
-	// Only act on revocation; skip "active" lifecycle state (initial materialization)
-	if payload.LifecycleState != "revoked" {
-		return store.apply(ctx, "seb_assignment_snapshot_v1", event, func(transaction pgx.Tx) error {
+	return store.apply(ctx, "seb_assignment_snapshot_v2", event, func(transaction pgx.Tx) error {
+		if _, err := transaction.Exec(ctx, `
+			SELECT seb.apply_candidate_assignment_snapshot($1, $2, $3, $4, $5, $6, $7, $8)
+		`, payload.TenantID, payload.CandidateAssignmentID, payload.CandidateID, payload.ExamID,
+			payload.AvailableFrom, payload.AvailableUntil, payload.LifecycleState, payload.Version); err != nil {
+			return projectionError(err, "record candidate assignment snapshot")
+		}
+		if payload.LifecycleState != "revoked" {
 			return nil
-		})
-	}
-	return store.apply(ctx, "seb_assignment_snapshot_v1", event, func(transaction pgx.Tx) error {
+		}
 		if _, err := transaction.Exec(ctx, `
 			SELECT seb.close_sessions_for_candidate($1, $2, $3, $4)
 		`, event.ID, payload.TenantID, payload.CandidateID, "assignment_revoked"); err != nil {
@@ -152,14 +164,15 @@ func parseAttemptSubmitted(event messaging.Event) (attemptSubmittedPayload, erro
 }
 
 func parseAssignmentSnapshot(event messaging.Event) (assignmentSnapshotPayload, error) {
-	if event.Type != AssignmentRevokedEventType || event.SchemaVersion != 1 || !validUUID(event.ID) {
+	if event.Type != AssignmentSnapshotEventType || event.SchemaVersion != 1 || !validUUID(event.ID) {
 		return assignmentSnapshotPayload{}, fmt.Errorf("unsupported assignment snapshot event")
 	}
 	var payload assignmentSnapshotPayload
 	if err := decodePayload(event.Payload, &payload); err != nil {
 		return assignmentSnapshotPayload{}, err
 	}
-	if !validUUID(payload.TenantID) || !validUUID(payload.CandidateAssignmentID) || !validUUID(payload.CandidateID) {
+	if !validUUID(payload.TenantID) || !validUUID(payload.CandidateAssignmentID) || !validUUID(payload.CandidateID) ||
+		!validUUID(payload.ExamID) || payload.Version <= 0 {
 		return assignmentSnapshotPayload{}, fmt.Errorf("assignment snapshot payload is invalid")
 	}
 	if payload.LifecycleState != "active" && payload.LifecycleState != "revoked" {
@@ -168,9 +181,11 @@ func parseAssignmentSnapshot(event messaging.Event) (assignmentSnapshotPayload, 
 	return payload, nil
 }
 
+// decodePayload reads the fields this projection needs. Producers add fields
+// to a versioned event without bumping its version, so unknown fields are
+// ignored; a breaking change gets a new event type.
 func decodePayload(raw []byte, target any) error {
 	decoder := json.NewDecoder(strings.NewReader(string(raw)))
-	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(target); err != nil {
 		return fmt.Errorf("decode seb lifecycle projection payload: %w", err)
 	}

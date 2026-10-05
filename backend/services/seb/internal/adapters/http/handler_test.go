@@ -31,6 +31,9 @@ type fakeSEBService struct {
 	payloadResult       []byte
 	payloadErr          error
 	payloadReady        bool
+	checkCommand        app.CheckExamRequest
+	policyCommand       app.PutExamPolicy
+	launchFile          app.LaunchFile
 }
 
 func (service *fakeSEBService) CreateConfiguration(_ context.Context, _ centralauthz.Capability, command app.CreateConfiguration) (app.Configuration, error) {
@@ -85,6 +88,24 @@ func (service *fakeSEBService) GetConfigurationPayload(_ context.Context, _ cent
 		panic("unexpected GetConfigurationPayload")
 	}
 	return service.payloadResult, service.payloadErr
+}
+
+func (service *fakeSEBService) PutExamPolicy(_ context.Context, _ centralauthz.Capability, command app.PutExamPolicy) (app.ExamPolicy, error) {
+	service.policyCommand = command
+	return app.ExamPolicy{ExamID: command.ExamID, Enabled: command.Enabled}, nil
+}
+func (service *fakeSEBService) GetExamPolicy(context.Context, centralauthz.Capability, string, string) (app.ExamPolicy, error) {
+	panic("unexpected GetExamPolicy")
+}
+func (service *fakeSEBService) StaffLaunchFile(context.Context, centralauthz.Capability, string, string) (app.LaunchFile, error) {
+	return service.launchFile, nil
+}
+func (service *fakeSEBService) CandidateLaunchFile(context.Context, centralauthz.Capability, string, string) (app.LaunchFile, error) {
+	return service.launchFile, nil
+}
+func (service *fakeSEBService) CheckExamRequest(_ context.Context, _ centralauthz.Capability, command app.CheckExamRequest) (string, error) {
+	service.checkCommand = command
+	return app.CheckMatched, nil
 }
 
 type fakeAuthorizer struct {
@@ -316,5 +337,66 @@ func TestGetConfigurationPayloadRequiresAuthorization(t *testing.T) {
 
 	if recorder.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, want 403", recorder.Code)
+	}
+}
+
+func TestCheckRequestIsCandidateSelf(t *testing.T) {
+	service := &fakeSEBService{}
+	authorizer := &fakeAuthorizer{}
+	handler, err := NewHandler("seb", service, func(context.Context) error { return nil }, authorizer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hash := strings.Repeat("c", 64)
+	request := httptest.NewRequest(http.MethodPost, "/v1/tenants/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/request-checks",
+		strings.NewReader(`{"url":"https://exam.example/api/submission/v1/x?y=1","request_hash":"`+hash+`"}`))
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+
+	handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK || recorder.Body.String() != `{"result":"matched"}`+"\n" {
+		t.Fatalf("status = %d, body = %q", recorder.Code, recorder.Body.String())
+	}
+	if authorizer.selfCalls != 1 || authorizer.regularCall != 0 {
+		t.Fatalf("self calls = %d, regular calls = %d", authorizer.selfCalls, authorizer.regularCall)
+	}
+	if service.checkCommand.URL != "https://exam.example/api/submission/v1/x?y=1" || service.checkCommand.RequestHash != hash ||
+		service.checkCommand.ConfigKeyHash != "" {
+		t.Fatalf("check command = %+v", service.checkCommand)
+	}
+}
+
+func TestLaunchFilesAreOpaqueDownloads(t *testing.T) {
+	for _, path := range []string{"/launch-file", "/seb-policy/launch-file"} {
+		service := &fakeSEBService{launchFile: app.LaunchFile{Filename: "mid-term.seb", Content: []byte{0x1f, 0x8b, 0x08}}}
+		authorizer := &fakeAuthorizer{}
+		handler, err := NewHandler("seb", service, func(context.Context) error { return nil }, authorizer)
+		if err != nil {
+			t.Fatal(err)
+		}
+		request := httptest.NewRequest(http.MethodGet,
+			"/v1/tenants/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/exams/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"+path, nil)
+		recorder := httptest.NewRecorder()
+
+		handler.ServeHTTP(recorder, request)
+
+		if recorder.Code != http.StatusOK || recorder.Body.Len() != 3 {
+			t.Fatalf("%s: status = %d, body = %q", path, recorder.Code, recorder.Body.String())
+		}
+		for header, want := range map[string]string{
+			"Content-Type":        "application/seb",
+			"Content-Encoding":    "identity",
+			"Content-Disposition": `attachment; filename="mid-term.seb"`,
+			"Cache-Control":       "no-store",
+		} {
+			if got := recorder.Header().Get(header); got != want {
+				t.Errorf("%s: %s = %q, want %q", path, header, got, want)
+			}
+		}
+		wantSelf := path == "/launch-file"
+		if (authorizer.selfCalls == 1) != wantSelf || authorizer.selfCalls+authorizer.regularCall != 1 {
+			t.Fatalf("%s: self calls = %d, regular calls = %d", path, authorizer.selfCalls, authorizer.regularCall)
+		}
 	}
 }

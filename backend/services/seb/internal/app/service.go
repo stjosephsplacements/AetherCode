@@ -223,6 +223,8 @@ type Service struct {
 	now         func() time.Time
 	storage     storage.Object
 	kms         kms.KeyManager
+	lockdown    LockdownStore
+	launch      LaunchSettings
 }
 
 // GetConfigurationPayload identifies a SEB configuration whose payload to
@@ -233,16 +235,17 @@ type GetConfigurationPayload struct {
 }
 
 // NewService creates a new SEB service. storage and kms may both be nil;
-// the payload endpoint returns 503 Unavailable until they are wired.
-func NewService(pool *pgxpool.Pool, store Store, storage storage.Object, kms kms.KeyManager) (*Service, error) {
-	if pool == nil || store == nil {
-		return nil, fmt.Errorf("SEB database pool and store are required")
+// the payload endpoint returns 503 Unavailable until they are wired. An empty
+// launch makes the .seb download endpoints return 503 the same way.
+func NewService(pool *pgxpool.Pool, store Store, lockdown LockdownStore, storage storage.Object, kms kms.KeyManager, launch LaunchSettings) (*Service, error) {
+	if pool == nil || store == nil || lockdown == nil {
+		return nil, fmt.Errorf("SEB database pool and stores are required")
 	}
 	idempotency, err := database.NewIdempotencyStore("app.idempotency_keys")
 	if err != nil {
 		return nil, err
 	}
-	return &Service{pool: pool, store: store, idempotency: idempotency, now: time.Now, storage: storage, kms: kms}, nil
+	return &Service{pool: pool, store: store, lockdown: lockdown, idempotency: idempotency, now: time.Now, storage: storage, kms: kms, launch: launch}, nil
 }
 
 func (service *Service) CreateConfiguration(ctx context.Context, capability centralauthz.Capability, command CreateConfiguration) (Configuration, error) {
