@@ -189,15 +189,16 @@ These rules keep the exam app safe during a live, graded exam:
 
 Progress is tracked by milestone in
 `docs/superpowers/plans/2026-10-02-go-platform-exam-parity.md`; read its table
-first. As of 2026-10-05, M0–M3 are done and verified on the campus server by
+first. As of 2026-10-05, M0–M4 are done and verified on the campus server by
 `deploy/single-server/smoke.py`: single-server stack, administrator-provisioned
 accounts and CSV import (ADR-0019), staff authoring into the global bank with
 server-built encrypted test bundles (ADR-0020), and take-and-grade: attempts
 with per-candidate deadlines, Run against sample tests (ADR-0021), submit,
-dispatch to Judge (Piston engine, ADR-0018), weighted scoring and time-up.
+dispatch to Judge (Piston engine, ADR-0018), weighted scoring and time-up;
+and Safe Exam Browser lockdown with per-URL key checks and `.seb` launch files
+(ADR-0022).
 
-**Not done — exams still run on `apps/exam-v1`:** SEB enforcement (M4, with a
-known SEB projection decoding bug noted in the plan), the `frontend/` (M5),
+**Not done — exams still run on `apps/exam-v1`:** the `frontend/` (M5),
 results and operations (M6), and the remaining parity features (M7). External
 gates are in `PENDING.md`. `Prompt.md` describes an older phase of the work.
 
