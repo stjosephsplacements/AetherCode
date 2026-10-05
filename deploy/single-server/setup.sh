@@ -57,6 +57,8 @@ judge0_token="$(hex)"
   # One local KMS key for every service that encrypts or decrypts platform
   # objects (stand-in for a single managed KMS).
   echo "PLATFORM_KMS_LOCAL_KEY=$(b64 32)"
+  # Encrypts .seb launch files and is Safe Exam Browser's quit password.
+  echo "SEB_LAUNCH_PASSWORD=$(hex)"
   echo "AUTHZ_CAPABILITY_KEYS=${keyring}"
 } > .env
 

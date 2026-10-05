@@ -2,23 +2,29 @@
 
 Run on the server after an upgrade:
 
-    python3 smoke.py [admin-credentials-file] [gateway-url]
+    python3 smoke.py [admin-credentials-file] [gateway-url] [public-origin]
 
 The credentials file holds "<email> <password>" (setup writes
 ~/aethercode-admin.txt). Every run uses fresh names, so it can be repeated;
 it leaves its test college data behind. Exits non-zero on the first failure.
+The public origin is what Safe Exam Browser hashes request URLs with; it must
+match the gateway's GATEWAY_SEB_PUBLIC_ORIGIN.
 """
-import base64, json, os, sys, time, urllib.request, urllib.error, uuid
+import base64, gzip, hashlib, json, os, sys, time, urllib.request, urllib.error, uuid
 
 CREDENTIALS = sys.argv[1] if len(sys.argv) > 1 else os.path.expanduser("~/aethercode-admin.txt")
 BASE = (sys.argv[2] if len(sys.argv) > 2 else "http://127.0.0.1:8380") + "/api"
+PUBLIC_ORIGIN = sys.argv[3] if len(sys.argv) > 3 else "https://aethercode.stjosephsplacements.in"
 admin_email, admin_password = open(CREDENTIALS).read().split()[:2]
 run = uuid.uuid4().hex[:6]
 
-def call(method, path, body=None, token=None, expect=None, retries=5):
+def call(method, path, body=None, token=None, expect=None, retries=5, headers=None):
+    request_headers = headers
     data = json.dumps(body).encode() if body is not None else None
     request = urllib.request.Request(BASE + path, data=data, method=method)
     request.add_header("Content-Type", "application/json")
+    for name, value in (headers or {}).items():
+        request.add_header(name, value)
     if method != "GET":
         request.add_header("Idempotency-Key", str(uuid.uuid4()))
     if token:
@@ -31,11 +37,11 @@ def call(method, path, body=None, token=None, expect=None, retries=5):
     try:
         payload = json.loads(raw) if raw else None
     except ValueError:
-        payload = raw.decode(errors="replace")
+        payload = raw  # binary, such as a .seb launch file
     if status == 503 and retries > 0:
         # Permissions or projections still settling; a real client retries.
         time.sleep(float(headers.get("Retry-After", "2")))
-        return call(method, path, body, token, expect, retries - 1)
+        return call(method, path, body, token, expect, retries - 1, request_headers)
     if expect is not None and status != expect:
         sys.exit(f"FAIL {method} {path}: HTTP {status} {payload}")
     return status, payload, headers
@@ -265,3 +271,48 @@ _, results, _ = call("GET", f"{attempts}/{timed['id']}/unit-results", token=stud
 assert (results["items"][0]["passed_units"], results["items"][0]["total_units"]) == (3, 4), results
 ok("time-up submitted the saved code and it was graded: 3 of 4 tests passed")
 print("ALL M3 CHECKS PASSED")
+
+# --- M4: Safe Exam Browser ------------------------------------------------
+def seb_headers(path, key):
+    """What Safe Exam Browser sends: sha256(absolute URL + Browser Exam Key)."""
+    url = PUBLIC_ORIGIN + "/api" + path
+    return {"X-SafeExamBrowser-RequestHash": hashlib.sha256((url + key).encode()).hexdigest()}
+
+opens, locked_version, locked_item, locked_assignment = publish_exam("Locked smoke test", 3600)
+locked_exam = locked_version["exam_id"]
+browser_exam_key = hashlib.sha256(run.encode()).hexdigest()
+policy_path = f"/seb/v1/tenants/{tenant}/exams/{locked_exam}/seb-policy"
+status, _, _ = call("PUT", policy_path, {"title": "Locked", "enabled": True, "accepted_keys": [browser_exam_key]}, token=student)
+assert status == 403, status
+ok("a student cannot lock or unlock an exam")
+call("PUT", policy_path, {"title": "Locked smoke test", "enabled": True, "accepted_keys": [browser_exam_key.upper()]},
+     token=faculty, expect=200)
+_, policy, _ = call("GET", policy_path, token=faculty, expect=200)
+assert policy["enabled"] and policy["accepted_keys"] == [browser_exam_key], policy
+ok("faculty lock the exam to Safe Exam Browser with its Browser Exam Key")
+_, launch, launch_headers = call("GET", f"/seb/v1/tenants/{tenant}/exams/{locked_exam}/launch-file", token=student, expect=200)
+assert launch_headers["Content-Type"] == "application/seb" and launch_headers["Content-Encoding"] == "identity", dict(launch_headers)
+assert launch_headers["Content-Disposition"] == 'attachment; filename="locked-smoke-test.seb"', dict(launch_headers)
+assert gzip.decompress(launch)[:4] == b"pswd", launch[:16]
+ok("the student downloads an encrypted .seb launch file")
+
+time.sleep(max(0, opens + 2 - time.time()))
+for _ in range(30):
+    status, _, _ = call("GET", attempts, token=student)
+    if status == 403:
+        break
+    time.sleep(2)
+else:
+    sys.exit(f"FAIL the open locked exam never required Safe Exam Browser: HTTP {status}")
+ok("outside Safe Exam Browser the student is refused once the locked exam opens")
+_, locked, _ = call("POST", attempts, {"candidate_assignment_id": locked_assignment["id"]}, token=student, expect=201,
+                    headers=seb_headers(attempts, browser_exam_key))
+attempt_path = f"{attempts}/{locked['id']}"
+call("GET", attempt_path, token=student, expect=200, headers=seb_headers(attempt_path, browser_exam_key))
+ok("inside Safe Exam Browser the student starts and reads the exam")
+status, _, _ = call("GET", attempt_path, token=student, headers=seb_headers(attempts, browser_exam_key))
+assert status == 403, status
+status, _, _ = call("GET", attempt_path, token=student, headers=seb_headers(attempt_path, "0" * 64))
+assert status == 403, status
+ok("a hash for another URL or another key is refused")
+print("ALL M4 CHECKS PASSED")

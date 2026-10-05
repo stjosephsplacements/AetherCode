@@ -331,6 +331,9 @@ services:
       SEB_STORAGE_BUCKET: aethercode
       SEB_STORAGE_USE_SSL: "false"
       SEB_KMS_LOCAL_KEY: ${PLATFORM_KMS_LOCAL_KEY}
+      # .seb launch files open ${PUBLIC_ORIGIN}/exam/<exam_id> (ADR-0022).
+      SEB_LAUNCH_BASE_URL: ${PUBLIC_ORIGIN:-https://aethercode.stjosephsplacements.in}
+      SEB_LAUNCH_PASSWORD: ${SEB_LAUNCH_PASSWORD:?SEB_LAUNCH_PASSWORD is not set; see setup.sh}
     build: { context: ../../backend, dockerfile: services/seb/Dockerfile }
 
   notification:
@@ -462,6 +465,10 @@ services:
       GATEWAY_IDENTITY_ASSERTION_PUBLIC_KEYS: ${IDENTITY_ASSERTION_PUBLIC_KEYS}
       # The host nginx reaches the gateway through the Docker bridge address.
       GATEWAY_TRUSTED_PROXY_CIDRS: ${GATEWAY_TRUSTED_PROXY_CIDRS:-[]}
+      # Every candidate request to Submission passes the SEB lockdown check
+      # (ADR-0022); SEB hashes the URL at the public origin.
+      GATEWAY_SEB_PROTECTED_PREFIXES: '["/api/submission/v1/tenants"]'
+      GATEWAY_SEB_PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-https://aethercode.stjosephsplacements.in}
       GATEWAY_UPSTREAMS: '{"identity":"http://identity:8080","tenant":"http://tenant:8080","user":"http://user:8080","question-bank":"http://question-bank:8080","assessment":"http://assessment:8080","submission":"http://submission:8080","seb":"http://seb:8080","notification":"http://notification:8080","analytics":"http://analytics:8080"}'
     build: { context: ../../backend, dockerfile: services/gateway/Dockerfile }
     ports:
