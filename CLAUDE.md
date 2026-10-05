@@ -187,25 +187,19 @@ These rules keep the exam app safe during a live, graded exam:
 
 ## Platform status (read before platform work)
 
-Done and tested: identity/MFA, tenancy, users and roles, question and
-assessment authoring, attempts and answers, RLS across services, outbox/NATS
-projections, list endpoints with cursor pagination, observability, Helm charts,
-MinIO storage and local KMS adapters, a real Judge0 HTTP client behind the
-compatibility gate (`JUDGE_ENGINE`, `JUDGE_ENGINE_COMPATIBILITY_APPROVED`),
-per-test-case fan-out, and per-unit results.
+Progress is tracked by milestone in
+`docs/superpowers/plans/2026-10-02-go-platform-exam-parity.md`; read its table
+first. As of 2026-10-05, M0–M3 are done and verified on the campus server by
+`deploy/single-server/smoke.py`: single-server stack, administrator-provisioned
+accounts and CSV import (ADR-0019), staff authoring into the global bank with
+server-built encrypted test bundles (ADR-0020), and take-and-grade: attempts
+with per-candidate deadlines, Run against sample tests (ADR-0021), submit,
+dispatch to Judge (Piston engine, ADR-0018), weighted scoring and time-up.
 
-**Not done — the platform cannot run an exam yet:**
-- No service consumes `submission.evaluation_requested.v1` and calls the judge,
-  so submissions are never graded.
-- No API accepts raw source or test-case text; everything expects pre-encrypted
-  objects in storage.
-- The judge's `FetchQueuedJob` passes ciphertext references to the engine
-  without decrypting them (Plan D Task 4 must close this).
-- No bulk student import; `frontend/` is empty.
-- Known open bugs and external gates: `Prompt.md` and `PENDING.md`.
-
-Resume platform work from `Prompt.md` and
-`docs/superpowers/plans/2026-08-24-candidate-run-code.md`.
+**Not done — exams still run on `apps/exam-v1`:** SEB enforcement (M4, with a
+known SEB projection decoding bug noted in the plan), the `frontend/` (M5),
+results and operations (M6), and the remaining parity features (M7). External
+gates are in `PENDING.md`. `Prompt.md` describes an older phase of the work.
 
 ## Definition of Done
 
