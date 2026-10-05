@@ -288,7 +288,9 @@ privately as described in [SECURITY.md](SECURITY.md), never in a public issue.
 
 ## License
 
+Copyright (C) 2026 St. Joseph's Group of Institutions.
+
 AetherCode is free software: you can redistribute it and/or modify it under the
 terms of the [GNU Affero General Public License v3.0](LICENSE). If you run a
 modified version as a network service, the AGPL requires you to offer its
-users the corresponding source code.
+users the corresponding source code. See [NOTICE](NOTICE).
