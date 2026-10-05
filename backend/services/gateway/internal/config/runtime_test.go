@@ -75,3 +75,21 @@ func TestSEBProtectedPrefixesRequireSEBUpstream(t *testing.T) {
 		t.Fatal("SEB enforcement without SEB upstream must fail startup")
 	}
 }
+
+func TestParsePublicOrigin(t *testing.T) {
+	for raw, valid := range map[string]bool{
+		"https://exam.example.edu":      true,
+		"http://127.0.0.1:8380":         true,
+		"":                              false,
+		"exam.example.edu":              false,
+		"https://exam.example.edu/":     false,
+		"https://exam.example.edu/api":  false,
+		"https://exam.example.edu?x=1":  false,
+		"https://user@exam.example.edu": false,
+		"ftp://exam.example.edu":        false,
+	} {
+		if _, err := parsePublicOrigin(raw); (err == nil) != valid {
+			t.Errorf("parsePublicOrigin(%q) error = %v, want valid %v", raw, err, valid)
+		}
+	}
+}

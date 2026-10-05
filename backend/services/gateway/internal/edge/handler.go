@@ -4,8 +4,6 @@ package edge
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,13 +19,11 @@ import (
 )
 
 const (
-	maxSEBHeaderBytes      = 1024
-	maxSEBResponseBytes    = 64 << 10
-	secureConfigHeader     = "X-SafeExamBrowser-ConfigKeyHash"
-	secureBrowserHeader    = "X-SafeExamBrowser-RequestHash"
-	secureTenantHeader     = "X-AetherCode-SEB-Tenant-ID"
-	secureSessionHeader    = "X-AetherCode-SEB-Session-ID"
-	defaultSEBValidatePath = "/v1/tenants/%s/sessions/%s/validate"
+	maxSEBHeaderBytes   = 1024
+	maxSEBResponseBytes = 64 << 10
+	secureConfigHeader  = "X-SafeExamBrowser-ConfigKeyHash"
+	secureBrowserHeader = "X-SafeExamBrowser-RequestHash"
+	defaultSEBCheckPath = "/v1/tenants/%s/request-checks"
 )
 
 var publicIdentityRoutes = map[string]struct{}{
@@ -78,6 +74,7 @@ type Config struct {
 	Limiter              *ratelimit.Limiter
 	TrustedProxyCIDRs    []*net.IPNet
 	SEBProtectedPrefixes []string
+	SEBPublicOrigin      string
 	Client               *http.Client
 	RequestTimeout       time.Duration
 	SEBValidationTimeout time.Duration
@@ -92,6 +89,7 @@ type Handler struct {
 	limiter              *ratelimit.Limiter
 	trustedProxyCIDRs    []*net.IPNet
 	sebProtectedPrefixes []string
+	sebPublicOrigin      string
 	client               *http.Client
 	sebValidationTimeout time.Duration
 	now                  func() time.Time
@@ -122,8 +120,8 @@ func New(config Config) (*Handler, error) {
 		copy := *upstream
 		upstreams[service] = &copy
 	}
-	if len(config.SEBProtectedPrefixes) > 0 && upstreams["seb"] == nil {
-		return nil, fmt.Errorf("SEB-protected routes require the seb upstream")
+	if len(config.SEBProtectedPrefixes) > 0 && (upstreams["seb"] == nil || config.SEBPublicOrigin == "") {
+		return nil, fmt.Errorf("SEB-protected routes require the seb upstream and the public origin")
 	}
 	for _, prefix := range config.SEBProtectedPrefixes {
 		if !validSEBPrefix(prefix) {
@@ -147,6 +145,7 @@ func New(config Config) (*Handler, error) {
 		limiter:              config.Limiter,
 		trustedProxyCIDRs:    append([]*net.IPNet(nil), config.TrustedProxyCIDRs...),
 		sebProtectedPrefixes: append([]string(nil), config.SEBProtectedPrefixes...),
+		sebPublicOrigin:      strings.TrimSuffix(config.SEBPublicOrigin, "/"),
 		client:               client,
 		sebValidationTimeout: config.SEBValidationTimeout,
 		now:                  now,
@@ -217,7 +216,7 @@ func (handler *Handler) ServeHTTP(writer http.ResponseWriter, request *http.Requ
 	}
 
 	if handler.requiresSEB(route.externalPath) {
-		if err := handler.enforceSEB(request, assertion); err != nil {
+		if err := handler.enforceSEB(request, route, assertion); err != nil {
 			writeError(writer, http.StatusForbidden, "secure exam browser validation failed")
 			return
 		}
@@ -380,64 +379,58 @@ func (handler *Handler) isTrustedProxy(peer net.IP) bool {
 	return false
 }
 
-func (handler *Handler) enforceSEB(request *http.Request, assertion string) error {
-	tenantID, sessionID, configValue, browserValue, err := secureExamHeaders(request)
+// enforceSEB asks SEB whether this request may proceed (ADR-0022). Safe Exam
+// Browser sends sha256(absolute URL + key) for its Browser Exam Key and its
+// Config Key on every request; SEB compares them with the keys of the exams
+// the bearer candidate is sitting. The URL is rebuilt from the configured
+// public origin and the raw request target, exactly as the browser sent it.
+func (handler *Handler) enforceSEB(request *http.Request, route route, assertion string) error {
+	tenantID, err := tenantFromPath(route.externalPath)
 	if err != nil {
 		return err
 	}
-	fingerprint := requestFingerprint(request)
-	configResult, err := handler.validateSEBSession(request.Context(), assertion, tenantID, sessionID, "config_key", &configValue, fingerprint)
-	if err != nil || configResult != "matched" {
-		return errors.New("config header did not validate")
+	requestHash, err := optionalSEBHeader(request, secureBrowserHeader)
+	if err != nil {
+		return err
 	}
-	browserResult, err := handler.validateSEBSession(request.Context(), assertion, tenantID, sessionID, "browser_exam_key", browserValue, fingerprint)
-	if err != nil || (browserResult != "matched" && browserResult != "not_required") {
-		return errors.New("browser header did not validate")
+	configKeyHash, err := optionalSEBHeader(request, secureConfigHeader)
+	if err != nil {
+		return err
+	}
+	if request.RequestURI == "" || !strings.HasPrefix(request.RequestURI, "/") || strings.Contains(request.RequestURI, "#") {
+		return errors.New("request target is not a path")
+	}
+	result, err := handler.checkSEBRequest(request.Context(), assertion, tenantID, sebCheckRequest{
+		URL: handler.sebPublicOrigin + request.RequestURI, RequestHash: requestHash, ConfigKeyHash: configKeyHash,
+	})
+	if err != nil {
+		return err
+	}
+	if result != "matched" && result != "not_required" {
+		return fmt.Errorf("SEB request check returned %s", result)
 	}
 	return nil
 }
 
-func secureExamHeaders(request *http.Request) (tenantID, sessionID, configValue string, browserValue *string, err error) {
-	tenantID, err = requiredUUIDHeader(request, secureTenantHeader)
-	if err != nil {
-		return "", "", "", nil, err
+// tenantFromPath reads the tenant from /api/<service>/v1/tenants/<id>/...;
+// every SEB-protected route is tenant-scoped.
+func tenantFromPath(externalPath string) (string, error) {
+	parts := strings.Split(externalPath, "/")
+	if len(parts) < 6 || parts[3] != "v1" || parts[4] != "tenants" || !isUUID(parts[5]) {
+		return "", errors.New("SEB-protected request is not tenant-scoped")
 	}
-	sessionID, err = requiredUUIDHeader(request, secureSessionHeader)
-	if err != nil {
-		return "", "", "", nil, err
-	}
-	configValue, err = requiredBoundedHeader(request, secureConfigHeader)
-	if err != nil {
-		return "", "", "", nil, err
-	}
-	values := request.Header.Values(secureBrowserHeader)
-	if len(values) == 0 {
-		return tenantID, sessionID, configValue, nil, nil
-	}
-	if len(values) != 1 || strings.TrimSpace(values[0]) == "" || len(values[0]) > maxSEBHeaderBytes {
-		return "", "", "", nil, errors.New("invalid browser exam header")
-	}
-	value := values[0]
-	return tenantID, sessionID, configValue, &value, nil
+	return parts[5], nil
 }
 
-func requiredBoundedHeader(request *http.Request, name string) (string, error) {
+func optionalSEBHeader(request *http.Request, name string) (string, error) {
 	values := request.Header.Values(name)
-	if len(values) != 1 || strings.TrimSpace(values[0]) == "" || len(values[0]) > maxSEBHeaderBytes {
+	if len(values) == 0 {
+		return "", nil
+	}
+	if len(values) != 1 || len(values[0]) > maxSEBHeaderBytes {
 		return "", fmt.Errorf("invalid %s", name)
 	}
-	return values[0], nil
-}
-
-func requiredUUIDHeader(request *http.Request, name string) (string, error) {
-	value, err := requiredBoundedHeader(request, name)
-	if err != nil {
-		return "", err
-	}
-	if !isUUID(value) {
-		return "", fmt.Errorf("invalid %s", name)
-	}
-	return value, nil
+	return strings.TrimSpace(values[0]), nil
 }
 
 func isUUID(value string) bool {
@@ -459,62 +452,45 @@ func isUUID(value string) bool {
 	return true
 }
 
-func requestFingerprint(request *http.Request) string {
-	// Never include bearer assertions, cookies, source code, or arbitrary
-	// request headers. The opaque digest is enough to correlate the two
-	// validation events for one gateway request without turning validation into
-	// a PII or answer-content transport.
-	value := strings.Join([]string{
-		request.Method,
-		request.URL.EscapedPath(),
-		request.URL.RawQuery,
-		request.Header.Get("Content-Type"),
-		fmt.Sprintf("%d", request.ContentLength),
-	}, "\n")
-	digest := sha256.Sum256([]byte(value))
-	return hex.EncodeToString(digest[:])
+type sebCheckRequest struct {
+	URL           string `json:"url"`
+	RequestHash   string `json:"request_hash,omitempty"`
+	ConfigKeyHash string `json:"config_key_hash,omitempty"`
 }
 
-type sebValidationRequest struct {
-	HeaderKind             string  `json:"header_kind"`
-	HeaderValue            *string `json:"header_value"`
-	RequestFingerprintHash string  `json:"request_fingerprint_hash"`
+type sebCheckResponse struct {
+	Result string `json:"result"`
 }
 
-type sebValidationResponse struct {
-	ValidationResult string `json:"validation_result"`
-}
-
-func (handler *Handler) validateSEBSession(parentContext context.Context, assertion, tenantID, sessionID, headerKind string, value *string, fingerprint string) (string, error) {
-	payload, err := json.Marshal(sebValidationRequest{HeaderKind: headerKind, HeaderValue: value, RequestFingerprintHash: fingerprint})
+func (handler *Handler) checkSEBRequest(parentContext context.Context, assertion, tenantID string, check sebCheckRequest) (string, error) {
+	payload, err := json.Marshal(check)
 	if err != nil {
-		return "", fmt.Errorf("marshal SEB validation request: %w", err)
+		return "", fmt.Errorf("marshal SEB request check: %w", err)
 	}
 	contextValue, cancel := context.WithTimeout(parentContext, handler.sebValidationTimeout)
 	defer cancel()
-	target := joinURL(handler.upstreams["seb"], fmt.Sprintf(defaultSEBValidatePath, tenantID, sessionID))
+	target := joinURL(handler.upstreams["seb"], fmt.Sprintf(defaultSEBCheckPath, tenantID))
 	request, err := http.NewRequestWithContext(contextValue, http.MethodPost, target.String(), strings.NewReader(string(payload)))
 	if err != nil {
-		return "", fmt.Errorf("create SEB validation request: %w", err)
+		return "", fmt.Errorf("create SEB request check: %w", err)
 	}
 	request.Header.Set("Authorization", "Bearer "+assertion)
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Accept", "application/json")
 	response, err := handler.client.Do(request)
 	if err != nil {
-		return "", fmt.Errorf("call SEB validation: %w", err)
+		return "", fmt.Errorf("call SEB request check: %w", err)
 	}
 	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode != http.StatusOK {
 		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, maxSEBResponseBytes))
-		return "", fmt.Errorf("SEB validation returned %d", response.StatusCode)
+		return "", fmt.Errorf("SEB request check returned %d", response.StatusCode)
 	}
-	decoder := json.NewDecoder(io.LimitReader(response.Body, maxSEBResponseBytes))
-	var result sebValidationResponse
-	if err := decoder.Decode(&result); err != nil || result.ValidationResult == "" {
-		return "", errors.New("SEB validation returned an invalid response")
+	var result sebCheckResponse
+	if err := json.NewDecoder(io.LimitReader(response.Body, maxSEBResponseBytes)).Decode(&result); err != nil || result.Result == "" {
+		return "", errors.New("SEB request check returned an invalid response")
 	}
-	return result.ValidationResult, nil
+	return result.Result, nil
 }
 
 func (handler *Handler) forward(writer http.ResponseWriter, request *http.Request, route route, clientIP string) {
@@ -542,7 +518,7 @@ func sanitizedForwardHeaders(source http.Header, clientIP, host string, tls bool
 	result := make(http.Header, len(source)+3)
 	for name, values := range source {
 		lower := strings.ToLower(name)
-		if _, forbidden := hopByHopHeaders[lower]; forbidden || lower == "forwarded" || strings.HasPrefix(lower, "x-forwarded-") || lower == "x-real-ip" || lower == "x-original-url" || lower == "x-rewrite-url" || lower == "x-accel-redirect" || lower == "x-aethercode-principal-id" || lower == "x-aethercode-actor-id" || lower == "x-aethercode-tenant-id" || lower == "x-aethercode-user-id" || lower == "x-aethercode-service" || lower == "x-aethercode-verified-principal-id" || strings.HasPrefix(lower, "x-aethercode-authz-") || strings.HasPrefix(lower, "x-aethercode-internal-") || lower == strings.ToLower(secureTenantHeader) || lower == strings.ToLower(secureSessionHeader) || lower == strings.ToLower(secureConfigHeader) || lower == strings.ToLower(secureBrowserHeader) {
+		if _, forbidden := hopByHopHeaders[lower]; forbidden || lower == "forwarded" || strings.HasPrefix(lower, "x-forwarded-") || lower == "x-real-ip" || lower == "x-original-url" || lower == "x-rewrite-url" || lower == "x-accel-redirect" || lower == "x-aethercode-principal-id" || lower == "x-aethercode-actor-id" || lower == "x-aethercode-tenant-id" || lower == "x-aethercode-user-id" || lower == "x-aethercode-service" || lower == "x-aethercode-verified-principal-id" || strings.HasPrefix(lower, "x-aethercode-authz-") || strings.HasPrefix(lower, "x-aethercode-internal-") || lower == strings.ToLower(secureConfigHeader) || lower == strings.ToLower(secureBrowserHeader) {
 			continue
 		}
 		for _, value := range values {

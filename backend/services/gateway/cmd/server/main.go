@@ -64,6 +64,7 @@ func run(contextValue context.Context) error {
 		Limiter:              limiter,
 		TrustedProxyCIDRs:    runtime.TrustedProxyCIDRs,
 		SEBProtectedPrefixes: runtime.SEBProtectedPrefixes,
+		SEBPublicOrigin:      runtime.SEBPublicOrigin,
 		RequestTimeout:       runtime.RequestTimeout,
 		SEBValidationTimeout: runtime.SEBValidationTimeout,
 	})

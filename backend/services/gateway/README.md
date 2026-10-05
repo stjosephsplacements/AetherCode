@@ -46,7 +46,8 @@ Optional controls, all validated at startup:
 
 ```text
 GATEWAY_TRUSTED_PROXY_CIDRS=[]            # JSON CIDR array; only these peers may supply X-Forwarded-For
-GATEWAY_SEB_PROTECTED_PREFIXES=[]         # JSON API-prefix array, e.g. ["/api/submission/v1/exams"]
+GATEWAY_SEB_PROTECTED_PREFIXES=[]         # JSON API-prefix array, e.g. ["/api/submission/v1/tenants"]
+GATEWAY_SEB_PUBLIC_ORIGIN=                # required with protected prefixes, e.g. https://exam.example.edu
 GATEWAY_RATE_LIMIT_CAPACITY=60
 GATEWAY_RATE_LIMIT_REFILL_PER_SECOND=10
 GATEWAY_RATE_LIMIT_MAX_ENTRIES=100000
@@ -62,15 +63,19 @@ is intentionally bounded and is not a distributed rate-limit authority.
 
 ## SEB enforcement
 
-For each configured protected prefix Gateway requires
-`X-AetherCode-SEB-Tenant-ID`, `X-AetherCode-SEB-Session-ID`, and a nonempty
-`X-SafeExamBrowser-ConfigKeyHash`. It calls the private SEB validation API
-twice with the original bearer assertion: once for the config key and once for
-the optional browser key. Gateway sends only a SHA-256 fingerprint of
-non-secret request metadata; it never forwards source code, cookies, or the
-bearer assertion as fingerprint input. Config validation must be `matched`;
-browser validation must be `matched` or `not_required`. Any parse, network, or
-validation error denies the protected request.
+ADR-0022. Every protected prefix must be tenant-scoped
+(`/api/<service>/v1/tenants/<tenant_id>/...`). For a request under one,
+Gateway rebuilds the absolute URL the browser requested from
+`GATEWAY_SEB_PUBLIC_ORIGIN` and the raw request target (never from forwarded
+headers), and posts it with the optional `X-SafeExamBrowser-RequestHash` and
+`X-SafeExamBrowser-ConfigKeyHash` values to SEB's private
+`/v1/tenants/<tenant_id>/request-checks`, carrying the original bearer
+assertion. SEB answers `not_required` when the bearer candidate sits no locked
+exam, `matched` when a header equals sha256(URL + an accepted key), and
+`missing`/`mismatched` otherwise. Only the first two forward the request; any
+parse, network, or check error denies it. The reverse proxy in front of
+Gateway must pass the request target through unchanged, because that is what
+SEB hashed.
 
 The SEB headers are not forwarded to the target service, preventing a backend
 from treating caller-controlled headers as an authorization signal.

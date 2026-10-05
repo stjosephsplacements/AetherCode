@@ -40,6 +40,7 @@ func newTestHandler(t *testing.T, upstreams map[string]*url.URL, verifier Assert
 		Limiter:              limiter,
 		TrustedProxyCIDRs:    trusted,
 		SEBProtectedPrefixes: prefixes,
+		SEBPublicOrigin:      "https://exam.example",
 		RequestTimeout:       time.Second,
 		SEBValidationTimeout: time.Second,
 	})
@@ -188,11 +189,13 @@ func TestHandlerUsesForwardedForOnlyFromTrustedIngress(t *testing.T) {
 	}
 }
 
-func TestHandlerEnforcesBothSEBValidationsBeforeForwarding(t *testing.T) {
+func TestHandlerChecksSEBRequestHashBeforeForwarding(t *testing.T) {
+	const tenantID = "33333333-3333-4333-8333-333333333333"
+	requestHash, configKeyHash := strings.Repeat("a", 64), strings.Repeat("b", 64)
 	var targetCalls atomic.Int32
 	target := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		targetCalls.Add(1)
-		for _, header := range []string{secureTenantHeader, secureSessionHeader, secureConfigHeader, secureBrowserHeader} {
+		for _, header := range []string{secureConfigHeader, secureBrowserHeader} {
 			if request.Header.Get(header) != "" {
 				t.Errorf("SEB input header %s leaked to the target service", header)
 			}
@@ -200,72 +203,82 @@ func TestHandlerEnforcesBothSEBValidationsBeforeForwarding(t *testing.T) {
 		writer.WriteHeader(http.StatusAccepted)
 	}))
 	defer target.Close()
-	var validationCalls atomic.Int32
+	var checks atomic.Int32
 	seb := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		validationCalls.Add(1)
+		checks.Add(1)
+		if request.URL.Path != "/v1/tenants/"+tenantID+"/request-checks" {
+			t.Errorf("SEB check path = %s", request.URL.Path)
+		}
 		if request.Header.Get("Authorization") != "Bearer assertion" {
 			t.Errorf("SEB did not receive the original bearer assertion")
 		}
-		var body sebValidationRequest
+		var body sebCheckRequest
 		if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
 			t.Errorf("decode body: %v", err)
 		}
-		if len(body.RequestFingerprintHash) != 64 || strings.Contains(body.RequestFingerprintHash, "source") {
-			t.Errorf("invalid request fingerprint %q", body.RequestFingerprintHash)
+		want := sebCheckRequest{
+			URL:         "https://exam.example/api/submission/v1/tenants/" + tenantID + "/attempts/22222222-2222-4222-8222-222222222222/submit?x=%2F",
+			RequestHash: requestHash, ConfigKeyHash: configKeyHash,
 		}
-		result := "matched"
-		if body.HeaderKind == "browser_exam_key" {
-			if body.HeaderValue != nil {
-				t.Errorf("missing browser key must remain absent")
-			}
-			result = "not_required"
+		if body != want {
+			t.Errorf("SEB check = %+v, want %+v", body, want)
 		}
-		_ = json.NewEncoder(writer).Encode(sebValidationResponse{ValidationResult: result})
+		_ = json.NewEncoder(writer).Encode(sebCheckResponse{Result: "matched"})
 	}))
 	defer seb.Close()
 	verifier := &testVerifier{claims: authn.Claims{Subject: "11111111-1111-4111-8111-111111111111"}}
 	handler := newTestHandler(t, map[string]*url.URL{
 		"submission": mustURL(t, target.URL),
 		"seb":        mustURL(t, seb.URL),
-	}, verifier, []string{"/api/submission/v1/exams"}, nil)
-	request := proxyRequest(http.MethodPost, "/api/submission/v1/exams/22222222-2222-4222-8222-222222222222/submit")
+	}, verifier, []string{"/api/submission/v1/tenants"}, nil)
+	request := proxyRequest(http.MethodPost, "/api/submission/v1/tenants/"+tenantID+"/attempts/22222222-2222-4222-8222-222222222222/submit?x=%2F")
 	request.Header.Set("Authorization", "Bearer assertion")
-	request.Header.Set(secureTenantHeader, "33333333-3333-4333-8333-333333333333")
-	request.Header.Set(secureSessionHeader, "44444444-4444-4444-8444-444444444444")
-	request.Header.Set(secureConfigHeader, "raw-config-secret")
+	request.Header.Set(secureBrowserHeader, requestHash)
+	request.Header.Set(secureConfigHeader, configKeyHash)
 	recorder := httptest.NewRecorder()
 
 	handler.ServeHTTP(recorder, request)
 
-	if recorder.Code != http.StatusAccepted || targetCalls.Load() != 1 || validationCalls.Load() != 2 {
-		t.Fatalf("status = %d, target calls = %d, validation calls = %d", recorder.Code, targetCalls.Load(), validationCalls.Load())
+	if recorder.Code != http.StatusAccepted || targetCalls.Load() != 1 || checks.Load() != 1 {
+		t.Fatalf("status = %d, target calls = %d, checks = %d", recorder.Code, targetCalls.Load(), checks.Load())
 	}
 }
 
-func TestHandlerFailsClosedOnSEBConfigMismatch(t *testing.T) {
-	target := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
-		t.Fatal("target must not receive a failed SEB request")
-	}))
-	defer target.Close()
-	seb := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
-		_ = json.NewEncoder(writer).Encode(sebValidationResponse{ValidationResult: "mismatched"})
-	}))
-	defer seb.Close()
-	verifier := &testVerifier{claims: authn.Claims{Subject: "11111111-1111-4111-8111-111111111111"}}
-	handler := newTestHandler(t, map[string]*url.URL{
-		"submission": mustURL(t, target.URL),
-		"seb":        mustURL(t, seb.URL),
-	}, verifier, []string{"/api/submission/v1/exams"}, nil)
-	request := proxyRequest(http.MethodPost, "/api/submission/v1/exams/22222222-2222-4222-8222-222222222222/submit")
-	request.Header.Set("Authorization", "Bearer assertion")
-	request.Header.Set(secureTenantHeader, "33333333-3333-4333-8333-333333333333")
-	request.Header.Set(secureSessionHeader, "44444444-4444-4444-8444-444444444444")
-	request.Header.Set(secureConfigHeader, "raw-config-secret")
-	recorder := httptest.NewRecorder()
+func TestHandlerFailsClosedOnSEBCheck(t *testing.T) {
+	for name, testCase := range map[string]struct {
+		path   string
+		result string
+		status int
+	}{
+		"mismatched hash":   {"/api/submission/v1/tenants/33333333-3333-4333-8333-333333333333/attempts", "mismatched", http.StatusOK},
+		"missing headers":   {"/api/submission/v1/tenants/33333333-3333-4333-8333-333333333333/attempts", "missing", http.StatusOK},
+		"SEB unavailable":   {"/api/submission/v1/tenants/33333333-3333-4333-8333-333333333333/attempts", "", http.StatusServiceUnavailable},
+		"no tenant in path": {"/api/submission/v1/tenants/not-a-tenant/attempts", "matched", http.StatusOK},
+	} {
+		t.Run(name, func(t *testing.T) {
+			target := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+				t.Error("target must not receive a failed SEB request")
+			}))
+			defer target.Close()
+			seb := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+				writer.WriteHeader(testCase.status)
+				_ = json.NewEncoder(writer).Encode(sebCheckResponse{Result: testCase.result})
+			}))
+			defer seb.Close()
+			verifier := &testVerifier{claims: authn.Claims{Subject: "11111111-1111-4111-8111-111111111111"}}
+			handler := newTestHandler(t, map[string]*url.URL{
+				"submission": mustURL(t, target.URL),
+				"seb":        mustURL(t, seb.URL),
+			}, verifier, []string{"/api/submission/v1/tenants"}, nil)
+			request := proxyRequest(http.MethodGet, testCase.path)
+			request.Header.Set("Authorization", "Bearer assertion")
+			recorder := httptest.NewRecorder()
 
-	handler.ServeHTTP(recorder, request)
+			handler.ServeHTTP(recorder, request)
 
-	if recorder.Code != http.StatusForbidden {
-		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+			if recorder.Code != http.StatusForbidden {
+				t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+			}
+		})
 	}
 }

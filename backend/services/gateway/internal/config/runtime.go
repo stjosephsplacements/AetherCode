@@ -48,6 +48,7 @@ type Runtime struct {
 	Verifier             *authn.Verifier
 	TrustedProxyCIDRs    []*net.IPNet
 	SEBProtectedPrefixes []string
+	SEBPublicOrigin      string
 	RateLimit            RateLimit
 	RequestTimeout       time.Duration
 	SEBValidationTimeout time.Duration
@@ -98,9 +99,14 @@ func Load() (Runtime, error) {
 	if err != nil {
 		return Runtime{}, err
 	}
+	publicOrigin := ""
 	if len(prefixes) > 0 {
 		if _, ok := upstreams["seb"]; !ok {
 			return Runtime{}, fmt.Errorf("GATEWAY_SEB_PROTECTED_PREFIXES requires a seb upstream")
+		}
+		publicOrigin, err = parsePublicOrigin(os.Getenv("GATEWAY_SEB_PUBLIC_ORIGIN"))
+		if err != nil {
+			return Runtime{}, err
 		}
 	}
 	rateLimit, err := loadRateLimit()
@@ -123,6 +129,7 @@ func Load() (Runtime, error) {
 		Verifier:             verifier,
 		TrustedProxyCIDRs:    trustedProxyCIDRs,
 		SEBProtectedPrefixes: prefixes,
+		SEBPublicOrigin:      publicOrigin,
 		RateLimit:            rateLimit,
 		RequestTimeout:       requestTimeout,
 		SEBValidationTimeout: sebValidationTimeout,
@@ -335,4 +342,17 @@ func strictJSONObject(raw string, target any) error {
 
 func strictJSONArray(raw string, target any) error {
 	return strictJSONObject(raw, target)
+}
+
+// parsePublicOrigin reads the origin browsers use to reach the gateway. Safe
+// Exam Browser hashes the absolute URL it requested, so the gateway must
+// rebuild that URL from configuration rather than from spoofable headers.
+func parsePublicOrigin(raw string) (string, error) {
+	value := strings.TrimSpace(raw)
+	parsed, err := url.Parse(value)
+	if value == "" || err != nil || (parsed.Scheme != "https" && parsed.Scheme != "http") || parsed.Host == "" ||
+		parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.User != nil {
+		return "", fmt.Errorf("GATEWAY_SEB_PUBLIC_ORIGIN must be the public origin, such as https://exam.example.edu")
+	}
+	return value, nil
 }
