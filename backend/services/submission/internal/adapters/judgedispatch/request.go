@@ -35,22 +35,41 @@ const (
 // so no Judge request can be built for it.
 var errNotExecutable = errors.New("exam item has no key reference or execution limits")
 
-// Claim is one queued evaluation request with everything Judge needs. The
-// optional fields are null for items projected before Assessment migration
-// 000024.
+// Kind is what a claim is in Submission: a graded evaluation request, or a
+// candidate's run against an item's sample tests (ADR-0021).
+type Kind int
+
+const (
+	KindEvaluation Kind = iota
+	KindRun
+)
+
+func (kind Kind) String() string {
+	if kind == KindRun {
+		return "code_run"
+	}
+	return "evaluation_request"
+}
+
+// Claim is one queued evaluation request or run with everything Judge needs.
+// An evaluation request carries the item's evaluation bundle and a run its
+// sample bundle. The optional fields are null for items projected before
+// Assessment migration 000024; a run's bundle key is empty when its item has
+// no sample bundle.
 type Claim struct {
-	EvaluationRequestID          string
-	TenantID                     string
-	EvaluationBundleObjectKey    string
-	EvaluationBundleChecksum     string
-	EvaluationBundleKeyReference *string
-	SourceObjectKey              string
-	SourceChecksum               string
-	SourceKeyReference           string
-	LanguageID                   string
-	TimeLimitMS                  *int
-	MemoryLimitKiB               *int
-	ExpiresAt                    time.Time
+	Kind               Kind
+	ID                 string
+	TenantID           string
+	BundleObjectKey    string
+	BundleChecksum     string
+	BundleKeyReference *string
+	SourceObjectKey    string
+	SourceChecksum     string
+	SourceKeyReference string
+	LanguageID         string
+	TimeLimitMS        *int
+	MemoryLimitKiB     *int
+	ExpiresAt          time.Time
 }
 
 // buildRequest maps a claim onto Judge's contract. The evaluation request id is
@@ -58,7 +77,7 @@ type Claim struct {
 // from the request, so a replay after a crash is the identical request and
 // Judge returns the job it already accepted.
 func buildRequest(claim Claim) (*judgev1.SubmitExecutionRequest, error) {
-	if claim.EvaluationBundleKeyReference == nil || claim.TimeLimitMS == nil || claim.MemoryLimitKiB == nil {
+	if claim.BundleObjectKey == "" || claim.BundleKeyReference == nil || claim.TimeLimitMS == nil || claim.MemoryLimitKiB == nil {
 		return nil, errNotExecutable
 	}
 	cpuTimeMS := min(*claim.TimeLimitMS, maxCPUTimeMS)
@@ -67,12 +86,12 @@ func buildRequest(claim Claim) (*judgev1.SubmitExecutionRequest, error) {
 		return nil, fmt.Errorf("execution limits are out of range: %w", errNotExecutable)
 	}
 	return &judgev1.SubmitExecutionRequest{
-		IdempotencyKey:               claim.EvaluationRequestID,
+		IdempotencyKey:               claim.ID,
 		TenantFairnessKey:            claim.TenantID,
-		SubmissionCorrelationId:      claim.EvaluationRequestID,
-		EvaluationBundleRef:          claim.EvaluationBundleObjectKey,
-		EvaluationBundleSha256:       strings.ToLower(claim.EvaluationBundleChecksum),
-		EvaluationBundleKeyReference: *claim.EvaluationBundleKeyReference,
+		SubmissionCorrelationId:      claim.ID,
+		EvaluationBundleRef:          claim.BundleObjectKey,
+		EvaluationBundleSha256:       strings.ToLower(claim.BundleChecksum),
+		EvaluationBundleKeyReference: *claim.BundleKeyReference,
 		SourceCiphertextRef:          claim.SourceObjectKey,
 		SourceCiphertextSha256:       strings.ToLower(claim.SourceChecksum),
 		SourceKeyReference:           claim.SourceKeyReference,

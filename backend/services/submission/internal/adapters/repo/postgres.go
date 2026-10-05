@@ -485,10 +485,61 @@ func mapDatabaseError(err error, operation string) error {
 			}
 			return apperrors.New(apperrors.CodeInvalidArgument, "submission command is invalid")
 		case "23505", "55000":
+			// A refusal written for the candidate carries its message in DETAIL.
+			if message, ok := strings.CutPrefix(postgresError.Detail, "candidate: "); ok {
+				return apperrors.New(apperrors.CodeConflict, message)
+			}
 			return apperrors.New(apperrors.CodeConflict, "submission state changed; refresh and retry")
 		case "22023", "22P02", "23514":
 			return apperrors.New(apperrors.CodeInvalidArgument, "submission command is invalid")
 		}
 	}
 	return fmt.Errorf("%s: %w", operation, err)
+}
+
+func (repository *Postgres) StartCodeRun(contextValue context.Context, transaction pgx.Tx, command app.RunCode) (app.CodeRun, error) {
+	var raw json.RawMessage
+	err := transaction.QueryRow(contextValue, `
+		SELECT submission.start_code_run($1, $2, $3, $4, $5, $6, $7, $8)
+	`, command.ID, command.TenantID, command.AttemptID, command.ExamItemID, command.Language,
+		command.SourceObjectKey, command.SourceChecksum, command.EncryptionKeyReference).Scan(&raw)
+	if err != nil {
+		return app.CodeRun{}, mapDatabaseError(err, "start code run")
+	}
+	var run app.CodeRun
+	if err := json.Unmarshal(raw, &run); err != nil {
+		return app.CodeRun{}, fmt.Errorf("decode started code run: %w", err)
+	}
+	return run, nil
+}
+
+func (repository *Postgres) GetCodeRun(contextValue context.Context, transaction pgx.Tx, command app.GetCodeRun) (app.CodeRun, error) {
+	var raw json.RawMessage
+	err := transaction.QueryRow(contextValue, `
+		SELECT submission.get_code_run($1, $2, $3)
+	`, command.TenantID, command.AttemptID, command.RunID).Scan(&raw)
+	if err != nil {
+		return app.CodeRun{}, mapDatabaseError(err, "get code run")
+	}
+	var run app.CodeRun
+	if err := json.Unmarshal(raw, &run); err != nil {
+		return app.CodeRun{}, fmt.Errorf("decode code run: %w", err)
+	}
+	return run, nil
+}
+
+func (repository *Postgres) ListCodeRuns(contextValue context.Context, transaction pgx.Tx, command app.ListCodeRuns) ([]app.CodeRun, error) {
+	var raw json.RawMessage
+	err := transaction.QueryRow(contextValue, `
+		SELECT submission.list_code_runs($1, $2, $3, $4, $5, $6)
+	`, command.TenantID, command.AttemptID, command.ExamItemID, command.Limit,
+		nullableTimestamp(command.CursorSort), nullableUUID(command.CursorID)).Scan(&raw)
+	if err != nil {
+		return nil, mapDatabaseError(err, "list code runs")
+	}
+	var runs []app.CodeRun
+	if err := json.Unmarshal(raw, &runs); err != nil {
+		return nil, fmt.Errorf("decode code run list: %w", err)
+	}
+	return runs, nil
 }

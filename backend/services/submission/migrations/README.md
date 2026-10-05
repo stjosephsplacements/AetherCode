@@ -64,3 +64,10 @@ window's close, accepts answers and submits for `answer_grace()` (15 s) past
 the deadline, and makes `expire_overdue_attempts` submit the latest answers
 (or expire an attempt with none) once the grace has passed.
 `apply_assignment_snapshot` gains a trailing `p_duration_seconds` argument.
+
+`000024_code_run_dispatch` adds dispatch leases, the run verdict and failure
+code to `code_runs`, `stdin` and `compile_output` to `code_run_units`, and the
+run routines: `start_code_run`, `get_code_run` and `list_code_runs` for the app
+role; `claim_code_runs`, `mark_code_run_dispatched`, `mark_code_run_failed`,
+`code_run_for_job` and `record_code_run_completion` for the Judge adapter role
+(ADR-0021).

@@ -13,6 +13,9 @@ Candidate API:
 | `POST` | `/v1/tenants/{tenant_id}/attempts/{attempt_id}/submit` | Atomically snapshot the latest answer per item, create durable evaluation requests, and emit one `submission.evaluation_requested.v1` outbox event per request. `Idempotency-Key` is required. |
 | `GET` | `/v1/tenants/{tenant_id}/attempts/{attempt_id}/answers` | List answer-revision metadata for an attempt the caller owns. Filters: `exam_item_id`. |
 | `GET` | `/v1/tenants/{tenant_id}/attempts/{attempt_id}/unit-results` | Return the redacted hidden-test outcome for an attempt the caller owns: `passed_units` and `total_units` per exam item, and nothing more. |
+| `POST` | `/v1/tenants/{tenant_id}/attempts/{attempt_id}/items/{exam_item_id}/runs` | Run `{language, source}` against the item's sample tests; `202` with the queued run. See "Runs". |
+| `GET` | `/v1/tenants/{tenant_id}/attempts/{attempt_id}/items/{exam_item_id}/runs` | List the caller's runs of one item, newest first, with passed/total unit counts. Keyset paged via `limit` and `cursor`. |
+| `GET` | `/v1/tenants/{tenant_id}/attempts/{attempt_id}/runs/{run_id}` | Return one run with every sample test's input, expected output, output, stderr and compile output. |
 
 Reviewer API:
 
@@ -131,6 +134,34 @@ connection to the same endpoint, using the same certificates
   `item_not_executable`. The request scores zero, and failing the last open
   request of an attempt grades the attempt (the shared
   `finalize_attempt_grading`), so a candidate is never left waiting.
+
+## Runs
+
+A candidate runs code against an exam item's sample tests, as in the exam app
+(ADR-0021). A run is authorized like saving an answer (a write to the caller's
+own attempts) and accepted while the attempt is `active`, up to the deadline
+plus `answer_grace()`. The service encrypts and stores the source exactly as it
+does an answer, under `candidate-source/<tenant>/<attempt>/runs/<run id>`, and
+`submission.start_code_run` records a queued `code_run`. It refuses with `409`
+and a candidate-facing message (SQL `DETAIL 'candidate: …'`) when the item has
+no sample tests, the exam has ended, or two of the attempt's runs are still in
+flight. Runs are also limited per candidate in memory
+(`SUBMISSION_RUN_CODE_RATE`, default 300 an hour, burst 30); a refusal is
+`429` with `Retry-After: 12`.
+
+The dispatcher claims queued runs with `submission.claim_code_runs` next to
+evaluation requests (the same leases) and submits each with the item's
+**sample** bundle; the run id is the idempotency key and correlation id, and
+`expires_at` is the run's creation plus one hour. Judge returns each sample
+test's output only for a sample bundle, as encrypted objects. The completion
+bridge asks `submission.code_run_for_job` whether a completion belongs to a
+run; if so it fetches each unit's output, checks it against Judge's SHA-256,
+decrypts it with the platform key, and records the units with
+`submission.record_code_run_completion`. Otherwise the completion takes the
+grading path below. A run never writes evaluation requests, Judge receipts or
+score summaries, and its output is shown unredacted because sample tests are
+not confidential. The completion bridge therefore needs
+`SUBMISSION_STORAGE_*` and `SUBMISSION_KMS_LOCAL_KEY` as well.
 
 ## Scoring
 

@@ -48,7 +48,7 @@ func (worker *Worker) ProcessOnce(contextValue context.Context) error {
 	}
 	for _, claim := range claims {
 		if err := worker.dispatch(contextValue, claim); err != nil {
-			worker.logger.Error("Judge dispatch will retry", "evaluation_request_id", claim.EvaluationRequestID, "error", err)
+			worker.logger.Error("Judge dispatch will retry", "kind", claim.Kind.String(), "id", claim.ID, "error", err)
 		}
 	}
 	worker.mu.Lock()
@@ -60,7 +60,7 @@ func (worker *Worker) ProcessOnce(contextValue context.Context) error {
 func (worker *Worker) dispatch(contextValue context.Context, claim Claim) error {
 	request, err := buildRequest(claim)
 	if errors.Is(err, errNotExecutable) {
-		worker.logger.Error("evaluation request cannot be graded", "evaluation_request_id", claim.EvaluationRequestID, "error", err)
+		worker.logger.Error("claim cannot be executed", "kind", claim.Kind.String(), "id", claim.ID, "error", err)
 		return worker.store.MarkFailed(contextValue, claim, failureNotExecutable)
 	}
 	if err != nil {
@@ -69,7 +69,7 @@ func (worker *Worker) dispatch(contextValue context.Context, claim Claim) error 
 	jobID, err := worker.client.Submit(contextValue, request)
 	var permanent *PermanentError
 	if errors.As(err, &permanent) {
-		worker.logger.Error("Judge rejected an evaluation request", "evaluation_request_id", claim.EvaluationRequestID, "error", err)
+		worker.logger.Error("Judge rejected a claim", "kind", claim.Kind.String(), "id", claim.ID, "error", err)
 		return worker.store.MarkFailed(contextValue, claim, failureJudgeRejected)
 	}
 	if err != nil {

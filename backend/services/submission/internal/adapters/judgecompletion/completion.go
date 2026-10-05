@@ -52,7 +52,8 @@ type Completion struct {
 
 // UnitResult is one executed test case's normalized outcome. It carries no
 // stdout, stderr, or expected output: a per-unit verdict is already reviewer-
-// grade evidence and the content behind it never leaves the wrapper.
+// grade evidence and the content behind it never leaves the wrapper. A run's
+// unit (a sample bundle, ADR-0021) also references its encrypted output.
 type UnitResult struct {
 	UnitNumber      int    `json:"unit_number"`
 	Verdict         string `json:"verdict"`
@@ -62,6 +63,15 @@ type UnitResult struct {
 	// Judge did not report one (a completion stored before weights existed) and
 	// is omitted from the stored breakdown; Submission then counts it as 1.
 	Weight int `json:"weight,omitempty"`
+	// Output is never part of the grading record.
+	Output *OutputReference `json:"-"`
+}
+
+// OutputReference locates one unit's encrypted evalbundle.UnitOutput.
+type OutputReference struct {
+	ObjectKey    string
+	Checksum     string
+	KeyReference string
 }
 
 func parseCompletion(value *judgev1.Completion) (Completion, error) {
@@ -165,6 +175,10 @@ func (completion Completion) validateUnitResults() error {
 		if !validUnitMetric(unit.ExecutionTimeMS) || !validUnitMetric(unit.MemoryKiB) {
 			return fmt.Errorf("judge completion unit metrics are invalid")
 		}
+		if output := unit.Output; output != nil && (output.ObjectKey == "" || len(output.ObjectKey) > 2048 ||
+			output.KeyReference == "" || len(output.KeyReference) > 1024 || !validSHA256(output.Checksum)) {
+			return fmt.Errorf("judge completion unit output reference is invalid")
+		}
 		if _, duplicate := seen[unit.UnitNumber]; duplicate {
 			return fmt.Errorf("judge completion repeats unit number %d", unit.UnitNumber)
 		}
@@ -197,10 +211,20 @@ func parseUnitResults(values []*judgev1.UnitResult) ([]UnitResult, error) {
 		if value.GetUnitNumber() > maxUnitMetric {
 			return nil, fmt.Errorf("judge completion unit_number exceeds Submission's supported range")
 		}
-		units = append(units, UnitResult{
+		unit := UnitResult{
 			UnitNumber: int(value.GetUnitNumber()), Verdict: verdict,
 			ExecutionTimeMS: executionTimeMS, MemoryKiB: memoryKiB, Weight: int(value.GetWeight()),
-		})
+		}
+		objectKey := strings.TrimSpace(value.GetResultRef())
+		checksum := strings.ToLower(strings.TrimSpace(value.GetResultSha256()))
+		keyReference := strings.TrimSpace(value.GetResultEncryptionKeyReference())
+		if (checksum != "") != (objectKey != "") || (keyReference != "") != (objectKey != "") {
+			return nil, fmt.Errorf("judge completion unit output reference must be all-or-none")
+		}
+		if objectKey != "" {
+			unit.Output = &OutputReference{ObjectKey: objectKey, Checksum: checksum, KeyReference: keyReference}
+		}
+		units = append(units, unit)
 	}
 	return units, nil
 }

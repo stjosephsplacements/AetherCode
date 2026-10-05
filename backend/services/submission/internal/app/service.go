@@ -78,6 +78,9 @@ type Store interface {
 	ListAnswerRevisions(context.Context, pgx.Tx, ListAnswerRevisions) ([]AnswerRevision, error)
 	GetAttemptUnitSummary(context.Context, pgx.Tx, GetAttempt) ([]AttemptUnitSummary, error)
 	ListAttemptUnitResults(context.Context, pgx.Tx, GetAttempt) ([]AttemptUnitResults, error)
+	StartCodeRun(context.Context, pgx.Tx, RunCode) (CodeRun, error)
+	GetCodeRun(context.Context, pgx.Tx, GetCodeRun) (CodeRun, error)
+	ListCodeRuns(context.Context, pgx.Tx, ListCodeRuns) ([]CodeRun, error)
 	Ping(context.Context) error
 }
 
@@ -380,22 +383,30 @@ func (service *Service) AppendAnswerRevision(contextValue context.Context, capab
 // Judge later fetches and decrypts it by those references; the plaintext never
 // reaches the database.
 func (service *Service) storeSource(contextValue context.Context, command *AppendAnswerRevision) error {
-	if service.storage == nil || service.kms == nil {
-		return apperrors.New(apperrors.CodeUnavailable, "candidate source storage is not configured")
-	}
-	ciphertext, keyReference, err := service.kms.Encrypt(contextValue, []byte(command.Source))
-	if err != nil {
-		return fmt.Errorf("encrypt candidate source: %w", err)
-	}
 	objectKey := fmt.Sprintf("candidate-source/%s/%s/%s", command.TenantID, command.AttemptID, command.ID)
+	checksum, keyReference, err := service.encryptAndStore(contextValue, objectKey, command.Source)
+	if err != nil {
+		return err
+	}
+	command.SourceObjectKey, command.SourceChecksum, command.EncryptionKeyReference = objectKey, checksum, keyReference
+	return nil
+}
+
+// encryptAndStore encrypts source with KMS and stores the ciphertext at
+// objectKey, returning the ciphertext's SHA-256 and the key reference.
+func (service *Service) encryptAndStore(contextValue context.Context, objectKey, source string) (checksum, keyReference string, err error) {
+	if service.storage == nil || service.kms == nil {
+		return "", "", apperrors.New(apperrors.CodeUnavailable, "candidate source storage is not configured")
+	}
+	ciphertext, keyReference, err := service.kms.Encrypt(contextValue, []byte(source))
+	if err != nil {
+		return "", "", fmt.Errorf("encrypt candidate source: %w", err)
+	}
 	if err := service.storage.Put(contextValue, objectKey, bytes.NewReader(ciphertext), int64(len(ciphertext)), "application/octet-stream"); err != nil {
-		return fmt.Errorf("store candidate source: %w", err)
+		return "", "", fmt.Errorf("store candidate source: %w", err)
 	}
 	digest := sha256.Sum256(ciphertext)
-	command.SourceObjectKey = objectKey
-	command.SourceChecksum = hex.EncodeToString(digest[:])
-	command.EncryptionKeyReference = keyReference
-	return nil
+	return hex.EncodeToString(digest[:]), keyReference, nil
 }
 
 func (service *Service) SubmitAttempt(contextValue context.Context, capability centralauthz.Capability, command SubmitAttempt) (SubmitResult, error) {

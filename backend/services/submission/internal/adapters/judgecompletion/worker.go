@@ -12,6 +12,9 @@ import (
 // lease/ack sequence can be unit tested without a Judge or object store.
 type CompletionStore interface {
 	Persist(context.Context, string, Completion) error
+	// RunForJob reports whether a Judge job is a candidate's run (ADR-0021).
+	RunForJob(context.Context, string) (RunTarget, bool, error)
+	PersistRun(context.Context, RunCompletion) error
 	Ping(context.Context) error
 }
 
@@ -20,17 +23,18 @@ type CompletionStore interface {
 type Worker struct {
 	client   Client
 	store    CompletionStore
+	outputs  OutputReader
 	runtime  Runtime
 	logger   *slog.Logger
 	mu       sync.RWMutex
 	lastGood time.Time
 }
 
-func NewWorker(client Client, store CompletionStore, runtime Runtime, logger *slog.Logger) (*Worker, error) {
-	if client == nil || store == nil || logger == nil || !runtime.Enabled {
-		return nil, fmt.Errorf("enabled Judge completion client, store, runtime, and logger are required")
+func NewWorker(client Client, store CompletionStore, outputs OutputReader, runtime Runtime, logger *slog.Logger) (*Worker, error) {
+	if client == nil || store == nil || outputs == nil || logger == nil || !runtime.Enabled {
+		return nil, fmt.Errorf("enabled Judge completion client, store, output reader, runtime, and logger are required")
 	}
-	return &Worker{client: client, store: store, runtime: runtime, logger: logger}, nil
+	return &Worker{client: client, store: store, outputs: outputs, runtime: runtime, logger: logger}, nil
 }
 
 // ProcessOnce performs one bounded pull. A persistence or acknowledgement
@@ -46,7 +50,7 @@ func (worker *Worker) ProcessOnce(contextValue context.Context) error {
 		if err := completion.Validate(); err != nil {
 			return err
 		}
-		if err := worker.store.Persist(contextValue, worker.runtime.ConsumerID, completion); err != nil {
+		if err := worker.persist(contextValue, completion); err != nil {
 			return err
 		}
 		if err := worker.client.Acknowledge(contextValue, worker.runtime.ConsumerID, completion); err != nil {
@@ -57,6 +61,25 @@ func (worker *Worker) ProcessOnce(contextValue context.Context) error {
 	worker.lastGood = time.Now().UTC()
 	worker.mu.Unlock()
 	return nil
+}
+
+// persist records a run's completion with its output, or a graded
+// completion through the ingress. A run whose dispatch has not been recorded
+// yet looks like an unknown grading job; the ingress refuses it and the lease
+// is replayed once the run carries the job id.
+func (worker *Worker) persist(contextValue context.Context, completion Completion) error {
+	target, isRun, err := worker.store.RunForJob(contextValue, completion.JudgeJobID)
+	if err != nil {
+		return err
+	}
+	if !isRun {
+		return worker.store.Persist(contextValue, worker.runtime.ConsumerID, completion)
+	}
+	run, err := runCompletion(contextValue, worker.outputs, target, completion)
+	if err != nil {
+		return err
+	}
+	return worker.store.PersistRun(contextValue, run)
 }
 
 func (worker *Worker) Run(contextValue context.Context) {

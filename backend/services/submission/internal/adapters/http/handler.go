@@ -22,6 +22,10 @@ import (
 // window.
 const retryAfterStartAttempt = "3600"
 
+// retryAfterRunCode matches the default run refill (300 an hour): one more run
+// every 12 seconds.
+const retryAfterRunCode = "12"
+
 type Handler struct {
 	service             *app.Service
 	authorizer          *httpauth.Authorizer
@@ -48,6 +52,9 @@ func NewHandler(serviceName string, service *app.Service, readiness httpx.Readin
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}/answers", handler.listAnswerRevisions)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}/unit-results", handler.getAttemptUnitSummary)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}/judge-receipts", handler.listAttemptUnitResults)
+	mux.HandleFunc("POST /v1/tenants/{tenant_id}/attempts/{attempt_id}/items/{exam_item_id}/runs", handler.runCode)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}/items/{exam_item_id}/runs", handler.listCodeRuns)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}/runs/{run_id}", handler.getCodeRun)
 	return mux, nil
 }
 
@@ -497,4 +504,130 @@ func optionalUUIDQuery(request *http.Request, name string) (string, error) {
 		return "", nil
 	}
 	return httpx.ParseUUIDValue(raw, name)
+}
+
+type runCodeRequest struct {
+	Language string `json:"language"`
+	Source   string `json:"source"`
+}
+
+// runCode starts a run against an item's sample tests (ADR-0021). It is
+// authorized like saving an answer: a write to the candidate's own attempts.
+func (handler *Handler) runCode(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	attemptID, err := httpx.ParseUUIDPathValue(request, "attempt_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	examItemID, err := httpx.ParseUUIDPathValue(request, "exam_item_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var body runCodeRequest
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	candidateID, err := candidateResourceID(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	if handler.runCodeLimiter != nil && !handler.runCodeLimiter.Allow(candidateID, time.Now().UTC()) {
+		writer.Header().Set("Retry-After", retryAfterRunCode)
+		httpx.WriteJSON(writer, http.StatusTooManyRequests, httpx.Problem{Code: "too_many_requests", Message: "too many runs; wait a moment and try again"})
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "attempts", candidateID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	run, err := handler.service.RunCode(request.Context(), decision.Capability, app.RunCode{
+		TenantID: tenantID, AttemptID: attemptID, ExamItemID: examItemID, Language: body.Language, Source: body.Source,
+	})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusAccepted, run)
+}
+
+func (handler *Handler) getCodeRun(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	attemptID, err := httpx.ParseUUIDPathValue(request, "attempt_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	runID, err := httpx.ParseUUIDPathValue(request, "run_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeSelfHTTP(request.Context(), request, "read", "attempts", tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	run, err := handler.service.GetCodeRun(request.Context(), decision.Capability, app.GetCodeRun{
+		TenantID: tenantID, AttemptID: attemptID, RunID: runID,
+	})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, run)
+}
+
+func (handler *Handler) listCodeRuns(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	attemptID, err := httpx.ParseUUIDPathValue(request, "attempt_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	examItemID, err := httpx.ParseUUIDPathValue(request, "exam_item_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	limit, err := pagination.ParseLimit(request.URL.Query().Get("limit"), 20, 100)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	cursor, _, err := pagination.Parse(request.URL.Query().Get("cursor"))
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeSelfHTTP(request.Context(), request, "read", "attempts", tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	page, err := handler.service.ListCodeRuns(request.Context(), decision.Capability, app.ListCodeRuns{
+		TenantID: tenantID, AttemptID: attemptID, ExamItemID: examItemID, Limit: limit,
+		CursorSort: cursor.SortValue, CursorID: cursor.ID,
+	})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, page)
 }

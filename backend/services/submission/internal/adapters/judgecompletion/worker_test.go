@@ -5,9 +5,11 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/aethercode/aethercode/libs/pkg/evalbundle"
 	judgev1 "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/judge/v1"
 )
 
@@ -25,7 +27,7 @@ func TestWorkerPersistsBeforeAcknowledgingExactLease(t *testing.T) {
 	completion := validCompletion()
 	store := &recordingStore{}
 	client := &recordingClient{completions: []Completion{completion}, store: store}
-	worker, err := NewWorker(client, store, testRuntime(), slog.New(slog.NewTextHandler(io.Discard, nil)))
+	worker, err := NewWorker(client, store, &fakeOutputs{}, testRuntime(), slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
 		t.Fatalf("NewWorker() error = %v", err)
 	}
@@ -49,7 +51,7 @@ func TestWorkerLeavesLeaseUnacknowledgedWhenPersistenceFails(t *testing.T) {
 
 	store := &recordingStore{persistErr: errors.New("database unavailable")}
 	client := &recordingClient{completions: []Completion{validCompletion()}}
-	worker, err := NewWorker(client, store, testRuntime(), slog.New(slog.NewTextHandler(io.Discard, nil)))
+	worker, err := NewWorker(client, store, &fakeOutputs{}, testRuntime(), slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
 		t.Fatalf("NewWorker() error = %v", err)
 	}
@@ -312,6 +314,28 @@ func (client *recordingClient) Close() error { return nil }
 type recordingStore struct {
 	persisted  []Completion
 	persistErr error
+	runs       map[string]RunTarget
+	runRecords []RunCompletion
+}
+
+func (store *recordingStore) RunForJob(_ context.Context, jobID string) (RunTarget, bool, error) {
+	target, found := store.runs[jobID]
+	return target, found, nil
+}
+
+func (store *recordingStore) PersistRun(_ context.Context, run RunCompletion) error {
+	store.runRecords = append(store.runRecords, run)
+	return nil
+}
+
+// fakeOutputs returns a fixed output for any reference it is asked about.
+type fakeOutputs struct {
+	read []OutputReference
+}
+
+func (outputs *fakeOutputs) Read(_ context.Context, reference OutputReference) (evalbundle.UnitOutput, error) {
+	outputs.read = append(outputs.read, reference)
+	return evalbundle.UnitOutput{Stdin: "1 2\n", ExpectedOutput: "3\n", Stdout: "4\n"}, nil
 }
 
 func (store *recordingStore) Persist(_ context.Context, _ string, completion Completion) error {
@@ -323,3 +347,38 @@ func (store *recordingStore) Persist(_ context.Context, _ string, completion Com
 }
 
 func (store *recordingStore) Ping(context.Context) error { return nil }
+
+func TestWorkerRecordsARunWithItsOutputInsteadOfGrading(t *testing.T) {
+	t.Parallel()
+
+	completion := validCompletion()
+	completion.UnitResults = []UnitResult{
+		{UnitNumber: 0, Verdict: "wrong_answer", Output: &OutputReference{
+			ObjectKey: "judge/unit-outputs/u0", Checksum: strings.Repeat("a", 64), KeyReference: "local/key",
+		}},
+		{UnitNumber: 1, Verdict: "compile_error"},
+	}
+	store := &recordingStore{runs: map[string]RunTarget{bridgeJobID: {TenantID: "tenant", RunID: "run"}}}
+	client := &recordingClient{completions: []Completion{completion}, store: store}
+	outputs := &fakeOutputs{}
+	worker, err := NewWorker(client, store, outputs, testRuntime(), slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatalf("NewWorker() error = %v", err)
+	}
+	if err := worker.ProcessOnce(context.Background()); err != nil {
+		t.Fatalf("ProcessOnce() error = %v", err)
+	}
+	if len(store.persisted) != 0 {
+		t.Fatal("a run's completion reached the grading ingress")
+	}
+	if len(store.runRecords) != 1 || len(client.acknowledged) != 1 {
+		t.Fatalf("runs=%d acknowledged=%d", len(store.runRecords), len(client.acknowledged))
+	}
+	units := store.runRecords[0].Units
+	if len(units) != 2 || units[0].Stdout == nil || *units[0].Stdout != "4\n" || units[1].Stdout != nil {
+		t.Fatalf("units = %+v, want output on the unit that had a reference only", units)
+	}
+	if len(outputs.read) != 1 || outputs.read[0].ObjectKey != "judge/unit-outputs/u0" {
+		t.Fatalf("read = %+v", outputs.read)
+	}
+}

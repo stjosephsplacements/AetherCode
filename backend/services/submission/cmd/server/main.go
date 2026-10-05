@@ -170,10 +170,16 @@ func run(contextValue context.Context) error {
 				return judgeClientErr
 			}
 			defer func() { _ = judgeClient.Close() }()
+			// Run output (ADR-0021) is encrypted by Judge with the shared
+			// platform key and decrypted here before it is recorded.
+			runOutputs, runOutputsErr := judgecompletion.NewObjectOutputReader(storageClient, kmsClient)
+			if runOutputsErr != nil {
+				return runOutputsErr
+			}
 			// Assign the outer variable: readiness below checks this worker.
 			var judgeWorkerErr error
 			judgeCompletionWorker, judgeWorkerErr = judgecompletion.NewWorker(
-				judgeClient, adapterStore, judgeCompletionRuntime, logger,
+				judgeClient, adapterStore, runOutputs, judgeCompletionRuntime, logger,
 			)
 			if judgeWorkerErr != nil {
 				return judgeWorkerErr

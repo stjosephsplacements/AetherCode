@@ -3,6 +3,7 @@ package judgecompletion
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/aethercode/aethercode/libs/pkg/database"
@@ -95,4 +96,34 @@ func nullableString(value *string) any {
 		return nil
 	}
 	return *value
+}
+
+// RunForJob looks the job up among candidate runs.
+func (store *Store) RunForJob(contextValue context.Context, judgeJobID string) (RunTarget, bool, error) {
+	var target RunTarget
+	err := store.pool.QueryRow(contextValue, `
+		SELECT tenant_id::text, code_run_id::text FROM submission.code_run_for_job($1)
+	`, judgeJobID).Scan(&target.TenantID, &target.RunID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return RunTarget{}, false, nil
+	}
+	if err != nil {
+		return RunTarget{}, false, fmt.Errorf("look up code run for Judge job: %w", err)
+	}
+	return target, true, nil
+}
+
+// PersistRun records a run's units with their output. A replay of a run
+// already completed is a no-op.
+func (store *Store) PersistRun(contextValue context.Context, run RunCompletion) error {
+	units, err := json.Marshal(run.Units)
+	if err != nil {
+		return fmt.Errorf("encode code run units: %w", err)
+	}
+	if _, err := store.pool.Exec(contextValue, `
+		SELECT submission.record_code_run_completion($1, $2, $3, $4, $5::jsonb)
+	`, run.Target.TenantID, run.Target.RunID, run.JudgeJobID, run.Verdict, string(units)); err != nil {
+		return fmt.Errorf("record code run completion: %w", err)
+	}
+	return nil
 }

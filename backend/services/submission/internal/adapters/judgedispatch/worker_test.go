@@ -30,7 +30,7 @@ func (store *recordingStore) MarkDispatched(_ context.Context, claim Claim, jobI
 	if store.dispatched == nil {
 		store.dispatched = map[string]string{}
 	}
-	store.dispatched[claim.EvaluationRequestID] = jobID
+	store.dispatched[claim.ID] = jobID
 	return nil
 }
 
@@ -38,7 +38,7 @@ func (store *recordingStore) MarkFailed(_ context.Context, claim Claim, code str
 	if store.failed == nil {
 		store.failed = map[string]string{}
 	}
-	store.failed[claim.EvaluationRequestID] = code
+	store.failed[claim.ID] = code
 	return nil
 }
 
@@ -77,7 +77,7 @@ func TestWorkerRecordsTheJobJudgeAccepted(t *testing.T) {
 	if err := worker.ProcessOnce(context.Background()); err != nil {
 		t.Fatalf("ProcessOnce() error = %v", err)
 	}
-	if store.dispatched[claim.EvaluationRequestID] != client.jobID || len(store.failed) != 0 {
+	if store.dispatched[claim.ID] != client.jobID || len(store.failed) != 0 {
 		t.Fatalf("dispatched = %v, failed = %v", store.dispatched, store.failed)
 	}
 	if err := worker.Ready(context.Background()); err != nil {
@@ -112,7 +112,7 @@ func TestWorkerLeavesMarkFailuresToTheLease(t *testing.T) {
 func TestWorkerFailsRequestsThatCanNeverBeGraded(t *testing.T) {
 	t.Parallel()
 	legacy := validClaim()
-	legacy.EvaluationRequestID = "019c06d6-20e1-7a21-8a4f-bd8b21a43f21"
+	legacy.ID = "019c06d6-20e1-7a21-8a4f-bd8b21a43f21"
 	legacy.TimeLimitMS = nil
 	rejected := validClaim()
 	store := &recordingStore{claims: []Claim{legacy, rejected}}
@@ -120,7 +120,7 @@ func TestWorkerFailsRequestsThatCanNeverBeGraded(t *testing.T) {
 	if err := newTestWorker(t, client, store).ProcessOnce(context.Background()); err != nil {
 		t.Fatalf("ProcessOnce() error = %v", err)
 	}
-	if store.failed[legacy.EvaluationRequestID] != failureNotExecutable || store.failed[rejected.EvaluationRequestID] != failureJudgeRejected {
+	if store.failed[legacy.ID] != failureNotExecutable || store.failed[rejected.ID] != failureJudgeRejected {
 		t.Fatalf("failed = %v", store.failed)
 	}
 	if len(client.submitted) != 1 {

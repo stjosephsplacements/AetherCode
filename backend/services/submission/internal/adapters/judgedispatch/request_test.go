@@ -13,18 +13,18 @@ func stringPointer(value string) *string { return &value }
 
 func validClaim() Claim {
 	return Claim{
-		EvaluationRequestID:          "019c06d6-20e1-7a21-8a4f-bd8b21a43f18",
-		TenantID:                     "019c06d6-20e1-7a21-8a4f-bd8b21a43f19",
-		EvaluationBundleObjectKey:    "qbank/evaluation/manifest.enc",
-		EvaluationBundleChecksum:     strings.Repeat("A", 64),
-		EvaluationBundleKeyReference: stringPointer("local/key-1"),
-		SourceObjectKey:              "candidate-source/t/a/r",
-		SourceChecksum:               strings.Repeat("b", 64),
-		SourceKeyReference:           "local/key-2",
-		LanguageID:                   "python3",
-		TimeLimitMS:                  intPointer(2000),
-		MemoryLimitKiB:               intPointer(262144),
-		ExpiresAt:                    time.Date(2026, 10, 4, 12, 0, 0, 5, time.UTC),
+		ID:                 "019c06d6-20e1-7a21-8a4f-bd8b21a43f18",
+		TenantID:           "019c06d6-20e1-7a21-8a4f-bd8b21a43f19",
+		BundleObjectKey:    "qbank/evaluation/manifest.enc",
+		BundleChecksum:     strings.Repeat("A", 64),
+		BundleKeyReference: stringPointer("local/key-1"),
+		SourceObjectKey:    "candidate-source/t/a/r",
+		SourceChecksum:     strings.Repeat("b", 64),
+		SourceKeyReference: "local/key-2",
+		LanguageID:         "python3",
+		TimeLimitMS:        intPointer(2000),
+		MemoryLimitKiB:     intPointer(262144),
+		ExpiresAt:          time.Date(2026, 10, 4, 12, 0, 0, 5, time.UTC),
 	}
 }
 
@@ -35,13 +35,13 @@ func TestBuildRequestMapsClaimOntoJudgeContract(t *testing.T) {
 	if err != nil {
 		t.Fatalf("buildRequest() error = %v", err)
 	}
-	if request.GetIdempotencyKey() != claim.EvaluationRequestID || request.GetSubmissionCorrelationId() != claim.EvaluationRequestID {
+	if request.GetIdempotencyKey() != claim.ID || request.GetSubmissionCorrelationId() != claim.ID {
 		t.Fatalf("idempotency %q / correlation %q must both be the evaluation request id", request.GetIdempotencyKey(), request.GetSubmissionCorrelationId())
 	}
 	if request.GetTenantFairnessKey() != claim.TenantID || request.GetLanguageKey() != "python3" {
 		t.Fatalf("tenant %q / language %q", request.GetTenantFairnessKey(), request.GetLanguageKey())
 	}
-	if request.GetEvaluationBundleRef() != claim.EvaluationBundleObjectKey || request.GetEvaluationBundleKeyReference() != "local/key-1" ||
+	if request.GetEvaluationBundleRef() != claim.BundleObjectKey || request.GetEvaluationBundleKeyReference() != "local/key-1" ||
 		request.GetEvaluationBundleSha256() != strings.Repeat("a", 64) {
 		t.Fatalf("bundle reference = %q %q %q", request.GetEvaluationBundleRef(), request.GetEvaluationBundleKeyReference(), request.GetEvaluationBundleSha256())
 	}
@@ -108,9 +108,10 @@ func TestBuildRequestClampsLimitsToJudgeBounds(t *testing.T) {
 func TestBuildRequestRejectsLegacyItems(t *testing.T) {
 	t.Parallel()
 	for name, mutate := range map[string]func(*Claim){
-		"no key reference": func(c *Claim) { c.EvaluationBundleKeyReference = nil },
-		"no time limit":    func(c *Claim) { c.TimeLimitMS = nil },
-		"no memory limit":  func(c *Claim) { c.MemoryLimitKiB = nil },
+		"no key reference":                     func(c *Claim) { c.BundleKeyReference = nil },
+		"run on an item with no sample bundle": func(c *Claim) { c.Kind, c.BundleObjectKey = KindRun, "" },
+		"no time limit":                        func(c *Claim) { c.TimeLimitMS = nil },
+		"no memory limit":                      func(c *Claim) { c.MemoryLimitKiB = nil },
 	} {
 		claim := validClaim()
 		mutate(&claim)

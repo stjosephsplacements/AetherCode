@@ -61,6 +61,15 @@ func (validationStore) GetAttemptUnitSummary(context.Context, pgx.Tx, GetAttempt
 func (validationStore) ListAttemptUnitResults(context.Context, pgx.Tx, GetAttempt) ([]AttemptUnitResults, error) {
 	return nil, nil
 }
+func (validationStore) StartCodeRun(context.Context, pgx.Tx, RunCode) (CodeRun, error) {
+	return CodeRun{}, nil
+}
+func (validationStore) GetCodeRun(context.Context, pgx.Tx, GetCodeRun) (CodeRun, error) {
+	return CodeRun{}, nil
+}
+func (validationStore) ListCodeRuns(context.Context, pgx.Tx, ListCodeRuns) ([]CodeRun, error) {
+	return nil, nil
+}
 func (validationStore) Ping(context.Context) error { return nil }
 
 func TestStartAttemptRejectsInvalidCommandBeforeTransaction(t *testing.T) {
@@ -346,3 +355,47 @@ func (*fakeKMS) Encrypt(_ context.Context, plaintext []byte) ([]byte, string, er
 }
 
 func (*fakeKMS) Decrypt(context.Context, []byte, string) ([]byte, error) { return nil, nil }
+
+func TestRunCodeRejectsInvalidCommandBeforeStoringSource(t *testing.T) {
+	t.Parallel()
+	storage := &memoryStorage{objects: map[string][]byte{}}
+	service, err := NewService(&pgxpool.Pool{}, validationStore{}, storage, &fakeKMS{})
+	if err != nil {
+		t.Fatalf("NewService() error = %v", err)
+	}
+	valid := RunCode{
+		TenantID: validSubmissionTestUUID, AttemptID: validSubmissionTestUUID, ExamItemID: validSubmissionTestUUID,
+		Language: "python3", Source: "print(1)",
+	}
+	for _, tt := range []struct {
+		name   string
+		mutate func(*RunCode)
+	}{
+		{"blank source", func(c *RunCode) { c.Source = "  \n" }},
+		{"source over the limit", func(c *RunCode) { c.Source = strings.Repeat("a", MaxSourceBytes+1) }},
+		{"language with a path", func(c *RunCode) { c.Language = "../go" }},
+		{"bad exam item id", func(c *RunCode) { c.ExamItemID = "item" }},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			command := valid
+			tt.mutate(&command)
+			_, err := service.RunCode(context.Background(), centralauthz.Capability{}, command)
+			assertInvalidArgument(t, err)
+		})
+	}
+	if len(storage.objects) != 0 {
+		t.Fatalf("an invalid run stored %d source objects", len(storage.objects))
+	}
+}
+
+func TestListCodeRunsRejectsAnOutOfRangeLimit(t *testing.T) {
+	t.Parallel()
+	service, err := NewService(&pgxpool.Pool{}, validationStore{}, nil, nil)
+	if err != nil {
+		t.Fatalf("NewService() error = %v", err)
+	}
+	_, err = service.ListCodeRuns(context.Background(), centralauthz.Capability{}, ListCodeRuns{
+		TenantID: validSubmissionTestUUID, AttemptID: validSubmissionTestUUID, ExamItemID: validSubmissionTestUUID, Limit: 101,
+	})
+	assertInvalidArgument(t, err)
+}
