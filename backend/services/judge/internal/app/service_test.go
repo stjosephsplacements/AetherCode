@@ -112,6 +112,21 @@ func TestCompletionValidateRejectsUnrecognizedVerdicts(t *testing.T) {
 			},
 			wantField: "unit_results.verdict",
 		},
+		{
+			name: "unit output reference without its checksum and key",
+			mutate: func(completion *Completion) {
+				completion.UnitResults = []dispatcher.UnitResult{{UnitNumber: 0, Verdict: "accepted", ResultRef: "judge/unit-outputs/x"}}
+			},
+			wantField: "unit_results.result",
+		},
+		{
+			name: "unit output checksum is not SHA-256",
+			mutate: func(completion *Completion) {
+				completion.UnitResults = []dispatcher.UnitResult{{UnitNumber: 0, Verdict: "accepted",
+					ResultRef: "judge/unit-outputs/x", ResultSHA256: "abc", ResultKeyReference: "local/key"}}
+			},
+			wantField: "unit_results.result",
+		},
 	}
 
 	for _, testCase := range tests {
@@ -195,4 +210,14 @@ func (store *recordingStore) HardDeleteExecutionJob(context.Context, DeleteExecu
 
 func (store *recordingStore) Ping(context.Context) error {
 	return nil
+}
+
+func TestCompletionValidateAcceptsCompleteUnitOutputReference(t *testing.T) {
+	t.Parallel()
+	completion := validCompletion()
+	completion.UnitResults = []dispatcher.UnitResult{{UnitNumber: 0, Verdict: "accepted",
+		ResultRef: "judge/unit-outputs/x", ResultSHA256: strings.Repeat("a", 64), ResultKeyReference: "local/key"}}
+	if err := completion.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
 }

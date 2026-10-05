@@ -537,8 +537,11 @@ func TestStoreBundlesBuildsThreeBundles(t *testing.T) {
 		}
 		plaintext, _ := (&fakeKMS{}).Decrypt(context.TODO(), stored, "")
 		got, err := evalbundle.Parse(plaintext)
-		if err != nil || !reflect.DeepEqual(got, bundle.want) {
+		if err != nil || !reflect.DeepEqual(got.TestCases, bundle.want) {
 			t.Fatalf("%s bundle = %+v (err %v), want %+v", bundle.kind, got, err, bundle.want)
+		}
+		if got.Sample != (bundle.kind == "sample") {
+			t.Fatalf("%s bundle Sample = %t; only the sample bundle may return output", bundle.kind, got.Sample)
 		}
 	}
 }

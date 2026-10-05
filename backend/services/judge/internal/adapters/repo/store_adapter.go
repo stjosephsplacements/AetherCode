@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/aethercode/aethercode/libs/pkg/database"
+	"github.com/aethercode/aethercode/libs/pkg/evalbundle"
 	"github.com/aethercode/aethercode/libs/pkg/kms"
 	"github.com/aethercode/aethercode/libs/pkg/storage"
 	"github.com/aethercode/aethercode/services/judge/internal/dispatcher"
@@ -56,12 +58,14 @@ func (a *DispatchStoreAdapter) FetchQueuedJob(ctx context.Context, jobID string)
 	var sourceKeyRef *string
 	var cpuTimeLimitMS int
 	var memoryLimitBytes int64
+	var returnsOutput bool
 	err := a.pool.QueryRow(ctx, `
-		SELECT language_key, cpu_time_limit_ms, memory_limit_bytes, source_ciphertext_ref, source_key_reference
+		SELECT language_key, cpu_time_limit_ms, memory_limit_bytes, source_ciphertext_ref, source_key_reference,
+		       returns_output
 		FROM judge.execution_jobs
 		WHERE id = $1
 		  AND state NOT IN ('completed', 'failed', 'cancelled', 'expired')
-	`, jobID).Scan(&languageKey, &cpuTimeLimitMS, &memoryLimitBytes, &sourceCiphertextRef, &sourceKeyRef)
+	`, jobID).Scan(&languageKey, &cpuTimeLimitMS, &memoryLimitBytes, &sourceCiphertextRef, &sourceKeyRef, &returnsOutput)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -112,8 +116,8 @@ func (a *DispatchStoreAdapter) FetchQueuedJob(ctx context.Context, jobID string)
 			Token:       unit.token,
 		}
 		// A unit that already holds an engine token is only polled, so its
-		// test case is not needed again.
-		if unit.token == "" {
+		// test case is not needed again, unless its output is recorded.
+		if unit.token == "" || returnsOutput {
 			plaintext, err := fetchDecrypted(ctx, a.storage, a.kms, unit.testCaseRef, unit.keyRef)
 			if err != nil {
 				return nil, fmt.Errorf("unit %s test case: %w", unit.id, err)
@@ -127,7 +131,7 @@ func (a *DispatchStoreAdapter) FetchQueuedJob(ctx context.Context, jobID string)
 		}
 		units = append(units, dispatchUnit)
 	}
-	return &dispatcher.DispatchJob{ID: jobID, Units: units}, nil
+	return &dispatcher.DispatchJob{ID: jobID, Units: units, ReturnsOutput: returnsOutput}, nil
 }
 
 // RecordToken persists the engine submission token for a test unit and
@@ -145,23 +149,58 @@ func (a *DispatchStoreAdapter) RecordToken(ctx context.Context, unitID, token st
 	return nil
 }
 
-// RecordVerdict persists the terminal engine verdict for one test unit.
-func (a *DispatchStoreAdapter) RecordVerdict(ctx context.Context, unitID string, verdict dispatcher.UnitVerdict) error {
+// RecordVerdict persists the terminal engine verdict for one test unit. When
+// output is given it is encrypted and stored as its own object first, and the
+// unit keeps only the reference, checksum and key reference.
+func (a *DispatchStoreAdapter) RecordVerdict(ctx context.Context, unitID string, verdict dispatcher.UnitVerdict, output *evalbundle.UnitOutput) error {
+	var resultRef, resultSHA256, resultKeyRef *string
+	if output != nil {
+		objectKey, checksum, keyRef, err := a.storeUnitOutput(ctx, unitID, *output)
+		if err != nil {
+			return err
+		}
+		resultRef, resultSHA256, resultKeyRef = &objectKey, &checksum, &keyRef
+	}
 	memoryBytes := int64(verdict.MemoryKB) * 1024
 	_, err := a.pool.Exec(ctx, `
 		UPDATE judge.execution_units
-		SET normalized_verdict = $2,
-		    cpu_time_ms        = $3,
-		    memory_bytes       = $4,
-		    state              = 'completed',
-		    terminal_at        = clock_timestamp(),
-		    updated_at         = clock_timestamp()
+		SET normalized_verdict        = $2,
+		    cpu_time_ms               = $3,
+		    memory_bytes              = $4,
+		    raw_result_ciphertext_ref = $5,
+		    raw_result_sha256         = $6,
+		    raw_result_key_reference  = $7,
+		    state                     = 'completed',
+		    terminal_at               = clock_timestamp(),
+		    updated_at                = clock_timestamp()
 		WHERE id = $1
-	`, unitID, verdict.Status, verdict.TimeMS, memoryBytes)
+	`, unitID, verdict.Status, verdict.TimeMS, memoryBytes, resultRef, resultSHA256, resultKeyRef)
 	if err != nil {
+		if resultRef != nil {
+			_ = a.storage.Delete(context.WithoutCancel(ctx), *resultRef)
+		}
 		return fmt.Errorf("record verdict for unit %s: %w", unitID, err)
 	}
 	return nil
+}
+
+// storeUnitOutput encrypts one unit's output and stores it under a key derived
+// from the unit, so a retried RecordVerdict overwrites rather than leaks.
+func (a *DispatchStoreAdapter) storeUnitOutput(ctx context.Context, unitID string, output evalbundle.UnitOutput) (objectKey, checksum, keyRef string, err error) {
+	plaintext, err := evalbundle.MarshalUnitOutput(output)
+	if err != nil {
+		return "", "", "", fmt.Errorf("unit %s output: %w", unitID, err)
+	}
+	ciphertext, keyRef, err := a.kms.Encrypt(ctx, plaintext)
+	if err != nil {
+		return "", "", "", fmt.Errorf("unit %s output: encrypt: %w", unitID, err)
+	}
+	objectKey = "judge/unit-outputs/" + unitID
+	if err := a.storage.Put(ctx, objectKey, bytes.NewReader(ciphertext), int64(len(ciphertext)), "application/octet-stream"); err != nil {
+		return "", "", "", fmt.Errorf("unit %s output: store: %w", unitID, err)
+	}
+	digest := sha256.Sum256(ciphertext)
+	return objectKey, hex.EncodeToString(digest[:]), keyRef, nil
 }
 
 // completionRetention is how long a completion stays pullable; it matches the
@@ -302,7 +341,9 @@ type unitResultsQuerier interface {
 // too, or results in that state will be silently under-counted here.
 func fetchUnitResults(ctx context.Context, querier unitResultsQuerier, jobID string) ([]dispatcher.UnitResult, error) {
 	rows, err := querier.Query(ctx, `
-		SELECT unit_number, normalized_verdict, cpu_time_ms, memory_bytes, weight
+		SELECT unit_number, normalized_verdict, cpu_time_ms, memory_bytes, weight,
+		       COALESCE(raw_result_ciphertext_ref, ''), COALESCE(raw_result_sha256, ''),
+		       COALESCE(raw_result_key_reference, '')
 		FROM judge.execution_units
 		WHERE job_id = $1
 		  AND state = 'completed'
@@ -320,10 +361,15 @@ func fetchUnitResults(ctx context.Context, querier unitResultsQuerier, jobID str
 		var timeMS *int
 		var memoryBytes *int64
 		var weight int
-		if err := rows.Scan(&unitNumber, &verdict, &timeMS, &memoryBytes, &weight); err != nil {
+		var resultRef, resultSHA256, resultKeyRef string
+		if err := rows.Scan(&unitNumber, &verdict, &timeMS, &memoryBytes, &weight,
+			&resultRef, &resultSHA256, &resultKeyRef); err != nil {
 			return nil, fmt.Errorf("scan unit result for job %s: %w", jobID, err)
 		}
-		result := dispatcher.UnitResult{UnitNumber: unitNumber, TimeMS: timeMS, Weight: weight}
+		result := dispatcher.UnitResult{
+			UnitNumber: unitNumber, TimeMS: timeMS, Weight: weight,
+			ResultRef: resultRef, ResultSHA256: resultSHA256, ResultKeyReference: resultKeyRef,
+		}
 		if verdict != nil {
 			result.Verdict = *verdict
 		}

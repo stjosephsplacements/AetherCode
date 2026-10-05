@@ -415,7 +415,11 @@ func splitTests(tests []TestCase) (evaluation, sample, hidden []evalbundle.TestC
 // storeBundle builds, encrypts and uploads one bundle under a server-generated
 // key; clients never see the key.
 func (service *Service) storeBundle(contextValue context.Context, questionVersionID, kind string, cases []evalbundle.TestCase) (string, ObjectReference, error) {
-	plaintext, err := evalbundle.Build(cases)
+	build := evalbundle.Build
+	if kind == "sample" {
+		build = evalbundle.BuildSample
+	}
+	plaintext, err := build(cases)
 	if err != nil {
 		return "", ObjectReference{}, fmt.Errorf("build %s bundle: %w", kind, err)
 	}

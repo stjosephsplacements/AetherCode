@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 	"time"
+
+	"github.com/aethercode/aethercode/libs/pkg/evalbundle"
 )
 
 // Worker dispatches queued execution jobs to an evaluation engine and records
@@ -52,11 +54,15 @@ func (w *Worker) DispatchJob(ctx context.Context, jobID string) error {
 
 	compileFailed := false
 	for _, unit := range job.Units {
+		var output *evalbundle.UnitOutput
+		if job.ReturnsOutput {
+			output = &evalbundle.UnitOutput{Stdin: unit.Stdin, ExpectedOutput: unit.ExpectedOutput}
+		}
 		// Every unit runs the same source, so once it fails to compile the
 		// remaining units cannot behave differently; record them without
 		// spending engine time.
 		if compileFailed {
-			if err := w.store.RecordVerdict(ctx, unit.ID, UnitVerdict{Status: "compile_error"}); err != nil {
+			if err := w.store.RecordVerdict(ctx, unit.ID, UnitVerdict{Status: "compile_error"}, output); err != nil {
 				return fmt.Errorf("record verdict for unit %s: %w", unit.ID, err)
 			}
 			continue
@@ -84,7 +90,10 @@ func (w *Worker) DispatchJob(ctx context.Context, jobID string) error {
 		if err != nil {
 			return fmt.Errorf("poll unit %s: %w", unit.ID, err)
 		}
-		if err := w.store.RecordVerdict(ctx, unit.ID, *verdict); err != nil {
+		if output != nil {
+			output.Stdout, output.Stderr, output.CompileOutput = verdict.Stdout, verdict.Stderr, verdict.CompileOutput
+		}
+		if err := w.store.RecordVerdict(ctx, unit.ID, *verdict, output); err != nil {
 			return fmt.Errorf("record verdict for unit %s: %w", unit.ID, err)
 		}
 		compileFailed = verdict.Status == "compile_error"

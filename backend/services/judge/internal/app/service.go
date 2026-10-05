@@ -94,9 +94,9 @@ type Completion struct {
 	LeaseID                 string
 	CompletedAt             time.Time
 	// UnitResults is the per-test-case detail behind Verdict, one entry per
-	// unit ordered by unit number. It carries only verdict and timing
-	// metadata for the same reason the rest of Completion does: raw
-	// stdout/stderr/expected-output content never crosses this boundary.
+	// unit ordered by unit number: verdict, timing and weight. Raw output
+	// never crosses this boundary; a sample bundle's job adds an encrypted
+	// output object reference per unit (ADR-0021).
 	UnitResults []dispatcher.UnitResult
 }
 
@@ -319,6 +319,11 @@ func (completion Completion) Validate() error {
 		}
 		if (unit.TimeMS != nil && *unit.TimeMS > 2147483647) || (unit.MemoryKB != nil && *unit.MemoryKB > 2147483647) {
 			return &ValidationError{Field: "unit_results.metrics", Reason: "must fit Submission's signed integer range"}
+		}
+		hasRef, hasChecksum, hasKey := unit.ResultRef != "", unit.ResultSHA256 != "", unit.ResultKeyReference != ""
+		if hasRef != hasChecksum || hasRef != hasKey ||
+			(hasRef && (len(unit.ResultRef) > 2048 || len(unit.ResultKeyReference) > 1024 || !sha256Pattern.MatchString(unit.ResultSHA256))) {
+			return &ValidationError{Field: "unit_results.result", Reason: "reference, checksum, and key reference must be all-or-none and valid"}
 		}
 	}
 

@@ -1,6 +1,10 @@
 package dispatcher
 
-import "context"
+import (
+	"context"
+
+	"github.com/aethercode/aethercode/libs/pkg/evalbundle"
+)
 
 // Store is the persistence port used by the dispatcher worker. It is
 // intentionally narrower than the control-plane app.Store to keep the
@@ -14,7 +18,9 @@ type Store interface {
 	// that a crash between Submit and Poll can be recovered without re-submitting.
 	RecordToken(ctx context.Context, unitID, token string) error
 	// RecordVerdict persists the terminal engine verdict for one test unit.
-	RecordVerdict(ctx context.Context, unitID string, verdict UnitVerdict) error
+	// output is non-nil only for a job that returns output (a sample bundle,
+	// ADR-0021); the store keeps it encrypted, never in plaintext.
+	RecordVerdict(ctx context.Context, unitID string, verdict UnitVerdict, output *evalbundle.UnitOutput) error
 	// MarkJobComplete derives the job's overall verdict (OverallVerdict) from
 	// its recorded unit verdicts, transitions the job to a terminal state, and
 	// queues the completion for the platform to pull.
@@ -28,6 +34,9 @@ type Store interface {
 type DispatchJob struct {
 	ID    string
 	Units []DispatchUnit
+	// ReturnsOutput marks a job on a sample bundle: each unit's output is
+	// recorded for the candidate who ran it.
+	ReturnsOutput bool
 }
 
 // DispatchUnit is one test case within a queued job.
@@ -62,4 +71,9 @@ type UnitResult struct {
 	Weight   int
 	TimeMS   *int
 	MemoryKB *int
+	// ResultRef, ResultSHA256 and ResultKeyReference locate the unit's
+	// encrypted evalbundle.UnitOutput; all empty unless the job returns output.
+	ResultRef          string
+	ResultSHA256       string
+	ResultKeyReference string
 }

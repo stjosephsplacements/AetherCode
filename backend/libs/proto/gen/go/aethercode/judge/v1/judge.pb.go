@@ -422,9 +422,15 @@ type UnitResult struct {
 	MemoryKib       *uint32                `protobuf:"varint,4,opt,name=memory_kib,json=memoryKib,proto3,oneof" json:"memory_kib,omitempty"`
 	// The test's weight from the evaluation bundle (1-100); Submission scores
 	// maximum_score x passed weight / total weight.
-	Weight        uint32 `protobuf:"varint,5,opt,name=weight,proto3" json:"weight,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Weight uint32 `protobuf:"varint,5,opt,name=weight,proto3" json:"weight,omitempty"`
+	// What the test produced (evalbundle.UnitOutput), as an all-or-none
+	// encrypted object reference. Set only for a job on a sample bundle
+	// (ADR-0021); never for an evaluation or hidden bundle.
+	ResultRef                    string `protobuf:"bytes,6,opt,name=result_ref,json=resultRef,proto3" json:"result_ref,omitempty"`
+	ResultSha256                 string `protobuf:"bytes,7,opt,name=result_sha256,json=resultSha256,proto3" json:"result_sha256,omitempty"`
+	ResultEncryptionKeyReference string `protobuf:"bytes,8,opt,name=result_encryption_key_reference,json=resultEncryptionKeyReference,proto3" json:"result_encryption_key_reference,omitempty"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
 }
 
 func (x *UnitResult) Reset() {
@@ -490,6 +496,27 @@ func (x *UnitResult) GetWeight() uint32 {
 		return x.Weight
 	}
 	return 0
+}
+
+func (x *UnitResult) GetResultRef() string {
+	if x != nil {
+		return x.ResultRef
+	}
+	return ""
+}
+
+func (x *UnitResult) GetResultSha256() string {
+	if x != nil {
+		return x.ResultSha256
+	}
+	return ""
+}
+
+func (x *UnitResult) GetResultEncryptionKeyReference() string {
+	if x != nil {
+		return x.ResultEncryptionKeyReference
+	}
+	return ""
 }
 
 type Completion struct {
@@ -1023,7 +1050,7 @@ const file_aethercode_judge_v1_judge_proto_rawDesc = "" +
 	"\vconsumer_id\x18\x01 \x01(\tR\n" +
 	"consumerId\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\rR\x05limit\x12#\n" +
-	"\rlease_seconds\x18\x03 \x01(\rR\fleaseSeconds\"\x8a\x02\n" +
+	"\rlease_seconds\x18\x03 \x01(\rR\fleaseSeconds\"\x95\x03\n" +
 	"\n" +
 	"UnitResult\x12\x1f\n" +
 	"\vunit_number\x18\x01 \x01(\rR\n" +
@@ -1032,7 +1059,11 @@ const file_aethercode_judge_v1_judge_proto_rawDesc = "" +
 	"\x11execution_time_ms\x18\x03 \x01(\rH\x00R\x0fexecutionTimeMs\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"memory_kib\x18\x04 \x01(\rH\x01R\tmemoryKib\x88\x01\x01\x12\x16\n" +
-	"\x06weight\x18\x05 \x01(\rR\x06weightB\x14\n" +
+	"\x06weight\x18\x05 \x01(\rR\x06weight\x12\x1d\n" +
+	"\n" +
+	"result_ref\x18\x06 \x01(\tR\tresultRef\x12#\n" +
+	"\rresult_sha256\x18\a \x01(\tR\fresultSha256\x12E\n" +
+	"\x1fresult_encryption_key_reference\x18\b \x01(\tR\x1cresultEncryptionKeyReferenceB\x14\n" +
 	"\x12_execution_time_msB\r\n" +
 	"\v_memory_kib\"\x8b\x05\n" +
 	"\n" +

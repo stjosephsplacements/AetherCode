@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"os"
 	"testing"
+
+	"github.com/aethercode/aethercode/libs/pkg/evalbundle"
 )
 
 // fakeEngine records Submit calls and returns a fixed verdict on Poll.
@@ -40,7 +42,8 @@ type fakeStore struct {
 	fetchErr         error
 	recordedTokens   map[string]string      // unitID → token
 	recordedVerdicts map[string]UnitVerdict // unitID → verdict
-	completedJobs    map[string]string      // jobID → overallStatus
+	recordedOutputs  map[string]*evalbundle.UnitOutput
+	completedJobs    map[string]string // jobID → overallStatus
 	recordTokenErr   error
 	recordVerdictErr error
 	markCompleteErr  error
@@ -51,6 +54,7 @@ func newFakeStore(job *DispatchJob) *fakeStore {
 		job:              job,
 		recordedTokens:   make(map[string]string),
 		recordedVerdicts: make(map[string]UnitVerdict),
+		recordedOutputs:  make(map[string]*evalbundle.UnitOutput),
 		completedJobs:    make(map[string]string),
 	}
 }
@@ -67,11 +71,12 @@ func (f *fakeStore) RecordToken(_ context.Context, unitID, token string) error {
 	return nil
 }
 
-func (f *fakeStore) RecordVerdict(_ context.Context, unitID string, verdict UnitVerdict) error {
+func (f *fakeStore) RecordVerdict(_ context.Context, unitID string, verdict UnitVerdict, output *evalbundle.UnitOutput) error {
 	if f.recordVerdictErr != nil {
 		return f.recordVerdictErr
 	}
 	f.recordedVerdicts[unitID] = verdict
+	f.recordedOutputs[unitID] = output
 	return nil
 }
 
@@ -275,5 +280,42 @@ func TestWorkerCompileErrorShortCircuitsRemainingUnits(t *testing.T) {
 	}
 	if status := store.completedJobs["job-4"]; status != "compile_error" {
 		t.Errorf("expected job-4 completed with compile_error, got %q", status)
+	}
+}
+
+func TestDispatchJobRecordsOutputOnlyWhenTheJobReturnsIt(t *testing.T) {
+	t.Parallel()
+	for _, testCase := range []struct {
+		name          string
+		returnsOutput bool
+	}{
+		{name: "an evaluation job records no output"},
+		{name: "a sample job records each unit's output", returnsOutput: true},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			store := newFakeStore(&DispatchJob{ID: "job", ReturnsOutput: testCase.returnsOutput, Units: []DispatchUnit{
+				{ID: "unit-1", Stdin: "1 2\n", ExpectedOutput: "3\n"},
+			}})
+			engine := &fakeEngine{verdict: &UnitVerdict{Status: "wrong_answer", Stdout: "4\n", Stderr: "oops"}}
+			worker, err := NewWorker(store, engine, enabledRuntime(), slog.New(slog.NewTextHandler(os.Stderr, nil)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := worker.DispatchJob(context.Background(), "job"); err != nil {
+				t.Fatal(err)
+			}
+			output := store.recordedOutputs["unit-1"]
+			if !testCase.returnsOutput {
+				if output != nil {
+					t.Fatalf("output = %+v, want none for an evaluation job", output)
+				}
+				return
+			}
+			want := evalbundle.UnitOutput{Stdin: "1 2\n", ExpectedOutput: "3\n", Stdout: "4\n", Stderr: "oops"}
+			if output == nil || *output != want {
+				t.Fatalf("output = %+v, want %+v", output, want)
+			}
+		})
 	}
 }

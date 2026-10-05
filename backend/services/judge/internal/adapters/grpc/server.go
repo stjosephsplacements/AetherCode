@@ -110,7 +110,10 @@ func (server *Server) PullCompletedExecutions(
 			if unitVerdictErr != nil {
 				return nil, status.Error(codes.Internal, "Judge completion vocabulary is invalid")
 			}
-			result := &judgev1.UnitResult{UnitNumber: uint32(unit.UnitNumber), VerdictCode: unitVerdictCode, Weight: uint32(unit.Weight)}
+			result := &judgev1.UnitResult{
+				UnitNumber: uint32(unit.UnitNumber), VerdictCode: unitVerdictCode, Weight: uint32(unit.Weight),
+				ResultRef: unit.ResultRef, ResultSha256: unit.ResultSHA256, ResultEncryptionKeyReference: unit.ResultKeyReference,
+			}
 			if unit.TimeMS != nil {
 				timeMS := uint32(*unit.TimeMS)
 				result.ExecutionTimeMs = &timeMS

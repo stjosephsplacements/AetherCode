@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/aethercode/aethercode/libs/pkg/evalbundle"
 )
 
 type fakeStorage struct {
@@ -94,7 +96,7 @@ func TestFanOutTestCasesCreatesOneObjectPerTestCase(t *testing.T) {
 	}
 	storage.objects["bundle-key"] = bundleCiphertext
 
-	refs, err := fanOutTestCases(context.Background(), storage, fakeKMS{}, "bundle-key", "bundle-key-ref", "job-123")
+	refs, _, err := fanOutTestCases(context.Background(), storage, fakeKMS{}, "bundle-key", "bundle-key-ref", "job-123")
 	if err != nil {
 		t.Fatalf("fanOutTestCases() error = %v", err)
 	}
@@ -122,7 +124,7 @@ func TestFanOutTestCasesPropagatesStorageError(t *testing.T) {
 	bundleCiphertext, _, _ := fakeKMS{}.Encrypt(context.Background(), bundlePlaintext)
 	storage.objects["bundle-key"] = bundleCiphertext
 
-	if _, err := fanOutTestCases(context.Background(), storage, fakeKMS{}, "bundle-key", "ref", "job-123"); err == nil {
+	if _, _, err := fanOutTestCases(context.Background(), storage, fakeKMS{}, "bundle-key", "ref", "job-123"); err == nil {
 		t.Fatal("fanOutTestCases() error = nil, want the storage error propagated")
 	}
 }
@@ -146,7 +148,7 @@ func TestFanOutTestCasesCleansUpOrphanedObjectsOnPartialFailure(t *testing.T) {
 	}
 	storage.objects["bundle-key"] = bundleCiphertext
 
-	_, err = fanOutTestCases(context.Background(), storage, fakeKMS{}, "bundle-key", "bundle-key-ref", "job-456")
+	_, _, err = fanOutTestCases(context.Background(), storage, fakeKMS{}, "bundle-key", "bundle-key-ref", "job-456")
 	if err == nil {
 		t.Fatal("fanOutTestCases() error = nil, want the storage error propagated")
 	}
@@ -182,7 +184,7 @@ func TestFanOutTestCasesCarriesBundleWeights(t *testing.T) {
 		}
 		storage.objects["bundle-key"] = bundleCiphertext
 
-		refs, err := fanOutTestCases(context.Background(), storage, fakeKMS{}, "bundle-key", "ref", "job-weights")
+		refs, _, err := fanOutTestCases(context.Background(), storage, fakeKMS{}, "bundle-key", "ref", "job-weights")
 		if err != nil {
 			t.Fatalf("fanOutTestCases() error = %v", err)
 		}
@@ -218,5 +220,36 @@ func TestFetchDecrypted(t *testing.T) {
 	}
 	if len(plaintext) != maxObjectCiphertextBytes {
 		t.Errorf("read %d bytes of an oversized object, want exactly the %d-byte bound", len(plaintext), maxObjectCiphertextBytes)
+	}
+}
+
+func TestFanOutTestCasesReportsSampleBundles(t *testing.T) {
+	t.Parallel()
+	cases := []evalbundle.TestCase{{Stdin: "1\n", ExpectedOutput: "1\n", Weight: 1}}
+	for _, testCase := range []struct {
+		name  string
+		build func([]evalbundle.TestCase) ([]byte, error)
+		want  bool
+	}{
+		{name: "an evaluation bundle returns no output", build: evalbundle.Build},
+		{name: "a sample bundle returns output", build: evalbundle.BuildSample, want: true},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			storage := newFakeStorage()
+			plaintext, err := testCase.build(cases)
+			if err != nil {
+				t.Fatal(err)
+			}
+			ciphertext, _, err := fakeKMS{}.Encrypt(context.Background(), plaintext)
+			if err != nil {
+				t.Fatal(err)
+			}
+			storage.objects["bundle-key"] = ciphertext
+			_, sample, err := fanOutTestCases(context.Background(), storage, fakeKMS{}, "bundle-key", "ref", "job-sample")
+			if err != nil || sample != testCase.want {
+				t.Fatalf("fanOutTestCases() sample = %t (err %v), want %t", sample, err, testCase.want)
+			}
+		})
 	}
 }

@@ -65,33 +65,35 @@ func fetchDecrypted(
 // case it contains as its own independently stored object, so a single
 // leaked ciphertext exposes only one test case rather than the whole bundle.
 // jobID scopes the generated object keys so concurrent jobs never collide.
+// sample reports a sample bundle, whose job returns each test's output.
 func fanOutTestCases(
 	ctx context.Context,
 	objectStorage storage.Object,
 	keyManager kms.KeyManager,
 	bundleObjectKey, bundleKeyRef, jobID string,
-) ([]unitObjectRef, error) {
+) (refs []unitObjectRef, sample bool, err error) {
 	plaintext, err := fetchDecrypted(ctx, objectStorage, keyManager, bundleObjectKey, bundleKeyRef)
 	if err != nil {
-		return nil, fmt.Errorf("fan-out: bundle: %w", err)
+		return nil, false, fmt.Errorf("fan-out: bundle: %w", err)
 	}
-	testCases, err := evalbundle.Parse(plaintext)
+	bundle, err := evalbundle.Parse(plaintext)
 	if err != nil {
-		return nil, fmt.Errorf("fan-out: parse bundle: %w", err)
+		return nil, false, fmt.Errorf("fan-out: parse bundle: %w", err)
 	}
+	testCases := bundle.TestCases
 
-	refs := make([]unitObjectRef, 0, len(testCases))
+	refs = make([]unitObjectRef, 0, len(testCases))
 	storedKeys := make([]string, 0, len(testCases))
 	for i, testCase := range testCases {
 		unitPlaintext, err := evalbundle.MarshalTestCase(testCase)
 		if err != nil {
 			cleanupOrphanedObjects(ctx, objectStorage, storedKeys)
-			return nil, fmt.Errorf("fan-out: encode unit %d: %w", i, err)
+			return nil, false, fmt.Errorf("fan-out: encode unit %d: %w", i, err)
 		}
 		unitCiphertext, keyRef, err := keyManager.Encrypt(ctx, unitPlaintext)
 		if err != nil {
 			cleanupOrphanedObjects(ctx, objectStorage, storedKeys)
-			return nil, fmt.Errorf("fan-out: encrypt unit %d: %w", i, err)
+			return nil, false, fmt.Errorf("fan-out: encrypt unit %d: %w", i, err)
 		}
 		objectKey := fmt.Sprintf("judge/execution-units/%s/%d", jobID, i)
 		if err := objectStorage.Put(ctx, objectKey, bytes.NewReader(unitCiphertext), int64(len(unitCiphertext)), "application/json"); err != nil {
@@ -102,12 +104,12 @@ func fanOutTestCases(
 			// failure must not mask the original Put error, which is what
 			// the caller needs to see and act on.
 			cleanupOrphanedObjects(ctx, objectStorage, storedKeys)
-			return nil, fmt.Errorf("fan-out: store unit %d: %w", i, err)
+			return nil, false, fmt.Errorf("fan-out: store unit %d: %w", i, err)
 		}
 		storedKeys = append(storedKeys, objectKey)
 		refs = append(refs, unitObjectRef{UnitNumber: i, ObjectKey: objectKey, KeyRef: keyRef, Weight: testCase.Weight})
 	}
-	return refs, nil
+	return refs, bundle.Sample, nil
 }
 
 // cleanupOrphanedObjects best-effort deletes objects already stored during an
@@ -141,12 +143,19 @@ func (repository *Postgres) fanOutIntoExecutionUnits(
 	if repository.storage == nil || repository.kms == nil {
 		return nil, app.ErrFanOutUnavailable
 	}
-	refs, err := fanOutTestCases(
+	refs, sample, err := fanOutTestCases(
 		contextValue, repository.storage, repository.kms,
 		request.EvaluationBundleRef, request.EvaluationBundleKeyRef, jobID,
 	)
 	if err != nil {
 		return nil, err
+	}
+	if sample {
+		if _, err := transaction.Exec(contextValue, `
+			UPDATE judge.execution_jobs SET returns_output = true WHERE id = $1
+		`, jobID); err != nil {
+			return refs, fmt.Errorf("mark job %s as returning output: %w", jobID, err)
+		}
 	}
 	for _, ref := range refs {
 		unitID, err := database.NewUUIDv7()

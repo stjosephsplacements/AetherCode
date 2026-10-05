@@ -46,6 +46,16 @@ The service implements the generated `judge/v1` gRPC contract:
   content. `weight` (1..100) is the test's scoring weight from the evaluation
   bundle (schema v1 bundles weigh 1); Judge only reports it, scoring belongs to
   Submission.
+- **Sample-test output (ADR-0021).** A bundle built with
+  `evalbundle.BuildSample` marks itself `"visibility": "sample"`, and fan-out
+  records that on the job (`returns_output`). For such a job only, the
+  dispatcher encrypts each unit's `evalbundle.UnitOutput` (stdin, expected
+  output, stdout, stderr, compile output; 64 KiB per field) with KMS, stores it
+  at `judge/unit-outputs/<unit id>`, and keeps the reference, SHA-256 and key
+  reference on the unit. Each `unit_results` entry then carries
+  `result_ref`/`result_sha256`/`result_encryption_key_reference` (all or none).
+  No other job ever produces an output object, so a run pointed at an
+  evaluation or hidden bundle cannot reveal hidden output.
 - `AcknowledgeCompletion` accepts only the exact active
   `consumer_id`/`event_id`/`delivery_id`/`lease_id` tuple after the adapter has
   persisted the result.

@@ -96,3 +96,8 @@ only for pre-existing rows, required by `SubmitExecution` validation for new
 ones), makes `execution_jobs.request_ciphertext_ref` optional (no reader
 consumes that object), and adds `execution_units.weight` (1..100, default 1),
 the per-test scoring weight copied from the evaluation bundle during fan-out.
+
+`000011_sample_unit_output` adds `execution_jobs.returns_output`, set at
+fan-out when the bundle is a sample bundle, and `execution_units.raw_result_key_reference`.
+A sample job's unit stores its encrypted output object's reference, SHA-256
+and key reference (all or none); every other unit stores none (ADR-0021).

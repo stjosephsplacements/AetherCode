@@ -23,8 +23,16 @@ func TestBuildParseRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
-	if !reflect.DeepEqual(got, want) {
+	if !reflect.DeepEqual(got, Bundle{TestCases: want}) {
 		t.Fatalf("Parse(Build()) = %+v, want %+v", got, want)
+	}
+	sample, err := BuildSample(want)
+	if err != nil {
+		t.Fatalf("BuildSample() error = %v", err)
+	}
+	got, err = Parse(sample)
+	if err != nil || !reflect.DeepEqual(got, Bundle{TestCases: want, Sample: true}) {
+		t.Fatalf("Parse(BuildSample()) = %+v (err %v), want the cases marked sample", got, err)
 	}
 }
 
@@ -33,11 +41,12 @@ func TestParse(t *testing.T) {
 	tooMany := `{"schema_version":2,"test_cases":[` + strings.Repeat(`{"stdin":"x","expected_output":"x","weight":1},`, MaxTestCases) + `{"stdin":"x","expected_output":"x","weight":1}]}`
 	atLimit := `{"schema_version":1,"test_cases":[` + strings.Repeat(`{"stdin":"x","expected_output":"x"},`, MaxTestCases-1) + `{"stdin":"x","expected_output":"x"}]}`
 	for _, testCase := range []struct {
-		name    string
-		input   string
-		want    []TestCase
-		wantLen int
-		wantErr bool
+		name       string
+		input      string
+		want       []TestCase
+		wantLen    int
+		wantSample bool
+		wantErr    bool
 	}{
 		{name: "v1 defaults weight", input: `{"schema_version":1,"test_cases":[{"stdin":"1","expected_output":"2"}]}`, want: []TestCase{{Stdin: "1", ExpectedOutput: "2", Weight: 1}}},
 		{name: "v1 rejects weight", input: `{"schema_version":1,"test_cases":[{"stdin":"1","expected_output":"2","weight":3}]}`, wantErr: true},
@@ -52,6 +61,9 @@ func TestParse(t *testing.T) {
 		{name: "unknown top-level field", input: `{"schema_version":1,"extra":true,"test_cases":[{"stdin":"1","expected_output":"1"}]}`, wantErr: true},
 		{name: "over case limit", input: tooMany, wantErr: true},
 		{name: "at case limit", input: atLimit, wantLen: MaxTestCases},
+		{name: "v2 sample visibility", input: `{"schema_version":2,"visibility":"sample","test_cases":[{"stdin":"1","expected_output":"2","weight":1}]}`, want: []TestCase{{Stdin: "1", ExpectedOutput: "2", Weight: 1}}, wantSample: true},
+		{name: "v1 rejects visibility", input: `{"schema_version":1,"visibility":"sample","test_cases":[{"stdin":"1","expected_output":"2"}]}`, wantErr: true},
+		{name: "unknown visibility", input: `{"schema_version":2,"visibility":"hidden","test_cases":[{"stdin":"1","expected_output":"2","weight":1}]}`, wantErr: true},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
@@ -59,11 +71,14 @@ func TestParse(t *testing.T) {
 			if (err != nil) != testCase.wantErr {
 				t.Fatalf("Parse() error = %v, wantErr = %t", err, testCase.wantErr)
 			}
-			if testCase.want != nil && !reflect.DeepEqual(got, testCase.want) {
+			if testCase.want != nil && !reflect.DeepEqual(got.TestCases, testCase.want) {
 				t.Fatalf("Parse() = %+v, want %+v", got, testCase.want)
 			}
-			if testCase.wantLen != 0 && len(got) != testCase.wantLen {
-				t.Fatalf("Parse() returned %d cases, want %d", len(got), testCase.wantLen)
+			if testCase.wantLen != 0 && len(got.TestCases) != testCase.wantLen {
+				t.Fatalf("Parse() returned %d cases, want %d", len(got.TestCases), testCase.wantLen)
+			}
+			if got.Sample != testCase.wantSample {
+				t.Fatalf("Parse().Sample = %t, want %t", got.Sample, testCase.wantSample)
 			}
 		})
 	}
@@ -101,5 +116,49 @@ func TestMarshalTestCaseOmitsWeight(t *testing.T) {
 	}
 	if want := `{"stdin":"a","expected_output":"b"}`; string(encoded) != want {
 		t.Fatalf("MarshalTestCase() = %s, want %s", encoded, want)
+	}
+}
+
+func TestUnitOutputRoundTrip(t *testing.T) {
+	t.Parallel()
+	long := "a" + strings.Repeat("é", MaxOutputBytes) // one ASCII byte then two-byte characters: the cut lands mid-character
+	for _, testCase := range []struct {
+		name  string
+		input UnitOutput
+		want  UnitOutput
+	}{
+		{
+			name:  "plain output survives",
+			input: UnitOutput{Stdin: "1 2\n", ExpectedOutput: "3\n", Stdout: "3\n", Stderr: "warn", CompileOutput: ""},
+			want:  UnitOutput{Stdin: "1 2\n", ExpectedOutput: "3\n", Stdout: "3\n", Stderr: "warn", CompileOutput: ""},
+		},
+		{
+			name:  "NUL bytes and invalid UTF-8 are made storable",
+			input: UnitOutput{Stdout: "a\x00b\xffc"},
+			want:  UnitOutput{Stdout: "ab\uFFFDc"},
+		},
+		{
+			name:  "long output is cut on a character boundary",
+			input: UnitOutput{Stdout: long},
+			want:  UnitOutput{Stdout: long[:MaxOutputBytes-1]},
+		},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			encoded, err := MarshalUnitOutput(testCase.input)
+			if err != nil {
+				t.Fatalf("MarshalUnitOutput() error = %v", err)
+			}
+			got, err := ParseUnitOutput(encoded)
+			if err != nil {
+				t.Fatalf("ParseUnitOutput() error = %v", err)
+			}
+			if got != testCase.want {
+				t.Fatalf("round trip = %q, want %q", got.Stdout, testCase.want.Stdout)
+			}
+		})
+	}
+	if _, err := ParseUnitOutput([]byte(`{"stdout":"x","secret":1}`)); err == nil {
+		t.Fatal("ParseUnitOutput() accepted an unknown field")
 	}
 }

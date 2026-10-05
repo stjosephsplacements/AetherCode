@@ -72,6 +72,12 @@ message UnitResult {
   // The test's weight from the evaluation bundle (1-100); Submission scores
   // maximum_score x passed weight / total weight.
   uint32 weight = 5;
+  // What the test produced (evalbundle.UnitOutput), as an all-or-none
+  // encrypted object reference. Set only for a job on a sample bundle
+  // (ADR-0021); never for an evaluation or hidden bundle.
+  string result_ref = 6;
+  string result_sha256 = 7;
+  string result_encryption_key_reference = 8;
 }
 
 message Completion {
