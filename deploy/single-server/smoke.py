@@ -152,43 +152,49 @@ _, policy, _ = call("POST", f"/assessment/v1/tenants/{tenant}/proctor-policies",
 _, policy_version, _ = call("POST", f"/assessment/v1/tenants/{tenant}/proctor-policies/{policy['id']}/versions",
                            {"expected_policy_version": policy["version"], "policy": {"seb_required": False}}, token=faculty, expect=201)
 call("POST", f"/assessment/v1/tenants/{tenant}/proctor-policy-versions/{policy_version['id']}/publish", {}, token=faculty, expect=200)
-_, exam, _ = call("POST", f"/assessment/v1/tenants/{tenant}/exams", {"external_reference": f"smoke-{run}"}, token=faculty, expect=201)
-now = time.time()
 iso = lambda seconds: time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(seconds))
-_, exam_version, _ = call("POST", f"/assessment/v1/tenants/{tenant}/exams/{exam['id']}/versions", {
-    "expected_exam_version": exam["version"], "title": "Smoke test", "instructions_markdown": "Solve it.",
-    "opens_at": iso(now + 20), "closes_at": iso(now + 7200), "duration_seconds": 3600,
-    "proctor_policy_version_id": policy_version["id"]}, token=faculty, expect=201)
-content = lambda: call("GET", f"/assessment/v1/tenants/{tenant}/exam-versions/{exam_version['id']}", token=faculty, expect=200)[1]["content_version"]
-versions_path = f"/assessment/v1/tenants/{tenant}/exam-versions/{exam_version['id']}"
-_, section, _ = call("POST", f"{versions_path}/sections", {"expected_content_version": content(), "position": 1,
-                     "title": "Coding", "instructions_markdown": "", "time_limit_seconds": None}, token=faculty, expect=201)
-status, _, _ = call("POST", f"{versions_path}/sections/{section['id']}/items", {"expected_content_version": content(), "position": 1,
-                    "question_version_id": str(uuid.uuid4()), "maximum_score": "10"}, token=faculty)
-assert status == 404, status
-ok("an unknown or unpublished question cannot be added to an exam")
-_, item, _ = call("POST", f"{versions_path}/sections/{section['id']}/items", {"expected_content_version": content(), "position": 1,
-                  "question_version_id": version_id, "maximum_score": "10"}, token=faculty, expect=201)
-assert item["question_version_id"] == version_id and len(item["evaluation_bundle_checksum"]) == 64, item
-ok("exam item pins the published question's bundles, resolved from the bank over mTLS")
-call("POST", f"{versions_path}/publish", {"expected_content_version": content()}, token=faculty, expect=200)
-call("POST", f"{versions_path}/assignment-rules", {"target_type": "batch", "target_id": batch["id"],
-     "available_from": exam_version["opens_at"], "available_until": exam_version["closes_at"], "accommodations": {}},
-     token=faculty, expect=201)
-ok("exam published and assigned to the batch")
-for _ in range(15):
-    _, mine, _ = call("GET", f"/assessment/v1/tenants/{tenant}/candidate-assignments", token=student, expect=200)
-    if any(a.get("exam_version_id") == exam_version["id"] for a in mine["items"]):
-        break
-    time.sleep(2)
-else:
+
+def publish_exam(title, duration_seconds, check_unknown_question=False):
+    """Publishes a one-question exam opening in 20 s, assigns it to the batch,
+    and returns (opens_at epoch, exam version, item, the student's assignment)."""
+    _, exam, _ = call("POST", f"/assessment/v1/tenants/{tenant}/exams", {"external_reference": f"{title}-{run}"}, token=faculty, expect=201)
+    opens = time.time() + 20
+    _, exam_version, _ = call("POST", f"/assessment/v1/tenants/{tenant}/exams/{exam['id']}/versions", {
+        "expected_exam_version": exam["version"], "title": title, "instructions_markdown": "Solve it.",
+        "opens_at": iso(opens), "closes_at": iso(opens + 7200), "duration_seconds": duration_seconds,
+        "proctor_policy_version_id": policy_version["id"]}, token=faculty, expect=201)
+    versions_path = f"/assessment/v1/tenants/{tenant}/exam-versions/{exam_version['id']}"
+    content = lambda: call("GET", versions_path, token=faculty, expect=200)[1]["content_version"]
+    _, section, _ = call("POST", f"{versions_path}/sections", {"expected_content_version": content(), "position": 1,
+                         "title": "Coding", "instructions_markdown": "", "time_limit_seconds": None}, token=faculty, expect=201)
+    if check_unknown_question:
+        status, _, _ = call("POST", f"{versions_path}/sections/{section['id']}/items", {"expected_content_version": content(), "position": 1,
+                            "question_version_id": str(uuid.uuid4()), "maximum_score": "10"}, token=faculty)
+        assert status == 404, status
+        ok("an unknown or unpublished question cannot be added to an exam")
+    _, item, _ = call("POST", f"{versions_path}/sections/{section['id']}/items", {"expected_content_version": content(), "position": 1,
+                      "question_version_id": version_id, "maximum_score": "10"}, token=faculty, expect=201)
+    assert item["question_version_id"] == version_id and len(item["evaluation_bundle_checksum"]) == 64, item
+    call("POST", f"{versions_path}/publish", {"expected_content_version": content()}, token=faculty, expect=200)
+    call("POST", f"{versions_path}/assignment-rules", {"target_type": "batch", "target_id": batch["id"],
+         "available_from": exam_version["opens_at"], "available_until": exam_version["closes_at"], "accommodations": {}},
+         token=faculty, expect=201)
+    for _ in range(15):
+        _, mine, _ = call("GET", f"/assessment/v1/tenants/{tenant}/candidate-assignments", token=student, expect=200)
+        found = [a for a in mine["items"] if a.get("exam_version_id") == exam_version["id"]]
+        if found:
+            return opens, exam_version, item, found[0]
+        time.sleep(2)
     sys.exit(f"FAIL the batch's student never received the exam: {mine}")
+
+opens, exam_version, item, assignment = publish_exam("Smoke test", 3600, check_unknown_question=True)
+ok("exam item pins the published question's bundles, resolved from the bank over mTLS")
+ok("exam published and assigned to the batch")
 ok("a student in the batch sees the assigned exam")
 print("ALL M2 CHECKS PASSED")
 
 # --- M3: take and grade ---------------------------------------------------
-assignment = next(a for a in mine["items"] if a.get("exam_version_id") == exam_version["id"])
-time.sleep(max(0, now + 22 - time.time()))  # the exam opens 20 s after it was created
+time.sleep(max(0, opens + 2 - time.time()))
 attempts = f"/submission/v1/tenants/{tenant}/attempts"
 _, attempt, _ = call("POST", attempts, {"candidate_assignment_id": assignment["id"]}, token=student, expect=201)
 ok("student starts the exam")
@@ -202,6 +208,29 @@ _, revision, _ = call("PUT", f"{attempts}/{attempt['id']}/answers/{item['id']}",
                       {"language": "python3", "source": source, "expected_attempt_version": attempt["version"]}, token=student, expect=201)
 assert "source_object_key" not in revision and "encryption_key_reference" not in revision, revision
 ok("code saved; storage details stay server-side")
+
+def run_code(code):
+    _, started, _ = call("POST", f"{attempts}/{attempt['id']}/items/{item['id']}/runs",
+                         {"language": "python3", "source": code}, token=student, expect=202)
+    for _ in range(60):
+        _, result, _ = call("GET", f"{attempts}/{attempt['id']}/runs/{started['id']}", token=student, expect=200)
+        if result["lifecycle_state"] in ("completed", "failed"):
+            return result
+        time.sleep(1)
+    sys.exit(f"FAIL the run never completed: {result}")
+
+result = run_code(source)
+units = result["units"]
+assert len(units) == 2, result  # the two sample tests, never the hidden ones
+assert [(u["stdin"], u["expected_output"], u["stdout"], u["verdict"]) for u in units] == [
+    ("1 2\n", "3\n", "3\n", "accepted"), ("5 7\n", "12\n", "12\n", "accepted")], units
+ok("Run executes the sample tests only and shows input, expected and actual output")
+broken = run_code("print(\n")
+assert broken["units"] and any((u["stderr"] or "") + (u["compile_output"] or "") for u in broken["units"]), broken
+ok("a broken run shows the error output")
+_, runs, _ = call("GET", f"{attempts}/{attempt['id']}/items/{item['id']}/runs", token=student, expect=200)
+assert [r["id"] for r in runs["items"]] == [broken["id"], result["id"]] and runs["items"][1]["passed_units"] == 2, runs
+ok("run history lists runs newest first")
 call("POST", f"{attempts}/{attempt['id']}/submit", {"expected_attempt_version": revision["attempt_version"]}, token=student, expect=202)
 for _ in range(60):
     _, attempt, _ = call("GET", f"{attempts}/{attempt['id']}", token=student, expect=200)
@@ -214,4 +243,25 @@ _, results, _ = call("GET", f"{attempts}/{attempt['id']}/unit-results", token=st
 unit = results["items"][0]
 assert (unit["passed_units"], unit["total_units"]) == (3, 4), results
 ok("submission dispatched, judged by the engine, and graded: 3 of 4 tests passed")
+
+# Time-up: a 60-second exam whose student saves code and never submits.
+opens, timed_version, timed_item, timed_assignment = publish_exam("Timed smoke test", 60)
+time.sleep(max(0, opens + 2 - time.time()))
+_, timed, _ = call("POST", attempts, {"candidate_assignment_id": timed_assignment["id"]}, token=student, expect=201)
+deadline_seconds = (time.mktime(time.strptime(timed["submission_deadline"][:19], "%Y-%m-%dT%H:%M:%S"))
+                    - time.mktime(time.strptime(timed["started_at"][:19], "%Y-%m-%dT%H:%M:%S")))
+assert 55 <= deadline_seconds <= 61, timed
+ok("the deadline is start plus the exam's duration, not the window's close")
+call("PUT", f"{attempts}/{timed['id']}/answers/{timed_item['id']}",
+     {"language": "python3", "source": source, "expected_attempt_version": timed["version"]}, token=student, expect=201)
+for _ in range(90):
+    _, timed, _ = call("GET", f"{attempts}/{timed['id']}", token=student, expect=200)
+    if timed["lifecycle_state"] == "graded":
+        break
+    time.sleep(2)
+else:
+    sys.exit(f"FAIL time-up never submitted the saved code: {timed}")
+_, results, _ = call("GET", f"{attempts}/{timed['id']}/unit-results", token=student, expect=200)
+assert (results["items"][0]["passed_units"], results["items"][0]["total_units"]) == (3, 4), results
+ok("time-up submitted the saved code and it was graded: 3 of 4 tests passed")
 print("ALL M3 CHECKS PASSED")

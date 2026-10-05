@@ -295,6 +295,8 @@ services:
       SUBMISSION_DATABASE_URL: postgres://aether_submission_app:${SUBMISSION_DB_PASSWORD}@postgres:5432/aether_submission?sslmode=disable
       SUBMISSION_PROJECTION_DATABASE_URL: postgres://aether_submission_projection_worker:${SUBMISSION_DB_PASSWORD}@postgres:5432/aether_submission?sslmode=disable
       SUBMISSION_EXPIRY_ENABLED: "true"
+      # Time-up submits a student's saved code; poll often so it lands soon after the 15 s grace.
+      SUBMISSION_EXPIRY_POLL_INTERVAL: 10s
       SUBMISSION_EXPIRY_DATABASE_URL: postgres://aether_submission_expiry_worker:${SUBMISSION_DB_PASSWORD}@postgres:5432/aether_submission?sslmode=disable
       JUDGE_COMPLETION_ENABLED: "true"
       SUBMISSION_JUDGE_ADAPTER_DATABASE_URL: postgres://aether_submission_judge_adapter:${SUBMISSION_DB_PASSWORD}@postgres:5432/aether_submission?sslmode=disable
