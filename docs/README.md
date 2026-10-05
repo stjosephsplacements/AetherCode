@@ -3,7 +3,7 @@
 This documentation records both the delivered foundation and the evidence
 required before it may be promoted. Architecture and migration assets are not
 proof of a live HA deployment, safe Judge0 execution, or the required load
-profile. The current boundary is maintained in [TASKLIST.md](../TASKLIST.md).
+profile. The current status is maintained in [roadmap.md](roadmap.md).
 
 ## Start here
 

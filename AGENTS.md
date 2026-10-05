@@ -20,16 +20,16 @@ A coding-exam platform for colleges, in two independent codebases:
   `apps/exam-v1/README.md` and ADR-0016.
 - **`backend/services/`, `backend/libs/`, `deploy/` — the long-term platform.** Multi-tenant
   Go microservices with PostgreSQL RLS, an isolated Judge0 wrapper,
-  SEB-enforced exams, Kubernetes on bare metal. It **cannot yet run an exam**:
-  submissions are never dispatched to the judge, there is no raw code or test
-  upload path, and `frontend/` is empty. Full context in `PLAN.md`; current state in
-  `Prompt.md` and `PENDING.md`.
+  SEB-enforced exams, Docker Compose on one server or Kubernetes. Accounts,
+  authoring, take-and-grade and SEB lockdown work end to end through the
+  gateway (milestones M0–M4); `frontend/` is not started. Full context in
+  `PLAN.md`; current state and remaining milestones in `docs/roadmap.md`.
 
 The two share no code or database. Never couple them. Per ADR-0017 the Go
 platform is the only backend going forward: `apps/exam-v1` is a **frozen
 fallback** (security fixes only) whose README and e2e spec are the
 behavioural reference for the port in
-`docs/superpowers/plans/2026-10-02-go-platform-exam-parity.md`.
+`docs/roadmap.md`.
 
 ## Prime directives
 
@@ -121,5 +121,5 @@ When finishing, summarize:
 - new or updated ADRs and migrations added;
 - any follow-ups.
 
-Reference files as `path:line`. Update `TASKLIST.md` checkboxes for completed
-platform items and keep `Prompt.md` current for platform work in progress.
+Reference files as `path:line`. Update the milestone table in
+`docs/roadmap.md` when platform work completes.

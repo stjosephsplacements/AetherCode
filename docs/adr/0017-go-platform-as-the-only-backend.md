@@ -39,7 +39,7 @@ The estimate is 15–21 working days.
    deployable as the fallback for exams held before the platform reaches
    parity, and is deleted when the platform passes the ported end-to-end test.
 4. The work follows
-   `docs/superpowers/plans/2026-10-02-go-platform-exam-parity.md`, phase by
+   `docs/roadmap.md`, phase by
    phase. Each phase ends green on `make build test lint test-integration`.
 
 ## Consequences

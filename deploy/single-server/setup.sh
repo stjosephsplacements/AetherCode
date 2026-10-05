@@ -6,8 +6,14 @@
 #   certs/  a private CA and one certificate per service (server + client):
 #           DNS SAN and CN = service name, URI SAN spiffe://aethercode.local/<service>
 # It refuses to overwrite existing secrets so they are never rotated by accident.
+# Usage: ./setup.sh https://exam.example.edu   (the public origin users open)
 set -euo pipefail
 cd "$(dirname "$0")"
+public_origin="${1:-}"
+if [[ ! "$public_origin" =~ ^https?://[^/?#]+$ ]]; then
+  echo "usage: ./setup.sh <public origin>, for example ./setup.sh https://exam.example.edu" >&2
+  exit 1
+fi
 if [[ -e .env || -e certs || -e judge0.conf ]]; then
   echo ".env, judge0.conf or certs/ already exists; remove them deliberately to regenerate" >&2
   exit 1
@@ -57,6 +63,8 @@ judge0_token="$(hex)"
   # One local KMS key for every service that encrypts or decrypts platform
   # objects (stand-in for a single managed KMS).
   echo "PLATFORM_KMS_LOCAL_KEY=$(b64 32)"
+  # The address users open; Safe Exam Browser hashes request URLs with it.
+  echo "PUBLIC_ORIGIN=${public_origin}"
   # Encrypts .seb launch files and is Safe Exam Browser's quit password.
   echo "SEB_LAUNCH_PASSWORD=$(hex)"
   echo "AUTHZ_CAPABILITY_KEYS=${keyring}"

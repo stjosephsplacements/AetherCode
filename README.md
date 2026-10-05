@@ -1,18 +1,32 @@
+<p align="center">
+  <img src="docs/assets/aethercode-banner.jpg" alt="AetherCode: AGPL 3.0 licensed, built in Go" width="100%">
+</p>
+
 # AetherCode
 
-AetherCode is a coding-assessment platform for colleges. The repository holds
-two independent codebases:
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 
-| | Exam app v1 | Platform |
+AetherCode is an open-source coding-assessment platform for colleges: staff
+write programming questions with hidden tests, students sit timed exams in a
+HackerRank-style editor (optionally locked down in Safe Exam Browser), and
+submissions are compiled and judged in a sandboxed code-execution engine.
+
+It is built for supervised college lab exams and released under the
+[GNU AGPL v3](LICENSE).
+
+The repository holds two independent codebases:
+
+| | Platform | Exam app v1 |
 |---|---|---|
-| **Path** | [`apps/exam-v1/`](apps/exam-v1/README.md) | `backend/services/`, `backend/libs/`, `deploy/` |
-| **What it is** | One Next.js app + PostgreSQL + a grading worker over Judge0 (or Piston), deployed with Docker Compose behind nginx on a single campus server. | Multi-tenant Go microservices with PostgreSQL RLS, signed authorization capabilities, an isolated Judge0 wrapper and SEB enforcement, for Kubernetes on bare metal. |
-| **Status** | **Frozen fallback** (ADR-0017): feature-complete for a supervised lab exam; used until the platform reaches parity, then deleted. | **The only backend going forward.** Cannot run an exam yet; being completed per the [parity plan](docs/superpowers/plans/2026-10-02-go-platform-exam-parity.md). |
-| **Start here** | [apps/exam-v1/README.md](apps/exam-v1/README.md) | [PLAN.md](PLAN.md), [TASKLIST.md](TASKLIST.md), [Prompt.md](Prompt.md), [PENDING.md](PENDING.md) |
+| **Path** | `backend/`, `deploy/`, `frontend/` | [`apps/exam-v1/`](apps/exam-v1/README.md) |
+| **What it is** | Multi-tenant Go microservices with PostgreSQL row-level security, signed authorization capabilities, an isolated judge (Piston or Judge0) and Safe Exam Browser enforcement. Runs on one server with Docker Compose or on Kubernetes. | One Next.js app + PostgreSQL + a grading worker over Judge0 or Piston, deployed with Docker Compose behind nginx on one server. |
+| **Status** | **The only backend going forward** (ADR-0017). Accounts, authoring, take-and-grade and SEB lockdown work end to end through the gateway; results, live operations and the web frontend are next. See the [roadmap](docs/roadmap.md). | **Frozen fallback**, feature-complete for a supervised lab exam; used for exams until the platform reaches parity, then removed. |
+| **Start here** | [PLAN.md](PLAN.md), [docs/roadmap.md](docs/roadmap.md), [deploy/single-server](deploy/single-server/README.md) | [apps/exam-v1/README.md](apps/exam-v1/README.md) |
 
 The split, and why it exists, is recorded in
-[ADR-0016](docs/adr/0016-lean-exam-app-for-first-launch.md). The two share no
-code or database.
+[ADR-0016](docs/adr/0016-lean-exam-app-for-first-launch.md) and
+[ADR-0017](docs/adr/0017-go-platform-as-the-only-backend.md). The two share
+no code or database.
 
 ## Exam app v1
 
@@ -60,19 +74,20 @@ rule (scoring, timing, visibility, limits) are in the
 
 ## Platform: repository layout
 
-- `backend/services/` contains independently deployable Go services.
-- `backend/libs/pkg/` contains shared, framework-neutral platform packages.
-- `backend/libs/proto/` is the source of truth for internal gRPC contracts.
-- `deploy/` contains local, Kubernetes, and database provisioning assets.
-- `docs/` contains architecture records, database documentation, runbooks and
-  API output.
-- `frontend/` is reserved for the platform's Next.js frontend and is currently empty.
+- `backend/services/`: independently deployable Go services (gateway,
+  identity, tenant, user, question-bank, assessment, submission, judge, seb,
+  notification, analytics).
+- `backend/libs/pkg/`: shared, framework-neutral platform packages.
+- `backend/libs/proto/`: the source of truth for internal gRPC contracts.
+- `deploy/`: the single-server Docker Compose stack, Helm charts and database
+  provisioning.
+- `docs/`: architecture decision records, database documentation, runbooks,
+  API output and the [roadmap](docs/roadmap.md).
+- `frontend/`: reserved for the platform's Next.js frontend (not started).
 
-Start with [the implementation plan](PLAN.md), [the documentation index](docs/README.md),
-[the delivery status](TASKLIST.md), and the latest hand-off in [Prompt.md](Prompt.md).
-Nothing here is a production-promotion declaration: external integrations and
-operational evidence are tracked in [TASKLIST.md](TASKLIST.md) and
-[PENDING.md](PENDING.md).
+Start with [the implementation plan](PLAN.md), [the documentation index](docs/README.md)
+and [the roadmap](docs/roadmap.md), which also lists the production gates that
+need infrastructure outside this repository.
 
 ## Security and database model
 
@@ -125,19 +140,11 @@ Implemented on the judge side:
 - per-unit results surfaced to submission, with a candidate-versus-faculty
   visibility boundary (ADR-0015).
 
-Submission has a completion-only bridge that persists a leased result before
-ACKing it and then publishes the platform-owned completion event.
-
-**The grading path is still not closed:**
-- nothing consumes `submission.evaluation_requested.v1` to admit work to the
-  judge;
-- `FetchQueuedJob` hands encrypted object references to the engine without
-  decrypting them;
-- the `judge-control` Helm chart's engine variables do not match the names the
-  Go config reads.
-
-These items, and the candidate run-code work in progress, are tracked in
-[Prompt.md](Prompt.md).
+Submission dispatches each queued evaluation request and code run to Judge
+over mTLS; Judge decrypts the bundle and source, runs one execution unit per
+test case on the engine, and Submission scores the attempt by test weight
+(ADR-0014, ADR-0015, ADR-0021). The single-server stack uses Piston by default
+(ADR-0018).
 
 The Judge0 engine chart is disabled by default. It must remain blocked until
 the gVisor, no-network, non-privileged compatibility gate has approved an
@@ -147,26 +154,26 @@ See [the compatibility-gate runbook](docs/runbooks/judge0-compatibility-gate.md)
 
 ## Platform: current backend scope
 
-Implemented HTTP/gRPC backend workflows include:
-- identity registration, login, MFA and recovery;
-- college, department, batch, role, placement and student affiliation
-  management;
-- immutable question and exam version publication, and assignments;
-- candidate attempts and append-only answers;
-- in-app notification preferences;
-- event-fed progress and reporting projections;
-- cursor-paginated list endpoints and soft delete (ADR-0013).
+Working end to end through the gateway (verified by
+[`deploy/single-server/smoke.py`](deploy/single-server/smoke.py)):
+- identity: login by username or roll number, MFA and recovery;
+  administrator-provisioned accounts and CSV student import (ADR-0019);
+- colleges, departments, batches, roles and placement affiliations;
+- staff authoring into a global question bank with server-built, encrypted,
+  weighted test bundles (ADR-0020); immutable question and exam versions;
+  batch assignment;
+- attempts with per-candidate deadlines, autosaved answers, Run against
+  sample tests with full output (ADR-0021), submit, judging, weighted scoring
+  and time-up auto-submission;
+- Safe Exam Browser lockdown with per-URL key checks and `.seb` launch files
+  (ADR-0022);
+- in-app notifications, event-fed analytics projections, cursor-paginated
+  lists and soft delete (ADR-0013).
 
-Gateway uses an explicit private-upstream allow-list, verifies protected
-identity assertions on every request, and calls SEB validation before
-configured exam routes are forwarded.
-
-Shared adapters exist for MinIO object storage (`backend/libs/pkg/storage/minio`) and a
-local KMS (`backend/libs/pkg/kms/local`) for development. Most services still persist
-encrypted object references supplied by the caller. Production needs approved
-India-resident object storage and KMS, an email provider, and analytics-export
-storage (see [PENDING.md](PENDING.md)). They must not be replaced with local mock
-behaviour in a production deployment.
+The local MinIO and KMS adapters (`backend/libs/pkg/storage/minio`,
+`backend/libs/pkg/kms/local`) are what the single-server stack uses. A
+multi-college production deployment should use managed object storage and
+KMS; see the production gates in the [roadmap](docs/roadmap.md).
 
 ## Platform: first run
 
@@ -272,3 +279,16 @@ file; it intentionally does not start Judge0. `make test-integration` requires
 Docker. Production credentials and database roles are provisioned through the
 deployment configuration, never from this repository. The full command list is
 in [CLAUDE.md](CLAUDE.md#commands).
+
+## Contributing
+
+Contributions are welcome: read [CONTRIBUTING.md](CONTRIBUTING.md) first, and
+follow the [Code of Conduct](CODE_OF_CONDUCT.md). Report security issues
+privately as described in [SECURITY.md](SECURITY.md), never in a public issue.
+
+## License
+
+AetherCode is free software: you can redistribute it and/or modify it under the
+terms of the [GNU Affero General Public License v3.0](LICENSE). If you run a
+modified version as a network service, the AGPL requires you to offer its
+users the corresponding source code.

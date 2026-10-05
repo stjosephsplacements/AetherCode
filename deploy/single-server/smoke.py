@@ -8,13 +8,20 @@ The credentials file holds "<email> <password>" (setup writes
 ~/aethercode-admin.txt). Every run uses fresh names, so it can be repeated;
 it leaves its test college data behind. Exits non-zero on the first failure.
 The public origin is what Safe Exam Browser hashes request URLs with; it must
-match the gateway's GATEWAY_SEB_PUBLIC_ORIGIN.
+match the gateway's GATEWAY_SEB_PUBLIC_ORIGIN; by default it is PUBLIC_ORIGIN
+from the .env beside this script.
 """
 import base64, gzip, hashlib, json, os, sys, time, urllib.request, urllib.error, uuid
 
 CREDENTIALS = sys.argv[1] if len(sys.argv) > 1 else os.path.expanduser("~/aethercode-admin.txt")
 BASE = (sys.argv[2] if len(sys.argv) > 2 else "http://127.0.0.1:8380") + "/api"
-PUBLIC_ORIGIN = sys.argv[3] if len(sys.argv) > 3 else "https://aethercode.stjosephsplacements.in"
+def env_origin():
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+    for line in open(path):
+        if line.startswith("PUBLIC_ORIGIN="):
+            return line.split("=", 1)[1].strip()
+    sys.exit("PUBLIC_ORIGIN is not in .env; pass the public origin as the third argument")
+PUBLIC_ORIGIN = sys.argv[3] if len(sys.argv) > 3 else env_origin()
 admin_email, admin_password = open(CREDENTIALS).read().split()[:2]
 run = uuid.uuid4().hex[:6]
 

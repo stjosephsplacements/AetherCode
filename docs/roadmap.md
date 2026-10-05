@@ -1,4 +1,4 @@
-# Go Platform Exam Parity Plan
+# Roadmap: Go platform exam parity
 
 **Goal:** a college runs a full graded exam (CSV import → authoring → timed
 exam → grading → results) on the Go microservices plus a `web/` frontend, with
@@ -40,7 +40,7 @@ Already done (2026-10-03):
   audit's fix log (NATS stream, event payload hashing, bootstrap, reset).
 
 Done 2026-10-04, each verified end to end through the gateway at
-https://aethercode.stjosephsplacements.in by `deploy/single-server/smoke.py`:
+the campus deployment by `deploy/single-server/smoke.py`:
 - M1 accounts (ADR-0019), and Identity's principal endpoints restricted to
   the caller (any user could delete any account);
 - M2 authoring: D1 staff authoring (ADR-0020), server-built encrypted test
@@ -198,3 +198,34 @@ policy, contract, events and service README:
 
 The total is ≈19–22 working days; the first exam is in 1–2 weeks. Exams before
 Phase 5 run on the frozen `apps/exam-v1`.
+
+## Production gates outside the repository
+
+These need an approved external system, credential, environment or exercise;
+the backend stays fail-closed until each has evidence.
+
+- **India-resident platform HA deployment:** provision three independently
+  powered PostgreSQL nodes, encrypted India-resident WAL/base-backup storage,
+  client certificates, and the separate Judge control-plane HA and RabbitMQ
+  quorum clusters. Run the documented node-loss and PITR restore exercises.
+- **KMS and object storage:** approve and configure an India-resident KMS/key
+  controller plus encrypted object storage for source, hidden tests, SEB
+  configuration, large outputs, and analytics exports. Supply scoped workload
+  identities; do not add plaintext or local fake adapters.
+- **Notification provider:** approve a provider, India-resident recipient-data
+  path, encrypted address resolver, provider credentials, retention terms, and
+  delivery observability before email or SMS is enabled.
+- **Judge0 security gate:** prove the pinned upstream image under gVisor with
+  non-root/read-only execution, no privilege escalation, no host mounts or
+  Docker socket, and deny-by-default/no user-controlled networking. The result
+  must be recorded by the compatibility-gate runbook before an engine
+  dispatcher or submission-admission adapter is enabled.
+- **Production performance and continuity evidence:** execute the 10,000
+  candidates/five-minute load profile against the approved engine and real
+  question suite; demonstrate submission P95 ≤2 seconds and final-verdict P95
+  ≤60 seconds. Exercise PostgreSQL, RabbitMQ, Judge worker, and wrapper-node
+  loss with durable queue replay and no lost work.
+- **Secrets and security approval:** provision and rotate real authorization
+  HMAC material, mTLS issuers, database client certificates, image-signing
+  keys, monitoring/alerting destinations, and complete the ASVS, SEB, and Judge
+  sandbox security reviews.

@@ -33,3 +33,8 @@ secrets/
 *.swp
 *~
 .playwright-mcp/
+
+# Local AI-assistant configuration and session state (not part of the project)
+.claude/
+.superpowers/
+.remember/

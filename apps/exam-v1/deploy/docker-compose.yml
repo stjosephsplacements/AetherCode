@@ -28,6 +28,7 @@ services:
       ENGINE_AUTH_TOKEN: ${JUDGE0_AUTH_TOKEN:-}
       WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-16}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      SEB_CONFIG_PASSWORD: ${SEB_CONFIG_PASSWORD:-}
     depends_on:
       db:
         condition: service_healthy

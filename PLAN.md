@@ -281,7 +281,7 @@ durable completion acknowledgement. A legal hold defeats scheduled deletion.
 
 ```
 aethercode/
-├── PLAN.md  CLAUDE.md  AGENTS.md  TASKLIST.md  README.md
+├── PLAN.md  CLAUDE.md  AGENTS.md  README.md
 ├── Makefile                     # dev/build/test/lint entrypoints (run from repo root)
 ├── docker-compose.yml           # local platform profile (pg, redis, nats, object storage)
 ├── .editorconfig
@@ -350,7 +350,7 @@ aethercode/
 
 ---
 
-## 12. Delivery Phases (summary — see TASKLIST.md)
+## 12. Delivery Phases (summary — current status in docs/roadmap.md)
 
 0. **Foundations** — repo, workspace, CI, shared libs, local compose, ADRs.
 1. **Identity & Tenancy** — auth, RLS, tenants/departments, role assignments.

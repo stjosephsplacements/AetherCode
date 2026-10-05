@@ -105,7 +105,7 @@ Method:
 2. **For parity:** section C, then B2–B6 and the integration-test gaps in D.
 
 These map onto the phases in
-`docs/superpowers/plans/2026-10-02-go-platform-exam-parity.md`. SEB (A5/A6)
+`docs/roadmap.md`. SEB (A5/A6)
 moves into Phase 1 because D3 makes it required.
 
 ## Fix log

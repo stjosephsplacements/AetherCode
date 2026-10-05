@@ -3,14 +3,18 @@ import { requireUser } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { buildSebConfig } from "@/lib/seb";
 
-// SEB exam launch password — used to encrypt the .seb file and as the hashed quit password.
-// Students never see or need to enter this; it is only used internally for config encryption.
-const SEB_CONFIG_PASSWORD = process.env.SEB_CONFIG_PASSWORD ?? "REDACTED";
+// SEB exam launch password: encrypts the .seb file and is SEB's quit password.
+// Students never see it. It must come from the environment: a published
+// default would let anyone decrypt the file and quit SEB.
+const SEB_CONFIG_PASSWORD = process.env.SEB_CONFIG_PASSWORD;
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ examId: string }> }) {
   // Must be an authenticated student (or staff previewing).
   const user = await requireUser().catch(() => null);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  if (!SEB_CONFIG_PASSWORD)
+    return NextResponse.json({ error: "SEB launch files are not configured" }, { status: 503 });
 
   const { examId } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(examId))

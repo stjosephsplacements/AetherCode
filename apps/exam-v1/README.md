@@ -228,6 +228,7 @@ Students and faculty open `http://<server-ip>/` (nginx on `APP_PORT`, default 80
 | `DB_PASSWORD` | — | Password for the exam Postgres (required). |
 | `APP_PORT` | `80` | Port nginx listens on. |
 | `COOKIE_SECURE` | `false` | Plain HTTP on the LAN needs `false`; set `true` behind HTTPS. |
+| `SEB_CONFIG_PASSWORD` | — | Encrypts `.seb` launch files and is SEB's quit password; the download returns 503 without it. |
 | `WORKER_CONCURRENCY` | `16` | See Configuration below. |
 | `ENGINE`, `ENGINE_URL` | `judge0`, `http://judge0-server:2358` | Switch to `piston`, `http://piston:2000` on cgroup v2 hosts. |
 | `JUDGE0_AUTH_TOKEN` | empty | Judge0 `X-Auth-Token`, if set in `judge0.conf`. |

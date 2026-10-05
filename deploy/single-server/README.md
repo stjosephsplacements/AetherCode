@@ -23,7 +23,7 @@ every production safety check applies.
 
 ```sh
 cd deploy/single-server
-./setup.sh                                   # .env, judge0.conf, certs/ (once)
+./setup.sh https://exam.example.edu          # .env, judge0.conf, certs/ (once)
 docker compose build
 docker compose up -d
 docker compose ps                            # every service "running"/"healthy"
@@ -77,9 +77,10 @@ curl -s -X POST localhost:${GATEWAY_PORT:-8080}/api/identity/v1/auth/password-re
 
 ## Public address
 
-The campus server's own nginx terminates TLS for
-`aethercode.stjosephsplacements.in`, which Cloudflare proxies through the host's
-cloudflared tunnel. Requests therefore reach nginx from loopback, and the site
+The host's own nginx terminates TLS for the public domain (`PUBLIC_ORIGIN` in
+`.env`), which in the reference deployment Cloudflare proxies through the
+host's cloudflared tunnel. Edit `server_name` and the certificate paths in
+`nginx-site.conf` first. Requests therefore reach nginx from loopback, and the site
 restores the student's address from `CF-Connecting-IP`. Install the site once:
 
 ```sh
