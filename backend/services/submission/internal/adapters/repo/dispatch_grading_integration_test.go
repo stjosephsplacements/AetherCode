@@ -65,7 +65,7 @@ func seedAssignedAttempt(ctx context.Context, t *testing.T, pool *pgxpool.Pool, 
 		SELECT submission.apply_assignment_snapshot(
 			$1, $2, $3, $4, gen_random_uuid(), gen_random_uuid(),
 			clock_timestamp() - interval '1 hour', clock_timestamp() + interval '2 hours',
-			1::smallint, 'active', 1, $5::jsonb
+			1::smallint, 'active', 1, $5::jsonb, NULL
 		)`, newID(t), unitTenantID, fixture.AssignmentID, fixture.CandidateID, "["+strings.Join(items, ",")+"]")
 	require.NoError(t, err, "project assignment snapshot")
 	_, err = pool.Exec(ctx, `
@@ -187,26 +187,12 @@ func TestAssignmentExecutionSettingsGateAnswers(t *testing.T) {
 	save := func(examItemID, language string) (string, error) {
 		var revisionID string
 		var saveErr error
-		transaction, err := pool.Begin(ctx)
-		require.NoError(t, err)
-		defer transaction.Rollback(ctx) //nolint:errcheck
-		var contextID string
-		require.NoError(t, transaction.QueryRow(ctx, `
-			INSERT INTO authz.request_contexts
-			    (context_id, capability_id, backend_pid, transaction_id, actor_id, tenant_id,
-			     authz_revision, action, resource, issued_at, expires_at)
-			VALUES (gen_random_uuid(), gen_random_uuid(), pg_backend_pid(), txid_current(),
-			        $1, $2, 1, 'submission.write', 'submission.attempts',
-			        clock_timestamp(), clock_timestamp() + interval '4 seconds')
-			RETURNING context_id::text`, fixture.CandidateID, unitTenantID).Scan(&contextID))
-		_, err = transaction.Exec(ctx, `SELECT set_config('app.authz_context_id', $1, true)`, contextID)
-		require.NoError(t, err)
-		_, err = transaction.Exec(ctx, `SET LOCAL ROLE aether_submission_app`)
-		require.NoError(t, err)
-		saveErr = transaction.QueryRow(ctx, `
-			SELECT id::text FROM submission.append_answer_revision(
-				$1, $2, $3, $4, $5, $6, 'candidate-source/t/a/r', repeat('d', 64), 'local/key-2', 1
-			)`, newID(t), newID(t), unitTenantID, fixture.AttemptID, examItemID, language).Scan(&revisionID)
+		asCandidate(ctx, t, pool, fixture.CandidateID, func(transaction pgx.Tx) {
+			saveErr = transaction.QueryRow(ctx, `
+				SELECT id::text FROM submission.append_answer_revision(
+					$1, $2, $3, $4, $5, $6, 'candidate-source/t/a/r', repeat('d', 64), 'local/key-2', 1
+				)`, newID(t), newID(t), unitTenantID, fixture.AttemptID, examItemID, language).Scan(&revisionID)
+		})
 		return revisionID, saveErr
 	}
 

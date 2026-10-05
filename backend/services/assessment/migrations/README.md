@@ -17,3 +17,8 @@ them in every candidate assignment snapshot, so Submission can validate a
 candidate's language and dispatch grading with the right limits. Legacy items
 keep NULLs; rollback restores the previous snapshot builders and drops the
 columns.
+
+`000025_snapshot_duration` adds the exam version's `duration_seconds` to every
+candidate assignment snapshot, so Submission can end each candidate's attempt
+at start plus duration rather than at the window's close. Rollback restores the
+000024 builders.

@@ -26,7 +26,7 @@ the platform (≈10–12 focused days). Until M8, exams run on `apps/exam-v1`.
 | M1 | Accounts | An admin creates a college and batch, bulk-imports students from CSV with generated passwords, creates staff, and anyone signs in by username or roll number. | done (2026-10-04, ADR-0019; `deploy/single-server/smoke.py`) |
 | M2 | Authoring | Staff write a question with plaintext tests (bundles built and encrypted server-side), build an exam from it, and assign it to a batch. | done (2026-10-04, ADR-0020; `smoke.py`) |
 | M3 | Take and grade | A student starts, saves code, runs samples and submits. Dispatch → judge (decrypt) → Judge0 → score. Time-up submits latest answers. | — |
-| M4 | SEB | Per-request config-key validation that works with a real SEB browser, plus `.seb` configuration generation and download. | — |
+| M4 | SEB | Per-request config-key validation that works with a real SEB browser, plus `.seb` configuration generation and download. Known bug: SEB's lifecycle projection decodes `assessment.candidate_assignment.snapshot.v1` and `submission.attempt_submitted.v1` strictly into 4-field structs, so it rejects every real event and never closes a session on submit or revocation. | — |
 | M5 | Frontend | `frontend/` ports the exam-app screens (login, admin, authoring, exam screen, results) onto the gateway. | — |
 | M6 | Results and operations | Faculty results/CSV, result release, live monitor, extend time, announcements, backups and system status. | — |
 | M7 | Remaining parity | Pools, MCQ, network allow-list, preview, similarity, audit log, model-solution check, import/export, duplicate, login slips. | — |

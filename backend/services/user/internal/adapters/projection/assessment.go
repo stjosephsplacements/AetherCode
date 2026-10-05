@@ -51,6 +51,7 @@ type assignmentSnapshot struct {
 	AvailableFrom         string                   `json:"available_from"`
 	AvailableUntil        string                   `json:"available_until"`
 	AttemptLimit          int                      `json:"attempt_limit"`
+	DurationSeconds       *int                     `json:"duration_seconds"`
 	LifecycleState        string                   `json:"lifecycle_state"`
 	Version               int64                    `json:"version"`
 	Items                 []assignmentSnapshotItem `json:"items"`

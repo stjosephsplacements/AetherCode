@@ -2,6 +2,7 @@ package projection
 
 import (
 	"encoding/json"
+	"reflect"
 	"testing"
 	"time"
 
@@ -228,3 +229,54 @@ func TestParseAssignmentSnapshotExecutionSettings(t *testing.T) {
 		})
 	}
 }
+
+func TestParseAssignmentSnapshotDuration(t *testing.T) {
+	checksum := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	testCases := []struct {
+		name     string
+		duration any
+		present  bool
+		want     *int
+		wantErr  bool
+	}{
+		{name: "absent on a snapshot published before the field existed"},
+		{name: "null", present: true, duration: nil},
+		{name: "one hour", present: true, duration: 3600, want: intPointer(3600)},
+		{name: "below one minute", present: true, duration: 59, wantErr: true},
+		{name: "above twelve hours", present: true, duration: 43201, wantErr: true},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			fields := map[string]any{
+				"tenant_id": projectionTestUUID, "candidate_assignment_id": projectionTestUUID,
+				"candidate_id": projectionTestUUID, "exam_id": projectionTestUUID, "exam_version_id": projectionTestUUID,
+				"available_from": "2026-07-24T10:00:00Z", "available_until": "2026-07-24T11:00:00Z",
+				"attempt_limit": 1, "lifecycle_state": "active", "version": 1,
+				"items": []map[string]any{{
+					"exam_item_id": projectionTestUUID, "evaluation_bundle_object_key": "qbank/evaluation/manifest.enc",
+					"evaluation_bundle_checksum": checksum, "maximum_score": 10.0,
+				}},
+			}
+			if testCase.present {
+				fields["duration_seconds"] = testCase.duration
+			}
+			payload, err := json.Marshal(fields)
+			if err != nil {
+				t.Fatalf("marshal payload: %v", err)
+			}
+			snapshot, err := parseAssignmentSnapshot(messaging.Event{
+				ID: projectionTestUUID, Type: AssignmentSnapshotEventType, SchemaVersion: 1,
+				AggregateType: "candidate_assignment", AggregateID: projectionTestUUID, TenantID: projectionTestUUID,
+				OccurredAt: time.Now().UTC(), Payload: payload,
+			})
+			if (err != nil) != testCase.wantErr {
+				t.Fatalf("parseAssignmentSnapshot() error = %v, wantErr %t", err, testCase.wantErr)
+			}
+			if err == nil && !reflect.DeepEqual(snapshot.DurationSeconds, testCase.want) {
+				t.Fatalf("DurationSeconds = %v, want %v", snapshot.DurationSeconds, testCase.want)
+			}
+		})
+	}
+}
+
+func intPointer(value int) *int { return &value }

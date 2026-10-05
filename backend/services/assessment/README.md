@@ -88,6 +88,7 @@ evaluations when it applies the newer revoked snapshot. Its payload is:
   "available_from": "RFC3339 UTC timestamp",
   "available_until": "RFC3339 UTC timestamp",
   "attempt_limit": 1,
+  "duration_seconds": 3600,
   "lifecycle_state": "active",
   "version": 1,
   "items": [
@@ -108,6 +109,9 @@ evaluations when it applies the newer revoked snapshot. Its payload is:
 }
 ```
 
+`duration_seconds` is the exam version's per-candidate time limit; Submission
+sets each attempt's deadline to the earlier of its start plus this and
+`available_until`. Snapshots published before migration `000025` lack it.
 Items are ordered by section position then item position. This lets Submission
 create and grade an attempt without reading Assessment's database. v1 exam
 versions use an attempt limit of one; the stored limit is constrained to 1–20
@@ -205,6 +209,9 @@ owner role. The application never owns tables and has no `BYPASSRLS` privilege.
   overload that requires them (the previous one stays installed but is not
   executable by the app role), and adds the three fields to both snapshot
   builders, `enqueue_candidate_assignment_snapshot` and `materialize_candidate`.
+
+- `000025_snapshot_duration` adds the exam version's `duration_seconds` to both
+  snapshot builders.
 
 Use `make test-migrations` to exercise fresh application, full rollback, and
 reapplication with dedicated non-superuser migration logins.

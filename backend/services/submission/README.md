@@ -40,6 +40,7 @@ The service consumes these versioned platform events through durable JetStream c
   "available_from": "RFC3339 timestamp",
   "available_until": "RFC3339 timestamp",
   "attempt_limit": 1,
+  "duration_seconds": 3600,
   "lifecycle_state": "active",
   "version": 1,
   "items": [{
@@ -58,7 +59,10 @@ The service consumes these versioned platform events through durable JetStream c
 }
 ```
 
-Every field after `maximum_score` is persisted per assignment item (migration `000020`). The last three are null on items pinned before Assessment migration `000024`; such an item accepts no answer and its evaluation requests are failed rather than dispatched.
+`duration_seconds` (60-43200, absent on snapshots published before Assessment
+migration `000025`) sets each candidate's deadline; see "Attempt expiry
+worker". Every item field after `maximum_score` is persisted per assignment
+item (migration `000020`). The last three are null on items pinned before Assessment migration `000024`; such an item accepts no answer and its evaluation requests are failed rather than dispatched.
 
 ### Languages
 
@@ -260,14 +264,28 @@ credential can access the resync state.
 
 ## Attempt expiry worker
 
-`000017_attempt_expiry_worker` adds the wall-clock expiry path. A background
-worker polls on `SUBMISSION_EXPIRY_POLL_INTERVAL` and calls
-`submission.expire_overdue_attempts(limit)` in bounded batches. The function is
-`SECURITY DEFINER` and `FOR UPDATE SKIP LOCKED`; two worker replicas claim
-disjoint rows rather than blocking each other. Each expiry writes one
-`submission.attempt_expired.v1` outbox event in the same transaction as the
-state change, carrying `attempt_id`, `tenant_id`, `exam_id`,
-`exam_version_id`, `candidate_id`, and `expired_at`.
+An attempt's `submission_deadline` is the earlier of its start plus the exam's
+`duration_seconds` and the assignment window's close (migration `000023`).
+Assignments projected from a snapshot without `duration_seconds` keep the
+window's close. Answers and submits are accepted until
+`submission_deadline + submission.answer_grace()` (15 seconds), so the last
+save a browser sends as time runs out still lands.
+
+A background worker polls on `SUBMISSION_EXPIRY_POLL_INTERVAL` and calls
+`submission.expire_overdue_attempts(limit)` in bounded batches for `created` or
+`active` attempts whose grace has passed. The function is `SECURITY DEFINER`
+and `FOR UPDATE SKIP LOCKED`; two worker replicas claim disjoint rows rather
+than blocking each other. For each attempt, in one transaction:
+
+- **Answers saved: time-up submit.** The latest revision of every answered item
+  becomes a queued evaluation request (caller idempotency key
+  `time-up:<answer revision id>`), the attempt moves to `grading`, and the
+  outbox gets the same `submission.attempt_submitted.v1` and
+  `submission.evaluation_requested.v1` payloads a candidate's own submit
+  produces. The dispatcher grades it like any other submission.
+- **Nothing saved: expired.** The attempt moves to `expired` and one
+  `submission.attempt_expired.v1` event carries `attempt_id`, `tenant_id`,
+  `exam_id`, `exam_version_id`, `candidate_id`, and `expired_at`.
 
 The worker runs as `aether_submission_expiry_worker`, a dedicated least-privilege
 login role provisioned in `deploy/database/platform/dev-init.sh`. It can execute

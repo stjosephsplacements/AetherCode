@@ -152,9 +152,16 @@ func outboxItem(t *testing.T, ctx context.Context, tx pgx.Tx) map[string]any {
 	var payload []byte
 	require.NoError(t, tx.QueryRow(ctx, `SELECT payload FROM app.outbox_events WHERE event_type = 'assessment.candidate_assignment.snapshot.v1'`).Scan(&payload))
 	var snapshot struct {
-		Items []map[string]any `json:"items"`
+		ExamVersionID   string           `json:"exam_version_id"`
+		DurationSeconds *int             `json:"duration_seconds"`
+		Items           []map[string]any `json:"items"`
 	}
 	require.NoError(t, json.Unmarshal(payload, &snapshot))
+	var duration int
+	require.NoError(t, tx.QueryRow(ctx, `SELECT duration_seconds FROM assessment.exam_versions WHERE id = $1`,
+		snapshot.ExamVersionID).Scan(&duration))
+	require.NotNil(t, snapshot.DurationSeconds, "Submission derives each candidate's deadline from it")
+	require.Equal(t, duration, *snapshot.DurationSeconds)
 	require.Len(t, snapshot.Items, 1)
 	return snapshot.Items[0]
 }

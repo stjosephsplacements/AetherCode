@@ -69,17 +69,20 @@ type assignmentItem struct {
 }
 
 type assignmentSnapshot struct {
-	TenantID              string           `json:"tenant_id"`
-	CandidateAssignmentID string           `json:"candidate_assignment_id"`
-	CandidateID           string           `json:"candidate_id"`
-	ExamID                string           `json:"exam_id"`
-	ExamVersionID         string           `json:"exam_version_id"`
-	AvailableFrom         time.Time        `json:"available_from"`
-	AvailableUntil        time.Time        `json:"available_until"`
-	AttemptLimit          int16            `json:"attempt_limit"`
-	LifecycleState        string           `json:"lifecycle_state"`
-	Version               int64            `json:"version"`
-	Items                 []assignmentItem `json:"items"`
+	TenantID              string    `json:"tenant_id"`
+	CandidateAssignmentID string    `json:"candidate_assignment_id"`
+	CandidateID           string    `json:"candidate_id"`
+	ExamID                string    `json:"exam_id"`
+	ExamVersionID         string    `json:"exam_version_id"`
+	AvailableFrom         time.Time `json:"available_from"`
+	AvailableUntil        time.Time `json:"available_until"`
+	AttemptLimit          int16     `json:"attempt_limit"`
+	// DurationSeconds is the per-candidate time limit; nil on snapshots
+	// written before Assessment migration 000025.
+	DurationSeconds *int             `json:"duration_seconds"`
+	LifecycleState  string           `json:"lifecycle_state"`
+	Version         int64            `json:"version"`
+	Items           []assignmentItem `json:"items"`
 }
 
 // ApplyAssignmentSnapshot atomically materializes an Assessment-owned,
@@ -102,11 +105,12 @@ func (store *Store) ApplyAssignmentSnapshot(contextValue context.Context, event 
 		var applied bool
 		err := transaction.QueryRow(applyContext, `
 			SELECT submission.apply_assignment_snapshot(
-				$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb
+				$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13
 			)
 		`, event.ID, payload.TenantID, payload.CandidateAssignmentID, payload.CandidateID,
 			payload.ExamID, payload.ExamVersionID, payload.AvailableFrom.UTC(), payload.AvailableUntil.UTC(),
-			payload.AttemptLimit, payload.LifecycleState, payload.Version, string(items)).Scan(&applied)
+			payload.AttemptLimit, payload.LifecycleState, payload.Version, string(items),
+			payload.DurationSeconds).Scan(&applied)
 		if err != nil {
 			return projectionError(err, "apply assessment assignment snapshot")
 		}
@@ -195,6 +199,7 @@ func parseAssignmentSnapshot(event messaging.Event) (assignmentSnapshot, error) 
 		!validUUID(payload.CandidateID) || !validUUID(payload.ExamID) || !validUUID(payload.ExamVersionID) ||
 		payload.AvailableFrom.IsZero() || payload.AvailableUntil.IsZero() || !payload.AvailableFrom.Before(payload.AvailableUntil) ||
 		payload.AttemptLimit < 1 || payload.AttemptLimit > 20 || payload.Version <= 0 ||
+		(payload.DurationSeconds != nil && (*payload.DurationSeconds < 60 || *payload.DurationSeconds > 43200)) ||
 		(payload.LifecycleState != "active" && payload.LifecycleState != "revoked") ||
 		(payload.LifecycleState == "active" && len(payload.Items) == 0) {
 		return assignmentSnapshot{}, fmt.Errorf("assessment assignment snapshot fields are invalid")

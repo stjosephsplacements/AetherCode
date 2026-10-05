@@ -57,3 +57,10 @@ score summaries with `calculation_version` 2, moves attempt closing into the
 internal `finalize_attempt_grading`, and adds `mark_evaluation_failed` so a
 permanently failed dispatch still grades the attempt. Rollback refuses once any
 non-default weight exists.
+
+`000023_attempt_time_limit` projects the snapshot's `duration_seconds`, makes
+`start_attempt` set the deadline to the earlier of start plus duration and the
+window's close, accepts answers and submits for `answer_grace()` (15 s) past
+the deadline, and makes `expire_overdue_attempts` submit the latest answers
+(or expire an attempt with none) once the grace has passed.
+`apply_assignment_snapshot` gains a trailing `p_duration_seconds` argument.
