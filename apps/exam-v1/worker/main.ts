@@ -5,12 +5,20 @@ import { createLimiter, grade, type GradeTest } from "../lib/grade.ts";
 import { DRAFT_GRACE_SECONDS } from "../lib/attempt-rules.ts";
 import { isLanguageId } from "../lib/languages.ts";
 
-const CONCURRENCY = Number(process.env.WORKER_CONCURRENCY ?? 8);
+function envInt(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const value = parseInt(raw, 10);
+  if (!Number.isFinite(value) || value <= 0) throw new Error(`${name} must be a positive integer, got: ${raw}`);
+  return value;
+}
+
+const CONCURRENCY = envInt("WORKER_CONCURRENCY", 8);
 // Keep enough submissions in flight to saturate the engine across test fan-out.
-const MAX_IN_FLIGHT = CONCURRENCY * 2;
-const MAX_TRIES = 3;
-const IDLE_POLL_MS = 250;
-const OUTPUT_LIMIT = 8192;
+const MAX_IN_FLIGHT = envInt("WORKER_MAX_IN_FLIGHT", CONCURRENCY * 2);
+const MAX_TRIES = envInt("WORKER_MAX_TRIES", 3);
+const IDLE_POLL_MS = envInt("WORKER_IDLE_POLL_MS", 250);
+const OUTPUT_LIMIT = envInt("WORKER_OUTPUT_LIMIT_BYTES", 8192);
 
 const engine = engineFromEnv();
 const limit = createLimiter(CONCURRENCY);

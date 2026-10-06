@@ -37,6 +37,14 @@ export interface Engine {
   executeBatch?(request: BatchExecRequest): Promise<BatchExecResult>;
 }
 
+function envInt(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const value = parseInt(raw, 10);
+  if (!Number.isFinite(value) || value <= 0) throw new Error(`${name} must be a positive integer, got: ${raw}`);
+  return value;
+}
+
 export function engineFromEnv(): Engine {
   const url = process.env.ENGINE_URL;
   if (!url) throw new Error("ENGINE_URL is required");
@@ -47,13 +55,20 @@ export function engineFromEnv(): Engine {
   throw new Error(`unknown ENGINE ${kind}`);
 }
 
-const POLL_INTERVAL_MS = 400;
+// ---------------------------------------------------------------------------
+// Judge0
+// ---------------------------------------------------------------------------
+
+// These are Judge0 API status IDs — part of the protocol, not operational config.
+const JUDGE0_STATUS_ACCEPTED = 3;
+const JUDGE0_STATUS_TLE = 5;
+const JUDGE0_STATUS_COMPILE_ERROR = 6;
+const JUDGE0_STATUS_RUNTIME_ERROR_FIRST = 7;
+const JUDGE0_STATUS_RUNTIME_ERROR_LAST = 12;
+const JUDGE0_MULTI_FILE_LANGUAGE_ID = 89;
+
 // Piston runs Java as `java Main.java`, which compiles inside the timed run.
 const PISTON_JAVA_COMPILE_ALLOWANCE_MS = 3000;
-const POLL_DEADLINE_MS = 120_000;
-
-const b64 = (value: string) => Buffer.from(value, "utf8").toString("base64");
-const unb64 = (value: string | null | undefined) => (value ? Buffer.from(value, "base64").toString("utf8") : "");
 
 interface Judge0Submission {
   status?: { id: number; description: string };
@@ -65,19 +80,29 @@ interface Judge0Submission {
   memory?: number | null;
 }
 
-// Must stay within MAX_CPU_TIME_LIMIT / MAX_WALL_TIME_LIMIT in deploy/judge0.conf.
-const JUDGE0_BATCH_CPU_BUDGET_SECONDS = 100;
-const JUDGE0_BATCH_WALL_BUDGET_SECONDS = 200;
-const JUDGE0_MULTI_FILE_LANGUAGE_ID = 89;
-
 export class Judge0Engine implements Engine {
   readonly executeBatch?: (request: BatchExecRequest) => Promise<BatchExecResult>;
+
+  // Operational limits — all tunable via env without redeploying.
+  // Must stay within MAX_CPU_TIME_LIMIT / MAX_WALL_TIME_LIMIT in deploy/judge0.conf.
+  private readonly pollIntervalMs: number;
+  private readonly pollDeadlineMs: number;
+  private readonly batchCpuBudgetSeconds: number;
+  private readonly batchWallBudgetSeconds: number;
+  private readonly maxCpuSeconds: number;
+  private readonly maxMemoryKb: number;
 
   constructor(
     private readonly baseUrl: string,
     private readonly authToken: string,
     batching: boolean,
   ) {
+    this.pollIntervalMs = envInt("ENGINE_JUDGE0_POLL_INTERVAL_MS", 400);
+    this.pollDeadlineMs = envInt("ENGINE_JUDGE0_POLL_DEADLINE_MS", 120_000);
+    this.batchCpuBudgetSeconds = envInt("ENGINE_JUDGE0_BATCH_CPU_BUDGET_SECONDS", 100);
+    this.batchWallBudgetSeconds = envInt("ENGINE_JUDGE0_BATCH_WALL_BUDGET_SECONDS", 200);
+    this.maxCpuSeconds = envInt("ENGINE_JUDGE0_MAX_CPU_SECONDS", 15);
+    this.maxMemoryKb = envInt("ENGINE_JUDGE0_MAX_MEMORY_KB", 512_000);
     if (batching) this.executeBatch = (request) => this.batch(request);
   }
 
@@ -96,9 +121,9 @@ export class Judge0Engine implements Engine {
     if (!created.ok) throw new Error(`judge0 create failed: ${created.status} ${await created.text()}`);
     const { token } = (await created.json()) as { token: string };
 
-    const deadline = Date.now() + POLL_DEADLINE_MS + JUDGE0_BATCH_WALL_BUDGET_SECONDS * 1000;
+    const deadline = Date.now() + this.pollDeadlineMs + this.batchWallBudgetSeconds * 1000;
     while (Date.now() < deadline) {
-      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+      await new Promise((resolve) => setTimeout(resolve, this.pollIntervalMs));
       const response = await fetch(
         `${this.baseUrl}/submissions/${token}?base64_encoded=true&fields=status,stdout,stderr,compile_output,message,time,memory`,
         { headers: this.headers() },
@@ -113,14 +138,14 @@ export class Judge0Engine implements Engine {
 
   async execute(request: ExecRequest): Promise<ExecResult> {
     const language = LANGUAGES[request.language];
-    const cpuSeconds = Math.min(15, (request.timeLimitMs * language.timeMultiplier) / 1000);
+    const cpuSeconds = Math.min(this.maxCpuSeconds, (request.timeLimitMs * language.timeMultiplier) / 1000);
     const submission = await this.run({
       language_id: language.judge0Id,
       source_code: b64(request.source),
       stdin: b64(request.stdin),
       cpu_time_limit: cpuSeconds,
-      wall_time_limit: Math.min(30, cpuSeconds * 3 + 2),
-      memory_limit: Math.min(512000, request.memoryLimitKb),
+      wall_time_limit: Math.min(this.maxCpuSeconds * 2, cpuSeconds * 3 + 2),
+      memory_limit: Math.min(this.maxMemoryKb, request.memoryLimitKb),
     });
     return {
       status: judge0Status(submission.statusId),
@@ -136,20 +161,20 @@ export class Judge0Engine implements Engine {
   private async batch(request: BatchExecRequest): Promise<BatchExecResult> {
     const limitMs = request.timeLimitMs * LANGUAGES[request.language].timeMultiplier;
     const perTestSeconds = Math.max(1, Math.ceil(limitMs / 1000));
-    const chunkSize = Math.max(1, Math.floor(JUDGE0_BATCH_CPU_BUDGET_SECONDS / perTestSeconds));
+    const chunkSize = Math.max(1, Math.floor(this.batchCpuBudgetSeconds / perTestSeconds));
     const chunks: string[][] = [];
     for (let index = 0; index < request.inputs.length; index += chunkSize) chunks.push(request.inputs.slice(index, index + chunkSize));
 
     const outcomes = await Promise.all(
       chunks.map(async (inputs) => {
         const archive = zip(batchFiles({ language: request.language, source: request.source, inputs, timeLimitMs: request.timeLimitMs }, JUDGE0_TOOLCHAIN));
-        const cpuBudget = Math.min(JUDGE0_BATCH_CPU_BUDGET_SECONDS + 10, inputs.length * perTestSeconds + 5);
+        const cpuBudget = Math.min(this.batchCpuBudgetSeconds + 10, inputs.length * perTestSeconds + 5);
         const submission = await this.run({
           language_id: JUDGE0_MULTI_FILE_LANGUAGE_ID,
           additional_files: archive.toString("base64"),
           cpu_time_limit: cpuBudget,
-          wall_time_limit: Math.min(JUDGE0_BATCH_WALL_BUDGET_SECONDS, cpuBudget * 2 + 10),
-          memory_limit: Math.min(512000, request.memoryLimitKb),
+          wall_time_limit: Math.min(this.batchWallBudgetSeconds, cpuBudget * 2 + 10),
+          memory_limit: Math.min(this.maxMemoryKb, request.memoryLimitKb),
           max_file_size: 8192,
         });
         return { inputs, submission };
@@ -158,12 +183,12 @@ export class Judge0Engine implements Engine {
 
     const results: ExecResult[] = [];
     for (const { inputs, submission } of outcomes) {
-      if (submission.statusId === 6) return { compileError: unb64(submission.compile_output) };
+      if (submission.statusId === JUDGE0_STATUS_COMPILE_ERROR) return { compileError: unb64(submission.compile_output) };
       const parsed = parseBatchOutput(unb64(submission.stdout), inputs.length);
       for (const entry of parsed) {
         if (!entry) {
           // The whole job hit its budget before reaching this test.
-          const status: ExecStatus = submission.statusId === 5 ? "time_limit" : "internal_error";
+          const status: ExecStatus = submission.statusId === JUDGE0_STATUS_TLE ? "time_limit" : "internal_error";
           results.push({ status, stdout: "", stderr: unb64(submission.message), compileOutput: "", timeMs: null, memoryKb: null });
           continue;
         }
@@ -182,12 +207,16 @@ export class Judge0Engine implements Engine {
 }
 
 function judge0Status(id: number): ExecStatus {
-  if (id === 3) return "ok";
-  if (id === 5) return "time_limit";
-  if (id === 6) return "compile_error";
-  if (id >= 7 && id <= 12) return "runtime_error";
+  if (id === JUDGE0_STATUS_ACCEPTED) return "ok";
+  if (id === JUDGE0_STATUS_TLE) return "time_limit";
+  if (id === JUDGE0_STATUS_COMPILE_ERROR) return "compile_error";
+  if (id >= JUDGE0_STATUS_RUNTIME_ERROR_FIRST && id <= JUDGE0_STATUS_RUNTIME_ERROR_LAST) return "runtime_error";
   return "internal_error";
 }
+
+// ---------------------------------------------------------------------------
+// Piston
+// ---------------------------------------------------------------------------
 
 interface PistonStage {
   stdout: string;
@@ -255,9 +284,6 @@ export class PistonEngine implements Engine {
 // AetherCode Execution Engine (go-judge backed, results over SSE)
 // ---------------------------------------------------------------------------
 
-// Worst case: 100 tests at the 20 s cap, each with a 41 s wall clock.
-const AC_STREAM_TIMEOUT_MS = 15 * 60_000;
-
 interface AetherCodeTestResult {
   test_index: number;
   verdict: string;
@@ -290,7 +316,23 @@ const toResult = (test: AetherCodeTestResult): ExecResult => ({
 const MISSING: ExecResult = { status: "internal_error", stdout: "", stderr: "", compileOutput: "", timeMs: null, memoryKb: null };
 
 export class AetherCodeEngine implements Engine {
-  constructor(private readonly baseUrl: string) {}
+  private readonly streamTimeoutMs: number;
+  private readonly maxTimeLimitMs: number;
+  private readonly minTimeLimitMs: number;
+  private readonly maxMemoryLimitKb: number;
+  private readonly minMemoryLimitKb: number;
+  private readonly retryInitialDelayMs: number;
+  private readonly retryMaxDelayMs: number;
+
+  constructor(private readonly baseUrl: string) {
+    this.streamTimeoutMs = envInt("ENGINE_AC_STREAM_TIMEOUT_MS", 15 * 60_000);
+    this.maxTimeLimitMs = envInt("ENGINE_AC_MAX_TIME_LIMIT_MS", 20_000);
+    this.minTimeLimitMs = envInt("ENGINE_AC_MIN_TIME_LIMIT_MS", 100);
+    this.maxMemoryLimitKb = envInt("ENGINE_AC_MAX_MEMORY_LIMIT_KB", 2_097_152);
+    this.minMemoryLimitKb = envInt("ENGINE_AC_MIN_MEMORY_LIMIT_KB", 16_384);
+    this.retryInitialDelayMs = envInt("ENGINE_AC_RETRY_INITIAL_DELAY_MS", 2_000);
+    this.retryMaxDelayMs = envInt("ENGINE_AC_RETRY_MAX_DELAY_MS", 60_000);
+  }
 
   executeBatch = async (request: BatchExecRequest): Promise<BatchExecResult> => {
     const verdict = await this.submit(request, request.inputs);
@@ -306,31 +348,45 @@ export class AetherCodeEngine implements Engine {
   }
 
   private async submit(request: BatchExecRequest, inputs: string[]): Promise<AetherCodeVerdictData> {
-    // Same rule as the other engines: the question's limit, scaled for slower languages.
-    const timeLimitMs = Math.min(20_000, Math.max(100, Math.round(request.timeLimitMs * LANGUAGES[request.language].timeMultiplier)));
-    const memoryLimitKb = Math.min(2_097_152, Math.max(16_384, request.memoryLimitKb));
-    const created = await fetch(`${this.baseUrl}/api/v1/execute`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        language: request.language,
-        source_code: request.source,
-        mode: "run",
-        // Output is compared here (lib/compare.ts); the engine's own verdict is not used.
-        tests: inputs.map((input) => ({ input, expected_output: "" })),
-        time_limit_ms: timeLimitMs,
-        memory_limit_kb: memoryLimitKb,
-      }),
+    const timeLimitMs = Math.min(
+      this.maxTimeLimitMs,
+      Math.max(this.minTimeLimitMs, Math.round(request.timeLimitMs * LANGUAGES[request.language].timeMultiplier)),
+    );
+    const memoryLimitKb = Math.min(this.maxMemoryLimitKb, Math.max(this.minMemoryLimitKb, request.memoryLimitKb));
+    const body = JSON.stringify({
+      language: request.language,
+      source_code: request.source,
+      mode: "run",
+      // Output is compared here (lib/compare.ts); the engine's own verdict is not used.
+      tests: inputs.map((input) => ({ input, expected_output: "" })),
+      time_limit_ms: timeLimitMs,
+      memory_limit_kb: memoryLimitKb,
     });
-    if (!created.ok) throw new Error(`aethercode execute failed: ${created.status} ${await created.text()}`);
-    const { job_id } = (await created.json()) as { job_id: string };
-    return this.awaitVerdict(job_id);
+    // Retry on 429 with exponential backoff — engine can be temporarily saturated
+    // under concurrent exam load.
+    let delayMs = this.retryInitialDelayMs;
+    for (;;) {
+      const created = await fetch(`${this.baseUrl}/api/v1/execute`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body,
+      });
+      if (created.status === 429) {
+        if (delayMs > this.retryMaxDelayMs) throw new Error(`aethercode execute failed: ${created.status} ${await created.text()}`);
+        await new Promise((resolve) => setTimeout(resolve, delayMs + Math.random() * 1_000));
+        delayMs = Math.min(delayMs * 2, this.retryMaxDelayMs);
+        continue;
+      }
+      if (!created.ok) throw new Error(`aethercode execute failed: ${created.status} ${await created.text()}`);
+      const { job_id } = (await created.json()) as { job_id: string };
+      return this.awaitVerdict(job_id);
+    }
   }
 
   private async awaitVerdict(jobId: string): Promise<AetherCodeVerdictData> {
     const response = await fetch(`${this.baseUrl}/api/v1/stream?job_id=${encodeURIComponent(jobId)}`, {
       headers: { accept: "text/event-stream" },
-      signal: AbortSignal.timeout(AC_STREAM_TIMEOUT_MS),
+      signal: AbortSignal.timeout(this.streamTimeoutMs),
     });
     if (!response.ok || !response.body) throw new Error(`aethercode stream failed: ${response.status}`);
     const verdict = await readVerdictEvent(response.body);
@@ -391,3 +447,6 @@ function acVerdict(verdict: string): ExecStatus {
       return "internal_error";
   }
 }
+
+const b64 = (value: string) => Buffer.from(value, "utf8").toString("base64");
+const unb64 = (value: string | null | undefined) => (value ? Buffer.from(value, "base64").toString("utf8") : "");
