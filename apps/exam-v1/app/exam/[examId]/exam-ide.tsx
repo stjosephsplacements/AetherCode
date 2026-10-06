@@ -1,15 +1,17 @@
 "use client";
 
+import { findNext, openSearchPanel } from "@codemirror/search";
 import CodeMirror, { EditorView } from "@uiw/react-codemirror";
 import { cpp } from "@codemirror/lang-cpp";
 import { java } from "@codemirror/lang-java";
 import { python } from "@codemirror/lang-python";
 import { indentUnit } from "@codemirror/language";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { Markdown } from "@/components/markdown";
 import { LANGUAGES, type LanguageId } from "@/lib/languages";
+import { ThemeToggle, useTheme } from "@/components/theme-toggle";
 import { Button, Logo, cx } from "@/components/ui";
+import { COMPLETIONS } from "./completions";
 import { ResultPanel, type SubmissionView } from "./result-panel";
 
 export interface IdeQuestion {
@@ -38,6 +40,10 @@ interface Props {
   preview: boolean;
   requireFullscreen: boolean;
   blockExternalPaste: boolean;
+  quitUrl?: string;
+  // Verified inside Safe Exam Browser: SEB already keeps the student in the exam, so
+  // the browser fullscreen gate and focus tracking would only flag SEB's own UI.
+  insideSeb: boolean;
 }
 
 const EXTENSIONS = {
@@ -72,9 +78,12 @@ export function ExamIde({
   serverNow,
   questions,
   preview,
-  requireFullscreen,
+  requireFullscreen: requireFullscreenSetting,
   blockExternalPaste,
+  quitUrl,
+  insideSeb,
 }: Props) {
+  const requireFullscreen = requireFullscreenSetting && !insideSeb;
   const [active, setActive] = useState(0);
   const question = questions[active];
 
@@ -109,6 +118,28 @@ export function ExamIde({
   const [useCustom, setUseCustom] = useState(false);
   const [customInput, setCustomInput] = useState<Record<string, string>>({});
   const [saveState, setSaveState] = useState<"saved" | "saving" | "offline">("saved");
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const theme = useTheme();
+  const [fontSize, setFontSize] = useState(14);
+  useEffect(() => {
+    try {
+      const saved = Number(localStorage.getItem("editor-font-size"));
+      if (saved >= 12 && saved <= 22) setFontSize(saved);
+    } catch {
+      // Default size without storage.
+    }
+  }, []);
+  function changeFontSize(delta: number) {
+    setFontSize((current) => {
+      const next = Math.min(22, Math.max(12, current + delta));
+      try {
+        localStorage.setItem("editor-font-size", String(next));
+      } catch {
+        // Size lasts for this page only.
+      }
+      return next;
+    });
+  }
   const [notice, setNotice] = useState<string | null>(null);
   const [mcqAnswers, setMcqAnswers] = useState<Record<string, number[]>>(() =>
     Object.fromEntries(questions.flatMap((entry) => (entry.mcq ? [[entry.id, entry.mcq.selected]] : []))),
@@ -130,9 +161,16 @@ export function ExamIde({
   const finish = useCallback(() => {
     if (finished.current) return;
     finished.current = true;
-    // Save the last edits (the server accepts drafts briefly after the deadline), then show the end screen.
-    void flushRef.current().finally(() => window.location.reload());
-  }, []);
+    // Save the last edits (the server accepts drafts briefly after the deadline), then exit.
+    // When running inside SEB with a quitUrl, navigating there causes SEB to auto-close.
+    void flushRef.current().finally(() => {
+      if (quitUrl) {
+        window.location.href = quitUrl;
+      } else {
+        window.location.reload();
+      }
+    });
+  }, [quitUrl]);
   useEffect(() => {
     const timer = setInterval(() => {
       const left = deadlineMs - (Date.now() + offset);
@@ -156,14 +194,17 @@ export function ExamIde({
 
   // ---- autosave: debounce to the server, mirror to localStorage immediately ----
   const dirty = useRef(new Map<string, { questionId: string; language: LanguageId; source: string }>());
-  const flush = useCallback(async () => {
+  // keepalive lets the last save finish while the page is being hidden or closed.
+  const flush = useCallback(async (keepalive = false) => {
     const pending = [...dirty.current.values()];
     dirty.current.clear();
     if (pending.length === 0) return;
     setSaveState("saving");
     try {
-      for (const draft of pending) await api(`/api/attempts/${attemptId}/drafts`, { method: "PUT", body: JSON.stringify(draft) });
+      for (const draft of pending)
+        await api(`/api/attempts/${attemptId}/drafts`, { method: "PUT", body: JSON.stringify(draft), keepalive });
       setSaveState("saved");
+      setSavedAt(new Date());
     } catch {
       for (const draft of pending) dirty.current.set(draft.questionId, draft);
       setSaveState("offline");
@@ -171,8 +212,17 @@ export function ExamIde({
   }, [api, attemptId]);
   flushRef.current = flush;
   useEffect(() => {
-    const timer = setInterval(flush, 3000);
-    return () => clearInterval(timer);
+    const timer = setInterval(() => void flush(), 3000);
+    // Save at once when the student switches away or the page goes away.
+    const onHide = () => document.visibilityState === "hidden" && void flush(true);
+    const onPageHide = () => void flush(true);
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", onPageHide);
+    };
   }, [flush]);
 
   function edit(value: string) {
@@ -284,7 +334,7 @@ export function ExamIde({
   useEffect(() => {
     let last = 0;
     const report = () => {
-      if (finished.current || Date.now() - last < 3000) return;
+      if (insideSeb || finished.current || Date.now() - last < 3000) return;
       last = Date.now();
       setNotice("You left the exam window. This has been recorded and is visible to your invigilator.");
       logEvent("blur");
@@ -301,7 +351,7 @@ export function ExamIde({
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("beforeunload", onBeforeUnload);
     };
-  }, [logEvent]);
+  }, [logEvent, insideSeb]);
 
   // ---- multiple choice: every change is saved immediately ----
   async function choose(questionId: string, index: number, multiple: boolean) {
@@ -375,6 +425,42 @@ export function ExamIde({
     finish();
   }
 
+  // ---- keyboard shortcuts: Ctrl/Cmd+S save, +Enter run, +Shift+Enter submit ----
+  // Ctrl/Cmd+F, Ctrl/Cmd+G and F3 open the editor's own search: the browser's find
+  // bar takes focus from the page and would be logged as leaving the exam.
+  const editorView = useRef<EditorView | null>(null);
+  const executeRef = useRef(execute);
+  executeRef.current = execute;
+  const codingQuestion = question.mcq === null;
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const mod = event.ctrlKey || event.metaKey;
+      const key = event.key.toLowerCase();
+      if ((mod && !event.altKey && (key === "f" || key === "g")) || event.key === "F3") {
+        event.preventDefault();
+        event.stopPropagation();
+        const view = editorView.current;
+        if (!view) return;
+        view.focus();
+        if (key === "f") openSearchPanel(view);
+        else findNext(view);
+        return;
+      }
+      if (!mod || event.altKey) return;
+      if (event.key === "s" || event.key === "S") {
+        event.preventDefault();
+        void flush();
+      } else if (event.key === "Enter" && codingQuestion) {
+        event.preventDefault();
+        event.stopPropagation();
+        void executeRef.current(event.shiftKey ? "submit" : "run");
+      }
+    };
+    // Capture phase, so the editor's own Mod-Enter binding never sees it.
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [flush, codingQuestion]);
+
   // ---- resizable panes ----
   const container = useRef<HTMLDivElement>(null);
   const editorColumn = useRef<HTMLDivElement>(null);
@@ -428,7 +514,7 @@ export function ExamIde({
                 title={entry.title}
                 className={cx(
                   "flex h-9 min-w-9 items-center justify-center gap-1 rounded-lg border px-2.5 text-sm font-semibold",
-                  index === active ? "border-ink bg-ink text-white" : "border-line-strong bg-surface text-ink hover:bg-sunken",
+                  index === active ? "border-ink bg-ink text-canvas" : "border-line-strong bg-surface text-ink hover:bg-sunken",
                 )}
               >
                 {index + 1}
@@ -457,6 +543,7 @@ export function ExamIde({
             <p className="text-sm font-semibold">{studentName}</p>
             <p className="text-xs text-faint">{username}</p>
           </div>
+          <ThemeToggle />
           <Button variant="secondary" size="sm" onClick={() => setConfirmEnd(true)}>
             End exam
           </Button>
@@ -464,9 +551,9 @@ export function ExamIde({
       </header>
 
       {preview && (
-        <div className="flex items-center gap-3 bg-ink px-4 py-2 text-sm text-white">
+        <div className="flex items-center gap-3 bg-ink px-4 py-2 text-sm text-canvas">
           <strong>Preview</strong>
-          <span className="text-white/80">You are taking this exam as a student would. Nothing here appears in results; opening Preview again starts over.</span>
+          <span className="text-canvas/80">You are taking this exam as a student would. Nothing here appears in results; opening Preview again starts over.</span>
         </div>
       )}
 
@@ -518,7 +605,7 @@ export function ExamIde({
               <span className="rounded-full bg-sunken px-2.5 py-1">Memory {question.memoryLimitMb} MB</span>
             </div>
             <div className="prose-exam mt-5">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{question.statement}</ReactMarkdown>
+              <Markdown>{question.statement}</Markdown>
             </div>
             {question.samples.map((sample, index) => (
               <div key={index} className="mt-6">
@@ -569,7 +656,7 @@ export function ExamIde({
                     />
                     <span className="font-semibold text-faint">{String.fromCharCode(65 + position)}.</span>
                     <span className="prose-exam min-w-0 flex-1 [&_p]:my-0">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{option.text}</ReactMarkdown>
+                      <Markdown>{option.text}</Markdown>
                     </span>
                   </label>
                 );
@@ -600,8 +687,26 @@ export function ExamIde({
             >
               Reset code
             </button>
-            <span className={cx("text-xs", saveState === "offline" ? "font-semibold text-error" : "text-faint")}>
-              {saveState === "saved" ? "Saved" : saveState === "saving" ? "Saving…" : "Offline, retrying"}
+            <div className="flex items-center rounded-lg border border-line-strong text-xs font-semibold text-muted">
+              <button type="button" onClick={() => changeFontSize(-1)} className="px-2 py-1 hover:text-ink" aria-label="Smaller code font">
+                A−
+              </button>
+              <span className="w-6 text-center tabular-nums text-faint">{fontSize}</span>
+              <button type="button" onClick={() => changeFontSize(1)} className="px-2 py-1 hover:text-ink" aria-label="Larger code font">
+                A+
+              </button>
+            </div>
+            <span
+              className={cx("text-xs tabular-nums", saveState === "offline" ? "font-semibold text-error" : "text-faint")}
+              title="Your code saves automatically. Ctrl+S saves now."
+            >
+              {saveState === "saved"
+                ? savedAt
+                  ? `Saved ${savedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`
+                  : "Saved"
+                : saveState === "saving"
+                  ? "Saving…"
+                  : "Offline, retrying"}
             </span>
           </div>
 
@@ -611,9 +716,11 @@ export function ExamIde({
               value={source}
               onChange={edit}
               height="100%"
-              style={{ height: "100%", fontSize: 14 }}
-              extensions={[...EXTENSIONS[language], pasteGuard]}
-              basicSetup={{ tabSize: 4, foldGutter: false, highlightActiveLine: true, autocompletion: false }}
+              style={{ height: "100%", fontSize }}
+              theme={theme}
+              onCreateEditor={(view) => (editorView.current = view)}
+              extensions={[...EXTENSIONS[language], ...COMPLETIONS[language], pasteGuard]}
+              basicSetup={{ tabSize: 4, foldGutter: false, highlightActiveLine: true }}
             />
           </div>
 
@@ -679,10 +786,10 @@ export function ExamIde({
               </p>
             )}
             <div className="ml-auto flex gap-2">
-              <Button variant="secondary" onClick={() => execute("run")} disabled={runBusy}>
+              <Button variant="secondary" onClick={() => execute("run")} disabled={runBusy} title="Ctrl+Enter">
                 {runBusy ? "Running…" : "Run code"}
               </Button>
-              <Button variant="go" onClick={() => execute("submit")} disabled={submitting[question.id]}>
+              <Button variant="go" onClick={() => execute("submit")} disabled={submitting[question.id]} title="Ctrl+Shift+Enter">
                 {submitting[question.id] ? "Grading…" : "Submit"}
               </Button>
             </div>

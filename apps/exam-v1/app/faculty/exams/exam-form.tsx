@@ -17,6 +17,7 @@ export interface ExamFormValues {
   allowedNetworks: string[];
   requireFullscreen: boolean;
   blockExternalPaste: boolean;
+  requireSeb: boolean;
   // Entries sharing a slot form a pool; each student gets one per slot.
   questions: Array<{ questionId: string; points: number; slot: number }>;
 }
@@ -161,6 +162,12 @@ export function ExamForm({
           <input type="checkbox" checked={values.blockExternalPaste} onChange={(event) => set("blockExternalPaste", event.target.checked)} className="mt-0.5 size-4 accent-brand" />
           <span>
             <strong>Block pasting from outside the editor.</strong> Copy-paste within their own code still works; outside pastes are blocked and logged.
+          </span>
+        </label>
+        <label className="flex items-start gap-3 text-sm">
+          <input type="checkbox" checked={values.requireSeb} onChange={(event) => set("requireSeb", event.target.checked)} className="mt-0.5 size-4 accent-brand" />
+          <span>
+            <strong>Require Safe Exam Browser (SEB).</strong> Students launch the exam in SEB from their dashboard; regular browsers are blocked.
           </span>
         </label>
       </Card>

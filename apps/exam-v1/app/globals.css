@@ -33,6 +33,50 @@
   --radius-card: 1rem;
 }
 
+/* Inside Safe Exam Browser its taskbar/dock (taskBarHeight 40 in lib/seb.ts, plus
+   a little margin) is drawn over the bottom of the full-screen window: keep that
+   band empty so it never covers the exam. */
+:root[data-seb] {
+  --seb-taskbar: 44px;
+}
+:root[data-seb] body {
+  padding-bottom: var(--seb-taskbar);
+}
+:root[data-seb] .h-dvh {
+  height: calc(100dvh - var(--seb-taskbar));
+}
+:root[data-seb] .min-h-dvh {
+  min-height: calc(100dvh - var(--seb-taskbar));
+}
+
+/* Dark theme: the inline script in app/layout.tsx sets data-theme before first paint
+   (saved choice, else the system preference). */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-canvas: #0f1117;
+  --color-surface: #171a23;
+  --color-sunken: #1f2330;
+  --color-line: #2a2f3d;
+  --color-line-strong: #3a4052;
+  --color-ink: #e8e9f0;
+  --color-ink-soft: #d4d6e0;
+  --color-muted: #a3a7ba;
+  --color-faint: #7c8195;
+  --color-brand: #6366f1;
+  --color-brand-soft: #23264a;
+  --color-brand-ink: #c7d2fe;
+  --color-accent: #fb923c;
+  --color-accent-soft: #3a2414;
+  --color-pass: #4ade80;
+  --color-pass-soft: #12301d;
+  --color-go: #16a34a;
+  --color-go-hover: #15803d;
+  --color-fail: #fb923c;
+  --color-fail-soft: #3a2414;
+  --color-error: #f87171;
+  --color-error-soft: #3b1717;
+}
+
 @layer base {
   html {
     -webkit-font-smoothing: antialiased;

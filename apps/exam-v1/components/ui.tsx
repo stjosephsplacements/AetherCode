@@ -5,7 +5,7 @@ const cx = (...parts: Array<string | false | null | undefined>) => parts.filter(
 type Variant = "primary" | "secondary" | "go" | "ghost" | "danger";
 
 const VARIANTS: Record<Variant, string> = {
-  primary: "bg-ink text-white hover:bg-ink-soft",
+  primary: "bg-ink text-canvas hover:bg-ink-soft",
   secondary: "bg-surface text-ink border border-line-strong hover:bg-sunken",
   go: "bg-go text-white hover:bg-go-hover",
   ghost: "text-muted hover:text-ink hover:bg-sunken",
@@ -46,6 +46,7 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
   );
 }
 
+
 type Tone = "neutral" | "brand" | "pass" | "fail" | "error" | "accent";
 const TONES: Record<Tone, string> = {
   neutral: "bg-sunken text-muted",
@@ -85,7 +86,7 @@ export function Logo({ className }: { className?: string }) {
           </linearGradient>
         </defs>
         <path d="M12 2 22 20H2Z" fill="url(#lg)" />
-        <path d="M12 9 16.5 17h-9Z" fill="#faf9f6" />
+        <path d="M12 9 16.5 17h-9Z" fill="var(--color-canvas)" />
       </svg>
       AetherCode
     </span>

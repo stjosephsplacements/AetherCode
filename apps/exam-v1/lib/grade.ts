@@ -6,6 +6,7 @@ export type Verdict =
   | "accepted"
   | "wrong_answer"
   | "time_limit_exceeded"
+  | "memory_limit_exceeded"
   | "runtime_error"
   | "compile_error"
   | "internal_error"
@@ -68,6 +69,7 @@ const VERDICT_PRIORITY: Verdict[] = [
   "compile_error",
   "internal_error",
   "runtime_error",
+  "memory_limit_exceeded",
   "time_limit_exceeded",
   "wrong_answer",
   "ran",
@@ -80,6 +82,8 @@ function verdictFor(result: ExecResult, test: GradeTest): Verdict {
       return "compile_error";
     case "time_limit":
       return "time_limit_exceeded";
+    case "memory_limit":
+      return "memory_limit_exceeded";
     case "runtime_error":
       return "runtime_error";
     case "internal_error":

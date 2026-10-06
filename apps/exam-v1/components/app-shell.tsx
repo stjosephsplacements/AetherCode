@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import type { User } from "@/lib/auth";
 import { signOut } from "@/app/actions";
+import { ThemeToggle } from "./theme-toggle";
 import { Logo } from "./ui";
 
 const NAV: Record<User["role"], Array<[string, string]>> = {
@@ -42,6 +43,7 @@ export function AppShell({ user, children }: { user: User; children: ReactNode }
                 {user.batch ? ` · ${user.batch}` : ""}
               </p>
             </div>
+            <ThemeToggle />
             <form action={signOut}>
               <button className="rounded-full px-3 py-1.5 text-sm font-medium text-muted hover:bg-sunken hover:text-ink">Sign out</button>
             </form>

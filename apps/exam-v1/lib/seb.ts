@@ -1,190 +1,366 @@
-import { createHash, randomBytes, pbkdf2Sync, createCipheriv, createHmac } from "node:crypto";
+import { createHash } from "node:crypto";
 import { gzipSync } from "node:zlib";
 
-// SEB sends X-SafeExamBrowser-RequestHash = SHA256(pageUrl + browserExamKey) in hex.
-// sebExamKey is one BEK hash per line (supports multiple SEB versions/platforms).
-// Returns true if the request is from a valid SEB instance.
-export function isSebRequest(pageUrl: string, requestHash: string | null, sebExamKey: string): boolean {
-  if (!requestHash) return false;
-  const keys = sebExamKey
-    .split(/\r?\n/)
-    .map((line) => line.trim().toLowerCase())
-    .filter(Boolean);
-  if (keys.length === 0) return false;
-  // Strip fragment from URL before hashing (SEB spec requirement).
-  const urlWithoutFragment = pageUrl.split("#")[0];
-  for (const key of keys) {
-    const expected = createHash("sha256")
-      .update(urlWithoutFragment + key, "utf8")
-      .digest("hex");
-    if (expected === requestHash.toLowerCase()) return true;
+// ── Config Key validation ──────────────────────────────────────────────────
+//
+// SEB sends X-SafeExamBrowser-ConfigKeyHash = SHA256(pageUrl + configKey) in
+// every HTTP request (classic WebView), or exposes SafeExamBrowser.security
+// .configKey via JS API (modern WKWebView). Either way the value is the same.
+//
+// The Config Key itself = SHA256(sebJsonString) where sebJsonString is the
+// plist settings converted to alphabetically-sorted compact JSON (SEB-JSON).
+// Because we generate the config server-side we can compute it ourselves —
+// no manual copy-paste, same value on all platforms and SEB versions.
+
+// Never typed by anyone (allowQuit is off and SEB quits via quitURL), but part
+// of the config and therefore of the Config Key.
+
+/**
+ * Verify an incoming SEB request. `requestUrl` must be the exact absolute URL
+ * SEB requested (query included), because that is what SEB hashes.
+ */
+export function isSebConfigKeyRequest(requestUrl: string, configKeyHash: string | null, origin: string): boolean {
+  if (!configKeyHash) return false;
+  const url = requestUrl.split("#")[0];
+  const expected = createHash("sha256").update(url + sebConfigKey(origin), "utf8").digest("hex");
+  return expected === configKeyHash.toLowerCase();
+}
+
+/**
+ * Whether a request comes from SEB at all: the Config Key header (SEB for Windows)
+ * or the "SEB/<version>" every SEB adds to its user agent (SEB for macOS sends no
+ * header). Only for choosing what to show; access is decided by the Config Key.
+ */
+export function fromSebBrowser(hdrs: Headers): boolean {
+  return !!hdrs.get("x-safeexambrowser-configkeyhash") || /\bSEB\/\d/.test(hdrs.get("user-agent") ?? "");
+}
+
+/** The Config Key of the config served for this origin; the config is deterministic. */
+export function sebConfigKey(origin: string): string {
+  return computeConfigKey(sebPlist(origin));
+}
+
+/**
+ * Compute the SEB Config Key from raw plist XML.
+ * Algorithm: parse plist → recursively sort all dict keys → compact JSON
+ * (no escaping, UTF-8) → SHA256 → hex.
+ */
+function computeConfigKey(plistXml: string): string {
+  const obj = parsePlist(plistXml);
+  const json = sebJson(obj);
+  return createHash("sha256").update(json, "utf8").digest("hex");
+}
+
+// ── Plist → SEB-JSON ───────────────────────────────────────────────────────
+
+type PlistValue = string | number | boolean | null | PlistValue[] | PlistDict;
+type PlistDict = { [key: string]: PlistValue };
+
+/** Minimal plist XML parser — handles the subset we generate. */
+function parsePlist(xml: string): PlistDict {
+  // Strip XML declaration, DOCTYPE, <plist> wrapper
+  const body = xml
+    .replace(/<\?xml[^>]*\?>/g, "")
+    .replace(/<!DOCTYPE[^>]*>/g, "")
+    .replace(/<plist[^>]*>/g, "")
+    .replace(/<\/plist>/g, "")
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .trim();
+  const [value] = parseValue(body, 0);
+  return value as PlistDict;
+}
+
+function skipWhitespace(s: string, i: number): number {
+  while (i < s.length && /\s/.test(s[i])) i++;
+  return i;
+}
+
+function parseValue(s: string, i: number): [PlistValue, number] {
+  i = skipWhitespace(s, i);
+  if (s.startsWith("<dict>", i)) return parseDict(s, i);
+  if (s.startsWith("<array>", i)) return parseArray(s, i);
+  if (s.startsWith("<string>", i)) return parseTagged(s, i, "string", (v) => v);
+  if (s.startsWith("<integer>", i)) return parseTagged(s, i, "integer", (v) => parseInt(v, 10));
+  if (s.startsWith("<real>", i)) return parseTagged(s, i, "real", (v) => parseFloat(v));
+  if (s.startsWith("<true/>", i)) return [true, i + 7];
+  if (s.startsWith("<false/>", i)) return [false, i + 8];
+  if (s.startsWith("<data>", i)) return parseTagged(s, i, "data", (v) => ({ __data__: v.trim() }));
+  if (s.startsWith("<date>", i)) return parseTagged(s, i, "date", (v) => v.trim());
+  throw new Error(`parsePlist: unexpected token at ${i}: ${s.slice(i, i + 40)}`);
+}
+
+function parseTagged<T>(s: string, i: number, tag: string, fn: (v: string) => T): [T, number] {
+  const open = `<${tag}>`;
+  const close = `</${tag}>`;
+  const end = s.indexOf(close, i + open.length);
+  return [fn(s.slice(i + open.length, end)), end + close.length];
+}
+
+function parseDict(s: string, i: number): [PlistDict, number] {
+  i += "<dict>".length;
+  const obj: PlistDict = {};
+  while (true) {
+    i = skipWhitespace(s, i);
+    if (s.startsWith("</dict>", i)) return [obj, i + 7];
+    // Read <key>...</key>
+    const keyEnd = s.indexOf("</key>", i + "<key>".length);
+    const key = s.slice(i + "<key>".length, keyEnd);
+    i = keyEnd + "</key>".length;
+    const [val, next] = parseValue(s, i);
+    obj[key] = val;
+    i = next;
   }
-  return false;
 }
 
-// Encrypt data using RNCryptor v1 format (password-based, AES-256-CBC + HMAC-SHA256).
-// Format: version(1) | options(1) | encSalt(8) | hmacSalt(8) | iv(16) | ciphertext | hmac(32)
-function rncryptorEncrypt(plaintext: Buffer, password: string): Buffer {
-  const version = Buffer.from([0x02]);
-  const options = Buffer.from([0x01]);
-  const encSalt = randomBytes(8);
-  const hmacSalt = randomBytes(8);
-  const iv = randomBytes(16);
-
-  const encKey = pbkdf2Sync(password, encSalt, 10_000, 32, "sha1");
-  const hmacKey = pbkdf2Sync(password, hmacSalt, 10_000, 32, "sha1");
-
-  const cipher = createCipheriv("aes-256-cbc", encKey, iv);
-  const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
-
-  const hmacData = Buffer.concat([version, options, encSalt, hmacSalt, iv, ciphertext]);
-  const hmac = createHmac("sha256", hmacKey).update(hmacData).digest();
-
-  return Buffer.concat([hmacData, hmac]);
+function parseArray(s: string, i: number): [PlistValue[], number] {
+  i += "<array>".length;
+  const arr: PlistValue[] = [];
+  while (true) {
+    i = skipWhitespace(s, i);
+    if (s.startsWith("</array>", i)) return [arr, i + 8];
+    const [val, next] = parseValue(s, i);
+    arr.push(val);
+    i = next;
+  }
 }
 
-// Build an encrypted .seb config file for the given exam.
-// password: the exam admin password (used to encrypt and also required for quitting SEB).
-// startUrl: full URL SEB opens after loading the config.
-// quitUrl: full URL that triggers SEB to auto-quit when navigated to.
-export function buildSebConfig(options: {
-  title: string;
-  password: string;
-  startUrl: string;
-  quitUrl: string;
-}): Buffer {
-  const plistXml = `<?xml version="1.0" encoding="UTF-8"?>
+// ── SEB-JSON serialiser ────────────────────────────────────────────────────
+// Rules (from SEB spec):
+//  - dicts: keys sorted case-insensitively, alphabetically
+//  - no whitespace, no character escaping (backslashes stay as-is)
+//  - <data> elements → base64 strings
+//  - booleans → true/false, integers/reals → numbers
+//  - empty dicts omitted
+
+function sebJson(v: PlistValue): string {
+  if (v === null) return "null";
+  if (typeof v === "boolean") return v ? "true" : "false";
+  if (typeof v === "number") return String(v);
+  if (typeof v === "string") return `"${v}"`;
+  if (Array.isArray(v)) return `[${v.map(sebJson).join(",")}]`;
+  if (typeof v === "object" && "__data__" in v) {
+    // <data> → base64 string
+    return `"${(v as { __data__: string }).__data__}"`;
+  }
+  // dict — sort keys case-insensitively, skip empty dicts
+  const dict = v as PlistDict;
+  const keys = Object.keys(dict)
+    .filter((k) => {
+      const val = dict[k];
+      return !(typeof val === "object" && val !== null && !Array.isArray(val) && Object.keys(val).length === 0);
+    })
+    .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+  const pairs = keys.map((k) => `"${k}":${sebJson(dict[k])}`);
+  return `{${pairs.join(",")}}`;
+}
+
+// ── .seb file ─────────────────────────────────────────────────────────────
+
+/**
+ * The .seb file for an exam served from `origin`: outer gzip of "plnd" + the
+ * gzipped plist (SEB's unencrypted format, so students get no password prompt;
+ * the download is already gated by a one-time token).
+ */
+export function buildSebConfig(origin: string): Buffer {
+  const inner = Buffer.concat([Buffer.from("plnd"), gzipSync(Buffer.from(sebPlist(origin), "utf8"))]);
+  return gzipSync(inner);
+}
+
+function sebPlist(origin: string): string {
+  return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- ── Session ── -->
-	<key>startURL</key>
-	<string>${options.startUrl}</string>
-	<key>quitURL</key>
-	<string>${options.quitUrl}</string>
-	<key>quitURLConfirm</key>
+	<key>allowAirPlay</key>
 	<false/>
-	<key>ignoreExitKeys</key>
-	<true/>
-	<key>ignoreQuitPassword</key>
+	<key>allowBrowsingBackForward</key>
 	<false/>
-	<key>restartExamPasswordProtected</key>
-	<true/>
-	<key>examSessionClearCookiesOnStart</key>
-	<true/>
-	<key>examSessionClearCookiesOnEnd</key>
-	<true/>
-	<key>removeBrowserProfile</key>
-	<true/>
-	<key>removeLocalStorage</key>
-	<true/>
-
-	<!-- ── Browser exam key / integrity ── -->
-	<key>sendBrowserExamKey</key>
-	<true/>
-	<key>browserExamKeySalt</key>
-	<data></data>
-	<key>browserURLSalt</key>
-	<true/>
-	<key>browserWindowWebView</key>
-	<integer>3</integer>
-
-	<!-- ── Kiosk / UI lockdown ── -->
-	<key>browserViewMode</key>
-	<integer>1</integer>
-	<key>mainBrowserWindowWidth</key>
-	<string>100%</string>
-	<key>mainBrowserWindowHeight</key>
-	<string>100%</string>
-	<key>mainBrowserWindowPositioning</key>
-	<integer>1</integer>
-	<key>showTaskBar</key>
+	<key>allowFind</key>
 	<false/>
-	<key>showMenuBar</key>
+	<key>allowDictation</key>
 	<false/>
-	<key>showTime</key>
+	<key>allowDictionaryLookup</key>
 	<false/>
-	<key>showInputLanguage</key>
+	<key>allowDisplayMirroring</key>
 	<false/>
-	<key>enableBrowserWindowToolbar</key>
+	<key>allowDownUploads</key>
 	<false/>
-	<key>hideBrowserWindowToolbar</key>
-	<true/>
-	<key>browserWindowShowURL</key>
-	<integer>0</integer>
+	<key>allowFlashFullscreen</key>
+	<false/>
+	<key>allowPDFPlugIn</key>
+	<false/>
 	<key>allowPreferencesWindow</key>
 	<false/>
 	<key>allowQuit</key>
 	<false/>
-	<key>showReloadButton</key>
+	<key>allowScreenSharing</key>
 	<false/>
-	<key>showReloadWarning</key>
+	<key>allowSiri</key>
 	<false/>
-	<key>browserWindowAllowReload</key>
+	<key>allowSpellCheck</key>
 	<false/>
-	<key>newBrowserWindowAllowReload</key>
+	<key>allowSwitchToApplications</key>
 	<false/>
-	<key>allowBrowsingBackForward</key>
+	<key>allowUserAppFolderInstall</key>
 	<false/>
-	<key>newBrowserWindowByLinkPolicy</key>
-	<integer>2</integer>
-	<key>newBrowserWindowByScriptPolicy</key>
-	<integer>2</integer>
-	<key>newBrowserWindowByLinkBlockForeign</key>
+	<key>allowUserSwitching</key>
+	<false/>
+	<key>allowVideoCapture</key>
+	<false/>
+	<key>allowVirtualMachine</key>
+	<false/>
+	<key>allowWlan</key>
 	<true/>
-	<key>newBrowserWindowByScriptBlockForeign</key>
+	<key>allowedDisplayBuiltin</key>
 	<true/>
+	<key>allowedDisplaysMaxNumber</key>
+	<integer>1</integer>
 	<key>blockPopUpWindows</key>
 	<true/>
-	<key>enableRightMouse</key>
+	<key>browserExamKeySalt</key>
+	<data></data>
+	<key>browserScreenKeyboard</key>
 	<false/>
-	<key>allowDownUploads</key>
+	<key>browserURLSalt</key>
+	<true/>
+	<!-- Full screen with SEB's taskbar/dock drawn over the bottom edge. Pages leave a
+	     band of SEB_TASKBAR_PX free there (app/globals.css), so it never covers the exam. -->
+	<key>browserViewMode</key>
+	<integer>1</integer>
+	<key>browserWindowAllowReload</key>
+	<false/>
+	<key>browserWindowShowURL</key>
+	<integer>0</integer>
+	<key>browserWindowWebView</key>
+	<integer>3</integer>
+	<key>createNewDesktop</key>
+	<true/>
+	<key>detectStoppedProcess</key>
+	<true/>
+	<key>downloadAndOpenSebConfig</key>
 	<false/>
 	<key>downloadPDFFiles</key>
 	<false/>
-	<key>openDownloads</key>
+	<key>enableAltEsc</key>
 	<false/>
-	<key>allowPDFPlugIn</key>
+	<key>enableAltF4</key>
 	<false/>
-	<key>allowFlashFullscreen</key>
+	<key>enableAltMouseWheel</key>
 	<false/>
+	<key>enableAltTab</key>
+	<false/>
+	<key>enableAppSwitcherCheck</key>
+	<true/>
+	<key>enableBrowserWindowToolbar</key>
+	<false/>
+	<key>enableCtrlEsc</key>
+	<false/>
+	<key>enableEsc</key>
+	<false/>
+	<key>enableF1</key>
+	<false/>
+	<key>enableF10</key>
+	<false/>
+	<key>enableF11</key>
+	<false/>
+	<key>enableF12</key>
+	<false/>
+	<key>enableF2</key>
+	<false/>
+	<key>enableF3</key>
+	<false/>
+	<key>enableF4</key>
+	<false/>
+	<key>enableF5</key>
+	<false/>
+	<key>enableF6</key>
+	<false/>
+	<key>enableF7</key>
+	<false/>
+	<key>enableF8</key>
+	<false/>
+	<key>enableF9</key>
+	<false/>
+	<key>enableJava</key>
+	<false/>
+	<key>enableLogging</key>
+	<false/>
+	<key>enablePlugIns</key>
+	<false/>
+	<key>enablePrintScreen</key>
+	<false/>
+	<key>enablePrivateClipboard</key>
+	<true/>
+	<key>enableRightMouse</key>
+	<false/>
+	<key>enableSebBrowser</key>
+	<true/>
+	<key>enableStartMenu</key>
+	<false/>
+	<key>enableTouchExit</key>
+	<integer>0</integer>
 	<key>enableZoomPage</key>
 	<false/>
 	<key>enableZoomText</key>
 	<false/>
-	<key>zoomMode</key>
-	<integer>0</integer>
-	<key>enableJava</key>
-	<false/>
-	<key>enablePlugIns</key>
-	<false/>
-	<key>browserScreenKeyboard</key>
-	<false/>
-	<key>touchOptimized</key>
-	<false/>
-	<key>enableTouchExit</key>
-	<integer>0</integer>
-
-	<!-- ── Anti-bypass: VM / remote desktop ── -->
-	<key>allowVirtualMachine</key>
-	<false/>
-	<key>allowScreenSharing</key>
-	<false/>
-	<key>allowSwitchToApplications</key>
-	<false/>
-
-	<!-- ── Anti-bypass: process monitoring ── -->
-	<key>enableAppSwitcherCheck</key>
+	<key>examSessionClearCookiesOnEnd</key>
 	<true/>
+	<key>examSessionClearCookiesOnStart</key>
+	<true/>
+	<key>forceAppFolderInstall</key>
+	<true/>
+	<key>hideBrowserWindowToolbar</key>
+	<true/>
+	<key>hookKeys</key>
+	<true/>
+	<key>ignoreExitKeys</key>
+	<true/>
+	<key>ignoreQuitPassword</key>
+	<false/>
+	<key>insideSebEnableChangeAPassword</key>
+	<false/>
+	<key>insideSebEnableEaseOfAccess</key>
+	<false/>
+	<key>insideSebEnableLockThisComputer</key>
+	<false/>
+	<key>insideSebEnableLogOff</key>
+	<false/>
+	<key>insideSebEnableNetworkConnectionSelector</key>
+	<false/>
+	<key>insideSebEnableShutDown</key>
+	<false/>
+	<key>insideSebEnableStartTaskManager</key>
+	<false/>
+	<key>insideSebEnableSwitchUser</key>
+	<false/>
+	<key>insideSebEnableVmWareClientShade</key>
+	<false/>
+	<key>killExplorerShell</key>
+	<true/>
+	<key>mainBrowserWindowHeight</key>
+	<string>100%</string>
+	<key>mainBrowserWindowPositioning</key>
+	<integer>1</integer>
+	<key>mainBrowserWindowWidth</key>
+	<string>100%</string>
 	<key>monitorProcesses</key>
 	<true/>
-	<key>detectStoppedProcess</key>
+	<key>muteOnStart</key>
 	<true/>
-	<key>sebServicePolicy</key>
+	<key>newBrowserWindowAllowReload</key>
+	<false/>
+	<key>newBrowserWindowByLinkBlockForeign</key>
+	<true/>
+	<key>newBrowserWindowByLinkPolicy</key>
 	<integer>2</integer>
+	<key>newBrowserWindowByScriptBlockForeign</key>
+	<true/>
+	<key>newBrowserWindowByScriptPolicy</key>
+	<integer>2</integer>
+	<key>pinEmbeddedCertificates</key>
+	<false/>
 	<key>prohibitedProcesses</key>
 	<array>
-		<!-- macOS (os=1): kill by bundle identifier or app name -->
 		<dict><key>active</key><true/><key>identifier</key><string>com.teamviewer.TeamViewer</string><key>os</key><integer>1</integer></dict>
 		<dict><key>active</key><true/><key>identifier</key><string>com.anydesk.AnyDesk</string><key>os</key><integer>1</integer></dict>
 		<dict><key>active</key><true/><key>identifier</key><string>us.zoom.xos</string><key>os</key><integer>1</integer></dict>
@@ -200,7 +376,6 @@ export function buildSebConfig(options: {
 		<dict><key>active</key><true/><key>identifier</key><string>com.apple.Screenshot</string><key>os</key><integer>1</integer></dict>
 		<dict><key>active</key><true/><key>identifier</key><string>com.nssurge.NSSurge-Mac</string><key>os</key><integer>1</integer></dict>
 		<dict><key>active</key><true/><key>identifier</key><string>com.proxyman.NSProxy</string><key>os</key><integer>1</integer></dict>
-		<!-- Windows (os=2): kill by executable name -->
 		<dict><key>active</key><true/><key>identifier</key><string>TeamViewer.exe</string><key>os</key><integer>2</integer></dict>
 		<dict><key>active</key><true/><key>identifier</key><string>TeamViewer_Service.exe</string><key>os</key><integer>2</integer></dict>
 		<dict><key>active</key><true/><key>identifier</key><string>tv_w32.exe</string><key>os</key><integer>2</integer></dict>
@@ -227,150 +402,50 @@ export function buildSebConfig(options: {
 		<dict><key>active</key><true/><key>identifier</key><string>charles.exe</string><key>os</key><integer>2</integer></dict>
 		<dict><key>active</key><true/><key>identifier</key><string>mitmproxy.exe</string><key>os</key><integer>2</integer></dict>
 	</array>
-
-	<!-- ── Clipboard isolation ── -->
-	<key>enablePrivateClipboard</key>
-	<true/>
-
-	<!-- ── Display ── -->
-	<key>allowDisplayMirroring</key>
-	<false/>
-	<key>allowedDisplaysMaxNumber</key>
-	<integer>1</integer>
-	<key>allowedDisplayBuiltin</key>
-	<true/>
-	<key>allowAirPlay</key>
-	<false/>
-
-	<!-- ── Media / peripherals ── -->
-	<key>allowVideoCapture</key>
-	<false/>
-	<key>allowAudioCapture</key>
-	<false/>
-	<key>enableAudioControl</key>
-	<true/>
-	<key>muteOnStart</key>
-	<true/>
-	<key>allowSiri</key>
-	<false/>
-
-	<!-- ── Input / spell ── -->
-	<key>allowSpellCheck</key>
-	<false/>
-	<key>allowDictation</key>
-	<false/>
-	<key>allowDictionaryLookup</key>
-	<false/>
-
-	<!-- ── Network ── -->
-	<key>allowWlan</key>
-	<true/>
 	<key>proxySettingsPolicy</key>
 	<integer>0</integer>
-
-	<!-- ── macOS specific ── -->
-	<key>forceAppFolderInstall</key>
+	<key>quitURL</key>
+	<string>${origin}/student?seb=quit</string>
+	<key>quitURLConfirm</key>
+	<false/>
+	<key>removeBrowserProfile</key>
 	<true/>
-	<key>allowUserSwitching</key>
-	<false/>
-	<key>allowUserAppFolderInstall</key>
-	<false/>
-
-	<!-- ── Windows: isolated desktop + full keyboard lockdown ── -->
-	<key>createNewDesktop</key>
+	<key>removeLocalStorage</key>
 	<true/>
-	<key>killExplorerShell</key>
-	<true/>
-	<key>hookKeys</key>
-	<true/>
-	<key>enablePrintScreen</key>
-	<false/>
-	<key>enableAltTab</key>
-	<false/>
-	<key>enableAltF4</key>
-	<false/>
-	<key>enableAltEsc</key>
-	<false/>
-	<key>enableAltMouseWheel</key>
-	<false/>
-	<key>enableCtrlEsc</key>
-	<false/>
-	<key>enableEsc</key>
-	<false/>
-	<key>enableStartMenu</key>
-	<false/>
-	<key>enableF1</key>
-	<false/>
-	<key>enableF2</key>
-	<false/>
-	<key>enableF3</key>
-	<false/>
-	<key>enableF4</key>
-	<false/>
-	<key>enableF5</key>
-	<false/>
-	<key>enableF6</key>
-	<false/>
-	<key>enableF7</key>
-	<false/>
-	<key>enableF8</key>
-	<false/>
-	<key>enableF9</key>
-	<false/>
-	<key>enableF10</key>
-	<false/>
-	<key>enableF11</key>
-	<false/>
-	<key>enableF12</key>
-	<false/>
-	<key>insideSebEnableStartTaskManager</key>
-	<false/>
-	<key>insideSebEnableLogOff</key>
-	<false/>
-	<key>insideSebEnableShutDown</key>
-	<false/>
-	<key>insideSebEnableLockThisComputer</key>
-	<false/>
-	<key>insideSebEnableSwitchUser</key>
-	<false/>
-	<key>insideSebEnableVmWareClientShade</key>
-	<false/>
-	<key>insideSebEnableChangeAPassword</key>
-	<false/>
-	<key>insideSebEnableEaseOfAccess</key>
-	<false/>
-	<key>insideSebEnableNetworkConnectionSelector</key>
-	<false/>
-
-	<!-- ── Misc ── -->
-	<key>enableLogging</key>
-	<false/>
-	<key>enableSebBrowser</key>
+	<key>restartExamPasswordProtected</key>
 	<true/>
 	<key>sebMode</key>
 	<integer>0</integer>
-	<key>downloadAndOpenSebConfig</key>
+	<key>sebServerFallback</key>
+	<false/>
+	<key>sendBrowserExamKey</key>
+	<true/>
+	<key>showInputLanguage</key>
+	<false/>
+	<key>showMenuBar</key>
+	<false/>
+	<key>showReloadButton</key>
+	<false/>
+	<key>showReloadWarning</key>
+	<false/>
+	<key>showTaskBar</key>
+	<true/>
+	<key>taskBarHeight</key>
+	<integer>40</integer>
+	<key>showTime</key>
+	<false/>
+	<key>startURL</key>
+	<string>${origin}/seb/start</string>
+	<key>startURLAppendQueryParameter</key>
+	<true/>
+	<key>touchOptimized</key>
 	<false/>
 	<key>URLFilterEnable</key>
 	<false/>
 	<key>URLFilterEnableContentFilter</key>
 	<false/>
-	<key>pinEmbeddedCertificates</key>
-	<false/>
-	<key>sebServerFallback</key>
-	<false/>
+	<key>zoomMode</key>
+	<integer>0</integer>
 </dict>
 </plist>`;
-
-  // Inner: gzip compress the plist XML
-  const innerGz = gzipSync(Buffer.from(plistXml, "utf8"));
-
-  // Password-encrypt using RNCryptor v1
-  const encrypted = rncryptorEncrypt(innerGz, options.password);
-
-  // Prepend "pswd" prefix
-  const withPrefix = Buffer.concat([Buffer.from("pswd"), encrypted]);
-
-  // Outer: gzip compress the whole thing
-  return gzipSync(withPrefix);
 }

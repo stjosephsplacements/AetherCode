@@ -4,12 +4,23 @@ import { examPhase, formatWhen } from "@/lib/exam-status";
 import { AppShell } from "@/components/app-shell";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { Badge, Card, PageHeader, buttonClass } from "@/components/ui";
+import { Markdown } from "@/components/markdown";
 import Link from "next/link";
+import { headers } from "next/headers";
+import { publicOrigin } from "@/lib/public-url";
+import { fromSebBrowser } from "@/lib/seb";
 import { startExam } from "./actions";
+import { SebLaunchButton } from "./seb-launch-button";
 
-export default async function StudentHome({ searchParams }: { searchParams: Promise<{ network?: string }> }) {
+export default async function StudentHome({ searchParams }: { searchParams: Promise<{ network?: string; seb?: string }> }) {
   const user = await requireUser("student");
-  const { network } = await searchParams;
+  const { network, seb } = await searchParams;
+  // SEB maps seb:// to http:// and sebs:// to https://, so the scheme must follow the
+  // app's own; sebs:// against a plain-http server makes SEB reject the link.
+  const sebOrigin = (await publicOrigin()).replace(/^http/, "seb");
+  // Only decides which button to show; the exam page itself verifies SEB.
+  const insideSeb = fromSebBrowser(await headers());
+
   const exams = await sql<
     Array<{
       id: string;
@@ -24,6 +35,7 @@ export default async function StudentHome({ searchParams }: { searchParams: Prom
       results_released: boolean;
       score: string | null;
       max_score: number | null;
+      require_seb: boolean;
     }>
   >`
     SELECT e.id, e.title, e.instructions, e.published, e.starts_at, e.ends_at, e.duration_minutes,
@@ -31,7 +43,8 @@ export default async function StudentHome({ searchParams }: { searchParams: Prom
       (a.finished_at IS NULL AND a.deadline_at > now()) AS attempt_open,
       e.results_released,
       (SELECT sum(ss.score) FROM slot_scores ss WHERE ss.attempt_id = a.id) AS score,
-      (SELECT sum(points)::int FROM attempt_questions aq WHERE aq.attempt_id = a.id) AS max_score
+      (SELECT sum(points)::int FROM attempt_questions aq WHERE aq.attempt_id = a.id) AS max_score,
+      e.require_seb
     FROM exams e
     LEFT JOIN attempts a ON a.exam_id = e.id AND a.user_id = ${user.id}
     WHERE e.published AND ${user.batch} = ANY(e.batches) AND e.ends_at > now() - interval '14 days'
@@ -44,6 +57,11 @@ export default async function StudentHome({ searchParams }: { searchParams: Prom
       {network && (
         <p role="alert" className="mb-6 rounded-xl bg-error-soft px-4 py-3 text-sm font-medium text-error">
           This exam can only be taken from the exam lab network. Ask your invigilator for help.
+        </p>
+      )}
+      {seb === "1" && (
+        <p role="alert" className="mb-6 rounded-xl bg-error-soft px-4 py-3 text-sm font-medium text-error">
+          This exam requires Safe Exam Browser (SEB). Please open it using the SEB application provided by your invigilator.
         </p>
       )}
       <div className="grid gap-5">
@@ -69,7 +87,11 @@ export default async function StudentHome({ searchParams }: { searchParams: Prom
                 <p className="mt-1 text-sm text-muted">
                   {exam.questions} question{exam.questions === 1 ? "" : "s"} · {exam.duration_minutes} minutes · window {formatWhen(exam.starts_at)} – {formatWhen(exam.ends_at)}
                 </p>
-                {exam.instructions && !done && <p className="mt-4 max-w-2xl whitespace-pre-line text-sm leading-relaxed text-ink-soft">{exam.instructions}</p>}
+                {exam.instructions && !done && (
+                  <div className="prose-exam mt-4 max-w-2xl text-ink-soft">
+                    <Markdown>{exam.instructions}</Markdown>
+                  </div>
+                )}
               </div>
               <div>
                 {done && exam.results_released ? (
@@ -81,16 +103,28 @@ export default async function StudentHome({ searchParams }: { searchParams: Prom
                       View results
                     </Link>
                   </div>
+                ) : exam.attempt_open && exam.require_seb && !insideSeb ? (
+                  <SebLaunchButton examId={exam.id} sebOrigin={sebOrigin} label="Resume in SEB →" />
                 ) : exam.attempt_open ? (
                   <Link href={`/exam/${exam.id}`} className={buttonClass("go")}>
                     Resume exam →
                   </Link>
                 ) : !started && phase === "live" ? (
-                  <form action={startExam.bind(null, exam.id)}>
-                    <button className={buttonClass("go")}>Start exam →</button>
-                  </form>
+                  exam.require_seb && !insideSeb ? (
+                    <SebLaunchButton examId={exam.id} sebOrigin={sebOrigin} />
+                  ) : (
+                    <form action={startExam.bind(null, exam.id)}>
+                      <button className={buttonClass("go")}>Start exam →</button>
+                    </form>
+                  )
                 ) : null}
-                {!started && phase === "live" && <p className="mt-2 max-w-48 text-xs text-faint">Your {exam.duration_minutes}-minute timer starts when you click.</p>}
+                {!started && phase === "live" && (
+                  <p className="mt-2 max-w-48 text-xs text-faint">
+                    {exam.require_seb && !insideSeb
+                      ? "Requires Safe Exam Browser. Click to launch automatically."
+                      : `Your ${exam.duration_minutes}-minute timer starts when you click.`}
+                  </p>
+                )}
               </div>
             </Card>
           );

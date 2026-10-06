@@ -21,8 +21,8 @@ export async function login(_: string | null, form: FormData): Promise<string | 
   const lock = failures.get(key);
   if (lock && lock.count >= MAX_FAILURES && lock.until > Date.now()) return "Too many attempts. Wait a minute and try again.";
 
-  const [user] = await sql<{ id: string; role: Role; password_hash: string; disabled: boolean }[]>`
-    SELECT id, role, password_hash, disabled FROM users WHERE lower(username) = ${key}`;
+  const [user] = await sql<{ id: string; role: Role; password_hash: string; disabled: boolean; must_change_password: boolean }[]>`
+    SELECT id, role, password_hash, disabled, must_change_password FROM users WHERE lower(username) = ${key}`;
   const valid = await verifyPassword(password, user ? user.password_hash : await DUMMY_HASH);
   if (!user || user.disabled || !valid) {
     const count = (lock && lock.until > Date.now() ? lock.count : 0) + 1;
@@ -31,5 +31,6 @@ export async function login(_: string | null, form: FormData): Promise<string | 
   }
   failures.delete(key);
   await startSession(user);
+  if (user.must_change_password) redirect("/change-password");
   redirect(homeFor(user.role));
 }

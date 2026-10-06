@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { Markdown } from "@/components/markdown";
 import { checkSolution, saveQuestion, type QuestionInput, type SolutionCheck } from "../actions";
 import { LANGUAGES, LANGUAGE_IDS } from "@/lib/languages";
 import { normalizeOutput } from "@/lib/compare";
@@ -175,7 +174,7 @@ export function QuestionForm({
           </div>
           {preview ? (
             <div className="prose-exam min-h-72 rounded-xl border border-line bg-surface px-5 py-3">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{statement}</ReactMarkdown>
+              <Markdown>{statement}</Markdown>
             </div>
           ) : (
             <textarea

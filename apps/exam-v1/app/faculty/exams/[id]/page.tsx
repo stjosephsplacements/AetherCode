@@ -28,9 +28,10 @@ export default async function EditExamPage({ params, searchParams }: { params: P
       allowed_networks: string[];
       require_fullscreen: boolean;
       block_external_paste: boolean;
+      require_seb: boolean;
     }>
   >`SELECT title, instructions, starts_at, ends_at, duration_minutes, languages, batches, published,
-      allowed_networks, require_fullscreen, block_external_paste
+      allowed_networks, require_fullscreen, block_external_paste, require_seb
     FROM exams WHERE id = ${id}`;
   if (!exam) notFound();
   const questions = await sql<{ question_id: string; points: number; slot: number }[]>`
@@ -73,6 +74,7 @@ export default async function EditExamPage({ params, searchParams }: { params: P
           allowedNetworks: exam.allowed_networks,
           requireFullscreen: exam.require_fullscreen,
           blockExternalPaste: exam.block_external_paste,
+          requireSeb: exam.require_seb,
           questions: questions.map((question) => ({ questionId: question.question_id, points: question.points, slot: question.slot })),
         }}
       />

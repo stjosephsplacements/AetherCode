@@ -12,6 +12,9 @@ export interface User {
   name: string;
   role: Role;
   batch: string | null;
+  mustChangePassword: boolean;
+  /** This session has proven it runs inside Safe Exam Browser. */
+  sebVerified: boolean;
 }
 
 const COOKIE = "sid";
@@ -46,15 +49,22 @@ export const currentUser = cache(async (): Promise<User | null> => {
   const token = (await cookies()).get(COOKIE)?.value;
   if (!token) return null;
   const rows = await sql<User[]>`
-    SELECT u.id, u.username, u.name, u.role, u.batch
+    SELECT u.id, u.username, u.name, u.role, u.batch,
+           u.must_change_password AS "mustChangePassword", s.seb_verified AS "sebVerified"
     FROM sessions s JOIN users u ON u.id = s.user_id
     WHERE s.token_hash = ${hashToken(token)} AND s.expires_at > now() AND NOT u.disabled`;
   return rows[0] ?? null;
 });
 
+export async function markSessionSebVerified(): Promise<void> {
+  const token = (await cookies()).get(COOKIE)?.value;
+  if (token) await sql`UPDATE sessions SET seb_verified = true WHERE token_hash = ${hashToken(token)}`;
+}
+
 export async function requireUser(...roles: Role[]): Promise<User> {
   const user = await currentUser();
   if (!user) redirect("/login");
+  if (user.mustChangePassword) redirect("/change-password");
   if (roles.length > 0 && !roles.includes(user.role)) redirect(homeFor(user.role));
   return user;
 }

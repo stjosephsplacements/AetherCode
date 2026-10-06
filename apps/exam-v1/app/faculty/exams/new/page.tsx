@@ -30,6 +30,7 @@ export default async function NewExamPage() {
           allowedNetworks: [],
           requireFullscreen: true,
           blockExternalPaste: true,
+          requireSeb: false,
           questions: [],
         }}
       />

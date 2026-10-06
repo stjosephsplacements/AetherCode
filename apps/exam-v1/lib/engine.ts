@@ -1,7 +1,7 @@
 import { batchFiles, batchStatus, JUDGE0_TOOLCHAIN, parseBatchOutput, zip } from "./batch.ts";
 import { LANGUAGES, type LanguageId } from "./languages.ts";
 
-export type ExecStatus = "ok" | "compile_error" | "runtime_error" | "time_limit" | "internal_error";
+export type ExecStatus = "ok" | "compile_error" | "runtime_error" | "time_limit" | "memory_limit" | "internal_error";
 
 export interface ExecRequest {
   language: LanguageId;
@@ -252,16 +252,20 @@ export class PistonEngine implements Engine {
 }
 
 // ---------------------------------------------------------------------------
-// AetherCode Execution Engine (go-judge backed, SSE results)
+// AetherCode Execution Engine (go-judge backed, results over SSE)
 // ---------------------------------------------------------------------------
 
-const AC_SSE_TIMEOUT_MS = 300_000;
+// Worst case: 100 tests at the 20 s cap, each with a 41 s wall clock.
+const AC_STREAM_TIMEOUT_MS = 15 * 60_000;
 
 interface AetherCodeTestResult {
   test_index: number;
   verdict: string;
   cpu_time_ns: number;
   memory_bytes: number;
+  // Complete output in run mode; previews are cut to 256 bytes.
+  stdout?: string;
+  stderr?: string;
   stdout_preview?: string;
   stderr_preview?: string;
 }
@@ -274,71 +278,49 @@ interface AetherCodeVerdictData {
   memory_bytes?: number;
 }
 
+const toResult = (test: AetherCodeTestResult): ExecResult => ({
+  status: acVerdict(test.verdict),
+  stdout: test.stdout ?? test.stdout_preview ?? "",
+  stderr: test.stderr ?? test.stderr_preview ?? "",
+  compileOutput: "",
+  timeMs: Math.round(test.cpu_time_ns / 1_000_000),
+  memoryKb: Math.round(test.memory_bytes / 1024),
+});
+
+const MISSING: ExecResult = { status: "internal_error", stdout: "", stderr: "", compileOutput: "", timeMs: null, memoryKb: null };
+
 export class AetherCodeEngine implements Engine {
   constructor(private readonly baseUrl: string) {}
 
   executeBatch = async (request: BatchExecRequest): Promise<BatchExecResult> => {
-    const tests = request.inputs.map((input) => ({ input, expected_output: "" }));
-    const verdict = await this.submit(request.language, request.source, tests);
-
-    if (verdict.verdict === "compilation_error") {
-      return { compileError: verdict.compile_stderr ?? "compilation failed" };
-    }
-
-    const perTest = verdict.results ?? [];
-    const results: ExecResult[] = request.inputs.map((_, index) => {
-      const test = perTest.find((t) => t.test_index === index);
-      if (!test) return { status: "internal_error" as ExecStatus, stdout: "", stderr: "", compileOutput: "", timeMs: null, memoryKb: null };
-      return {
-        status: acVerdict(test.verdict),
-        stdout: test.stdout_preview ?? "",
-        stderr: test.stderr_preview ?? "",
-        compileOutput: "",
-        timeMs: Math.round(test.cpu_time_ns / 1_000_000),
-        memoryKb: Math.round(test.memory_bytes / 1024),
-      };
-    });
-    return { results };
+    const verdict = await this.submit(request, request.inputs);
+    if (verdict.verdict === "compilation_error") return { compileError: verdict.compile_stderr ?? "compilation failed" };
+    const byIndex = new Map((verdict.results ?? []).map((test) => [test.test_index, test]));
+    return { results: request.inputs.map((_, index) => (byIndex.has(index) ? toResult(byIndex.get(index)!) : MISSING)) };
   };
 
   async execute(request: ExecRequest): Promise<ExecResult> {
-    const tests = [{ input: request.stdin, expected_output: "" }];
-    const verdict = await this.submit(request.language, request.source, tests);
-
-    if (verdict.verdict === "compilation_error") {
-      return { status: "compile_error", stdout: "", stderr: "", compileOutput: verdict.compile_stderr ?? "compilation failed", timeMs: null, memoryKb: null };
-    }
-
-    const test = verdict.results?.[0];
-    if (!test) {
-      return {
-        status: acVerdict(verdict.verdict),
-        stdout: "",
-        stderr: "",
-        compileOutput: "",
-        timeMs: verdict.cpu_time_ns ? Math.round(verdict.cpu_time_ns / 1_000_000) : null,
-        memoryKb: verdict.memory_bytes ? Math.round(verdict.memory_bytes / 1024) : null,
-      };
-    }
-    return {
-      status: acVerdict(test.verdict),
-      stdout: test.stdout_preview ?? "",
-      stderr: test.stderr_preview ?? "",
-      compileOutput: "",
-      timeMs: Math.round(test.cpu_time_ns / 1_000_000),
-      memoryKb: Math.round(test.memory_bytes / 1024),
-    };
+    const result = await this.executeBatch({ ...request, inputs: [request.stdin] });
+    if ("compileError" in result) return { ...MISSING, status: "compile_error", compileOutput: result.compileError };
+    return result.results[0];
   }
 
-  private async submit(
-    language: LanguageId,
-    sourceCode: string,
-    tests: { input: string; expected_output: string }[],
-  ): Promise<AetherCodeVerdictData> {
+  private async submit(request: BatchExecRequest, inputs: string[]): Promise<AetherCodeVerdictData> {
+    // Same rule as the other engines: the question's limit, scaled for slower languages.
+    const timeLimitMs = Math.min(20_000, Math.max(100, Math.round(request.timeLimitMs * LANGUAGES[request.language].timeMultiplier)));
+    const memoryLimitKb = Math.min(2_097_152, Math.max(16_384, request.memoryLimitKb));
     const created = await fetch(`${this.baseUrl}/api/v1/execute`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ language, source_code: sourceCode, mode: "run", tests }),
+      body: JSON.stringify({
+        language: request.language,
+        source_code: request.source,
+        mode: "run",
+        // Output is compared here (lib/compare.ts); the engine's own verdict is not used.
+        tests: inputs.map((input) => ({ input, expected_output: "" })),
+        time_limit_ms: timeLimitMs,
+        memory_limit_kb: memoryLimitKb,
+      }),
     });
     if (!created.ok) throw new Error(`aethercode execute failed: ${created.status} ${await created.text()}`);
     const { job_id } = (await created.json()) as { job_id: string };
@@ -346,61 +328,66 @@ export class AetherCodeEngine implements Engine {
   }
 
   private async awaitVerdict(jobId: string): Promise<AetherCodeVerdictData> {
-    const response = await fetch(`${this.baseUrl}/api/v1/stream?job_id=${jobId}`, {
+    const response = await fetch(`${this.baseUrl}/api/v1/stream?job_id=${encodeURIComponent(jobId)}`, {
       headers: { accept: "text/event-stream" },
-      signal: AbortSignal.timeout(AC_SSE_TIMEOUT_MS),
+      signal: AbortSignal.timeout(AC_STREAM_TIMEOUT_MS),
     });
-    if (!response.ok) throw new Error(`aethercode stream failed: ${response.status}`);
-    if (!response.body) throw new Error("aethercode stream has no body");
+    if (!response.ok || !response.body) throw new Error(`aethercode stream failed: ${response.status}`);
+    const verdict = await readVerdictEvent(response.body);
+    if (!verdict) throw new Error("aethercode stream ended without a VERDICT event");
+    return verdict;
+  }
+}
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-
-        let currentEvent = "";
-        let dataLines: string[] = [];
-
-        for (const line of lines) {
-          if (line.startsWith("event: ")) {
-            currentEvent = line.slice(7).trim();
-            dataLines = [];
-          } else if (line.startsWith("data: ")) {
-            dataLines.push(line.slice(6));
-          } else if (line === "" && currentEvent === "VERDICT" && dataLines.length > 0) {
-            const payload = JSON.parse(dataLines.join("\n")) as { data: AetherCodeVerdictData };
-            return payload.data;
-          } else if (line === "") {
-            currentEvent = "";
-            dataLines = [];
-          }
+/**
+ * Reads an SSE stream until its VERDICT event. Parser state lives across
+ * network chunks, since one event can arrive split over several reads.
+ */
+export async function readVerdictEvent(body: ReadableStream<Uint8Array>): Promise<AetherCodeVerdictData | null> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let event = "";
+  let data: string[] = [];
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      buffer += done ? decoder.decode() : decoder.decode(value, { stream: true });
+      const lines = buffer.split(/\r?\n/);
+      buffer = done ? "" : (lines.pop() ?? "");
+      for (const line of lines) {
+        if (line === "") {
+          if (event === "VERDICT" && data.length > 0) return (JSON.parse(data.join("\n")) as { data: AetherCodeVerdictData }).data;
+          event = "";
+          data = [];
+        } else if (line.startsWith("event:")) {
+          event = line.slice(6).trim();
+        } else if (line.startsWith("data:")) {
+          data.push(line.slice(5).replace(/^ /, ""));
         }
       }
-    } finally {
-      reader.releaseLock();
+      if (done) return null;
     }
-
-    throw new Error("aethercode stream ended without a VERDICT event");
+  } finally {
+    await reader.cancel().catch(() => undefined);
   }
 }
 
 function acVerdict(verdict: string): ExecStatus {
   switch (verdict) {
-    case "accepted": return "ok";
-    case "wrong_answer": return "ok";
-    case "compilation_error": return "compile_error";
-    case "time_limit": return "time_limit";
-    case "memory_limit": return "time_limit";
-    case "output_limit": return "runtime_error";
-    case "runtime_error": return "runtime_error";
-    default: return "internal_error";
+    case "accepted":
+    case "wrong_answer":
+      return "ok";
+    case "compilation_error":
+      return "compile_error";
+    case "time_limit":
+      return "time_limit";
+    case "memory_limit":
+      return "memory_limit";
+    case "output_limit":
+    case "runtime_error":
+      return "runtime_error";
+    default:
+      return "internal_error";
   }
 }

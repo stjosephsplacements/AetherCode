@@ -1,4 +1,4 @@
-# Single-server deployment: app + grading worker + Postgres + Judge0.
+# Single-server deployment: app + grading worker + Postgres.
 # Usage: see ../README.md "Deploying on the campus server".
 name: aethercode-exam
 
@@ -23,12 +23,13 @@ services:
     command: ["pnpm", "migrate"]
     environment: &app-env
       DATABASE_URL: postgres://exam:${DB_PASSWORD}@db:5432/exam
-      ENGINE: ${ENGINE:-judge0}
-      ENGINE_URL: ${ENGINE_URL:-http://judge0-server:2358}
-      ENGINE_AUTH_TOKEN: ${JUDGE0_AUTH_TOKEN:-}
+      ENGINE: ${ENGINE:-aethercode}
+      ENGINE_URL: ${ENGINE_URL:-http://172.17.0.1:5100}
+      ENGINE_AUTH_TOKEN: ${ENGINE_AUTH_TOKEN:-}
       WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-16}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
-      SEB_CONFIG_PASSWORD: ${SEB_CONFIG_PASSWORD:-}
+      # Public origin students use; SEB links and SEB checks are built from it.
+      APP_URL: ${APP_URL:-}
     depends_on:
       db:
         condition: service_healthy
@@ -77,53 +78,5 @@ services:
       db:
         condition: service_healthy
 
-  judge0-server:
-    image: judge0/judge0:1.13.1
-    restart: always
-    privileged: true
-    volumes:
-      - ./judge0.conf:/judge0.conf:ro
-    depends_on: [judge0-db, judge0-redis]
-
-  judge0-workers:
-    image: judge0/judge0:1.13.1
-    restart: always
-    privileged: true
-    command: ["./scripts/workers"]
-    volumes:
-      - ./judge0.conf:/judge0.conf:ro
-    depends_on: [judge0-db, judge0-redis]
-
-  judge0-db:
-    image: postgres:16-alpine
-    restart: always
-    env_file: judge0.conf
-    volumes:
-      - judge0-db-data:/var/lib/postgresql/data
-
-  judge0-redis:
-    image: redis:7-alpine
-    restart: always
-    command: ["sh", "-c", 'redis-server --appendonly no --requirepass "$$REDIS_PASSWORD"']
-    env_file: judge0.conf
-
-  # Alternative engine for cgroup v2 hosts: `docker compose --profile piston up -d`,
-  # then install runtimes once (see README) and set ENGINE=piston, ENGINE_URL=http://piston:2000.
-  piston:
-    image: ghcr.io/engineer-man/piston
-    profiles: ["piston"]
-    restart: always
-    privileged: true
-    environment:
-      # Piston's defaults (3 s run cap, 1 KB output) are too small for exams.
-      PISTON_RUN_TIMEOUT: "40000"
-      PISTON_COMPILE_TIMEOUT: "20000"
-      PISTON_OUTPUT_MAX_SIZE: "1048576"
-      PISTON_MAX_CONCURRENT_JOBS: "64"
-    volumes:
-      - piston-packages:/piston/packages
-
 volumes:
   db-data:
-  judge0-db-data:
-  piston-packages:

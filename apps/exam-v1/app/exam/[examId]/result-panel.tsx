@@ -29,6 +29,7 @@ export interface SubmissionView {
 const MESSAGE: Record<string, string> = {
   wrong_answer: "Your output does not match the expected output.",
   time_limit_exceeded: "Your code took too long. Optimize it or check for an infinite loop.",
+  memory_limit_exceeded: "Your program used more memory than this question allows.",
   runtime_error: "Your program crashed or exited with a non-zero status.",
   internal_error: "The judge could not run this. Try again.",
 };
