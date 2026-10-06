@@ -141,7 +141,7 @@ export function ResultPanel({ submission }: { submission: SubmissionView | null 
                 )}
               >
                 {test.verdict === "accepted" || test.verdict === "ran" ? <Tick /> : <Cross />}
-                {custom ? "Custom input" : `Test case ${index}`}
+                {custom ? "Custom input" : `Test case ${index + 1}`}
                 {!test.sample && <Lock />}
               </button>
             </li>

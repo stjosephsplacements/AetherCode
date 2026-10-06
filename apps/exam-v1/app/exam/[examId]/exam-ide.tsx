@@ -609,7 +609,7 @@ export function ExamIde({
             </div>
             {question.samples.map((sample, index) => (
               <div key={index} className="mt-6">
-                <p className="mb-2 font-display font-semibold">Sample {index}</p>
+                <p className="mb-2 font-display font-semibold">Sample {index + 1}</p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div>
                     <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-faint">Input</p>
