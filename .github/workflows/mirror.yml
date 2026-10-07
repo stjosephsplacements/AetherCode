@@ -1,0 +1,101 @@
+name: mirror
+
+on:
+  push:
+    branches: [production, development]
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches: [production, development]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  mirror-push:
+    # Runs on push events — replicates the branch state to the mirror repo.
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push branch to mirror
+        env:
+          MIRROR_PAT: ${{ secrets.MIRROR_PAT }}
+          MIRROR_REPO: ${{ secrets.MIRROR_TARGET_REPO }}
+        run: |
+          git remote add mirror "https://x-access-token:${MIRROR_PAT}@github.com/${MIRROR_REPO}.git"
+          git push mirror "refs/remotes/origin/${{ github.ref_name }}:refs/heads/${{ github.ref_name }}" --force
+
+  mirror-pr:
+    # Runs on PR events — opens, updates, or closes an equivalent PR on the mirror repo.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Mirror PR to target repo
+        env:
+          GH_TOKEN: ${{ secrets.MIRROR_PAT }}
+          MIRROR_REPO: ${{ secrets.MIRROR_TARGET_REPO }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_HEAD: ${{ github.event.pull_request.head.ref }}
+          PR_BASE: ${{ github.event.pull_request.base.ref }}
+          PR_STATE: ${{ github.event.pull_request.state }}
+          PR_MERGED: ${{ github.event.pull_request.merged }}
+          ACTION: ${{ github.event.action }}
+        run: |
+          set -euo pipefail
+
+          SOURCE_REPO="${{ github.repository }}"
+          SOURCE_PR_URL="${{ github.event.pull_request.html_url }}"
+
+          # Append mirror attribution to body
+          FULL_BODY="${PR_BODY}
+
+          ---
+          > Mirrored from ${SOURCE_PR_URL} (${SOURCE_REPO})"
+
+          if [[ "$ACTION" == "opened" || "$ACTION" == "reopened" ]]; then
+            # Check if a mirror PR already exists for this source PR
+            EXISTING=$(gh pr list --repo "$MIRROR_REPO" \
+              --state open \
+              --json number,title \
+              --jq ".[] | select(.title | contains(\"[mirror #${PR_NUMBER}]\")) | .number" 2>/dev/null || true)
+
+            if [[ -z "$EXISTING" ]]; then
+              gh pr create \
+                --repo "$MIRROR_REPO" \
+                --title "[mirror #${PR_NUMBER}] ${PR_TITLE}" \
+                --body "$FULL_BODY" \
+                --head "$PR_HEAD" \
+                --base "$PR_BASE"
+            fi
+
+          elif [[ "$ACTION" == "synchronize" ]]; then
+            # Branch push already handled by mirror-push job; just update PR body if needed
+            EXISTING=$(gh pr list --repo "$MIRROR_REPO" \
+              --state open \
+              --json number,title \
+              --jq ".[] | select(.title | contains(\"[mirror #${PR_NUMBER}]\")) | .number" 2>/dev/null || true)
+
+            if [[ -n "$EXISTING" ]]; then
+              gh pr edit "$EXISTING" --repo "$MIRROR_REPO" --body "$FULL_BODY"
+            fi
+
+          elif [[ "$ACTION" == "closed" ]]; then
+            EXISTING=$(gh pr list --repo "$MIRROR_REPO" \
+              --state open \
+              --json number,title \
+              --jq ".[] | select(.title | contains(\"[mirror #${PR_NUMBER}]\")) | .number" 2>/dev/null || true)
+
+            if [[ -n "$EXISTING" ]]; then
+              if [[ "$PR_MERGED" == "true" ]]; then
+                gh pr merge "$EXISTING" --repo "$MIRROR_REPO" --squash --admin
+              else
+                gh pr close "$EXISTING" --repo "$MIRROR_REPO"
+              fi
+            fi
+          fi
