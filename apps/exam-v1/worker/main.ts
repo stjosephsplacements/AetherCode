@@ -59,7 +59,7 @@ async function evaluate(submission: Claimed): Promise<void> {
   const [question] = await sql<{ time_limit_ms: number; memory_limit_kb: number }[]>`
     SELECT time_limit_ms, memory_limit_kb FROM questions WHERE id = ${submission.question_id}`;
   let tests: GradeTest[];
-  if (submission.kind === "run" && submission.custom_input !== null) {
+  if (submission.kind === "run" && submission.custom_input !== null && submission.custom_input.length > 0) {
     tests = [{ id: null, input: submission.custom_input, expectedOutput: null, isSample: true, weight: 1 }];
   } else {
     const rows = await sql<{ id: string; input: string; expected_output: string; is_sample: boolean; weight: number }[]>`

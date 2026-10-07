@@ -390,7 +390,7 @@ export function ExamIde({
           language,
           source,
           kind,
-          customInput: kind === "run" && useCustom ? (customInput[questionId] ?? "") : null,
+          customInput: kind === "run" && useCustom ? (customInput[questionId] || null) : null,
         }),
       });
       setResults((current) => ({ ...current, [resultKey]: { id, kind, status: "queued" } }));

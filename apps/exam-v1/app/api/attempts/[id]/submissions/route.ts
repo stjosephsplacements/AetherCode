@@ -27,7 +27,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const [created] = await sql<{ id: string }[]>`
       INSERT INTO submissions (attempt_id, question_id, kind, language, source, custom_input)
       VALUES (${attempt.id}, ${input.questionId}, ${input.kind}, ${input.language}, ${input.source},
-        ${input.kind === "run" ? (input.customInput ?? null) : null})
+        ${input.kind === "run" ? (input.customInput || null) : null})
       RETURNING id`;
     await sql`
       INSERT INTO drafts (attempt_id, question_id, language, source)

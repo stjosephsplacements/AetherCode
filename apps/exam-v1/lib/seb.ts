@@ -15,6 +15,7 @@ import { gzipSync } from "node:zlib";
 // Never typed by anyone (allowQuit is off and SEB quits via quitURL), but part
 // of the config and therefore of the Config Key.
 
+
 /**
  * Verify an incoming SEB request. `requestUrl` must be the exact absolute URL
  * SEB requested (query included), because that is what SEB hashes.
@@ -22,8 +23,8 @@ import { gzipSync } from "node:zlib";
 export function isSebConfigKeyRequest(requestUrl: string, configKeyHash: string | null, origin: string): boolean {
   if (!configKeyHash) return false;
   const url = requestUrl.split("#")[0];
-  const expected = createHash("sha256").update(url + sebConfigKey(origin), "utf8").digest("hex");
-  return expected === configKeyHash.toLowerCase();
+  const hash = configKeyHash.toLowerCase();
+  return createHash("sha256").update(url + sebConfigKey(origin), "utf8").digest("hex") === hash;
 }
 
 /**
@@ -228,7 +229,7 @@ function sebPlist(origin: string): string {
 	<key>browserViewMode</key>
 	<integer>1</integer>
 	<key>browserWindowAllowReload</key>
-	<false/>
+	<true/>
 	<key>browserWindowShowURL</key>
 	<integer>0</integer>
 	<key>browserWindowWebView</key>
@@ -425,7 +426,7 @@ function sebPlist(origin: string): string {
 	<key>showMenuBar</key>
 	<false/>
 	<key>showReloadButton</key>
-	<false/>
+	<true/>
 	<key>showReloadWarning</key>
 	<false/>
 	<key>showTaskBar</key>
