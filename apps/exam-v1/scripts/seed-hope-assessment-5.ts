@@ -418,7 +418,7 @@ IMPOSSIBLE
         // Three chars, one dominant
         ["aaabc", "abaca"],
         // abcabc
-        ["aabbcc", "abacbc"],
+        ["aabbcc", "abcabc"],
         // Single char repeated twice
         ["bb", "IMPOSSIBLE"],
         // Large balanced — a=2 b=2 c=1
@@ -426,7 +426,7 @@ IMPOSSIBLE
         // Four distinct one each
         ["abcd", "abcd"],
         // a=4, b=3, c=2 (len=9, ceil=5, ok)
-        ["aaaabbbcc", "abababcac"],
+        ["aaaabbbcc", "ababacabc"],
         // a=5 in len=9 — 5 == ceil(9/2)=5, OK
         ["aaaaabbbb", "ababababa"],
       ]
