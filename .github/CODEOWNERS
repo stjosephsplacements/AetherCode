@@ -1,0 +1,11 @@
+# Default: Sreesanth R owns everything
+* @Shreesh-Sree
+
+# Security-critical paths require explicit review
+apps/exam-v1/lib/auth*      @Shreesh-Sree
+apps/exam-v1/lib/grading*   @Shreesh-Sree
+backend/services/identity/  @Shreesh-Sree
+backend/services/seb/       @Shreesh-Sree
+backend/services/judge/     @Shreesh-Sree
+backend/libs/proto/         @Shreesh-Sree
+deploy/                     @Shreesh-Sree

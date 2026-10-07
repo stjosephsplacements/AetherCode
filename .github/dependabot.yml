@@ -1,0 +1,108 @@
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /backend/libs/pkg
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Kolkata
+    target-branch: development
+    labels: [dependencies]
+    groups:
+      go-deps:
+        patterns: ["*"]
+
+  - package-ecosystem: gomod
+    directory: /backend/services/gateway
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Kolkata
+    target-branch: development
+    labels: [dependencies]
+    groups:
+      go-deps:
+        patterns: ["*"]
+
+  - package-ecosystem: gomod
+    directory: /backend/services/identity
+    schedule:
+      interval: weekly
+      day: monday
+    target-branch: development
+    labels: [dependencies]
+    groups:
+      go-deps:
+        patterns: ["*"]
+
+  - package-ecosystem: gomod
+    directory: /backend/services/assessment
+    schedule:
+      interval: weekly
+      day: monday
+    target-branch: development
+    labels: [dependencies]
+    groups:
+      go-deps:
+        patterns: ["*"]
+
+  - package-ecosystem: gomod
+    directory: /backend/services/submission
+    schedule:
+      interval: weekly
+      day: monday
+    target-branch: development
+    labels: [dependencies]
+    groups:
+      go-deps:
+        patterns: ["*"]
+
+  - package-ecosystem: gomod
+    directory: /backend/services/judge
+    schedule:
+      interval: weekly
+      day: monday
+    target-branch: development
+    labels: [dependencies]
+    groups:
+      go-deps:
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    directory: /apps/exam-v1
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Kolkata
+    target-branch: development
+    labels: [dependencies]
+    groups:
+      npm-deps:
+        patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: docker
+    directory: /backend/services/gateway
+    schedule:
+      interval: weekly
+      day: monday
+    target-branch: development
+    labels: [dependencies, ci]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Kolkata
+    target-branch: development
+    labels: [dependencies, ci]
+    groups:
+      actions:
+        patterns: ["*"]
