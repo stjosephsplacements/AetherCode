@@ -38,3 +38,13 @@ secrets/
 .claude/
 .superpowers/
 .remember/
+
+# Dropped files — non-code artifacts that must not be committed
+*.pdf
+*.xlsx
+*.jpeg
+*.jpg
+*.png
+*.log.txt
+*.env.bak*
+hackerrank.env

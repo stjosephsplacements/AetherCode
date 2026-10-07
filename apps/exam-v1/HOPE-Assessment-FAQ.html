@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HOPE Assessment FAQ</title>
+</head>
+<body>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  /* Layout: single-column document, max 720px, problem-solution pairs */
+  :root {
+    --bg: #ffffff;
+    --fg: #1a1a2e;
+    --surface: #f5f6f8;
+    --border: #e2e4e9;
+    --accent: #2563eb;
+    --accent-soft: #eff4ff;
+    --danger: #dc2626;
+    --danger-soft: #fef2f2;
+    --success: #16a34a;
+    --success-soft: #f0fdf4;
+    --warn: #d97706;
+    --warn-soft: #fffbeb;
+    --caption: #64748b;
+    --code-bg: #f1f3f5;
+    --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1117;
+      --fg: #e4e6eb;
+      --surface: #1a1d27;
+      --border: #2a2d3a;
+      --accent: #5b8def;
+      --accent-soft: #1a2744;
+      --danger: #f87171;
+      --danger-soft: #2a1515;
+      --success: #4ade80;
+      --success-soft: #132217;
+      --warn: #fbbf24;
+      --warn-soft: #2a2210;
+      --caption: #8b95a8;
+      --code-bg: #1e2130;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1117;
+    --fg: #e4e6eb;
+    --surface: #1a1d27;
+    --border: #2a2d3a;
+    --accent: #5b8def;
+    --accent-soft: #1a2744;
+    --danger: #f87171;
+    --danger-soft: #2a1515;
+    --success: #4ade80;
+    --success-soft: #132217;
+    --warn: #fbbf24;
+    --warn-soft: #2a2210;
+    --caption: #8b95a8;
+    --code-bg: #1e2130;
+    color-scheme: dark;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-body);
+    line-height: 1.65;
+    max-width: 740px;
+    margin: 0 auto;
+    padding-inline: 20px;
+    padding-block: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .header {
+    padding-block: 40px 32px;
+    border-bottom: 2px solid var(--accent);
+    margin-bottom: 32px;
+  }
+  .header h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin: 0 0 6px;
+    letter-spacing: -0.02em;
+  }
+  .header .subtitle {
+    font-size: 0.95rem;
+    color: var(--caption);
+    margin: 0;
+  }
+  .header .badge {
+    display: inline-block;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 100px;
+    margin-top: 12px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-bottom: 36px;
+  }
+  .toc h2 {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--caption);
+    margin: 0 0 12px;
+  }
+  .toc ol {
+    margin: 0;
+    padding-left: 20px;
+  }
+  .toc li {
+    margin-bottom: 6px;
+    font-size: 0.9rem;
+  }
+  .toc a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .toc a:hover { text-decoration: underline; }
+
+  .faq-section {
+    margin-bottom: 40px;
+  }
+  .faq-section > h2 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin: 0 0 20px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .faq-item {
+    margin-bottom: 24px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .faq-q {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 16px 18px;
+    background: var(--danger-soft);
+    font-weight: 600;
+    font-size: 0.92rem;
+    line-height: 1.5;
+    cursor: default;
+  }
+  .faq-q .icon {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--danger);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 1px;
+  }
+  .faq-a {
+    padding: 16px 18px;
+    font-size: 0.9rem;
+    background: var(--bg);
+  }
+  .faq-a p { margin: 0 0 10px; }
+  .faq-a p:last-child { margin-bottom: 0; }
+  .faq-a ul, .faq-a ol { margin: 8px 0; padding-left: 20px; }
+  .faq-a li { margin-bottom: 6px; }
+
+  .solution-label {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+  }
+  .solution-label.fix {
+    background: var(--success-soft);
+    color: var(--success);
+  }
+  .solution-label.info {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .solution-label.warn {
+    background: var(--warn-soft);
+    color: var(--warn);
+  }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: 0.82em;
+    background: var(--code-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    line-height: 1.55;
+    margin: 10px 0;
+  }
+  pre code {
+    background: none;
+    padding: 0;
+  }
+
+  .steps {
+    counter-reset: step;
+    list-style: none;
+    padding: 0;
+    margin: 10px 0;
+  }
+  .steps li {
+    counter-increment: step;
+    padding-left: 32px;
+    position: relative;
+    margin-bottom: 10px;
+  }
+  .steps li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 0.72rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    top: 1px;
+  }
+
+  .callout {
+    border-left: 3px solid var(--warn);
+    background: var(--warn-soft);
+    padding: 12px 16px;
+    border-radius: 0 8px 8px 0;
+    margin: 12px 0;
+    font-size: 0.88rem;
+  }
+  .callout strong { color: var(--warn); }
+
+  .footer {
+    padding-block: 24px;
+    border-top: 1px solid var(--border);
+    margin-top: 40px;
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--caption);
+  }
+
+  @media (max-width: 500px) {
+    .header h1 { font-size: 1.4rem; }
+    .faq-q { padding: 14px 14px; font-size: 0.88rem; }
+    .faq-a { padding: 14px 14px; }
+    pre { font-size: 0.75rem; padding: 12px; }
+  }
+</style>
+
+<div class="header">
+  <h1>HOPE Assessment &mdash; Troubleshooting FAQ</h1>
+  <p class="subtitle">Common issues and fixes for students and trainers on AetherCode Exam Platform</p>
+  <span class="badge">October 2026</span>
+</div>
+
+<nav class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#seb-vm">SEB: "Virtual Machine Detected" error</a></li>
+    <li><a href="#seb-password">SEB: Asking for unlock / quit password</a></li>
+    <li><a href="#seb-white">SEB: Blank white screen after login</a></li>
+    <li><a href="#seb-old-mac">SEB: Not loading on older MacBooks</a></li>
+    <li><a href="#judge-error">"The judge could not evaluate this submission"</a></li>
+    <li><a href="#java-class">Java: "class not found" or "could not find main class"</a></li>
+    <li><a href="#java-nonstatic">Java: "non-static variable this cannot be referenced"</a></li>
+    <li><a href="#java-nosuchelement">Java: "NoSuchElementException" on input</a></li>
+    <li><a href="#general-tips">General tips for writing solutions</a></li>
+  </ol>
+</nav>
+
+<!-- ─────────────── SEB ISSUES ─────────────── -->
+<section class="faq-section" id="seb-vm">
+  <h2>1. SEB: "Virtual Machine Detected"</h2>
+  <div class="faq-item">
+    <div class="faq-q">
+      <span class="icon">!</span>
+      <span>Safe Exam Browser shows "Virtual Machine Detected" and refuses to start the exam, even though I'm on a physical laptop.</span>
+    </div>
+    <div class="faq-a">
+      <span class="solution-label fix">Fix</span>
+      <p>SEB detects the Windows hypervisor layer (Hyper-V, Memory Integrity, WSL2, Docker, etc.) and mistakes your physical machine for a virtual one. You need to disable all virtualization features.</p>
+
+      <p><strong>Step 1 &mdash; Turn off hypervisor features</strong></p>
+      <ol class="steps">
+        <li>Press <code>Win + R</code>, type <code>optionalfeatures</code>, hit Enter.</li>
+        <li>Uncheck <strong>all</strong> of the following:<br>
+          Hyper-V &bull; Virtual Machine Platform &bull; Windows Hypervisor Platform &bull; Windows Subsystem for Linux &bull; Windows Sandbox &bull; Containers</li>
+        <li>Click OK. <strong>Do not restart yet.</strong></li>
+      </ol>
+
+      <p><strong>Step 2 &mdash; Turn off Memory Integrity</strong></p>
+      <ol class="steps">
+        <li>Open <strong>Settings &rarr; Privacy &amp; Security &rarr; Windows Security &rarr; Device Security</strong>.</li>
+        <li>Click <strong>Core isolation details</strong>.</li>
+        <li>Set <strong>Memory integrity</strong> to <strong>OFF</strong>.</li>
+      </ol>
+
+      <p><strong>Step 3 &mdash; Disable hypervisor at boot</strong></p>
+      <ol class="steps">
+        <li>Open <strong>Command Prompt as Administrator</strong>.</li>
+        <li>Run: <pre><code>bcdedit /set hypervisorlaunchtype off</code></pre></li>
+      </ol>
+
+      <p><strong>Step 4 &mdash; Check BIOS (if steps 1&ndash;3 didn't help)</strong></p>
+      <ol class="steps">
+        <li>Restart and enter BIOS (usually <code>F2</code>, <code>Del</code>, or <code>F10</code> during boot).</li>
+        <li>Find <strong>Virtualization Technology</strong> (Intel VT-x / AMD-V) and <strong>disable</strong> it.</li>
+        <li>Save and exit BIOS.</li>
+      </ol>
+
+      <p><strong>Step 5 &mdash; Restart your computer</strong></p>
+      <p>A restart is required after every change above. Then re-open SEB and try again.</p>
+
+      <div class="callout">
+        <strong>Important:</strong> After the exam, you can re-enable all these features by reversing the steps above and running <code>bcdedit /set hypervisorlaunchtype auto</code>.
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="faq-section" id="seb-password">
+  <h2>2. SEB: Asking for Unlock / Quit Password</h2>
+  <div class="faq-item">
+    <div class="faq-q">
+      <span class="icon">!</span>
+      <span>I exited the exam or SEB crashed, and now it's asking for a quit password / unlock password.</span>
+    </div>
+    <div class="faq-a">
+      <span class="solution-label info">Why this happens</span>
+      <p>SEB locks you into the exam session. If you try to quit SEB, switch to another app, or force-close it, SEB requires a password to exit or to re-enter the session.</p>
+
+      <span class="solution-label fix">Fix</span>
+      <p>The quit password is:</p>
+      <pre><code>REDACTED</code></pre>
+      <p>Type it in the password dialog and press Enter. SEB will close. Then re-open SEB from the exam link on the portal to continue your exam.</p>
+
+      <div class="callout">
+        <strong>Note:</strong> Your exam timer is server-controlled. The time continues even when SEB is closed. Re-enter the exam as quickly as possible.
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="faq-section" id="seb-white">
+  <h2>3. SEB: Blank White Screen</h2>
+  <div class="faq-item">
+    <div class="faq-q">
+      <span class="icon">!</span>
+      <span>After entering the password or opening SEB, I only see a blank white screen. Questions are not visible.</span>
+    </div>
+    <div class="faq-a">
+      <span class="solution-label info">Why this happens</span>
+      <p>This is usually a network or browser cache issue inside SEB. The page failed to load the exam content.</p>
+
+      <span class="solution-label fix">Fix</span>
+      <ol class="steps">
+        <li>Press <code>Ctrl + R</code> (or <code>Cmd + R</code> on Mac) inside SEB to reload the page.</li>
+        <li>If that doesn't work, quit SEB using the quit password: <code>REDACTED</code></li>
+        <li><strong>Force shut down</strong> the laptop (hold the power button for 5 seconds).</li>
+        <li>Turn it back on, reopen SEB from the exam link, and log in again.</li>
+      </ol>
+      <p>If the problem persists after a full restart, check your Wi-Fi / LAN connection. Try moving closer to the access point or switching to a wired connection if available.</p>
+    </div>
+  </div>
+</section>
+
+<section class="faq-section" id="seb-old-mac">
+  <h2>4. SEB: Not Loading on Older MacBooks</h2>
+  <div class="faq-item">
+    <div class="faq-q">
+      <span class="icon">!</span>
+      <span>SEB shows a blank screen or fails to load on my older MacBook (pre-2017 / macOS 12 or earlier).</span>
+    </div>
+    <div class="faq-a">
+      <span class="solution-label warn">Known Limitation</span>
+      <p>Very old MacBooks running macOS Monterey (12) or earlier have compatibility issues with the latest SEB version. The WebKit engine in these older macOS versions cannot render the exam interface properly.</p>
+
+      <span class="solution-label fix">Workaround</span>
+      <ol class="steps">
+        <li>Force shut down the MacBook and restart it.</li>
+        <li>Try downloading the latest version of SEB from <code>safeexambrowser.org/download</code>.</li>
+        <li>If it still doesn't work, <strong>contact your trainer</strong> to arrange access from a different machine (lab desktop or a newer laptop).</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────── JUDGE / ENGINE ISSUES ─────────────── -->
+<section class="faq-section" id="judge-error">
+  <h2>5. "The judge could not evaluate this submission"</h2>
+  <div class="faq-item">
+    <div class="faq-q">
+      <span class="icon">!</span>
+      <span>When I click Run or Submit, the error says "The judge could not evaluate this submission. Please try again."</span>
+    </div>
+    <div class="faq-a">
+      <span class="solution-label info">Why this happens</span>
+      <p>This usually means the execution engine was temporarily unreachable &mdash; either due to a brief network interruption on the server side, or the engine was under heavy load from many concurrent submissions.</p>
+
+      <span class="solution-label fix">Fix</span>
+      <ol class="steps">
+        <li><strong>Wait 10&ndash;15 seconds</strong> and try clicking <strong>Run</strong> or <strong>Submit</strong> again.</li>
+        <li>If it still fails, check if your internet connection is stable.</li>
+        <li>Try saving your code (it auto-saves as a draft), then <strong>reload the page</strong> with <code>Ctrl + R</code>.</li>
+        <li>If the error persists for more than 2&ndash;3 minutes, <strong>inform your trainer</strong> &mdash; it may be a server-side issue that the admin needs to resolve.</li>
+      </ol>
+
+      <div class="callout">
+        <strong>Your code is safe.</strong> Drafts are saved automatically. Even if the page reloads, your latest code for each question will still be there.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────── JAVA ISSUES ─────────────── -->
+<section class="faq-section" id="java-class">
+  <h2>6. Java: "class not found" or Multiple Public Classes</h2>
+  <div class="faq-item">
+    <div class="faq-q">
+      <span class="icon">!</span>
+      <span>My Java code compiles on my laptop but gives "class not found" or "Main has private access" on the exam platform.</span>
+    </div>
+    <div class="faq-a">
+      <span class="solution-label info">Why this happens</span>
+      <p>On the AetherCode platform, all your code goes into a single file called <code>Main.java</code>. Java only allows <strong>one public class per file</strong>, and it <strong>must</strong> be named <code>Main</code>.</p>
+
+      <span class="solution-label fix">Fix</span>
+      <p><strong>Rule:</strong> Only <code>public class Main</code> should be public. All other classes must drop the <code>public</code> keyword.</p>
+
+      <p><strong>Wrong:</strong></p>
+<pre><code>public class Node {       // ERROR: can't have two public classes
+    int val;
+    Node next;
+}
+public class Main {
+    public static void main(String[] args) { ... }
+}</code></pre>
+
+      <p><strong>Correct (option A &mdash; remove <code>public</code>):</strong></p>
+<pre><code>class Node {              // no "public" keyword
+    int val;
+    Node next;
+}
+public class Main {
+    public static void main(String[] args) { ... }
+}</code></pre>
+
+      <p><strong>Correct (option B &mdash; static inner class):</strong></p>
+<pre><code>public class Main {
+    static class Node {   // inner class with "static"
+        int val;
+        Node next;
+    }
+    public static void main(String[] args) { ... }
+}</code></pre>
+    </div>
+  </div>
+</section>
+
+<section class="faq-section" id="java-nonstatic">
+  <h2>7. Java: "non-static variable this cannot be referenced"</h2>
+  <div class="faq-item">
+    <div class="faq-q">
+      <span class="icon">!</span>
+      <span>I get "non-static variable this cannot be referenced from a static context" when using my helper class.</span>
+    </div>
+    <div class="faq-a">
+      <span class="solution-label info">Why this happens</span>
+      <p>If you define a helper class (like <code>Node</code>, <code>TreeNode</code>, <code>Pair</code>) as an inner class of <code>Main</code> <em>without</em> the <code>static</code> keyword, Java treats it as tied to an instance of <code>Main</code>. Since <code>main()</code> is static, you can't create non-static inner class instances from it.</p>
+
+      <span class="solution-label fix">Fix</span>
+      <p>Add the <code>static</code> keyword to your inner class:</p>
+<pre><code>public class Main {
+    static class Node {       // ADD "static" here
+        int val;
+        Node left, right;
+        Node(int v) { val = v; }
+    }
+
+    public static void main(String[] args) {
+        Node root = new Node(1);  // now works
+    }
+}</code></pre>
+    </div>
+  </div>
+</section>
+
+<section class="faq-section" id="java-nosuchelement">
+  <h2>8. Java: "NoSuchElementException" on Input</h2>
+  <div class="faq-item">
+    <div class="faq-q">
+      <span class="icon">!</span>
+      <span>My code throws <code>java.util.NoSuchElementException</code> when reading input.</span>
+    </div>
+    <div class="faq-a">
+      <span class="solution-label info">Why this happens</span>
+      <p>Your code is trying to read more input than what's provided. This is a <strong>bug in your code</strong>, not a platform issue. Common causes:</p>
+      <ul>
+        <li>Using <code>sc.nextInt()</code> or <code>sc.next()</code> more times than there are values in the input.</li>
+        <li>Off-by-one loop: e.g., looping <code>N+1</code> times instead of <code>N</code>.</li>
+        <li>Wrong variable in a loop index (e.g., <code>grid[i][j] = sc.nextInt()</code> but using <code>i</code> where you meant <code>j</code>).</li>
+        <li>Calling <code>sc.nextLine()</code> after <code>sc.nextInt()</code> without consuming the leftover newline.</li>
+      </ul>
+
+      <span class="solution-label fix">Fix</span>
+      <ol class="steps">
+        <li>Read the input format in the problem statement carefully. Count how many values your code reads vs. how many the input provides.</li>
+        <li>Check your loop bounds. If the input says <code>N</code> values, your loop should run exactly <code>N</code> times.</li>
+        <li>If mixing <code>nextInt()</code> and <code>nextLine()</code>, add a bare <code>sc.nextLine()</code> after <code>nextInt()</code> to consume the trailing newline:
+<pre><code>int n = sc.nextInt();
+sc.nextLine();            // consume the newline
+String line = sc.nextLine(); // now reads correctly</code></pre>
+        </li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────── GENERAL TIPS ─────────────── -->
+<section class="faq-section" id="general-tips">
+  <h2>9. General Tips for Writing Solutions</h2>
+  <div class="faq-item">
+    <div class="faq-q">
+      <span class="icon">&#x2139;</span>
+      <span>Best practices to avoid common errors on AetherCode</span>
+    </div>
+    <div class="faq-a">
+      <p><strong>For all languages:</strong></p>
+      <ul>
+        <li>Read the <strong>Input Format</strong> and <strong>Output Format</strong> sections carefully. Match the exact format &mdash; no extra spaces, no debug prints.</li>
+        <li>Do not print prompts like <code>"Enter N:"</code>. Only print the answer.</li>
+        <li>Use the <strong>Run</strong> button with custom input to test your code before clicking <strong>Submit</strong>.</li>
+        <li>Your code is <strong>auto-saved as a draft</strong>. If the page reloads, your latest code will be restored.</li>
+      </ul>
+
+      <p><strong>For Java specifically:</strong></p>
+      <ul>
+        <li>Your main class must be <code>public class Main</code>.</li>
+        <li>All other classes must <strong>not</strong> be <code>public</code> (or use <code>static</code> inner classes).</li>
+        <li>Use <code>BufferedReader</code> + <code>StringTokenizer</code> instead of <code>Scanner</code> for large inputs &mdash; it's significantly faster.</li>
+        <li>Use <code>StringBuilder</code> for building output instead of <code>System.out.println()</code> in a loop.</li>
+      </ul>
+
+      <p><strong>For C/C++ specifically:</strong></p>
+      <ul>
+        <li>Use <code>scanf</code>/<code>printf</code> or <code>ios::sync_with_stdio(false); cin.tie(nullptr);</code> for fast I/O.</li>
+        <li>The main function must be <code>int main()</code>.</li>
+      </ul>
+
+      <p><strong>For Python specifically:</strong></p>
+      <ul>
+        <li>Use <code>sys.stdin</code> for reading large inputs: <code>input = sys.stdin.readline</code>.</li>
+        <li>Avoid recursion depth issues: add <code>sys.setrecursionlimit(200000)</code> if using deep recursion.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<div class="footer">
+  AetherCode Assessment Platform &bull; HOPE Programming Training &bull; SJCE &bull; October 2026
+</div>
+</body>
+</html>
