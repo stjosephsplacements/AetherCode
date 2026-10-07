@@ -6,7 +6,7 @@ seriously.
 ## Reporting a vulnerability
 
 **Do not open a public issue.** Report privately through GitHub:
-[open a private security advisory](https://github.com/stjosephsplacements/AetherCode/security/advisories/new).
+[open a private security advisory](https://github.com/AlgoQX/AetherCode/security/advisories/new).
 
 Please include:
 - the affected component (service, `apps/exam-v1`, deployment) and version or
