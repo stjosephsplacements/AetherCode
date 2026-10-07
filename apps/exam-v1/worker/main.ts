@@ -17,13 +17,26 @@ const CONCURRENCY = envInt("WORKER_CONCURRENCY", 8);
 // Keep enough submissions in flight to saturate the engine across test fan-out.
 const MAX_IN_FLIGHT = envInt("WORKER_MAX_IN_FLIGHT", CONCURRENCY * 2);
 const MAX_TRIES = envInt("WORKER_MAX_TRIES", 3);
-const IDLE_POLL_MS = envInt("WORKER_IDLE_POLL_MS", 250);
+const FALLBACK_POLL_MS = envInt("WORKER_IDLE_POLL_MS", 2000);
 const OUTPUT_LIMIT = envInt("WORKER_OUTPUT_LIMIT_BYTES", 8192);
 
 const engine = engineFromEnv();
 const limit = createLimiter(CONCURRENCY);
 let inFlight = 0;
 let stopping = false;
+
+// NOTIFY-driven wake: resolves immediately when Postgres signals a new submission.
+let wakeResolve: (() => void) | null = null;
+function wake() {
+  wakeResolve?.();
+  wakeResolve = null;
+}
+function waitForWork(): Promise<void> {
+  return new Promise((resolve) => {
+    wakeResolve = resolve;
+    setTimeout(resolve, FALLBACK_POLL_MS);
+  });
+}
 
 interface Claimed {
   id: string;
@@ -56,18 +69,27 @@ async function claim(count: number): Promise<Claimed[]> {
 
 async function evaluate(submission: Claimed): Promise<void> {
   if (!isLanguageId(submission.language)) throw new Error(`unsupported language ${submission.language}`);
-  const [question] = await sql<{ time_limit_ms: number; memory_limit_kb: number }[]>`
-    SELECT time_limit_ms, memory_limit_kb FROM questions WHERE id = ${submission.question_id}`;
   let tests: GradeTest[];
+  let timeLimitMs: number;
+  let memoryLimitKb: number;
   if (submission.kind === "run" && submission.custom_input !== null && submission.custom_input.length > 0) {
+    const [question] = await sql<{ time_limit_ms: number; memory_limit_kb: number }[]>`
+      SELECT time_limit_ms, memory_limit_kb FROM questions WHERE id = ${submission.question_id}`;
+    timeLimitMs = question.time_limit_ms;
+    memoryLimitKb = question.memory_limit_kb;
     tests = [{ id: null, input: submission.custom_input, expectedOutput: null, isSample: true, weight: 1 }];
   } else {
-    const rows = await sql<{ id: string; input: string; expected_output: string; is_sample: boolean; weight: number }[]>`
-      SELECT id, input, expected_output, is_sample, weight FROM test_cases
-      WHERE question_id = ${submission.question_id} AND (${submission.kind === "submit"} OR is_sample)
-      ORDER BY is_sample DESC, ord`;
+    const rows = await sql<{ time_limit_ms: number; memory_limit_kb: number; tc_id: string; input: string; expected_output: string; is_sample: boolean; weight: number }[]>`
+      SELECT q.time_limit_ms, q.memory_limit_kb,
+             t.id AS tc_id, t.input, t.expected_output, t.is_sample, t.weight
+      FROM questions q
+      JOIN test_cases t ON t.question_id = q.id
+      WHERE q.id = ${submission.question_id} AND (${submission.kind === "submit"} OR t.is_sample)
+      ORDER BY t.is_sample DESC, t.ord`;
+    timeLimitMs = rows[0]?.time_limit_ms ?? 2000;
+    memoryLimitKb = rows[0]?.memory_limit_kb ?? 262144;
     tests = rows.map((row) => ({
-      id: row.id,
+      id: row.tc_id,
       input: row.input,
       expectedOutput: row.expected_output,
       isSample: row.is_sample,
@@ -85,8 +107,8 @@ async function evaluate(submission: Claimed): Promise<void> {
   const outcome = await grade(engine, limit, {
     language: submission.language,
     source: submission.source,
-    timeLimitMs: question.time_limit_ms,
-    memoryLimitKb: question.memory_limit_kb,
+    timeLimitMs,
+    memoryLimitKb,
     tests,
   });
 
@@ -187,6 +209,7 @@ async function finalizeLoop(): Promise<void> {
 
 async function loop(): Promise<void> {
   console.log(`worker started: engine=${process.env.ENGINE ?? "judge0"} concurrency=${CONCURRENCY}`);
+  sql.listen("submission_queued", wake).catch((error) => console.error("LISTEN failed, using fallback poll:", error));
   while (!stopping) {
     const free = MAX_IN_FLIGHT - inFlight;
     const claimed = free > 0 ? await claim(free).catch((error) => (console.error("claim failed:", error), [])) : [];
@@ -194,7 +217,7 @@ async function loop(): Promise<void> {
       inFlight++;
       void handle(submission);
     }
-    if (claimed.length === 0) await new Promise((resolve) => setTimeout(resolve, IDLE_POLL_MS));
+    if (claimed.length === 0) await waitForWork();
   }
   while (inFlight > 0) await new Promise((resolve) => setTimeout(resolve, 100));
   await sql.end();

@@ -44,13 +44,28 @@ function hash(text: string): number {
 export function fingerprints(source: string): Set<number> {
   const tokens = tokenize(source);
   const grams: number[] = [];
-  for (let index = 0; index + K <= tokens.length; index++) grams.push(hash(tokens.slice(index, index + K).join(" ")));
+  for (let i = 0; i + K <= tokens.length; i++) {
+    let h = 2166136261;
+    for (let j = 0; j < K; j++) {
+      if (j > 0) h = Math.imul(h ^ 32, 16777619); // space separator
+      const tok = tokens[i + j];
+      for (let c = 0; c < tok.length; c++) h = Math.imul(h ^ tok.charCodeAt(c), 16777619);
+    }
+    grams.push(h >>> 0);
+  }
   const selected = new Set<number>();
   if (grams.length <= WINDOW) {
     grams.forEach((gram) => selected.add(gram));
     return selected;
   }
-  for (let index = 0; index + WINDOW <= grams.length; index++) selected.add(Math.min(...grams.slice(index, index + WINDOW)));
+  // Monotonic deque sliding-window minimum: O(n) total, zero per-step allocations.
+  const deque: number[] = []; // indices into grams
+  for (let i = 0; i < grams.length; i++) {
+    while (deque.length > 0 && grams[deque[deque.length - 1]] >= grams[i]) deque.pop();
+    deque.push(i);
+    if (deque[0] <= i - WINDOW) deque.shift();
+    if (i >= WINDOW - 1) selected.add(grams[deque[0]]);
+  }
   return selected;
 }
 
@@ -73,7 +88,13 @@ const MIN_FINGERPRINTS = 6;
 export function similarPairs(documents: Document[], { threshold = 0.6, commonFraction = 0.5 } = {}): SimilarPair[] {
   const prints = new Map(documents.map((document) => [document.id, fingerprints(document.source)]));
   const holders = new Map<number, string[]>();
-  for (const [id, set] of prints) for (const value of set) holders.set(value, [...(holders.get(value) ?? []), id]);
+  for (const [id, set] of prints) {
+    for (const value of set) {
+      let arr = holders.get(value);
+      if (!arr) { arr = []; holders.set(value, arr); }
+      arr.push(id);
+    }
+  }
 
   // Ignore what most of the class wrote: boilerplate and the canonical answer.
   // Capped so a 1000-student class does not count pairs for widely shared hashes.

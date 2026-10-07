@@ -201,8 +201,9 @@ export function ExamIde({
     if (pending.length === 0) return;
     setSaveState("saving");
     try {
-      for (const draft of pending)
-        await api(`/api/attempts/${attemptId}/drafts`, { method: "PUT", body: JSON.stringify(draft), keepalive });
+      await Promise.all(pending.map((draft) =>
+        api(`/api/attempts/${attemptId}/drafts`, { method: "PUT", body: JSON.stringify(draft), keepalive }),
+      ));
       setSaveState("saved");
       setSavedAt(new Date());
     } catch {
@@ -371,6 +372,47 @@ export function ExamIde({
   // ---- run / submit ----
   // A run blocks only further runs; a submit grades in the background so the
   // student can keep working (its score is recorded either way).
+  function applyVerdict(questionId: string, kind: "run" | "submit", view: SubmissionView) {
+    const resultKey = `${questionId}:${kind}`;
+    setResults((current) => ({ ...current, [resultKey]: { ...view, kind } }));
+    if (kind === "submit" && view.total) {
+      setBest((current) => {
+        const previous = current[questionId];
+        const better = !previous || (view.passed ?? 0) / view.total! > previous.passed / previous.total;
+        return better ? { ...current, [questionId]: { passed: view.passed ?? 0, total: view.total! } } : current;
+      });
+    }
+  }
+
+  async function awaitVerdictSSE(id: string, questionId: string, kind: "run" | "submit"): Promise<boolean> {
+    return new Promise<boolean>((resolve) => {
+      const timeout = setTimeout(() => { es.close(); resolve(false); }, 30_000);
+      const es = new EventSource(`/api/submissions/${id}/stream`);
+      es.addEventListener("verdict", (event) => {
+        clearTimeout(timeout);
+        es.close();
+        try {
+          const view = JSON.parse(event.data) as SubmissionView;
+          applyVerdict(questionId, kind, view);
+          resolve(true);
+        } catch {
+          resolve(false);
+        }
+      });
+      es.addEventListener("timeout", () => { clearTimeout(timeout); es.close(); resolve(false); });
+      es.onerror = () => { clearTimeout(timeout); es.close(); resolve(false); };
+    });
+  }
+
+  async function pollVerdict(id: string, questionId: string, kind: "run" | "submit") {
+    for (let polls = 0; polls < 600; polls++) {
+      await new Promise((resolve) => setTimeout(resolve, kind === "run" && polls < 10 ? 300 : 1000));
+      const view = (await api(`/api/submissions/${id}`)) as SubmissionView;
+      applyVerdict(questionId, kind, view);
+      if (view.status === "done" || view.status === "error") break;
+    }
+  }
+
   async function execute(kind: "run" | "submit") {
     const questionId = question.id;
     if (kind === "run" ? runBusy : submitting[questionId]) return;
@@ -394,21 +436,8 @@ export function ExamIde({
         }),
       });
       setResults((current) => ({ ...current, [resultKey]: { id, kind, status: "queued" } }));
-      for (let polls = 0; polls < 600; polls++) {
-        await new Promise((resolve) => setTimeout(resolve, kind === "run" && polls < 10 ? 700 : 2000));
-        const view = (await api(`/api/submissions/${id}`)) as SubmissionView;
-        setResults((current) => ({ ...current, [resultKey]: { ...view, kind } }));
-        if (view.status === "done" || view.status === "error") {
-          if (kind === "submit" && view.total) {
-            setBest((current) => {
-              const previous = current[questionId];
-              const better = !previous || (view.passed ?? 0) / view.total! > previous.passed / previous.total;
-              return better ? { ...current, [questionId]: { passed: view.passed ?? 0, total: view.total! } } : current;
-            });
-          }
-          break;
-        }
-      }
+      const done = await awaitVerdictSSE(id, questionId, kind);
+      if (!done) await pollVerdict(id, questionId, kind);
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "Something went wrong");
     } finally {

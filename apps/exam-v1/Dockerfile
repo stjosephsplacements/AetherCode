@@ -11,6 +11,7 @@ RUN pnpm build
 FROM node:24-bookworm-slim
 WORKDIR /app
 ENV NODE_ENV=production
+ENV NODE_OPTIONS="--max-semi-space-size=64"
 RUN npm install -g pnpm@12.6.0 && useradd --system --uid 1001 exam
 COPY --from=build --chown=exam /app ./
 USER exam
