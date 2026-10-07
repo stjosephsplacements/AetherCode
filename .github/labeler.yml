@@ -1,0 +1,56 @@
+ci:
+  - changed-files:
+    - any-glob-to-any-file:
+      - ".github/workflows/**"
+      - "Makefile"
+      - "deploy/**"
+      - "**/Dockerfile"
+      - "docker-compose*.yml"
+
+documentation:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "**/*.md"
+      - "docs/**"
+      - "**/*.txt"
+
+dependencies:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "**/go.mod"
+      - "**/go.sum"
+      - "**/package.json"
+      - "**/pnpm-lock.yaml"
+
+security:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "backend/services/identity/**"
+      - "backend/services/seb/**"
+      - "backend/services/judge/**"
+      - "apps/exam-v1/lib/auth*"
+      - "apps/exam-v1/middleware/**"
+      - "backend/libs/proto/**"
+
+performance:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "backend/services/submission/**"
+      - "backend/services/judge/**"
+      - "apps/exam-v1/worker/**"
+
+breaking-change:
+  - head-branch:
+    - "breaking/**"
+    - "break/**"
+
+enhancement:
+  - head-branch:
+    - "feat/**"
+    - "feature/**"
+
+bug:
+  - head-branch:
+    - "fix/**"
+    - "bugfix/**"
+    - "hotfix/**"
