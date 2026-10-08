@@ -1,0 +1,69 @@
+name: Bug Report
+description: Report a reproducible bug in AetherCode
+title: "bug: "
+labels: [bug]
+assignees: [Shreesh-Sree]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill this out. The more detail you provide,
+        the faster we can reproduce and fix it.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which part of the system is affected?
+      options:
+        - Exam app (apps/exam-v1)
+        - Gateway service
+        - Identity service
+        - Assessment service
+        - Submission / Judge
+        - SEB lockdown
+        - Notification service
+        - Infrastructure / Deploy
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Clear description of the bug.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Go to ...
+        2. Click ...
+        3. See error
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version / commit
+      placeholder: e.g. v1.2.3 or abc1234
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or screenshots
+      render: shell

@@ -1,0 +1,50 @@
+name: Feature Request
+description: Propose a new feature or improvement
+title: "feat: "
+labels: [enhancement]
+assignees: [Shreesh-Sree]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe what you'd like to see added or changed. Keep it scoped —
+        one feature per issue.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Exam app (apps/exam-v1)
+        - Gateway service
+        - Identity service
+        - Assessment service
+        - Submission / Judge
+        - SEB lockdown
+        - Notification service
+        - Infrastructure / Deploy
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or motivation
+      description: What gap does this fill? What's the user story?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false

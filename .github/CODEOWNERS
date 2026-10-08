@@ -1,11 +1,11 @@
-# Default: Sreesanth R owns everything
-* @Shreesh-Sree
+# Default: both orgs own everything
+* @AlgoQX @stjosephsplacements
 
-# Security-critical paths require explicit review
-apps/exam-v1/lib/auth*      @Shreesh-Sree
-apps/exam-v1/lib/grading*   @Shreesh-Sree
-backend/services/identity/  @Shreesh-Sree
-backend/services/seb/       @Shreesh-Sree
-backend/services/judge/     @Shreesh-Sree
-backend/libs/proto/         @Shreesh-Sree
-deploy/                     @Shreesh-Sree
+# Security-critical paths require explicit review from both orgs
+apps/exam-v1/lib/auth*      @AlgoQX @stjosephsplacements
+apps/exam-v1/lib/grading*   @AlgoQX @stjosephsplacements
+backend/services/identity/  @AlgoQX @stjosephsplacements
+backend/services/seb/       @AlgoQX @stjosephsplacements
+backend/services/judge/     @AlgoQX @stjosephsplacements
+backend/libs/proto/         @AlgoQX @stjosephsplacements
+deploy/                     @AlgoQX @stjosephsplacements
