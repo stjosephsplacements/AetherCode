@@ -115,7 +115,7 @@ func (client *Client) Submit(ctx context.Context, req dispatcher.UnitRequest) (s
 	if err != nil {
 		return "", err
 	}
-	jobID, err := client.createJob(ctx, executeRequest{
+	jobID, streamToken, err := client.createJob(ctx, executeRequest{
 		Language:   language.engineName,
 		SourceCode: req.SourceCode,
 		Mode:       "run",
@@ -127,7 +127,7 @@ func (client *Client) Submit(ctx context.Context, req dispatcher.UnitRequest) (s
 	if err != nil {
 		return "", err
 	}
-	data, err := client.awaitVerdict(ctx, jobID)
+	data, err := client.awaitVerdict(ctx, jobID, streamToken)
 	if err != nil {
 		return "", err
 	}
@@ -156,52 +156,57 @@ func (client *Client) Poll(_ context.Context, token string) (*dispatcher.UnitVer
 	return &verdict, nil
 }
 
-func (client *Client) createJob(ctx context.Context, request executeRequest) (string, error) {
+func (client *Client) createJob(ctx context.Context, request executeRequest) (string, string, error) {
 	body, err := json.Marshal(request)
 	if err != nil {
-		return "", fmt.Errorf("aethercode: encode execute request: %w", err)
+		return "", "", fmt.Errorf("aethercode: encode execute request: %w", err)
 	}
 	delay := initialRetryDelay
 	for {
 		httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, client.baseURL+"/api/v1/execute", bytes.NewReader(body))
 		if err != nil {
-			return "", fmt.Errorf("aethercode: build execute request: %w", err)
+			return "", "", fmt.Errorf("aethercode: build execute request: %w", err)
 		}
 		httpRequest.Header.Set("Content-Type", "application/json")
 		httpResponse, err := client.http.Do(httpRequest)
 		if err != nil {
-			return "", fmt.Errorf("aethercode: execute request failed: %w", err)
+			return "", "", fmt.Errorf("aethercode: execute request failed: %w", err)
 		}
 		responseBody, _ := io.ReadAll(io.LimitReader(httpResponse.Body, 4096))
 		_ = httpResponse.Body.Close()
 		switch httpResponse.StatusCode {
 		case http.StatusCreated:
 			var created struct {
-				JobID string `json:"job_id"`
+				JobID       string `json:"job_id"`
+				StreamToken string `json:"stream_token"`
 			}
 			if err := json.Unmarshal(responseBody, &created); err != nil || created.JobID == "" {
-				return "", fmt.Errorf("aethercode: execute response has no job id")
+				return "", "", fmt.Errorf("aethercode: execute response has no job id")
 			}
-			return created.JobID, nil
+			return created.JobID, created.StreamToken, nil
 		case http.StatusTooManyRequests:
 			wait := delay
 			if seconds, parseErr := strconv.Atoi(httpResponse.Header.Get("Retry-After")); parseErr == nil && seconds > 0 {
 				wait = time.Duration(seconds) * time.Second
 			}
 			if err := client.sleep(ctx, min(wait, maxRetryDelay)); err != nil {
-				return "", fmt.Errorf("aethercode: engine stayed busy: %w", err)
+				return "", "", fmt.Errorf("aethercode: engine stayed busy: %w", err)
 			}
 			delay = min(delay*2, maxRetryDelay)
 		default:
-			return "", fmt.Errorf("aethercode: execute returned status %d: %s", httpResponse.StatusCode, responseBody)
+			return "", "", fmt.Errorf("aethercode: execute returned status %d: %s", httpResponse.StatusCode, responseBody)
 		}
 	}
 }
 
 // awaitVerdict follows the job's Server-Sent Events until VERDICT.
-func (client *Client) awaitVerdict(ctx context.Context, jobID string) (verdictData, error) {
+func (client *Client) awaitVerdict(ctx context.Context, jobID, streamToken string) (verdictData, error) {
+	query := url.Values{"job_id": {jobID}}
+	if streamToken != "" {
+		query.Set("stream_token", streamToken)
+	}
 	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodGet,
-		client.baseURL+"/api/v1/stream?job_id="+url.QueryEscape(jobID), nil)
+		client.baseURL+"/api/v1/stream?"+query.Encode(), nil)
 	if err != nil {
 		return verdictData{}, fmt.Errorf("aethercode: build stream request: %w", err)
 	}
