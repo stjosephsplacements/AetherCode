@@ -59,14 +59,18 @@ type PlistDict = { [key: string]: PlistValue };
 
 /** Minimal plist XML parser — handles the subset we generate. */
 function parsePlist(xml: string): PlistDict {
-  // Strip XML declaration, DOCTYPE, <plist> wrapper
-  const body = xml
+  // Strip XML declaration, DOCTYPE, <plist> wrapper, and comments iteratively
+  let body = xml
     .replace(/<\?xml[^>]*\?>/g, "")
     .replace(/<!DOCTYPE[^>]*>/g, "")
     .replace(/<plist[^>]*>/g, "")
-    .replace(/<\/plist>/g, "")
-    .replace(/<!--[\s\S]*?-->/g, "")
-    .trim();
+    .replace(/<\/plist>/g, "");
+  while (body.includes("<!--")) {
+    const stripped = body.replace(/<!--[\s\S]*?-->/g, "");
+    if (stripped === body) break;
+    body = stripped;
+  }
+  body = body.trim();
   const [value] = parseValue(body, 0);
   return value as PlistDict;
 }

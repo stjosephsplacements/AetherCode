@@ -1,21 +1,21 @@
 import "server-only";
-import { readFile, stat } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { type BrandingConfig, logoFiles, parseBranding, pickBrand } from "@/lib/branding";
 
 const EMPTY: BrandingConfig = { default: {}, tenants: {} };
-let cached: { file: string; modified: number; config: BrandingConfig } | null = null;
+let cached: { file: string; content: string; config: BrandingConfig } | null = null;
 
 /** The branding file, re-read when it changes, so a new logo needs no restart. */
 async function loadConfig(): Promise<{ file: string; config: BrandingConfig } | null> {
   const file = process.env.BRANDING_FILE?.trim();
   if (!file) return null;
   try {
-    const modified = (await stat(file)).mtimeMs;
-    if (cached?.file !== file || cached.modified !== modified) {
-      const { config, problems } = parseBranding(await readFile(file, "utf8"));
+    const content = await readFile(file, "utf8");
+    if (cached?.file !== file || cached.content !== content) {
+      const { config, problems } = parseBranding(content);
       for (const problem of problems) console.warn(`BRANDING_FILE ${file}: ${problem}`);
-      cached = { file, modified, config };
+      cached = { file, content, config };
     }
     return { file, config: cached.config };
   } catch (error) {

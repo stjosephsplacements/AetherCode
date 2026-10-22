@@ -96,7 +96,7 @@ func (repository *Postgres) ListExamResults(ctx context.Context, tx *database.Go
 	rows := make([]examResultRow, 0)
 	result := tx.WithContext(ctx).
 		Table("analytics.exam_result_rollups").
-		Where(map[string]any{"tenant_id": tenantID, "exam_version_id": examVersionID}).
+		Where("tenant_id = ? AND exam_version_id = ?", tenantID, examVersionID).
 		Order("graded_at DESC NULLS LAST").
 		Order("attempt_id ASC").
 		Limit(limit).

@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -43,6 +44,9 @@ func (event Event) Encode() ([]byte, error) {
 		return nil, fmt.Errorf("event envelope does not end with its payload")
 	}
 	prefix := envelope[:len(envelope)-len("null}")]
+	if len(prefix) > math.MaxInt-len(payload)-1 {
+		return nil, fmt.Errorf("event payload too large to encode")
+	}
 	encoded := make([]byte, 0, len(prefix)+len(payload)+1)
 	encoded = append(encoded, prefix...)
 	encoded = append(encoded, payload...)
