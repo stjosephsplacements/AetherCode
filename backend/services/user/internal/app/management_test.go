@@ -2,8 +2,10 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
+	"time"
 
 	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
 	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
@@ -92,6 +94,10 @@ func (uncalledManagementStore) AssignRole(context.Context, pgx.Tx, AssignRole) (
 
 func (uncalledManagementStore) RevokeRole(context.Context, pgx.Tx, RevokeRole) (RoleAssignment, error) {
 	panic("unexpected persistence call")
+}
+
+func (uncalledManagementStore) ListStaffAudit(context.Context, pgx.Tx, string, *time.Time, int) (json.RawMessage, error) {
+	panic("unexpected store call")
 }
 
 func (uncalledManagementStore) SetPlacementStaffMembership(context.Context, pgx.Tx, SetPlacementStaffMembership) (PlacementStaffMembership, error) {

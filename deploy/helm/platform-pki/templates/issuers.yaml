@@ -1,0 +1,37 @@
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: aethercode-selfsigned
+  labels:
+    app.kubernetes.io/part-of: aethercode
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: aethercode-ca
+  labels:
+    app.kubernetes.io/part-of: aethercode
+spec:
+  isCA: true
+  commonName: {{ .Values.ca.commonName | quote }}
+  secretName: aethercode-ca
+  duration: {{ .Values.ca.duration }}
+  renewBefore: {{ .Values.ca.renewBefore }}
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: aethercode-selfsigned
+    kind: Issuer
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: aethercode-ca
+  labels:
+    app.kubernetes.io/part-of: aethercode
+spec:
+  ca:
+    secretName: aethercode-ca

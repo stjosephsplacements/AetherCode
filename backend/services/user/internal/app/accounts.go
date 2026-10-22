@@ -28,6 +28,17 @@ type Accounts interface {
 	ReissuePasswords(context.Context, []string, AccountAudit) ([]IssuedCredential, error)
 	SetAccountStatus(context.Context, []string, string, AccountAudit) error
 	DiscardAccounts(context.Context, []string, AccountAudit) error
+	DescribeAccounts(context.Context, []string) ([]AccountSummary, error)
+}
+
+// AccountSummary is an account's sign-in name, display name and status, as
+// Identity describes it (ADR-0043).
+type AccountSummary struct {
+	PrincipalID string `json:"principal_id"`
+	Username    string `json:"username,omitempty"`
+	Email       string `json:"email,omitempty"`
+	DisplayName string `json:"display_name"`
+	Status      string `json:"status"`
 }
 
 // AccountStore owns the college-membership side of account management. Its
@@ -38,6 +49,7 @@ type AccountStore interface {
 	TenantAccountPrincipals(context.Context, pgx.Tx, string, []string) ([]string, error)
 	BatchAccountPrincipals(context.Context, pgx.Tx, string, string) ([]string, error)
 	GrantStaffRole(context.Context, pgx.Tx, StaffAccount, string, string) (RoleAssignment, error)
+	ReadablePrincipals(context.Context, pgx.Tx, string, []string) ([]string, error)
 }
 
 // Authorize returns a fresh users.accounts write capability for the current
@@ -357,4 +369,29 @@ func (service *AccountService) discard(contextValue context.Context, credentials
 		slog.ErrorContext(contextValue, "discard provisioned accounts", "request_id", audit.RequestID,
 			"principal_ids", ids, "error", err)
 	}
+}
+
+// DescribeAccounts names this college's accounts among principalIDs, for
+// staff lists and the audit log (ADR-0043). Others are left out.
+func (service *AccountService) DescribeAccounts(contextValue context.Context, authorize Authorize, tenantID string, principalIDs []string) ([]AccountSummary, error) {
+	if !isUUID(tenantID) || len(principalIDs) == 0 || len(principalIDs) > MaxStudentImport {
+		return nil, apperrors.New(apperrors.CodeInvalidArgument, fmt.Sprintf("between 1 and %d principal IDs are required", MaxStudentImport))
+	}
+	for _, id := range principalIDs {
+		if !isUUID(id) {
+			return nil, apperrors.New(apperrors.CodeInvalidArgument, "principal IDs must be UUIDs")
+		}
+	}
+	var readable []string
+	if err := service.inAccountTx(contextValue, authorize, func(transaction pgx.Tx) error {
+		var err error
+		readable, err = service.store.ReadablePrincipals(contextValue, transaction, tenantID, principalIDs)
+		return err
+	}); err != nil {
+		return nil, err
+	}
+	if len(readable) == 0 {
+		return []AccountSummary{}, nil
+	}
+	return service.identity.DescribeAccounts(contextValue, readable)
 }

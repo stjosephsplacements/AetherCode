@@ -1,13 +1,67 @@
+# Defaults for every AetherCode workload. Each service has a values-<service>.yaml
+# next to this file; values-common.yaml (one level up) carries the settings the
+# whole installation shares. Install with the release named after the service, so
+# its Service DNS name is the service name (user, identity, ...).
+
+global:
+  # Cluster addresses, templated into config and env values with {{ }}.
+  postgresHost: postgres               # the Service of platform-infra's PostgreSQL, or your database's address
+  # prefer encrypts when the server offers TLS; use verify-full with a managed database.
+  postgresSSLMode: prefer
+  judgeDbHost: judge-db
+  judgeRabbitMQHost: judge-rabbitmq
+  natsUrl: nats://nats:4222
+  minioEndpoint: minio:9000
+  minioUseSSL: "false"
+  # One Secret holds every credential (see deploy/helm/README.md, generate-secrets.sh).
+  secretName: aethercode-secrets
+  # The address users open; Safe Exam Browser hashes request URLs with it.
+  publicOrigin: ""
+  engineUrl: http://engine:5100
+  mtlsTrustDomain: spiffe://aethercode.local
+
 replicaCount: 2
 
 image:
   repository: ""
   tag: ""
+  digest: ""
   pullPolicy: IfNotPresent
 
 service:
   type: ClusterIP
   port: 8080
+  targetPort: 8080
+
+# Extra named container and Service ports (gRPC, introspection).
+ports: []
+
+# Plain configuration, written to a ConfigMap and injected as environment.
+# Values may use {{ .Values.global.* }}. commonConfig applies to every service.
+commonConfig:
+  AETHERCODE_ENV: production
+  HTTP_ADDR: 0.0.0.0:8080
+  LOG_LEVEL: info
+  NATS_URL: "{{ .Values.global.natsUrl }}"
+config: {}
+
+# Credentials: each entry reads one key of the shared Secret (name is the
+# environment variable; key defaults to name; secretName defaults to global.secretName).
+secretEnv: []
+# Plain environment that may use the secrets above as $(NAME) and {{ }} templates,
+# for example database URLs that embed a password.
+env: []
+envFrom: []
+
+# mTLS material from a Secret with tls.crt, tls.key and ca.crt (platform-pki
+# creates it), mounted read-only.
+tls:
+  enabled: false
+  secretName: ""
+  mountPath: /certs
+
+volumes: []
+volumeMounts: []
 
 resources:
   requests:
@@ -16,9 +70,6 @@ resources:
   limits:
     cpu: 500m
     memory: 512Mi
-
-env: []
-envFrom: []
 
 livenessProbe:
   httpGet:
@@ -36,6 +87,24 @@ readinessProbe:
   periodSeconds: 5
   failureThreshold: 3
 
+# Slow starters (migrations just ran, projections resync) get a longer window before liveness applies.
+startupProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  periodSeconds: 5
+  failureThreshold: 36
+
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 0
+    maxSurge: 1
+
+terminationGracePeriodSeconds: 30
+priorityClassName: ""
+spreadAcrossNodes: true
+
 autoscaling:
   enabled: false
   minReplicas: 2
@@ -45,6 +114,19 @@ autoscaling:
 podDisruptionBudget:
   enabled: true
   minAvailable: 1
+
+ingress:
+  enabled: false
+  className: ""
+  host: ""
+  tlsSecretName: ""
+  annotations: {}
+
+# Ingress-only policies. The platform-wide default deny is created by platform-infra.
+networkPolicy:
+  enabled: true
+  allowFrom: []
+  allowFromNamespaces: []
 
 serviceAccount:
   create: true
@@ -59,6 +141,8 @@ podSecurityContext:
   runAsUser: 65532
   runAsGroup: 65532
   fsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
 
 containerSecurityContext:
   readOnlyRootFilesystem: true
@@ -69,3 +153,5 @@ containerSecurityContext:
 nodeSelector: {}
 tolerations: []
 affinity: {}
+nameOverride: ""
+fullnameOverride: ""

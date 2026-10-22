@@ -1,12 +1,9 @@
-nameOverride: "gateway"
+# gateway: environment mirrors deploy/single-server/docker-compose.yml.
+nameOverride: gateway
 
 image:
-  repository: ghcr.io/Shreesh-Sree/CoderQX/gateway
+  repository: ghcr.io/stjosephsplacements/aethercode-gateway
   tag: ""
-
-service:
-  type: LoadBalancer
-  port: 8080
 
 replicaCount: 3
 
@@ -16,6 +13,36 @@ autoscaling:
   maxReplicas: 20
   targetCPUUtilizationPercentage: 70
 
-envFrom:
-  - secretRef:
-      name: gateway-secrets
+resources:
+  requests:
+    cpu: 250m
+    memory: 256Mi
+  limits:
+    cpu: 1
+    memory: 512Mi
+
+config:
+  SERVICE_NAME: "gateway"
+  GATEWAY_IDENTITY_ASSERTION_ISSUER: "aethercode-identity"
+  GATEWAY_IDENTITY_ASSERTION_AUDIENCE: "aethercode"
+  GATEWAY_SEB_PROTECTED_PREFIXES: "[\"/api/submission/v1/tenants\"]"
+  GATEWAY_SEB_PUBLIC_ORIGIN: "{{ required \"global.publicOrigin is required\" .Values.global.publicOrigin }}"
+  GATEWAY_UPSTREAMS: "{\"identity\":\"http://identity:8080\",\"tenant\":\"http://tenant:8080\",\"user\":\"http://user:8080\",\"question-bank\":\"http://question-bank:8080\",\"assessment\":\"http://assessment:8080\",\"submission\":\"http://submission:8080\",\"seb\":\"http://seb:8080\",\"notification\":\"http://notification:8080\",\"analytics\":\"http://analytics:8080\"}"
+
+secretEnv:
+  - name: IDENTITY_ASSERTION_PUBLIC_KEYS
+
+env:
+  - name: GATEWAY_IDENTITY_ASSERTION_PUBLIC_KEYS
+    value: "$(IDENTITY_ASSERTION_PUBLIC_KEYS)"
+  - name: GATEWAY_TRUSTED_PROXY_CIDRS
+    value: "{{ .Values.gatewayTrustedProxyCIDRs }}"
+
+networkPolicy:
+  allowFrom:
+    - service: frontend
+      ports: [8080]
+
+# The frontend forwards each student's address (X-Forwarded-For); the gateway
+# trusts it only from these ranges. Narrow it to your pod network CIDR.
+gatewayTrustedProxyCIDRs: '["10.0.0.0/8","172.16.0.0/12","192.168.0.0/16"]'

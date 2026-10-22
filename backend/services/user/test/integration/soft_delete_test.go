@@ -56,7 +56,7 @@ func TestSoftDeleteFlow_EndToEnd(t *testing.T) {
 	require.NoError(t, err)
 
 	readinessFunc := func(ctx context.Context) error { return nil }
-	handler, err := httpadapter.NewHandler("user-test", service, accountService, readinessFunc, authorizer)
+	handler, err := httpadapter.NewHandler("user-test", service, accountService, refuseSelf{}, readinessFunc, authorizer)
 	require.NoError(t, err)
 
 	// Test data
@@ -160,7 +160,7 @@ func TestHardDeleteFlow_SuperAdminOnly(t *testing.T) {
 	require.NoError(t, err)
 
 	readinessFunc := func(ctx context.Context) error { return nil }
-	handler, err := httpadapter.NewHandler("user-test", service, accountService, readinessFunc, authorizer)
+	handler, err := httpadapter.NewHandler("user-test", service, accountService, refuseSelf{}, readinessFunc, authorizer)
 	require.NoError(t, err)
 
 	tenantID := uuid.New()
@@ -590,4 +590,11 @@ func hasRole(roles []string, role string) bool {
 func withTestAuthorization(req *http.Request, actorID uuid.UUID, roles []string) *http.Request {
 	req.Header.Set("Authorization", "Bearer "+testBearerToken(actorID, roles))
 	return req
+}
+
+// refuseSelf stands in for /v1/me, which these tests do not exercise.
+type refuseSelf struct{}
+
+func (refuseSelf) Self(context.Context, string) (app.Self, error) {
+	return app.Self{}, app.AuthenticationError{}
 }

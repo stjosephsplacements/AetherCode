@@ -51,10 +51,14 @@ func NewHandler(serviceName string, service *app.Service, readiness httpx.Readin
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts", handler.listAttempts)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}/answers", handler.listAnswerRevisions)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}/unit-results", handler.getAttemptUnitSummary)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}/paper", handler.getAttemptPaper)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}/judge-receipts", handler.listAttemptUnitResults)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/attempts/{attempt_id}/items/{exam_item_id}/runs", handler.runCode)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}/items/{exam_item_id}/runs", handler.listCodeRuns)
+	mux.HandleFunc("POST /v1/tenants/{tenant_id}/attempts/{attempt_id}/items/{exam_item_id}/submissions", handler.submitItem)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}/items/{exam_item_id}/submissions", handler.listItemSubmissions)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}/runs/{run_id}", handler.getCodeRun)
+	handler.registerOperations(mux)
 	return mux, nil
 }
 
@@ -438,6 +442,40 @@ func (handler *Handler) listAnswerRevisions(writer http.ResponseWriter, request 
 // authorizes against `attempts` with the bearer subject as the resource, so the
 // database routine can bind the rows to the signed actor exactly as the other
 // candidate collections do.
+// getAttemptPaper returns the candidate's exam paper with their latest saved
+// code (ADR-0023). It contains decrypted source, so it is never cached.
+func (handler *Handler) getAttemptPaper(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	attemptID, err := httpx.ParseUUIDPathValue(request, "attempt_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	candidateID, err := candidateResourceID(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "attempts", candidateID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	paper, err := handler.service.GetAttemptPaper(request.Context(), decision.Capability, app.GetAttempt{
+		TenantID: tenantID, AttemptID: attemptID,
+	})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.Header().Set("Cache-Control", "no-store")
+	httpx.WriteJSON(writer, http.StatusOK, paper)
+}
+
 func (handler *Handler) getAttemptUnitSummary(writer http.ResponseWriter, request *http.Request) {
 	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
 	if err != nil {
@@ -509,6 +547,9 @@ func optionalUUIDQuery(request *http.Request, name string) (string, error) {
 type runCodeRequest struct {
 	Language string `json:"language"`
 	Source   string `json:"source"`
+	// Input, when present, runs the code against this stdin instead of the
+	// sample tests (ADR-0025).
+	Input *string `json:"input"`
 }
 
 // runCode starts a run against an item's sample tests (ADR-0021). It is
@@ -551,12 +592,85 @@ func (handler *Handler) runCode(writer http.ResponseWriter, request *http.Reques
 	}
 	run, err := handler.service.RunCode(request.Context(), decision.Capability, app.RunCode{
 		TenantID: tenantID, AttemptID: attemptID, ExamItemID: examItemID, Language: body.Language, Source: body.Source,
+		Input: body.Input,
 	})
 	if err != nil {
 		httpx.WriteError(writer, err)
 		return
 	}
 	httpx.WriteJSON(writer, http.StatusAccepted, run)
+}
+
+// itemPath parses the tenant, attempt and exam item of an item route.
+func itemPath(request *http.Request) (app.SubmitItem, error) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		return app.SubmitItem{}, err
+	}
+	attemptID, err := httpx.ParseUUIDPathValue(request, "attempt_id")
+	if err != nil {
+		return app.SubmitItem{}, err
+	}
+	examItemID, err := httpx.ParseUUIDPathValue(request, "exam_item_id")
+	if err != nil {
+		return app.SubmitItem{}, err
+	}
+	return app.SubmitItem{TenantID: tenantID, AttemptID: attemptID, ExamItemID: examItemID}, nil
+}
+
+// submitItem evaluates the item's latest saved code against all of its tests
+// (ADR-0025). It is authorized and rate limited like a run.
+func (handler *Handler) submitItem(writer http.ResponseWriter, request *http.Request) {
+	command, err := itemPath(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	candidateID, err := candidateResourceID(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	if handler.runCodeLimiter != nil && !handler.runCodeLimiter.Allow(candidateID, time.Now().UTC()) {
+		writer.Header().Set("Retry-After", retryAfterRunCode)
+		httpx.WriteJSON(writer, http.StatusTooManyRequests, httpx.Problem{Code: "too_many_requests", Message: "too many submissions; wait a moment and try again"})
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "attempts", candidateID, command.TenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	submission, err := handler.service.SubmitItem(request.Context(), decision.Capability, command)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusAccepted, submission)
+}
+
+func (handler *Handler) listItemSubmissions(writer http.ResponseWriter, request *http.Request) {
+	command, err := itemPath(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	candidateID, err := candidateResourceID(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "attempts", candidateID, command.TenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	page, err := handler.service.ListItemSubmissions(request.Context(), decision.Capability, command)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, page)
 }
 
 func (handler *Handler) getCodeRun(writer http.ResponseWriter, request *http.Request) {

@@ -25,6 +25,44 @@ paths:
       responses:
         '200': {description: Database and authorization dependencies are ready}
         '503': {description: A required dependency is unavailable}
+  /v1/me:
+    get:
+      summary: The caller's own active roles (ADR-0023)
+      description: >-
+        Verifies the gateway's identity assertion and returns the caller's
+        active role assignments. There is no resource parameter: a caller can
+        only read themselves. student is set from a self-scoped student role.
+      responses:
+        '200':
+          description: The caller's roles; sent with Cache-Control no-store.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [principal_id, roles, student]
+                properties:
+                  principal_id: {type: string, format: uuid}
+                  roles:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required: [role_name, scope_kind]
+                      properties:
+                        role_name: {enum: [super_admin, placement_user, college_admin, department_user, mentor, student]}
+                        scope_kind: {enum: [platform, college, department, batch, placement_department, self]}
+                        tenant_id: {type: string, format: uuid}
+                        scope_id: {type: string, format: uuid}
+                  student:
+                    oneOf:
+                      - type: 'null'
+                      - type: object
+                        additionalProperties: false
+                        required: [tenant_id]
+                        properties:
+                          tenant_id: {type: string, format: uuid}
+        '401': {$ref: '#/components/responses/Problem401'}
   /v1/profiles/{principal_id}:
     parameters:
       - $ref: '#/components/parameters/PrincipalID'

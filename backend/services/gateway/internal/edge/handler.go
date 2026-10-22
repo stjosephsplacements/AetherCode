@@ -30,6 +30,8 @@ var publicIdentityRoutes = map[string]struct{}{
 	http.MethodPost + " /v1/auth/register":                {},
 	http.MethodPost + " /v1/auth/verify-email":            {},
 	http.MethodPost + " /v1/auth/login":                   {},
+	http.MethodPost + " /v1/auth/sso/start":               {},
+	http.MethodPost + " /v1/auth/sso/callback":            {},
 	http.MethodPost + " /v1/auth/mfa/verify-login":        {},
 	http.MethodPost + " /v1/auth/refresh":                 {},
 	http.MethodPost + " /v1/auth/logout":                  {},
@@ -216,8 +218,12 @@ func (handler *Handler) ServeHTTP(writer http.ResponseWriter, request *http.Requ
 	}
 
 	if handler.requiresSEB(route.externalPath) {
-		if err := handler.enforceSEB(request, route, assertion); err != nil {
-			writeError(writer, http.StatusForbidden, "secure exam browser validation failed")
+		if err := handler.enforceSEB(request, route, assertion, clientIP); err != nil {
+			message := "secure exam browser validation failed"
+			if errors.Is(err, errOutsideLabNetwork) {
+				message = "this exam can only be taken from the college lab network"
+			}
+			writeError(writer, http.StatusForbidden, message)
 			return
 		}
 	}
@@ -271,6 +277,10 @@ func (handler *Handler) route(request *http.Request) (route, error) {
 	forwarded := "/"
 	if len(parts) == 2 {
 		forwarded += parts[1]
+	}
+	// Prometheus scrapes services directly; their counters are not for users.
+	if forwarded == "/metrics" {
+		return route{}, errors.New("operational route")
 	}
 	return route{service: parts[0], forwardedPath: forwarded, externalPath: pathValue, upstream: upstream}, nil
 }
@@ -384,7 +394,11 @@ func (handler *Handler) isTrustedProxy(peer net.IP) bool {
 // Config Key on every request; SEB compares them with the keys of the exams
 // the bearer candidate is sitting. The URL is rebuilt from the configured
 // public origin and the raw request target, exactly as the browser sent it.
-func (handler *Handler) enforceSEB(request *http.Request, route route, assertion string) error {
+// errOutsideLabNetwork: the candidate's open exam is limited to lab networks
+// and the request comes from outside them (ADR-0030).
+var errOutsideLabNetwork = errors.New("request comes from outside the exam's lab networks")
+
+func (handler *Handler) enforceSEB(request *http.Request, route route, assertion, clientIP string) error {
 	tenantID, err := tenantFromPath(route.externalPath)
 	if err != nil {
 		return err
@@ -402,9 +416,13 @@ func (handler *Handler) enforceSEB(request *http.Request, route route, assertion
 	}
 	result, err := handler.checkSEBRequest(request.Context(), assertion, tenantID, sebCheckRequest{
 		URL: handler.sebPublicOrigin + request.RequestURI, RequestHash: requestHash, ConfigKeyHash: configKeyHash,
+		ClientIP: clientIP,
 	})
 	if err != nil {
 		return err
+	}
+	if result == "network_refused" {
+		return errOutsideLabNetwork
 	}
 	if result != "matched" && result != "not_required" {
 		return fmt.Errorf("SEB request check returned %s", result)
@@ -456,6 +474,7 @@ type sebCheckRequest struct {
 	URL           string `json:"url"`
 	RequestHash   string `json:"request_hash,omitempty"`
 	ConfigKeyHash string `json:"config_key_hash,omitempty"`
+	ClientIP      string `json:"client_ip,omitempty"`
 }
 
 type sebCheckResponse struct {

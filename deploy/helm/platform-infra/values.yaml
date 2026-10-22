@@ -1,0 +1,67 @@
+# Single-instance backing services, sized for a campus. They mirror the
+# single-server Docker Compose stack. For high availability use managed or
+# operator-run equivalents (platform-postgres-ha, a NATS cluster, an S3 service)
+# and disable the matching block here; point platform-service's global.* at them.
+
+secretName: aethercode-secrets
+
+images:
+  postgres: postgres:18.4
+  nats: nats:2.14.3-alpine
+  minio: cgr.dev/chainguard/minio@sha256:0f95aa412a12351a95bb43c3b54b66440eb0aa022bb3f3458942678a489e915b
+  minioClient: cgr.dev/chainguard/minio-client@sha256:231c5976b6145971a5440dcd99257b23840513999f87cbcb68cd6a8ba674ca51
+  rabbitmq: rabbitmq:4.3.3-management@sha256:d8b3d416236ae5ba3f6a9f4e4651fdacda01780181a7d83a71b640248d8f0a69
+
+storageClass: ""
+
+# Deny all ingress in the namespace; every workload's chart then opens exactly
+# what it needs. Needs a CNI that enforces NetworkPolicy.
+defaultDeny:
+  enabled: true
+
+postgres:
+  enabled: true
+  storage: 100Gi
+  maxConnections: 400
+  resources:
+    requests: {cpu: "1", memory: 2Gi}
+    limits: {cpu: "4", memory: 8Gi}
+
+judgeDb:
+  enabled: true
+  storage: 20Gi
+  resources:
+    requests: {cpu: 250m, memory: 512Mi}
+    limits: {cpu: "2", memory: 2Gi}
+
+nats:
+  enabled: true
+  replicas: 3
+  storage: 10Gi
+  resources:
+    requests: {cpu: 100m, memory: 128Mi}
+    limits: {cpu: "1", memory: 512Mi}
+
+minio:
+  enabled: true
+  storage: 100Gi
+  bucket: aethercode
+  resources:
+    requests: {cpu: 250m, memory: 512Mi}
+    limits: {cpu: "2", memory: 2Gi}
+
+rabbitmq:
+  enabled: true
+  storage: 10Gi
+  resources:
+    requests: {cpu: 250m, memory: 512Mi}
+    limits: {cpu: "1", memory: 1Gi}
+
+# Whole-cluster dumps of both databases every fifteen minutes (backup.sh), kept
+# on a volume. Copy that volume off the cluster; a backup in the same failure
+# domain is not a backup.
+backup:
+  enabled: true
+  schedule: "*/15 * * * *"
+  retentionDays: 7
+  storage: 50Gi

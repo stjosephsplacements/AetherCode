@@ -253,3 +253,32 @@ func generateCredentials(principalIDs []string) ([]IssuedCredential, []string, e
 	}
 	return credentials, hashes, nil
 }
+
+// AccountSummary is what the User service may show about an account: its
+// sign-in name, display name and status (ADR-0043). Never credentials.
+type AccountSummary struct {
+	PrincipalID string `json:"principal_id"`
+	Username    string `json:"username,omitempty"`
+	Email       string `json:"email,omitempty"`
+	DisplayName string `json:"display_name"`
+	Status      string `json:"status"`
+}
+
+// AccountDirectory reads account summaries.
+type AccountDirectory interface {
+	DescribeAccounts(context.Context, []string) ([]AccountSummary, error)
+}
+
+// DescribeAccounts returns the summaries of existing accounts among
+// principalIDs, for the User service to show staff names.
+func (service *Service) DescribeAccounts(contextValue context.Context, principalIDs []string) ([]AccountSummary, error) {
+	directory, ok := service.store.(AccountDirectory)
+	if !ok {
+		return nil, apperrors.New(apperrors.CodeUnavailable, "account directory is not available")
+	}
+	ids, err := normalizePrincipalIDs(principalIDs)
+	if err != nil {
+		return nil, err
+	}
+	return directory.DescribeAccounts(contextValue, ids)
+}

@@ -87,7 +87,7 @@ func TestProjectionWorkerCanClaimMaterializationEvents(t *testing.T) {
 	ctx := context.Background()
 	pool := migratedPool(ctx, t)
 	for _, function := range []string{
-		"assessment.materialize_from_batch_affiliation(uuid, uuid, uuid, uuid, uuid, text, bigint)",
+		"assessment.materialize_from_batch_affiliation(uuid, uuid, uuid, uuid, uuid, text, bigint, uuid)",
 		"assessment.apply_batch_projection(uuid, uuid, uuid, uuid)",
 		"assessment.backfill_from_assignment_rule(uuid, uuid, uuid, text, uuid)",
 	} {

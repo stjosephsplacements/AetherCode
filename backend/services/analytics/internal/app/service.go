@@ -24,6 +24,9 @@ var uuidPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a
 const (
 	defaultPageSize = 100
 	maximumPageSize = 500
+	// MaximumExamResults lets one exam version's results come back in a single
+	// page: the endpoint has no cursor and an exam may have thousands of students.
+	MaximumExamResults = 5000
 )
 
 // StudentProgress is an event-fed aggregate over completed evaluations for a
@@ -190,7 +193,7 @@ func (service *Service) ListStudentProgress(ctx context.Context, capability cent
 }
 
 func (service *Service) ListExamResults(ctx context.Context, capability centralauthz.Capability, tenantID, examVersionID string, limit int) ([]ExamResult, error) {
-	if !validID(tenantID) || !validID(examVersionID) || !validLimit(limit) {
+	if !validID(tenantID) || !validID(examVersionID) || limit < 0 || limit > MaximumExamResults {
 		return nil, invalid("exam result query is invalid")
 	}
 	var result []ExamResult

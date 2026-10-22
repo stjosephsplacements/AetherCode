@@ -331,7 +331,7 @@ func (repository *Postgres) Authenticate(contextValue context.Context, command a
 	if err := transaction.Commit(contextValue); err != nil {
 		return app.Session{}, fmt.Errorf("commit login: %w", err)
 	}
-	return app.Session{PrincipalID: principal.ID, TenantID: command.TenantID, AuthzRevision: 1}, nil
+	return app.Session{PrincipalID: principal.ID, TenantID: command.TenantID, AuthzRevision: 1, PasswordChangeRequired: principal.MustChange}, nil
 }
 
 // RotateRefresh consumes one bearer exactly once.  Any replay or invalid state
@@ -1184,6 +1184,8 @@ type principalRecord struct {
 	ID           string
 	Status       string
 	PasswordHash string
+	// MustChange marks a password staff issued; the user must replace it.
+	MustChange bool
 }
 
 // lockPrincipalByIdentifier finds a sign-in principal by email address or
@@ -1191,12 +1193,12 @@ type principalRecord struct {
 func (repository *Postgres) lockPrincipalByIdentifier(contextValue context.Context, transaction pgx.Tx, identifier string) (principalRecord, bool, error) {
 	var principal principalRecord
 	err := transaction.QueryRow(contextValue, `
-		SELECT principal.id, principal.status, credential.password_hash
+		SELECT principal.id, principal.status, credential.password_hash, credential.must_change
 		FROM identity.principals AS principal
 		JOIN identity.password_credentials AS credential ON credential.principal_id = principal.id
 		WHERE (lower(principal.email) = $1 OR principal.username = $1) AND principal.deleted_at IS NULL
 		FOR UPDATE OF principal, credential
-	`, identifier).Scan(&principal.ID, &principal.Status, &principal.PasswordHash)
+	`, identifier).Scan(&principal.ID, &principal.Status, &principal.PasswordHash, &principal.MustChange)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return principalRecord{}, false, nil
 	}
@@ -1529,4 +1531,52 @@ func parseUUID(value string) (string, error) {
 		return "", fmt.Errorf("invalid UUID format")
 	}
 	return strings.ToLower(value), nil
+}
+
+// ChangePassword verifies the current password and replaces it, clearing the
+// change requirement of a staff-issued password (ADR-0036). Other sessions
+// stay signed in; a staff reissue is the way to end them.
+func (repository *Postgres) ChangePassword(contextValue context.Context, command app.PasswordChange) error {
+	transaction, err := repository.pool.BeginTx(contextValue, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
+	if err != nil {
+		return fmt.Errorf("begin password change: %w", err)
+	}
+	defer func() { _ = transaction.Rollback(contextValue) }()
+	var currentHash string
+	err = transaction.QueryRow(contextValue, `
+		SELECT credential.password_hash
+		FROM identity.password_credentials AS credential
+		JOIN identity.principals AS principal ON principal.id = credential.principal_id
+		WHERE credential.principal_id = $1 AND principal.deleted_at IS NULL AND principal.status = 'active'
+		FOR UPDATE OF credential
+	`, command.PrincipalID).Scan(&currentHash)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return unauthorized("the current password is wrong")
+	}
+	if err != nil {
+		return fmt.Errorf("read password credential: %w", err)
+	}
+	outcome := "success"
+	if !domain.VerifyPassword(currentHash, command.CurrentPassword) {
+		outcome = "failure"
+	} else if _, err := transaction.Exec(contextValue, `
+		UPDATE identity.password_credentials
+		SET password_hash = $2, changed_at = clock_timestamp(), must_change = false, version = version + 1
+		WHERE principal_id = $1
+	`, command.PrincipalID, command.PasswordHash); err != nil {
+		return fmt.Errorf("change password: %w", err)
+	}
+	if err := repository.recordAuthEvent(contextValue, transaction, authEvent{
+		PrincipalID: command.PrincipalID, EventType: "identity.password.changed.v1", Outcome: outcome,
+		RequestID: command.RequestID, IPAddress: command.RequestIP,
+	}); err != nil {
+		return err
+	}
+	if err := transaction.Commit(contextValue); err != nil {
+		return fmt.Errorf("commit password change: %w", err)
+	}
+	if outcome == "failure" {
+		return unauthorized("the current password is wrong")
+	}
+	return nil
 }

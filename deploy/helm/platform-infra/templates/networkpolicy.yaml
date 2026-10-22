@@ -1,0 +1,48 @@
+{{- if .Values.defaultDeny.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  labels:
+    {{- include "infra.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress"]
+---
+{{- end }}
+{{- /* Backing services accept connections from AetherCode workloads only. */}}
+{{- $entries := list }}
+{{- if .Values.postgres.enabled }}{{ $entries = append $entries (dict "name" "postgres" "port" 5432) }}{{ end }}
+{{- if .Values.judgeDb.enabled }}{{ $entries = append $entries (dict "name" "judge-db" "port" 5432) }}{{ end }}
+{{- if .Values.nats.enabled }}{{ $entries = append $entries (dict "name" "nats" "port" 4222) }}{{ end }}
+{{- if .Values.minio.enabled }}{{ $entries = append $entries (dict "name" "minio" "port" 9000) }}{{ end }}
+{{- if .Values.rabbitmq.enabled }}{{ $entries = append $entries (dict "name" "judge-rabbitmq" "port" 5672) }}{{ end }}
+{{- range $entry := $entries }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $entry.name }}-from-platform
+  labels:
+    {{- include "infra.labels" $ | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $entry.name }}
+      app.kubernetes.io/part-of: aethercode
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: aethercode
+      ports:
+        - protocol: TCP
+          port: {{ $entry.port }}
+        {{- if eq $entry.name "nats" }}
+        - protocol: TCP
+          port: 6222
+        - protocol: TCP
+          port: 8222
+        {{- end }}
+---
+{{- end }}

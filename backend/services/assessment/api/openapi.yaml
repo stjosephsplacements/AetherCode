@@ -139,6 +139,57 @@ paths:
       responses:
         '201': {$ref: '#/components/responses/ExamVersion'}
         default: {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/content:
+    parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/ExamVersionID'}
+    get:
+      summary: The version's sections, items and assignment rules (staff exam builder)
+      description: >-
+        Authorized like reading the exam version. Items carry the pinned
+        question title; rules carry how many candidates they reached.
+      responses:
+        '200':
+          description: Exam version content
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sections, assignment_rules]
+                properties:
+                  sections:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: {$ref: '#/components/schemas/UUID'}
+                        position: {type: integer}
+                        title: {type: string}
+                        instructions_markdown: {type: string}
+                        items:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id: {$ref: '#/components/schemas/UUID'}
+                              position: {type: integer}
+                              question_id: {$ref: '#/components/schemas/UUID'}
+                              question_version_id: {$ref: '#/components/schemas/UUID'}
+                              question_title: {type: [string, 'null']}
+                              maximum_score: {type: string}
+                  assignment_rules:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: {$ref: '#/components/schemas/UUID'}
+                        target_type: {enum: [department, batch, placement_department, student]}
+                        target_id: {$ref: '#/components/schemas/UUID'}
+                        available_from: {$ref: '#/components/schemas/Timestamp'}
+                        available_until: {$ref: '#/components/schemas/Timestamp'}
+                        disabled_at: {type: [string, 'null'], format: date-time}
+                        assigned_candidates: {type: integer, minimum: 0}
+        default: {$ref: '#/components/responses/Problem'}
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}:
     parameters:
       - {$ref: '#/components/parameters/TenantID'}
@@ -497,6 +548,11 @@ components:
         title: {type: string, minLength: 1, maxLength: 300}
         instructions_markdown: {type: string, maxLength: 100000}
         time_limit_seconds: {type: integer, minimum: 60, maximum: 43200}
+        draw_count:
+          type: [integer, 'null']
+          minimum: 1
+          maximum: 100
+          description: Makes the section a pool; each student gets this many of its items (ADR-0034).
     ExamSection:
       type: object
       required: [id, tenant_id, exam_version_id, position, title, instructions_markdown, created_at]
@@ -566,6 +622,10 @@ components:
         assignment_rule_id: {$ref: '#/components/schemas/UUID'}
         exam_version_id: {$ref: '#/components/schemas/UUID'}
         candidate_id: {$ref: '#/components/schemas/UUID'}
+        exam_id: {$ref: '#/components/schemas/UUID', description: Candidate list only (ADR-0023).}
+        title: {type: string, description: The exam version's title. Candidate list only.}
+        instructions_markdown: {type: string, description: Candidate list only.}
+        duration_seconds: {type: integer, minimum: 60, maximum: 43200, description: Candidate list only.}
         available_from: {$ref: '#/components/schemas/Timestamp'}
         available_until: {$ref: '#/components/schemas/Timestamp'}
         lifecycle_state: {enum: [assigned, revoked, started, completed, expired]}

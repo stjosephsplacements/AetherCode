@@ -8,6 +8,7 @@ import (
 	"errors"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -304,8 +305,7 @@ func TestSetQuestionVersionTests(t *testing.T) {
 		})
 	}
 
-	// Manifests exist but the evaluation bundle columns are still NULL, so
-	// publication must be refused by the status/bundle CHECK.
+	// Manifests exist but there is no passing model check yet (ADR-0047).
 	for _, kind := range []string{"sample", "hidden"} {
 		_, err = pool.Exec(ctx, `
 			INSERT INTO qbank.test_case_manifests
@@ -314,7 +314,7 @@ func TestSetQuestionVersionTests(t *testing.T) {
 			questionVersionID, kind, actorID)
 		require.NoError(t, err)
 	}
-	requirePgCode(t, publish(1), "23514")
+	requirePgCode(t, publish(1), "55000")
 	_, err = pool.Exec(ctx, `DELETE FROM qbank.test_case_manifests WHERE question_version_id = $1`, questionVersionID)
 	require.NoError(t, err)
 
@@ -367,6 +367,21 @@ func TestSetQuestionVersionTests(t *testing.T) {
 	_, err = repository.ResolvePublishedQuestionVersion(ctx, questionVersionID.String())
 	require.ErrorContains(t, err, "not found", "a draft does not resolve")
 
+	// Publishing needs a completed, all-accepted model check on the current tests.
+	addCheck := func(verdict, checksum string) {
+		_, err := pool.Exec(ctx, `
+			INSERT INTO qbank.model_checks (id, question_version_id, language_key, source_object_key, source_checksum,
+			    source_key_reference, requested_by, lifecycle_state, verdict, units, completed_at, bundle_checksum)
+			VALUES (gen_random_uuid(), $1, 'python3', 's', repeat('e', 64), 'k', $2, 'completed', $3, '[]'::jsonb, now(), $4)`,
+			questionVersionID, actorID, verdict, checksum)
+		require.NoError(t, err)
+	}
+	addCheck("accepted", strings.Repeat("f", 64)) // ran on other tests
+	requirePgCode(t, publish(3), "55000")
+	addCheck("wrong_answer", strings.Repeat("a", 64))
+	requirePgCode(t, publish(3), "55000")
+	addCheck("accepted", strings.Repeat("a", 64))
+
 	// With both bundles recorded the version publishes, then is fully immutable.
 	require.NoError(t, publish(3))
 	resolved, err := repository.ResolvePublishedQuestionVersion(ctx, questionVersionID.String())
@@ -395,4 +410,53 @@ func jsonField(t *testing.T, document []byte, field string) string {
 	var fields map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(document, &fields))
 	return string(fields[field])
+}
+
+// TestListDraftQuestions proves an author sees their own drafts and nobody
+// else's.
+func TestListDraftQuestions(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	pool := newMigratedPool(ctx, t)
+	author, colleague := uuid.New(), uuid.New()
+	for _, draft := range []struct {
+		actor uuid.UUID
+		slug  string
+	}{{author, "mine-1"}, {author, "mine-2"}, {colleague, "theirs"}} {
+		questionID := uuid.New()
+		_, err := pool.Exec(ctx, `INSERT INTO qbank.questions (id, slug, created_by) VALUES ($1, $2, $3)`, questionID, draft.slug, draft.actor)
+		require.NoError(t, err)
+		_, err = pool.Exec(ctx, `
+			INSERT INTO qbank.question_versions
+			    (id, question_id, version_number, title, prompt_markdown, difficulty,
+			     supported_languages, time_limit_ms, memory_limit_kib, created_by)
+			VALUES (gen_random_uuid(), $1, 1, $2, 'Do the thing.', 'easy', '["python3"]'::jsonb, 1000, 65536, $3)`,
+			questionID, "Title "+draft.slug, draft.actor)
+		require.NoError(t, err)
+	}
+	for _, actor := range []uuid.UUID{author, colleague} {
+		_, err := pool.Exec(ctx, `
+			INSERT INTO authz.actor_global_authorizations (actor_id, authz_revision, can_read, can_write, active)
+			VALUES ($1, 1, true, true, true)`, actor)
+		require.NoError(t, err)
+	}
+	markAuthorizationProjectionReady(ctx, t, pool)
+
+	var raw []byte
+	require.NoError(t, asWriter(ctx, pool, author, "qbank.questions", func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT qbank.list_draft_questions(20)`).Scan(&raw)
+	}))
+	var drafts []struct {
+		Question        struct{ Slug string } `json:"question"`
+		QuestionVersion struct {
+			Title  string `json:"title"`
+			Status string `json:"status"`
+		} `json:"question_version"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &drafts))
+	require.Len(t, drafts, 2)
+	for _, draft := range drafts {
+		require.Contains(t, draft.Question.Slug, "mine-")
+		require.Equal(t, "draft", draft.QuestionVersion.Status)
+	}
 }

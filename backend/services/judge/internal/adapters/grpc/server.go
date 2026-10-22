@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/aethercode/aethercode/libs/pkg/grpcmtls"
 	"github.com/aethercode/aethercode/libs/pkg/ratelimit"
 	judgev1 "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/judge/v1"
 	"github.com/aethercode/aethercode/services/judge/internal/app"
@@ -55,6 +56,7 @@ func (server *Server) SubmitExecution(
 	}
 	limits := request.GetLimits()
 	execution, err := server.service.Submit(contextValue, app.SubmitExecution{
+		ClientSubject:           clientSubject(contextValue),
 		IdempotencyKey:          request.GetIdempotencyKey(),
 		TenantFairnessKey:       request.GetTenantFairnessKey(),
 		SubmissionCorrelationID: request.GetSubmissionCorrelationId(),
@@ -89,9 +91,10 @@ func (server *Server) PullCompletedExecutions(
 		return nil, status.Error(codes.InvalidArgument, "pull request is required")
 	}
 	completions, err := server.service.Pull(contextValue, app.PullCompletedExecutions{
-		ConsumerID:   request.GetConsumerId(),
-		Limit:        request.GetLimit(),
-		LeaseSeconds: request.GetLeaseSeconds(),
+		ClientSubject: clientSubject(contextValue),
+		ConsumerID:    request.GetConsumerId(),
+		Limit:         request.GetLimit(),
+		LeaseSeconds:  request.GetLeaseSeconds(),
 	})
 	if err != nil {
 		return nil, toStatusError(err)
@@ -154,10 +157,11 @@ func (server *Server) AcknowledgeCompletion(
 		return nil, status.Error(codes.InvalidArgument, "acknowledgement request is required")
 	}
 	if err := server.service.Acknowledge(contextValue, app.AcknowledgeCompletion{
-		ConsumerID: request.GetConsumerId(),
-		EventID:    request.GetEventId(),
-		DeliveryID: request.GetDeliveryId(),
-		LeaseID:    request.GetLeaseId(),
+		ClientSubject: clientSubject(contextValue),
+		ConsumerID:    request.GetConsumerId(),
+		EventID:       request.GetEventId(),
+		DeliveryID:    request.GetDeliveryId(),
+		LeaseID:       request.GetLeaseId(),
 	}); err != nil {
 		return nil, toStatusError(err)
 	}
@@ -240,4 +244,13 @@ func toStatusError(err error) error {
 	default:
 		return status.Error(codes.Internal, "Judge operation failed")
 	}
+}
+
+// clientSubject keeps each calling service's jobs apart (ADR-0033). Without
+// mTLS (development) every caller is Submission, the original client.
+func clientSubject(contextValue context.Context) string {
+	if subject := grpcmtls.ClientSubject(contextValue); subject != "" {
+		return subject
+	}
+	return "submission"
 }

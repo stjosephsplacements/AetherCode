@@ -1,12 +1,77 @@
-nameOverride: "judge"
+# judge: environment mirrors deploy/single-server/docker-compose.yml.
+nameOverride: judge
 
 image:
-  repository: ghcr.io/Shreesh-Sree/CoderQX/judge
+  repository: ghcr.io/stjosephsplacements/aethercode-judge
   tag: ""
 
-service:
-  port: 8080
+replicaCount: 3
 
-envFrom:
-  - secretRef:
-      name: judge-secrets
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+  limits:
+    cpu: 2
+    memory: 2Gi
+
+ports:
+  - name: grpc
+    port: 8443
+
+tls:
+  enabled: true
+  secretName: aethercode-tls-judge
+
+config:
+  SERVICE_NAME: "judge"
+  JUDGE_GRPC_ADDR: "0.0.0.0:8443"
+  JUDGE_TLS_CERT_FILE: "/certs/tls.crt"
+  JUDGE_TLS_KEY_FILE: "/certs/tls.key"
+  JUDGE_CLIENT_CA_FILE: "/certs/ca.crt"
+  JUDGE_ALLOWED_CLIENT_SUBJECTS: "submission,question-bank"
+  JUDGE_ENGINE_COMPATIBILITY_APPROVED: "{{ .Values.engineApproved }}"
+  JUDGE_STORAGE_BUCKET: "aethercode"
+  JUDGE_DISPATCHER_ENABLED: "true"
+  JUDGE_WORKER_CONCURRENCY: "32"
+  JUDGE_ENGINE: "{{ .Values.engine }}"
+  AETHERCODE_ENGINE_URL: "{{ .Values.global.engineUrl }}"
+  JUDGE0_BASE_URL: "{{ .Values.judge0BaseUrl }}"
+
+secretEnv:
+  - name: JUDGE_DB_PASSWORD
+  - name: JUDGE_RABBITMQ_PASSWORD
+  - name: MINIO_ROOT_USER
+  - name: MINIO_ROOT_PASSWORD
+  - name: PLATFORM_KMS_LOCAL_KEY
+  - name: JUDGE0_AUTH_TOKEN
+    optional: true
+
+env:
+  - name: JUDGE_DATABASE_URL
+    value: "postgres://aether_judge_app:$(JUDGE_DB_PASSWORD)@{{ .Values.global.judgeDbHost }}:5432/aether_judge_wrapper?sslmode={{ .Values.global.postgresSSLMode }}"
+  - name: JUDGE_RABBITMQ_URL
+    value: "amqp://judge:$(JUDGE_RABBITMQ_PASSWORD)@{{ .Values.global.judgeRabbitMQHost }}:5672/judge"
+  - name: JUDGE_STORAGE_ENDPOINT
+    value: "{{ .Values.global.minioEndpoint }}"
+  - name: JUDGE_STORAGE_ACCESS_KEY
+    value: "$(MINIO_ROOT_USER)"
+  - name: JUDGE_STORAGE_SECRET_KEY
+    value: "$(MINIO_ROOT_PASSWORD)"
+  - name: JUDGE_STORAGE_USE_SSL
+    value: "{{ .Values.global.minioUseSSL }}"
+  - name: JUDGE_KMS_LOCAL_KEY
+    value: "$(PLATFORM_KMS_LOCAL_KEY)"
+
+networkPolicy:
+  allowFrom:
+    - service: submission
+      ports: [8443]
+    - service: question-bank
+      ports: [8443]
+
+# aethercode is the college's execution engine (ADR-0028), reached at global.engineUrl;
+# judge0 needs the gated judge0-engine chart (ADR-0009) and judge0BaseUrl.
+engine: aethercode
+engineApproved: "true"
+judge0BaseUrl: ""

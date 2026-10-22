@@ -42,8 +42,8 @@ func (repository *Postgres) ProvisionAccounts(contextValue context.Context, acco
 			return fmt.Errorf("insert provisioned principals: %w", err)
 		}
 		if _, err := transaction.Exec(contextValue, `
-			INSERT INTO identity.password_credentials (principal_id, password_hash)
-			SELECT * FROM unnest($1::uuid[], $2::text[])
+			INSERT INTO identity.password_credentials (principal_id, password_hash, must_change)
+			SELECT id, hash, true FROM unnest($1::uuid[], $2::text[]) AS issued(id, hash)
 		`, ids, hashes); err != nil {
 			return fmt.Errorf("insert provisioned credentials: %w", err)
 		}
@@ -66,10 +66,10 @@ func (repository *Postgres) SetPasswords(contextValue context.Context, assignmen
 			return err
 		}
 		if _, err := transaction.Exec(contextValue, `
-			INSERT INTO identity.password_credentials (principal_id, password_hash)
-			SELECT * FROM unnest($1::uuid[], $2::text[])
+			INSERT INTO identity.password_credentials (principal_id, password_hash, must_change)
+			SELECT id, hash, true FROM unnest($1::uuid[], $2::text[]) AS issued(id, hash)
 			ON CONFLICT (principal_id) DO UPDATE
-			SET password_hash = EXCLUDED.password_hash, changed_at = clock_timestamp(), must_change = false,
+			SET password_hash = EXCLUDED.password_hash, changed_at = clock_timestamp(), must_change = true,
 			    version = identity.password_credentials.version + 1
 		`, ids, hashes); err != nil {
 			return fmt.Errorf("replace credentials: %w", err)
@@ -256,4 +256,25 @@ func recordAccountEvents(contextValue context.Context, transaction pgx.Tx, ids [
 		return fmt.Errorf("record account audit events: %w", err)
 	}
 	return nil
+}
+
+// DescribeAccounts reads the name and status of existing principals (ADR-0043).
+func (repository *Postgres) DescribeAccounts(contextValue context.Context, ids []string) ([]app.AccountSummary, error) {
+	rows, err := repository.pool.Query(contextValue, `
+		SELECT id::text, COALESCE(username, ''), COALESCE(email, ''), display_name, status
+		FROM identity.principals WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL
+	`, ids)
+	if err != nil {
+		return nil, fmt.Errorf("describe accounts: %w", err)
+	}
+	defer rows.Close()
+	summaries := []app.AccountSummary{}
+	for rows.Next() {
+		var summary app.AccountSummary
+		if err := rows.Scan(&summary.PrincipalID, &summary.Username, &summary.Email, &summary.DisplayName, &summary.Status); err != nil {
+			return nil, fmt.Errorf("scan account summary: %w", err)
+		}
+		summaries = append(summaries, summary)
+	}
+	return summaries, rows.Err()
 }

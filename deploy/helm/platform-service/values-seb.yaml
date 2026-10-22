@@ -1,12 +1,53 @@
-nameOverride: "seb"
+# seb: environment mirrors deploy/single-server/docker-compose.yml.
+nameOverride: seb
 
 image:
-  repository: ghcr.io/Shreesh-Sree/CoderQX/seb
+  repository: ghcr.io/stjosephsplacements/aethercode-seb
   tag: ""
 
-service:
-  port: 8080
+replicaCount: 2
 
-envFrom:
-  - secretRef:
-      name: seb-secrets
+tls:
+  enabled: true
+  secretName: aethercode-tls-seb
+
+config:
+  SERVICE_NAME: "seb"
+  AUTHZ_ENDPOINT: "user:9443"
+  AUTHZ_CLIENT_TLS_CA_FILE: "/certs/ca.crt"
+  AUTHZ_CLIENT_TLS_SERVER_NAME: "user"
+  AUTHZ_CLIENT_TLS_CERT_FILE: "/certs/tls.crt"
+  AUTHZ_CLIENT_TLS_KEY_FILE: "/certs/tls.key"
+  SEB_LAUNCH_BASE_URL: "{{ required \"global.publicOrigin is required\" .Values.global.publicOrigin }}"
+
+secretEnv:
+  - name: SEB_DB_PASSWORD
+  - name: MINIO_ROOT_USER
+  - name: MINIO_ROOT_PASSWORD
+  - name: PLATFORM_KMS_LOCAL_KEY
+  - name: SEB_LAUNCH_PASSWORD
+
+env:
+  - name: SEB_DATABASE_URL
+    value: "postgres://aether_seb_app:$(SEB_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_seb?sslmode={{ .Values.global.postgresSSLMode }}"
+  - name: SEB_PROJECTION_DATABASE_URL
+    value: "postgres://aether_seb_projection_worker:$(SEB_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_seb?sslmode={{ .Values.global.postgresSSLMode }}"
+  - name: SEB_STORAGE_ENDPOINT
+    value: "{{ .Values.global.minioEndpoint }}"
+  - name: SEB_STORAGE_ACCESS_KEY
+    value: "$(MINIO_ROOT_USER)"
+  - name: SEB_STORAGE_SECRET_KEY
+    value: "$(MINIO_ROOT_PASSWORD)"
+  - name: SEB_STORAGE_BUCKET
+    value: "aethercode"
+  - name: SEB_STORAGE_USE_SSL
+    value: "{{ .Values.global.minioUseSSL }}"
+  - name: SEB_KMS_LOCAL_KEY
+    value: "$(PLATFORM_KMS_LOCAL_KEY)"
+  - name: SEB_LAUNCH_PASSWORD
+    value: "$(SEB_LAUNCH_PASSWORD)"
+
+networkPolicy:
+  allowFrom:
+    - service: gateway
+      ports: [8080]

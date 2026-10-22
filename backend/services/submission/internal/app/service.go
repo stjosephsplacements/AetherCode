@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -77,10 +78,27 @@ type Store interface {
 	ListAttempts(context.Context, pgx.Tx, ListAttempts) ([]Attempt, error)
 	ListAnswerRevisions(context.Context, pgx.Tx, ListAnswerRevisions) ([]AnswerRevision, error)
 	GetAttemptUnitSummary(context.Context, pgx.Tx, GetAttempt) ([]AttemptUnitSummary, error)
+	GetAttemptPaper(context.Context, pgx.Tx, GetAttempt) (StoredPaper, error)
 	ListAttemptUnitResults(context.Context, pgx.Tx, GetAttempt) ([]AttemptUnitResults, error)
 	StartCodeRun(context.Context, pgx.Tx, RunCode) (CodeRun, error)
+	StartCustomRun(context.Context, pgx.Tx, RunCode) (CodeRun, error)
+	SubmitItem(context.Context, pgx.Tx, SubmitItem) (ItemSubmission, error)
+	ListItemSubmissions(context.Context, pgx.Tx, SubmitItem) ([]ItemSubmission, error)
 	GetCodeRun(context.Context, pgx.Tx, GetCodeRun) (CodeRun, error)
 	ListCodeRuns(context.Context, pgx.Tx, ListCodeRuns) ([]CodeRun, error)
+	GetExamMonitor(context.Context, pgx.Tx, ExamVersionCommand) (json.RawMessage, error)
+	GetGradingQueue(context.Context, pgx.Tx, string) (json.RawMessage, error)
+	ReleaseResults(context.Context, pgx.Tx, ReleaseResults) (json.RawMessage, error)
+	ExtendDeadlines(context.Context, pgx.Tx, ExtendDeadlines) (int, error)
+	PostAnnouncement(context.Context, pgx.Tx, PostAnnouncement) (json.RawMessage, error)
+	GetAttemptLiveState(context.Context, pgx.Tx, GetAttempt) (json.RawMessage, error)
+	GetAttemptResult(context.Context, pgx.Tx, GetAttempt) (json.RawMessage, error)
+	GetAttemptReview(context.Context, pgx.Tx, GetAttempt) (StoredReview, error)
+	ListExamLatestAnswers(context.Context, pgx.Tx, ExamVersionCommand) ([]StoredLatestAnswer, error)
+	SaveChoice(context.Context, pgx.Tx, SaveChoice) (json.RawMessage, error)
+	SetIntegrity(context.Context, pgx.Tx, SetIntegrity) error
+	RegradeItem(context.Context, pgx.Tx, ExamVersionCommand, string) (json.RawMessage, error)
+	RecordIntegrityEvent(context.Context, pgx.Tx, GetAttempt, string) error
 	Ping(context.Context) error
 }
 
@@ -461,9 +479,8 @@ func (service *Service) SubmitAttempt(contextValue context.Context, capability c
 		if prepareErr != nil {
 			return prepareErr
 		}
-		if len(prepared) == 0 {
-			return apperrors.New(apperrors.CodeConflict, "attempt has no evaluable answer revisions")
-		}
+		// prepared is empty when every answer was already submitted per
+		// question (ADR-0025); the attempt is then graded at once.
 		requests := make([]EvaluationRequest, 0, len(prepared))
 		for _, item := range prepared {
 			requestID, idErr := database.NewUUIDv7()

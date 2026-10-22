@@ -27,6 +27,36 @@ The two views are not two renderings of one response. They are separate database
 
 Every route obtains a fresh central User authorization decision, then consumes the signed capability in one local transaction. Database functions enforce candidate ownership again; a candidate cannot select another candidate's attempt even if an application handler is changed incorrectly. Local authorization grant snapshots are revision-bound and fail closed while they lag a revocation.
 
+## The candidate's paper (ADR-0023)
+
+`GET /v1/tenants/{t}/attempts/{id}/paper` is what the exam screen renders: the
+exam's title and instructions and each item's statement, score, languages and
+limits in exam order, with the caller's latest saved answer, fetched from
+object storage, checked against its checksum and decrypted. Only the attempt's
+owner can read it (`get_attempt_paper_for_candidate`), and it is sent with
+`Cache-Control: no-store`. The content comes from the candidate assignment
+snapshot, so an exam keeps running if Assessment or the Question Bank is down.
+
+## Per-question submit and custom input (ADR-0025)
+
+`POST .../items/{item}/submissions` evaluates the item's latest saved code on
+all of its tests while the exam runs: `submission.submit_item` records an
+evaluation request (`origin = item_submit`) that the dispatcher sends to
+Judge like any other. Unchanged code is evaluated once. At most two
+evaluations may be open per attempt, and submits share the run rate limit.
+`GET` on the same path lists the item's evaluations, with hidden tests as
+counts per verdict only.
+
+Grading runs only for a handed-in attempt, and each item scores its best
+evaluation (`submission.evaluation_score`; `calculation_version` 3). End test
+and time-up evaluate only latest revisions that were not already submitted,
+and grade at once when nothing new is queued.
+
+A run request with `input` is a custom-input run: the service builds a
+one-test sample bundle from the input, stores it encrypted beside the run's
+source, and records the run with `submission.start_custom_run`.
+`claim_code_runs` sends Judge that bundle instead of the item's samples.
+
 ## Event contracts
 
 The service consumes these versioned platform events through durable JetStream consumers and transactional inboxes:
@@ -165,7 +195,7 @@ not confidential. The completion bridge therefore needs
 
 ## Scoring
 
-An exam item earns `maximum_score x (weight of passed tests) / (weight of all
+An evaluation earns `maximum_score x (weight of passed tests) / (weight of all
 tests)`, where each unit's weight (1-100) comes from Judge's `UnitResult`. The
 weight is stored in `judge_completion_ingress.unit_results` and
 `judge_receipt_units.weight`. Units reported without a weight count as 1. A

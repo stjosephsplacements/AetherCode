@@ -5,7 +5,9 @@ package httpadapter
 import (
 	"net/http"
 	"strings"
+	"time"
 
+	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
 	"github.com/aethercode/aethercode/libs/pkg/httpx"
 	"github.com/aethercode/aethercode/libs/pkg/pagination"
 	"github.com/aethercode/aethercode/services/user/internal/app"
@@ -172,4 +174,35 @@ func listRequestParts(request *http.Request) (string, int, pagination.Cursor, er
 		return "", 0, pagination.Cursor{}, err
 	}
 	return tenantID, limit, cursor, nil
+}
+
+// listStaffAudit is a college's audit log of staff actions for college
+// administrators (ADR-0043). ?before=<RFC 3339 time> pages back.
+func (handler *Handler) listStaffAudit(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var before *time.Time
+	if raw := strings.TrimSpace(request.URL.Query().Get("before")); raw != "" {
+		parsed, parseErr := time.Parse(time.RFC3339Nano, raw)
+		if parseErr != nil {
+			httpx.WriteError(writer, apperrors.New(apperrors.CodeInvalidArgument, "before must be an RFC 3339 time"))
+			return
+		}
+		before = &parsed
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "staff_audit", tenantID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	entries, err := handler.service.ListStaffAudit(request.Context(), decision.Capability, tenantID, before, 100)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.Header().Set("Cache-Control", "no-store")
+	httpx.WriteJSON(writer, http.StatusOK, entries)
 }

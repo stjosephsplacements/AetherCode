@@ -26,8 +26,8 @@ type Runtime struct {
 	Judge0BaseURL               string
 	Judge0Timeout               time.Duration
 	Judge0AuthToken             string
-	PistonBaseURL               string
-	PistonTimeout               time.Duration
+	AetherCodeBaseURL           string
+	AetherCodeTimeout           time.Duration
 }
 
 // Load returns a safe listener configuration for the supplied environment.
@@ -106,14 +106,14 @@ func Load(environment string) (Runtime, error) {
 	runtime.SubmitRate = submitRate
 	runtime.SubmitBurst = submitBurst
 	runtime.Judge0AuthToken = strings.TrimSpace(value("JUDGE0_AUTH_TOKEN", ""))
-	runtime.PistonBaseURL = strings.TrimSpace(value("PISTON_BASE_URL", ""))
-	// Piston answers only after compiling and running, so this covers the
-	// compile limit plus the longest scaled run limit.
-	pistonTimeoutSeconds, err := positiveInt("PISTON_TIMEOUT_SECONDS", "60", 1, 300)
+	runtime.AetherCodeBaseURL = strings.TrimSpace(value("AETHERCODE_ENGINE_URL", ""))
+	// One unit waits in the engine's queue, then compiles and runs; the engine
+	// itself gives up after five minutes with internal_error.
+	aetherCodeTimeoutSeconds, err := positiveInt("AETHERCODE_TIMEOUT_SECONDS", "330", 10, 900)
 	if err != nil {
 		return Runtime{}, err
 	}
-	runtime.PistonTimeout = time.Duration(pistonTimeoutSeconds) * time.Second
+	runtime.AetherCodeTimeout = time.Duration(aetherCodeTimeoutSeconds) * time.Second
 	return runtime, nil
 }
 

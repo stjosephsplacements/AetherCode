@@ -30,6 +30,15 @@ that contain passwords are sent with `Cache-Control: no-store`.
 `student_id` (migration 000026), because consumers that grant access identify
 students by principal.
 
+## Who am I (ADR-0023)
+
+`GET /v1/me` returns the caller's active role assignments and, for a student,
+the tenant of their self-scoped student role. It verifies the gateway's
+identity assertion with the same verifier as `Authorize` and reads through
+the `authz_reader` connection. There is no resource to authorize: the caller
+is the principal the verified assertion names, so nobody can read another
+principal's roles. The web frontend uses it to pick a home and a tenant.
+
 ## Two-department invariant
 
 Every active student has exactly one active college and one active placement

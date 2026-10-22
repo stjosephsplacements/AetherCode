@@ -10,7 +10,7 @@ come before features. Please read this first.
 | Platform (`backend/`, `deploy/`, `frontend/`) | Features, fixes, docs, tests. All new work goes here. |
 | Exam app v1 (`apps/exam-v1/`) | Security fixes only. It is a frozen fallback (ADR-0017). |
 
-The [roadmap](docs/roadmap.md) lists what is next; [PLAN.md](PLAN.md) is the
+The [roadmap](docs/roadmap.md) lists what is next; [docs/PLAN.md](docs/PLAN.md) is the
 architecture. Open an issue to discuss anything larger than a bug fix before
 you write it.
 

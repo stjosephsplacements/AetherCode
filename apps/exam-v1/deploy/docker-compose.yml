@@ -68,6 +68,12 @@ services:
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       # Public origin students use; SEB links and SEB checks are built from it.
       APP_URL: ${APP_URL:-}
+      # SMTP for password reset emails (disabled without SMTP_HOST).
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
     depends_on:
       db:
         condition: service_healthy
@@ -76,6 +82,11 @@ services:
     build: ..
     restart: always
     environment: *app-env
+    networks:
+      - default
+      - mail
+    deploy:
+      replicas: 4
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -97,6 +108,8 @@ services:
     restart: always
     command: ["pnpm", "worker"]
     environment: *app-env
+    deploy:
+      replicas: 8
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -115,6 +128,11 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+networks:
+  mail:
+    external: true
+    name: mailserver_mail-net
 
 volumes:
   db-data:

@@ -50,6 +50,8 @@ type Limits struct {
 // wrapper. TenantFairnessKey and SubmissionCorrelationID are opaque values;
 // they are deliberately not platform foreign keys.
 type SubmitExecution struct {
+	// ClientSubject is the submitting service's mTLS subject (ADR-0033).
+	ClientSubject           string
 	IdempotencyKey          string
 	TenantFairnessKey       string
 	SubmissionCorrelationID string
@@ -102,18 +104,20 @@ type Completion struct {
 
 // PullCompletedExecutions describes one consumer's bounded outbox lease.
 type PullCompletedExecutions struct {
-	ConsumerID   string
-	Limit        uint32
-	LeaseSeconds uint32
+	ClientSubject string
+	ConsumerID    string
+	Limit         uint32
+	LeaseSeconds  uint32
 }
 
 // AcknowledgeCompletion proves that the platform-side adapter durably
 // persisted a leased completion.
 type AcknowledgeCompletion struct {
-	ConsumerID string
-	EventID    string
-	DeliveryID string
-	LeaseID    string
+	ClientSubject string
+	ConsumerID    string
+	EventID       string
+	DeliveryID    string
+	LeaseID       string
 }
 
 // DeleteExecutionJob is the command for soft/hard delete operations.

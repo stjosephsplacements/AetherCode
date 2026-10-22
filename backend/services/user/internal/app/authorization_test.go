@@ -22,6 +22,14 @@ const (
 type fakeStore struct {
 	snapshot Snapshot
 	err      error
+	audit    *[]StaffAction
+}
+
+func (store fakeStore) RecordStaffAction(_ context.Context, action StaffAction) error {
+	if store.audit != nil {
+		*store.audit = append(*store.audit, action)
+	}
+	return nil
 }
 
 func (store fakeStore) Snapshot(context.Context, SnapshotQuery) (Snapshot, error) {
@@ -389,5 +397,167 @@ func TestStaffAuthoringAppliesOnlyToStaffRolesOnTheQuestionBank(t *testing.T) {
 	}
 	if !routes["question-bank"].StaffAuthoring || routes["tenant"].StaffAuthoring {
 		t.Fatal("only the question-bank route may enable staff authoring")
+	}
+}
+
+// ADR-0032: exporting a question reveals its hidden tests, so of the staff
+// roles only college administrators may; platform administrators still can.
+func TestOnlyCollegeAdministratorsExportQuestions(t *testing.T) {
+	t.Parallel()
+	request := Request{PrincipalID: testPrincipal, Action: "write", ResourceType: "question_exports", ResourceID: testPrincipal}
+	for _, scenario := range []struct {
+		assignment Assignment
+		want       bool
+	}{
+		{Assignment{Role: centralauthz.RoleCollegeAdmin, ScopeKind: "college", TenantID: testTenant, ScopeID: testTenant}, true},
+		{Assignment{Role: centralauthz.RoleSuperAdmin, ScopeKind: "platform"}, true},
+		{Assignment{Role: centralauthz.RoleDepartmentUser, ScopeKind: "department", TenantID: testTenant, ScopeID: testPrincipal}, false},
+		{Assignment{Role: centralauthz.RoleMentor, ScopeKind: "batch", TenantID: testTenant, ScopeID: testPrincipal}, false},
+	} {
+		if got := assignmentApplies(scenario.assignment, request, true, nil, nil, nil); got != scenario.want {
+			t.Errorf("%s exporting a question = %v, want %v", scenario.assignment.Role, got, scenario.want)
+		}
+	}
+}
+
+// ADR-0041: a student practises with a tenant-scoped capability for the bearer
+// subject only; the question bank's other resources stay tenant-less.
+func TestStudentsPractiseOnlyAsThemselvesWithTheirTenant(t *testing.T) {
+	t.Parallel()
+	keyring, err := centralauthz.ParseKeyring(`[{"audience":"aether_qbank","key_id":"` + testKeyID + `","secret_base64":"` + base64.StdEncoding.EncodeToString([]byte(strings.Repeat("q", 32))) + `"}]`)
+	if err != nil {
+		t.Fatalf("ParseKeyring() error = %v", err)
+	}
+	student := Assignment{Role: centralauthz.RoleStudent, ScopeKind: "self", TenantID: testTenant, ScopeID: testPrincipal}
+	service, err := NewService(fakeStore{snapshot: Snapshot{
+		Revision:    3,
+		Assignments: []Assignment{student},
+		PolicyRules: []centralauthz.PolicyRule{{PType: "p", Values: []string{"student", "self", "/practice_submissions/:id", "write"}}},
+	}}, keyring, nil, false)
+	if err != nil {
+		t.Fatalf("NewService() error = %v", err)
+	}
+	now := time.Date(2026, time.October, 20, 12, 0, 0, 0, time.UTC)
+	service.now = func() time.Time { return now }
+	request := Request{PrincipalID: testPrincipal, TenantID: testTenant, RequestID: testRequestID,
+		Action: "write", ResourceType: "practice_submissions", ResourceID: testPrincipal, TargetService: "question-bank"}
+
+	decision, err := service.Authorize(context.Background(), request)
+	if err != nil || !decision.Allowed {
+		t.Fatalf("Authorize(own practice) = %#v, %v; want allowed", decision, err)
+	}
+	capability, err := centralauthz.DecodeCapability(decision.Capability, now.Add(time.Second))
+	if err != nil {
+		t.Fatalf("DecodeCapability() error = %v", err)
+	}
+	if capability.Audience != "aether_qbank" || capability.TenantID != testTenant || capability.Resource != "qbank.practice_submissions" {
+		t.Fatalf("capability = %#v, want a tenant-scoped qbank practice capability", capability)
+	}
+
+	other := request
+	other.ResourceID = "018f4b0d-08f8-7c09-9ba7-efdf9c229999"
+	if decision, err := service.Authorize(context.Background(), other); err != nil || decision.Allowed {
+		t.Fatalf("Authorize(another student's practice) = %#v, %v; want denied", decision, err)
+	}
+	tenantless := request
+	tenantless.TenantID = ""
+	if _, err := service.Authorize(context.Background(), tenantless); err == nil {
+		t.Fatal("Authorize(practice without a tenant) succeeded, want a validation error")
+	}
+	questions := request
+	questions.ResourceType = "questions"
+	if _, err := service.Authorize(context.Background(), questions); err == nil {
+		t.Fatal("Authorize(questions with a tenant) succeeded, want a validation error")
+	}
+}
+
+// ADR-0043: staff write decisions, allowed or denied, become the audit log;
+// reads and students' own writes do not, and only college administrators
+// read the log, however broad a department's policy is.
+func TestStaffWritesAreAudited(t *testing.T) {
+	t.Parallel()
+	keyring := testKeyring(t)
+	var recorded []StaffAction
+	newService := func(assignment Assignment, rules ...[]string) *Service {
+		policy := make([]centralauthz.PolicyRule, 0, len(rules))
+		for _, values := range rules {
+			policy = append(policy, centralauthz.PolicyRule{PType: "p", Values: values})
+		}
+		service, err := NewService(fakeStore{snapshot: Snapshot{Revision: 2, Assignments: []Assignment{assignment}, PolicyRules: policy}, audit: &recorded}, keyring, nil, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return service
+	}
+	request := Request{PrincipalID: testPrincipal, TenantID: testTenant, RequestID: testRequestID, Action: "write",
+		ResourceType: "attempt_events", ResourceID: "exam-version-1", TargetService: "submission"}
+
+	faculty := newService(Assignment{Role: centralauthz.RoleDepartmentUser, ScopeKind: "department", TenantID: testTenant, ScopeID: testPrincipal},
+		[]string{"department_user", "department", "/*", "*"})
+	if decision, err := faculty.Authorize(context.Background(), request); err != nil || !decision.Allowed {
+		t.Fatalf("faculty write = %#v, %v", decision, err)
+	}
+	read := request
+	read.Action = "read"
+	if _, err := faculty.Authorize(context.Background(), read); err != nil {
+		t.Fatal(err)
+	}
+	student := newService(Assignment{Role: centralauthz.RoleStudent, ScopeKind: "self", TenantID: testTenant, ScopeID: testPrincipal},
+		[]string{"student", "self", "/attempts/:id", "write"})
+	own := request
+	own.ResourceType, own.ResourceID = "attempts", testPrincipal
+	if _, err := student.Authorize(context.Background(), own); err != nil {
+		t.Fatal(err)
+	}
+	if len(recorded) != 1 || recorded[0].ResourceType != "attempt_events" || !recorded[0].Allowed || recorded[0].TenantID != testTenant {
+		t.Fatalf("audit = %#v, want only the faculty write", recorded)
+	}
+
+	audit := Request{PrincipalID: testPrincipal, TenantID: testTenant, RequestID: testRequestID, Action: "read",
+		ResourceType: "staff_audit", ResourceID: testTenant, TargetService: "user"}
+	if decision, err := faculty.Authorize(context.Background(), audit); err != nil || decision.Allowed {
+		t.Fatalf("faculty reading the audit log = %#v, %v; want denied", decision, err)
+	}
+}
+
+func TestStudentsUseCommunityContentButNeverModeration(t *testing.T) {
+	t.Parallel()
+	keyring, err := centralauthz.ParseKeyring(`[{"audience":"aether_notification","key_id":"` + testKeyID + `","secret_base64":"` + base64.StdEncoding.EncodeToString([]byte(strings.Repeat("n", 32))) + `"}]`)
+	if err != nil {
+		t.Fatalf("ParseKeyring() error = %v", err)
+	}
+	student := Assignment{Role: centralauthz.RoleStudent, ScopeKind: "self", TenantID: testTenant, ScopeID: testPrincipal}
+	service, err := NewService(fakeStore{snapshot: Snapshot{
+		Revision:    3,
+		Assignments: []Assignment{student},
+		PolicyRules: []centralauthz.PolicyRule{
+			{PType: "p", Values: []string{"student", "self", "/community/:id", "read"}},
+			{PType: "p", Values: []string{"student", "self", "/community/:id", "write"}},
+		},
+	}}, keyring, nil, false)
+	if err != nil {
+		t.Fatalf("NewService() error = %v", err)
+	}
+	service.now = func() time.Time { return time.Date(2026, time.October, 21, 12, 0, 0, 0, time.UTC) }
+	request := Request{PrincipalID: testPrincipal, TenantID: testTenant, RequestID: testRequestID,
+		Action: "write", ResourceType: "community", ResourceID: testPrincipal, TargetService: "notification"}
+
+	if decision, err := service.Authorize(context.Background(), request); err != nil || !decision.Allowed {
+		t.Fatalf("Authorize(own community write) = %#v, %v; want allowed", decision, err)
+	}
+	other := request
+	other.ResourceID = "018f4b0d-08f8-7c09-9ba7-efdf9c229999"
+	if decision, err := service.Authorize(context.Background(), other); err != nil || decision.Allowed {
+		t.Fatalf("Authorize(community as another person) = %#v, %v; want denied", decision, err)
+	}
+	moderation := request
+	moderation.ResourceType = "community_moderation"
+	moderation.ResourceID = testTenant
+	if decision, err := service.Authorize(context.Background(), moderation); err != nil || decision.Allowed {
+		t.Fatalf("Authorize(student moderation) = %#v, %v; want denied", decision, err)
+	}
+	moderation.ResourceID = testPrincipal
+	if decision, err := service.Authorize(context.Background(), moderation); err != nil || decision.Allowed {
+		t.Fatalf("Authorize(student moderation as self) = %#v, %v; want denied", decision, err)
 	}
 }

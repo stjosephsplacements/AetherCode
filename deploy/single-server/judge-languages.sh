@@ -7,11 +7,11 @@ set -euo pipefail
 
 case "$JUDGE_ENGINE" in
   judge0) version="1.13.1" ;;                       # the Judge0 release the stack runs
-  piston) version="newest-installed-runtime" ;;     # piston-packages.js installs the newest
+  aethercode) version="host-engine" ;;                # the AetherCode engine on the host (ADR-0028)
   *) echo "unsupported JUDGE_ENGINE: $JUDGE_ENGINE" >&2; exit 1 ;;
 esac
 
-# Judge0 language IDs (also used as stable IDs for Piston rows).
+# Judge0 language IDs (also used as stable IDs for other engines).
 psql -v ON_ERROR_STOP=1 -h judge-db -U aether_judge_admin -d aether_judge_wrapper <<SQL
 INSERT INTO judge.language_mappings (language_key, engine_name, engine_language_id, engine_version, enabled, max_parallelism)
 VALUES

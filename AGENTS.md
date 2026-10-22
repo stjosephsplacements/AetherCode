@@ -1,15 +1,15 @@
 # AGENTS.md
 
 Operating rules for autonomous/AI agents contributing to **AetherCode**. This
-follows the [agents.md](https://agents.md) convention and complements
-`CLAUDE.md` (the same principles for interactive Claude Code use). When
-guidance overlaps, `CLAUDE.md` and this file must stay in sync.
+follows the [agents.md](https://agents.md) convention. `CLAUDE.md` imports
+this file, so this is the one place to edit.
 
 ---
 
 ## Project snapshot
 
-A coding-exam platform for colleges, in two independent codebases:
+A coding-exam platform for colleges, in two independent codebases (the platform
+has a Go backend and a Next.js frontend):
 
 - **`apps/exam-v1/` — the exam app in use.** Next.js 16 + PostgreSQL + a
   grading worker over Judge0 (or Piston), deployed with Docker Compose behind
@@ -21,9 +21,11 @@ A coding-exam platform for colleges, in two independent codebases:
 - **`backend/services/`, `backend/libs/`, `deploy/` — the long-term platform.** Multi-tenant
   Go microservices with PostgreSQL RLS, an isolated Judge0 wrapper,
   SEB-enforced exams, Docker Compose on one server or Kubernetes. Accounts,
-  authoring, take-and-grade and SEB lockdown work end to end through the
-  gateway (milestones M0–M4); `frontend/` is not started. Full context in
-  `PLAN.md`; current state and remaining milestones in `docs/roadmap.md`.
+  authoring, exams, grading, SEB lockdown, results, live operations, practice,
+  community content and single sign-on work through the gateway, and
+  `frontend/` (Next.js 16, a thin backend-for-frontend over the gateway) is the
+  web UI for students and staff. Full context in `docs/PLAN.md`; current state,
+  pending work and the production gates in `docs/roadmap.md`.
 
 The two share no code or database. Never couple them. Per ADR-0017 the Go
 platform is the only backend going forward: `apps/exam-v1` is a **frozen
@@ -37,7 +39,7 @@ behavioural reference for the port in
 2. **Keep it simple** — least code that meets the requirement; delete before
    you add.
 3. **Stay in your lane** — platform: respect hexagonal boundaries and service
-   ownership (`PLAN.md` §6) and never reach into another service's data; exam
+   ownership (`docs/PLAN.md` §6) and never reach into another service's data; exam
    app: logic in `lib/`, page data in server components, mutations in server
    actions, background work in `worker/`.
 4. **Verify versions** — never invent a version or an API. Use Context7
@@ -66,6 +68,8 @@ make test-integration  # platform: Testcontainers-backed
 make lint              # platform: golangci-lint
 make proto             # platform: regenerate gRPC/protobuf
 make vuln              # platform: govulncheck
+make web-check         # platform web UI: typecheck + lint + unit tests
+make web-build         # platform web UI: production build
 ```
 
 Exam app, inside `apps/exam-v1`: `pnpm dev`, `pnpm worker`, `pnpm migrate`,
@@ -74,6 +78,7 @@ Exam app, inside `apps/exam-v1`: `pnpm dev`, `pnpm worker`, `pnpm migrate`,
 Before proposing a change as complete:
 - **Platform:** run `make lint test`, plus `test-integration` when touching
   adapters.
+- **Web UI (`frontend/`):** run `make web-check web-build`.
 - **Exam app:** run `make exam-check exam-build`. If you changed grading,
   timing, access control or the exam screen, also exercise the flow in a
   browser against a running worker. If you changed the engine path, run

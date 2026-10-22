@@ -166,7 +166,12 @@ func (handler *Handler) accountTarget(writer http.ResponseWriter, request *http.
 // for an unauthorized caller, and returns the actor plus an Authorize that
 // hands out that decision's capability first and fresh ones after it.
 func (handler *Handler) accountAuthorizer(request *http.Request, resourceID, tenantID string) (app.Authorize, string, error) {
-	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "accounts", resourceID, tenantID)
+	return handler.accountAuthorizerFor(request, "write", resourceID, tenantID)
+}
+
+// accountAuthorizerFor is accountAuthorizer for a read or write action.
+func (handler *Handler) accountAuthorizerFor(request *http.Request, action, resourceID, tenantID string) (app.Authorize, string, error) {
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, action, "accounts", resourceID, tenantID)
 	if err != nil {
 		return nil, "", err
 	}
@@ -177,7 +182,7 @@ func (handler *Handler) accountAuthorizer(request *http.Request, resourceID, ten
 			first = nil
 			return capability, nil
 		}
-		next, err := handler.authorizer.AuthorizeHTTP(contextValue, request, "write", "accounts", resourceID, tenantID)
+		next, err := handler.authorizer.AuthorizeHTTP(contextValue, request, action, "accounts", resourceID, tenantID)
 		return next.Capability, err
 	}, decision.PrincipalID, nil
 }
@@ -187,4 +192,33 @@ func (handler *Handler) accountAuthorizer(request *http.Request, resourceID, ten
 func writeCredentials(writer http.ResponseWriter, status int, body any) {
 	writer.Header().Set("Cache-Control", "no-store")
 	httpx.WriteJSON(writer, status, body)
+}
+
+// describeAccounts names this college's accounts for staff lists and the
+// audit log (ADR-0043): sign-in name, display name and status only.
+func (handler *Handler) describeAccounts(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var body struct {
+		PrincipalIDs []string `json:"principal_ids"`
+	}
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	authorize, _, err := handler.accountAuthorizerFor(request, "read", tenantID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	summaries, err := handler.accounts.DescribeAccounts(request.Context(), authorize, tenantID, body.PrincipalIDs)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.Header().Set("Cache-Control", "no-store")
+	httpx.WriteJSON(writer, http.StatusOK, summaries)
 }

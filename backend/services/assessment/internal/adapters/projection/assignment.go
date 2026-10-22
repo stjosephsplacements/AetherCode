@@ -47,12 +47,15 @@ func (store *MaterializationStore) Ping(ctx context.Context) error {
 }
 
 type batchAffiliationPayload struct {
-	TenantID       string  `json:"tenant_id"`
-	StudentID      string  `json:"student_id"`
-	PrincipalID    string  `json:"principal_id"`
-	BatchID        *string `json:"batch_id"`
-	LifecycleState string  `json:"lifecycle_state"`
-	Version        int64   `json:"version"`
+	TenantID    string  `json:"tenant_id"`
+	StudentID   string  `json:"student_id"`
+	PrincipalID string  `json:"principal_id"`
+	BatchID     *string `json:"batch_id"`
+	// PlacementDepartmentID is absent on snapshots from before User
+	// migration 000027 (ADR-0026).
+	PlacementDepartmentID *string `json:"placement_department_id"`
+	LifecycleState        string  `json:"lifecycle_state"`
+	Version               int64   `json:"version"`
 }
 
 // ApplyBatchAffiliation keeps the batch roster current and materializes the
@@ -64,9 +67,9 @@ func (store *MaterializationStore) ApplyBatchAffiliation(ctx context.Context, ev
 	}
 	return store.apply(ctx, "assessment_batch_affiliation_v1", event, func(transaction pgx.Tx) error {
 		if _, err := transaction.Exec(ctx, `
-			SELECT assessment.materialize_from_batch_affiliation($1, $2, $3, $4, $5, $6, $7)
+			SELECT assessment.materialize_from_batch_affiliation($1, $2, $3, $4, $5, $6, $7, $8)
 		`, event.ID, payload.TenantID, payload.StudentID, payload.PrincipalID, payload.BatchID,
-			payload.LifecycleState, payload.Version); err != nil {
+			payload.LifecycleState, payload.Version, payload.PlacementDepartmentID); err != nil {
 			return materializationError(err, "materialize candidate assignments from batch affiliation")
 		}
 		return nil
@@ -107,7 +110,7 @@ func (store *MaterializationStore) ApplyAssignmentRuleCreated(ctx context.Contex
 	if err != nil {
 		return messaging.Permanent(err)
 	}
-	if payload.TargetType == "student" || payload.TargetType == "placement_department" {
+	if payload.TargetType == "student" {
 		return store.apply(ctx, "assessment_assignment_rule_created_v1", event, func(transaction pgx.Tx) error {
 			return nil
 		})
@@ -189,6 +192,9 @@ func parseBatchAffiliation(event messaging.Event) (batchAffiliationPayload, erro
 		if payload.BatchID != nil && !validUUID(*payload.BatchID) {
 			return batchAffiliationPayload{}, fmt.Errorf("inactive batch affiliation batch ID is invalid")
 		}
+	}
+	if payload.PlacementDepartmentID != nil && !validUUID(*payload.PlacementDepartmentID) {
+		return batchAffiliationPayload{}, fmt.Errorf("student placement department ID is invalid")
 	}
 	return payload, nil
 }

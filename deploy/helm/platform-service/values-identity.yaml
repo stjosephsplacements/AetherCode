@@ -1,12 +1,63 @@
-nameOverride: "identity"
+# identity: environment mirrors deploy/single-server/docker-compose.yml.
+nameOverride: identity
 
 image:
-  repository: ghcr.io/Shreesh-Sree/CoderQX/identity
+  repository: ghcr.io/stjosephsplacements/aethercode-identity
   tag: ""
 
-service:
-  port: 8080
+replicaCount: 2
 
-envFrom:
-  - secretRef:
-      name: identity-secrets
+ports:
+  - name: introspection
+    port: 9444
+
+tls:
+  enabled: true
+  secretName: aethercode-tls-identity
+
+config:
+  SERVICE_NAME: "identity"
+  IDENTITY_ACCESS_TOKEN_ISSUER: "aethercode-identity"
+  IDENTITY_ACCESS_TOKEN_AUDIENCE: "aethercode"
+  IDENTITY_INTROSPECTION_ADDR: "0.0.0.0:9444"
+  IDENTITY_INTROSPECTION_TLS_CERT_FILE: "/certs/tls.crt"
+  IDENTITY_INTROSPECTION_TLS_KEY_FILE: "/certs/tls.key"
+  IDENTITY_INTROSPECTION_CLIENT_CA_FILE: "/certs/ca.crt"
+  IDENTITY_INTROSPECTION_TRUSTED_CLIENT_SPIFFE_ID: "{{ .Values.global.mtlsTrustDomain }}/user"
+  IDENTITY_SSO_ISSUER: "{{ .Values.sso.issuer }}"
+  IDENTITY_SSO_CLIENT_ID: "{{ .Values.sso.clientId }}"
+  IDENTITY_SSO_REDIRECT_URI: "{{ .Values.global.publicOrigin }}/auth/sso/callback"
+  IDENTITY_SSO_ADMIN_TOKEN_FILE: "{{ .Values.sso.adminTokenFile }}"
+  IDENTITY_SSO_ORGANIZATION_ID: "{{ .Values.sso.organizationId }}"
+  IDENTITY_SSO_EMAIL_DOMAIN: "{{ .Values.sso.emailDomain }}"
+
+secretEnv:
+  - name: IDENTITY_DB_PASSWORD
+  - name: IDENTITY_ACCESS_TOKEN_KEY_ID
+  - name: IDENTITY_ACCESS_TOKEN_PRIVATE_KEY_BASE64
+  - name: IDENTITY_DELIVERY_TOKEN_HMAC_KEY_BASE64
+  - name: IDENTITY_MFA_KEY_REFERENCE
+  - name: IDENTITY_MFA_MASTER_KEYS_JSON
+  - name: IDENTITY_SSO_CLIENT_SECRET
+    optional: true
+
+env:
+  - name: IDENTITY_DATABASE_URL
+    value: "postgres://aether_identity_app:$(IDENTITY_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_identity?sslmode={{ .Values.global.postgresSSLMode }}"
+  - name: IDENTITY_PROJECTION_DATABASE_URL
+    value: "postgres://aether_identity_projection_worker:$(IDENTITY_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_identity?sslmode={{ .Values.global.postgresSSLMode }}"
+
+networkPolicy:
+  allowFrom:
+    - service: gateway
+      ports: [8080]
+    - service: user
+      ports: [9444]
+
+sso:
+  # Single sign-on (ADR-0042) stays off while the issuer is empty.
+  issuer: ""
+  clientId: ""
+  adminTokenFile: ""
+  organizationId: ""
+  emailDomain: ""

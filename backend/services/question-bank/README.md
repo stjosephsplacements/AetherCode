@@ -45,9 +45,14 @@ Both endpoints return `{"items": [...], "next_cursor": "..."}`. An absent
 2. `PUT /v1/question-versions/{id}/tests` replaces all tests of the draft from
    plaintext (see below). Add encrypted assets and replace tags while the
    version remains draft.
-3. `POST /v1/question-versions/{id}/publish` publishes only when the sample and
+3. `POST /v1/question-versions/{id}/publish` publishes only when a model
+   solution has passed every test on the current tests (ADR-0047; run it with
+   `POST …/model-checks`, multiple choice is exempt) and the sample and
    hidden manifests and the evaluation bundle exist. The publication trigger and immutable-version
    trigger enforce this in PostgreSQL, not only in HTTP code.
+   With `QBANK_REQUIRE_REVIEW=true` the author first calls
+   `POST /v1/question-versions/{id}/request-review`, and a different member of
+   staff publishes (ADR-0044). `GET /v1/questions?status=review` is the queue.
 4. Publish a corrected draft as a new version; published versions and their
    child content cannot be changed. Archive the question to stop future use.
 
@@ -104,6 +109,11 @@ Required in all environments:
 
 The service refuses to start when storage or KMS is not configured.
 
+Optional:
+
+- `QBANK_REQUIRE_REVIEW=true` — publishing needs a review request from
+  another member of staff (ADR-0044). Off by default.
+
 When `NATS_URL` is set (mandatory in staging and production):
 
 - `QBANK_PROJECTION_DATABASE_URL` — dedicated
@@ -154,10 +164,11 @@ make test-migrations
 
 `QuestionBankInternalService.ResolvePublishedQuestionVersion`
 (`libs/proto/proto/aethercode/questionbank/v1`) lets Assessment pin a
-published version to an exam item: its limits, languages and the encrypted
-evaluation and sample bundle references. It never returns test content, and
-anything other than a published version of a live question is `NOT_FOUND`.
-It reads `qbank.resolve_published_question_version` (migration 000012)
+published version to an exam item: its title and statement, limits,
+languages and the encrypted evaluation and sample bundle references. It never
+returns test content, and anything other than a published version of a live
+question is `NOT_FOUND`. It reads `qbank.resolve_published_question_version`
+(migrations 000012, 000013)
 without a user capability; mTLS is the gate.
 
 | Variable | Default | Meaning |

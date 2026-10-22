@@ -22,15 +22,15 @@ the platform (≈10–12 focused days). Until M8, exams run on `apps/exam-v1`.
 
 | # | Milestone | Done when | Status |
 |---|---|---|---|
-| M0 | Platform runs on one server | `deploy/single-server` brings up all 11 services, the judge stack and the engine healthy. An admin bootstraps and signs in through the gateway. | done (2026-10-03, campus server; engine is Piston, ADR-0018) |
+| M0 | Platform runs on one server | `deploy/single-server` brings up all 11 services, the judge stack and the engine healthy. An admin bootstraps and signs in through the gateway. | done (2026-10-03, campus server; engine was Piston, ADR-0018; now the AetherCode Execution Engine, ADR-0028) |
 | M1 | Accounts | An admin creates a college and batch, bulk-imports students from CSV with generated passwords, creates staff, and anyone signs in by username or roll number. | done (2026-10-04, ADR-0019; `deploy/single-server/smoke.py`) |
 | M2 | Authoring | Staff write a question with plaintext tests (bundles built and encrypted server-side), build an exam from it, and assign it to a batch. | done (2026-10-04, ADR-0020; `smoke.py`) |
 | M3 | Take and grade | A student starts, saves code, runs samples and submits. Dispatch → judge (decrypt) → Judge0 → score. Time-up submits latest answers. | done (2026-10-05, ADR-0021; `smoke.py`) |
 | M4 | SEB | Per-request SEB key validation that works with a real SEB browser, plus `.seb` launch-file download (ADR-0022). | Done 2026-10-05 |
-| M5 | Frontend | `frontend/` ports the exam-app screens (login, admin, authoring, exam screen, results) onto the gateway. | — |
-| M6 | Results and operations | Faculty results/CSV, result release, live monitor, extend time, announcements, backups and system status. | — |
-| M7 | Remaining parity | Pools, MCQ, network allow-list, preview, similarity, audit log, model-solution check, import/export, duplicate, login slips. | — |
-| M8 | Cut-over | The ported e2e spec, `engine-check` and a 1000-student load test pass on the stack. `apps/exam-v1` is deleted. | — |
+| M5 | Frontend | `frontend/` ports the exam-app screens (login, admin, authoring, exam screen, results) onto the gateway. | done in code (2026-10-19, ADR-0023 to 0026); needs `smoke.py` on the campus stack |
+| M6 | Results and operations | Faculty results/CSV, result release, live monitor, extend time, announcements, backups and system status. | done in code: results, CSV, release, monitor, extra time, announcements (ADR-0027) and a staff system status page; backups run every 15 minutes |
+| M7 | Remaining parity | Pools, MCQ, network allow-list, preview, similarity, audit log, model-solution check, import/export, duplicate, login slips. | done in code: duplicate, preview, login slips, attempt review and audit log (ADR-0029), lab networks (ADR-0030), similarity (ADR-0031), export/import (ADR-0032), model-solution checks (ADR-0033), pools (ADR-0034) and multiple choice (ADR-0035) |
+| M8 | Cut-over | The ported e2e spec, `engine-check` and a 1000-student load test pass on the stack. `apps/exam-v1` is deleted. | `engine-check` passes on the campus stack (2026-10-20); the load tool is written (`make loadtest`), not yet run; e2e spec to port |
 
 Already done (2026-10-03):
 - audit fixes A4, A11 and B1;
@@ -80,6 +80,80 @@ Done 2026-10-05, verified end to end through the gateway by `smoke.py`:
   missing column; only its launch-file encoding was reused.
 - Not in M4: SEB quit-token sessions stay as they were (not on Gateway's
   path); a frontend `/exam/<id>` page for the launch file to open is M5.
+
+Done 2026-10-19 (code; integration-tested, not yet on the campus stack):
+- M5 web frontend (`frontend/`, ADR-0024): students sign in, see their exams,
+  take them in a HackerRank-style screen with Run, custom input, per-question
+  Submit and End test (ADR-0025, best submission counts); staff import
+  students, author questions, build, publish and assign exams, lock them to
+  SEB, and see results with CSV export.
+- Backend gaps found on the way: no candidate paper or saved-code read, no
+  "who am I", no exam title on assignments (ADR-0023); exams assigned to a
+  placement department reached nobody (ADR-0026); no draft-question list or
+  exam-content read for staff; exam results capped at 500 rows.
+
+Done 2026-10-20, deployed and verified by `smoke.py` on the campus stack:
+practice problems (ADR-0041). Staff mark questions for tests
+or practice; students get a practice catalogue, a run/submit workspace and a
+My progress page; exams offer test questions only.
+
+Done 2026-10-20, deployed with SSO switched off: single sign-on through the
+college's ZITADEL (ADR-0042), tested against a real ZITADEL. It goes live
+once ZITADEL's argon2 verifier, an OIDC app and a service-user token are in
+place (`deploy/single-server/README.md`, "Single sign-on").
+
+
+Done 2026-10-21 in code, tested on the campus server's scratch checkout and
+pushed, **not yet deployed**:
+- M8 tooling: `make engine-check` (Engine OK on the campus stack),
+  `make loadtest` (written, not yet run at 1000 students), and v1's browser
+  spec ported (`pnpm e2e`, Playwright 1.63.0).
+- Staff operations (ADR-0043): analytics page, grading queue on System
+  status, audit log of staff actions, staff list with a roles editor and bulk
+  mentor assignment.
+- Fix: the exam list carries each exam's latest version (assessment
+  `000033`), so the staff exams page no longer exceeds the per-user rate limit.
+
+Also done 2026-10-21 in code, tested against a scratch PostgreSQL 16 and the
+frontend build, **not yet deployed or run on the campus stack**:
+- Staff exam calendar (`/staff/calendar`).
+- Question review before use (ADR-0044): question-bank `000019`,
+  `QBANK_REQUIRE_REVIEW` (off by default), "To review" queue.
+- Per-college name, colour and logo from a mounted file (ADR-0045).
+- A coding question publishes only after a model solution passes every test
+  (ADR-0047, question-bank `000020`); integration-tested on PostgreSQL 16.
+- Community content (ADR-0048): interview experiences with staff approval,
+  blogs, contest/hackathon/open-source listings with bookmarks and Codeforces
+  and GitHub imports, linked coding accounts with public stats, personal tasks.
+  notification `000013`, user `000030`; unit- and integration-tested on
+  PostgreSQL 16 only.
+- A colleges screen for platform administrators, and naming a reviewer on a
+  question review request (question-bank `000021`).
+- Staff try an exam as a student in a private copy (ADR-0046); the
+  `smoke.py` check for it has not been run.
+
+### Pending (2026-10-21)
+
+Needs the owner:
+1. Cloudflare: the public `aethercode.stjosephsplacements.in` still routes to
+   v1, and `exam.stjosephsplacements.in` has no public hostname. Point
+   `aethercode.` at the campus tunnel (nginx :80) and add `exam.` for v1.
+2. Deploy the 2026-10-21 batch: user `000029`, submission `000035`,
+   assessment `000033`, question-bank `000019` to `000021`, notification
+   `000013`, user `000030`; rebuild identity, user,
+   submission, assessment, question-bank and frontend; back up first and run
+   `smoke.py`. Optionally set `QBANK_REQUIRE_REVIEW=true`.
+3. Single sign-on (ADR-0042): approve ZITADEL's argon2 verifier, create the
+   OIDC app and the service-user token, then set `IDENTITY_SSO_*` and
+   `AETHERCODE_SSO=on`.
+4. v1's FAQ page publishes the Safe Exam Browser quit password; remove it or
+   change the password.
+5. Monitoring and alerts, deploys from CI, off-server backups (credentials
+   and a destination needed).
+
+Still to build:
+- Rerun `pnpm e2e` after the exam-list fix (it stopped at the teacher's
+  release step on the rate limit) and run `make loadtest` at 1000 students.
 
 ---
 
@@ -185,7 +259,7 @@ policy, contract, events and service README:
 
 - **D1, authoring:** anyone on staff can author questions. They go into the
   single master (global) question bank, which every college uses. Students
-  can't author. This replaces `PLAN.md`'s Golden-only rule and needs an ADR and
+  can't author. This replaces `docs/PLAN.md`'s Golden-only rule and needs an ADR and
   a policy change in Phase 2.
 - **D2, deployment:** Docker Compose on one server (Phase 0).
 - **D3, SEB:** **required** for exams. The platform's SEB enforcement

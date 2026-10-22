@@ -83,6 +83,8 @@ func (emptySnapshotStore) Snapshot(context.Context, app.SnapshotQuery) (app.Snap
 	return app.Snapshot{Revision: 1}, nil
 }
 
+func (emptySnapshotStore) RecordStaffAction(context.Context, app.StaffAction) error { return nil }
+
 func (emptySnapshotStore) Ping(context.Context) error { return nil }
 
 type recordingIdentityVerifier struct {

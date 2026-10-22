@@ -65,7 +65,7 @@ func seedAssignedAttempt(ctx context.Context, t *testing.T, pool *pgxpool.Pool, 
 		SELECT submission.apply_assignment_snapshot(
 			$1, $2, $3, $4, gen_random_uuid(), gen_random_uuid(),
 			clock_timestamp() - interval '1 hour', clock_timestamp() + interval '2 hours',
-			1::smallint, 'active', 1, $5::jsonb, NULL
+			1::smallint, 'active', 1, $5::jsonb, NULL, NULL, NULL
 		)`, newID(t), unitTenantID, fixture.AssignmentID, fixture.CandidateID, "["+strings.Join(items, ",")+"]")
 	require.NoError(t, err, "project assignment snapshot")
 	_, err = pool.Exec(ctx, `
@@ -414,7 +414,7 @@ func TestFailedDispatchStillGradesTheAttempt(t *testing.T) {
 		fixture.AttemptID).Scan(&score, &maximum, &calculationVersion))
 	require.Zero(t, score)
 	require.Equal(t, 20.0, maximum)
-	require.Equal(t, 2, calculationVersion)
+	require.Equal(t, 4, calculationVersion)
 
 	var code string
 	require.NoError(t, pool.QueryRow(ctx, `SELECT failure_code FROM submission.evaluation_requests WHERE id = $1`, second).Scan(&code))
@@ -535,7 +535,7 @@ func TestWeightedScoring(t *testing.T) {
 				fixture.AttemptID).Scan(&score, &maximum, &calculationVersion))
 			require.Equal(t, testCase.wantScore, score)
 			require.Equal(t, fmt.Sprintf("%d.0000", 10*len(testCase.items)), maximum)
-			require.Equal(t, 2, calculationVersion)
+			require.Equal(t, 4, calculationVersion)
 		})
 	}
 

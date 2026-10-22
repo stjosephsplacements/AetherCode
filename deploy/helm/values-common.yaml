@@ -1,0 +1,16 @@
+# Settings shared by every release. Copy, fill in the host names and origin, and
+# pass it first: helm upgrade --install <svc> platform-service -f values-common.yaml -f platform-service/values-<svc>.yaml
+global:
+  postgresHost: postgres
+  # prefer encrypts when the server offers TLS; use verify-full with a managed database.
+  postgresSSLMode: prefer
+  judgeDbHost: judge-db
+  judgeRabbitMQHost: judge-rabbitmq
+  natsUrl: nats://nats:4222
+  minioEndpoint: minio:9000
+  minioUseSSL: "false"
+  secretName: aethercode-secrets
+  # Required: the address users open, for example https://exam.example.edu.
+  publicOrigin: ""
+  engineUrl: http://engine:5100
+  mtlsTrustDomain: spiffe://aethercode.local

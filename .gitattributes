@@ -1,0 +1,7 @@
+* text=auto eol=lf
+*.sh text eol=lf
+*.png binary
+*.jpg binary
+backend/libs/proto/gen/** linguist-generated=true
+**/pnpm-lock.yaml linguist-generated=true
+*.sql linguist-language=PLpgSQL

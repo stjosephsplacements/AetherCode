@@ -31,3 +31,7 @@ table and app.hard_delete function for super_admin-only physical deletions.
 Updates RLS policies to exclude soft-deleted records from normal queries while
 allowing owner role to access all records for maintenance. Event-fed projection
 tables remain immutable (no soft delete) as they rebuild from source events.
+
+`000015_best_question_evaluation` makes the per-question rollup count each
+question once, by its best evaluation, now that Submission evaluates a
+question on every per-question submit (Submission ADR-0025).

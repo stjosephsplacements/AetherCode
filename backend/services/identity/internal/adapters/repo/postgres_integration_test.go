@@ -254,3 +254,43 @@ func TestProvisionedAccountLifecycle(t *testing.T) {
 		audit.ActorID).Scan(&audits))
 	require.Equal(t, 8, audits, "every account change is audited with its administrator")
 }
+
+// TestIssuedPasswordMustBeChanged covers ADR-0036: a staff-issued password
+// signs in with the change required, the current password is checked, and a
+// successful change clears the requirement until staff issue another.
+func TestIssuedPasswordMustBeChanged(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	pool := migratedPool(ctx, t)
+	repository, err := repo.NewPostgres(pool, map[string][]byte{"k": make([]byte, 32)}, "k")
+	require.NoError(t, err)
+	audit := app.AccountAudit{ActorID: uuid.NewString(), RequestID: uuid.NewString()}
+	issued, err := domain.HashPassword("Issued234567")
+	require.NoError(t, err)
+	student := app.NewAccount{PrincipalID: uuid.NewString(), Username: "23cs001", DisplayName: "Ravi", PasswordHash: issued}
+	require.NoError(t, repository.ProvisionAccounts(ctx, []app.NewAccount{student}, audit))
+
+	login := func(password string) app.Session {
+		session, err := repository.Authenticate(ctx, app.Login{
+			Identifier: "23cs001", Password: password,
+			RefreshFamilyID: uuid.NewString(), RefreshTokenID: uuid.NewString(), RefreshTokenHash: []byte(uuid.NewString()[:32]),
+			RefreshExpiresAt: time.Now().Add(time.Hour), AccessTokenID: uuid.NewString(), AccessExpiresAt: time.Now().Add(time.Minute),
+			RequestID: uuid.NewString(), LockoutThreshold: 5, LockoutDuration: time.Minute,
+		})
+		require.NoError(t, err)
+		return session
+	}
+	require.True(t, login("Issued234567").PasswordChangeRequired, "an imported password must be replaced")
+
+	chosen, err := domain.HashPassword("MyOwnPass7890")
+	require.NoError(t, err)
+	change := app.PasswordChange{PrincipalID: student.PrincipalID, CurrentPassword: "wrong", PasswordHash: chosen, RequestID: uuid.NewString()}
+	require.Error(t, repository.ChangePassword(ctx, change), "the current password is checked")
+	change.CurrentPassword = "Issued234567"
+	require.NoError(t, repository.ChangePassword(ctx, change))
+	require.False(t, login("MyOwnPass7890").PasswordChangeRequired)
+
+	_, err = repository.SetPasswords(ctx, []app.PasswordAssignment{{PrincipalID: student.PrincipalID, PasswordHash: issued}}, audit)
+	require.NoError(t, err)
+	require.True(t, login("Issued234567").PasswordChangeRequired, "a reissued password must be replaced again")
+}

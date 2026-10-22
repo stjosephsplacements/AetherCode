@@ -236,9 +236,9 @@ func (repository *Postgres) CreateExamVersion(ctx context.Context, transaction p
 
 func (repository *Postgres) AddExamSection(ctx context.Context, transaction pgx.Tx, command app.AddExamSection) (app.ExamSection, error) {
 	if _, err := transaction.Exec(ctx, `
-		SELECT assessment.add_exam_section($1, $2, $3, $4, $5, $6, $7, $8)
+		SELECT assessment.add_exam_section($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	`, command.ID, command.TenantID, command.ExamVersionID, command.ExpectedContentVersion,
-		command.Position, command.Title, command.InstructionsMarkdown, command.TimeLimitSeconds); err != nil {
+		command.Position, command.Title, command.InstructionsMarkdown, command.TimeLimitSeconds, command.DrawCount); err != nil {
 		return app.ExamSection{}, mapWriteError(err, "exam section could not be added")
 	}
 	section, err := selectExamSection(ctx, transaction, command.ID, command.TenantID)
@@ -257,15 +257,36 @@ func (repository *Postgres) AddExamSection(ctx context.Context, transaction pgx.
 }
 
 func (repository *Postgres) AddExamItem(ctx context.Context, transaction pgx.Tx, command app.AddExamItem) (app.ExamItem, error) {
+	if command.Resolved.Kind == "mcq" {
+		choices, err := json.Marshal(command.Resolved.Choices)
+		if err != nil {
+			return app.ExamItem{}, err
+		}
+		if _, err := transaction.Exec(ctx, `
+			SELECT assessment.add_exam_mcq_item($1, $2, $3, $4, $5, $6, $7, $8, $9::numeric, $10, $11, $12::jsonb, $13, $14)
+		`, command.ID, command.TenantID, command.ExamVersionID, command.SectionID, command.ExpectedContentVersion,
+			command.Position, command.Resolved.QuestionID, command.QuestionVersionID, command.MaximumScore,
+			command.Resolved.Title, command.Resolved.PromptMarkdown, string(choices), command.Resolved.CorrectChoices,
+			command.Resolved.MultipleChoice); err != nil {
+			return app.ExamItem{}, mapWriteError(err, "exam item could not be added")
+		}
+		return repository.itemAdded(ctx, transaction, command)
+	}
 	if _, err := transaction.Exec(ctx, `
-		SELECT assessment.add_exam_item($1, $2, $3, $4, $5, $6, $7, $8, $9::numeric, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+		SELECT assessment.add_exam_item($1, $2, $3, $4, $5, $6, $7, $8, $9::numeric, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
 	`, command.ID, command.TenantID, command.ExamVersionID, command.SectionID, command.ExpectedContentVersion,
 		command.Position, command.Resolved.QuestionID, command.QuestionVersionID, command.MaximumScore,
 		command.Resolved.EvaluationBundle.ObjectKey, command.Resolved.EvaluationBundle.SHA256, command.Resolved.EvaluationBundle.KeyReference,
 		command.Resolved.SampleBundle.ObjectKey, command.Resolved.SampleBundle.SHA256, command.Resolved.SampleBundle.KeyReference,
-		command.Resolved.TimeLimitMS, command.Resolved.MemoryLimitKiB, command.Resolved.SupportedLanguages); err != nil {
+		command.Resolved.TimeLimitMS, command.Resolved.MemoryLimitKiB, command.Resolved.SupportedLanguages,
+		command.Resolved.Title, command.Resolved.PromptMarkdown); err != nil {
 		return app.ExamItem{}, mapWriteError(err, "exam item could not be added")
 	}
+	return repository.itemAdded(ctx, transaction, command)
+}
+
+// itemAdded reads back a new exam item and records its creation event.
+func (repository *Postgres) itemAdded(ctx context.Context, transaction pgx.Tx, command app.AddExamItem) (app.ExamItem, error) {
 	item, err := selectExamItem(ctx, transaction, command.ID, command.TenantID)
 	if err != nil {
 		return app.ExamItem{}, err
@@ -390,6 +411,15 @@ func (repository *Postgres) RevokeCandidateAssignment(ctx context.Context, trans
 		return app.CandidateAssignment{}, err
 	}
 	return assignment, nil
+}
+
+func (repository *Postgres) GetExamVersionContent(ctx context.Context, transaction pgx.Tx, command app.GetExamVersion) (json.RawMessage, error) {
+	var content json.RawMessage
+	if err := transaction.QueryRow(ctx, `SELECT assessment.get_exam_version_content($1, $2)`,
+		command.TenantID, command.ExamVersionID).Scan(&content); err != nil {
+		return nil, mapWriteError(err, "exam version content could not be read")
+	}
+	return content, nil
 }
 
 func (repository *Postgres) GetExamVersion(ctx context.Context, transaction pgx.Tx, command app.GetExamVersion) (app.ExamVersion, error) {
@@ -545,12 +575,12 @@ func selectExamSection(ctx context.Context, transaction pgx.Tx, id, tenantID str
 	var result app.ExamSection
 	err := transaction.QueryRow(ctx, `
 		SELECT id::text, tenant_id::text, exam_version_id::text, position, title,
-		       instructions_markdown, time_limit_seconds, created_at
+		       instructions_markdown, time_limit_seconds, draw_count, created_at
 		FROM assessment.exam_sections
 		WHERE id = $1 AND tenant_id = $2
 	`, id, tenantID).Scan(
 		&result.ID, &result.TenantID, &result.ExamVersionID, &result.Position, &result.Title,
-		&result.InstructionsMarkdown, &result.TimeLimitSeconds, &result.CreatedAt,
+		&result.InstructionsMarkdown, &result.TimeLimitSeconds, &result.DrawCount, &result.CreatedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return app.ExamSection{}, apperrors.New(apperrors.CodeNotFound, "exam section was not found")
@@ -566,13 +596,13 @@ func selectExamItem(ctx context.Context, transaction pgx.Tx, id, tenantID string
 	err := transaction.QueryRow(ctx, `
 		SELECT id::text, tenant_id::text, exam_version_id::text, section_id::text, position,
 		       question_id::text, question_version_id::text, maximum_score::text,
-		       evaluation_bundle_checksum, created_at
+		       COALESCE(evaluation_bundle_checksum, ''), kind, created_at
 		FROM assessment.exam_items
 		WHERE id = $1 AND tenant_id = $2
 	`, id, tenantID).Scan(
 		&result.ID, &result.TenantID, &result.ExamVersionID, &result.SectionID, &result.Position,
 		&result.QuestionID, &result.QuestionVersionID, &result.MaximumScore,
-		&result.EvaluationBundleChecksum, &result.CreatedAt,
+		&result.EvaluationBundleChecksum, &result.Kind, &result.CreatedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return app.ExamItem{}, apperrors.New(apperrors.CodeNotFound, "exam item was not found")
@@ -826,6 +856,9 @@ func (repository *Postgres) ListExams(ctx context.Context, transaction pgx.Tx, c
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("read exam rows: %w", err)
 	}
+	if err := attachLatestVersions(ctx, transaction, command.TenantID, exams); err != nil {
+		return nil, err
+	}
 	return exams, nil
 }
 
@@ -916,4 +949,67 @@ func mapWriteError(err error, message string) error {
 		}
 	}
 	return fmt.Errorf("write Assessment record: %w", err)
+}
+
+func (repository *Postgres) RepinExamItem(ctx context.Context, transaction pgx.Tx, command app.RepinExamItem) (int, error) {
+	var resent int
+	err := transaction.QueryRow(ctx, `
+		SELECT assessment.repin_exam_item($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+	`, command.EventID, command.TenantID, command.ExamVersionID, command.ItemID, command.Resolved.QuestionID, command.QuestionVersionID,
+		command.Resolved.EvaluationBundle.ObjectKey, command.Resolved.EvaluationBundle.SHA256, command.Resolved.EvaluationBundle.KeyReference,
+		command.Resolved.SampleBundle.ObjectKey, command.Resolved.SampleBundle.SHA256, command.Resolved.SampleBundle.KeyReference,
+		command.Resolved.TimeLimitMS, command.Resolved.MemoryLimitKiB, command.Resolved.SupportedLanguages,
+		command.Resolved.Title, command.Resolved.PromptMarkdown).Scan(&resent)
+	if err != nil {
+		return 0, mapWriteError(err, "exam item could not be repinned")
+	}
+	return resent, nil
+}
+
+func (repository *Postgres) MoveAssignmentWindow(ctx context.Context, transaction pgx.Tx, command app.MoveAssignmentWindow) (int, error) {
+	var moved int
+	err := transaction.QueryRow(ctx, `SELECT assessment.move_assignment_window($1, $2, $3, $4)`,
+		command.EventID, command.TenantID, command.AssignmentRuleID, command.AvailableUntil.UTC()).Scan(&moved)
+	if err != nil {
+		return 0, mapWriteError(err, "the window could not be moved")
+	}
+	return moved, nil
+}
+
+// attachLatestVersions sets each listed exam's latest version in one query.
+func attachLatestVersions(ctx context.Context, transaction pgx.Tx, tenantID string, exams []app.Exam) error {
+	if len(exams) == 0 {
+		return nil
+	}
+	ids := make([]string, len(exams))
+	index := make(map[string]int, len(exams))
+	for position, exam := range exams {
+		ids[position] = exam.ID
+		index[exam.ID] = position
+	}
+	rows, err := transaction.Query(ctx, `
+		SELECT out_id::text, out_exam_id::text, out_version_number, out_content_version, out_attempt_limit,
+		       out_title, out_instructions_markdown, out_opens_at, out_closes_at, out_duration_seconds,
+		       out_proctor_policy_version_id::text, out_status, out_published_at, out_created_at
+		FROM assessment.latest_exam_versions($1, $2::uuid[])
+	`, tenantID, ids)
+	if err != nil {
+		return fmt.Errorf("list latest exam versions: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		version := app.ExamVersion{TenantID: tenantID}
+		if err := rows.Scan(
+			&version.ID, &version.ExamID, &version.VersionNumber, &version.ContentVersion, &version.AttemptLimit,
+			&version.Title, &version.InstructionsMarkdown, &version.OpensAt, &version.ClosesAt,
+			&version.DurationSeconds, &version.ProctorPolicyVersionID, &version.Status,
+			&version.PublishedAt, &version.CreatedAt,
+		); err != nil {
+			return fmt.Errorf("scan latest exam version: %w", err)
+		}
+		if position, found := index[version.ExamID]; found {
+			exams[position].LatestVersion = &version
+		}
+	}
+	return rows.Err()
 }

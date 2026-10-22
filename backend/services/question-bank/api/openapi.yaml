@@ -31,6 +31,14 @@ paths:
           in: query
           schema: {type: integer, minimum: 1, maximum: 100, default: 20}
         - {$ref: '#/components/parameters/Cursor'}
+        - name: status
+          in: query
+          description: >-
+            draft lists the caller's own questions whose latest version is a
+            draft, and review lists drafts of any author waiting for a review,
+            oldest request first (the other filters do not apply); otherwise
+            published questions are listed.
+          schema: {type: string, enum: [published, draft, review]}
         - name: difficulty
           in: query
           schema: {type: string, enum: [easy, medium, hard]}
@@ -269,6 +277,211 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+  /v1/review-policy:
+    get:
+      summary: Whether publishing needs a review (ADR-0044)
+      operationId: getReviewPolicy
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The policy.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [require_review]
+                properties:
+                  require_review: {type: boolean}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+  /v1/question-versions/{question_version_id}/request-review:
+    post:
+      summary: Ask for a review of a draft (ADR-0044)
+      description: >-
+        Marks the draft as waiting for review. When the deployment requires
+        reviews, publishing needs this, and the publisher must be a different
+        member of staff than the requester.
+      operationId: requestQuestionReview
+      parameters:
+        - {$ref: '#/components/parameters/QuestionVersionID'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expected_question_version]
+              properties:
+                expected_question_version: {type: integer, minimum: 1}
+                reviewer_id: {type: string, format: uuid, description: Optional; a hint for the queue, not a restriction}
+      responses:
+        '200': {$ref: '#/components/responses/QuestionDetail'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+  /v1/question-versions/{question_version_id}/export:
+    get:
+      summary: Export a question with all of its tests (ADR-0032)
+      description: >-
+        Requires write on question_exports, which only college and platform
+        administrators can obtain. Every export is recorded. The response
+        includes hidden tests in plain text.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: question_version_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The question file (format aethercode.question.v1).
+          content:
+            application/json:
+              schema: { type: object }
+        '403': { description: Not an administrator. }
+        '404': { description: No such question version. }
+        '409': { description: The version has no tests yet. }
+  /v1/question-versions/{question_version_id}/choices:
+    put:
+      summary: Make a draft multiple-choice (ADR-0035)
+      description: 2 to 10 options, the indexes of the correct ones, and whether several may be chosen.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: question_version_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expected_question_version, choices, correct_choices, multiple_choice]
+              properties:
+                expected_question_version: { type: integer }
+                choices: { type: array, minItems: 2, maxItems: 10, items: { type: string } }
+                correct_choices: { type: array, minItems: 1, items: { type: integer, minimum: 0 } }
+                multiple_choice: { type: boolean }
+      responses:
+        '200': { description: The question version. }
+        '400': { description: Invalid options or answer. }
+        '409': { description: Stale revision or not a draft. }
+  /v1/questions/{question_id}/audience:
+    put:
+      summary: Use a question for tests or for practice (ADR-0041)
+      description: Practice questions are visible to every student; test questions never are. Requires write on questions.
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: question_id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [audience]
+              properties:
+                audience: { type: string, enum: [test, practice] }
+      responses:
+        '200': { description: The new audience. }
+        '400': { description: Not test or practice. }
+        '404': { description: No such question. }
+  /v1/tenants/{tenant_id}/practice/questions:
+    get:
+      summary: The practice catalogue with the student's progress (ADR-0041)
+      description: >-
+        Published coding questions marked for practice, each with title,
+        difficulty, tags, and whether the caller solved or attempted it.
+        Authorized as the bearer on practice_submissions in their tenant.
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: tenant_id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: An array of practice problems. }
+  /v1/tenants/{tenant_id}/practice/progress:
+    get:
+      summary: The student's practice totals (ADR-0041)
+      description: Problems available and solved, by difficulty, submissions, accepted ones, and days with practice in the last year (IST).
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: tenant_id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: The totals. }
+  /v1/tenants/{tenant_id}/practice/questions/{question_id}:
+    get:
+      summary: One practice problem with its sample tests (ADR-0041)
+      description: The latest published version's statement, languages, limits, tags and decrypted sample tests. Hidden tests are never returned.
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: tenant_id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: question_id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: The problem. }
+        '404': { description: Not a practice problem. }
+  /v1/tenants/{tenant_id}/practice/questions/{question_id}/submissions:
+    get:
+      summary: The student's last 20 runs and submissions on a problem (ADR-0041)
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: tenant_id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: question_id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Runs, newest first, with per-test verdicts and, for sample runs, output. }
+    post:
+      summary: Run or submit code on a practice problem (ADR-0041)
+      description: >-
+        mode run uses the sample tests, or input when given; mode submit uses
+        every test. One job per student may be in flight and at most 12 across
+        the platform, so exams keep Judge's other slots.
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: tenant_id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: question_id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [language, mode, source]
+              properties:
+                language: { type: string }
+                mode: { type: string, enum: [run, submit] }
+                source: { type: string, maxLength: 65536 }
+                input: { type: string, maxLength: 65536, description: Runs only. }
+      responses:
+        '202': { description: 'Started: { id }; poll the run.' }
+        '400': { description: Invalid language, mode, code or input. }
+        '404': { description: Not a practice problem. }
+        '409': { description: A run is already in flight, or practice is busy. }
+        '503': { description: Judge unavailable. }
+  /v1/tenants/{tenant_id}/practice/submissions/{submission_id}:
+    get:
+      summary: One of the student's runs, with its code (ADR-0041)
+      security:
+        - bearerAuth: []
+      parameters:
+        - { name: tenant_id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: submission_id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: The run and its source. }
+        '404': { description: Not the caller's run. }
 components:
   securitySchemes:
     BearerAuth:
@@ -393,6 +606,9 @@ components:
         time_limit_ms: {type: integer}
         memory_limit_kib: {type: integer}
         status: {type: string, enum: [draft, published, retired]}
+        review_requested_at: {type: string, format: date-time}
+        review_requested_by: {type: string, format: uuid}
+        assigned_reviewer_id: {type: string, format: uuid}
         published_at: {type: [string, 'null'], format: date-time}
         created_at: {type: string, format: date-time}
         version: {type: integer, minimum: 1}

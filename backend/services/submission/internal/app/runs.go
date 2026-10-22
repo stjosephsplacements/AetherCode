@@ -9,6 +9,7 @@ import (
 	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
 	"github.com/aethercode/aethercode/libs/pkg/database"
 	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
+	"github.com/aethercode/aethercode/libs/pkg/evalbundle"
 	"github.com/aethercode/aethercode/libs/pkg/pagination"
 	"github.com/jackc/pgx/v5"
 )
@@ -23,10 +24,17 @@ type RunCode struct {
 	ExamItemID string
 	Language   string
 	Source     string
+	// Input, when set, runs the source against this stdin instead of the
+	// item's sample tests (ADR-0025). The service builds a one-test sample
+	// bundle from it, so Judge returns the output.
+	Input *string
 
 	SourceObjectKey        string
 	SourceChecksum         string
 	EncryptionKeyReference string
+	BundleObjectKey        string
+	BundleChecksum         string
+	BundleKeyReference     string
 }
 
 type GetCodeRun struct {
@@ -83,7 +91,7 @@ func (service *Service) RunCode(contextValue context.Context, capability central
 	command.Language = strings.TrimSpace(command.Language)
 	if !isUUID(command.TenantID) || !isUUID(command.AttemptID) || !isUUID(command.ExamItemID) ||
 		!languagePattern.MatchString(command.Language) || strings.TrimSpace(command.Source) == "" ||
-		len(command.Source) > MaxSourceBytes {
+		len(command.Source) > MaxSourceBytes || (command.Input != nil && len(*command.Input) > MaxSourceBytes) {
 		return CodeRun{}, apperrors.New(apperrors.CodeInvalidArgument, "code run fields are invalid")
 	}
 	runID, err := database.NewUUIDv7()
@@ -96,16 +104,39 @@ func (service *Service) RunCode(contextValue context.Context, capability central
 	if err != nil {
 		return CodeRun{}, err
 	}
+	cleanup := func() {
+		// The run was not recorded, so nothing references the objects.
+		_ = service.storage.Delete(context.WithoutCancel(contextValue), command.SourceObjectKey)
+		if command.BundleObjectKey != "" {
+			_ = service.storage.Delete(context.WithoutCancel(contextValue), command.BundleObjectKey)
+		}
+	}
+	if command.Input != nil {
+		bundle, buildErr := evalbundle.BuildSample([]evalbundle.TestCase{{Stdin: *command.Input, Weight: evalbundle.DefaultWeight}})
+		if buildErr != nil {
+			cleanup()
+			return CodeRun{}, apperrors.New(apperrors.CodeInvalidArgument, "custom input is invalid")
+		}
+		command.BundleObjectKey = command.SourceObjectKey + "/input"
+		command.BundleChecksum, command.BundleKeyReference, err = service.encryptAndStore(contextValue, command.BundleObjectKey, string(bundle))
+		if err != nil {
+			cleanup()
+			return CodeRun{}, err
+		}
+	}
 
 	var run CodeRun
 	err = database.WithTenantTx(contextValue, service.pool, capability, func(transaction pgx.Tx) error {
 		var storeErr error
-		run, storeErr = service.store.StartCodeRun(contextValue, transaction, command)
+		if command.Input != nil {
+			run, storeErr = service.store.StartCustomRun(contextValue, transaction, command)
+		} else {
+			run, storeErr = service.store.StartCodeRun(contextValue, transaction, command)
+		}
 		return storeErr
 	})
 	if err != nil {
-		// The run was not recorded, so nothing references the object.
-		_ = service.storage.Delete(context.WithoutCancel(contextValue), command.SourceObjectKey)
+		cleanup()
 	}
 	return run, err
 }

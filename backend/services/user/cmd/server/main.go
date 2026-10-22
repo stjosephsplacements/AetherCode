@@ -343,7 +343,7 @@ func run(contextValue context.Context) error {
 		grpcServer.Stop()
 		return err
 	}
-	handler, err := httpadapter.NewHandler(serviceConfig.Name, managementService, accountService, readiness, authorizer)
+	handler, err := httpadapter.NewHandler(serviceConfig.Name, managementService, accountService, authorizationService, readiness, authorizer)
 	if err != nil {
 		grpcServer.Stop()
 		return err

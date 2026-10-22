@@ -1,0 +1,6 @@
+apiVersion: v2
+name: platform-infra
+description: In-cluster backing services for AetherCode - PostgreSQL, the judge database, NATS JetStream, MinIO, RabbitMQ, backups and the namespace default-deny policy
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

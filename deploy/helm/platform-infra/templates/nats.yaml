@@ -1,0 +1,137 @@
+{{- if .Values.nats.enabled }}
+{{- $replicas := int .Values.nats.replicas }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nats-config
+  labels:
+    {{- include "infra.labels" . | nindent 4 }}
+data:
+  nats.conf: |
+    port: 4222
+    http: 8222
+    server_name: $SERVER_NAME
+    jetstream {
+      store_dir: /data
+    }
+    {{- if gt $replicas 1 }}
+    cluster {
+      name: aethercode
+      port: 6222
+      routes = [
+        {{- range $i := until $replicas }}
+        nats://nats-{{ $i }}.nats-headless:6222
+        {{- end }}
+      ]
+    }
+    {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nats
+  labels:
+    {{- include "infra.labels" . | nindent 4 }}
+    app.kubernetes.io/name: nats
+spec:
+  ports:
+    - name: client
+      port: 4222
+  selector:
+    app.kubernetes.io/name: nats
+    app.kubernetes.io/part-of: aethercode
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nats-headless
+  labels:
+    {{- include "infra.labels" . | nindent 4 }}
+    app.kubernetes.io/name: nats
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: client
+      port: 4222
+    - name: cluster
+      port: 6222
+    - name: monitor
+      port: 8222
+  selector:
+    app.kubernetes.io/name: nats
+    app.kubernetes.io/part-of: aethercode
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nats
+  labels:
+    {{- include "infra.labels" . | nindent 4 }}
+    app.kubernetes.io/name: nats
+spec:
+  serviceName: nats-headless
+  replicas: {{ $replicas }}
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: nats
+      app.kubernetes.io/part-of: aethercode
+  template:
+    metadata:
+      labels:
+        {{- include "infra.labels" . | nindent 8 }}
+        app.kubernetes.io/name: nats
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        {{- include "infra.podSecurity" . | nindent 8 }}
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: nats
+          image: {{ .Values.images.nats }}
+          args: ["-c", "/etc/nats/nats.conf"]
+          env:
+            - name: SERVER_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          ports:
+            - {name: client, containerPort: 4222}
+            - {name: cluster, containerPort: 6222}
+            - {name: monitor, containerPort: 8222}
+          readinessProbe:
+            httpGet: {path: /healthz, port: monitor}
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: {path: /healthz, port: monitor}
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            {{- toYaml .Values.nats.resources | nindent 12 }}
+          volumeMounts:
+            - {name: config, mountPath: /etc/nats, readOnly: true}
+            - {name: data, mountPath: /data}
+      volumes:
+        - name: config
+          configMap:
+            name: nats-config
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with .Values.storageClass }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.nats.storage }}
+{{- end }}

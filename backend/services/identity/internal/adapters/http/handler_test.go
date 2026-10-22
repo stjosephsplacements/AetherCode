@@ -28,6 +28,14 @@ func (fake *fakeUseCases) Register(_ context.Context, email, _, _, _, _ string) 
 	return "019b11a0-0000-7000-8000-000000000001", fake.registerToken, nil
 }
 
+func (fake *fakeUseCases) StartSSO(context.Context) (app.SSOStart, error) {
+	return app.SSOStart{}, nil
+}
+
+func (fake *fakeUseCases) CompleteSSO(context.Context, string, string, string, string, string) (app.TokenPair, error) {
+	return app.TokenPair{}, nil
+}
+
 func (fake *fakeUseCases) VerifyEmail(context.Context, string) (string, error) {
 	return "019b11a0-0000-7000-8000-000000000001", nil
 }
@@ -49,6 +57,10 @@ func (fake *fakeUseCases) Logout(context.Context, string) error { return nil }
 
 func (fake *fakeUseCases) RequestPasswordReset(context.Context, string, string, string) (string, error) {
 	return "reset-token", nil
+}
+
+func (fake *fakeUseCases) ChangePassword(context.Context, string, string, string, string, string) error {
+	return nil
 }
 
 func (fake *fakeUseCases) ResetPassword(context.Context, string, string, string, string) error {

@@ -62,9 +62,9 @@ func TestResolvedBundlesAreSnapshotted(t *testing.T) {
 		require.NoError(t, addErr)
 		_, addErr = tx.Exec(ctx, `SET LOCAL ROLE aether_assessment_app`)
 		require.NoError(t, addErr)
-		_, addErr = tx.Exec(ctx, `SELECT assessment.add_exam_item($1, $2, $3, $4, 1, 1, $5, $6, 10::numeric, 'qb/eval.bin', $7, $8, $9, $10, $11, $12, $13, $14)`,
+		_, addErr = tx.Exec(ctx, `SELECT assessment.add_exam_item($1, $2, $3, $4, 1, 1, $5, $6, 10::numeric, 'qb/eval.bin', $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
 			itemID, tenant, versionID, sectionID, questionID, questionVersionID, evalKey, keyReference, sampleObjectKey, sampleKey, keyReference,
-			timeLimit, 262144, []string{"c", "python3"})
+			timeLimit, 262144, []string{"c", "python3"}, "Sum two numbers", "Print a + b.")
 		if addErr != nil {
 			// Rolling back to the savepoint also restores the session role.
 			_, rollbackErr := tx.Exec(ctx, `ROLLBACK TO SAVEPOINT add_item`)
@@ -85,6 +85,9 @@ func TestResolvedBundlesAreSnapshotted(t *testing.T) {
 	require.NoError(t, tx.QueryRow(ctx, `SELECT has_function_privilege('aether_assessment_app',
 		'assessment.add_exam_item(uuid, uuid, uuid, uuid, bigint, integer, uuid, uuid, numeric, text, text, text, text, text, text)', 'EXECUTE')`).Scan(&hasLegacy))
 	require.False(t, hasLegacy, "the overload without execution limits must not be executable by the app role")
+	require.NoError(t, tx.QueryRow(ctx, `SELECT has_function_privilege('aether_assessment_app',
+		'assessment.add_exam_item(uuid, uuid, uuid, uuid, bigint, integer, uuid, uuid, numeric, text, text, text, text, text, text, integer, integer, text[])', 'EXECUTE')`).Scan(&hasLegacy))
+	require.False(t, hasLegacy, "the overload without the statement must not be executable by the app role")
 
 	exec(`UPDATE assessment.exam_versions SET status = 'published', published_at = now() WHERE id = $1`, versionID)
 	exec(`INSERT INTO assessment.assignment_rules (id, tenant_id, exam_version_id, target_type, target_id, available_from, available_until, created_by)
@@ -108,6 +111,12 @@ func TestResolvedBundlesAreSnapshotted(t *testing.T) {
 		"time_limit_ms":                   float64(2000),
 		"memory_limit_kib":                float64(262144),
 		"supported_languages":             []any{"c", "python3"},
+		"title":                           "Sum two numbers",
+		"prompt_markdown":                 "Print a + b.",
+		"kind":                            "coding",
+		"choices":                         nil,
+		"correct_choices":                 nil,
+		"multiple_choice":                 false,
 	}
 
 	// Direct materialization goes through enqueue_candidate_assignment_snapshot.
@@ -121,7 +130,7 @@ func TestResolvedBundlesAreSnapshotted(t *testing.T) {
 
 	// Joining a batch materializes against the principal, not the student record.
 	principal := uuid.New()
-	require.Equal(t, want, snapshotItem(`SELECT assessment.materialize_from_batch_affiliation(gen_random_uuid(), $1, $2, $3, $4, 'active', 2)`,
+	require.Equal(t, want, snapshotItem(`SELECT assessment.materialize_from_batch_affiliation(gen_random_uuid(), $1, $2, $3, $4, 'active', 2, NULL)`,
 		tenant, student, principal, batch))
 	var candidates int
 	require.NoError(t, tx.QueryRow(ctx, `SELECT count(*) FROM assessment.candidate_assignments WHERE assignment_rule_id = $1 AND candidate_id = $2`,
@@ -129,7 +138,7 @@ func TestResolvedBundlesAreSnapshotted(t *testing.T) {
 	require.Equal(t, 1, candidates, "the candidate is the student's principal")
 
 	// An older, redelivered snapshot cannot undo the newer membership.
-	exec(`SELECT assessment.materialize_from_batch_affiliation(gen_random_uuid(), $1, $2, $3, NULL, 'inactive', 1)`, tenant, student, principal)
+	exec(`SELECT assessment.materialize_from_batch_affiliation(gen_random_uuid(), $1, $2, $3, NULL, 'inactive', 1, NULL)`, tenant, student, principal)
 	var status string
 	require.NoError(t, tx.QueryRow(ctx, `SELECT status FROM assessment.student_batch_enrollments WHERE tenant_id = $1 AND student_id = $2`,
 		tenant, student).Scan(&status))
@@ -137,14 +146,78 @@ func TestResolvedBundlesAreSnapshotted(t *testing.T) {
 
 	// A rule created after students joined reaches every one of them.
 	laterBatch, firstStudent, firstPrincipal, secondStudent, secondPrincipal, laterRuleID := uuid.New(), uuid.New(), uuid.New(), uuid.New(), uuid.New(), uuid.New()
-	exec(`SELECT assessment.materialize_from_batch_affiliation(gen_random_uuid(), $1, $2, $3, $4, 'active', 1)`, tenant, firstStudent, firstPrincipal, laterBatch)
-	exec(`SELECT assessment.materialize_from_batch_affiliation(gen_random_uuid(), $1, $2, $3, $4, 'active', 1)`, tenant, secondStudent, secondPrincipal, laterBatch)
+	exec(`SELECT assessment.materialize_from_batch_affiliation(gen_random_uuid(), $1, $2, $3, $4, 'active', 1, NULL)`, tenant, firstStudent, firstPrincipal, laterBatch)
+	exec(`SELECT assessment.materialize_from_batch_affiliation(gen_random_uuid(), $1, $2, $3, $4, 'active', 1, NULL)`, tenant, secondStudent, secondPrincipal, laterBatch)
 	exec(`INSERT INTO assessment.assignment_rules (id, tenant_id, exam_version_id, target_type, target_id, available_from, available_until, created_by)
 	      VALUES ($1, $2, $3, 'batch', $4, now(), now() + interval '20 days', $5)`, laterRuleID, tenant, versionID, laterBatch, actor)
 	exec(`SELECT assessment.backfill_from_assignment_rule(gen_random_uuid(), $1, $2, 'batch', $3)`, tenant, laterRuleID, laterBatch)
 	require.NoError(t, tx.QueryRow(ctx, `SELECT count(*) FROM assessment.candidate_assignments WHERE assignment_rule_id = $1 AND candidate_id IN ($2, $3)`,
 		laterRuleID, firstPrincipal, secondPrincipal).Scan(&candidates))
 	require.Equal(t, 2, candidates, "backfill materializes the existing roster by principal")
+
+	// A placement department rule reaches its students in any batch (ADR-0026).
+	placement, otherPlacement := uuid.New(), uuid.New()
+	placedStudent, placedPrincipal, elsewhereStudent, elsewherePrincipal := uuid.New(), uuid.New(), uuid.New(), uuid.New()
+	exec(`SELECT assessment.materialize_from_batch_affiliation(gen_random_uuid(), $1, $2, $3, $4, 'active', 1, $5)`,
+		tenant, placedStudent, placedPrincipal, uuid.New(), placement)
+	exec(`SELECT assessment.materialize_from_batch_affiliation(gen_random_uuid(), $1, $2, $3, $4, 'active', 1, $5)`,
+		tenant, elsewhereStudent, elsewherePrincipal, uuid.New(), otherPlacement)
+	placementRuleID := uuid.New()
+	exec(`INSERT INTO assessment.assignment_rules (id, tenant_id, exam_version_id, target_type, target_id, available_from, available_until, created_by)
+	      VALUES ($1, $2, $3, 'placement_department', $4, now(), now() + interval '20 days', $5)`, placementRuleID, tenant, versionID, placement, actor)
+	exec(`SELECT assessment.backfill_from_assignment_rule(gen_random_uuid(), $1, $2, 'placement_department', $3)`, tenant, placementRuleID, placement)
+	var placed, elsewhere int
+	require.NoError(t, tx.QueryRow(ctx, `SELECT count(*) FROM assessment.candidate_assignments WHERE assignment_rule_id = $1 AND candidate_id = $2`,
+		placementRuleID, placedPrincipal).Scan(&placed))
+	require.NoError(t, tx.QueryRow(ctx, `SELECT count(*) FROM assessment.candidate_assignments WHERE assignment_rule_id = $1 AND candidate_id = $2`,
+		placementRuleID, elsewherePrincipal).Scan(&elsewhere))
+	require.Equal(t, 1, placed, "a placement rule reaches students of that placement department")
+	require.Equal(t, 0, elsewhere, "and nobody else")
+
+	// A student who joins later receives the placement rule already in place.
+	lateStudent, latePrincipal := uuid.New(), uuid.New()
+	exec(`SELECT assessment.materialize_from_batch_affiliation(gen_random_uuid(), $1, $2, $3, $4, 'active', 1, $5)`,
+		tenant, lateStudent, latePrincipal, uuid.New(), placement)
+	require.NoError(t, tx.QueryRow(ctx, `SELECT count(*) FROM assessment.candidate_assignments WHERE assignment_rule_id = $1 AND candidate_id = $2`,
+		placementRuleID, latePrincipal).Scan(&placed))
+	require.Equal(t, 1, placed, "joining a placement department materializes its open rules")
+
+	// The staff exam builder reads sections, items and rules with the
+	// exam_versions read capability alone.
+	readContext := uuid.New()
+	exec(`INSERT INTO authz.request_contexts (context_id, capability_id, backend_pid, transaction_id, actor_id, tenant_id, authz_revision, action, resource, issued_at, expires_at)
+	      VALUES ($1, $2, pg_backend_pid(), txid_current(), $3, $4, 1, 'assessment.read', 'assessment.exam_versions', clock_timestamp(), clock_timestamp() + interval '4 seconds')`,
+		readContext, uuid.New(), actor, tenant)
+	exec(`SELECT set_config('app.authz_context_id', $1, true)`, readContext.String())
+	exec(`SET LOCAL ROLE aether_assessment_app`)
+	var raw []byte
+	require.NoError(t, tx.QueryRow(ctx, `SELECT assessment.get_exam_version_content($1, $2)`, tenant, versionID).Scan(&raw))
+	exec(`RESET ROLE`)
+	var content struct {
+		Sections []struct {
+			Items []struct {
+				QuestionTitle string `json:"question_title"`
+				MaximumScore  string `json:"maximum_score"`
+			} `json:"items"`
+		} `json:"sections"`
+		AssignmentRules []struct {
+			TargetType         string `json:"target_type"`
+			AssignedCandidates int    `json:"assigned_candidates"`
+		} `json:"assignment_rules"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &content))
+	require.Len(t, content.Sections, 1)
+	require.Len(t, content.Sections[0].Items, 1)
+	require.Equal(t, "Sum two numbers", content.Sections[0].Items[0].QuestionTitle)
+	require.Equal(t, "10.0000", content.Sections[0].Items[0].MaximumScore)
+	require.Len(t, content.AssignmentRules, 4)
+	placementCandidates := -1
+	for _, rule := range content.AssignmentRules {
+		if rule.TargetType == "placement_department" {
+			placementCandidates = rule.AssignedCandidates
+		}
+	}
+	require.Equal(t, 2, placementCandidates, "the placement rule reports its two candidates")
 }
 
 func outboxItem(t *testing.T, ctx context.Context, tx pgx.Tx) map[string]any {

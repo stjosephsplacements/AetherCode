@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/aethercode/aethercode/libs/pkg/database"
 	"github.com/aethercode/aethercode/libs/pkg/messaging"
@@ -56,8 +57,8 @@ func (store *Store) Ping(contextValue context.Context) error {
 // migration 000020, and the limits and languages for those before 000024.
 type assignmentItem struct {
 	ExamItemID                   string      `json:"exam_item_id"`
-	EvaluationBundleObjectKey    string      `json:"evaluation_bundle_object_key"`
-	EvaluationBundleChecksum     string      `json:"evaluation_bundle_checksum"`
+	EvaluationBundleObjectKey    string      `json:"evaluation_bundle_object_key,omitempty"`
+	EvaluationBundleChecksum     string      `json:"evaluation_bundle_checksum,omitempty"`
 	EvaluationBundleKeyReference string      `json:"evaluation_bundle_key_reference"`
 	SampleBundleObjectKey        string      `json:"sample_bundle_object_key"`
 	SampleBundleChecksum         string      `json:"sample_bundle_checksum"`
@@ -66,6 +67,17 @@ type assignmentItem struct {
 	TimeLimitMS                  *int        `json:"time_limit_ms"`
 	MemoryLimitKiB               *int        `json:"memory_limit_kib"`
 	SupportedLanguages           []string    `json:"supported_languages"`
+	// Title and PromptMarkdown are the pinned statement; nil on snapshots
+	// written before Assessment migration 000026 and on legacy items.
+	Title          *string `json:"title"`
+	PromptMarkdown *string `json:"prompt_markdown"`
+	// Kind is "coding" or "mcq" (ADR-0035); absent on snapshots written before
+	// Assessment migration 000030. An mcq item has options and a key instead
+	// of bundles and limits.
+	Kind           *string  `json:"kind"`
+	Choices        []string `json:"choices"`
+	CorrectChoices []int    `json:"correct_choices"`
+	MultipleChoice *bool    `json:"multiple_choice"`
 }
 
 type assignmentSnapshot struct {
@@ -79,10 +91,14 @@ type assignmentSnapshot struct {
 	AttemptLimit          int16     `json:"attempt_limit"`
 	// DurationSeconds is the per-candidate time limit; nil on snapshots
 	// written before Assessment migration 000025.
-	DurationSeconds *int             `json:"duration_seconds"`
-	LifecycleState  string           `json:"lifecycle_state"`
-	Version         int64            `json:"version"`
-	Items           []assignmentItem `json:"items"`
+	DurationSeconds *int `json:"duration_seconds"`
+	// Title and InstructionsMarkdown are the exam version's; nil on snapshots
+	// written before Assessment migration 000026.
+	Title                *string          `json:"title"`
+	InstructionsMarkdown *string          `json:"instructions_markdown"`
+	LifecycleState       string           `json:"lifecycle_state"`
+	Version              int64            `json:"version"`
+	Items                []assignmentItem `json:"items"`
 }
 
 // ApplyAssignmentSnapshot atomically materializes an Assessment-owned,
@@ -105,12 +121,12 @@ func (store *Store) ApplyAssignmentSnapshot(contextValue context.Context, event 
 		var applied bool
 		err := transaction.QueryRow(applyContext, `
 			SELECT submission.apply_assignment_snapshot(
-				$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13
+				$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13, $14, $15
 			)
 		`, event.ID, payload.TenantID, payload.CandidateAssignmentID, payload.CandidateID,
 			payload.ExamID, payload.ExamVersionID, payload.AvailableFrom.UTC(), payload.AvailableUntil.UTC(),
 			payload.AttemptLimit, payload.LifecycleState, payload.Version, string(items),
-			payload.DurationSeconds).Scan(&applied)
+			payload.DurationSeconds, payload.Title, payload.InstructionsMarkdown).Scan(&applied)
 		if err != nil {
 			return projectionError(err, "apply assessment assignment snapshot")
 		}
@@ -201,15 +217,26 @@ func parseAssignmentSnapshot(event messaging.Event) (assignmentSnapshot, error) 
 		payload.AttemptLimit < 1 || payload.AttemptLimit > 20 || payload.Version <= 0 ||
 		(payload.DurationSeconds != nil && (*payload.DurationSeconds < 60 || *payload.DurationSeconds > 43200)) ||
 		(payload.LifecycleState != "active" && payload.LifecycleState != "revoked") ||
-		(payload.LifecycleState == "active" && len(payload.Items) == 0) {
+		(payload.LifecycleState == "active" && len(payload.Items) == 0) ||
+		!validText(payload.Title, 300) || !validText(payload.InstructionsMarkdown, 0) {
 		return assignmentSnapshot{}, fmt.Errorf("assessment assignment snapshot fields are invalid")
 	}
 	seenItems := make(map[string]struct{}, len(payload.Items))
 	for _, item := range payload.Items {
 		maximumScore, parseErr := strconv.ParseFloat(item.MaximumScore.String(), 64)
-		if !validUUID(item.ExamItemID) || strings.TrimSpace(item.EvaluationBundleObjectKey) == "" ||
-			!validSHA256(item.EvaluationBundleChecksum) || parseErr != nil || maximumScore <= 0 {
+		if !validUUID(item.ExamItemID) || parseErr != nil || maximumScore <= 0 {
 			return assignmentSnapshot{}, fmt.Errorf("assessment assignment item is invalid")
+		}
+		if item.Kind != nil && *item.Kind == "mcq" {
+			if !validChoices(item) {
+				return assignmentSnapshot{}, fmt.Errorf("assessment assignment multiple-choice item is invalid")
+			}
+		} else if (item.Kind != nil && *item.Kind != "coding") || strings.TrimSpace(item.EvaluationBundleObjectKey) == "" ||
+			!validSHA256(item.EvaluationBundleChecksum) {
+			return assignmentSnapshot{}, fmt.Errorf("assessment assignment item is invalid")
+		}
+		if !validText(item.Title, 300) || !validText(item.PromptMarkdown, 200000) || (item.Title == nil) != (item.PromptMarkdown == nil) {
+			return assignmentSnapshot{}, fmt.Errorf("assessment assignment item statement is invalid")
 		}
 		if !validExecution(item) {
 			return assignmentSnapshot{}, fmt.Errorf("assessment assignment item execution limits are invalid")
@@ -220,6 +247,15 @@ func parseAssignmentSnapshot(event messaging.Event) (assignmentSnapshot, error) 
 		seenItems[item.ExamItemID] = struct{}{}
 	}
 	return payload, nil
+}
+
+// validText accepts an absent value or non-blank text of at most limit
+// characters (no limit when limit is 0), matching the projection's checks.
+func validText(value *string, limit int) bool {
+	if value == nil {
+		return true
+	}
+	return strings.TrimSpace(*value) != "" && (limit == 0 || utf8.RuneCountInString(*value) <= limit)
 }
 
 // validExecution accepts either no execution settings (a legacy item) or all
@@ -335,4 +371,18 @@ func projectionError(err error, operation string) error {
 		return messaging.Permanent(fmt.Errorf("%s: %w", operation, err))
 	}
 	return fmt.Errorf("%s: %w", operation, err)
+}
+
+// validChoices mirrors the projection's bounds on a multiple-choice item.
+func validChoices(item assignmentItem) bool {
+	if len(item.Choices) < 2 || len(item.Choices) > 10 || len(item.CorrectChoices) < 1 || item.MultipleChoice == nil ||
+		(!*item.MultipleChoice && len(item.CorrectChoices) != 1) || item.Title == nil {
+		return false
+	}
+	for _, index := range item.CorrectChoices {
+		if index < 0 || index >= len(item.Choices) {
+			return false
+		}
+	}
+	return true
 }

@@ -1,12 +1,67 @@
-nameOverride: "question-bank"
+# question-bank: environment mirrors deploy/single-server/docker-compose.yml.
+nameOverride: question-bank
 
 image:
-  repository: ghcr.io/Shreesh-Sree/CoderQX/question-bank
+  repository: ghcr.io/stjosephsplacements/aethercode-question-bank
   tag: ""
 
-service:
-  port: 8080
+replicaCount: 2
 
-envFrom:
-  - secretRef:
-      name: question-bank-secrets
+ports:
+  - name: grpc
+    port: 9445
+
+tls:
+  enabled: true
+  secretName: aethercode-tls-question-bank
+
+config:
+  SERVICE_NAME: "question-bank"
+  AUTHZ_ENDPOINT: "user:9443"
+  AUTHZ_CLIENT_TLS_CA_FILE: "/certs/ca.crt"
+  AUTHZ_CLIENT_TLS_SERVER_NAME: "user"
+  AUTHZ_CLIENT_TLS_CERT_FILE: "/certs/tls.crt"
+  AUTHZ_CLIENT_TLS_KEY_FILE: "/certs/tls.key"
+  QBANK_REQUIRE_REVIEW: "{{ .Values.requireReview }}"
+  QBANK_STORAGE_BUCKET: "aethercode"
+  QBANK_GRPC_ADDR: "0.0.0.0:9445"
+  QBANK_GRPC_TLS_CERT_FILE: "/certs/tls.crt"
+  QBANK_GRPC_TLS_KEY_FILE: "/certs/tls.key"
+  QBANK_GRPC_CLIENT_CA_FILE: "/certs/ca.crt"
+  QBANK_JUDGE_GRPC_ADDR: "judge:8443"
+  QBANK_JUDGE_TLS_SERVER_NAME: "judge"
+  QBANK_GRPC_ALLOWED_CLIENT_SUBJECTS: "assessment"
+
+secretEnv:
+  - name: QBANK_DB_PASSWORD
+  - name: MINIO_ROOT_USER
+  - name: MINIO_ROOT_PASSWORD
+  - name: PLATFORM_KMS_LOCAL_KEY
+
+env:
+  - name: QBANK_DATABASE_URL
+    value: "postgres://aether_question_bank_app:$(QBANK_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_qbank?sslmode={{ .Values.global.postgresSSLMode }}"
+  - name: QBANK_PROJECTION_DATABASE_URL
+    value: "postgres://aether_question_bank_projection_worker:$(QBANK_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_qbank?sslmode={{ .Values.global.postgresSSLMode }}"
+  - name: QBANK_STORAGE_ENDPOINT
+    value: "{{ .Values.global.minioEndpoint }}"
+  - name: QBANK_STORAGE_ACCESS_KEY
+    value: "$(MINIO_ROOT_USER)"
+  - name: QBANK_STORAGE_SECRET_KEY
+    value: "$(MINIO_ROOT_PASSWORD)"
+  - name: QBANK_STORAGE_BUCKET
+    value: "aethercode"
+  - name: QBANK_STORAGE_USE_SSL
+    value: "{{ .Values.global.minioUseSSL }}"
+  - name: QBANK_KMS_LOCAL_KEY
+    value: "$(PLATFORM_KMS_LOCAL_KEY)"
+
+networkPolicy:
+  allowFrom:
+    - service: gateway
+      ports: [8080]
+    - service: assessment
+      ports: [9445]
+
+# Publishing needs a review request from another member of staff (ADR-0044).
+requireReview: "false"

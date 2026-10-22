@@ -1,0 +1,107 @@
+{{- $platformSecrets := list "IDENTITY_DB_PASSWORD" "TENANT_DB_PASSWORD" "USERS_DB_PASSWORD" "QBANK_DB_PASSWORD" "ASSESSMENT_DB_PASSWORD" "SUBMISSION_DB_PASSWORD" "SEB_DB_PASSWORD" "NOTIFICATION_DB_PASSWORD" "ANALYTICS_DB_PASSWORD" "AUTHZ_CAPABILITY_KEYS" }}
+{{- $hardened := dict "allowPrivilegeEscalation" false "readOnlyRootFilesystem" true "capabilities" (dict "drop" (list "ALL")) }}
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: platform-migrate
+  labels:
+    {{- include "migrations.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: 30
+  template:
+    metadata:
+      labels:
+        {{- include "migrations.labels" . | nindent 8 }}
+        app.kubernetes.io/name: platform-migrate
+    spec:
+      {{- include "migrations.podSpec" . | nindent 6 }}
+      containers:
+        - name: migrate
+          image: {{ include "migrations.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: PGHOST
+              value: {{ .Values.postgresHost | quote }}
+            {{- range $platformSecrets }}
+            {{- include "migrations.secretEnv" (dict "name" . "secret" $.Values.secretName) | nindent 12 }}
+            {{- end }}
+          securityContext:
+            {{- toYaml $hardened | nindent 12 }}
+---
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: judge-migrate
+  labels:
+    {{- include "migrations.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: 30
+  template:
+    metadata:
+      labels:
+        {{- include "migrations.labels" . | nindent 8 }}
+        app.kubernetes.io/name: judge-migrate
+    spec:
+      {{- include "migrations.podSpec" . | nindent 6 }}
+      containers:
+        - name: migrate
+          image: {{ include "migrations.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - exec migrate --source file:///migrations/judge --direction up --database-url "postgres://aether_judge_migrator:${JUDGE_DB_PASSWORD}@{{ .Values.judgeDbHost }}:5432/aether_judge_wrapper?sslmode=disable"
+          env:
+            {{- include "migrations.secretEnv" (dict "name" "JUDGE_DB_PASSWORD" "secret" .Values.secretName) | nindent 12 }}
+          securityContext:
+            {{- toYaml $hardened | nindent 12 }}
+---
+# Enables the exam languages for the configured engine; idempotent.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: judge-languages
+  labels:
+    {{- include "migrations.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "10"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: 30
+  template:
+    metadata:
+      labels:
+        {{- include "migrations.labels" . | nindent 8 }}
+        app.kubernetes.io/name: judge-languages
+    spec:
+      {{- include "migrations.podSpec" . | nindent 6 }}
+      containers:
+        - name: languages
+          image: {{ .Values.postgresImage }}
+          command: ["/bin/bash", "/scripts/judge-languages.sh"]
+          env:
+            - name: JUDGE_ENGINE
+              value: {{ .Values.judgeEngine | quote }}
+            - name: JUDGE_WORKER_CONCURRENCY
+              value: {{ .Values.judgeWorkerConcurrency | quote }}
+            {{- include "migrations.secretEnv" (dict "name" "JUDGE_DB_PASSWORD" "secret" .Values.secretName) | nindent 12 }}
+            - name: PGPASSWORD
+              value: $(JUDGE_DB_PASSWORD)
+          securityContext:
+            {{- toYaml $hardened | nindent 12 }}
+          volumeMounts:
+            - {name: scripts, mountPath: /scripts, readOnly: true}
+      volumes:
+        - name: scripts
+          configMap:
+            name: judge-languages

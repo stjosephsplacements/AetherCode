@@ -1,0 +1,116 @@
+{{- if .Values.minio.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+  labels:
+    {{- include "infra.labels" . | nindent 4 }}
+    app.kubernetes.io/name: minio
+spec:
+  ports:
+    - name: s3
+      port: 9000
+  selector:
+    app.kubernetes.io/name: minio
+    app.kubernetes.io/part-of: aethercode
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: minio
+  labels:
+    {{- include "infra.labels" . | nindent 4 }}
+    app.kubernetes.io/name: minio
+spec:
+  serviceName: minio
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: minio
+      app.kubernetes.io/part-of: aethercode
+  template:
+    metadata:
+      labels:
+        {{- include "infra.labels" . | nindent 8 }}
+        app.kubernetes.io/name: minio
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        {{- include "infra.podSecurity" . | nindent 8 }}
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+      containers:
+        - name: minio
+          image: {{ .Values.images.minio }}
+          args: ["server", "/data", "--console-address", ":9001"]
+          env:
+            {{- include "infra.secretEnv" (dict "name" "MINIO_ROOT_USER" "secret" .Values.secretName) | nindent 12 }}
+            {{- include "infra.secretEnv" (dict "name" "MINIO_ROOT_PASSWORD" "secret" .Values.secretName) | nindent 12 }}
+          ports:
+            - {name: s3, containerPort: 9000}
+          readinessProbe:
+            httpGet: {path: /minio/health/ready, port: s3}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /minio/health/live, port: s3}
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          resources:
+            {{- toYaml .Values.minio.resources | nindent 12 }}
+          volumeMounts:
+            - {name: data, mountPath: /data}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with .Values.storageClass }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.minio.storage }}
+---
+# Creates the bucket once MinIO answers. Safe to repeat (--ignore-existing).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-buckets-{{ .Release.Revision }}
+  labels:
+    {{- include "infra.labels" . | nindent 4 }}
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 20
+  template:
+    metadata:
+      labels:
+        {{- include "infra.labels" . | nindent 8 }}
+        app.kubernetes.io/name: minio-buckets
+    spec:
+      restartPolicy: OnFailure
+      automountServiceAccountToken: false
+      securityContext:
+        {{- include "infra.podSecurity" . | nindent 8 }}
+        runAsUser: 65532
+        runAsGroup: 65532
+      containers:
+        - name: mb
+          image: {{ .Values.images.minioClient }}
+          # The image has no shell: MC_HOST_local configures the alias, built from two secret keys.
+          args: ["mb", "--ignore-existing", "local/{{ .Values.minio.bucket }}"]
+          env:
+            {{- include "infra.secretEnv" (dict "name" "MINIO_ROOT_USER" "secret" .Values.secretName) | nindent 12 }}
+            {{- include "infra.secretEnv" (dict "name" "MINIO_ROOT_PASSWORD" "secret" .Values.secretName) | nindent 12 }}
+            - name: MC_HOST_local
+              value: http://$(MINIO_ROOT_USER):$(MINIO_ROOT_PASSWORD)@minio:9000
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+{{- end }}

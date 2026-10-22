@@ -1,0 +1,18 @@
+secretName: aethercode-secrets
+
+# The tools image (deploy/single-server/Dockerfile.tools) holds the migrate binary,
+# every service's migrations and the migrate-all / provision-keys scripts.
+image:
+  repository: ghcr.io/stjosephsplacements/aethercode-tools
+  tag: ""
+  digest: ""
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+postgresHost: postgres
+judgeDbHost: judge-db
+postgresImage: postgres:18.4
+
+# Judge engine whose languages are enabled in judge.language_mappings: aethercode or judge0.
+judgeEngine: aethercode
+judgeWorkerConcurrency: 32

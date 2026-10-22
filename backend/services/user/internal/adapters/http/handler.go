@@ -2,7 +2,9 @@
 package httpadapter
 
 import (
+	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -18,23 +20,32 @@ import (
 type Handler struct {
 	service    *app.ManagementService
 	accounts   *app.AccountService
+	self       SelfReader
 	authorizer *httpauth.Authorizer
 }
 
-func NewHandler(serviceName string, service *app.ManagementService, accounts *app.AccountService, readiness httpx.ReadinessFunc, authorizer *httpauth.Authorizer) (http.Handler, error) {
-	if service == nil || accounts == nil || authorizer == nil {
-		return nil, fmt.Errorf("user management service, account service, and authorizer are required")
+// SelfReader returns the verified caller's own access (app.Service.Self).
+type SelfReader interface {
+	Self(context.Context, string) (app.Self, error)
+}
+
+func NewHandler(serviceName string, service *app.ManagementService, accounts *app.AccountService, self SelfReader, readiness httpx.ReadinessFunc, authorizer *httpauth.Authorizer) (http.Handler, error) {
+	if service == nil || accounts == nil || self == nil || authorizer == nil {
+		return nil, fmt.Errorf("user management service, account service, self reader, and authorizer are required")
 	}
-	handler := &Handler{service: service, accounts: accounts, authorizer: authorizer}
+	handler := &Handler{service: service, accounts: accounts, self: self, authorizer: authorizer}
 	mux := httpx.NewOperationalMux(serviceName, readiness)
+	mux.HandleFunc("GET /v1/me", handler.getSelf)
 	mux.HandleFunc("PUT /v1/profiles/{principal_id}", handler.upsertProfile)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/students", handler.listStudents)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/staff-audit", handler.listStaffAudit)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/students", handler.enrollStudent)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/students/import", handler.importStudents)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/batches/{batch_id}/passwords", handler.reissueBatchPasswords)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/accounts/{principal_id}/password", handler.resetAccountPassword)
 	mux.HandleFunc("PUT /v1/tenants/{tenant_id}/accounts/{principal_id}/status", handler.setAccountStatus)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/staff", handler.createStaff)
+	mux.HandleFunc("POST /v1/tenants/{tenant_id}/accounts/describe", handler.describeAccounts)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/students/{student_id}", handler.getStudent)
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/students/{student_id}", handler.deleteStudent)
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/students/{student_id}/hard", handler.hardDeleteStudent)
@@ -48,6 +59,28 @@ func NewHandler(serviceName string, service *app.ManagementService, accounts *ap
 	mux.HandleFunc("PUT /v1/tenants/{tenant_id}/students/{student_id}/batch-affiliation", handler.setStudentBatchAffiliation)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/students/{student_id}/batch-affiliation/revoke", handler.endStudentBatchAffiliation)
 	return mux, nil
+}
+
+// getSelf returns the caller's own active roles. There is no resource to
+// authorize: the principal is the one the gateway's identity assertion names,
+// verified here, and nobody else can be asked about.
+func (handler *Handler) getSelf(writer http.ResponseWriter, request *http.Request) {
+	assertion, err := httpx.BearerToken(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	self, err := handler.self.Self(request.Context(), assertion)
+	if errors.As(err, new(app.AuthenticationError)) {
+		httpx.WriteError(writer, apperrors.New(apperrors.CodeUnauthorized, "access token is invalid"))
+		return
+	}
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.Header().Set("Cache-Control", "no-store")
+	httpx.WriteJSON(writer, http.StatusOK, self)
 }
 
 type profileRequest struct {

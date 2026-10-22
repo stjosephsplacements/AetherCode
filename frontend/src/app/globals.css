@@ -1,0 +1,199 @@
+@import "tailwindcss";
+
+/*
+ * AetherCode visual language: a calm, Claude.ai-inspired product UI.
+ * Warm neutral canvas, one terracotta accent, Geist for the interface,
+ * Source Serif 4 for display moments only, Geist Mono for code.
+ * Light and dark follow the operating system (prefers-color-scheme).
+ *
+ * Radius system: controls (buttons, inputs, pills) 10px; surfaces (panels,
+ * dialogs, the editor) 16px. Nothing else.
+ */
+
+@theme {
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-serif: var(--font-source-serif), ui-serif, Georgia, serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", Consolas, monospace;
+
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-sidebar: var(--sidebar);
+  --color-hover: var(--hover);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-subtle: var(--ink-subtle);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-soft-ink: var(--brand-soft-ink);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+
+  --radius-control: 10px;
+  --radius-surface: 16px;
+
+  --shadow-hairline: 0 1px 2px rgb(31 30 29 / 0.05);
+  --shadow-panel: 0 1px 2px rgb(31 30 29 / 0.04), 0 8px 24px -10px rgb(31 30 29 / 0.12);
+  --shadow-overlay: 0 24px 64px -16px rgb(31 30 29 / 0.28);
+
+  --animate-enter: enter 360ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-fade: fade 200ms ease-out both;
+
+  @keyframes enter {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+    --canvas: #faf9f5;
+    --surface: #fdfdfb;
+    --sidebar: #f3f2ec;
+    --hover: #ecebe4;
+    --ink: #1f1e1d;
+    --ink-muted: #63625c;
+    --ink-subtle: #8f8d86;
+    --line: #e5e3da;
+    --line-strong: #d3d0c5;
+    --brand: #b5532e;
+    --brand-hover: #9f4724;
+    --brand-ink: #fdfdfb;
+    --brand-soft: #f6e9e2;
+    --brand-soft-ink: #8f3f1f;
+    --success: #2d7a4c;
+    --success-soft: #e5f1e9;
+    --danger: #b0382e;
+    --danger-soft: #f8e7e4;
+    --warning: #95591a;
+    --warning-soft: #f6eddc;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --canvas: #262624;
+      --surface: #2f2f2c;
+      --sidebar: #1f1e1d;
+      --hover: #383734;
+      --ink: #f4f3ee;
+      --ink-muted: #b0aea6;
+      --ink-subtle: #85837c;
+      --line: #3b3a37;
+      --line-strong: #4d4b47;
+      --brand: #d97757;
+      --brand-hover: #e38a6c;
+      --brand-ink: #1f1e1d;
+      --brand-soft: #46302a;
+      --brand-soft-ink: #f2b8a1;
+      --success: #72c290;
+      --success-soft: #223629;
+      --danger: #ef8b80;
+      --danger-soft: #422724;
+      --warning: #e3b06a;
+      --warning-soft: #3d3121;
+    }
+  }
+
+  * {
+    border-color: var(--line);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    min-height: 100dvh;
+    background: var(--canvas);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  code, pre, kbd, samp {
+    font-family: var(--font-mono);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--brand) 22%, transparent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Display headings: the only place the serif appears. */
+  .display {
+    font-family: var(--font-serif);
+    font-weight: 450;
+    letter-spacing: -0.015em;
+    line-height: 1.15;
+    font-optical-sizing: auto;
+  }
+
+  /* Staff-written Markdown: instructions and question statements. */
+  .prose-exam {
+    font-size: 0.9375rem;
+    line-height: 1.7;
+    color: var(--ink);
+    max-width: 68ch;
+  }
+  .prose-exam > * + * { margin-top: 0.9em; }
+  .prose-exam h1, .prose-exam h2, .prose-exam h3, .prose-exam h4 {
+    margin-top: 1.6em;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: var(--ink);
+  }
+  .prose-exam strong { font-weight: 600; }
+  .prose-exam ul { list-style: disc; padding-left: 1.25em; }
+  .prose-exam ol { list-style: decimal; padding-left: 1.25em; }
+  .prose-exam li + li { margin-top: 0.35em; }
+  .prose-exam li::marker { color: var(--ink-subtle); }
+  .prose-exam a { color: var(--brand); text-decoration: underline; text-underline-offset: 3px; }
+  .prose-exam code {
+    font-size: 0.85em;
+    padding: 0.12em 0.4em;
+    border-radius: 6px;
+    background: var(--hover);
+  }
+  .prose-exam pre {
+    padding: 0.9rem 1rem;
+    border-radius: var(--radius-control);
+    background: var(--sidebar);
+    border: 1px solid var(--line);
+    overflow-x: auto;
+    font-size: 0.8125rem;
+    line-height: 1.6;
+  }
+  .prose-exam pre code { padding: 0; background: none; font-size: inherit; }
+  .prose-exam table { border-collapse: collapse; font-size: 0.875rem; }
+  .prose-exam th, .prose-exam td { border: 1px solid var(--line); padding: 0.4rem 0.7rem; text-align: left; }
+  .prose-exam th { background: var(--sidebar); font-weight: 600; }
+}

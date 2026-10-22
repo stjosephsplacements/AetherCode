@@ -41,7 +41,7 @@ paths:
         - {$ref: '#/components/parameters/Limit'}
       responses:
         '200':
-          description: Completed attempts for one immutable exam version.
+          description: Completed attempts for one immutable exam version. limit may be up to 5000 here, so one exam fits in one page.
           content:
             application/json:
               schema: {type: array, items: {$ref: '#/components/schemas/ExamResult'}}

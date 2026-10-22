@@ -136,3 +136,17 @@ func (repository *Postgres) GrantStaffRole(contextValue context.Context, transac
 	}
 	return assignment, nil
 }
+
+// ReadablePrincipals keeps this college's principals, under a read
+// capability on accounts (ADR-0043).
+func (repository *Postgres) ReadablePrincipals(contextValue context.Context, transaction pgx.Tx, tenantID string, principalIDs []string) ([]string, error) {
+	rows, err := transaction.Query(contextValue, `SELECT id::text FROM users.tenant_readable_principals($1, $2::uuid[]) AS id`, tenantID, principalIDs)
+	if err != nil {
+		return nil, mapWriteError(err, "accounts could not be read")
+	}
+	readable, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	if err != nil {
+		return nil, mapWriteError(err, "accounts could not be read")
+	}
+	return readable, nil
+}

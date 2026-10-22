@@ -51,11 +51,13 @@ func TestNormalizeVersionContentNormalizesStableAuthoringInput(t *testing.T) {
 	}
 }
 
-func TestNormalizeVersionContentRejectsEmptyLanguagesAndDuplicateLanguages(t *testing.T) {
+// A multiple-choice question has no languages (ADR-0035); publishing a coding
+// question still requires one, which the database enforces.
+func TestNormalizeVersionContentAllowsNoLanguagesAndRejectsDuplicates(t *testing.T) {
 	content := validVersionContent()
 	content.SupportedLanguages = nil
-	if err := normalizeVersionContent(&content); err == nil {
-		t.Fatal("normalizeVersionContent() accepted no languages")
+	if err := normalizeVersionContent(&content); err != nil || content.SupportedLanguages == nil {
+		t.Fatalf("normalizeVersionContent() = %v with languages %v, want an empty list", err, content.SupportedLanguages)
 	}
 
 	content = validVersionContent()
@@ -95,6 +97,24 @@ func TestValidIdempotencyKey(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			if got := validIdempotencyKey(testCase.key); got != testCase.valid {
 				t.Fatalf("validIdempotencyKey(%q) = %v, want %v", testCase.key, got, testCase.valid)
+			}
+		})
+	}
+}
+
+func TestRequestQuestionReviewRejectsInvalidFieldsBeforeTheStore(t *testing.T) {
+	t.Parallel()
+	for name, command := range map[string]RequestQuestionReview{
+		"bad version id": {QuestionVersionID: "nope", ExpectedQuestionVersion: 1},
+		"no revision":    {QuestionVersionID: "01920a4d-1234-7abc-9876-543210fedcba"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			command.IdempotencyKey = "test-key"
+			service := &Service{store: &panicStore{}}
+			_, err := service.RequestQuestionReview(context.TODO(), centralauthz.Capability{}, command)
+			if err == nil {
+				t.Fatal("RequestQuestionReview() expected invalid argument error, got nil")
 			}
 		})
 	}
@@ -295,6 +315,12 @@ func (s *panicStore) ReplaceQuestionVersionTags(context.Context, pgx.Tx, Replace
 func (s *panicStore) PublishQuestionVersion(context.Context, pgx.Tx, PublishQuestionVersion) (QuestionDetail, error) {
 	panic("store method called before validation")
 }
+func (s *panicStore) ListReviewQueue(context.Context, pgx.Tx, int) ([]QuestionDetail, error) {
+	panic("store method called before validation")
+}
+func (s *panicStore) RequestQuestionReview(context.Context, pgx.Tx, RequestQuestionReview) (QuestionDetail, error) {
+	panic("store method called before validation")
+}
 func (s *panicStore) ArchiveQuestion(context.Context, pgx.Tx, ArchiveQuestion) (QuestionDetail, error) {
 	panic("store method called before validation")
 }
@@ -304,6 +330,10 @@ func (s *panicStore) GetPublishedQuestion(context.Context, pgx.Tx, string) (Ques
 func (s *panicStore) GetQuestionVersion(context.Context, pgx.Tx, string) (QuestionVersion, error) {
 	panic("store method called before validation")
 }
+func (s *panicStore) ListDraftQuestions(context.Context, pgx.Tx, int) ([]QuestionDetail, error) {
+	panic("unexpected store call")
+}
+
 func (s *panicStore) ListPublishedQuestions(context.Context, pgx.Tx, ListPublishedQuestions) ([]QuestionDetail, error) {
 	panic("store method called before validation")
 }
@@ -331,6 +361,50 @@ func (s *panicStore) HardDeleteQuestionVersion(context.Context, pgx.Tx, DeleteQu
 func (s *panicStore) GetAssetObjectRef(context.Context, pgx.Tx, string, string) (string, string, string, error) {
 	panic("store method called before validation")
 }
+func (s *panicStore) ExportQuestionVersion(context.Context, pgx.Tx, string, string) (StoredExport, error) {
+	panic("unexpected store call")
+}
+
+func (s *panicStore) StartModelCheck(context.Context, pgx.Tx, string, StartModelCheck, BundleReference) (json.RawMessage, error) {
+	panic("unexpected store call")
+}
+
+func (s *panicStore) ListModelChecks(context.Context, pgx.Tx, string) (json.RawMessage, error) {
+	panic("unexpected store call")
+}
+
+func (s *panicStore) SetQuestionVersionChoices(context.Context, pgx.Tx, SetQuestionVersionChoices) (QuestionVersion, error) {
+	panic("unexpected store call")
+}
+
+func (s *panicStore) SetQuestionAudience(context.Context, pgx.Tx, string, string) error {
+	panic("unexpected store call")
+}
+
+func (s *panicStore) ListPracticeQuestions(context.Context, pgx.Tx) (json.RawMessage, error) {
+	panic("unexpected store call")
+}
+
+func (s *panicStore) GetPracticeQuestion(context.Context, pgx.Tx, string) (json.RawMessage, error) {
+	panic("unexpected store call")
+}
+
+func (s *panicStore) StartPractice(context.Context, pgx.Tx, string, StartPractice, BundleReference) (json.RawMessage, error) {
+	panic("unexpected store call")
+}
+
+func (s *panicStore) ListPracticeSubmissions(context.Context, pgx.Tx, string) (json.RawMessage, error) {
+	panic("unexpected store call")
+}
+
+func (s *panicStore) GetPracticeSubmission(context.Context, pgx.Tx, string) (json.RawMessage, error) {
+	panic("unexpected store call")
+}
+
+func (s *panicStore) GetPracticeProgress(context.Context, pgx.Tx) (json.RawMessage, error) {
+	panic("unexpected store call")
+}
+
 func (s *panicStore) Ping(context.Context) error {
 	panic("store method called before validation")
 }

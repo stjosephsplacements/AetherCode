@@ -85,6 +85,16 @@ func (client *AccountsClient) DiscardAccounts(contextValue context.Context, prin
 	return client.post(contextValue, "/v1/internal/accounts/discard", principalsRequest{AccountAudit: audit, PrincipalIDs: principalIDs}, http.StatusNoContent, nil)
 }
 
+func (client *AccountsClient) DescribeAccounts(contextValue context.Context, principalIDs []string) ([]app.AccountSummary, error) {
+	var response struct {
+		Accounts []app.AccountSummary `json:"accounts"`
+	}
+	err := client.post(contextValue, "/v1/internal/accounts/describe", struct {
+		PrincipalIDs []string `json:"principal_ids"`
+	}{principalIDs}, http.StatusOK, &response)
+	return response.Accounts, err
+}
+
 type principalsRequest struct {
 	app.AccountAudit
 	PrincipalIDs []string `json:"principal_ids"`

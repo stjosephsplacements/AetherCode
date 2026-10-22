@@ -240,3 +240,62 @@ func TestExamLockdown(t *testing.T) {
 		t.Errorf("check without capability: %v", err)
 	}
 }
+
+// TestLabNetworks proves ADR-0030: an exam limited to lab networks refuses a
+// candidate's requests from anywhere else, including from an unknown address,
+// whether or not it is also locked to Safe Exam Browser.
+func TestLabNetworks(t *testing.T) {
+	ctx := context.Background()
+	pool := startSEBDatabase(ctx, t)
+	staffID, candidateID, otherID := uuid.NewString(), uuid.NewString(), uuid.NewString()
+	examID, assignmentID := uuid.NewString(), uuid.NewString()
+	for _, actor := range []string{staffID, candidateID, otherID} {
+		authorize(ctx, t, pool, actor)
+	}
+	const url = "https://exam.example/api/submission/v1/tenants/x/attempts"
+	check := func(actorID, clientIP string) string {
+		t.Helper()
+		var result string
+		if err := signed(ctx, t, pool, "aether_seb_app", actorID, "seb.read", "seb.sessions", func(transaction pgx.Tx) error {
+			return transaction.QueryRow(ctx, `SELECT seb.check_exam_request($1, $2, NULL, NULL, NULLIF($3, '')::inet)`,
+				tenantID, url, clientIP).Scan(&result)
+		}); err != nil {
+			t.Fatalf("check_exam_request: %v", err)
+		}
+		return result
+	}
+	snapshot(ctx, t, pool, assignmentID, candidateID, examID, "active", "-1 hour", "1 hour", 1)
+	if err := signed(ctx, t, pool, "aether_seb_app", staffID, "seb.write", "seb.configurations", func(transaction pgx.Tx) error {
+		_, err := transaction.Exec(ctx, `
+			INSERT INTO seb.exam_policies (tenant_id, exam_id, title, enabled, accepted_keys, updated_by, allowed_networks)
+			VALUES ($1, $2, 'Lab test', false, '{}', $3, '{10.20.0.0/16,192.0.2.7/32}')`, tenantID, examID, staffID)
+		return err
+	}); err != nil {
+		t.Fatalf("limit exam to the lab: %v", err)
+	}
+
+	for name, testCase := range map[string]struct{ ip, want string }{
+		"inside the lab range":   {"10.20.3.4", "not_required"},
+		"the one allowed host":   {"192.0.2.7", "not_required"},
+		"outside the lab":        {"203.0.113.9", "network_refused"},
+		"unknown client address": {"", "network_refused"},
+	} {
+		if got := check(candidateID, testCase.ip); got != testCase.want {
+			t.Errorf("%s: got %s, want %s", name, got, testCase.want)
+		}
+	}
+	if got := check(otherID, "203.0.113.9"); got != "not_required" {
+		t.Errorf("a candidate without the exam is not limited: got %s", got)
+	}
+	// Networks and SEB keys combine: inside the lab, the SEB check still applies.
+	if err := signed(ctx, t, pool, "aether_seb_app", staffID, "seb.write", "seb.configurations", func(transaction pgx.Tx) error {
+		_, err := transaction.Exec(ctx, `UPDATE seb.exam_policies SET enabled = true, accepted_keys = $2 WHERE exam_id = $1`,
+			examID, []string{strings.Repeat("ab", 32)})
+		return err
+	}); err != nil {
+		t.Fatalf("lock exam: %v", err)
+	}
+	if got := check(candidateID, "10.20.3.4"); got != "missing" {
+		t.Errorf("inside the lab without SEB: got %s, want missing", got)
+	}
+}

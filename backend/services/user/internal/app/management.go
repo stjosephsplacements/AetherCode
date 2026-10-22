@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -26,6 +27,7 @@ type Page[T any] struct {
 // ManagementStore owns user-domain persistence. Its methods always run inside
 // a transaction already bound to one fresh central authorization capability.
 type ManagementStore interface {
+	ListStaffAudit(context.Context, pgx.Tx, string, *time.Time, int) (json.RawMessage, error)
 	UpsertProfile(context.Context, pgx.Tx, UpsertProfile) (Profile, error)
 	EnrollStudent(context.Context, pgx.Tx, EnrollStudent) (Student, error)
 	AssignRole(context.Context, pgx.Tx, AssignRole) (RoleAssignment, error)
@@ -596,4 +598,19 @@ func validRoleScope(command AssignRole) bool {
 	default:
 		return false
 	}
+}
+
+// ListStaffAudit is a college's audit log of staff actions, newest first
+// (ADR-0043); before pages back through it.
+func (service *ManagementService) ListStaffAudit(contextValue context.Context, capability centralauthz.Capability, tenantID string, before *time.Time, limit int) (json.RawMessage, error) {
+	if limit < 1 || limit > 200 {
+		return nil, apperrors.New(apperrors.CodeInvalidArgument, "audit listing limit must be between 1 and 200")
+	}
+	var entries json.RawMessage
+	err := database.WithTenantTx(contextValue, service.pool, capability, func(transaction pgx.Tx) error {
+		var storeErr error
+		entries, storeErr = service.store.ListStaffAudit(contextValue, transaction, tenantID, before, limit)
+		return storeErr
+	})
+	return entries, err
 }

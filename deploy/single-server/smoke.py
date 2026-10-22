@@ -88,6 +88,10 @@ ok("re-import skips existing roll number, adds the new one")
 first = result["imported"][0]
 student = login(first["roll_number"], first["password"])
 ok(f"student signs in by roll number {first['roll_number']} (case-insensitive)")
+_, me, me_headers = call("GET", "/user/v1/me", token=student, expect=200)
+assert me["principal_id"] == first["principal_id"] and me["student"] == {"tenant_id": tenant}, me
+assert any(r["role_name"] == "student" for r in me["roles"]) and me_headers["Cache-Control"] == "no-store", me
+ok("/me tells the student their own roles and college")
 
 call("GET", f"/identity/v1/principals/{first['principal_id']}", token=student, expect=200)
 admin_id = json.loads(base64.urlsafe_b64decode(admin.split(".")[1] + "=="))["sub"]
@@ -122,8 +126,10 @@ assert status == 404, status
 ok("college cannot reset the platform admin's password (404)")
 
 _, staff, _ = call("POST", f"/user/v1/tenants/{tenant}/staff", {"username": f"faculty.{run}", "display_name": "Faculty One", "role": "department_user", "department_id": department}, token=admin, expect=201)
-login(f"faculty.{run}", staff["password"])
+faculty_me = call("GET", "/user/v1/me", token=login(f"faculty.{run}", staff["password"]), expect=200)[1]
 ok(f"faculty account created ({staff['role_assignment']['scope_kind']} scope) and signs in")
+assert faculty_me["student"] is None and [r["role_name"] for r in faculty_me["roles"]] == ["department_user"], faculty_me
+ok("/me shows faculty their staff role")
 print("ALL M1 CHECKS PASSED")
 
 # --- M2: authoring --------------------------------------------------------
@@ -157,9 +163,79 @@ ok("plaintext tests become encrypted bundles; the response shows counts only")
 status, _, _ = call("GET", f"/question-bank/v1/question-versions/{version_id}/bundle", token=faculty)
 assert status in (404, 405), status
 ok("the hidden-test download endpoint is gone")
+status, _, _ = call("GET", f"/question-bank/v1/question-versions/{version_id}/export", token=faculty)
+assert status == 403, status
+_, exported, _ = call("GET", f"/question-bank/v1/question-versions/{version_id}/export", token=admin, expect=200)
+assert exported["format"] == "aethercode.question.v1" and any(not test["sample"] for test in exported["tests"]), exported
+ok("only administrators export a question, hidden tests included (ADR-0032)")
+status, refused, _ = call("POST", f"/question-bank/v1/question-versions/{version_id}/publish",
+                           {"expected_question_version": version["version"]}, token=faculty)
+assert status == 409 and "model solution" in json.dumps(refused), (status, refused)
+ok("a question cannot be published before a model solution passes every test (ADR-0047)")
+checks_path = f"/question-bank/v1/question-versions/{version_id}/model-checks"
+call("POST", checks_path, {"language": "python3", "source": "a, b = map(int, input().split())\nprint(a + b)\n"}, token=faculty, expect=202)
+for _ in range(60):
+    _, checks, _ = call("GET", checks_path, token=faculty, expect=200)
+    if checks and checks[0]["lifecycle_state"] != "queued":
+        break
+    time.sleep(1)
+else:
+    sys.exit(f"FAIL the model-solution check never finished: {checks}")
+assert checks[0]["lifecycle_state"] == "completed" and checks[0]["units"] and all(u["verdict"] == "accepted" for u in checks[0]["units"]), checks[0]
+ok("a model solution runs on every test, hidden ones included, through Judge (ADR-0033)")
 call("POST", f"/question-bank/v1/question-versions/{version_id}/publish",
      {"expected_question_version": version["version"]}, token=faculty, expect=200)
 ok("question published")
+
+# Practice (ADR-0041). The bank is shared by every college, so the smoke
+# question goes back to tests at the end and real students never see it.
+practice = f"/question-bank/v1/tenants/{tenant}/practice"
+question_id = question["question"]["id"]
+audience_path = f"/question-bank/v1/questions/{question_id}/audience"
+practice_ids = lambda: [p["question_id"] for p in call("GET", f"{practice}/questions", token=student, expect=200)[1]]
+assert question_id not in practice_ids()
+status, _, _ = call("GET", f"{practice}/questions/{question_id}", token=student)
+assert status == 404, status
+status, _, _ = call("PUT", audience_path, {"audience": "practice"}, token=student)
+assert status == 403, status
+ok("a test question is invisible to students, and students cannot move it")
+call("PUT", audience_path, {"audience": "practice"}, token=faculty, expect=200)
+try:
+    assert question_id in practice_ids()
+    _, problem, _ = call("GET", f"{practice}/questions/{question_id}", token=student, expect=200)
+    assert problem["samples"] == [{"input": "1 2\n", "expected_output": "3\n"}, {"input": "5 7\n", "expected_output": "12\n"}], problem
+    assert "100 200" not in json.dumps(problem) and "object_key" not in json.dumps(problem), problem
+    ok("a practice problem shows its sample tests, never hidden ones")
+
+    def practise(body):
+        _, started, _ = call("POST", f"{practice}/questions/{question_id}/submissions", body, token=student, expect=202)
+        for _ in range(90):
+            _, found, _ = call("GET", f"{practice}/submissions/{started['id']}", token=student, expect=200)
+            if found["lifecycle_state"] != "queued":
+                return found
+            time.sleep(1)
+        sys.exit(f"FAIL the practice run never finished: {found}")
+
+    solution = "a, b = map(int, input().split())\nprint(a + b)\n"
+    sample_run = practise({"language": "python3", "mode": "run", "source": solution})
+    assert [(u["stdin"], u["stdout"], u["verdict"]) for u in sample_run["units"]] == [("1 2\n", "3\n", "accepted"), ("5 7\n", "12\n", "accepted")], sample_run
+    ok("a practice run shows sample input, expected and actual output")
+    own = practise({"language": "python3", "mode": "run", "source": solution, "input": "20 22\n"})
+    assert own["custom_input"] and own["units"][0]["stdout"] == "42\n", own
+    ok("a practice run on the student's own input returns its output")
+    judged = practise({"language": "python3", "mode": "submit", "source": solution})
+    assert judged["verdict"] == "accepted" and judged["passed_units"] == judged["total_units"] == 4, judged
+    assert judged["source"] == solution and all("stdout" not in u for u in judged["units"]), judged
+    ok("a practice submission is judged on every test; hidden tests show verdicts only")
+    status, _, _ = call("GET", f"{practice}/submissions/{judged['id']}", token=faculty)
+    assert status in (403, 404), status
+    _, progress, _ = call("GET", f"{practice}/progress", token=student, expect=200)
+    assert progress["solved"] >= 1 and progress["accepted"] >= 1 and progress["active_days"], progress
+    ok("practice runs are the student's own, and progress counts the solve")
+finally:
+    call("PUT", audience_path, {"audience": "test"}, token=faculty, expect=200)
+assert question_id not in practice_ids()
+ok("moved back to tests, the question leaves practice")
 
 _, policy, _ = call("POST", f"/assessment/v1/tenants/{tenant}/proctor-policies", {"name": f"Lab {run}"}, token=faculty, expect=201)
 _, policy_version, _ = call("POST", f"/assessment/v1/tenants/{tenant}/proctor-policies/{policy['id']}/versions",
@@ -167,7 +243,7 @@ _, policy_version, _ = call("POST", f"/assessment/v1/tenants/{tenant}/proctor-po
 call("POST", f"/assessment/v1/tenants/{tenant}/proctor-policy-versions/{policy_version['id']}/publish", {}, token=faculty, expect=200)
 iso = lambda seconds: time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(seconds))
 
-def publish_exam(title, duration_seconds, check_unknown_question=False):
+def publish_exam(title, duration_seconds, check_unknown_question=False, target=None, question_version=None):
     """Publishes a one-question exam opening in 20 s, assigns it to the batch,
     and returns (opens_at epoch, exam version, item, the student's assignment)."""
     _, exam, _ = call("POST", f"/assessment/v1/tenants/{tenant}/exams", {"external_reference": f"{title}-{run}"}, token=faculty, expect=201)
@@ -186,10 +262,12 @@ def publish_exam(title, duration_seconds, check_unknown_question=False):
         assert status == 404, status
         ok("an unknown or unpublished question cannot be added to an exam")
     _, item, _ = call("POST", f"{versions_path}/sections/{section['id']}/items", {"expected_content_version": content(), "position": 1,
-                      "question_version_id": version_id, "maximum_score": "10"}, token=faculty, expect=201)
-    assert item["question_version_id"] == version_id and len(item["evaluation_bundle_checksum"]) == 64, item
+                      "question_version_id": question_version or version_id, "maximum_score": "10"}, token=faculty, expect=201)
+    if question_version is None:
+        assert item["question_version_id"] == version_id and len(item["evaluation_bundle_checksum"]) == 64, item
     call("POST", f"{versions_path}/publish", {"expected_content_version": content()}, token=faculty, expect=200)
-    call("POST", f"{versions_path}/assignment-rules", {"target_type": "batch", "target_id": batch["id"],
+    target_type, target_id = target or ("batch", batch["id"])
+    call("POST", f"{versions_path}/assignment-rules", {"target_type": target_type, "target_id": target_id,
          "available_from": exam_version["opens_at"], "available_until": exam_version["closes_at"], "accommodations": {}},
          token=faculty, expect=201)
     for _ in range(15):
@@ -204,6 +282,11 @@ opens, exam_version, item, assignment = publish_exam("Smoke test", 3600, check_u
 ok("exam item pins the published question's bundles, resolved from the bank over mTLS")
 ok("exam published and assigned to the batch")
 ok("a student in the batch sees the assigned exam")
+publish_exam("Placement smoke test", 3600, target=("placement_department", placement["id"]))
+ok("an exam assigned to the student's placement department reaches the student")
+assert (assignment["title"], assignment["exam_id"], assignment["duration_seconds"]) == ("Smoke test", exam_version["exam_id"], 3600), assignment
+assert assignment["instructions_markdown"] == "Solve it.", assignment
+ok("the student's assignment carries the exam's title, id, instructions and duration")
 print("ALL M2 CHECKS PASSED")
 
 # --- M3: take and grade ---------------------------------------------------
@@ -221,6 +304,13 @@ _, revision, _ = call("PUT", f"{attempts}/{attempt['id']}/answers/{item['id']}",
                       {"language": "python3", "source": source, "expected_attempt_version": attempt["version"]}, token=student, expect=201)
 assert "source_object_key" not in revision and "encryption_key_reference" not in revision, revision
 ok("code saved; storage details stay server-side")
+_, paper, paper_headers = call("GET", f"{attempts}/{attempt['id']}/paper", token=student, expect=200)
+paper_item = paper["items"][0]
+assert paper["title"] == "Smoke test" and paper_headers["Cache-Control"] == "no-store", paper
+assert (paper_item["exam_item_id"], paper_item["title"], paper_item["prompt_markdown"]) == (item["id"], "Sum two numbers", "Print a + b."), paper_item
+assert paper_item["latest_answer"] == {"language": "python3", "source": source, "revision_number": 1}, paper_item
+assert "source_object_key" not in json.dumps(paper), paper
+ok("the paper shows the statement and gives back the saved code")
 
 def run_code(code):
     _, started, _ = call("POST", f"{attempts}/{attempt['id']}/items/{item['id']}/runs",
@@ -244,6 +334,35 @@ ok("a broken run shows the error output")
 _, runs, _ = call("GET", f"{attempts}/{attempt['id']}/items/{item['id']}/runs", token=student, expect=200)
 assert [r["id"] for r in runs["items"]] == [broken["id"], result["id"]] and runs["items"][1]["passed_units"] == 2, runs
 ok("run history lists runs newest first")
+
+_, custom, _ = call("POST", f"{attempts}/{attempt['id']}/items/{item['id']}/runs",
+                    {"language": "python3", "source": source, "input": "20 22\n"}, token=student, expect=202)
+for _ in range(60):
+    _, custom, _ = call("GET", f"{attempts}/{attempt['id']}/runs/{custom['id']}", token=student, expect=200)
+    if custom["lifecycle_state"] in ("completed", "failed"):
+        break
+    time.sleep(1)
+assert len(custom["units"]) == 1 and custom["units"][0]["stdout"] == "42\n", custom
+ok("a custom-input run returns the program's output for the student's own input")
+
+submissions_path = f"{attempts}/{attempt['id']}/items/{item['id']}/submissions"
+_, item_submission, _ = call("POST", submissions_path, token=student, expect=202)
+_, again, _ = call("POST", submissions_path, token=student, expect=202)
+assert again["id"] == item_submission["id"], (item_submission, again)
+for _ in range(60):
+    _, listed, _ = call("GET", submissions_path, token=student, expect=200)
+    judged = [s for s in listed["items"] if s["id"] == item_submission["id"] and s["lifecycle_state"] == "completed"]
+    if judged:
+        break
+    time.sleep(1)
+else:
+    sys.exit(f"FAIL the per-question submit was never judged: {listed}")
+judged = judged[0]
+assert (judged["passed_units"], judged["total_units"], judged["verdict_counts"]) == (3, 4, {"accepted": 3, "wrong_answer": 1}), judged
+assert "stdin" not in json.dumps(listed) and "unit_number" not in json.dumps(listed), listed
+_, attempt, _ = call("GET", f"{attempts}/{attempt['id']}", token=student, expect=200)
+assert attempt["lifecycle_state"] == "active", attempt
+ok("Submit judges all tests, shows hidden ones as counts only, and leaves the exam running")
 call("POST", f"{attempts}/{attempt['id']}/submit", {"expected_attempt_version": revision["attempt_version"]}, token=student, expect=202)
 for _ in range(60):
     _, attempt, _ = call("GET", f"{attempts}/{attempt['id']}", token=student, expect=200)
@@ -278,6 +397,81 @@ _, results, _ = call("GET", f"{attempts}/{timed['id']}/unit-results", token=stud
 assert (results["items"][0]["passed_units"], results["items"][0]["total_units"]) == (3, 4), results
 ok("time-up submitted the saved code and it was graded: 3 of 4 tests passed")
 print("ALL M3 CHECKS PASSED")
+
+# --- M6: exam-day operations (ADR-0027) -----------------------------------
+operations = f"/submission/v1/tenants/{tenant}/exam-versions/{exam_version['id']}"
+status, _, _ = call("GET", f"{operations}/monitor", token=student)
+assert status == 403, status
+status, _, _ = call("POST", f"{operations}/announcements", {"body": "spoof"}, token=student)
+assert status == 403, status
+ok("a student can reach neither the live monitor nor announcements")
+_, monitor, _ = call("GET", f"{operations}/monitor", token=faculty, expect=200)
+row = [c for c in monitor["candidates"] if c["attempt_id"] == attempt["id"]]
+assert row and row[0]["lifecycle_state"] == "graded" and row[0]["score"] is not None, monitor
+ok("the live monitor lists the student's graded attempt with its score")
+_, hidden, _ = call("GET", f"{attempts}/{attempt['id']}/result", token=student, expect=200)
+assert hidden == {"released": False}, hidden
+call("PUT", f"{operations}/results-release", {"released": True}, token=faculty, expect=200)
+_, released, _ = call("GET", f"{attempts}/{attempt['id']}/result", token=student, expect=200)
+assert released["released"] and float(released["score"]) == float(row[0]["score"]) and len(released["items"]) == 1, released
+ok("the score stays hidden until faculty release results, then shows per question")
+
+opens, ops_version, ops_item, ops_assignment = publish_exam("Operations smoke test", 3600)
+time.sleep(max(0, opens + 2 - time.time()))
+_, running, _ = call("POST", attempts, {"candidate_assignment_id": ops_assignment["id"]}, token=student, expect=201)
+ops = f"/submission/v1/tenants/{tenant}/exam-versions/{ops_version['id']}"
+_, extended, _ = call("POST", f"{ops}/extensions", {"minutes": 10}, token=faculty, expect=200)
+assert extended == {"extended_attempts": 1}, extended
+call("POST", f"{ops}/announcements", {"body": "Question 1 is fine as written."}, token=faculty, expect=201)
+_, live, _ = call("GET", f"{attempts}/{running['id']}/live", token=student, expect=200)
+moved = (time.mktime(time.strptime(live["submission_deadline"][:19], "%Y-%m-%dT%H:%M:%S"))
+         - time.mktime(time.strptime(running["submission_deadline"][:19], "%Y-%m-%dT%H:%M:%S")))
+assert moved == 600 and [n["body"] for n in live["announcements"]] == ["Question 1 is fine as written."], live
+call("PUT", f"{attempts}/{running['id']}/answers/{ops_item['id']}",
+     {"language": "python3", "source": source, "expected_attempt_version": running["version"]}, token=student, expect=201)
+ok("extra time moves the open attempt's deadline, announcements reach it, and saving still works")
+# Multiple choice (ADR-0035): authored, assigned, answered and graded with no Judge work.
+mcq_body = dict(question_body, slug=f"mcq-{run}", title="Binary search", prompt_markdown="Binary search runs in?", supported_languages=[])
+_, mcq, _ = call("POST", "/question-bank/v1/questions", mcq_body, token=faculty, expect=201)
+mcq_version = mcq["question_version"]
+_, mcq_version, _ = call("PUT", f"/question-bank/v1/question-versions/{mcq_version['id']}/choices",
+                         {"expected_question_version": mcq_version["version"], "choices": ["O(n)", "O(log n)", "O(1)"],
+                          "correct_choices": [1], "multiple_choice": False}, token=faculty, expect=200)
+call("POST", f"/question-bank/v1/question-versions/{mcq_version['id']}/publish",
+     {"expected_question_version": mcq_version["version"]}, token=faculty, expect=200)
+opens, mcq_exam, mcq_item, mcq_assignment = publish_exam("Choice smoke test", 3600, question_version=mcq_version["id"])
+time.sleep(max(0, opens + 2 - time.time()))
+_, choice_attempt, _ = call("POST", attempts, {"candidate_assignment_id": mcq_assignment["id"]}, token=student, expect=201)
+_, choice_paper, _ = call("GET", f"{attempts}/{choice_attempt['id']}/paper", token=student, expect=200)
+assert choice_paper["items"][0]["kind"] == "mcq" and "correct_choices" not in json.dumps(choice_paper), choice_paper
+status, _, _ = call("PUT", f"{attempts}/{choice_attempt['id']}/choices/{mcq_item['id']}", {"selected": [0, 1]}, token=student)
+assert status == 400, status
+call("PUT", f"{attempts}/{choice_attempt['id']}/choices/{mcq_item['id']}", {"selected": [1]}, token=student, expect=200)
+call("POST", f"{attempts}/{choice_attempt['id']}/submit", {"expected_attempt_version": choice_attempt["version"]}, token=student, expect=202)
+_, choice_attempt, _ = call("GET", f"{attempts}/{choice_attempt['id']}", token=student, expect=200)
+assert choice_attempt["lifecycle_state"] == "graded", choice_attempt
+_, choice_monitor, _ = call("GET", f"/submission/v1/tenants/{tenant}/exam-versions/{mcq_exam['id']}/monitor", token=faculty, expect=200)
+choice_row = [c for c in choice_monitor["candidates"] if c["attempt_id"] == choice_attempt["id"]]
+assert choice_row and float(choice_row[0]["score"]) == 10.0 and float(choice_row[0]["maximum_score"]) == 10.0, choice_monitor
+ok("a multiple-choice question is answered, never shows its key, and is graded on hand-in")
+
+# Staff operations views (ADR-0043).
+_, queue, _ = call("GET", f"/submission/v1/tenants/{tenant}/grading-queue", token=admin, expect=200)
+assert {"evaluations", "runs"} <= set(queue) and queue["evaluations"]["completed_last_hour"] >= 1, queue
+status, _, _ = call("GET", f"/submission/v1/tenants/{tenant}/grading-queue", token=student)
+assert status == 403, status
+ok("staff see the grading queue; students cannot")
+_, audit, _ = call("GET", f"/user/v1/tenants/{tenant}/staff-audit", token=admin, expect=200)
+assert any(e["service"] == "submission" and e["resource_type"] == "attempt_events" and e["allowed"] for e in audit), audit[:5]
+assert not any(e["resource_type"] == "attempts" for e in audit), "students' own writes are not staff actions"
+status, _, _ = call("GET", f"/user/v1/tenants/{tenant}/staff-audit", token=faculty)
+assert status == 403, status
+ok("the audit log records staff actions (extra time, announcements) for administrators only")
+faculty_id = json.loads(base64.urlsafe_b64decode(faculty.split(".")[1] + "=="))["sub"]
+_, named, _ = call("POST", f"/user/v1/tenants/{tenant}/accounts/describe", {"principal_ids": [faculty_id, admin_id]}, token=admin, expect=200)
+assert [n["display_name"] for n in named] == ["Faculty One"] and "password" not in json.dumps(named), named
+ok("staff names are described for this college's accounts only")
+print("ALL M6 CHECKS PASSED")
 
 # --- M4: Safe Exam Browser ------------------------------------------------
 def seb_headers(path, key):
@@ -323,3 +517,65 @@ status, _, _ = call("GET", attempt_path, token=student, headers=seb_headers(atte
 assert status == 403, status
 ok("a hash for another URL or another key is refused")
 print("ALL M4 CHECKS PASSED")
+
+# --- Staff try an exam as a student (ADR-0046) ---------------------------
+base = f"/assessment/v1/tenants/{tenant}"
+_, preview_exam, _ = call("POST", f"{base}/exams", {}, token=faculty, expect=201)
+preview_opens = time.time() - 20
+_, preview_version, _ = call("POST", f"{base}/exams/{preview_exam['id']}/versions", {
+    "expected_exam_version": preview_exam["version"], "title": "[Preview] Smoke test", "instructions_markdown": "Solve it.",
+    "opens_at": iso(preview_opens), "closes_at": iso(time.time() + 4200), "duration_seconds": 3600,
+    "proctor_policy_version_id": policy_version["id"]}, token=faculty, expect=201)
+preview_path = f"{base}/exam-versions/{preview_version['id']}"
+preview_content = lambda: call("GET", preview_path, token=faculty, expect=200)[1]["content_version"]
+_, preview_section, _ = call("POST", f"{preview_path}/sections", {"expected_content_version": preview_content(), "position": 1,
+                             "title": "Coding", "instructions_markdown": "", "time_limit_seconds": None}, token=faculty, expect=201)
+call("POST", f"{preview_path}/sections/{preview_section['id']}/items", {"expected_content_version": preview_content(), "position": 1,
+     "question_version_id": version_id, "maximum_score": "10"}, token=faculty, expect=201)
+call("POST", f"{preview_path}/publish", {"expected_content_version": preview_content()}, token=faculty, expect=200)
+_, preview_rule, _ = call("POST", f"{preview_path}/assignment-rules", {"target_type": "student", "target_id": faculty_id,
+                          "available_from": preview_version["opens_at"], "available_until": preview_version["closes_at"], "accommodations": {}},
+                          token=faculty, expect=201)
+_, preview_assignment, _ = call("POST", f"{base}/assignment-rules/{preview_rule['id']}/candidate-assignments",
+                                {"candidate_id": faculty_id}, token=faculty, expect=201)
+for _ in range(15):
+    _, mine, _ = call("GET", f"{base}/candidate-assignments", token=faculty, expect=200)
+    if any(a["id"] == preview_assignment["id"] for a in mine["items"]):
+        break
+    time.sleep(2)
+else:
+    sys.exit(f"FAIL staff never received their private copy: {mine}")
+_, preview_attempt, _ = call("POST", attempts, {"candidate_assignment_id": preview_assignment["id"]}, token=faculty, expect=201)
+_, preview_paper, _ = call("GET", f"{attempts}/{preview_attempt['id']}/paper", token=faculty, expect=200)
+assert preview_paper["title"] == "[Preview] Smoke test" and len(preview_paper["items"]) == 1, preview_paper
+ok("staff start and read a private copy of an exam as a student")
+print("ALL PREVIEW CHECKS PASSED")
+
+# --- Community content (ADR-0048) -----------------------------------------
+community = f"/notification/v1/tenants/{tenant}/community"
+_, experience, _ = call("POST", f"{community}/interview-experiences", {
+    "company": f"Acme {run}", "role": "SDE", "verdict": "selected",
+    "rounds": [{"title": "Online test", "description": "Two coding questions."}]}, token=student, expect=201)
+assert experience["status"] == "pending" and experience["mine"] and experience["author_id"] is None, experience
+_, shared, _ = call("GET", f"{community}/interview-experiences", token=student, expect=200)
+assert not any(e["id"] == experience["id"] for e in shared["items"]), shared
+status, _, _ = call("GET", f"{community}/moderation/interview-experiences", token=student)
+assert status == 403, status
+status, _, _ = call("POST", f"{community}/moderation/interview-experiences/{experience['id']}/review", {"approve": True}, token=student)
+assert status == 403, status
+ok("a student's interview experience waits for staff; students cannot moderate")
+call("POST", f"{community}/moderation/interview-experiences/{experience['id']}/review", {"approve": True, "note": "Thanks"}, token=faculty, expect=200)
+_, shared, _ = call("GET", f"{community}/interview-experiences?company=acme", token=student, expect=200)
+assert any(e["id"] == experience["id"] and e["author_id"] is None for e in shared["items"]), shared
+ok("once approved, the experience is visible to students without its author")
+_, listing, _ = call("PUT", f"{community}/moderation/feed", {
+    "kind": "contest", "title": f"Smoke contest {run}", "url": "https://codeforces.com/contests", "platform": "Codeforces",
+    "external_id": f"smoke-{run}"}, token=faculty, expect=200)
+call("PUT", f"{community}/feed/{listing['id']}/bookmark", {"on": True}, token=student, expect=200)
+_, saved, _ = call("GET", f"{community}/feed?bookmarked=true", token=student, expect=200)
+assert [i["id"] for i in saved["items"]] == [listing["id"]], saved
+call("PUT", f"{community}/profile-links/github", {"handle": "octocat"}, token=student, expect=200)
+_, links, _ = call("GET", f"{community}/profile-links", token=student, expect=200)
+assert links["items"] == [{"platform": "github", "handle": "octocat"}], links
+ok("listings, bookmarks and linked accounts work for a student")
+print("ALL COMMUNITY CHECKS PASSED")

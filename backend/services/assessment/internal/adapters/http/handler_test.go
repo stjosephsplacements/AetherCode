@@ -55,6 +55,14 @@ type stubService struct {
 	addExamItemFn               func(context.Context, centralauthz.Capability, app.AddExamItem) (app.ExamItem, error)
 }
 
+func (s *stubService) MoveAssignmentWindow(context.Context, centralauthz.Capability, app.MoveAssignmentWindow) (int, error) {
+	return 0, nil
+}
+
+func (s *stubService) RepinExamItem(context.Context, centralauthz.Capability, app.RepinExamItem) (int, error) {
+	return 0, nil
+}
+
 func (s *stubService) GetExam(ctx context.Context, cap centralauthz.Capability, tenantID, examID string) (app.Exam, error) {
 	return s.getExamFn(ctx, cap, tenantID, examID)
 }
@@ -96,6 +104,10 @@ func (s *stubService) HardDeleteExam(context.Context, centralauthz.Capability, a
 func (s *stubService) CreateExamVersion(context.Context, centralauthz.Capability, app.CreateExamVersion) (app.ExamVersion, error) {
 	panic("CreateExamVersion not expected")
 }
+func (s *stubService) GetExamVersionContent(context.Context, centralauthz.Capability, app.GetExamVersion) (json.RawMessage, error) {
+	return json.RawMessage(`{}`), nil
+}
+
 func (s *stubService) GetExamVersion(context.Context, centralauthz.Capability, app.GetExamVersion) (app.ExamVersion, error) {
 	panic("GetExamVersion not expected")
 }

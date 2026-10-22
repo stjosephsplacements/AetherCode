@@ -43,6 +43,10 @@ func (unusedAccountStore) TenantAccountPrincipals(context.Context, pgx.Tx, strin
 func (unusedAccountStore) BatchAccountPrincipals(context.Context, pgx.Tx, string, string) ([]string, error) {
 	return nil, nil
 }
+func (unusedAccountStore) ReadablePrincipals(context.Context, pgx.Tx, string, []string) ([]string, error) {
+	panic("unexpected store call")
+}
+
 func (unusedAccountStore) GrantStaffRole(context.Context, pgx.Tx, StaffAccount, string, string) (RoleAssignment, error) {
 	return RoleAssignment{}, nil
 }
@@ -58,6 +62,10 @@ func (unusedAccounts) ReissuePasswords(context.Context, []string, AccountAudit) 
 func (unusedAccounts) SetAccountStatus(context.Context, []string, string, AccountAudit) error {
 	return errors.New("identity called")
 }
+func (unusedAccounts) DescribeAccounts(context.Context, []string) ([]AccountSummary, error) {
+	panic("unexpected identity call")
+}
+
 func (unusedAccounts) DiscardAccounts(context.Context, []string, AccountAudit) error {
 	return errors.New("identity called")
 }

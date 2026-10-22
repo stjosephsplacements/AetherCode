@@ -4,6 +4,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"regexp"
 	"sort"
 	"strings"
@@ -75,7 +76,20 @@ type Snapshot struct {
 // dedicated aether_user_authz_reader role, never as a table owner.
 type Store interface {
 	Snapshot(context.Context, SnapshotQuery) (Snapshot, error)
+	// RecordStaffAction appends one staff write decision to the audit log
+	// (ADR-0043).
+	RecordStaffAction(context.Context, StaffAction) error
 	Ping(context.Context) error
+}
+
+// StaffAction is one write decision for someone who holds a staff role.
+type StaffAction struct {
+	PrincipalID   string
+	TenantID      string
+	TargetService string
+	ResourceType  string
+	ResourceID    string
+	Allowed       bool
 }
 
 // SnapshotQuery narrows relationship checks needed for placement scopes.
@@ -126,7 +140,10 @@ type route struct {
 	StaffAuthoring          bool
 	GlobalResources         map[string]struct{}
 	OptionalTenantResources map[string]struct{}
-	Resources               map[string]struct{}
+	// TenantResources on a Global route need a tenant: they belong to one
+	// college's student, not to the global catalogue (ADR-0041).
+	TenantResources map[string]struct{}
+	Resources       map[string]struct{}
 }
 
 var routes = map[string]route{
@@ -138,11 +155,12 @@ var routes = map[string]route{
 	"user": {
 		Audience: "aether_users", ActionPrefix: "user", ResourcePrefix: "users",
 		OptionalTenantResources: resourceSet("role_assignments", "placement_department_memberships"),
-		Resources:               resourceSet("accounts", "profiles", "students", "student_department_memberships", "current_student_affiliations", "student_batch_affiliations", "mentor_batch_assignments", "role_assignments", "placement_department_memberships"),
+		Resources:               resourceSet("staff_audit", "accounts", "profiles", "students", "student_department_memberships", "current_student_affiliations", "student_batch_affiliations", "mentor_batch_assignments", "role_assignments", "placement_department_memberships"),
 	},
 	"question-bank": {
 		Audience: "aether_qbank", ActionPrefix: "qbank", ResourcePrefix: "qbank", Global: true, StaffAuthoring: true,
-		Resources: resourceSet("questions", "question_versions", "test_case_manifests", "question_assets", "tags", "question_version_tags"),
+		Resources:       resourceSet("questions", "question_versions", "test_case_manifests", "question_assets", "tags", "question_version_tags", "question_exports", "practice_submissions"),
+		TenantResources: resourceSet("practice_submissions"),
 	},
 	"assessment": {
 		Audience: "aether_assessment", ActionPrefix: "assessment", ResourcePrefix: "assessment",
@@ -158,7 +176,7 @@ var routes = map[string]route{
 	},
 	"notification": {
 		Audience: "aether_notification", ActionPrefix: "notification", ResourcePrefix: "notification",
-		Resources: resourceSet("recipient_preferences", "notifications", "provider_idempotency_records", "delivery_attempts"),
+		Resources: resourceSet("recipient_preferences", "notifications", "provider_idempotency_records", "delivery_attempts", "community", "community_moderation"),
 	},
 	"analytics": {
 		Audience: "aether_analytics", ActionPrefix: "analytics", ResourcePrefix: "analytics",
@@ -259,6 +277,7 @@ func (service *Service) Authorize(contextValue context.Context, request Request)
 			matchingScopes = append(matchingScopes, Scope{Kind: assignment.ScopeKind, ID: assignment.ScopeID})
 		}
 	}
+	service.auditStaffWrite(contextValue, validated, snapshot.Assignments, len(matchingScopes) > 0)
 	if len(matchingScopes) == 0 {
 		return decision, nil
 	}
@@ -320,7 +339,11 @@ func validateRequest(request Request) (Request, route, error) {
 	if _, found := targetRoute.Resources[request.ResourceType]; !found {
 		return Request{}, route{}, &ValidationError{Field: "resource_type", Reason: "is not protected by the target service authorization contract"}
 	}
-	if targetRoute.Global || hasResource(targetRoute.GlobalResources, request.ResourceType) {
+	if hasResource(targetRoute.TenantResources, request.ResourceType) {
+		if !uuidPattern.MatchString(request.TenantID) {
+			return Request{}, route{}, &ValidationError{Field: "tenant_id", Reason: "must be a UUID"}
+		}
+	} else if targetRoute.Global || hasResource(targetRoute.GlobalResources, request.ResourceType) {
 		if request.TenantID != "" {
 			return Request{}, route{}, &ValidationError{Field: "tenant_id", Reason: "must be empty for this global resource"}
 		}
@@ -366,9 +389,19 @@ func assignmentApplies(
 		return true
 	case "college", "department", "batch":
 		if staffAuthoring && request.TenantID == "" {
+			// Exporting a question reveals its hidden tests, so only college
+			// administrators may (ADR-0032).
+			if request.ResourceType == "question_exports" {
+				return assignment.Role == centralauthz.RoleCollegeAdmin
+			}
 			// The global question bank is authored by every college's staff
 			// (ADR-0020); mentors and students stay excluded.
 			return assignment.Role == centralauthz.RoleCollegeAdmin || assignment.Role == centralauthz.RoleDepartmentUser
+		}
+		// The audit log of staff actions is for college administrators only
+		// (ADR-0043), however broad a department's policy is.
+		if request.ResourceType == "staff_audit" && assignment.Role != centralauthz.RoleCollegeAdmin {
+			return false
 		}
 		return request.TenantID != "" && assignment.TenantID == request.TenantID
 	case "placement_department":
@@ -404,11 +437,16 @@ func assignmentApplies(
 			// assignment/attempt to authz.current_context_actor_id() in its own
 			// database procedure; this avoids a cross-service direct lookup.
 			return request.ResourceID == assignment.ScopeID
-		case "recipient_preferences", "notifications":
+		case "recipient_preferences", "notifications", "community":
 			// Notification's /me routes use the bearer subject as resource ID and
 			// bind reads/writes to authz.current_context_actor_id() locally. This
 			// prevents a self policy from becoming access to another recipient's
-			// opaque notification ID.
+			// opaque notification ID. Community content (ADR-0048) binds the
+			// same way; only staff ever hold community_moderation.
+			return request.ResourceID == assignment.ScopeID
+		case "practice_submissions":
+			// Practice routes authorize with the bearer subject; Question Bank
+			// binds every practice row to the signed actor (ADR-0041).
 			return request.ResourceID == assignment.ScopeID
 		case "validation_events":
 			// SEB uses the bearer subject as the authorization resource and its
@@ -443,4 +481,26 @@ func uniqueScopes(scopes []Scope) []Scope {
 		}
 	}
 	return unique
+}
+
+// auditStaffWrite records a write decision for anyone holding a staff role
+// (ADR-0043). Students' own writes are not staff actions. Recording is best
+// effort: an audit failure is logged, never turned into a denied exam action.
+func (service *Service) auditStaffWrite(contextValue context.Context, request Request, assignments []Assignment, allowed bool) {
+	if request.Action != "write" {
+		return
+	}
+	staff := false
+	for _, assignment := range assignments {
+		staff = staff || assignment.ScopeKind != "self"
+	}
+	if !staff {
+		return
+	}
+	if err := service.store.RecordStaffAction(contextValue, StaffAction{
+		PrincipalID: request.PrincipalID, TenantID: request.TenantID, TargetService: request.TargetService,
+		ResourceType: request.ResourceType, ResourceID: request.ResourceID, Allowed: allowed,
+	}); err != nil {
+		slog.Warn("record staff action", "error", err, "principal_id", request.PrincipalID)
+	}
 }

@@ -10,24 +10,25 @@ import (
 )
 
 const examPolicyColumns = `tenant_id::text, exam_id::text, title, enabled, accepted_keys,
-	updated_by::text, updated_at, version`
+	allowed_networks::text[], updated_by::text, updated_at, version`
 
 func scanExamPolicy(row pgx.Row) (app.ExamPolicy, error) {
 	var policy app.ExamPolicy
 	err := row.Scan(&policy.TenantID, &policy.ExamID, &policy.Title, &policy.Enabled, &policy.AcceptedKeys,
-		&policy.UpdatedBy, &policy.UpdatedAt, &policy.Version)
+		&policy.AllowedNetworks, &policy.UpdatedBy, &policy.UpdatedAt, &policy.Version)
 	return policy, err
 }
 
 func (repository *Postgres) PutExamPolicy(ctx context.Context, transaction pgx.Tx, command app.PutExamPolicy) (app.ExamPolicy, error) {
 	policy, err := scanExamPolicy(transaction.QueryRow(ctx, `
-		INSERT INTO seb.exam_policies AS existing (tenant_id, exam_id, title, enabled, accepted_keys, updated_by)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO seb.exam_policies AS existing (tenant_id, exam_id, title, enabled, accepted_keys, updated_by, allowed_networks)
+		VALUES ($1, $2, $3, $4, $5, $6, $7::cidr[])
 		ON CONFLICT (tenant_id, exam_id) DO UPDATE
 		SET title = EXCLUDED.title, enabled = EXCLUDED.enabled, accepted_keys = EXCLUDED.accepted_keys,
+		    allowed_networks = EXCLUDED.allowed_networks,
 		    updated_by = EXCLUDED.updated_by, updated_at = clock_timestamp(), version = existing.version + 1
 		RETURNING `+examPolicyColumns,
-		command.TenantID, command.ExamID, command.Title, command.Enabled, command.AcceptedKeys, command.ActorID))
+		command.TenantID, command.ExamID, command.Title, command.Enabled, command.AcceptedKeys, command.ActorID, command.AllowedNetworks))
 	if err != nil {
 		return app.ExamPolicy{}, mapWriteError(err, "SEB exam policy is invalid")
 	}
@@ -48,8 +49,8 @@ func (repository *Postgres) GetExamPolicy(ctx context.Context, transaction pgx.T
 
 func (repository *Postgres) CheckExamRequest(ctx context.Context, transaction pgx.Tx, command app.CheckExamRequest) (string, error) {
 	var result string
-	err := transaction.QueryRow(ctx, `SELECT seb.check_exam_request($1, $2, NULLIF($3, ''), NULLIF($4, ''))`,
-		command.TenantID, command.URL, command.RequestHash, command.ConfigKeyHash).Scan(&result)
+	err := transaction.QueryRow(ctx, `SELECT seb.check_exam_request($1, $2, NULLIF($3, ''), NULLIF($4, ''), NULLIF($5, '')::inet)`,
+		command.TenantID, command.URL, command.RequestHash, command.ConfigKeyHash, command.ClientIP).Scan(&result)
 	if err != nil {
 		return "", mapWriteError(err, "SEB request check is invalid")
 	}

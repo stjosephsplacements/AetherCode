@@ -3,25 +3,46 @@ import { requireUser } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { AppShell } from "@/components/app-shell";
 import { Badge, Card, PageHeader, inputClass, buttonClass } from "@/components/ui";
+import { Pagination } from "@/components/pagination";
 import { ImportStudents } from "./import-students";
 import { CreateStaff, ReissueBatch, ResetPassword } from "./staff-forms";
 import { setDisabled } from "./actions";
 
-const PAGE = 100;
+const PAGE_SIZE = 25;
 
-export default async function AdminPage({ searchParams }: { searchParams: Promise<{ q?: string; batch?: string }> }) {
+export default async function AdminPage({ searchParams }: { searchParams: Promise<{ q?: string; batch?: string; page?: string }> }) {
   const user = await requireUser("admin");
-  const { q = "", batch = "" } = await searchParams;
+  const { q = "", batch = "", page: pageStr = "1" } = await searchParams;
+  const page = Math.max(1, Number(pageStr) || 1);
+  const offset = (page - 1) * PAGE_SIZE;
+  const hasSearch = q.trim() !== "";
+  const pattern = `%${q.trim().toLowerCase()}%`;
+
   const batches = await sql<{ batch: string; count: number }[]>`
     SELECT batch, count(*)::int AS count FROM users WHERE role = 'student' AND batch IS NOT NULL
     GROUP BY batch ORDER BY batch`;
-  const pattern = `%${q.trim().toLowerCase()}%`;
+
+  const [{ total }] = await sql<{ total: number }[]>`
+    SELECT count(*)::int AS total FROM users
+    WHERE (${!hasSearch} OR lower(username) LIKE ${pattern} OR lower(name) LIKE ${pattern})
+      AND (${batch === ""} OR batch = ${batch})`;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
   const people = await sql<{ id: string; username: string; name: string; role: string; batch: string | null; disabled: boolean }[]>`
     SELECT id, username, name, role, batch, disabled FROM users
-    WHERE (${q.trim() === ""} OR lower(username) LIKE ${pattern} OR lower(name) LIKE ${pattern})
+    WHERE (${!hasSearch} OR lower(username) LIKE ${pattern} OR lower(name) LIKE ${pattern})
       AND (${batch === ""} OR batch = ${batch})
     ORDER BY role, batch NULLS FIRST, username
-    LIMIT ${PAGE}`;
+    LIMIT ${PAGE_SIZE} OFFSET ${offset}`;
+
+  function buildHref(p: number) {
+    const params = new URLSearchParams();
+    if (p > 1) params.set("page", String(p));
+    if (q) params.set("q", q);
+    if (batch) params.set("batch", batch);
+    const qs = params.toString();
+    return `/admin${qs ? `?${qs}` : ""}`;
+  }
 
   return (
     <AppShell user={user}>
@@ -94,8 +115,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
             </tbody>
           </table>
           {people.length === 0 && <p className="px-4 py-10 text-center text-sm text-muted">No one matches.</p>}
-          {people.length === PAGE && <p className="border-t border-line px-4 py-3 text-xs text-faint">Showing the first {PAGE}. Narrow your search.</p>}
         </Card>
+        <Pagination page={page} totalPages={totalPages} buildHref={buildHref} />
       </section>
     </AppShell>
   );

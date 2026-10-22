@@ -18,14 +18,7 @@ import { fileURLToPath } from "node:url";
 import { sql } from "../lib/db.ts";
 import { generatePassword, hashPassword } from "../lib/password.ts";
 
-// ---------------------------------------------------------------------------
-// Excel parsing (no external deps — use the built-in xlsx via openpyxl via
-// a helper child process)  — actually we bundle the data as JSON via a
-// pre-processing step.  Since this repo uses pnpm we can import xlsx via
-// a lightweight helper.
-// ---------------------------------------------------------------------------
-
-import XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 interface Student {
   reg: string;
@@ -33,33 +26,28 @@ interface Student {
   batch: string;
 }
 
-function parseXlsx(filePath: string, year: 2 | 3): Student[] {
-  const workbook = XLSX.readFile(filePath);
+async function parseXlsx(filePath: string, year: 2 | 3): Promise<Student[]> {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(filePath);
   const students: Student[] = [];
 
-  for (const sheetName of workbook.SheetNames as string[]) {
-    const ws = workbook.Sheets[sheetName];
-    const rows: any[][] = XLSX.utils.sheet_to_json(ws, {
-      header: 1,
-      defval: null,
-    });
+  for (const ws of workbook.worksheets) {
+    const batch = inferBatch(ws.name, year);
 
-    const batch = inferBatch(sheetName, year);
+    ws.eachRow((row) => {
+      const sno = row.getCell(1).value;
+      const reg = row.getCell(2).value;
+      const name = row.getCell(3).value;
 
-    for (const row of rows) {
-      const sno = row[0];
-      const reg = row[1];
-      const name = row[2];
-
-      if (typeof sno !== "number" || !Number.isInteger(sno)) continue;
-      if (reg == null) continue;
+      if (typeof sno !== "number" || !Number.isInteger(sno)) return;
+      if (reg == null) return;
 
       const regStr = String(Math.round(Number(reg)));
       const nameStr = typeof name === "string" ? name.trim() : "";
-      if (!regStr || !nameStr) continue;
+      if (!regStr || !nameStr) return;
 
       students.push({ reg: regStr, name: nameStr, batch });
-    }
+    });
   }
 
   return students;
@@ -92,8 +80,8 @@ if (args.length < 2) {
 const [iiiBatch, iiBatch] = args;
 
 console.log("Parsing spreadsheets…");
-const yr3 = parseXlsx(iiiBatch, 3);
-const yr2 = parseXlsx(iiBatch, 2);
+const yr3 = await parseXlsx(iiiBatch, 3);
+const yr2 = await parseXlsx(iiBatch, 2);
 const all: Student[] = [...yr3, ...yr2];
 
 const batchCounts: Record<string, number> = {};

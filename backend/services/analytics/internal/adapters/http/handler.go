@@ -67,7 +67,7 @@ func (handler *Handler) listExamResults(writer http.ResponseWriter, request *htt
 		httpx.WriteError(writer, err)
 		return
 	}
-	limit, err := parseLimit(request)
+	limit, err := parseLimitUpTo(request, app.MaximumExamResults)
 	if err != nil {
 		httpx.WriteError(writer, err)
 		return
@@ -215,13 +215,17 @@ func tenantResourceAndLimit(request *http.Request, resourceName string) (string,
 }
 
 func parseLimit(request *http.Request) (int, error) {
+	return parseLimitUpTo(request, 500)
+}
+
+func parseLimitUpTo(request *http.Request, maximum int) (int, error) {
 	raw := strings.TrimSpace(request.URL.Query().Get("limit"))
 	if raw == "" {
 		return 0, nil
 	}
 	limit, err := strconv.Atoi(raw)
-	if err != nil || limit < 1 || limit > 500 {
-		return 0, apperrors.New(apperrors.CodeInvalidArgument, "limit must be an integer between 1 and 500")
+	if err != nil || limit < 1 || limit > maximum {
+		return 0, apperrors.New(apperrors.CodeInvalidArgument, fmt.Sprintf("limit must be an integer between 1 and %d", maximum))
 	}
 	return limit, nil
 }

@@ -116,6 +116,7 @@ type Store interface {
 	DeliverDueInApp(context.Context, int) (int, error)
 	SoftDeleteNotification(context.Context, pgx.Tx, DeleteNotification) error
 	HardDeleteNotification(context.Context, pgx.Tx, DeleteNotification) error
+	Community(ctx context.Context, tx pgx.Tx, function, tenantID string, args json.RawMessage) (json.RawMessage, error)
 	Ping(context.Context) error
 }
 

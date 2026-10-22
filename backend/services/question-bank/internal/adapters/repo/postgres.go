@@ -202,10 +202,20 @@ func (repository *Postgres) ReplaceQuestionVersionTags(contextValue context.Cont
 func (repository *Postgres) PublishQuestionVersion(contextValue context.Context, transaction pgx.Tx, command app.PublishQuestionVersion) (app.QuestionDetail, error) {
 	var raw json.RawMessage
 	err := transaction.QueryRow(contextValue, `
-		SELECT qbank.publish_question_version($1, $2, $3)
-	`, command.QuestionVersionID, command.EventID, command.ExpectedQuestionVersion).Scan(&raw)
+		SELECT qbank.publish_question_version($1, $2, $3, $4)
+	`, command.QuestionVersionID, command.EventID, command.ExpectedQuestionVersion, command.RequireReview).Scan(&raw)
 	if err != nil {
 		return app.QuestionDetail{}, mapCommandError(err, "publish question version")
+	}
+	return decodeQuestionDetail(raw)
+}
+
+func (repository *Postgres) RequestQuestionReview(contextValue context.Context, transaction pgx.Tx, command app.RequestQuestionReview) (app.QuestionDetail, error) {
+	var raw json.RawMessage
+	err := transaction.QueryRow(contextValue, `SELECT qbank.request_question_review($1, $2, NULLIF($3, '')::uuid)`,
+		command.QuestionVersionID, command.ExpectedQuestionVersion, command.ReviewerID).Scan(&raw)
+	if err != nil {
+		return app.QuestionDetail{}, mapCommandError(err, "request question review")
 	}
 	return decodeQuestionDetail(raw)
 }
@@ -254,6 +264,30 @@ func (repository *Postgres) ListPublishedQuestions(contextValue context.Context,
 	var questions []app.QuestionDetail
 	if err := json.Unmarshal(raw, &questions); err != nil {
 		return nil, fmt.Errorf("decode published question list: %w", err)
+	}
+	return questions, nil
+}
+
+func (repository *Postgres) ListDraftQuestions(contextValue context.Context, transaction pgx.Tx, limit int) ([]app.QuestionDetail, error) {
+	var raw json.RawMessage
+	if err := transaction.QueryRow(contextValue, `SELECT qbank.list_draft_questions($1)`, limit).Scan(&raw); err != nil {
+		return nil, mapCommandError(err, "list draft questions")
+	}
+	var questions []app.QuestionDetail
+	if err := json.Unmarshal(raw, &questions); err != nil {
+		return nil, fmt.Errorf("decode draft question list: %w", err)
+	}
+	return questions, nil
+}
+
+func (repository *Postgres) ListReviewQueue(contextValue context.Context, transaction pgx.Tx, limit int) ([]app.QuestionDetail, error) {
+	var raw json.RawMessage
+	if err := transaction.QueryRow(contextValue, `SELECT qbank.list_review_queue($1)`, limit).Scan(&raw); err != nil {
+		return nil, mapCommandError(err, "list review queue")
+	}
+	var questions []app.QuestionDetail
+	if err := json.Unmarshal(raw, &questions); err != nil {
+		return nil, fmt.Errorf("decode review queue: %w", err)
 	}
 	return questions, nil
 }
@@ -458,11 +492,110 @@ func mapCommandError(err error, operation string) error {
 			return apperrors.New(apperrors.CodeNotFound, "question resource was not found")
 		case "42501":
 			return apperrors.New(apperrors.CodeForbidden, "authorization context does not permit this operation")
-		case "23505", "40001", "55000":
+		case "55000":
+			// Publishing rules are written for the author to read (ADR-0044, ADR-0047).
+			if strings.HasPrefix(postgresError.Message, "run a model solution") || strings.HasPrefix(postgresError.Message, "ask for a review") {
+				return apperrors.New(apperrors.CodeConflict, postgresError.Message)
+			}
+			return apperrors.New(apperrors.CodeConflict, "question resource changed or conflicts with an immutable state")
+		case "23505", "40001":
 			return apperrors.New(apperrors.CodeConflict, "question resource changed or conflicts with an immutable state")
 		case "22023", "22P02", "23514":
 			return apperrors.New(apperrors.CodeInvalidArgument, "question command is invalid")
 		}
 	}
 	return fmt.Errorf("%s: %w", operation, err)
+}
+
+func (repository *Postgres) ExportQuestionVersion(contextValue context.Context, transaction pgx.Tx, eventID, questionVersionID string) (app.StoredExport, error) {
+	var raw json.RawMessage
+	if err := transaction.QueryRow(contextValue, `SELECT qbank.export_question_version($1, $2)`, eventID, questionVersionID).Scan(&raw); err != nil {
+		return app.StoredExport{}, mapCommandError(err, "export question version")
+	}
+	return app.DecodeStoredExport(raw)
+}
+
+func (repository *Postgres) StartModelCheck(contextValue context.Context, transaction pgx.Tx, id string, command app.StartModelCheck, source app.BundleReference) (json.RawMessage, error) {
+	var raw json.RawMessage
+	err := transaction.QueryRow(contextValue, `SELECT qbank.start_model_check($1, $2, $3, $4, $5, $6)`,
+		id, command.QuestionVersionID, command.Language, source.ObjectKey, source.Checksum, source.EncryptionKeyReference).Scan(&raw)
+	if err != nil {
+		return nil, mapCommandError(err, "start model check")
+	}
+	return raw, nil
+}
+
+func (repository *Postgres) ListModelChecks(contextValue context.Context, transaction pgx.Tx, questionVersionID string) (json.RawMessage, error) {
+	var raw json.RawMessage
+	if err := transaction.QueryRow(contextValue, `SELECT qbank.list_model_checks($1)`, questionVersionID).Scan(&raw); err != nil {
+		return nil, mapCommandError(err, "list model checks")
+	}
+	return raw, nil
+}
+
+func (repository *Postgres) SetQuestionVersionChoices(contextValue context.Context, transaction pgx.Tx, command app.SetQuestionVersionChoices) (app.QuestionVersion, error) {
+	choices, err := json.Marshal(command.Choices)
+	if err != nil {
+		return app.QuestionVersion{}, err
+	}
+	var raw json.RawMessage
+	if err := transaction.QueryRow(contextValue, `SELECT qbank.set_question_version_choices($1, $2, $3::jsonb, $4, $5)`,
+		command.QuestionVersionID, command.ExpectedQuestionVersion, string(choices), command.CorrectChoices, command.MultipleChoice).Scan(&raw); err != nil {
+		return app.QuestionVersion{}, mapCommandError(err, "set question version choices")
+	}
+	return decodeQuestionVersion(raw)
+}
+
+// callJSON runs one practice function that returns jsonb. Those functions
+// raise 55000 and 22023 only with messages written for the student, such as
+// "wait for your last run to finish", so those pass through.
+func callJSON(contextValue context.Context, transaction pgx.Tx, operation, query string, arguments ...any) (json.RawMessage, error) {
+	var raw json.RawMessage
+	if err := transaction.QueryRow(contextValue, query, arguments...).Scan(&raw); err != nil {
+		var postgresError *pgconn.PgError
+		if errors.As(err, &postgresError) {
+			switch postgresError.Code {
+			case "55000":
+				return nil, apperrors.New(apperrors.CodeConflict, postgresError.Message)
+			case "22023":
+				return nil, apperrors.New(apperrors.CodeInvalidArgument, postgresError.Message)
+			}
+		}
+		return nil, mapCommandError(err, operation)
+	}
+	return raw, nil
+}
+
+func (repository *Postgres) SetQuestionAudience(contextValue context.Context, transaction pgx.Tx, questionID, audience string) error {
+	var stored string
+	if err := transaction.QueryRow(contextValue, `SELECT qbank.set_question_audience($1, $2)`, questionID, audience).Scan(&stored); err != nil {
+		return mapCommandError(err, "set question audience")
+	}
+	return nil
+}
+
+func (repository *Postgres) ListPracticeQuestions(contextValue context.Context, transaction pgx.Tx) (json.RawMessage, error) {
+	return callJSON(contextValue, transaction, "list practice questions", `SELECT qbank.list_practice_questions()`)
+}
+
+func (repository *Postgres) GetPracticeQuestion(contextValue context.Context, transaction pgx.Tx, questionID string) (json.RawMessage, error) {
+	return callJSON(contextValue, transaction, "get practice question", `SELECT qbank.get_practice_question($1)`, questionID)
+}
+
+func (repository *Postgres) StartPractice(contextValue context.Context, transaction pgx.Tx, id string, command app.StartPractice, source app.BundleReference) (json.RawMessage, error) {
+	return callJSON(contextValue, transaction, "start practice run", `SELECT qbank.start_practice_submission($1, $2, $3, $4, $5, $6, $7, $8)`,
+		id, command.QuestionID, command.Language, command.Mode, command.Input != nil,
+		source.ObjectKey, source.Checksum, source.EncryptionKeyReference)
+}
+
+func (repository *Postgres) ListPracticeSubmissions(contextValue context.Context, transaction pgx.Tx, questionID string) (json.RawMessage, error) {
+	return callJSON(contextValue, transaction, "list practice runs", `SELECT qbank.list_practice_submissions($1)`, questionID)
+}
+
+func (repository *Postgres) GetPracticeSubmission(contextValue context.Context, transaction pgx.Tx, id string) (json.RawMessage, error) {
+	return callJSON(contextValue, transaction, "get practice run", `SELECT qbank.get_practice_submission($1)`, id)
+}
+
+func (repository *Postgres) GetPracticeProgress(contextValue context.Context, transaction pgx.Tx) (json.RawMessage, error) {
+	return callJSON(contextValue, transaction, "get practice progress", `SELECT qbank.get_practice_progress()`)
 }

@@ -41,6 +41,11 @@ func (server *Server) ResolvePublishedQuestionVersion(contextValue context.Conte
 		MemoryLimitKib:     uint32(resolved.MemoryLimitKiB),
 		EvaluationBundle:   bundle(resolved.Evaluation),
 		SampleBundle:       bundle(resolved.Sample),
+		PromptMarkdown:     resolved.PromptMarkdown,
+		Kind:               resolved.Kind,
+		Choices:            resolved.Choices,
+		CorrectChoices:     correctChoices(resolved.CorrectChoices),
+		MultipleChoice:     resolved.MultipleChoice,
 	}, nil
 }
 
@@ -62,4 +67,12 @@ func statusFor(err error) error {
 		}
 	}
 	return status.Error(codes.Internal, "question version could not be resolved")
+}
+
+func correctChoices(indexes []int) []uint32 {
+	out := make([]uint32, 0, len(indexes))
+	for _, index := range indexes {
+		out = append(out, uint32(index))
+	}
+	return out
 }

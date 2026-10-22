@@ -20,6 +20,8 @@ import (
 // appService is the subset of *app.Service methods consumed by Handler.
 // Defining an interface here keeps the handler testable without a real database.
 type appService interface {
+	MoveAssignmentWindow(context.Context, centralauthz.Capability, app.MoveAssignmentWindow) (int, error)
+	RepinExamItem(context.Context, centralauthz.Capability, app.RepinExamItem) (int, error)
 	CreateProctorPolicy(context.Context, centralauthz.Capability, app.CreateProctorPolicy) (app.ProctorPolicy, error)
 	CreateProctorPolicyVersion(context.Context, centralauthz.Capability, app.CreateProctorPolicyVersion) (app.ProctorPolicyVersion, error)
 	PublishProctorPolicyVersion(context.Context, centralauthz.Capability, app.PublishProctorPolicyVersion) (app.ProctorPolicyVersion, error)
@@ -34,6 +36,7 @@ type appService interface {
 	HardDeleteExam(context.Context, centralauthz.Capability, app.DeleteExam) error
 	CreateExamVersion(context.Context, centralauthz.Capability, app.CreateExamVersion) (app.ExamVersion, error)
 	GetExamVersion(context.Context, centralauthz.Capability, app.GetExamVersion) (app.ExamVersion, error)
+	GetExamVersionContent(context.Context, centralauthz.Capability, app.GetExamVersion) (json.RawMessage, error)
 	AddExamSection(context.Context, centralauthz.Capability, app.AddExamSection) (app.ExamSection, error)
 	AddExamItem(context.Context, centralauthz.Capability, app.AddExamItem) (app.ExamItem, error)
 	RemoveExamSection(context.Context, centralauthz.Capability, app.RemoveExamSection) error
@@ -79,8 +82,11 @@ func NewHandler(serviceName string, service *app.Service, readiness httpx.Readin
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/exams/{exam_id}/hard", handler.hardDeleteExam)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/exams/{exam_id}/versions", handler.createExamVersion)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}", handler.getExamVersion)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/content", handler.getExamVersionContent)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/sections", handler.addExamSection)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/sections/{section_id}/items", handler.addExamItem)
+	mux.HandleFunc("POST /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/items/{item_id}/repin", handler.repinExamItem)
+	mux.HandleFunc("POST /v1/tenants/{tenant_id}/assignment-rules/{assignment_rule_id}/window", handler.moveAssignmentWindow)
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/sections/{section_id}", handler.removeExamSection)
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/sections/{section_id}/items/{item_id}", handler.removeExamItem)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/publish", handler.publishExamVersion)
@@ -324,12 +330,43 @@ func (handler *Handler) getExamVersion(writer http.ResponseWriter, request *http
 	httpx.WriteJSON(writer, http.StatusOK, examVersion)
 }
 
+// getExamVersionContent returns the version's sections, items and
+// assignment rules (the staff exam builder).
+func (handler *Handler) getExamVersionContent(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := tenantID(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	versionID, err := httpx.ParseUUIDPathValue(request, "exam_version_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "exam_versions", versionID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	content, err := handler.service.GetExamVersionContent(request.Context(), decision.Capability, app.GetExamVersion{TenantID: tenantID, ExamVersionID: versionID})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.Header().Set("Content-Type", "application/json")
+	writer.WriteHeader(http.StatusOK)
+	_, _ = writer.Write(content)
+}
+
 type addExamSectionRequest struct {
 	ExpectedContentVersion int64  `json:"expected_content_version"`
 	Position               int    `json:"position"`
 	Title                  string `json:"title"`
 	InstructionsMarkdown   string `json:"instructions_markdown"`
 	TimeLimitSeconds       *int   `json:"time_limit_seconds"`
+	// DrawCount makes the section a pool: each student gets this many of its
+	// questions (ADR-0034).
+	DrawCount *int `json:"draw_count"`
 }
 
 func (handler *Handler) addExamSection(writer http.ResponseWriter, request *http.Request) {
@@ -366,7 +403,7 @@ func (handler *Handler) addExamSection(writer http.ResponseWriter, request *http
 	section, err := handler.service.AddExamSection(request.Context(), decision.Capability, app.AddExamSection{
 		WriteCommand: app.WriteCommand{IdempotencyKey: key}, ID: id, TenantID: tenantID, ExamVersionID: versionID, ExpectedContentVersion: body.ExpectedContentVersion,
 		Position: body.Position, Title: body.Title, InstructionsMarkdown: body.InstructionsMarkdown,
-		TimeLimitSeconds: body.TimeLimitSeconds,
+		TimeLimitSeconds: body.TimeLimitSeconds, DrawCount: body.DrawCount,
 	})
 	if err != nil {
 		httpx.WriteError(writer, err)
@@ -912,4 +949,82 @@ func idempotencyKey(request *http.Request) (string, error) {
 		}
 	}
 	return key, nil
+}
+
+type repinExamItemRequest struct {
+	QuestionVersionID string `json:"question_version_id"`
+}
+
+// repinExamItem points an exam item at a corrected version of its question
+// and re-sends the exam's assignments for regrading (ADR-0039).
+func (handler *Handler) repinExamItem(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := tenantID(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	versionID, err := httpx.ParseUUIDPathValue(request, "exam_version_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	itemID, err := httpx.ParseUUIDPathValue(request, "item_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var body repinExamItemRequest
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "exam_items", itemID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	resent, err := handler.service.RepinExamItem(request.Context(), decision.Capability, app.RepinExamItem{
+		TenantID: tenantID, ExamVersionID: versionID, ItemID: itemID, QuestionVersionID: body.QuestionVersionID,
+	})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, map[string]int{"assignments_resent": resent})
+}
+
+type moveWindowRequest struct {
+	AvailableUntil time.Time `json:"available_until"`
+}
+
+// moveAssignmentWindow moves a published assignment's close time (ADR-0040).
+func (handler *Handler) moveAssignmentWindow(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := tenantID(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	ruleID, err := httpx.ParseUUIDPathValue(request, "assignment_rule_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var body moveWindowRequest
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "assignment_rules", ruleID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	moved, err := handler.service.MoveAssignmentWindow(request.Context(), decision.Capability, app.MoveAssignmentWindow{
+		TenantID: tenantID, AssignmentRuleID: ruleID, AvailableUntil: body.AvailableUntil,
+	})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, map[string]int{"assignments_moved": moved})
 }

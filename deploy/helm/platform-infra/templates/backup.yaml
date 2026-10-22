@@ -1,0 +1,84 @@
+{{- if .Values.backup.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backups
+  labels:
+    {{- include "infra.labels" . | nindent 4 }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  {{- with .Values.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.backup.storage }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup
+  labels:
+    {{- include "infra.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.backup.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            {{- include "infra.labels" . | nindent 12 }}
+            app.kubernetes.io/name: backup
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            {{- include "infra.podSecurity" . | nindent 12 }}
+            runAsUser: 999
+            runAsGroup: 999
+            fsGroup: 999
+          containers:
+            - name: dump
+              image: {{ .Values.images.postgres }}
+              command: ["/bin/bash", "-ec"]
+              args:
+                - |
+                  # Whole-cluster dumps (roles and every database), written under a temporary
+                  # name first so a half-written file never looks like a good backup.
+                  stamp="$(date +%Y%m%d-%H%M)"
+                  dump() {
+                    local name=$1 host=$2 user=$3 password=$4
+                    local file="/backups/$name-$stamp.sql.gz"
+                    if PGPASSWORD=$password pg_dumpall -h "$host" -U "$user" | gzip > "$file.partial"; then
+                      mv "$file.partial" "$file"; echo "backup ok: $file"
+                    else
+                      rm -f "$file.partial"; echo "backup FAILED: $name" >&2; failed=1
+                    fi
+                  }
+                  failed=0
+                  {{- if .Values.postgres.enabled }}
+                  dump platform postgres aether_admin "$PLATFORM_DB_PASSWORD"
+                  {{- end }}
+                  {{- if .Values.judgeDb.enabled }}
+                  dump judge judge-db aether_judge_admin "$JUDGE_DB_PASSWORD"
+                  {{- end }}
+                  find /backups -maxdepth 1 -name '*.sql.gz' -mtime +{{ .Values.backup.retentionDays }} -delete
+                  exit $failed
+              env:
+                {{- include "infra.secretEnv" (dict "name" "PLATFORM_DB_PASSWORD" "key" "POSTGRES_SUPERUSER_PASSWORD" "secret" .Values.secretName) | nindent 16 }}
+                {{- include "infra.secretEnv" (dict "name" "JUDGE_DB_PASSWORD" "secret" .Values.secretName) | nindent 16 }}
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: [ALL]
+              volumeMounts:
+                - {name: backups, mountPath: /backups}
+          volumes:
+            - name: backups
+              persistentVolumeClaim:
+                claimName: backups
+{{- end }}

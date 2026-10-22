@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
 	"github.com/aethercode/aethercode/libs/pkg/database"
@@ -39,6 +40,8 @@ const (
 // an unscoped application transaction; the Service supplies the signed RLS
 // transaction to every call.
 type Store interface {
+	MoveAssignmentWindow(context.Context, pgx.Tx, MoveAssignmentWindow) (int, error)
+	RepinExamItem(context.Context, pgx.Tx, RepinExamItem) (int, error)
 	ClaimIdempotency(context.Context, pgx.Tx, IdempotencyClaim) (json.RawMessage, bool, error)
 	CompleteIdempotency(context.Context, pgx.Tx, IdempotencyClaim, int, json.RawMessage) error
 	CreateProctorPolicy(context.Context, pgx.Tx, CreateProctorPolicy) (ProctorPolicy, error)
@@ -55,6 +58,7 @@ type Store interface {
 	MaterializeDirectCandidateAssignment(context.Context, pgx.Tx, MaterializeDirectCandidateAssignment) (CandidateAssignment, error)
 	RevokeCandidateAssignment(context.Context, pgx.Tx, RevokeCandidateAssignment) (CandidateAssignment, error)
 	GetExamVersion(context.Context, pgx.Tx, GetExamVersion) (ExamVersion, error)
+	GetExamVersionContent(context.Context, pgx.Tx, GetExamVersion) (json.RawMessage, error)
 	GetCandidateAssignment(context.Context, pgx.Tx, GetCandidateAssignment) (CandidateAssignment, error)
 	GetExam(context.Context, pgx.Tx, string, string) (Exam, error)
 	GetExamIncludeDeleted(context.Context, pgx.Tx, string, string) (Exam, error)
@@ -92,11 +96,19 @@ type EncryptedBundle struct {
 type ResolvedQuestionVersion struct {
 	QuestionID         string
 	QuestionVersionID  string
+	Title              string
+	PromptMarkdown     string
 	EvaluationBundle   EncryptedBundle
 	SampleBundle       EncryptedBundle
 	TimeLimitMS        int
 	MemoryLimitKiB     int
 	SupportedLanguages []string
+	// Kind is "coding" or "mcq" (ADR-0035); an mcq version has options and an
+	// answer key instead of bundles and limits.
+	Kind           string
+	Choices        []string
+	CorrectChoices []int
+	MultipleChoice bool
 }
 
 // Page is one keyset page. NextCursor is empty on the final page.
@@ -185,6 +197,8 @@ type Exam struct {
 	DeletedAt      *time.Time `json:"deleted_at,omitempty"`
 	DeletedBy      *string    `json:"deleted_by,omitempty"`
 	DeletionReason *string    `json:"deletion_reason,omitempty"`
+	// LatestVersion is set on listed exams (ADR-0043).
+	LatestVersion *ExamVersion `json:"latest_version,omitempty"`
 }
 
 // IsDeleted checks if the exam has been soft-deleted.
@@ -234,6 +248,7 @@ type ExamSection struct {
 	Title                string    `json:"title"`
 	InstructionsMarkdown string    `json:"instructions_markdown"`
 	TimeLimitSeconds     *int      `json:"time_limit_seconds,omitempty"`
+	DrawCount            *int      `json:"draw_count,omitempty"`
 	CreatedAt            time.Time `json:"created_at"`
 }
 
@@ -246,7 +261,8 @@ type ExamItem struct {
 	QuestionID               string    `json:"question_id"`
 	QuestionVersionID        string    `json:"question_version_id"`
 	MaximumScore             string    `json:"maximum_score"`
-	EvaluationBundleChecksum string    `json:"evaluation_bundle_checksum"`
+	EvaluationBundleChecksum string    `json:"evaluation_bundle_checksum,omitempty"`
+	Kind                     string    `json:"kind"`
 	CreatedAt                time.Time `json:"created_at"`
 }
 
@@ -265,18 +281,24 @@ type AssignmentRule struct {
 }
 
 type CandidateAssignment struct {
-	ID               string     `json:"id"`
-	TenantID         string     `json:"tenant_id"`
-	AssignmentRuleID string     `json:"assignment_rule_id"`
-	ExamVersionID    string     `json:"exam_version_id"`
-	CandidateID      string     `json:"candidate_id"`
-	AvailableFrom    time.Time  `json:"available_from"`
-	AvailableUntil   time.Time  `json:"available_until"`
-	LifecycleState   string     `json:"lifecycle_state"`
-	AssignedAt       time.Time  `json:"assigned_at"`
-	RevokedAt        *time.Time `json:"revoked_at,omitempty"`
-	CompletedAt      *time.Time `json:"completed_at,omitempty"`
-	Version          int64      `json:"version"`
+	ID               string `json:"id"`
+	TenantID         string `json:"tenant_id"`
+	AssignmentRuleID string `json:"assignment_rule_id"`
+	ExamVersionID    string `json:"exam_version_id"`
+	CandidateID      string `json:"candidate_id"`
+	// The exam's id, title, instructions and duration, so the candidate's
+	// dashboard needs no staff read. Set by the candidate list only.
+	ExamID               string     `json:"exam_id,omitempty"`
+	Title                string     `json:"title,omitempty"`
+	InstructionsMarkdown string     `json:"instructions_markdown,omitempty"`
+	DurationSeconds      int        `json:"duration_seconds,omitempty"`
+	AvailableFrom        time.Time  `json:"available_from"`
+	AvailableUntil       time.Time  `json:"available_until"`
+	LifecycleState       string     `json:"lifecycle_state"`
+	AssignedAt           time.Time  `json:"assigned_at"`
+	RevokedAt            *time.Time `json:"revoked_at,omitempty"`
+	CompletedAt          *time.Time `json:"completed_at,omitempty"`
+	Version              int64      `json:"version"`
 }
 
 type CreateProctorPolicy struct {
@@ -333,6 +355,7 @@ type AddExamSection struct {
 	Title                  string
 	InstructionsMarkdown   string
 	TimeLimitSeconds       *int
+	DrawCount              *int
 }
 
 type AddExamItem struct {
@@ -537,7 +560,8 @@ func (service *Service) CreateExamVersion(ctx context.Context, capability centra
 func (service *Service) AddExamSection(ctx context.Context, capability centralauthz.Capability, command AddExamSection) (ExamSection, error) {
 	command.ID, command.TenantID, command.ExamVersionID = normalizeID(command.ID), normalizeID(command.TenantID), normalizeID(command.ExamVersionID)
 	command.Title, command.InstructionsMarkdown = strings.TrimSpace(command.Title), strings.TrimSpace(command.InstructionsMarkdown)
-	if !validID(command.ID) || !validID(command.TenantID) || !validID(command.ExamVersionID) || command.ExpectedContentVersion <= 0 || command.Position <= 0 || !validText(command.Title, 300) || len([]rune(command.InstructionsMarkdown)) > 100_000 || (command.TimeLimitSeconds != nil && (*command.TimeLimitSeconds < 60 || *command.TimeLimitSeconds > 43_200)) {
+	if !validID(command.ID) || !validID(command.TenantID) || !validID(command.ExamVersionID) || command.ExpectedContentVersion <= 0 || command.Position <= 0 || !validText(command.Title, 300) || len([]rune(command.InstructionsMarkdown)) > 100_000 || (command.TimeLimitSeconds != nil && (*command.TimeLimitSeconds < 60 || *command.TimeLimitSeconds > 43_200)) ||
+		(command.DrawCount != nil && (*command.DrawCount < 1 || *command.DrawCount > 100)) {
 		return ExamSection{}, invalid("exam section fields are invalid")
 	}
 	return runWrite(service, ctx, capability, command.TenantID, "assessment.exam_section.create", command.IdempotencyKey,
@@ -548,8 +572,9 @@ func (service *Service) AddExamSection(ctx context.Context, capability centralau
 			Title                  string `json:"title"`
 			InstructionsMarkdown   string `json:"instructions_markdown"`
 			TimeLimitSeconds       *int   `json:"time_limit_seconds"`
+			DrawCount              *int   `json:"draw_count,omitempty"`
 		}{command.ExamVersionID, command.ExpectedContentVersion, command.Position, command.Title,
-			command.InstructionsMarkdown, command.TimeLimitSeconds}, httpStatusCreated,
+			command.InstructionsMarkdown, command.TimeLimitSeconds, command.DrawCount}, httpStatusCreated,
 		func(transaction pgx.Tx) (ExamSection, error) {
 			return service.store.AddExamSection(ctx, transaction, command)
 		},
@@ -569,8 +594,9 @@ func (service *Service) AddExamItem(ctx context.Context, capability centralauthz
 	if err != nil {
 		return ExamItem{}, err
 	}
-	if resolved.QuestionVersionID != command.QuestionVersionID || !validID(resolved.QuestionID) ||
-		!validBundle(resolved.EvaluationBundle) || !validBundle(resolved.SampleBundle) || !validExecution(resolved) {
+	if resolved.QuestionVersionID != command.QuestionVersionID || !validID(resolved.QuestionID) || !validStatement(resolved) ||
+		(resolved.Kind == "mcq" && !validChoices(resolved)) ||
+		(resolved.Kind != "mcq" && (!validBundle(resolved.EvaluationBundle) || !validBundle(resolved.SampleBundle) || !validExecution(resolved))) {
 		return ExamItem{}, fmt.Errorf("question bank returned an invalid question version")
 	}
 	command.Resolved = resolved
@@ -704,6 +730,22 @@ func (service *Service) RevokeCandidateAssignment(ctx context.Context, capabilit
 	)
 }
 
+// GetExamVersionContent returns an exam version's sections, items and
+// assignment rules for the staff exam builder.
+func (service *Service) GetExamVersionContent(ctx context.Context, capability centralauthz.Capability, command GetExamVersion) (json.RawMessage, error) {
+	command.TenantID, command.ExamVersionID = normalizeID(command.TenantID), normalizeID(command.ExamVersionID)
+	if !validID(command.TenantID) || !validID(command.ExamVersionID) {
+		return nil, invalid("exam version IDs are invalid")
+	}
+	var content json.RawMessage
+	err := database.WithTenantTx(ctx, service.pool, capability, func(transaction pgx.Tx) error {
+		var storeErr error
+		content, storeErr = service.store.GetExamVersionContent(ctx, transaction, command)
+		return storeErr
+	})
+	return content, err
+}
+
 func (service *Service) GetExamVersion(ctx context.Context, capability centralauthz.Capability, command GetExamVersion) (ExamVersion, error) {
 	command.TenantID, command.ExamVersionID = normalizeID(command.TenantID), normalizeID(command.ExamVersionID)
 	if !validID(command.TenantID) || !validID(command.ExamVersionID) {
@@ -828,6 +870,14 @@ func validBundle(bundle EncryptedBundle) bool {
 
 // validExecution mirrors the bounds the exam_items columns enforce, so a bad
 // Question Bank response fails here rather than inside the write transaction.
+// validStatement mirrors exam_items' bounds on the pinned title and statement.
+func validStatement(resolved ResolvedQuestionVersion) bool {
+	title := utf8.RuneCountInString(resolved.Title)
+	prompt := utf8.RuneCountInString(resolved.PromptMarkdown)
+	return strings.TrimSpace(resolved.Title) != "" && title <= 300 &&
+		strings.TrimSpace(resolved.PromptMarkdown) != "" && prompt <= 200000
+}
+
 func validExecution(resolved ResolvedQuestionVersion) bool {
 	if resolved.TimeLimitMS < 50 || resolved.TimeLimitMS > 600_000 ||
 		resolved.MemoryLimitKiB < 1024 || resolved.MemoryLimitKiB > 4_194_304 ||
@@ -1125,3 +1175,17 @@ func (service *Service) ListProctorPolicyVersions(ctx context.Context, capabilit
 }
 
 func invalid(message string) error { return apperrors.New(apperrors.CodeInvalidArgument, message) }
+
+// validChoices mirrors exam_items' bounds on a multiple-choice item (ADR-0035).
+func validChoices(resolved ResolvedQuestionVersion) bool {
+	if len(resolved.Choices) < 2 || len(resolved.Choices) > 10 || len(resolved.CorrectChoices) < 1 ||
+		(!resolved.MultipleChoice && len(resolved.CorrectChoices) != 1) {
+		return false
+	}
+	for _, index := range resolved.CorrectChoices {
+		if index < 0 || index >= len(resolved.Choices) {
+			return false
+		}
+	}
+	return true
+}

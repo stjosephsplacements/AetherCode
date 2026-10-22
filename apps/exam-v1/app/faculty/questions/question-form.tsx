@@ -31,6 +31,7 @@ Print one integer.
 export function QuestionForm({
   id,
   initial,
+  topics = [],
 }: {
   id: string | null;
   initial?: Omit<QuestionInput, "tests" | "options" | "correct"> & {
@@ -39,11 +40,16 @@ export function QuestionForm({
     referenceSource: string | null;
     options?: string[];
     correct?: number[];
+    topic?: string | null;
+    difficulty?: string | null;
   };
+  topics?: string[];
 }) {
   const [kind, setKind] = useState<"coding" | "mcq">(initial?.kind ?? "coding");
   const [options, setOptions] = useState<string[]>(initial?.options?.length ? initial.options : ["", "", "", ""]);
   const [correct, setCorrect] = useState<number[]>(initial?.correct ?? []);
+  const [topic, setTopic] = useState(initial?.topic ?? "");
+  const [difficulty, setDifficulty] = useState(initial?.difficulty ?? "");
   const [title, setTitle] = useState(initial?.title ?? "");
   const [statement, setStatement] = useState(initial?.statement ?? STARTER);
   const [timeLimitMs, setTimeLimitMs] = useState(Number(initial?.timeLimitMs ?? 2000));
@@ -117,6 +123,8 @@ export function QuestionForm({
     startTransition(async () => {
       const result = await saveQuestion(id, {
         title,
+        topic: topic || undefined,
+        difficulty: (difficulty as "easy" | "medium" | "hard") || undefined,
         statement,
         timeLimitMs,
         memoryLimitMb,
@@ -156,6 +164,24 @@ export function QuestionForm({
         <Field label="Title">
           <input value={title} onChange={(event) => setTitle(event.target.value)} className={inputClass} placeholder="Sum of N numbers" />
         </Field>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Field label="Topic" hint="e.g. Arrays, Strings, Trees">
+            <input value={topic} onChange={(event) => setTopic(event.target.value)} className={inputClass} placeholder="Arrays" list="topic-suggestions" />
+            {topics.length > 0 && (
+              <datalist id="topic-suggestions">
+                {topics.map((t) => <option key={t} value={t} />)}
+              </datalist>
+            )}
+          </Field>
+          <Field label="Difficulty">
+            <select value={difficulty} onChange={(event) => setDifficulty(event.target.value)} className={inputClass}>
+              <option value="">— Not set —</option>
+              <option value="easy">Easy</option>
+              <option value="medium">Medium</option>
+              <option value="hard">Hard</option>
+            </select>
+          </Field>
+        </div>
         <div>
           <div className="mb-1.5 flex items-center justify-between">
             <span className="text-[13px] font-semibold">Problem statement (Markdown)</span>

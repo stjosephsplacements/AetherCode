@@ -1,0 +1,85 @@
+{{- if .Values.rabbitmq.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: judge-rabbitmq
+  labels:
+    {{- include "infra.labels" . | nindent 4 }}
+    app.kubernetes.io/name: judge-rabbitmq
+spec:
+  ports:
+    - name: amqp
+      port: 5672
+  selector:
+    app.kubernetes.io/name: judge-rabbitmq
+    app.kubernetes.io/part-of: aethercode
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: judge-rabbitmq
+  labels:
+    {{- include "infra.labels" . | nindent 4 }}
+    app.kubernetes.io/name: judge-rabbitmq
+spec:
+  serviceName: judge-rabbitmq
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: judge-rabbitmq
+      app.kubernetes.io/part-of: aethercode
+  template:
+    metadata:
+      labels:
+        {{- include "infra.labels" . | nindent 8 }}
+        app.kubernetes.io/name: judge-rabbitmq
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        {{- include "infra.podSecurity" . | nindent 8 }}
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+      containers:
+        - name: rabbitmq
+          image: {{ .Values.images.rabbitmq }}
+          env:
+            - name: RABBITMQ_DEFAULT_USER
+              value: judge
+            - name: RABBITMQ_DEFAULT_VHOST
+              value: judge
+            {{- include "infra.secretEnv" (dict "name" "RABBITMQ_DEFAULT_PASS" "key" "JUDGE_RABBITMQ_PASSWORD" "secret" .Values.secretName) | nindent 12 }}
+          ports:
+            - {name: amqp, containerPort: 5672}
+          readinessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "ping"]
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+          livenessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "ping"]
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          resources:
+            {{- toYaml .Values.rabbitmq.resources | nindent 12 }}
+          volumeMounts:
+            - {name: data, mountPath: /var/lib/rabbitmq}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with .Values.storageClass }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.rabbitmq.storage }}
+{{- end }}

@@ -141,7 +141,13 @@ field in the response indicates the final page.
 `candidate-assignments` is candidate-scoped: the database function
 `assessment.list_candidate_assignments` binds rows to
 `authz.current_context_actor_id()` so a tenant staff token cannot read another
-user's assignments through this endpoint.
+user's assignments through this endpoint. Each item also carries the exam's
+`exam_id`, `title`, `instructions_markdown` and `duration_seconds` (ADR-0023),
+so a student's dashboard and `.seb` download need no staff read.
+
+Adding an exam item pins the question version's title and statement from the
+Question Bank next to its bundles and limits, and candidate assignment
+snapshots carry them to Submission, which serves the candidate's paper.
 
 The public operational and workflow contract is in
 [api/openapi.yaml](api/openapi.yaml).

@@ -1,12 +1,78 @@
-nameOverride: "user"
+# user: environment mirrors deploy/single-server/docker-compose.yml.
+nameOverride: user
 
 image:
-  repository: ghcr.io/Shreesh-Sree/CoderQX/user
+  repository: ghcr.io/stjosephsplacements/aethercode-user
   tag: ""
 
-service:
-  port: 8080
+replicaCount: 3
 
-envFrom:
-  - secretRef:
-      name: user-secrets
+resources:
+  requests:
+    cpu: 250m
+    memory: 256Mi
+  limits:
+    cpu: 1
+    memory: 512Mi
+
+ports:
+  - name: authz
+    port: 9443
+
+tls:
+  enabled: true
+  secretName: aethercode-tls-user
+
+config:
+  SERVICE_NAME: "user"
+  AUTHZ_CLIENT_TLS_CA_FILE: "/certs/ca.crt"
+  AUTHZ_CLIENT_TLS_SERVER_NAME: "user"
+  AUTHZ_CLIENT_TLS_CERT_FILE: "/certs/tls.crt"
+  AUTHZ_CLIENT_TLS_KEY_FILE: "/certs/tls.key"
+  AUTHZ_ENDPOINT: "user:9443"
+  AUTHZ_GRPC_ADDR: "0.0.0.0:9443"
+  AUTHZ_TLS_CERT_FILE: "/certs/tls.crt"
+  AUTHZ_TLS_KEY_FILE: "/certs/tls.key"
+  AUTHZ_CLIENT_CA_FILE: "/certs/ca.crt"
+  AUTHZ_MTLS_SERVICE_TARGETS: "{\"{{ .Values.global.mtlsTrustDomain }}/tenant\":\"tenant\",\"{{ .Values.global.mtlsTrustDomain }}/user\":\"user\",\"{{ .Values.global.mtlsTrustDomain }}/question-bank\":\"question-bank\",\"{{ .Values.global.mtlsTrustDomain }}/assessment\":\"assessment\",\"{{ .Values.global.mtlsTrustDomain }}/submission\":\"submission\",\"{{ .Values.global.mtlsTrustDomain }}/seb\":\"seb\",\"{{ .Values.global.mtlsTrustDomain }}/notification\":\"notification\",\"{{ .Values.global.mtlsTrustDomain }}/analytics\":\"analytics\"}"
+  AUTHZ_IDENTITY_ASSERTION_ISSUER: "aethercode-identity"
+  AUTHZ_IDENTITY_ASSERTION_AUDIENCE: "aethercode"
+  AUTHZ_IDENTITY_INTROSPECTION_URL: "https://identity:9444/v1/internal/access-token/validate"
+  AUTHZ_IDENTITY_INTROSPECTION_TLS_CERT_FILE: "/certs/tls.crt"
+  AUTHZ_IDENTITY_INTROSPECTION_TLS_KEY_FILE: "/certs/tls.key"
+  AUTHZ_IDENTITY_INTROSPECTION_TLS_CA_FILE: "/certs/ca.crt"
+  AUTHZ_IDENTITY_INTROSPECTION_TLS_SERVER_NAME: "identity"
+
+secretEnv:
+  - name: USERS_DB_PASSWORD
+  - name: IDENTITY_ASSERTION_PUBLIC_KEYS
+  - name: AUTHZ_CAPABILITY_KEYS
+
+env:
+  - name: USER_DATABASE_URL
+    value: "postgres://aether_user_app:$(USERS_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_users?sslmode={{ .Values.global.postgresSSLMode }}"
+  - name: USER_AUTHZ_DATABASE_URL
+    value: "postgres://aether_user_authz_reader:$(USERS_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_users?sslmode={{ .Values.global.postgresSSLMode }}"
+  - name: USER_PROJECTION_DATABASE_URL
+    value: "postgres://aether_user_projection_worker:$(USERS_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_users?sslmode={{ .Values.global.postgresSSLMode }}"
+  - name: AUTHZ_IDENTITY_ASSERTION_PUBLIC_KEYS
+    value: "$(IDENTITY_ASSERTION_PUBLIC_KEYS)"
+
+networkPolicy:
+  allowFrom:
+    - service: gateway
+      ports: [8080]
+    - service: tenant
+      ports: [9443]
+    - service: question-bank
+      ports: [9443]
+    - service: assessment
+      ports: [9443]
+    - service: submission
+      ports: [9443]
+    - service: seb
+      ports: [9443]
+    - service: notification
+      ports: [9443]
+    - service: analytics
+      ports: [9443]

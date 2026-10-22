@@ -409,6 +409,21 @@ func (repository *Postgres) ListAnswerRevisions(contextValue context.Context, tr
 	return revisions, nil
 }
 
+func (repository *Postgres) GetAttemptPaper(contextValue context.Context, transaction pgx.Tx, command app.GetAttempt) (app.StoredPaper, error) {
+	var raw json.RawMessage
+	err := transaction.QueryRow(contextValue, `
+		SELECT submission.get_attempt_paper_for_candidate($1, $2)
+	`, command.TenantID, command.AttemptID).Scan(&raw)
+	if err != nil {
+		return app.StoredPaper{}, mapDatabaseError(err, "get attempt paper")
+	}
+	var paper app.StoredPaper
+	if err := json.Unmarshal(raw, &paper); err != nil {
+		return app.StoredPaper{}, fmt.Errorf("decode attempt paper: %w", err)
+	}
+	return paper, nil
+}
+
 func (repository *Postgres) GetAttemptUnitSummary(contextValue context.Context, transaction pgx.Tx, command app.GetAttempt) ([]app.AttemptUnitSummary, error) {
 	var raw json.RawMessage
 	err := transaction.QueryRow(contextValue, `
@@ -513,6 +528,54 @@ func (repository *Postgres) StartCodeRun(contextValue context.Context, transacti
 	return run, nil
 }
 
+func (repository *Postgres) StartCustomRun(contextValue context.Context, transaction pgx.Tx, command app.RunCode) (app.CodeRun, error) {
+	var raw json.RawMessage
+	err := transaction.QueryRow(contextValue, `
+		SELECT submission.start_custom_run($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+	`, command.ID, command.TenantID, command.AttemptID, command.ExamItemID, command.Language,
+		command.SourceObjectKey, command.SourceChecksum, command.EncryptionKeyReference,
+		command.BundleObjectKey, command.BundleChecksum, command.BundleKeyReference).Scan(&raw)
+	if err != nil {
+		return app.CodeRun{}, mapDatabaseError(err, "start custom run")
+	}
+	var run app.CodeRun
+	if err := json.Unmarshal(raw, &run); err != nil {
+		return app.CodeRun{}, fmt.Errorf("decode started custom run: %w", err)
+	}
+	return run, nil
+}
+
+func (repository *Postgres) SubmitItem(contextValue context.Context, transaction pgx.Tx, command app.SubmitItem) (app.ItemSubmission, error) {
+	var submission app.ItemSubmission
+	var created bool
+	err := transaction.QueryRow(contextValue, `
+		SELECT id, lifecycle_state, queued_at, created
+		FROM submission.submit_item($1, $2, $3, $4, $5)
+	`, command.RequestID, command.OutboxEventID, command.TenantID, command.AttemptID, command.ExamItemID).Scan(
+		&submission.ID, &submission.LifecycleState, &submission.QueuedAt, &created)
+	if err != nil {
+		return app.ItemSubmission{}, mapDatabaseError(err, "submit item")
+	}
+	submission.Origin = "item_submit"
+	submission.VerdictCounts = map[string]int{}
+	return submission, nil
+}
+
+func (repository *Postgres) ListItemSubmissions(contextValue context.Context, transaction pgx.Tx, command app.SubmitItem) ([]app.ItemSubmission, error) {
+	var raw json.RawMessage
+	err := transaction.QueryRow(contextValue, `
+		SELECT submission.list_item_submissions_for_candidate($1, $2, $3)
+	`, command.TenantID, command.AttemptID, command.ExamItemID).Scan(&raw)
+	if err != nil {
+		return nil, mapDatabaseError(err, "list item submissions")
+	}
+	submissions, err := app.DecodeItemSubmissions(raw)
+	if err != nil {
+		return nil, fmt.Errorf("decode item submissions: %w", err)
+	}
+	return submissions, nil
+}
+
 func (repository *Postgres) GetCodeRun(contextValue context.Context, transaction pgx.Tx, command app.GetCodeRun) (app.CodeRun, error) {
 	var raw json.RawMessage
 	err := transaction.QueryRow(contextValue, `
@@ -542,4 +605,110 @@ func (repository *Postgres) ListCodeRuns(contextValue context.Context, transacti
 		return nil, fmt.Errorf("decode code run list: %w", err)
 	}
 	return runs, nil
+}
+
+func (repository *Postgres) GetExamMonitor(contextValue context.Context, transaction pgx.Tx, command app.ExamVersionCommand) (json.RawMessage, error) {
+	return queryJSON(contextValue, transaction, "get exam monitor",
+		`SELECT submission.get_exam_monitor($1, $2)`, command.TenantID, command.ExamVersionID)
+}
+
+func (repository *Postgres) GetGradingQueue(contextValue context.Context, transaction pgx.Tx, tenantID string) (json.RawMessage, error) {
+	return queryJSON(contextValue, transaction, "get grading queue", `SELECT submission.get_grading_queue($1)`, tenantID)
+}
+
+func (repository *Postgres) ReleaseResults(contextValue context.Context, transaction pgx.Tx, command app.ReleaseResults) (json.RawMessage, error) {
+	return queryJSON(contextValue, transaction, "release results",
+		`SELECT jsonb_build_object('results_released_at', submission.set_exam_results_release($1, $2, $3))`,
+		command.TenantID, command.ExamVersionID, command.Released)
+}
+
+func (repository *Postgres) ExtendDeadlines(contextValue context.Context, transaction pgx.Tx, command app.ExtendDeadlines) (int, error) {
+	var attemptID *string
+	if command.AttemptID != "" {
+		attemptID = &command.AttemptID
+	}
+	var extended int
+	err := transaction.QueryRow(contextValue, `
+		SELECT submission.extend_attempt_deadlines($1, $2, $3, $4)
+	`, command.TenantID, command.ExamVersionID, attemptID, command.Minutes*60).Scan(&extended)
+	if err != nil {
+		return 0, mapDatabaseError(err, "extend attempt deadlines")
+	}
+	return extended, nil
+}
+
+func (repository *Postgres) PostAnnouncement(contextValue context.Context, transaction pgx.Tx, command app.PostAnnouncement) (json.RawMessage, error) {
+	return queryJSON(contextValue, transaction, "post announcement",
+		`SELECT submission.post_exam_announcement($1, $2, $3, $4)`,
+		command.ID, command.TenantID, command.ExamVersionID, command.Body)
+}
+
+func (repository *Postgres) GetAttemptLiveState(contextValue context.Context, transaction pgx.Tx, command app.GetAttempt) (json.RawMessage, error) {
+	return queryJSON(contextValue, transaction, "get attempt live state",
+		`SELECT submission.get_attempt_live_state_for_candidate($1, $2)`, command.TenantID, command.AttemptID)
+}
+
+func (repository *Postgres) GetAttemptResult(contextValue context.Context, transaction pgx.Tx, command app.GetAttempt) (json.RawMessage, error) {
+	return queryJSON(contextValue, transaction, "get attempt result",
+		`SELECT submission.get_attempt_result_for_candidate($1, $2)`, command.TenantID, command.AttemptID)
+}
+
+func queryJSON(contextValue context.Context, transaction pgx.Tx, operation, query string, arguments ...any) (json.RawMessage, error) {
+	var raw json.RawMessage
+	if err := transaction.QueryRow(contextValue, query, arguments...).Scan(&raw); err != nil {
+		return nil, mapDatabaseError(err, operation)
+	}
+	return raw, nil
+}
+
+func (repository *Postgres) GetAttemptReview(contextValue context.Context, transaction pgx.Tx, command app.GetAttempt) (app.StoredReview, error) {
+	raw, err := queryJSON(contextValue, transaction, "get attempt review",
+		`SELECT submission.get_attempt_review($1, $2)`, command.TenantID, command.AttemptID)
+	if err != nil {
+		return app.StoredReview{}, err
+	}
+	var review app.StoredReview
+	if err := json.Unmarshal(raw, &review); err != nil {
+		return app.StoredReview{}, fmt.Errorf("decode attempt review: %w", err)
+	}
+	return review, nil
+}
+
+func (repository *Postgres) ListExamLatestAnswers(contextValue context.Context, transaction pgx.Tx, command app.ExamVersionCommand) ([]app.StoredLatestAnswer, error) {
+	raw, err := queryJSON(contextValue, transaction, "list exam latest answers",
+		`SELECT submission.list_exam_latest_answers($1, $2)`, command.TenantID, command.ExamVersionID)
+	if err != nil {
+		return nil, err
+	}
+	var answers []app.StoredLatestAnswer
+	if err := json.Unmarshal(raw, &answers); err != nil {
+		return nil, fmt.Errorf("decode exam latest answers: %w", err)
+	}
+	return answers, nil
+}
+
+func (repository *Postgres) SaveChoice(contextValue context.Context, transaction pgx.Tx, command app.SaveChoice) (json.RawMessage, error) {
+	return queryJSON(contextValue, transaction, "save choice",
+		`SELECT submission.save_choice_answer($1, $2, $3, $4)`, command.TenantID, command.AttemptID, command.ExamItemID, command.Selected)
+}
+
+func (repository *Postgres) SetIntegrity(contextValue context.Context, transaction pgx.Tx, command app.SetIntegrity) error {
+	if _, err := transaction.Exec(contextValue, `SELECT submission.set_exam_integrity($1, $2, $3, $4)`,
+		command.TenantID, command.ExamVersionID, command.RequireFullscreen, command.BlockExternalPaste); err != nil {
+		return mapDatabaseError(err, "set exam integrity")
+	}
+	return nil
+}
+
+func (repository *Postgres) RecordIntegrityEvent(contextValue context.Context, transaction pgx.Tx, command app.GetAttempt, kind string) error {
+	if _, err := transaction.Exec(contextValue, `SELECT submission.record_integrity_event($1, $2, $3)`,
+		command.TenantID, command.AttemptID, kind); err != nil {
+		return mapDatabaseError(err, "record integrity event")
+	}
+	return nil
+}
+
+func (repository *Postgres) RegradeItem(contextValue context.Context, transaction pgx.Tx, command app.ExamVersionCommand, examItemID string) (json.RawMessage, error) {
+	return queryJSON(contextValue, transaction, "regrade exam item",
+		`SELECT submission.regrade_exam_item($1, $2, $3)`, command.TenantID, command.ExamVersionID, examItemID)
 }

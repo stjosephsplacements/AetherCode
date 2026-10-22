@@ -41,16 +41,16 @@ performance:
 
 breaking-change:
   - head-branch:
-    - "breaking/**"
-    - "break/**"
+    - "^breaking/"
+    - "^break/"
 
 enhancement:
   - head-branch:
-    - "feat/**"
-    - "feature/**"
+    - "^feat/"
+    - "^feature/"
 
 bug:
   - head-branch:
-    - "fix/**"
-    - "bugfix/**"
-    - "hotfix/**"
+    - "^fix/"
+    - "^bugfix/"
+    - "^hotfix/"

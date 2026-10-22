@@ -1,0 +1,87 @@
+# The web UI (ADR-0024): a Next.js server that proxies /api to the gateway and
+# keeps sessions in cookies. It is the only workload users reach.
+nameOverride: frontend
+
+image:
+  repository: ghcr.io/stjosephsplacements/aethercode-frontend
+  tag: ""
+
+replicaCount: 3
+
+service:
+  port: 3000
+  targetPort: 3000
+
+commonConfig: {}
+
+config:
+  GATEWAY_URL: "http://gateway:8080"
+  PUBLIC_ORIGIN: '{{ required "global.publicOrigin is required" .Values.global.publicOrigin }}'
+  # "on" shows "Sign in with your St. Joseph's account" (ADR-0042).
+  AETHERCODE_SSO: "off"
+  # College names, colours and logos (ADR-0045); a missing file means the default look.
+  BRANDING_FILE: /branding/branding.json
+  NODE_ENV: production
+
+# Next.js writes its cache under .next/cache; the image runs as uid 1001.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  runAsGroup: 1001
+  fsGroup: 1001
+  seccompProfile:
+    type: RuntimeDefault
+
+volumes:
+  - name: next-cache
+    emptyDir:
+      sizeLimit: 512Mi
+  - name: branding
+    configMap:
+      name: frontend-branding
+      optional: true
+volumeMounts:
+  - name: next-cache
+    mountPath: /app/.next/cache
+  - name: branding
+    mountPath: /branding
+    readOnly: true
+
+startupProbe:
+  httpGet:
+    path: /login
+    port: http
+  periodSeconds: 5
+  failureThreshold: 24
+livenessProbe:
+  httpGet:
+    path: /login
+    port: http
+  periodSeconds: 15
+  failureThreshold: 3
+readinessProbe:
+  httpGet:
+    path: /login
+    port: http
+  periodSeconds: 5
+  failureThreshold: 3
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 768Mi
+
+ingress:
+  enabled: true
+  # className, host and tlsSecretName come from the installation's values.
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 16m
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+
+networkPolicy:
+  allowFrom: []
+  # The ingress controller's namespace; change it if yours differs.
+  allowFromNamespaces: [ingress-nginx]

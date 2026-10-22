@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	judgeadapter "github.com/aethercode/aethercode/services/question-bank/internal/adapters/judge"
 	"log/slog"
 	"net"
 	"os"
@@ -93,6 +94,7 @@ func run(contextValue context.Context) error {
 	if err != nil {
 		return err
 	}
+	var modelCheckRunner *judgeadapter.ModelChecks
 	if messagingRuntime.URL != "" {
 		outbox, outboxErr := messaging.NewOutboxStore(pool, "app.outbox_events")
 		if outboxErr != nil {
@@ -113,6 +115,19 @@ func run(contextValue context.Context) error {
 			return projectionPoolErr
 		}
 		defer projectionPool.Close()
+		// Model-solution checks make Question Bank a Judge client (ADR-0033).
+		judgeRuntime, judgeRuntimeErr := judgeadapter.LoadRuntime()
+		if judgeRuntimeErr != nil {
+			return judgeRuntimeErr
+		}
+		if judgeRuntime.Address != "" {
+			modelChecks, judgeConnection, judgeErr := judgeadapter.New(judgeRuntime, projectionPool, logger)
+			if judgeErr != nil {
+				return judgeErr
+			}
+			defer func() { _ = judgeConnection.Close() }()
+			modelCheckRunner = modelChecks
+		}
 		snapshotProjection, snapshotProjectionErr := authzprojection.NewStore(projectionPool)
 		if snapshotProjectionErr != nil {
 			return snapshotProjectionErr
@@ -209,6 +224,14 @@ func run(contextValue context.Context) error {
 	questionBank, err := app.NewService(pool, store, storageClient, kmsClient, logger)
 	if err != nil {
 		return err
+	}
+	if os.Getenv("QBANK_REQUIRE_REVIEW") == "true" {
+		questionBank.RequireReview()
+	}
+	if modelCheckRunner != nil {
+		modelCheckRunner.ReadOutputsWith(storageClient, kmsClient)
+		questionBank.UseModelChecks(modelCheckRunner)
+		go modelCheckRunner.Run(contextValue)
 	}
 	handler, err := httpadapter.NewHandler(serviceConfig.Name, questionBank, readiness, authorizer)
 	if err != nil {

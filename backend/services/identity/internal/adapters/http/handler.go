@@ -33,11 +33,14 @@ type UseCases interface {
 	Register(context.Context, string, string, string, string, string) (string, string, error)
 	VerifyEmail(context.Context, string) (string, error)
 	Login(context.Context, string, string, string, string, string, string) (app.TokenPair, error)
+	StartSSO(context.Context) (app.SSOStart, error)
+	CompleteSSO(context.Context, string, string, string, string, string) (app.TokenPair, error)
 	CompleteMFA(context.Context, string, string, string, string, string) (app.TokenPair, error)
 	Refresh(context.Context, string, string, string, string) (app.TokenPair, error)
 	Logout(context.Context, string) error
 	RequestPasswordReset(context.Context, string, string, string) (string, error)
 	ResetPassword(context.Context, string, string, string, string) error
+	ChangePassword(context.Context, string, string, string, string, string) error
 	BeginTOTP(context.Context, string, string) (string, string, error)
 	ActivateTOTP(context.Context, string, string, string) ([]string, error)
 	DisableTOTP(context.Context, string, string, string) error
@@ -86,11 +89,14 @@ func NewHandler(serviceName string, service UseCases, readiness httpx.ReadinessF
 	mux.HandleFunc("POST /v1/auth/register", handler.register)
 	mux.HandleFunc("POST /v1/auth/verify-email", handler.verifyEmail)
 	mux.HandleFunc("POST /v1/auth/login", handler.login)
+	mux.HandleFunc("POST /v1/auth/sso/start", handler.startSSO)
+	mux.HandleFunc("POST /v1/auth/sso/callback", handler.completeSSO)
 	mux.HandleFunc("POST /v1/auth/mfa/verify-login", handler.completeMFA)
 	mux.HandleFunc("POST /v1/auth/refresh", handler.refresh)
 	mux.HandleFunc("POST /v1/auth/logout", handler.logout)
 	mux.HandleFunc("POST /v1/auth/password-reset", handler.requestPasswordReset)
 	mux.HandleFunc("POST /v1/auth/password-reset/complete", handler.resetPassword)
+	mux.HandleFunc("POST /v1/auth/password", handler.changePassword)
 	mux.HandleFunc("POST /v1/auth/mfa/totp", handler.beginTOTP)
 	mux.HandleFunc("POST /v1/auth/mfa/totp/{factor_id}/activate", handler.activateTOTP)
 	mux.HandleFunc("DELETE /v1/auth/mfa/totp/{factor_id}", handler.disableTOTP)
@@ -542,4 +548,78 @@ func noStore(next http.Handler) http.Handler {
 		writer.Header().Set("Pragma", "no-cache")
 		next.ServeHTTP(writer, request)
 	})
+}
+
+type changePasswordRequest struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
+}
+
+// changePassword lets a signed-in principal replace their own password,
+// required after staff issue one (ADR-0036).
+func (handler *Handler) changePassword(writer http.ResponseWriter, request *http.Request) {
+	principalID, err := handler.authenticatedPrincipal(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var body changePasswordRequest
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	requestID, err := database.NewUUIDv7()
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	if err := handler.service.ChangePassword(request.Context(), principalID, body.CurrentPassword, body.NewPassword,
+		clientIP(request), requestID); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.WriteHeader(http.StatusNoContent)
+}
+
+// startSSO begins a single sign-on (ADR-0042). The caller keeps the state and
+// code verifier, bound to the browser, until the callback.
+func (handler *Handler) startSSO(writer http.ResponseWriter, request *http.Request) {
+	start, err := handler.service.StartSSO(request.Context())
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.Header().Set("Cache-Control", "no-store")
+	httpx.WriteJSON(writer, http.StatusOK, start)
+}
+
+type ssoCallbackRequest struct {
+	Code         string `json:"code"`
+	CodeVerifier string `json:"code_verifier"`
+}
+
+// completeSSO exchanges the provider's code for an AetherCode session. The
+// caller has already matched the returned state to the one it kept.
+func (handler *Handler) completeSSO(writer http.ResponseWriter, request *http.Request) {
+	if handler.loginLimiter != nil && !handler.loginLimiter.Allow(clientIP(request), time.Now().UTC()) {
+		writer.Header().Set("Retry-After", retryAfterLoginOrPasswordReset)
+		httpx.WriteJSON(writer, http.StatusTooManyRequests, httpx.Problem{Code: "too_many_requests", Message: "login rate limit exceeded"})
+		return
+	}
+	var body ssoCallbackRequest
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	requestID, err := database.NewUUIDv7()
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	pair, err := handler.service.CompleteSSO(request.Context(), body.Code, body.CodeVerifier, clientIP(request), request.UserAgent(), requestID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, pair)
 }

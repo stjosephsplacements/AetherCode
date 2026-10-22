@@ -37,6 +37,7 @@ func NewHandler(serviceName string, service *app.Service, readiness httpx.Readin
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/notifications/{notification_id}/cancel", handler.cancelNotification)
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/notifications/{notification_id}", handler.deleteNotification)
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/notifications/{notification_id}/hard", handler.hardDeleteNotification)
+	handler.registerCommunity(mux)
 	return mux, nil
 }
 

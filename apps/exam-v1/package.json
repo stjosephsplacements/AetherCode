@@ -20,35 +20,32 @@
     "e2e": "playwright test -c e2e"
   },
   "dependencies": {
-    "@codemirror/autocomplete": "6.20.3",
-    "@codemirror/lang-cpp": "6.0.3",
-    "@codemirror/lang-java": "6.0.2",
-    "@codemirror/lang-python": "6.2.1",
-    "@codemirror/language": "6.12.4",
-    "@codemirror/search": "6.7.2",
-    "@uiw/react-codemirror": "4.25.12",
+    "@monaco-editor/react": "^4.7.0",
     "katex": "0.19.0",
-    "next": "16.3.8",
+    "monaco-editor": "^0.57.0",
+    "next": "16.4.2",
+    "nodemailer": "^10.0.16",
     "papaparse": "5.7.0",
     "postgres": "3.4.9",
-    "react": "19.3.0",
-    "react-dom": "19.3.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "react-markdown": "10.1.0",
     "rehype-katex": "7.0.1",
     "remark-gfm": "4.0.1",
     "remark-math": "6.0.0",
     "tsx": "4.23.15",
-    "zod": "4.6.5"
+    "zod": "4.6.7"
   },
   "devDependencies": {
-    "@playwright/test": "1.63.0",
+    "@playwright/test": "1.64.1",
     "@tailwindcss/postcss": "4.3.3",
-    "@types/node": "24.19.0",
+    "@types/node": "24.19.2",
+    "@types/nodemailer": "^8.0.2",
     "@types/papaparse": "5.5.2",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "exceljs": "4.4.0",
     "tailwindcss": "4.3.3",
-    "typescript": "5.9.3",
-    "xlsx": "^0.18.5"
+    "typescript": "5.9.3"
   }
 }

@@ -276,6 +276,14 @@ paths:
                   maxItems: 16
                   description: Case-insensitive; at least one when enabled.
                   items: {type: string, pattern: '^[0-9a-fA-F]{64}$'}
+                allowed_networks:
+                  type: array
+                  maxItems: 50
+                  description: >-
+                    IP addresses or CIDR ranges (ADR-0030). When not empty,
+                    candidates with an open assignment may send requests only
+                    from them, whether or not the SEB lock is enabled.
+                  items: {type: string}
       responses:
         '200':
           description: The saved lock.
@@ -335,6 +343,9 @@ paths:
                 url: {type: string, format: uri, maxLength: 8192, description: No fragment.}
                 request_hash: {$ref: '#/components/schemas/SHA256'}
                 config_key_hash: {$ref: '#/components/schemas/SHA256'}
+                client_ip:
+                  type: string
+                  description: The client address Gateway trusts. An exam with lab networks refuses an unknown one (result network_refused).
       responses:
         '200':
           description: The check result.
@@ -434,6 +445,7 @@ components:
         title: {type: string}
         enabled: {type: boolean}
         accepted_keys: {type: array, items: {$ref: '#/components/schemas/SHA256'}}
+        allowed_networks: {type: array, items: {type: string}}
         updated_by: {$ref: '#/components/schemas/UUID'}
         updated_at: {type: string, format: date-time}
         version: {type: integer, minimum: 1}

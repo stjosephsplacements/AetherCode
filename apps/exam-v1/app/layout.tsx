@@ -1,12 +1,22 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { Bricolage_Grotesque, JetBrains_Mono, Manrope } from "next/font/google";
+import localFont from "next/font/local";
+import { JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import "katex/dist/katex.min.css";
 import { fromSebBrowser } from "@/lib/seb";
 
-const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope" });
-const heading = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-heading" });
+const satoshi = localFont({
+  src: [
+    { path: "../public/fonts/satoshi-300.woff2", weight: "300", style: "normal" },
+    { path: "../public/fonts/satoshi-400.woff2", weight: "400", style: "normal" },
+    { path: "../public/fonts/satoshi-500.woff2", weight: "500", style: "normal" },
+    { path: "../public/fonts/satoshi-700.woff2", weight: "700", style: "normal" },
+    { path: "../public/fonts/satoshi-900.woff2", weight: "900", style: "normal" },
+  ],
+  variable: "--font-satoshi",
+  display: "swap",
+});
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains" });
 
 export const metadata: Metadata = {
@@ -21,7 +31,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // Inside SEB, pages keep clear of its taskbar (see :root[data-seb] in globals.css).
   const insideSeb = fromSebBrowser(await headers());
   return (
-    <html lang="en" className={`${manrope.variable} ${heading.variable} ${mono.variable}`} suppressHydrationWarning data-seb={insideSeb ? "" : undefined}>
+    <html lang="en" className={`${satoshi.variable} ${mono.variable}`} suppressHydrationWarning data-seb={insideSeb ? "" : undefined}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>

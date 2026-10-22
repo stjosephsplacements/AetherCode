@@ -17,7 +17,7 @@ jobs:
     if: github.event_name == 'push'
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -26,6 +26,10 @@ jobs:
           MIRROR_PAT: ${{ secrets.MIRROR_PAT }}
           MIRROR_REPO: ${{ secrets.MIRROR_TARGET_REPO }}
         run: |
+          if [ -z "${MIRROR_PAT}" ] || [ -z "${MIRROR_REPO}" ]; then
+            echo "MIRROR_PAT or MIRROR_TARGET_REPO is not set; skipping the mirror."
+            exit 0
+          fi
           git remote add mirror "https://x-access-token:${MIRROR_PAT}@github.com/${MIRROR_REPO}.git"
           git push mirror "refs/remotes/origin/${{ github.ref_name }}:refs/heads/${{ github.ref_name }}" --force
 
@@ -48,6 +52,11 @@ jobs:
           ACTION: ${{ github.event.action }}
         run: |
           set -euo pipefail
+
+          if [ -z "${GH_TOKEN}" ] || [ -z "${MIRROR_REPO}" ]; then
+            echo "MIRROR_PAT or MIRROR_TARGET_REPO is not set; skipping the mirror."
+            exit 0
+          fi
 
           SOURCE_REPO="${{ github.repository }}"
           SOURCE_PR_URL="${{ github.event.pull_request.html_url }}"

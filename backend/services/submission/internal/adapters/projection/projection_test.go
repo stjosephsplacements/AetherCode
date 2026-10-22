@@ -3,6 +3,7 @@ package projection
 import (
 	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -280,3 +281,55 @@ func TestParseAssignmentSnapshotDuration(t *testing.T) {
 }
 
 func intPointer(value int) *int { return &value }
+
+func TestParseAssignmentSnapshotPaper(t *testing.T) {
+	checksum := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	testCases := []struct {
+		name    string
+		exam    map[string]any
+		item    map[string]any
+		wantErr bool
+	}{
+		{name: "absent on a snapshot published before the fields existed"},
+		{name: "exam and item statements", exam: map[string]any{"title": "Lab test", "instructions_markdown": "Solve both."},
+			item: map[string]any{"title": "Sum", "prompt_markdown": "Print a + b."}},
+		{name: "legacy item in a new snapshot", exam: map[string]any{"title": "Lab test", "instructions_markdown": "Solve."},
+			item: map[string]any{"title": nil, "prompt_markdown": nil}},
+		{name: "title without a statement", item: map[string]any{"title": "Sum"}, wantErr: true},
+		{name: "blank statement", item: map[string]any{"title": "Sum", "prompt_markdown": "  "}, wantErr: true},
+		{name: "exam title too long", exam: map[string]any{"title": strings.Repeat("x", 301)}, wantErr: true},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			item := map[string]any{
+				"exam_item_id": projectionTestUUID, "evaluation_bundle_object_key": "qbank/evaluation/manifest.enc",
+				"evaluation_bundle_checksum": checksum, "maximum_score": 10.0,
+			}
+			for key, value := range testCase.item {
+				item[key] = value
+			}
+			fields := map[string]any{
+				"tenant_id": projectionTestUUID, "candidate_assignment_id": projectionTestUUID,
+				"candidate_id": projectionTestUUID, "exam_id": projectionTestUUID, "exam_version_id": projectionTestUUID,
+				"available_from": "2026-07-24T10:00:00Z", "available_until": "2026-07-24T11:00:00Z",
+				"attempt_limit": 1, "lifecycle_state": "active", "version": 1,
+				"items": []map[string]any{item},
+			}
+			for key, value := range testCase.exam {
+				fields[key] = value
+			}
+			payload, err := json.Marshal(fields)
+			if err != nil {
+				t.Fatalf("marshal payload: %v", err)
+			}
+			_, err = parseAssignmentSnapshot(messaging.Event{
+				ID: projectionTestUUID, Type: AssignmentSnapshotEventType, SchemaVersion: 1,
+				AggregateType: "candidate_assignment", AggregateID: projectionTestUUID, TenantID: projectionTestUUID,
+				OccurredAt: time.Now().UTC(), Payload: payload,
+			})
+			if (err != nil) != testCase.wantErr {
+				t.Fatalf("parseAssignmentSnapshot() error = %v, wantErr %t", err, testCase.wantErr)
+			}
+		})
+	}
+}

@@ -256,6 +256,7 @@ func TestAddExamItemResolvesThroughQuestionBank(t *testing.T) {
 			EvaluationBundle:  EncryptedBundle{ObjectKey: "qbank/eval.bin", SHA256: strings.Repeat("a", 64), KeyReference: "local/key-1"},
 			SampleBundle:      EncryptedBundle{ObjectKey: "qbank/sample.bin", SHA256: strings.Repeat("b", 64), KeyReference: "local/key-1"},
 			TimeLimitMS:       2000, MemoryLimitKiB: 262144, SupportedLanguages: []string{"c", "python3"},
+			Title: "Sum two numbers", PromptMarkdown: "Print a + b.",
 		}
 		mutate(&value)
 		return value
@@ -278,6 +279,8 @@ func TestAddExamItemResolvesThroughQuestionBank(t *testing.T) {
 		{name: "memory limit above the bound is rejected", bank: &fakeQuestionBank{resolved: resolved(func(v *ResolvedQuestionVersion) { v.MemoryLimitKiB = 4_194_305 })}, wantCall: true},
 		{name: "no supported language is rejected", bank: &fakeQuestionBank{resolved: resolved(func(v *ResolvedQuestionVersion) { v.SupportedLanguages = nil })}, wantCall: true},
 		{name: "blank supported language is rejected", bank: &fakeQuestionBank{resolved: resolved(func(v *ResolvedQuestionVersion) { v.SupportedLanguages = []string{" "} })}, wantCall: true},
+		{name: "missing title is rejected", bank: &fakeQuestionBank{resolved: resolved(func(v *ResolvedQuestionVersion) { v.Title = " " })}, wantCall: true},
+		{name: "missing statement is rejected", bank: &fakeQuestionBank{resolved: resolved(func(v *ResolvedQuestionVersion) { v.PromptMarkdown = "" })}, wantCall: true},
 		{name: "bad checksum is rejected", bank: &fakeQuestionBank{resolved: resolved(func(v *ResolvedQuestionVersion) { v.SampleBundle.SHA256 = "xyz" })}, wantCall: true},
 	}
 	for _, tc := range testCases {

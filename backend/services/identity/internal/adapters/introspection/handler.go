@@ -28,6 +28,7 @@ type Accounts interface {
 	ReissuePasswords(context.Context, []string, app.AccountAudit) ([]app.IssuedCredential, error)
 	SetAccountStatus(context.Context, []string, string, app.AccountAudit) error
 	DiscardAccounts(context.Context, []string, app.AccountAudit) error
+	DescribeAccounts(context.Context, []string) ([]app.AccountSummary, error)
 }
 
 type AccessVerifier interface {
@@ -59,6 +60,7 @@ func NewHandler(service SessionValidator, accounts Accounts, accessVerifier Acce
 	mux.HandleFunc("POST /v1/internal/accounts/passwords", handler.reissuePasswords)
 	mux.HandleFunc("POST /v1/internal/accounts/status", handler.setAccountStatus)
 	mux.HandleFunc("POST /v1/internal/accounts/discard", handler.discardAccounts)
+	mux.HandleFunc("POST /v1/internal/accounts/describe", handler.describeAccounts)
 	return noStore(mux), nil
 }
 
@@ -195,4 +197,21 @@ func noStore(next http.Handler) http.Handler {
 		writer.Header().Set("Pragma", "no-cache")
 		next.ServeHTTP(writer, request)
 	})
+}
+
+// describeAccounts returns names and statuses for the User service to show
+// staff (ADR-0043); like every private route, only the trusted peer may call.
+func (handler *Handler) describeAccounts(writer http.ResponseWriter, request *http.Request) {
+	var body struct {
+		PrincipalIDs []string `json:"principal_ids"`
+	}
+	if !handler.decodeTrusted(writer, request, &body) {
+		return
+	}
+	summaries, err := handler.accounts.DescribeAccounts(request.Context(), body.PrincipalIDs)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, map[string]any{"accounts": summaries})
 }

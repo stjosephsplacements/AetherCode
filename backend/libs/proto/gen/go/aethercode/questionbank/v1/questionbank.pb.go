@@ -148,9 +148,19 @@ type ResolvePublishedQuestionVersionResponse struct {
 	// All tests; used for grading.
 	EvaluationBundle *EncryptedBundle `protobuf:"bytes,8,opt,name=evaluation_bundle,json=evaluationBundle,proto3" json:"evaluation_bundle,omitempty"`
 	// Sample tests only; used for candidate "run code".
-	SampleBundle  *EncryptedBundle `protobuf:"bytes,9,opt,name=sample_bundle,json=sampleBundle,proto3" json:"sample_bundle,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	SampleBundle *EncryptedBundle `protobuf:"bytes,9,opt,name=sample_bundle,json=sampleBundle,proto3" json:"sample_bundle,omitempty"`
+	// The published statement candidates read (Markdown).
+	PromptMarkdown string `protobuf:"bytes,10,opt,name=prompt_markdown,json=promptMarkdown,proto3" json:"prompt_markdown,omitempty"`
+	// "coding" (graded on tests) or "mcq" (graded on choices, ADR-0035). An mcq
+	// version has no bundles and no languages.
+	Kind string `protobuf:"bytes,11,opt,name=kind,proto3" json:"kind,omitempty"`
+	// The mcq options in authored order, and the indexes of the correct ones.
+	Choices        []string `protobuf:"bytes,12,rep,name=choices,proto3" json:"choices,omitempty"`
+	CorrectChoices []uint32 `protobuf:"varint,13,rep,packed,name=correct_choices,json=correctChoices,proto3" json:"correct_choices,omitempty"`
+	// Whether a student may select more than one option.
+	MultipleChoice bool `protobuf:"varint,14,opt,name=multiple_choice,json=multipleChoice,proto3" json:"multiple_choice,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ResolvePublishedQuestionVersionResponse) Reset() {
@@ -246,6 +256,41 @@ func (x *ResolvePublishedQuestionVersionResponse) GetSampleBundle() *EncryptedBu
 	return nil
 }
 
+func (x *ResolvePublishedQuestionVersionResponse) GetPromptMarkdown() string {
+	if x != nil {
+		return x.PromptMarkdown
+	}
+	return ""
+}
+
+func (x *ResolvePublishedQuestionVersionResponse) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *ResolvePublishedQuestionVersionResponse) GetChoices() []string {
+	if x != nil {
+		return x.Choices
+	}
+	return nil
+}
+
+func (x *ResolvePublishedQuestionVersionResponse) GetCorrectChoices() []uint32 {
+	if x != nil {
+		return x.CorrectChoices
+	}
+	return nil
+}
+
+func (x *ResolvePublishedQuestionVersionResponse) GetMultipleChoice() bool {
+	if x != nil {
+		return x.MultipleChoice
+	}
+	return false
+}
+
 var File_aethercode_questionbank_v1_questionbank_proto protoreflect.FileDescriptor
 
 const file_aethercode_questionbank_v1_questionbank_proto_rawDesc = "" +
@@ -258,7 +303,7 @@ const file_aethercode_questionbank_v1_questionbank_proto_rawDesc = "" +
 	"object_key\x18\x01 \x01(\tR\tobjectKey\x12\x16\n" +
 	"\x06sha256\x18\x02 \x01(\tR\x06sha256\x12#\n" +
 	"\rkey_reference\x18\x03 \x01(\tR\fkeyReference\x12&\n" +
-	"\x0ftest_case_count\x18\x04 \x01(\rR\rtestCaseCount\"\xe2\x03\n" +
+	"\x0ftest_case_count\x18\x04 \x01(\rR\rtestCaseCount\"\x8b\x05\n" +
 	"'ResolvePublishedQuestionVersionResponse\x12\x1f\n" +
 	"\vquestion_id\x18\x01 \x01(\tR\n" +
 	"questionId\x12.\n" +
@@ -269,7 +314,13 @@ const file_aethercode_questionbank_v1_questionbank_proto_rawDesc = "" +
 	"\rtime_limit_ms\x18\x06 \x01(\rR\vtimeLimitMs\x12(\n" +
 	"\x10memory_limit_kib\x18\a \x01(\rR\x0ememoryLimitKib\x12X\n" +
 	"\x11evaluation_bundle\x18\b \x01(\v2+.aethercode.questionbank.v1.EncryptedBundleR\x10evaluationBundle\x12P\n" +
-	"\rsample_bundle\x18\t \x01(\v2+.aethercode.questionbank.v1.EncryptedBundleR\fsampleBundle2\xca\x01\n" +
+	"\rsample_bundle\x18\t \x01(\v2+.aethercode.questionbank.v1.EncryptedBundleR\fsampleBundle\x12'\n" +
+	"\x0fprompt_markdown\x18\n" +
+	" \x01(\tR\x0epromptMarkdown\x12\x12\n" +
+	"\x04kind\x18\v \x01(\tR\x04kind\x12\x18\n" +
+	"\achoices\x18\f \x03(\tR\achoices\x12'\n" +
+	"\x0fcorrect_choices\x18\r \x03(\rR\x0ecorrectChoices\x12'\n" +
+	"\x0fmultiple_choice\x18\x0e \x01(\bR\x0emultipleChoice2\xca\x01\n" +
 	"\x1bQuestionBankInternalService\x12\xaa\x01\n" +
 	"\x1fResolvePublishedQuestionVersion\x12B.aethercode.questionbank.v1.ResolvePublishedQuestionVersionRequest\x1aC.aethercode.questionbank.v1.ResolvePublishedQuestionVersionResponseB^Z\\github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/questionbank/v1;questionbankv1b\x06proto3"
 

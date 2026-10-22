@@ -58,6 +58,18 @@ func (validationStore) ListAnswerRevisions(context.Context, pgx.Tx, ListAnswerRe
 func (validationStore) GetAttemptUnitSummary(context.Context, pgx.Tx, GetAttempt) ([]AttemptUnitSummary, error) {
 	return nil, nil
 }
+func (validationStore) GetAttemptPaper(context.Context, pgx.Tx, GetAttempt) (StoredPaper, error) {
+	return StoredPaper{}, nil
+}
+func (validationStore) StartCustomRun(context.Context, pgx.Tx, RunCode) (CodeRun, error) {
+	return CodeRun{}, nil
+}
+func (validationStore) SubmitItem(context.Context, pgx.Tx, SubmitItem) (ItemSubmission, error) {
+	return ItemSubmission{}, nil
+}
+func (validationStore) ListItemSubmissions(context.Context, pgx.Tx, SubmitItem) ([]ItemSubmission, error) {
+	return nil, nil
+}
 func (validationStore) ListAttemptUnitResults(context.Context, pgx.Tx, GetAttempt) ([]AttemptUnitResults, error) {
 	return nil, nil
 }
@@ -68,6 +80,44 @@ func (validationStore) GetCodeRun(context.Context, pgx.Tx, GetCodeRun) (CodeRun,
 	return CodeRun{}, nil
 }
 func (validationStore) ListCodeRuns(context.Context, pgx.Tx, ListCodeRuns) ([]CodeRun, error) {
+	return nil, nil
+}
+func (validationStore) GetGradingQueue(context.Context, pgx.Tx, string) (json.RawMessage, error) {
+	panic("unexpected store call")
+}
+
+func (validationStore) GetExamMonitor(context.Context, pgx.Tx, ExamVersionCommand) (json.RawMessage, error) {
+	return nil, nil
+}
+func (validationStore) ReleaseResults(context.Context, pgx.Tx, ReleaseResults) (json.RawMessage, error) {
+	return nil, nil
+}
+func (validationStore) ExtendDeadlines(context.Context, pgx.Tx, ExtendDeadlines) (int, error) {
+	return 0, nil
+}
+func (validationStore) PostAnnouncement(context.Context, pgx.Tx, PostAnnouncement) (json.RawMessage, error) {
+	return nil, nil
+}
+func (validationStore) GetAttemptLiveState(context.Context, pgx.Tx, GetAttempt) (json.RawMessage, error) {
+	return nil, nil
+}
+func (validationStore) GetAttemptResult(context.Context, pgx.Tx, GetAttempt) (json.RawMessage, error) {
+	return nil, nil
+}
+func (validationStore) GetAttemptReview(context.Context, pgx.Tx, GetAttempt) (StoredReview, error) {
+	return StoredReview{}, nil
+}
+func (validationStore) ListExamLatestAnswers(context.Context, pgx.Tx, ExamVersionCommand) ([]StoredLatestAnswer, error) {
+	return nil, nil
+}
+func (validationStore) SaveChoice(context.Context, pgx.Tx, SaveChoice) (json.RawMessage, error) {
+	return nil, nil
+}
+func (validationStore) SetIntegrity(context.Context, pgx.Tx, SetIntegrity) error { return nil }
+func (validationStore) RecordIntegrityEvent(context.Context, pgx.Tx, GetAttempt, string) error {
+	return nil
+}
+func (validationStore) RegradeItem(context.Context, pgx.Tx, ExamVersionCommand, string) (json.RawMessage, error) {
 	return nil, nil
 }
 func (validationStore) Ping(context.Context) error { return nil }

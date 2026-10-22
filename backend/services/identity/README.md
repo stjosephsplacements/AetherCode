@@ -147,3 +147,32 @@ the local outbox and consumes only Identity's targeted response subjects.
 until the exact count/SHA-256 manifest completes. In environments with NATS,
 `IDENTITY_PROJECTION_DATABASE_URL` must use that worker role, never an app or
 owner credential.
+
+## Replacing issued passwords (ADR-0036)
+
+Passwords staff write (provisioning, reissue, single reset) set
+`must_change`; login then returns `password_change_required`.
+`POST /v1/auth/password` with a bearer and `{current_password, new_password}`
+replaces the caller's password and clears the flag.
+
+## Single sign-on (ADR-0042)
+
+`POST /v1/auth/sso/start` and `POST /v1/auth/sso/callback` (both public) sign
+a person in through the college's ZITADEL and link them to the AetherCode
+account with the same username. Sign-in never creates an account. A worker
+copies accounts to ZITADEL as Argon2id hashes, linking to any account the
+provider already has.
+
+| Variable | Meaning |
+| --- | --- |
+| `IDENTITY_SSO_ISSUER` | Provider URL, e.g. `https://sso.stjosephsplacements.in`. Empty turns SSO off. |
+| `IDENTITY_SSO_CLIENT_ID`, `IDENTITY_SSO_CLIENT_SECRET` | The OIDC web application (basic client authentication). |
+| `IDENTITY_SSO_REDIRECT_URI` | `<PUBLIC_ORIGIN>/auth/sso/callback`. |
+| `IDENTITY_SSO_ADMIN_TOKEN_FILE` | A service user's personal access token (Org Owner). Empty turns directory sync off. |
+| `IDENTITY_SSO_ORGANIZATION_ID` | The organization accounts are created in. |
+| `IDENTITY_SSO_EMAIL_DOMAIN` | Domain for accounts without an email: `<username>@<domain>`. |
+
+Run `go test -tags zitadel ./internal/adapters/sso/` with `ZITADEL_TEST_URL`,
+`ZITADEL_TEST_PAT_FILE` and `ZITADEL_TEST_ORG_ID` against a throwaway ZITADEL
+whose `ZITADEL_SYSTEMDEFAULTS_PASSWORDHASHER_VERIFIERS` includes `argon2`, and
+whose test user also holds `IAM_LOGIN_CLIENT`.

@@ -47,3 +47,18 @@ func validateClientSubject(contextValue context.Context, service string, allowed
 	}
 	return nil
 }
+
+// ClientSubject returns the common name of the verified client certificate,
+// or "" when the connection carries none (mTLS disabled in development).
+// Servers use it to keep each client's data apart.
+func ClientSubject(contextValue context.Context) string {
+	peerValue, ok := peer.FromContext(contextValue)
+	if !ok {
+		return ""
+	}
+	tlsInfo, ok := peerValue.AuthInfo.(credentials.TLSInfo)
+	if !ok || len(tlsInfo.State.VerifiedChains) == 0 || len(tlsInfo.State.PeerCertificates) == 0 {
+		return ""
+	}
+	return tlsInfo.State.PeerCertificates[0].Subject.CommonName
+}

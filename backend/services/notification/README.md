@@ -98,3 +98,13 @@ UUIDv7 request through the local outbox and has no broad domain-table grant;
 `000008_retention_execution_boundary` adds the dedicated retention-worker
 database role boundary and the tenant-state lock that orders legal-hold and
 purge work safely. It refuses rollback while an active hold exists.
+
+## Community content (ADR-0048)
+
+Interview experiences (staff-approved), blog posts, contest, hackathon and
+open-source listings with bookmarks, linked coding-platform handles and personal
+tasks, under `/v1/tenants/{tenant_id}/community/...`. Members use resource
+`community`; staff routes under `community/moderation` use
+`community_moderation`. Every table is reached only through
+`notification.community_*` functions that check the signed context
+(migration `000013`).

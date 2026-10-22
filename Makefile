@@ -5,10 +5,10 @@ SERVICES := gateway identity tenant user question-bank assessment submission jud
 # Go code lives under backend/; the web UI under frontend/; apps/ holds standalone apps.
 MODULES := backend/libs/pkg $(addprefix backend/services/,$(SERVICES))
 
-.PHONY: help dev-up dev-down dev-judge-up dev-judge-down build test test-integration test-migrations lint proto migrate bootstrap rotate-authz-key fmt fmt-check vet vuln verify-workspace exam-check exam-build exam-up exam-down
+.PHONY: help k8s-lint engine-check loadtest dev-up dev-down dev-judge-up dev-judge-down build test test-integration test-migrations lint proto migrate bootstrap rotate-authz-key fmt fmt-check vet vuln verify-workspace exam-check exam-build exam-up exam-down web-check web-build
 
 help:
-	@printf '%s\n' 'Targets: exam-check exam-build exam-up exam-down dev-up dev-down dev-judge-up dev-judge-down build test test-integration test-migrations lint proto migrate bootstrap rotate-authz-key fmt fmt-check vet vuln'
+	@printf '%s\n' 'Targets: k8s-lint engine-check loadtest web-check web-build exam-check exam-build exam-up exam-down dev-up dev-down dev-judge-up dev-judge-down build test test-integration test-migrations lint proto migrate bootstrap rotate-authz-key fmt fmt-check vet vuln'
 
 verify-workspace:
 	@cd backend && go work sync
@@ -84,6 +84,12 @@ vuln: verify-workspace
 	@command -v govulncheck >/dev/null
 	@for module in $(MODULES); do (cd $$module && govulncheck ./...); done
 
+web-check:
+	@cd frontend && pnpm install --frozen-lockfile && pnpm typecheck && pnpm lint && pnpm test
+
+web-build:
+	@cd frontend && pnpm install --frozen-lockfile && pnpm build
+
 exam-check:
 	@cd apps/exam-v1 && pnpm install --frozen-lockfile && pnpm typecheck && pnpm test
 
@@ -95,3 +101,15 @@ exam-up:
 
 exam-down:
 	@cd apps/exam-v1/deploy && docker compose down
+
+# On the server, in deploy/single-server (M8). engine-check must print "Engine OK".
+engine-check:
+	@cd deploy/single-server && python3 engine-check.py
+
+# STUDENTS=1000 RAMP=60 make loadtest — never during a real exam.
+loadtest:
+	@cd deploy/single-server && python3 loadtest.py --students $${STUDENTS:-200} --ramp $${RAMP:-30} --runs $${RUNS:-3}
+
+k8s-lint:
+	@command -v helm >/dev/null
+	@deploy/helm/lint.sh

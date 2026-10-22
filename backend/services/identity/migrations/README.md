@@ -23,3 +23,10 @@ expand/backfill/contract pair for production changes.
 targeted recovery state, and hard fail-closed gate for both tenant and platform
 contexts. Only `aether_identity_projection_worker` may apply snapshots or
 start an outbox-backed Identity recovery request.
+
+`000015_sso` adds single sign-on (ADR-0042): `sso_links` (an account's
+provider subject and directory user, and whether AetherCode created that
+user) and `sso_directory_sync`, the queue of accounts to copy to the
+provider. Triggers on `password_credentials` (hash set or changed) and
+`principals` (username, name or email changed) fill the queue. Every existing
+account with a password is queued once. Rollback drops them.

@@ -1,12 +1,34 @@
-nameOverride: "tenant"
+# tenant: environment mirrors deploy/single-server/docker-compose.yml.
+nameOverride: tenant
 
 image:
-  repository: ghcr.io/Shreesh-Sree/CoderQX/tenant
+  repository: ghcr.io/stjosephsplacements/aethercode-tenant
   tag: ""
 
-service:
-  port: 8080
+replicaCount: 2
 
-envFrom:
-  - secretRef:
-      name: tenant-secrets
+tls:
+  enabled: true
+  secretName: aethercode-tls-tenant
+
+config:
+  SERVICE_NAME: "tenant"
+  AUTHZ_ENDPOINT: "user:9443"
+  AUTHZ_CLIENT_TLS_CA_FILE: "/certs/ca.crt"
+  AUTHZ_CLIENT_TLS_SERVER_NAME: "user"
+  AUTHZ_CLIENT_TLS_CERT_FILE: "/certs/tls.crt"
+  AUTHZ_CLIENT_TLS_KEY_FILE: "/certs/tls.key"
+
+secretEnv:
+  - name: TENANT_DB_PASSWORD
+
+env:
+  - name: TENANT_DATABASE_URL
+    value: "postgres://aether_tenant_app:$(TENANT_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_tenant?sslmode={{ .Values.global.postgresSSLMode }}"
+  - name: TENANT_PROJECTION_DATABASE_URL
+    value: "postgres://aether_tenant_projection_worker:$(TENANT_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_tenant?sslmode={{ .Values.global.postgresSSLMode }}"
+
+networkPolicy:
+  allowFrom:
+    - service: gateway
+      ports: [8080]

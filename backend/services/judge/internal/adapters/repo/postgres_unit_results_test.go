@@ -251,3 +251,48 @@ func derefOrNil(p *int) any {
 	}
 	return *p
 }
+
+// TestPullReturnsOnlyTheCallersCompletions proves ADR-0033: a second Judge
+// client (Question Bank) never leases or acknowledges Submission's grading
+// results, and Submission never sees the other client's.
+func TestPullReturnsOnlyTheCallersCompletions(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	pool := bootstrapJudgeSchema(ctx, t)
+
+	gradingJob := insertExecutionJob(ctx, t, pool, "tenant:exam")
+	checkJob := insertExecutionJob(ctx, t, pool, "qbank:model-check")
+	_, err := pool.Exec(ctx, `UPDATE judge.execution_jobs SET client_subject = 'question-bank' WHERE id = $1`, checkJob)
+	require.NoError(t, err)
+	for _, jobID := range []string{gradingJob, checkJob} {
+		insertCompletedUnit(ctx, t, pool, jobID, 0, "accepted", nil, nil)
+		insertCompletionOutboxEvent(ctx, t, pool, jobID, "accepted")
+	}
+
+	store := repo.NewPostgres(pool, nil, nil)
+	pull := func(subject string) []app.Completion {
+		completions, err := store.Pull(ctx, app.PullCompletedExecutions{
+			ClientSubject: subject, ConsumerID: subject + "-consumer", Limit: 10, LeaseSeconds: 30,
+		})
+		require.NoError(t, err)
+		return completions
+	}
+	checks := pull("question-bank")
+	require.Len(t, checks, 1)
+	require.Equal(t, checkJob, checks[0].JobID)
+
+	grading := pull("submission")
+	require.Len(t, grading, 1)
+	require.Equal(t, gradingJob, grading[0].JobID)
+
+	// The other client cannot acknowledge Submission's lease, even with its ids.
+	err = store.Acknowledge(ctx, app.AcknowledgeCompletion{
+		ClientSubject: "question-bank", ConsumerID: "submission-consumer",
+		EventID: grading[0].EventID, DeliveryID: grading[0].DeliveryID, LeaseID: grading[0].LeaseID,
+	})
+	require.Error(t, err)
+	require.NoError(t, store.Acknowledge(ctx, app.AcknowledgeCompletion{
+		ClientSubject: "submission", ConsumerID: "submission-consumer",
+		EventID: grading[0].EventID, DeliveryID: grading[0].DeliveryID, LeaseID: grading[0].LeaseID,
+	}))
+}

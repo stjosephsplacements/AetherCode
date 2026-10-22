@@ -34,15 +34,29 @@ func NewHandler(serviceName string, service *app.Service, readiness httpx.Readin
 	mux.HandleFunc("POST /v1/questions/{question_id}/versions", handler.createDraftQuestionVersion)
 	mux.HandleFunc("POST /v1/questions/{question_id}/archive", handler.archiveQuestion)
 	mux.HandleFunc("GET /v1/question-versions/{question_version_id}", handler.getQuestionVersion)
+	mux.HandleFunc("GET /v1/question-versions/{question_version_id}/export", handler.exportQuestionVersion)
+	mux.HandleFunc("PUT /v1/question-versions/{question_version_id}/choices", handler.setQuestionVersionChoices)
+	mux.HandleFunc("POST /v1/question-versions/{question_version_id}/model-checks", handler.startModelCheck)
+	mux.HandleFunc("GET /v1/question-versions/{question_version_id}/model-checks", handler.listModelChecks)
 	mux.HandleFunc("PUT /v1/question-versions/{question_version_id}/tests", handler.setQuestionVersionTests)
 	mux.HandleFunc("POST /v1/question-versions/{question_version_id}/assets", handler.addQuestionAsset)
 	mux.HandleFunc("PUT /v1/question-versions/{question_version_id}/tags", handler.replaceQuestionVersionTags)
 	mux.HandleFunc("POST /v1/question-versions/{question_version_id}/publish", handler.publishQuestionVersion)
+	mux.HandleFunc("POST /v1/question-versions/{question_version_id}/request-review", handler.requestQuestionReview)
+	mux.HandleFunc("GET /v1/review-policy", handler.reviewPolicy)
 	mux.HandleFunc("DELETE /v1/questions/{question_id}", handler.deleteQuestion)
 	mux.HandleFunc("DELETE /v1/questions/{question_id}/hard", handler.hardDeleteQuestion)
 	mux.HandleFunc("DELETE /v1/question-versions/{question_version_id}", handler.deleteQuestionVersion)
 	mux.HandleFunc("DELETE /v1/question-versions/{question_version_id}/hard", handler.hardDeleteQuestionVersion)
 	mux.HandleFunc("GET /v1/question-versions/{question_version_id}/assets/{asset_kind}", handler.getAsset)
+	mux.HandleFunc("PUT /v1/questions/{question_id}/audience", handler.setQuestionAudience)
+	// Practice (ADR-0041): a student's own college and runs only.
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/practice/questions", handler.listPracticeQuestions)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/practice/questions/{question_id}", handler.getPracticeQuestion)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/practice/questions/{question_id}/submissions", handler.listPracticeSubmissions)
+	mux.HandleFunc("POST /v1/tenants/{tenant_id}/practice/questions/{question_id}/submissions", handler.startPractice)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/practice/submissions/{submission_id}", handler.getPracticeSubmission)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/practice/progress", handler.getPracticeProgress)
 	return mux, nil
 }
 
@@ -350,6 +364,53 @@ func (handler *Handler) publishQuestionVersion(writer http.ResponseWriter, reque
 	httpx.WriteJSON(writer, http.StatusOK, question)
 }
 
+// reviewPolicy tells the staff UI whether publishing needs a review (ADR-0044).
+func (handler *Handler) reviewPolicy(writer http.ResponseWriter, request *http.Request) {
+	if _, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "questions", "policy", ""); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, map[string]bool{"require_review": handler.service.ReviewRequired()})
+}
+
+// requestQuestionReview asks for a review of a draft (ADR-0044).
+type requestQuestionReviewRequest struct {
+	ExpectedQuestionVersion int64  `json:"expected_question_version"`
+	ReviewerID              string `json:"reviewer_id"`
+}
+
+func (handler *Handler) requestQuestionReview(writer http.ResponseWriter, request *http.Request) {
+	questionVersionID, err := httpx.ParseUUIDPathValue(request, "question_version_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var body requestQuestionReviewRequest
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	key, err := idempotencyKey(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "question_versions", questionVersionID, "")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	question, err := handler.service.RequestQuestionReview(request.Context(), decision.Capability, app.RequestQuestionReview{
+		WriteCommand: app.WriteCommand{IdempotencyKey: key}, QuestionVersionID: questionVersionID,
+		ExpectedQuestionVersion: body.ExpectedQuestionVersion, ReviewerID: body.ReviewerID,
+	})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, question)
+}
+
 type archiveQuestionRequest struct {
 	ExpectedQuestionRevision int64 `json:"expected_question_revision"`
 }
@@ -446,6 +507,21 @@ func (handler *Handler) listPublishedQuestions(writer http.ResponseWriter, reque
 		return
 	}
 	query := request.URL.Query()
+	// ?status=draft lists the caller's own drafts instead, and ?status=review
+	// the drafts of every author that wait for a review (ADR-0044).
+	if status := query.Get("status"); status == "draft" || status == "review" {
+		list := handler.service.ListDraftQuestions
+		if status == "review" {
+			list = handler.service.ListReviewQueue
+		}
+		page, draftErr := list(request.Context(), decision.Capability, limit)
+		if draftErr != nil {
+			httpx.WriteError(writer, draftErr)
+			return
+		}
+		httpx.WriteJSON(writer, http.StatusOK, page)
+		return
+	}
 	difficulty, err := httpx.ParseEnumQuery(request, "difficulty", "easy", "medium", "hard")
 	if err != nil {
 		httpx.WriteError(writer, err)
@@ -650,4 +726,256 @@ func (handler *Handler) getAsset(writer http.ResponseWriter, request *http.Reque
 	writer.Header().Set("Content-Length", strconv.Itoa(len(content.Data)))
 	writer.WriteHeader(http.StatusOK)
 	_, _ = writer.Write(content.Data)
+}
+
+// exportQuestionVersion returns a question with all of its tests as a
+// portable file (ADR-0032). Only college and platform administrators obtain
+// the question_exports capability, and each export is recorded.
+func (handler *Handler) exportQuestionVersion(writer http.ResponseWriter, request *http.Request) {
+	questionVersionID, err := httpx.ParseUUIDPathValue(request, "question_version_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "question_exports", questionVersionID, "")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	export, err := handler.service.ExportQuestionVersion(request.Context(), decision.Capability, questionVersionID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.Header().Set("Cache-Control", "no-store")
+	httpx.WriteJSON(writer, http.StatusOK, export)
+}
+
+type modelCheckRequest struct {
+	Language string `json:"language"`
+	Source   string `json:"source"`
+}
+
+// startModelCheck runs an author's reference solution on every test of the
+// version, hidden ones included (ADR-0033).
+func (handler *Handler) startModelCheck(writer http.ResponseWriter, request *http.Request) {
+	questionVersionID, err := httpx.ParseUUIDPathValue(request, "question_version_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var body modelCheckRequest
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "question_versions", questionVersionID, "")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	id, err := handler.service.StartModelCheck(request.Context(), decision.Capability, app.StartModelCheck{
+		QuestionVersionID: questionVersionID, Language: body.Language, Source: body.Source,
+	})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusAccepted, map[string]string{"id": id})
+}
+
+func (handler *Handler) listModelChecks(writer http.ResponseWriter, request *http.Request) {
+	questionVersionID, err := httpx.ParseUUIDPathValue(request, "question_version_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "question_versions", questionVersionID, "")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	checks, err := handler.service.ListModelChecks(request.Context(), decision.Capability, questionVersionID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.Header().Set("Cache-Control", "no-store")
+	httpx.WriteJSON(writer, http.StatusOK, checks)
+}
+
+type choicesRequest struct {
+	ExpectedQuestionVersion int64    `json:"expected_question_version"`
+	Choices                 []string `json:"choices"`
+	CorrectChoices          []int    `json:"correct_choices"`
+	MultipleChoice          bool     `json:"multiple_choice"`
+}
+
+// setQuestionVersionChoices makes a draft multiple-choice (ADR-0035).
+func (handler *Handler) setQuestionVersionChoices(writer http.ResponseWriter, request *http.Request) {
+	questionVersionID, err := httpx.ParseUUIDPathValue(request, "question_version_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var body choicesRequest
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "question_versions", questionVersionID, "")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	version, err := handler.service.SetQuestionVersionChoices(request.Context(), decision.Capability, app.SetQuestionVersionChoices{
+		QuestionVersionID: questionVersionID, ExpectedQuestionVersion: body.ExpectedQuestionVersion,
+		Choices: body.Choices, CorrectChoices: body.CorrectChoices, MultipleChoice: body.MultipleChoice,
+	})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, version)
+}
+
+// setQuestionAudience moves a question between tests and practice (ADR-0041).
+func (handler *Handler) setQuestionAudience(writer http.ResponseWriter, request *http.Request) {
+	questionID, err := httpx.ParseUUIDPathValue(request, "question_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var body struct {
+		Audience string `json:"audience"`
+	}
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "questions", questionID, "")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	if err := handler.service.SetQuestionAudience(request.Context(), decision.Capability, app.SetQuestionAudience{
+		QuestionID: questionID, Audience: body.Audience,
+	}); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, map[string]string{"audience": body.Audience})
+}
+
+// authorizePractice obtains the student's own practice capability for the
+// tenant in the path.
+func (handler *Handler) authorizePractice(request *http.Request, action string) (httpauth.Decision, error) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		return httpauth.Decision{}, err
+	}
+	return handler.authorizer.AuthorizeSelfHTTP(request.Context(), request, action, "practice_submissions", tenantID)
+}
+
+func (handler *Handler) writePractice(writer http.ResponseWriter, status int, value any, err error) {
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.Header().Set("Cache-Control", "no-store")
+	httpx.WriteJSON(writer, status, value)
+}
+
+func (handler *Handler) listPracticeQuestions(writer http.ResponseWriter, request *http.Request) {
+	decision, err := handler.authorizePractice(request, "read")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	questions, err := handler.service.ListPracticeQuestions(request.Context(), decision.Capability)
+	handler.writePractice(writer, http.StatusOK, questions, err)
+}
+
+func (handler *Handler) getPracticeProgress(writer http.ResponseWriter, request *http.Request) {
+	decision, err := handler.authorizePractice(request, "read")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	progress, err := handler.service.GetPracticeProgress(request.Context(), decision.Capability)
+	handler.writePractice(writer, http.StatusOK, progress, err)
+}
+
+func (handler *Handler) getPracticeQuestion(writer http.ResponseWriter, request *http.Request) {
+	questionID, err := httpx.ParseUUIDPathValue(request, "question_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizePractice(request, "read")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	question, err := handler.service.GetPracticeQuestion(request.Context(), decision.Capability, questionID)
+	handler.writePractice(writer, http.StatusOK, question, err)
+}
+
+func (handler *Handler) listPracticeSubmissions(writer http.ResponseWriter, request *http.Request) {
+	questionID, err := httpx.ParseUUIDPathValue(request, "question_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizePractice(request, "read")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	submissions, err := handler.service.ListPracticeSubmissions(request.Context(), decision.Capability, questionID)
+	handler.writePractice(writer, http.StatusOK, submissions, err)
+}
+
+func (handler *Handler) getPracticeSubmission(writer http.ResponseWriter, request *http.Request) {
+	submissionID, err := httpx.ParseUUIDPathValue(request, "submission_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizePractice(request, "read")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	submission, err := handler.service.GetPracticeSubmission(request.Context(), decision.Capability, submissionID)
+	handler.writePractice(writer, http.StatusOK, submission, err)
+}
+
+type practiceRequest struct {
+	Language string  `json:"language"`
+	Mode     string  `json:"mode"`
+	Source   string  `json:"source"`
+	Input    *string `json:"input"`
+}
+
+func (handler *Handler) startPractice(writer http.ResponseWriter, request *http.Request) {
+	questionID, err := httpx.ParseUUIDPathValue(request, "question_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var body practiceRequest
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizePractice(request, "write")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	id, err := handler.service.StartPractice(request.Context(), decision.Capability, app.StartPractice{
+		QuestionID: questionID, Language: body.Language, Mode: body.Mode, Source: body.Source, Input: body.Input,
+	})
+	handler.writePractice(writer, http.StatusAccepted, map[string]string{"id": id}, err)
 }

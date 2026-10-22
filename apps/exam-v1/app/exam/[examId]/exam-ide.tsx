@@ -1,17 +1,13 @@
 "use client";
 
-import { findNext, openSearchPanel } from "@codemirror/search";
-import CodeMirror, { EditorView } from "@uiw/react-codemirror";
-import { cpp } from "@codemirror/lang-cpp";
-import { java } from "@codemirror/lang-java";
-import { python } from "@codemirror/lang-python";
-import { indentUnit } from "@codemirror/language";
+import Editor, { type Monaco } from "@monaco-editor/react";
+import type { editor as monacoEditor } from "monaco-editor";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Markdown } from "@/components/markdown";
 import { LANGUAGES, type LanguageId } from "@/lib/languages";
 import { ThemeToggle, useTheme } from "@/components/theme-toggle";
 import { Button, Logo, cx } from "@/components/ui";
-import { COMPLETIONS } from "./completions";
+import { registerCompletions } from "./completions";
 import { ResultPanel, type SubmissionView } from "./result-panel";
 
 export interface IdeQuestion {
@@ -46,12 +42,13 @@ interface Props {
   insideSeb: boolean;
 }
 
-const EXTENSIONS = {
-  c: [cpp(), indentUnit.of("    ")],
-  cpp: [cpp(), indentUnit.of("    ")],
-  java: [java(), indentUnit.of("    ")],
-  python: [python(), indentUnit.of("    ")],
-};
+const MONACO_LANGUAGE: Record<LanguageId, string> = { c: "c", cpp: "cpp", java: "java", python: "python" };
+
+const EDITOR_THEMES = [
+  { value: "vs-dark", label: "Dark" },
+  { value: "vs", label: "Light" },
+  { value: "hc-black", label: "High Contrast" },
+] as const;
 
 const key = (questionId: string, language: LanguageId) => `${questionId}:${language}`;
 
@@ -300,37 +297,10 @@ export function ExamIde({
 
   // Text copied inside the editor may be pasted back; anything else is blocked.
   const copiedInside = useRef<string[]>([]);
-  const pasteGuard = useMemo(
-    () =>
-      EditorView.domEventHandlers({
-        copy: (_, view) => {
-          copiedInside.current = [...copiedInside.current.slice(-19), view.state.sliceDoc(view.state.selection.main.from, view.state.selection.main.to).trim()];
-        },
-        cut: (_, view) => {
-          copiedInside.current = [...copiedInside.current.slice(-19), view.state.sliceDoc(view.state.selection.main.from, view.state.selection.main.to).trim()];
-        },
-        // Dropping text dragged from outside is the same as pasting it; moving the
-        // editor's own selection by drag stays allowed.
-        drop: (event, view) => {
-          const text = event.dataTransfer?.getData("text/plain").trim() ?? "";
-          const selection = view.state.sliceDoc(view.state.selection.main.from, view.state.selection.main.to).trim();
-          if (!blockExternalPaste || text === "" || text === selection || copiedInside.current.includes(text)) return false;
-          event.preventDefault();
-          setNotice("Dropping text from outside the exam is disabled. This attempt has been recorded.");
-          logEvent("paste");
-          return true;
-        },
-        paste: (event) => {
-          const text = event.clipboardData?.getData("text/plain").trim() ?? "";
-          if (!blockExternalPaste || text === "" || copiedInside.current.includes(text)) return false;
-          event.preventDefault();
-          setNotice("Pasting from outside the exam is disabled. This attempt has been recorded.");
-          logEvent("paste");
-          return true;
-        },
-      }),
-    [blockExternalPaste, logEvent],
-  );
+  const editorRef = useRef<monacoEditor.IStandaloneCodeEditor | null>(null);
+  const [editorTheme, setEditorTheme] = useState(() => {
+    try { return localStorage.getItem("editor-theme") ?? "vs-dark"; } catch { return "vs-dark"; }
+  });
 
   useEffect(() => {
     let last = 0;
@@ -455,26 +425,12 @@ export function ExamIde({
   }
 
   // ---- keyboard shortcuts: Ctrl/Cmd+S save, +Enter run, +Shift+Enter submit ----
-  // Ctrl/Cmd+F, Ctrl/Cmd+G and F3 open the editor's own search: the browser's find
-  // bar takes focus from the page and would be logged as leaving the exam.
-  const editorView = useRef<EditorView | null>(null);
   const executeRef = useRef(execute);
   executeRef.current = execute;
   const codingQuestion = question.mcq === null;
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const mod = event.ctrlKey || event.metaKey;
-      const key = event.key.toLowerCase();
-      if ((mod && !event.altKey && (key === "f" || key === "g")) || event.key === "F3") {
-        event.preventDefault();
-        event.stopPropagation();
-        const view = editorView.current;
-        if (!view) return;
-        view.focus();
-        if (key === "f") openSearchPanel(view);
-        else findNext(view);
-        return;
-      }
       if (!mod || event.altKey) return;
       if (event.key === "s" || event.key === "S") {
         event.preventDefault();
@@ -485,7 +441,6 @@ export function ExamIde({
         void executeRef.current(event.shiftKey ? "submit" : "run");
       }
     };
-    // Capture phase, so the editor's own Mod-Enter binding never sees it.
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   }, [flush, codingQuestion]);
@@ -716,6 +671,14 @@ export function ExamIde({
             >
               Reset code
             </button>
+            <select
+              value={editorTheme}
+              onChange={(event) => { setEditorTheme(event.target.value); try { localStorage.setItem("editor-theme", event.target.value); } catch {} }}
+              className="rounded-lg border border-line-strong bg-surface px-2 py-1 text-xs font-medium"
+              aria-label="Editor theme"
+            >
+              {EDITOR_THEMES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
             <div className="flex items-center rounded-lg border border-line-strong text-xs font-semibold text-muted">
               <button type="button" onClick={() => changeFontSize(-1)} className="px-2 py-1 hover:text-ink" aria-label="Smaller code font">
                 A−
@@ -740,16 +703,57 @@ export function ExamIde({
           </div>
 
           <div className="min-h-0 flex-1 overflow-hidden bg-surface">
-            <CodeMirror
+            <Editor
               key={key(question.id, language)}
+              language={MONACO_LANGUAGE[language]}
               value={source}
-              onChange={edit}
-              height="100%"
-              style={{ height: "100%", fontSize }}
-              theme={theme}
-              onCreateEditor={(view) => (editorView.current = view)}
-              extensions={[...EXTENSIONS[language], ...COMPLETIONS[language], pasteGuard]}
-              basicSetup={{ tabSize: 4, foldGutter: false, highlightActiveLine: true }}
+              theme={editorTheme}
+              onChange={(v) => edit(v ?? "")}
+              onMount={(editor, monaco) => {
+                editorRef.current = editor;
+                registerCompletions(monaco, language);
+                // Tab accepts autocomplete suggestion, not Enter
+                editor.addCommand(monaco.KeyCode.Tab, () => {
+                  const controller = editor.getContribution("editor.contrib.suggestController") as any;
+                  if (controller?.model?.state !== 0) {
+                    controller.acceptSelectedSuggestion();
+                  } else {
+                    editor.trigger("keyboard", "tab", null);
+                  }
+                }, "suggestWidgetVisible");
+                // Paste guard: track copies, block external pastes
+                editor.onDidChangeCursorSelection(() => {
+                  const sel = editor.getModel()?.getValueInRange(editor.getSelection()!) ?? "";
+                  if (sel.trim()) copiedInside.current = [...copiedInside.current.slice(-19), sel.trim()];
+                });
+                if (blockExternalPaste) {
+                  const el = editor.getDomNode();
+                  el?.addEventListener("paste", (event) => {
+                    const text = (event as ClipboardEvent).clipboardData?.getData("text/plain").trim() ?? "";
+                    if (text === "" || copiedInside.current.includes(text)) return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setNotice("Pasting from outside the exam is disabled. This attempt has been recorded.");
+                    logEvent("paste");
+                  }, true);
+                }
+              }}
+              options={{
+                fontSize,
+                tabSize: 4,
+                minimap: { enabled: false },
+                scrollBeyondLastLine: false,
+                folding: false,
+                lineNumbersMinChars: 3,
+                renderLineHighlight: "line",
+                acceptSuggestionOnEnter: "off",
+                tabCompletion: "on",
+                wordBasedSuggestions: "currentDocument",
+                quickSuggestions: true,
+                suggestOnTriggerCharacters: true,
+                automaticLayout: true,
+                padding: { top: 8 },
+              }}
             />
           </div>
 

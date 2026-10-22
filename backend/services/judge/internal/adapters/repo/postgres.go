@@ -75,7 +75,7 @@ func (repository *Postgres) Submit(contextValue context.Context, request app.Sub
 		}
 	}()
 
-	existing, found, err := findExecutionByIdempotencyKey(contextValue, transaction, request.IdempotencyKey)
+	existing, found, err := findExecutionByIdempotencyKey(contextValue, transaction, request.IdempotencyKey, ownerOf(request.ClientSubject))
 	if err != nil {
 		return app.Execution{}, err
 	}
@@ -134,9 +134,9 @@ func (repository *Postgres) Submit(contextValue context.Context, request app.Sub
 			evaluation_bundle_key_reference, source_key_reference,
 			source_ciphertext_ref, source_ciphertext_sha256, request_ciphertext_ref, language_key,
 			cpu_time_limit_ms, wall_time_limit_ms, memory_limit_bytes, process_limit,
-			expires_at
+			expires_at, client_subject
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19
 		)
 		ON CONFLICT (idempotency_key) DO NOTHING
 		RETURNING id
@@ -146,10 +146,10 @@ func (repository *Postgres) Submit(contextValue context.Context, request app.Sub
 		request.EvaluationBundleKeyRef, request.SourceKeyRef,
 		request.SourceCiphertextRef, request.SourceCiphertextSHA256, nullableText(request.RequestCiphertextRef), request.LanguageKey,
 		request.Limits.CPUTimeMS, request.Limits.WallTimeMS, request.Limits.Memory, request.Limits.Processes,
-		request.ExpiresAt.UTC(),
+		request.ExpiresAt.UTC(), ownerOf(request.ClientSubject),
 	).Scan(&insertedJobID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		existing, found, lookupErr := findExecutionByIdempotencyKey(contextValue, transaction, request.IdempotencyKey)
+		existing, found, lookupErr := findExecutionByIdempotencyKey(contextValue, transaction, request.IdempotencyKey, ownerOf(request.ClientSubject))
 		if lookupErr != nil {
 			return app.Execution{}, lookupErr
 		}
@@ -205,13 +205,15 @@ type existingExecution struct {
 	state       string
 }
 
-func findExecutionByIdempotencyKey(contextValue context.Context, transaction pgx.Tx, key string) (existingExecution, bool, error) {
+// findExecutionByIdempotencyKey finds the caller's own job for key; another
+// client's job with the same key is never returned (ADR-0033).
+func findExecutionByIdempotencyKey(contextValue context.Context, transaction pgx.Tx, key, clientSubject string) (existingExecution, bool, error) {
 	var execution existingExecution
 	err := transaction.QueryRow(contextValue, `
 		SELECT id, request_fingerprint, state
 		FROM judge.execution_jobs
-		WHERE idempotency_key = $1 AND deleted_at IS NULL
-	`, key).Scan(&execution.id, &execution.fingerprint, &execution.state)
+		WHERE idempotency_key = $1 AND client_subject = $2 AND deleted_at IS NULL
+	`, key, clientSubject).Scan(&execution.id, &execution.fingerprint, &execution.state)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return existingExecution{}, false, nil
 	}
@@ -302,13 +304,18 @@ func (repository *Postgres) Pull(
 
 	rows, err := transaction.Query(contextValue, `
 		SELECT event_id, aggregate_id, payload
-		FROM judge.outbox_events
-		WHERE (state = 'pending' AND available_at <= clock_timestamp())
-		   OR (state = 'leased' AND lease_expires_at <= clock_timestamp())
+		FROM judge.outbox_events AS outbox
+		WHERE ((state = 'pending' AND available_at <= clock_timestamp())
+		    OR (state = 'leased' AND lease_expires_at <= clock_timestamp()))
+		  -- Only the caller's own jobs' completions (ADR-0033).
+		  AND EXISTS (
+		      SELECT 1 FROM judge.execution_jobs AS job
+		      WHERE job.id = outbox.aggregate_id AND job.client_subject = $2
+		  )
 		ORDER BY available_at, created_at
-		FOR UPDATE SKIP LOCKED
+		FOR UPDATE OF outbox SKIP LOCKED
 		LIMIT $1
-	`, request.Limit)
+	`, request.Limit, ownerOf(request.ClientSubject))
 	if err != nil {
 		return nil, fmt.Errorf("select completed executions: %w", err)
 	}
@@ -416,7 +423,11 @@ func (repository *Postgres) Acknowledge(
 		  AND lease_owner = $2
 		  AND lease_id = $3
 		  AND lease_expires_at > clock_timestamp()
-	`, request.EventID, request.ConsumerID, request.LeaseID)
+		  AND EXISTS (
+		      SELECT 1 FROM judge.execution_jobs AS job
+		      WHERE job.id = judge.outbox_events.aggregate_id AND job.client_subject = $4
+		  )
+	`, request.EventID, request.ConsumerID, request.LeaseID, ownerOf(request.ClientSubject))
 	if err != nil {
 		return fmt.Errorf("claim completion outbox acknowledgement: %w", err)
 	}
@@ -443,4 +454,13 @@ func (repository *Postgres) Acknowledge(
 		return fmt.Errorf("commit completion acknowledgement: %w", err)
 	}
 	return nil
+}
+
+// ownerOf is the client a job belongs to (ADR-0033). An empty subject is
+// Submission, the only client before jobs recorded their owner.
+func ownerOf(clientSubject string) string {
+	if clientSubject == "" {
+		return "submission"
+	}
+	return clientSubject
 }

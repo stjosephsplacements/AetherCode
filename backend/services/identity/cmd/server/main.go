@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/aethercode/aethercode/services/identity/internal/adapters/sso"
 	"log/slog"
 	"net"
 	"net/http"
@@ -186,6 +187,16 @@ func run(contextValue context.Context) error {
 	})
 	if err != nil {
 		return err
+	}
+	// Single sign-on through the college's provider (ADR-0042); off when
+	// IDENTITY_SSO_ISSUER is empty.
+	ssoConfig, err := sso.LoadConfig()
+	if err != nil {
+		return err
+	}
+	if provider := sso.New(ssoConfig); provider != nil {
+		identityService.UseSSO(provider, store)
+		go identityService.RunDirectorySync(runContext, logger)
 	}
 	registerLimiter, err := ratelimit.New(ratelimit.Config{
 		Capacity:        float64(runtime.RegisterBurst),

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: platform-pki
+description: Private CA and per-service mTLS certificates for AetherCode, issued by cert-manager
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

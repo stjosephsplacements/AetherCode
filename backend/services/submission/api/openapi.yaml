@@ -98,6 +98,31 @@ paths:
         '400': { $ref: '#/components/responses/Problem400' }
         '403': { $ref: '#/components/responses/Problem403' }
         '404': { $ref: '#/components/responses/Problem404' }
+  /v1/tenants/{tenant_id}/attempts/{attempt_id}/paper:
+    get:
+      summary: The exam paper of an attempt the caller owns (ADR-0023)
+      description: >-
+        The exam's title and instructions, each item's statement, limits and
+        languages in exam order, and the caller's latest saved answer for each
+        item, decrypted. Sent with Cache-Control no-store. Items snapshotted
+        before Assessment migration 000026 are titled "Question N" with an
+        empty statement.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/AttemptID'
+      responses:
+        '200':
+          description: The paper.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paper'
+        '400': { $ref: '#/components/responses/Problem400' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '404': { $ref: '#/components/responses/Problem404' }
+        '503': { $ref: '#/components/responses/Problem503' }
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/answers:
     get:
       summary: List answer-revision metadata for an attempt the caller owns (keyset paged)
@@ -256,6 +281,14 @@ paths:
                   type: string
                   minLength: 1
                   maxLength: 65536
+                input:
+                  type: string
+                  maxLength: 65536
+                  description: >-
+                    Run against this stdin instead of the sample tests
+                    (ADR-0025). The result has one unit whose stdout is the
+                    program's output; its verdict compares against empty
+                    expected output.
       responses:
         '202':
           description: The run was queued for Judge.
@@ -297,6 +330,62 @@ paths:
         '400': { $ref: '#/components/responses/Problem400' }
         '403': { $ref: '#/components/responses/Problem403' }
         '404': { $ref: '#/components/responses/Problem404' }
+  /v1/tenants/{tenant_id}/attempts/{attempt_id}/items/{exam_item_id}/submissions:
+    post:
+      summary: Submit the item's latest saved code against all of its tests (ADR-0025)
+      description: >-
+        Accepted while the attempt is active, up to the deadline plus a
+        15-second grace. Submitting unchanged code returns the existing
+        evaluation. At most two evaluations may be open per attempt; a 409
+        carries a message meant for the candidate. Each item scores its best
+        evaluation when the attempt is graded.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/AttemptID'
+        - $ref: '#/components/parameters/ExamItemID'
+      responses:
+        '202':
+          description: The evaluation was queued for Judge.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemSubmission'
+        '400': { $ref: '#/components/responses/Problem400' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '404': { $ref: '#/components/responses/Problem404' }
+        '409': { $ref: '#/components/responses/Problem409' }
+        '429':
+          description: Too many runs and submissions; retry after the Retry-After seconds.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Problem' }
+    get:
+      summary: The caller's evaluations of one item, newest first (at most 50)
+      description: Hidden tests appear only as counts per verdict.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/AttemptID'
+        - $ref: '#/components/parameters/ExamItemID'
+      responses:
+        '200':
+          description: The item's evaluations.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/ItemSubmission' }
+        '400': { $ref: '#/components/responses/Problem400' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '404': { $ref: '#/components/responses/Problem404' }
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/runs/{run_id}:
     get:
       summary: Return one of the caller's runs with every sample test's input and output
@@ -319,6 +408,263 @@ paths:
         '400': { $ref: '#/components/responses/Problem400' }
         '403': { $ref: '#/components/responses/Problem403' }
         '404': { $ref: '#/components/responses/Problem404' }
+  /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/monitor:
+    get:
+      summary: Live monitor of an exam version, for staff (ADR-0027)
+      description: >-
+        One row per active assignment with the newest attempt, answered items
+        and the finalized or best-so-far score, plus the release state and
+        announcements. Requires read on score_summaries.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/ExamVersionID'
+      responses:
+        '200':
+          description: The monitor.
+          content:
+            application/json:
+              schema: { type: object }
+        '403': { $ref: '#/components/responses/Problem403' }
+  /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/results-release:
+    put:
+      summary: Show or hide an exam version's results to its candidates (ADR-0027)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/ExamVersionID'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [released]
+              properties:
+                released: { type: boolean }
+      responses:
+        '200':
+          description: The release time, null when hidden.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results_released_at: { type: [string, 'null'], format: date-time }
+        '403': { $ref: '#/components/responses/Problem403' }
+  /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/extensions:
+    post:
+      summary: Add time to one in-progress attempt, or to all of them (ADR-0027)
+      description: >-
+        Without attempt_id, every attempt of the version still in progress
+        gets the time. Ended attempts are never reopened; naming one is a 409.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/ExamVersionID'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [minutes]
+              properties:
+                minutes: { type: integer, minimum: 1, maximum: 240 }
+                attempt_id: { $ref: '#/components/schemas/UUID' }
+      responses:
+        '200':
+          description: How many attempts got the time.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  extended_attempts: { type: integer }
+        '400': { $ref: '#/components/responses/Problem400' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '409': { $ref: '#/components/responses/Problem409' }
+  /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/announcements:
+    post:
+      summary: Show a message to every candidate of the exam version (ADR-0027)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/ExamVersionID'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [body]
+              properties:
+                body: { type: string, minLength: 1, maxLength: 2000 }
+      responses:
+        '201':
+          description: The announcement.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Announcement' }
+        '400': { $ref: '#/components/responses/Problem400' }
+        '403': { $ref: '#/components/responses/Problem403' }
+  /v1/tenants/{tenant_id}/attempts/{attempt_id}/live:
+    get:
+      summary: The caller's current deadline and the exam's announcements (ADR-0027)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/AttemptID'
+      responses:
+        '200':
+          description: The live state.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  lifecycle_state: { type: string }
+                  submission_deadline: { type: string, format: date-time }
+                  announcements:
+                    type: array
+                    items: { $ref: '#/components/schemas/Announcement' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '404': { $ref: '#/components/responses/Problem404' }
+  /v1/tenants/{tenant_id}/attempts/{attempt_id}/result:
+    get:
+      summary: The caller's score, once staff release results (ADR-0027)
+      description: >-
+        {"released": false} until results are released and the attempt is
+        graded; then the total and each question's best score.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/AttemptID'
+      responses:
+        '200':
+          description: The result.
+          content:
+            application/json:
+              schema: { type: object }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '404': { $ref: '#/components/responses/Problem404' }
+  /v1/tenants/{tenant_id}/attempts/{attempt_id}/review:
+    get:
+      summary: Staff review of one attempt (ADR-0029)
+      description: >-
+        Each question's latest code, its evaluations with per-verdict counts,
+        the finalized score and the attempt's event log. Requires read on
+        judge_receipts, which no candidate can hold.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/AttemptID'
+      responses:
+        '200':
+          description: The review.
+          content:
+            application/json:
+              schema: { type: object }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '404': { $ref: '#/components/responses/Problem404' }
+  /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/similarity:
+    get:
+      summary: Code similarity report for staff (ADR-0031)
+      description: >-
+        Per question, pairs of attempts whose latest code shares most of its
+        unusual structure (score 0.6 to 1, at most 100 pairs). Requires read
+        on judge_receipts.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/ExamVersionID'
+      responses:
+        '200':
+          description: The report.
+          content:
+            application/json:
+              schema: { type: array, items: { type: object } }
+        '403': { $ref: '#/components/responses/Problem403' }
+  /v1/tenants/{tenant_id}/attempts/{attempt_id}/choices/{exam_item_id}:
+    put:
+      summary: Save the caller's selection for a multiple-choice item (ADR-0035)
+      description: Indexes are the options' authored indexes from the paper; an empty list clears the answer.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/AttemptID'
+        - $ref: '#/components/parameters/ExamItemID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [selected]
+              properties:
+                selected: { type: array, maxItems: 10, items: { type: integer, minimum: 0 } }
+      responses:
+        '200': { description: The saved selection. }
+        '400': { $ref: '#/components/responses/Problem400' }
+        '409': { $ref: '#/components/responses/Problem409' }
+  /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/integrity:
+    put:
+      summary: Require fullscreen and block outside pastes for an exam (ADR-0037)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/ExamVersionID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                require_fullscreen: { type: boolean }
+                block_external_paste: { type: boolean }
+      responses:
+        '200': { description: The saved settings. }
+        '403': { $ref: '#/components/responses/Problem403' }
+  /v1/tenants/{tenant_id}/attempts/{attempt_id}/events:
+    post:
+      summary: Record an integrity event for the caller's attempt (ADR-0037)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/AttemptID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [kind]
+              properties:
+                kind: { type: string, enum: [blur, paste, fullscreen_exit] }
+      responses:
+        '204': { description: Recorded (or ignored once the attempt ended). }
+        '400': { $ref: '#/components/responses/Problem400' }
 components:
   securitySchemes:
     bearerAuth:
@@ -338,6 +684,12 @@ components:
       required: true
       schema:
         $ref: '#/components/schemas/UUID'
+    ExamVersionID:
+      name: exam_version_id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/UUID'
     ExamItemID:
       name: exam_item_id
       in: path
@@ -353,6 +705,12 @@ components:
         minLength: 1
         maxLength: 255
   schemas:
+    Announcement:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        body: { type: string }
+        created_at: { type: string, format: date-time }
     UUID:
       type: string
       format: uuid
@@ -470,6 +828,61 @@ components:
               compile_output: { type: [string, 'null'] }
               execution_time_ms: { type: [integer, 'null'] }
               memory_kib: { type: [integer, 'null'] }
+    ItemSubmission:
+      type: object
+      additionalProperties: false
+      required: [id, origin, lifecycle_state, queued_at, completed_at, verdict, score, passed_units, total_units, verdict_counts]
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        origin: { type: string, enum: [item_submit, final] }
+        lifecycle_state: { type: string, enum: [queued, dispatched, completed, failed, cancelled] }
+        language_id: { type: string }
+        revision_number: { type: integer, minimum: 1 }
+        queued_at: { type: string, format: date-time }
+        completed_at: { type: [string, 'null'], format: date-time }
+        verdict: { type: [string, 'null'] }
+        score: { type: [string, 'null'], description: Null until judged. }
+        maximum_score: { type: string }
+        passed_units: { type: [integer, 'null'] }
+        total_units: { type: [integer, 'null'] }
+        verdict_counts:
+          type: object
+          additionalProperties: { type: integer, minimum: 1 }
+          description: Number of tests per verdict, for example {"accepted":3,"wrong_answer":1}.
+    Paper:
+      type: object
+      additionalProperties: false
+      required: [attempt_id, exam_id, title, instructions_markdown, items]
+      properties:
+        attempt_id: { $ref: '#/components/schemas/UUID' }
+        exam_id: { $ref: '#/components/schemas/UUID' }
+        title: { type: string }
+        instructions_markdown: { type: string }
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [exam_item_id, position, title, prompt_markdown, maximum_score, supported_languages, time_limit_ms, memory_limit_kib, latest_answer]
+            properties:
+              exam_item_id: { $ref: '#/components/schemas/UUID' }
+              position: { type: integer, minimum: 1 }
+              title: { type: string }
+              prompt_markdown: { type: string }
+              maximum_score: { type: string }
+              supported_languages: { type: array, items: { type: string } }
+              time_limit_ms: { type: integer, minimum: 0 }
+              memory_limit_kib: { type: integer, minimum: 0 }
+              latest_answer:
+                oneOf:
+                  - type: 'null'
+                  - type: object
+                    additionalProperties: false
+                    required: [language, source, revision_number]
+                    properties:
+                      language: { type: string }
+                      source: { type: string }
+                      revision_number: { type: integer, minimum: 1 }
     CodeRunPage:
       type: object
       additionalProperties: false

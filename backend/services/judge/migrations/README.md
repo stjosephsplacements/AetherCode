@@ -101,3 +101,12 @@ the per-test scoring weight copied from the evaluation bundle during fan-out.
 fan-out when the bundle is a sample bundle, and `execution_units.raw_result_key_reference`.
 A sample job's unit stores its encrypted output object's reference, SHA-256
 and key reference (all or none); every other unit stores none (ADR-0021).
+
+`000012_aethercode_language_mappings` lets `language_mappings.engine_name` be
+`aethercode`, the AetherCode Execution Engine (ADR-0028). Rollback refuses
+while such rows exist.
+
+`000013_job_client_subject` adds `execution_jobs.client_subject` (ADR-0033):
+the mTLS subject of the service that submitted the job, `submission` for
+existing jobs. Pull and Acknowledge return and accept only the caller's own
+jobs' completions. Rollback refuses while other clients' jobs exist.

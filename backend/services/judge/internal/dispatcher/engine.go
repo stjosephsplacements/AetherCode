@@ -4,7 +4,7 @@ package dispatcher
 import "context"
 
 // Engine is the evaluation engine port. The stub is used by default; the
-// Judge0 (JUDGE_ENGINE=judge0) and Piston (JUDGE_ENGINE=piston) adapters
+// Judge0 (JUDGE_ENGINE=judge0) and AetherCode (JUDGE_ENGINE=aethercode) adapters
 // require the engine compatibility gate.
 type Engine interface {
 	Submit(ctx context.Context, req UnitRequest) (token string, err error)

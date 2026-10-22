@@ -15,18 +15,25 @@ type PublishedVersionStore interface {
 	ResolvePublishedQuestionVersion(context.Context, string) (ResolvedQuestionVersion, error)
 }
 
-// ResolvedQuestionVersion is what an exam item pins: limits and the encrypted
-// evaluation and sample bundles. It never carries test content.
+// ResolvedQuestionVersion is what an exam item pins: the statement, limits and
+// the encrypted evaluation and sample bundles. It never carries test content.
 type ResolvedQuestionVersion struct {
 	QuestionID         string
 	QuestionVersionID  string
 	VersionNumber      int
 	Title              string
+	PromptMarkdown     string
 	SupportedLanguages []string
 	TimeLimitMS        int
 	MemoryLimitKiB     int
 	Evaluation         ResolvedBundle
 	Sample             ResolvedBundle
+	// Kind is "coding" or "mcq" (ADR-0035); an mcq version has no bundles and
+	// carries its options and answer key instead.
+	Kind           string
+	Choices        []string
+	CorrectChoices []int
+	MultipleChoice bool
 }
 
 type ResolvedBundle struct {

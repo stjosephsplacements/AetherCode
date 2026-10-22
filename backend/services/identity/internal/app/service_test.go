@@ -54,6 +54,8 @@ func (store *memoryStore) RequestPasswordReset(_ context.Context, command Passwo
 	return nil
 }
 
+func (store *memoryStore) ChangePassword(context.Context, PasswordChange) error { return nil }
+
 func (store *memoryStore) ResetPassword(_ context.Context, command PasswordReset) error {
 	store.reset = command
 	return nil

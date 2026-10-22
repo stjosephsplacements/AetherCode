@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"net/netip"
 	"net/url"
 	"slices"
 	"strings"
@@ -20,6 +21,9 @@ import (
 
 const maxAcceptedKeys = 16
 
+// maxAllowedNetworks bounds an exam's lab networks (ADR-0030).
+const maxAllowedNetworks = 50
+
 // Check results. Gateway lets a request through on CheckNotRequired or
 // CheckMatched only.
 const (
@@ -27,26 +31,33 @@ const (
 	CheckMissing     = "missing"
 	CheckMatched     = "matched"
 	CheckMismatched  = "mismatched"
+	// CheckNetworkRefused: the candidate has an open exam limited to lab
+	// networks and the request comes from outside them (ADR-0030).
+	CheckNetworkRefused = "network_refused"
 )
 
 type ExamPolicy struct {
-	TenantID     string    `json:"tenant_id"`
-	ExamID       string    `json:"exam_id"`
-	Title        string    `json:"title"`
-	Enabled      bool      `json:"enabled"`
-	AcceptedKeys []string  `json:"accepted_keys"`
-	UpdatedBy    string    `json:"updated_by"`
-	UpdatedAt    time.Time `json:"updated_at"`
-	Version      int       `json:"version"`
+	TenantID     string   `json:"tenant_id"`
+	ExamID       string   `json:"exam_id"`
+	Title        string   `json:"title"`
+	Enabled      bool     `json:"enabled"`
+	AcceptedKeys []string `json:"accepted_keys"`
+	// AllowedNetworks, when not empty, are the only networks candidates may
+	// sit the exam from, as CIDR prefixes.
+	AllowedNetworks []string  `json:"allowed_networks"`
+	UpdatedBy       string    `json:"updated_by"`
+	UpdatedAt       time.Time `json:"updated_at"`
+	Version         int       `json:"version"`
 }
 
 type PutExamPolicy struct {
-	TenantID     string
-	ExamID       string
-	Title        string
-	Enabled      bool
-	AcceptedKeys []string
-	ActorID      string
+	TenantID        string
+	ExamID          string
+	Title           string
+	Enabled         bool
+	AcceptedKeys    []string
+	AllowedNetworks []string
+	ActorID         string
 }
 
 type CheckExamRequest struct {
@@ -54,6 +65,8 @@ type CheckExamRequest struct {
 	URL           string
 	RequestHash   string
 	ConfigKeyHash string
+	// ClientIP is the address Gateway trusts for the request; empty when unknown.
+	ClientIP string
 }
 
 // LaunchSettings are the deployment's values for .seb files: BaseURL is the
@@ -97,8 +110,13 @@ func (service *Service) PutExamPolicy(ctx context.Context, capability centralaut
 		return ExamPolicy{}, invalid("locking an exam needs at least one accepted key")
 	}
 	command.AcceptedKeys = keys
+	networks, err := normalizeNetworks(command.AllowedNetworks)
+	if err != nil {
+		return ExamPolicy{}, err
+	}
+	command.AllowedNetworks = networks
 	var policy ExamPolicy
-	err := database.WithTenantTx(ctx, service.pool, capability, func(transaction pgx.Tx) error {
+	err = database.WithTenantTx(ctx, service.pool, capability, func(transaction pgx.Tx) error {
 		var err error
 		policy, err = service.lockdown.PutExamPolicy(ctx, transaction, command)
 		return err
@@ -127,6 +145,14 @@ func (service *Service) CheckExamRequest(ctx context.Context, capability central
 	if !isUUID(command.TenantID) || err != nil || (parsed.Scheme != "https" && parsed.Scheme != "http") ||
 		parsed.Host == "" || parsed.Fragment != "" || strings.Contains(command.URL, "#") || len(command.URL) > 8192 {
 		return "", invalid("an SEB request check needs a tenant and an absolute URL without a fragment")
+	}
+	command.ClientIP = strings.TrimSpace(command.ClientIP)
+	if command.ClientIP != "" {
+		address, parseErr := netip.ParseAddr(command.ClientIP)
+		if parseErr != nil {
+			return "", invalid("client_ip must be an IP address")
+		}
+		command.ClientIP = address.Unmap().String()
 	}
 	for _, hash := range []*string{&command.RequestHash, &command.ConfigKeyHash} {
 		*hash = strings.ToLower(strings.TrimSpace(*hash))
@@ -186,4 +212,38 @@ func (service *Service) launchFile(examID, title string) (LaunchFile, error) {
 		return LaunchFile{}, err
 	}
 	return LaunchFile{Filename: launchfile.Filename(title), Content: content}, nil
+}
+
+// normalizeNetworks accepts addresses ("10.20.3.4") and CIDR ranges
+// ("10.20.0.0/16"), IPv4 or IPv6, and returns them as canonical prefixes.
+func normalizeNetworks(entries []string) ([]string, error) {
+	networks := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+		var prefix netip.Prefix
+		if strings.Contains(entry, "/") {
+			parsed, err := netip.ParsePrefix(entry)
+			if err != nil {
+				return nil, invalid("each lab network must be an IP address or a range like 10.20.0.0/16")
+			}
+			prefix = parsed.Masked()
+		} else {
+			address, err := netip.ParseAddr(entry)
+			if err != nil {
+				return nil, invalid("each lab network must be an IP address or a range like 10.20.0.0/16")
+			}
+			address = address.Unmap()
+			prefix = netip.PrefixFrom(address, address.BitLen())
+		}
+		if !slices.Contains(networks, prefix.String()) {
+			networks = append(networks, prefix.String())
+		}
+	}
+	if len(networks) > maxAllowedNetworks {
+		return nil, invalid("an exam allows at most 50 lab networks")
+	}
+	return networks, nil
 }

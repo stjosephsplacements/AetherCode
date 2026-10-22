@@ -1,0 +1,6 @@
+apiVersion: v2
+name: platform-migrations
+description: Database migrations, authorization capability keys and judge language mappings for AetherCode, run as Helm hook Jobs before the services roll out
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

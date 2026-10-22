@@ -154,6 +154,14 @@ func TestHandlerNeverRoutesJudgeOrSpoofedForwardingHeaders(t *testing.T) {
 		t.Fatalf("judge status = %d", judgeRecorder.Code)
 	}
 
+	metricsRequest := proxyRequest(http.MethodGet, "/api/submission/metrics")
+	metricsRequest.Header.Set("Authorization", "Bearer assertion")
+	metricsRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(metricsRecorder, metricsRequest)
+	if metricsRecorder.Code != http.StatusNotFound {
+		t.Fatalf("metrics status = %d, want 404: service metrics are not for users", metricsRecorder.Code)
+	}
+
 	spoofedRequest := proxyRequest(http.MethodGet, "/api/submission/v1/attempts")
 	spoofedRequest.Header.Set("Authorization", "Bearer assertion")
 	spoofedRequest.Header.Set("X-Forwarded-For", "203.0.113.4")
@@ -218,7 +226,7 @@ func TestHandlerChecksSEBRequestHashBeforeForwarding(t *testing.T) {
 		}
 		want := sebCheckRequest{
 			URL:         "https://exam.example/api/submission/v1/tenants/" + tenantID + "/attempts/22222222-2222-4222-8222-222222222222/submit?x=%2F",
-			RequestHash: requestHash, ConfigKeyHash: configKeyHash,
+			RequestHash: requestHash, ConfigKeyHash: configKeyHash, ClientIP: "192.0.2.44",
 		}
 		if body != want {
 			t.Errorf("SEB check = %+v, want %+v", body, want)
@@ -280,5 +288,31 @@ func TestHandlerFailsClosedOnSEBCheck(t *testing.T) {
 				t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
 			}
 		})
+	}
+}
+
+func TestHandlerRefusesRequestsFromOutsideTheLabNetwork(t *testing.T) {
+	const tenantID = "33333333-3333-4333-8333-333333333333"
+	target := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		t.Error("a request from outside the lab must not reach the service")
+	}))
+	defer target.Close()
+	seb := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(writer).Encode(sebCheckResponse{Result: "network_refused"})
+	}))
+	defer seb.Close()
+	verifier := &testVerifier{claims: authn.Claims{Subject: "11111111-1111-4111-8111-111111111111"}}
+	handler := newTestHandler(t, map[string]*url.URL{
+		"submission": mustURL(t, target.URL),
+		"seb":        mustURL(t, seb.URL),
+	}, verifier, []string{"/api/submission/v1/tenants"}, nil)
+	request := proxyRequest(http.MethodGet, "/api/submission/v1/tenants/"+tenantID+"/attempts")
+	request.Header.Set("Authorization", "Bearer assertion")
+	recorder := httptest.NewRecorder()
+
+	handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusForbidden || !strings.Contains(recorder.Body.String(), "lab network") {
+		t.Fatalf("status = %d, body = %s; want 403 naming the lab network", recorder.Code, recorder.Body.String())
 	}
 }

@@ -60,7 +60,7 @@ func TestAttemptDeadlineIsStartPlusDuration(t *testing.T) {
 			SELECT submission.apply_assignment_snapshot(
 				$1, $2, $3, $4, gen_random_uuid(), gen_random_uuid(),
 				clock_timestamp() - interval '1 minute', clock_timestamp() + $5::interval,
-				1::smallint, 'active', 1, $6::jsonb, $7
+				1::smallint, 'active', 1, $6::jsonb, $7, NULL, NULL
 			)`, newID(t), unitTenantID, assignmentID, candidateID, testCase.closesIn,
 			"["+executableItem(newID(t))+"]", testCase.duration)
 		require.NoError(t, err, testCase.name)
@@ -78,7 +78,7 @@ func TestAttemptDeadlineIsStartPlusDuration(t *testing.T) {
 	_, err := pool.Exec(ctx, `
 		SELECT submission.apply_assignment_snapshot(
 			$1, $2, $3, $4, gen_random_uuid(), gen_random_uuid(),
-			clock_timestamp(), clock_timestamp() + interval '1 hour', 1::smallint, 'active', 1, $5::jsonb, 59
+			clock_timestamp(), clock_timestamp() + interval '1 hour', 1::smallint, 'active', 1, $5::jsonb, 59, NULL, NULL
 		)`, newID(t), unitTenantID, newID(t), newID(t), "["+executableItem(newID(t))+"]")
 	require.Error(t, err, "a duration below one minute is refused")
 }

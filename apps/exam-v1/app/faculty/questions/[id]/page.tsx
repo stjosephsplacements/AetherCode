@@ -28,14 +28,18 @@ export default async function EditQuestionPage({
       kind: "coding" | "mcq";
       mcq_options: string[] | null;
       mcq_correct: number[] | null;
+      topic: string | null;
+      difficulty: string | null;
     }[]
-  >`SELECT title, statement, time_limit_ms, memory_limit_kb, reference_language, reference_source, kind, mcq_options, mcq_correct
+  >`SELECT title, statement, time_limit_ms, memory_limit_kb, reference_language, reference_source, kind, mcq_options, mcq_correct, topic, difficulty
     FROM questions WHERE id = ${id}`;
   if (!question) notFound();
   const tests = await sql<{ input: string; expected_output: string; is_sample: boolean; weight: number }[]>`
     SELECT input, expected_output, is_sample, weight FROM test_cases WHERE question_id = ${id} ORDER BY ord`;
   const [{ count }] = await sql<{ count: number }[]>`
     SELECT count(*)::int AS count FROM submissions WHERE question_id = ${id} AND kind = 'submit'`;
+  const topicRows = await sql<{ topic: string }[]>`
+    SELECT DISTINCT topic FROM questions WHERE topic IS NOT NULL ORDER BY topic`;
 
   return (
     <AppShell user={user}>
@@ -62,6 +66,7 @@ export default async function EditQuestionPage({
       )}
       <QuestionForm
         id={id}
+        topics={topicRows.map((r) => r.topic)}
         initial={{
           title: question.title,
           statement: question.statement,
@@ -73,6 +78,8 @@ export default async function EditQuestionPage({
           correct: question.mcq_correct ?? undefined,
           referenceLanguage: question.reference_language,
           referenceSource: question.reference_source,
+          topic: question.topic ?? undefined,
+          difficulty: (question.difficulty as "easy" | "medium" | "hard" | null) ?? undefined,
         }}
       />
     </AppShell>

@@ -9,9 +9,10 @@ import (
 )
 
 type examPolicyRequest struct {
-	Title        string   `json:"title"`
-	Enabled      bool     `json:"enabled"`
-	AcceptedKeys []string `json:"accepted_keys"`
+	Title           string   `json:"title"`
+	Enabled         bool     `json:"enabled"`
+	AcceptedKeys    []string `json:"accepted_keys"`
+	AllowedNetworks []string `json:"allowed_networks"`
 }
 
 func (handler *Handler) putExamPolicy(writer http.ResponseWriter, request *http.Request) {
@@ -32,7 +33,7 @@ func (handler *Handler) putExamPolicy(writer http.ResponseWriter, request *http.
 	}
 	policy, err := handler.service.PutExamPolicy(request.Context(), decision.Capability, app.PutExamPolicy{
 		TenantID: tenantID, ExamID: examID, Title: body.Title, Enabled: body.Enabled,
-		AcceptedKeys: body.AcceptedKeys, ActorID: decision.PrincipalID,
+		AcceptedKeys: body.AcceptedKeys, AllowedNetworks: body.AllowedNetworks, ActorID: decision.PrincipalID,
 	})
 	if err != nil {
 		httpx.WriteError(writer, err)
@@ -118,6 +119,7 @@ type requestCheckRequest struct {
 	URL           string `json:"url"`
 	RequestHash   string `json:"request_hash"`
 	ConfigKeyHash string `json:"config_key_hash"`
+	ClientIP      string `json:"client_ip"`
 }
 
 // checkRequest is Gateway's per-request lockdown check for the bearer. It
@@ -141,7 +143,7 @@ func (handler *Handler) checkRequest(writer http.ResponseWriter, request *http.R
 		return
 	}
 	result, err := handler.service.CheckExamRequest(request.Context(), decision.Capability, app.CheckExamRequest{
-		TenantID: tenantID, URL: body.URL, RequestHash: body.RequestHash, ConfigKeyHash: body.ConfigKeyHash,
+		TenantID: tenantID, URL: body.URL, RequestHash: body.RequestHash, ConfigKeyHash: body.ConfigKeyHash, ClientIP: body.ClientIP,
 	})
 	if err != nil {
 		httpx.WriteError(writer, err)

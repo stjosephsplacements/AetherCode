@@ -10,10 +10,15 @@ const files = (await readdir(dir)).filter((name) => name.endsWith(".sql")).sort(
 for (const name of files) {
   if (applied.has(name)) continue;
   const body = await readFile(path.join(dir, name), "utf8");
-  await sql.begin(async (tx) => {
-    await tx.unsafe(body);
-    await tx`INSERT INTO schema_migrations (name) VALUES (${name})`;
-  });
+  if (body.includes("CONCURRENTLY")) {
+    await sql.unsafe(body);
+    await sql`INSERT INTO schema_migrations (name) VALUES (${name})`;
+  } else {
+    await sql.begin(async (tx) => {
+      await tx.unsafe(body);
+      await tx`INSERT INTO schema_migrations (name) VALUES (${name})`;
+    });
+  }
   console.log(`applied ${name}`);
 }
 console.log("migrations up to date");

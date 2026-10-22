@@ -1,6 +1,6 @@
 # ADR-0018: Piston engine for cgroup v2 hosts
 
-- Status: accepted
+- Status: superseded by ADR-0028
 - Date: 2026-10-03
 
 ## Context

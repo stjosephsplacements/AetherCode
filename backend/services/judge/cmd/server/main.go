@@ -23,10 +23,10 @@ import (
 	minioclient "github.com/aethercode/aethercode/libs/pkg/storage/minio"
 	"github.com/aethercode/aethercode/libs/pkg/telemetry"
 	judgev1 "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/judge/v1"
+	aethercodeadapter "github.com/aethercode/aethercode/services/judge/internal/adapters/aethercode"
 	amqpadapter "github.com/aethercode/aethercode/services/judge/internal/adapters/amqp"
 	grpcadapter "github.com/aethercode/aethercode/services/judge/internal/adapters/grpc"
 	judge0adapter "github.com/aethercode/aethercode/services/judge/internal/adapters/judge0"
-	pistonadapter "github.com/aethercode/aethercode/services/judge/internal/adapters/piston"
 	"github.com/aethercode/aethercode/services/judge/internal/adapters/repo"
 	"github.com/aethercode/aethercode/services/judge/internal/app"
 	judgeconfig "github.com/aethercode/aethercode/services/judge/internal/config"
@@ -139,14 +139,14 @@ func run(contextValue context.Context) error {
 			if err := startDispatchConsumer(pool, storageClient, kmsClient, eng, dispatcherRuntime, runtime.RabbitURL, contextValue, logger); err != nil {
 				return err
 			}
-		case "piston":
+		case "aethercode":
 			if !runtime.EngineCompatibilityApproved {
-				logger.Warn("dispatcher: engine=piston requires JUDGE_ENGINE_COMPATIBILITY_APPROVED=true; dispatcher not started")
+				logger.Warn("dispatcher: engine=aethercode requires JUDGE_ENGINE_COMPATIBILITY_APPROVED=true; dispatcher not started")
 				break
 			}
-			eng, engErr := pistonadapter.NewClient(runtime.PistonBaseURL, runtime.PistonTimeout)
+			eng, engErr := aethercodeadapter.NewClient(runtime.AetherCodeBaseURL, runtime.AetherCodeTimeout)
 			if engErr != nil {
-				return fmt.Errorf("dispatcher: construct piston client: %w", engErr)
+				return fmt.Errorf("dispatcher: construct aethercode client: %w", engErr)
 			}
 			if err := startDispatchConsumer(pool, storageClient, kmsClient, eng, dispatcherRuntime, runtime.RabbitURL, contextValue, logger); err != nil {
 				return err

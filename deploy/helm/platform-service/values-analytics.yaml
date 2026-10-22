@@ -1,20 +1,34 @@
-nameOverride: "analytics"
+# analytics: environment mirrors deploy/single-server/docker-compose.yml.
+nameOverride: analytics
 
 image:
-  repository: ghcr.io/Shreesh-Sree/CoderQX/analytics
+  repository: ghcr.io/stjosephsplacements/aethercode-analytics
   tag: ""
 
-service:
-  port: 8080
+replicaCount: 2
 
-resources:
-  requests:
-    cpu: 100m
-    memory: 128Mi
-  limits:
-    cpu: 500m
-    memory: 1Gi
+tls:
+  enabled: true
+  secretName: aethercode-tls-analytics
 
-envFrom:
-  - secretRef:
-      name: analytics-secrets
+config:
+  SERVICE_NAME: "analytics"
+  AUTHZ_ENDPOINT: "user:9443"
+  AUTHZ_CLIENT_TLS_CA_FILE: "/certs/ca.crt"
+  AUTHZ_CLIENT_TLS_SERVER_NAME: "user"
+  AUTHZ_CLIENT_TLS_CERT_FILE: "/certs/tls.crt"
+  AUTHZ_CLIENT_TLS_KEY_FILE: "/certs/tls.key"
+
+secretEnv:
+  - name: ANALYTICS_DB_PASSWORD
+
+env:
+  - name: ANALYTICS_DATABASE_URL
+    value: "postgres://aether_analytics_app:$(ANALYTICS_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_analytics?sslmode={{ .Values.global.postgresSSLMode }}"
+  - name: ANALYTICS_PROJECTION_DATABASE_URL
+    value: "postgres://aether_analytics_projection_worker:$(ANALYTICS_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_analytics?sslmode={{ .Values.global.postgresSSLMode }}"
+
+networkPolicy:
+  allowFrom:
+    - service: gateway
+      ports: [8080]

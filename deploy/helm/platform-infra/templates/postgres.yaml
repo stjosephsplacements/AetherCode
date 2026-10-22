@@ -1,0 +1,145 @@
+{{- /* Two PostgreSQL instances with the same shape: the platform databases and the judge control plane. */}}
+{{- range $name, $cfg := dict "postgres" .Values.postgres "judge-db" .Values.judgeDb }}
+{{- if $cfg.enabled }}
+{{- $isJudge := eq $name "judge-db" }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-init
+  labels:
+    {{- include "infra.labels" $ | nindent 4 }}
+data:
+  {{- if $isJudge }}
+  00-judge-roles.sh: |
+    {{- $.Files.Get "files/judge-db-init.sh" | nindent 4 }}
+  judge-roles.sql.in: |
+    {{- $.Files.Get "files/judge-roles.sql.in" | nindent 4 }}
+  {{- else }}
+  00-aethercode-roles.sh: |
+    {{- $.Files.Get "files/platform-dev-init.sh" | nindent 4 }}
+  {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "infra.labels" $ | nindent 4 }}
+    app.kubernetes.io/name: {{ $name }}
+spec:
+  clusterIP: None
+  ports:
+    - name: postgres
+      port: 5432
+  selector:
+    app.kubernetes.io/name: {{ $name }}
+    app.kubernetes.io/part-of: aethercode
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "infra.labels" $ | nindent 4 }}
+    app.kubernetes.io/name: {{ $name }}
+spec:
+  serviceName: {{ $name }}
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $name }}
+      app.kubernetes.io/part-of: aethercode
+  template:
+    metadata:
+      labels:
+        {{- include "infra.labels" $ | nindent 8 }}
+        app.kubernetes.io/name: {{ $name }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        {{- include "infra.podSecurity" $ | nindent 8 }}
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+      containers:
+        - name: postgres
+          image: {{ $.Values.images.postgres }}
+          args:
+            - postgres
+            - -c
+            - password_encryption=scram-sha-256
+            {{- if not $isJudge }}
+            - -c
+            - max_connections={{ $cfg.maxConnections }}
+            {{- end }}
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            {{- if $isJudge }}
+            - name: POSTGRES_DB
+              value: aether_judge_wrapper
+            - name: POSTGRES_USER
+              value: aether_judge_admin
+            {{- include "infra.secretEnv" (dict "name" "POSTGRES_PASSWORD" "key" "JUDGE_DB_PASSWORD" "secret" $.Values.secretName) | nindent 12 }}
+            {{- include "infra.secretEnv" (dict "name" "JUDGE_DB_PASSWORD" "secret" $.Values.secretName) | nindent 12 }}
+            {{- else }}
+            - name: POSTGRES_DB
+              value: postgres
+            - name: POSTGRES_USER
+              value: aether_admin
+            {{- include "infra.secretEnv" (dict "name" "POSTGRES_PASSWORD" "key" "POSTGRES_SUPERUSER_PASSWORD" "secret" $.Values.secretName) | nindent 12 }}
+            {{- range $key := list "IDENTITY" "TENANT" "USERS" "QBANK" "ASSESSMENT" "SUBMISSION" "SEB" "NOTIFICATION" "ANALYTICS" }}
+            {{- include "infra.secretEnv" (dict "name" (printf "%s_DB_PASSWORD" $key) "secret" $.Values.secretName) | nindent 12 }}
+            {{- end }}
+            {{- end }}
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", {{ ternary "aether_judge_admin" "aether_admin" $isJudge | quote }}, "-d", {{ ternary "aether_judge_wrapper" "postgres" $isJudge | quote }}]
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 30
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", {{ ternary "aether_judge_admin" "aether_admin" $isJudge | quote }}]
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          resources:
+            {{- toYaml $cfg.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+            - name: run
+              mountPath: /var/run/postgresql
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: init
+          configMap:
+            name: {{ $name }}-init
+            defaultMode: 0555
+        - name: run
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with $.Values.storageClass }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ $cfg.storage }}
+{{- end }}
+{{- end }}

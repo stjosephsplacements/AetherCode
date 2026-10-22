@@ -35,7 +35,8 @@ func TestStudentBatchAffiliationSnapshotPayloadIsStrictAndRetainsNullBatch(t *te
 			LifecycleState: "inactive", Version: 3, UpdatedAt: time.Now().UTC(),
 		},
 	} {
-		payload, err := studentBatchAffiliationSnapshotPayload(affiliation, snapshotPrincipalID)
+		placement := snapshotActorID
+		payload, err := studentBatchAffiliationSnapshotPayload(affiliation, snapshotPrincipalID, &placement)
 		if err != nil {
 			t.Fatalf("studentBatchAffiliationSnapshotPayload() error = %v", err)
 		}
@@ -43,10 +44,10 @@ func TestStudentBatchAffiliationSnapshotPayloadIsStrictAndRetainsNullBatch(t *te
 		if err := json.Unmarshal(payload, &fields); err != nil {
 			t.Fatalf("decode payload: %v", err)
 		}
-		if len(fields) != 6 {
-			t.Fatalf("payload fields = %d, want exactly 6: %s", len(fields), payload)
+		if len(fields) != 7 {
+			t.Fatalf("payload fields = %d, want exactly 7: %s", len(fields), payload)
 		}
-		for _, field := range []string{"tenant_id", "student_id", "principal_id", "batch_id", "lifecycle_state", "version"} {
+		for _, field := range []string{"tenant_id", "student_id", "principal_id", "batch_id", "placement_department_id", "lifecycle_state", "version"} {
 			if _, found := fields[field]; !found {
 				t.Fatalf("payload omitted required field %q: %s", field, payload)
 			}

@@ -114,6 +114,278 @@ paths:
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/community/interview-experiences:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    get:
+      operationId: community_experience_list
+      security: [{bearerAuth: []}]
+      summary: community experience list (ADR-0048)
+      description: >-
+        Any member of the college (resource community); writes bind to the signed-in person. Backed by notification.community_experience_list. Body fields, query parameters
+        and path values are merged into one JSON object; path values win.
+      responses:
+        '200': {description: 'A JSON object, or an object with an items list'}
+        '400': {description: A value is invalid; the message says which}
+        '403': {description: Not permitted}
+        '404': {description: Not found}
+    post:
+      operationId: community_experience_submit
+      security: [{bearerAuth: []}]
+      summary: community experience submit (ADR-0048)
+      description: >-
+        Any member of the college (resource community); writes bind to the signed-in person. Backed by notification.community_experience_submit. Body fields, query parameters
+        and path values are merged into one JSON object; path values win.
+      responses:
+        '201': {description: 'A JSON object, or an object with an items list'}
+        '400': {description: A value is invalid; the message says which}
+        '403': {description: Not permitted}
+        '404': {description: Not found}
+  /v1/tenants/{tenant_id}/community/interview-experiences/{id}:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    delete:
+      operationId: community_experience_delete_own
+      security: [{bearerAuth: []}]
+      summary: community experience delete own (ADR-0048)
+      description: >-
+        Any member of the college (resource community); writes bind to the signed-in person. Backed by notification.community_experience_delete_own. Body fields, query parameters
+        and path values are merged into one JSON object; path values win.
+      responses:
+        '200': {description: 'A JSON object, or an object with an items list'}
+        '400': {description: A value is invalid; the message says which}
+        '403': {description: Not permitted}
+        '404': {description: Not found}
+  /v1/tenants/{tenant_id}/community/posts:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    get:
+      operationId: community_posts_list
+      security: [{bearerAuth: []}]
+      summary: community posts list (ADR-0048)
+      description: >-
+        Any member of the college (resource community); writes bind to the signed-in person. Backed by notification.community_posts_list. Body fields, query parameters
+        and path values are merged into one JSON object; path values win.
+      responses:
+        '200': {description: 'A JSON object, or an object with an items list'}
+        '400': {description: A value is invalid; the message says which}
+        '403': {description: Not permitted}
+        '404': {description: Not found}
+  /v1/tenants/{tenant_id}/community/posts/{id}:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    get:
+      operationId: community_post_get
+      security: [{bearerAuth: []}]
+      summary: community post get (ADR-0048)
+      description: >-
+        Any member of the college (resource community); writes bind to the signed-in person. Backed by notification.community_post_get. Body fields, query parameters
+        and path values are merged into one JSON object; path values win.
+      responses:
+        '200': {description: 'A JSON object, or an object with an items list'}
+        '400': {description: A value is invalid; the message says which}
+        '403': {description: Not permitted}
+        '404': {description: Not found}
+  /v1/tenants/{tenant_id}/community/feed:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    get:
+      operationId: community_feed_list
+      security: [{bearerAuth: []}]
+      summary: community feed list (ADR-0048)
+      description: >-
+        Any member of the college (resource community); writes bind to the signed-in person. Backed by notification.community_feed_list. Body fields, query parameters
+        and path values are merged into one JSON object; path values win.
+      responses:
+        '200': {description: 'A JSON object, or an object with an items list'}
+        '400': {description: A value is invalid; the message says which}
+        '403': {description: Not permitted}
+        '404': {description: Not found}
+  /v1/tenants/{tenant_id}/community/feed/{id}/bookmark:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    put:
+      operationId: community_bookmark_set
+      security: [{bearerAuth: []}]
+      summary: community bookmark set (ADR-0048)
+      description: >-
+        Any member of the college (resource community); writes bind to the signed-in person. Backed by notification.community_bookmark_set. Body fields, query parameters
+        and path values are merged into one JSON object; path values win.
+      responses:
+        '200': {description: 'A JSON object, or an object with an items list'}
+        '400': {description: A value is invalid; the message says which}
+        '403': {description: Not permitted}
+        '404': {description: Not found}
+  /v1/tenants/{tenant_id}/community/profile-links:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    get:
+      operationId: community_links_get
+      security: [{bearerAuth: []}]
+      summary: community links get (ADR-0048)
+      description: >-
+        Any member of the college (resource community); writes bind to the signed-in person. Backed by notification.community_links_get. Body fields, query parameters
+        and path values are merged into one JSON object; path values win.
+      responses:
+        '200': {description: 'A JSON object, or an object with an items list'}
+        '400': {description: A value is invalid; the message says which}
+        '403': {description: Not permitted}
+        '404': {description: Not found}
+  /v1/tenants/{tenant_id}/community/profile-links/{platform}:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    put:
+      operationId: community_link_set
+      security: [{bearerAuth: []}]
+      summary: community link set (ADR-0048)
+      description: >-
+        Any member of the college (resource community); writes bind to the signed-in person. Backed by notification.community_link_set. Body fields, query parameters
+        and path values are merged into one JSON object; path values win.
+      responses:
+        '200': {description: 'A JSON object, or an object with an items list'}
+        '400': {description: A value is invalid; the message says which}
+        '403': {description: Not permitted}
+        '404': {description: Not found}
+  /v1/tenants/{tenant_id}/community/tasks:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    get:
+      operationId: community_tasks_list
+      security: [{bearerAuth: []}]
+      summary: community tasks list (ADR-0048)
+      description: >-
+        Any member of the college (resource community); writes bind to the signed-in person. Backed by notification.community_tasks_list. Body fields, query parameters
+        and path values are merged into one JSON object; path values win.
+      responses:
+        '200': {description: 'A JSON object, or an object with an items list'}
+        '400': {description: A value is invalid; the message says which}
+        '403': {description: Not permitted}
+        '404': {description: Not found}
+    post:
+      operationId: community_task_create
+      security: [{bearerAuth: []}]
+      summary: community task create (ADR-0048)
+      description: >-
+        Any member of the college (resource community); writes bind to the signed-in person. Backed by notification.community_task_create. Body fields, query parameters
+        and path values are merged into one JSON object; path values win.
+      responses:
+        '201': {description: 'A JSON object, or an object with an items list'}
+        '400': {description: A value is invalid; the message says which}
+        '403': {description: Not permitted}
+        '404': {description: Not found}
+  /v1/tenants/{tenant_id}/community/tasks/{id}:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    patch:
+      operationId: community_task_update
+      security: [{bearerAuth: []}]
+      summary: community task update (ADR-0048)
+      description: >-
+        Any member of the college (resource community); writes bind to the signed-in person. Backed by notification.community_task_update. Body fields, query parameters
+        and path values are merged into one JSON object; path values win.
+      responses:
+        '200': {description: 'A JSON object, or an object with an items list'}
+        '400': {description: A value is invalid; the message says which}
+        '403': {description: Not permitted}
+        '404': {description: Not found}
+    delete:
+      operationId: community_task_delete
+      security: [{bearerAuth: []}]
+      summary: community task delete (ADR-0048)
+      description: >-
+        Any member of the college (resource community); writes bind to the signed-in person. Backed by notification.community_task_delete. Body fields, query parameters
+        and path values are merged into one JSON object; path values win.
+      responses:
+        '200': {description: 'A JSON object, or an object with an items list'}
+        '400': {description: A value is invalid; the message says which}
+        '403': {description: Not permitted}
+        '404': {description: Not found}
+  /v1/tenants/{tenant_id}/community/moderation/interview-experiences:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    get:
+      operationId: community_experience_queue
+      security: [{bearerAuth: []}]
+      summary: community experience queue (ADR-0048)
+      description: >-
+        Staff only (resource community_moderation). Backed by notification.community_experience_queue. Body fields, query parameters
+        and path values are merged into one JSON object; path values win.
+      responses:
+        '200': {description: 'A JSON object, or an object with an items list'}
+        '400': {description: A value is invalid; the message says which}
+        '403': {description: Not permitted}
+        '404': {description: Not found}
+  /v1/tenants/{tenant_id}/community/moderation/interview-experiences/{id}/review:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    post:
+      operationId: community_experience_review
+      security: [{bearerAuth: []}]
+      summary: community experience review (ADR-0048)
+      description: >-
+        Staff only (resource community_moderation). Backed by notification.community_experience_review. Body fields, query parameters
+        and path values are merged into one JSON object; path values win.
+      responses:
+        '200': {description: 'A JSON object, or an object with an items list'}
+        '400': {description: A value is invalid; the message says which}
+        '403': {description: Not permitted}
+        '404': {description: Not found}
+  /v1/tenants/{tenant_id}/community/moderation/posts:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    get:
+      operationId: community_posts_manage
+      security: [{bearerAuth: []}]
+      summary: community posts manage (ADR-0048)
+      description: >-
+        Staff only (resource community_moderation). Backed by notification.community_posts_manage. Body fields, query parameters
+        and path values are merged into one JSON object; path values win.
+      responses:
+        '200': {description: 'A JSON object, or an object with an items list'}
+        '400': {description: A value is invalid; the message says which}
+        '403': {description: Not permitted}
+        '404': {description: Not found}
+    put:
+      operationId: community_post_save
+      security: [{bearerAuth: []}]
+      summary: community post save (ADR-0048)
+      description: >-
+        Staff only (resource community_moderation). Backed by notification.community_post_save. Body fields, query parameters
+        and path values are merged into one JSON object; path values win.
+      responses:
+        '200': {description: 'A JSON object, or an object with an items list'}
+        '400': {description: A value is invalid; the message says which}
+        '403': {description: Not permitted}
+        '404': {description: Not found}
+  /v1/tenants/{tenant_id}/community/moderation/posts/{id}:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    delete:
+      operationId: community_post_delete
+      security: [{bearerAuth: []}]
+      summary: community post delete (ADR-0048)
+      description: >-
+        Staff only (resource community_moderation). Backed by notification.community_post_delete. Body fields, query parameters
+        and path values are merged into one JSON object; path values win.
+      responses:
+        '200': {description: 'A JSON object, or an object with an items list'}
+        '400': {description: A value is invalid; the message says which}
+        '403': {description: Not permitted}
+        '404': {description: Not found}
+  /v1/tenants/{tenant_id}/community/moderation/feed:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    put:
+      operationId: community_feed_save
+      security: [{bearerAuth: []}]
+      summary: community feed save (ADR-0048)
+      description: >-
+        Staff only (resource community_moderation). Backed by notification.community_feed_save. Body fields, query parameters
+        and path values are merged into one JSON object; path values win.
+      responses:
+        '200': {description: 'A JSON object, or an object with an items list'}
+        '400': {description: A value is invalid; the message says which}
+        '403': {description: Not permitted}
+        '404': {description: Not found}
+  /v1/tenants/{tenant_id}/community/moderation/feed/{id}:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    delete:
+      operationId: community_feed_delete
+      security: [{bearerAuth: []}]
+      summary: community feed delete (ADR-0048)
+      description: >-
+        Staff only (resource community_moderation). Backed by notification.community_feed_delete. Body fields, query parameters
+        and path values are merged into one JSON object; path values win.
+      responses:
+        '200': {description: 'A JSON object, or an object with an items list'}
+        '400': {description: A value is invalid; the message says which}
+        '403': {description: Not permitted}
+        '404': {description: Not found}
 components:
   securitySchemes:
     bearerAuth: {type: http, scheme: bearer, bearerFormat: AetherCode access token}

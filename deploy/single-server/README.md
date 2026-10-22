@@ -2,8 +2,9 @@
 
 The whole platform on one machine with Docker Compose (decision D2): the 11
 services, PostgreSQL 18, NATS JetStream, MinIO, the judge control plane (its
-own PostgreSQL and RabbitMQ) and the code-execution engine: Piston by default
-(ADR-0018), or Judge0 on cgroup v1 hosts. Only the gateway is published,
+own PostgreSQL and RabbitMQ). Code runs on the AetherCode Execution Engine,
+which runs on the host as a systemd service, outside Compose (ADR-0028); Judge0
+is an alternative on cgroup v1 hosts. Only the gateway is published,
 on loopback (`127.0.0.1:GATEWAY_PORT`, default 8080); the host nginx serves it
 publicly over TLS (see "Public address").
 
@@ -15,9 +16,15 @@ every production safety check applies.
 ## Host requirements
 
 - Docker Engine with Compose v2, 8+ cores, 16 GB RAM, about 20 GB of free disk.
-- Piston works on cgroup v1 and v2. **Judge0 needs cgroup v1** (`stat -fc %T
-  /sys/fs/cgroup` prints `cgroup2fs` on v2): only use it on such a host, with
-  `JUDGE_ENGINE=judge0` in `.env` and `--profile judge0`.
+- The AetherCode Execution Engine installed on the host
+  (github.com/stjosephsplacements/AetherCode-Execution-Engine) and listening on
+  the docker0 address only, `AC_GATEWAY_ADDR=172.17.0.1:5100`: it has no
+  authentication, so it must not listen on a public interface. Check it with
+  `curl http://172.17.0.1:5100/api/v1/health`. Judge reaches it at
+  `host.docker.internal:5100` (`AETHERCODE_ENGINE_URL`).
+- **Judge0 needs cgroup v1** (`stat -fc %T /sys/fs/cgroup` prints `cgroup2fs`
+  on v2): only use it on such a host, with `JUDGE_ENGINE=judge0` in `.env` and
+  `--profile judge0`.
 
 ## First install
 
@@ -41,7 +48,6 @@ One-shot jobs run before the services start:
 | `migrate` | Migrates the nine platform databases with their migrator roles, then installs each database's authorization capability key (`migrate-all.sh`, `provision-keys.sh`). |
 | `judge-migrate` | Migrates the judge database. |
 | `buckets` | Creates the `aethercode` MinIO bucket. |
-| `piston-packages` | Installs the newest Piston runtimes for C/C++ (gcc), Java and Python (`piston-packages.js`). |
 
 ## First administrator
 
@@ -89,18 +95,69 @@ sudo ln -sf /etc/nginx/sites-available/aethercode /etc/nginx/sites-enabled/aethe
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-The gateway trusts `X-Forwarded-For` only from the address nginx connects
-from, which is the Compose network's bridge gateway. Find it and set it in
-`.env`, then recreate the gateway:
+nginx sends every request to the `frontend` service (the web UI, ADR-0024) on
+`127.0.0.1:3000` (`FRONTEND_PORT`). The frontend serves the pages and forwards
+`/api/...` to the gateway under the same path, adding the session's bearer
+from its cookie, so Safe Exam Browser's request hashes still verify.
+`PUBLIC_ORIGIN` must be the exact origin students type; the frontend refuses
+API writes from any other origin.
+
+The gateway trusts `X-Forwarded-For` only from listed addresses. The frontend
+reaches it from its fixed address on the `edge` network, `10.231.240.2`, which
+is the default. If `.env` sets `GATEWAY_TRUSTED_PROXY_CIDRS` (an older setup
+listed the bridge gateway nginx used to connect from), add the frontend:
 
 ```sh
-docker network inspect aethercode-platform_default -f '{{(index .IPAM.Config 0).Gateway}}'
-echo 'GATEWAY_TRUSTED_PROXY_CIDRS=["172.27.0.1/32"]' >> .env   # use the address printed above
-docker compose up -d gateway
+# in .env, keeping any address already listed
+GATEWAY_TRUSTED_PROXY_CIDRS=["10.231.240.2/32","172.27.0.1/32"]
+docker compose up -d gateway frontend
 ```
 
-Without it every request appears to come from nginx, so per-IP login limits
-and lab network rules would treat all students as one address.
+Without it every request appears to come from the frontend, so per-IP login
+limits and lab network rules would treat all students as one address. The
+gateway stays published on loopback for `smoke.py` and administration.
+
+## Single sign-on
+
+Students and staff can sign in with their St. Joseph's account at
+`sso.stjosephsplacements.in` (ZITADEL, ADR-0042). The AetherCode password
+always keeps working, so exams never depend on it. To turn it on:
+
+1. In ZITADEL's `.env`, set
+   `ZITADEL_SYSTEMDEFAULTS_PASSWORDHASHER_VERIFIERS=argon2` and restart
+   `zitadel-server`, so AetherCode's password hashes can be imported.
+2. In the ZITADEL console, create a project with an OIDC **Web**
+   application:
+   - authentication method **Basic**;
+   - redirect URI `https://aethercode.stjosephsplacements.in/auth/sso/callback`;
+   - post-logout URI `https://aethercode.stjosephsplacements.in/login`.
+
+   Note the client ID and secret.
+3. Create a service user with the **Org Owner** role, generate a personal
+   access token, and save it as `certs/sso-admin.pat` (`chmod 600`).
+4. In `.env`, set:
+   - `IDENTITY_SSO_ISSUER=https://sso.stjosephsplacements.in`
+   - `IDENTITY_SSO_CLIENT_ID` and `IDENTITY_SSO_CLIENT_SECRET`
+   - `IDENTITY_SSO_ADMIN_TOKEN_FILE=/certs/sso-admin.pat`
+   - `IDENTITY_SSO_ORGANIZATION_ID` (the organization's ID)
+   - `IDENTITY_SSO_EMAIL_DOMAIN` (e.g. `students.stjosephs.ac.in`)
+   - `AETHERCODE_SSO=on`
+5. `docker compose up -d identity frontend`.
+
+Every existing account is then copied to ZITADEL within minutes. Accounts
+the provider already has are linked, not duplicated.
+
+## Question review
+
+Set `QBANK_REQUIRE_REVIEW=true` in `.env` to make publishing a question need
+a review request from another member of staff (ADR-0044). It is off by
+default, so a college with one author is not blocked.
+
+## College branding
+
+Put `branding.json` and the logo files in `deploy/single-server/branding/`
+(see `frontend/README.md`, "Branding"). The frontend picks changes up without a
+restart. Without the file the UI keeps the AetherCode name and colours.
 
 ## Backups
 
@@ -141,6 +198,22 @@ enables C, C++17, Java, Python 3, JavaScript and Go for `JUDGE_ENGINE` after
 every migration run; the judge starts only after it succeeds. To withdraw a
 language, set `enabled = false` on its row.
 
+## Engine check and load test (M8)
+
+`make engine-check` (or `python3 engine-check.py`) runs a correct, a wrong, a
+slow and a broken program in every exam language as model-solution checks,
+end to end through the gateway, Question Bank, Judge and the engine. It must
+print `Engine OK`. It keeps one draft question, `engine-check`, in the
+administrator's drafts.
+
+`STUDENTS=1000 RAMP=60 make loadtest` (or `python3 loadtest.py --students
+1000 --ramp 60 --runs 3`) creates a batch of students and a one-question exam
+named `LOADTEST-<run>`. Each student then signs in, starts the exam, loads
+the paper, autosaves, runs code, submits the question and ends the test. It
+prints p50/p95/p99 latency per step and the time Judge takes to return
+verdicts. Never run it during a real exam. Like `smoke.py`, it leaves its
+data behind.
+
 ## Upgrades
 
 ```sh
@@ -149,6 +222,42 @@ git pull && docker compose build && docker compose up -d
 
 `migrate` and `judge-migrate` run again on every `up` and apply only new
 migrations.
+
+When an upgrade adds fields to an event, start its consumers first. Each
+step's consumer rejects fields it does not know, so the order matters:
+Submission reads Assessment's new snapshot fields (ADR-0023), and Assessment
+reads User's (ADR-0026).
+
+```sh
+git pull && docker compose build
+docker compose up -d migrate submission   # reads Assessment's new fields
+docker compose up -d assessment           # reads User's new fields
+docker compose up -d seb                  # accepts Gateway's client_ip (ADR-0030)
+docker compose up -d                      # everything else, User included
+```
+
+### Release checklist for the 2026-10-21 batch
+
+1. **Back up first**, and confirm the dump restores (`backup.sh`; see Backups).
+2. `git pull && docker compose build`. The new migrations are user `000029`
+   and `000030`, submission `000035`, assessment `000033`, question-bank
+   `000019` to `000021` and notification `000013`. None changes an event, so
+   the consumer-first order above is not needed; run `docker compose up -d`.
+3. Check the `migrate` one-shot exited 0 (`docker compose ps migrate`,
+   `docker compose logs migrate`) before judging anything else.
+4. `python3 smoke.py`. It now also checks that publishing needs a passing
+   model solution (ADR-0047), the community content routes (ADR-0048) and a staff member trying
+   an exam (ADR-0046).
+5. In a browser as a student: sign in, open Contests, Interviews, Blogs and
+   My profile; as faculty: Community, Calendar and a question with a passing
+   model check. A 403 on a Community page means the User service has not
+   picked up migration `000030` yet.
+6. Optional switches in `.env`: `QBANK_REQUIRE_REVIEW=true` (publishing needs
+   another member of staff); `deploy/single-server/branding/branding.json`
+   (see the College branding section).
+7. Rollback: every migration has a down file (`migrate --direction down` runs
+   all of them, so restore the backup instead if more than one step is
+   wrong). Redeploy the previous images from git.
 
 After every upgrade, run the end-to-end smoke test through the gateway:
 

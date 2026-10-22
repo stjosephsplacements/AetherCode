@@ -291,3 +291,24 @@ func mapWriteError(err error, message string) error {
 	}
 	return fmt.Errorf("notification persistence: %w", err)
 }
+
+// Community runs one allow-listed community function (ADR-0048); the app layer
+// has already checked the name, so it is safe to place in the statement.
+func (repository *Postgres) Community(ctx context.Context, transaction pgx.Tx, function, tenantID string, args json.RawMessage) (json.RawMessage, error) {
+	var result json.RawMessage
+	if err := transaction.QueryRow(ctx, `SELECT notification.`+function+`($1::uuid, $2::jsonb)`, tenantID, string(args)).Scan(&result); err != nil {
+		var postgresError *pgconn.PgError
+		if errors.As(err, &postgresError) {
+			switch postgresError.Code {
+			case "22023":
+				return nil, apperrors.New(apperrors.CodeInvalidArgument, postgresError.Message)
+			case "22P02", "22007", "22008", "23514":
+				return nil, apperrors.New(apperrors.CodeInvalidArgument, "a value in the request is not valid")
+			case "P0002":
+				return nil, apperrors.New(apperrors.CodeNotFound, postgresError.Message)
+			}
+		}
+		return nil, mapWriteError(err, "community request could not be completed")
+	}
+	return result, nil
+}

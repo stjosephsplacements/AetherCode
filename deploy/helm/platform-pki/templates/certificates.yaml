@@ -1,0 +1,30 @@
+{{- range .Values.services }}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: aethercode-tls-{{ . }}
+  labels:
+    app.kubernetes.io/part-of: aethercode
+    app.kubernetes.io/name: {{ . }}
+spec:
+  secretName: aethercode-tls-{{ . }}
+  commonName: {{ . }}
+  duration: {{ $.Values.certificate.duration }}
+  renewBefore: {{ $.Values.certificate.renewBefore }}
+  privateKey:
+    algorithm: {{ $.Values.certificate.privateKey.algorithm }}
+    size: {{ $.Values.certificate.privateKey.size }}
+    rotationPolicy: Always
+  usages: [digital signature, server auth, client auth]
+  dnsNames:
+    - {{ . }}
+    - {{ . }}.{{ $.Release.Namespace }}
+    - {{ . }}.{{ $.Release.Namespace }}.svc
+    - {{ . }}.{{ $.Release.Namespace }}.svc.cluster.local
+  uris:
+    - {{ $.Values.trustDomain }}/{{ . }}
+  issuerRef:
+    name: aethercode-ca
+    kind: Issuer
+{{- end }}

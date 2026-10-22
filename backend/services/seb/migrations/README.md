@@ -38,3 +38,9 @@ trigger (soft-deleting a configuration soft-deletes its sessions), the shared
 `app.hard_delete()` function with `super_admin_role` check, and RLS policy
 updates to filter soft-deleted records from default queries. Run the companion
 test file `000010_soft_delete_schema_test.sql` to validate.
+
+`000014_exam_networks` adds `exam_policies.allowed_networks` (ADR-0030) and a
+five-argument `check_exam_request` that also takes the client address: while a
+candidate has an open assignment to an exam with networks, a request from
+outside them returns `network_refused`; otherwise it answers as the
+four-argument check does. Rollback drops both.

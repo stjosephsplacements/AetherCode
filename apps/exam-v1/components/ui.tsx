@@ -77,16 +77,20 @@ export function PageHeader({ eyebrow, title, actions }: { eyebrow?: string; titl
 
 export function Logo({ className }: { className?: string }) {
   return (
-    <span className={cx("inline-flex items-center gap-2 font-display text-lg font-semibold tracking-tight text-ink", className)}>
-      <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+    <span className={cx("inline-flex items-center gap-2.5 font-display text-lg font-semibold tracking-tight text-ink", className)}>
+      <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true">
         <defs>
-          <linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#6366f1" />
-            <stop offset="1" stopColor="#f97316" />
+          <linearGradient id="ac-grad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#e04090" />
+            <stop offset="50%" stopColor="#f07030" />
+            <stop offset="100%" stopColor="#f0a020" />
           </linearGradient>
         </defs>
-        <path d="M12 2 22 20H2Z" fill="url(#lg)" />
-        <path d="M12 9 16.5 17h-9Z" fill="var(--color-canvas)" />
+        {/* Double-chevron mark */}
+        <path d="M10 6l-8 10 8 10" fill="none" stroke="url(#ac-grad)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M22 6l8 10-8 10" fill="none" stroke="url(#ac-grad)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M13 6l-5 10 5 10" fill="none" stroke="url(#ac-grad)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.5" />
+        <path d="M19 6l5 10-5 10" fill="none" stroke="url(#ac-grad)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.5" />
       </svg>
       AetherCode
     </span>

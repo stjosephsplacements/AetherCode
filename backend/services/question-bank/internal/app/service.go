@@ -50,6 +50,17 @@ var (
 // Store is the service-owned PostgreSQL port. Implementations receive an
 // already authorized transaction and must never create an unscoped one.
 type Store interface {
+	SetQuestionVersionChoices(context.Context, pgx.Tx, SetQuestionVersionChoices) (QuestionVersion, error)
+	StartModelCheck(context.Context, pgx.Tx, string, StartModelCheck, BundleReference) (json.RawMessage, error)
+	ListModelChecks(context.Context, pgx.Tx, string) (json.RawMessage, error)
+	SetQuestionAudience(context.Context, pgx.Tx, string, string) error
+	ListPracticeQuestions(context.Context, pgx.Tx) (json.RawMessage, error)
+	GetPracticeQuestion(context.Context, pgx.Tx, string) (json.RawMessage, error)
+	StartPractice(context.Context, pgx.Tx, string, StartPractice, BundleReference) (json.RawMessage, error)
+	ListPracticeSubmissions(context.Context, pgx.Tx, string) (json.RawMessage, error)
+	GetPracticeSubmission(context.Context, pgx.Tx, string) (json.RawMessage, error)
+	GetPracticeProgress(context.Context, pgx.Tx) (json.RawMessage, error)
+	ExportQuestionVersion(context.Context, pgx.Tx, string, string) (StoredExport, error)
 	ClaimIdempotency(context.Context, pgx.Tx, IdempotencyClaim) (json.RawMessage, bool, error)
 	CompleteIdempotency(context.Context, pgx.Tx, IdempotencyClaim, int, json.RawMessage) error
 	CreateQuestion(context.Context, pgx.Tx, CreateQuestion) (QuestionDetail, error)
@@ -60,12 +71,15 @@ type Store interface {
 	AddQuestionAsset(context.Context, pgx.Tx, AddQuestionAsset) (QuestionVersion, error)
 	ReplaceQuestionVersionTags(context.Context, pgx.Tx, ReplaceQuestionVersionTags) (QuestionVersion, error)
 	PublishQuestionVersion(context.Context, pgx.Tx, PublishQuestionVersion) (QuestionDetail, error)
+	RequestQuestionReview(context.Context, pgx.Tx, RequestQuestionReview) (QuestionDetail, error)
 	ArchiveQuestion(context.Context, pgx.Tx, ArchiveQuestion) (QuestionDetail, error)
 	GetPublishedQuestion(context.Context, pgx.Tx, string) (QuestionDetail, error)
 	GetQuestionVersion(context.Context, pgx.Tx, string) (QuestionVersion, error)
 	GetQuestionIncludeDeleted(context.Context, pgx.Tx, string) (Question, error)
 	GetQuestionVersionIncludeDeleted(context.Context, pgx.Tx, string) (QuestionVersion, error)
 	ListPublishedQuestions(context.Context, pgx.Tx, ListPublishedQuestions) ([]QuestionDetail, error)
+	ListDraftQuestions(context.Context, pgx.Tx, int) ([]QuestionDetail, error)
+	ListReviewQueue(context.Context, pgx.Tx, int) ([]QuestionDetail, error)
 	ListQuestionVersions(context.Context, pgx.Tx, ListQuestionVersions) ([]QuestionVersion, error)
 	SoftDeleteQuestion(context.Context, pgx.Tx, DeleteQuestion) error
 	HardDeleteQuestion(context.Context, pgx.Tx, DeleteQuestion) error
@@ -119,29 +133,41 @@ type Question struct {
 	CreatedAt      time.Time  `json:"created_at"`
 	ArchivedAt     *time.Time `json:"archived_at,omitempty"`
 	Version        int64      `json:"version"`
+	Audience       string     `json:"audience,omitempty"`
 }
 
 // QuestionVersion is intentionally metadata-only. Encrypted object keys,
 // checksums, and KMS references are never returned by
 // the browser-facing API; object access is separately controlled.
 type QuestionVersion struct {
-	ID                  string     `json:"id"`
-	QuestionID          string     `json:"question_id"`
-	VersionNumber       int        `json:"version_number"`
-	Title               string     `json:"title"`
-	PromptMarkdown      string     `json:"prompt_markdown"`
-	Difficulty          string     `json:"difficulty"`
-	SupportedLanguages  []string   `json:"supported_languages"`
-	TimeLimitMS         int        `json:"time_limit_ms"`
-	MemoryLimitKiB      int        `json:"memory_limit_kib"`
-	Status              string     `json:"status"`
-	PublishedAt         *time.Time `json:"published_at,omitempty"`
-	CreatedAt           time.Time  `json:"created_at"`
-	Version             int64      `json:"version"`
+	ID                 string     `json:"id"`
+	QuestionID         string     `json:"question_id"`
+	VersionNumber      int        `json:"version_number"`
+	Title              string     `json:"title"`
+	PromptMarkdown     string     `json:"prompt_markdown"`
+	Difficulty         string     `json:"difficulty"`
+	SupportedLanguages []string   `json:"supported_languages"`
+	TimeLimitMS        int        `json:"time_limit_ms"`
+	MemoryLimitKiB     int        `json:"memory_limit_kib"`
+	Status             string     `json:"status"`
+	PublishedAt        *time.Time `json:"published_at,omitempty"`
+	CreatedAt          time.Time  `json:"created_at"`
+	Version            int64      `json:"version"`
+	// ReviewRequestedAt and ReviewRequestedBy are set once an author asks for a review (ADR-0044).
+	ReviewRequestedAt   *time.Time `json:"review_requested_at,omitempty"`
+	ReviewRequestedBy   *string    `json:"review_requested_by,omitempty"`
 	Tags                []Tag      `json:"tags"`
 	SampleTestCaseCount int        `json:"sample_test_case_count"`
 	HiddenTestCaseCount int        `json:"hidden_test_case_count"`
 	AssetCount          int        `json:"asset_count"`
+	// Kind is "coding" or "mcq" (ADR-0035). Authors see the answer key; students
+	// never read the question bank.
+	Kind           string   `json:"kind"`
+	Choices        []string `json:"choices"`
+	CorrectChoices []int    `json:"correct_choices"`
+	MultipleChoice bool     `json:"multiple_choice"`
+	// Audience is the question's: "test" or "practice" (ADR-0041).
+	Audience string `json:"audience,omitempty"`
 }
 
 type QuestionDetail struct {
@@ -252,6 +278,16 @@ type PublishQuestionVersion struct {
 	QuestionVersionID       string
 	EventID                 string
 	ExpectedQuestionVersion int64
+	// RequireReview is set by the service from its configuration, never by a caller.
+	RequireReview bool
+}
+
+type RequestQuestionReview struct {
+	WriteCommand
+	QuestionVersionID       string
+	ExpectedQuestionVersion int64
+	// ReviewerID is optional.
+	ReviewerID string
 }
 
 type ArchiveQuestion struct {
@@ -287,6 +323,10 @@ type Service struct {
 	storage storage.Object
 	kms     kms.KeyManager
 	logger  *slog.Logger
+	// modelChecks sends model-solution checks to Judge; nil when not configured.
+	modelChecks ModelCheckRunner
+	// requireReview makes publishing need a review from another member of staff (ADR-0044).
+	requireReview bool
 }
 
 // NewService creates a new Question Bank service. Storage and KMS are required:
@@ -494,10 +534,33 @@ func (service *Service) ReplaceQuestionVersionTags(contextValue context.Context,
 	)
 }
 
+// RequireReview makes publishing need a review request from somebody else.
+func (service *Service) RequireReview() { service.requireReview = true }
+
+// ReviewRequired reports whether publishing needs a review.
+func (service *Service) ReviewRequired() bool { return service.requireReview }
+
+func (service *Service) RequestQuestionReview(contextValue context.Context, capability centralauthz.Capability, command RequestQuestionReview) (QuestionDetail, error) {
+	if !isUUID(command.QuestionVersionID) || command.ExpectedQuestionVersion <= 0 || (command.ReviewerID != "" && !isUUID(command.ReviewerID)) {
+		return QuestionDetail{}, apperrors.New(apperrors.CodeInvalidArgument, "question version review fields are invalid")
+	}
+	return runWrite(service, contextValue, capability, "question.version.request_review", command.IdempotencyKey,
+		struct {
+			QuestionVersionID       string `json:"question_version_id"`
+			ExpectedQuestionVersion int64  `json:"expected_question_version"`
+			ReviewerID              string `json:"reviewer_id"`
+		}{command.QuestionVersionID, command.ExpectedQuestionVersion, command.ReviewerID}, 200,
+		func(transaction pgx.Tx) (QuestionDetail, error) {
+			return service.store.RequestQuestionReview(contextValue, transaction, command)
+		},
+	)
+}
+
 func (service *Service) PublishQuestionVersion(contextValue context.Context, capability centralauthz.Capability, command PublishQuestionVersion) (QuestionDetail, error) {
 	if !isUUID(command.QuestionVersionID) || !isUUID(command.EventID) || command.ExpectedQuestionVersion <= 0 {
 		return QuestionDetail{}, apperrors.New(apperrors.CodeInvalidArgument, "question version publication fields are invalid")
 	}
+	command.RequireReview = service.requireReview
 	return runWrite(service, contextValue, capability, "question.version.publish", command.IdempotencyKey,
 		struct {
 			QuestionVersionID       string `json:"question_version_id"`
@@ -548,6 +611,46 @@ func (service *Service) GetQuestionVersion(contextValue context.Context, capabil
 		return err
 	})
 	return result, err
+}
+
+// ListDraftQuestions lists the caller's questions whose latest version is
+// still a draft, newest first, for the staff authoring screen.
+func (service *Service) ListDraftQuestions(contextValue context.Context, capability centralauthz.Capability, limit int) (Page[QuestionDetail], error) {
+	if limit < 1 || limit > 100 {
+		return Page[QuestionDetail]{}, apperrors.New(apperrors.CodeInvalidArgument, "question listing limit must be between 1 and 100")
+	}
+	page := Page[QuestionDetail]{Items: []QuestionDetail{}}
+	err := database.WithTenantTx(contextValue, service.pool, capability, func(transaction pgx.Tx) error {
+		questions, err := service.store.ListDraftQuestions(contextValue, transaction, limit)
+		if err != nil {
+			return err
+		}
+		if questions != nil {
+			page.Items = questions
+		}
+		return nil
+	})
+	return page, err
+}
+
+// ListReviewQueue lists drafts by any author that are waiting for a review,
+// oldest request first (ADR-0044).
+func (service *Service) ListReviewQueue(contextValue context.Context, capability centralauthz.Capability, limit int) (Page[QuestionDetail], error) {
+	if limit < 1 || limit > 100 {
+		return Page[QuestionDetail]{}, apperrors.New(apperrors.CodeInvalidArgument, "question listing limit must be between 1 and 100")
+	}
+	page := Page[QuestionDetail]{Items: []QuestionDetail{}}
+	err := database.WithTenantTx(contextValue, service.pool, capability, func(transaction pgx.Tx) error {
+		questions, err := service.store.ListReviewQueue(contextValue, transaction, limit)
+		if err != nil {
+			return err
+		}
+		if questions != nil {
+			page.Items = questions
+		}
+		return nil
+	})
+	return page, err
 }
 
 func (service *Service) ListPublishedQuestions(contextValue context.Context, capability centralauthz.Capability, command ListPublishedQuestions) (Page[QuestionDetail], error) {
@@ -712,8 +815,16 @@ func tagNames(tags []Tag) []string {
 }
 
 func normalizeLanguages(languages *[]string) error {
-	if languages == nil || len(*languages) == 0 || len(*languages) > maximumSupportedLanguage {
-		return apperrors.New(apperrors.CodeInvalidArgument, "supported languages must contain 1 to 32 values")
+	// A multiple-choice question has no languages; publishing a coding one
+	// still requires at least one (ADR-0035).
+	if languages == nil {
+		return apperrors.New(apperrors.CodeInvalidArgument, "supported languages are required")
+	}
+	if *languages == nil {
+		*languages = []string{}
+	}
+	if len(*languages) > maximumSupportedLanguage {
+		return apperrors.New(apperrors.CodeInvalidArgument, "supported languages must contain at most 32 values")
 	}
 	seen := make(map[string]struct{}, len(*languages))
 	for index, language := range *languages {
@@ -933,4 +1044,38 @@ func isUUID(value string) bool {
 		}
 	}
 	return true
+}
+
+// SetQuestionVersionChoices makes a draft multiple-choice (ADR-0035): 2 to 10
+// options, the indexes of the correct ones, and whether more than one may be
+// chosen. The database validates them again.
+type SetQuestionVersionChoices struct {
+	QuestionVersionID       string
+	ExpectedQuestionVersion int64
+	Choices                 []string
+	CorrectChoices          []int
+	MultipleChoice          bool
+}
+
+func (service *Service) SetQuestionVersionChoices(contextValue context.Context, capability centralauthz.Capability, command SetQuestionVersionChoices) (QuestionVersion, error) {
+	if !isUUID(command.QuestionVersionID) || command.ExpectedQuestionVersion <= 0 {
+		return QuestionVersion{}, apperrors.New(apperrors.CodeInvalidArgument, "question version identifier or expected revision is invalid")
+	}
+	for index, choice := range command.Choices {
+		command.Choices[index] = strings.TrimSpace(choice)
+		if runeCount(command.Choices[index]) < 1 || runeCount(command.Choices[index]) > 2000 {
+			return QuestionVersion{}, apperrors.New(apperrors.CodeInvalidArgument, "each option needs 1 to 2000 characters")
+		}
+	}
+	if len(command.Choices) < 2 || len(command.Choices) > 10 || len(command.CorrectChoices) < 1 || (!command.MultipleChoice && len(command.CorrectChoices) != 1) {
+		return QuestionVersion{}, apperrors.New(apperrors.CodeInvalidArgument, "a multiple-choice question needs 2 to 10 options and its correct answer")
+	}
+	command.QuestionVersionID = strings.ToLower(strings.TrimSpace(command.QuestionVersionID))
+	var result QuestionVersion
+	err := database.WithTenantTx(contextValue, service.pool, capability, func(transaction pgx.Tx) error {
+		var storeErr error
+		result, storeErr = service.store.SetQuestionVersionChoices(contextValue, transaction, command)
+		return storeErr
+	})
+	return result, err
 }

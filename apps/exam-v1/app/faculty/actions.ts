@@ -14,6 +14,8 @@ import { isValidNetwork } from "@/lib/net";
 
 const questionInput = z.object({
   title: z.string().trim().min(1, "Title is required").max(200),
+  topic: z.string().trim().max(100).optional().transform((v) => v || undefined),
+  difficulty: z.enum(["easy", "medium", "hard"]).optional(),
   statement: z.string().trim().min(1, "Problem statement is required").max(50_000),
   timeLimitMs: z.coerce.number().int().min(100).max(20_000),
   memoryLimitMb: z.coerce.number().int().min(16).max(1024),
@@ -74,16 +76,18 @@ export async function saveQuestion(id: string | null, input: QuestionInput): Pro
         UPDATE questions SET title = ${question.title}, statement = ${question.statement},
           time_limit_ms = ${question.timeLimitMs}, memory_limit_kb = ${question.memoryLimitMb * 1024}, updated_at = now(),
           reference_language = ${reference.language}, reference_source = ${reference.source},
-          kind = ${question.kind}, mcq_options = ${mcq.options}, mcq_correct = ${mcq.correct}
+          kind = ${question.kind}, mcq_options = ${mcq.options}, mcq_correct = ${mcq.correct},
+          topic = ${question.topic ?? null}, difficulty = ${question.difficulty ?? null}
         WHERE id = ${questionId} RETURNING id`;
       if (updated.length === 0) throw new Error("question not found");
       await tx`DELETE FROM test_cases WHERE question_id = ${questionId}`;
     } else {
       const [created] = await tx<{ id: string }[]>`
         INSERT INTO questions (title, statement, time_limit_ms, memory_limit_kb, reference_language, reference_source,
-          kind, mcq_options, mcq_correct, created_by)
+          kind, mcq_options, mcq_correct, created_by, topic, difficulty)
         VALUES (${question.title}, ${question.statement}, ${question.timeLimitMs}, ${question.memoryLimitMb * 1024},
-          ${reference.language}, ${reference.source}, ${question.kind}, ${mcq.options}, ${mcq.correct}, ${user.id})
+          ${reference.language}, ${reference.source}, ${question.kind}, ${mcq.options}, ${mcq.correct}, ${user.id},
+          ${question.topic ?? null}, ${question.difficulty ?? null})
         RETURNING id`;
       questionId = created.id;
     }

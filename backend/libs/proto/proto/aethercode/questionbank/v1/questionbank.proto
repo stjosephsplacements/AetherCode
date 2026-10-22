@@ -41,4 +41,14 @@ message ResolvePublishedQuestionVersionResponse {
   EncryptedBundle evaluation_bundle = 8;
   // Sample tests only; used for candidate "run code".
   EncryptedBundle sample_bundle = 9;
+  // The published statement candidates read (Markdown).
+  string prompt_markdown = 10;
+  // "coding" (graded on tests) or "mcq" (graded on choices, ADR-0035). An mcq
+  // version has no bundles and no languages.
+  string kind = 11;
+  // The mcq options in authored order, and the indexes of the correct ones.
+  repeated string choices = 12;
+  repeated uint32 correct_choices = 13;
+  // Whether a student may select more than one option.
+  bool multiple_choice = 14;
 }

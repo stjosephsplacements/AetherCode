@@ -1,0 +1,30 @@
+# Requires cert-manager (https://cert-manager.io) with its CRDs installed.
+trustDomain: spiffe://aethercode.local
+
+ca:
+  commonName: AetherCode platform CA
+  duration: 43800h      # five years
+  renewBefore: 8760h
+
+certificate:
+  duration: 2160h       # 90 days; cert-manager renews well before expiry
+  renewBefore: 720h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+
+# Every service is both an mTLS server and client. The DNS names and the URI
+# SAN spiffe://<trustDomain>/<service> are what the services check (see
+# AUTHZ_MTLS_SERVICE_TARGETS, JUDGE_ALLOWED_CLIENT_SUBJECTS).
+services:
+  - gateway
+  - identity
+  - tenant
+  - user
+  - question-bank
+  - assessment
+  - submission
+  - judge
+  - seb
+  - notification
+  - analytics

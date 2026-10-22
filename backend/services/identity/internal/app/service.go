@@ -28,6 +28,7 @@ type Store interface {
 	RevokeRefresh(context.Context, []byte, string) error
 	RequestPasswordReset(context.Context, PasswordResetRequest) error
 	ResetPassword(context.Context, PasswordReset) error
+	ChangePassword(context.Context, PasswordChange) error
 	ValidateAccessToken(context.Context, string, string) error
 	CreateMFAChallenge(context.Context, MFAChallenge) error
 	CompleteMFAChallenge(context.Context, MFAChallengeCompletion) (Session, error)
@@ -93,6 +94,8 @@ type Session struct {
 	TenantID      string
 	AuthzRevision int64
 	MFARequired   bool
+	// PasswordChangeRequired: the password was issued by staff (ADR-0036).
+	PasswordChangeRequired bool
 }
 
 // PasswordResetRequest creates a reset record without persisting its bearer.
@@ -201,12 +204,18 @@ type TokenPair struct {
 	MFARequired           bool      `json:"mfa_required,omitempty"`
 	MFAChallengeToken     string    `json:"mfa_challenge_token,omitempty"`
 	MFAChallengeExpiresAt time.Time `json:"mfa_challenge_expires_at,omitempty"`
+	// PasswordChangeRequired asks the client to have the user replace a
+	// staff-issued password before anything else (ADR-0036).
+	PasswordChangeRequired bool `json:"password_change_required,omitempty"`
 }
 
 // Service implements authentication flows with injected time and opaque token
 // issuance to make business invariants deterministic in tests.
 type Service struct {
-	store                     Store
+	store Store
+	// sso and ssoStore are set by UseSSO when single sign-on is configured.
+	sso                       SSOProvider
+	ssoStore                  SSOStore
 	signer                    *authn.Signer
 	accessTokenLifetime       time.Duration
 	refreshTokenLifetime      time.Duration
@@ -569,7 +578,36 @@ func (service *Service) issueTokenPair(session Session, accessTokenID, refreshTo
 	return TokenPair{
 		AccessToken: accessToken, AccessTokenExpiresAt: time.Unix(claims.ExpiresAt, 0).UTC(),
 		RefreshToken: refreshToken, RefreshTokenExpiresAt: now.Add(service.refreshTokenLifetime),
+		PasswordChangeRequired: session.PasswordChangeRequired,
 	}, nil
+}
+
+// ChangePassword replaces the signed-in principal's password after checking
+// the current one, and clears a staff-issued password's change requirement.
+func (service *Service) ChangePassword(contextValue context.Context, principalID, currentPassword, newPassword, requestIP, requestID string) error {
+	if currentPassword == "" {
+		return apperrors.New(apperrors.CodeInvalidArgument, "the current password is required")
+	}
+	if currentPassword == newPassword {
+		return apperrors.New(apperrors.CodeInvalidArgument, "choose a password different from the current one")
+	}
+	passwordHash, err := domain.HashPassword(newPassword)
+	if err != nil {
+		return apperrors.New(apperrors.CodeInvalidArgument, err.Error())
+	}
+	return service.store.ChangePassword(contextValue, PasswordChange{
+		PrincipalID: principalID, CurrentPassword: currentPassword, PasswordHash: passwordHash,
+		RequestIP: strings.TrimSpace(requestIP), RequestID: strings.TrimSpace(requestID),
+	})
+}
+
+// PasswordChange is a verified self-service password change.
+type PasswordChange struct {
+	PrincipalID     string
+	CurrentPassword string
+	PasswordHash    string
+	RequestIP       string
+	RequestID       string
 }
 
 func validateRegistration(email, displayName, password string) (string, string, error) {
