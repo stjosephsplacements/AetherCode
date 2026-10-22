@@ -28,19 +28,19 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
-        with:
-          languages: ${{ matrix.language }}
-          build-mode: ${{ matrix.build-mode }}
-          queries: security-and-quality
-
       - name: Set up Go
         if: matrix.language == 'go'
         uses: actions/setup-go@v7.0.0
         with:
           go-version: '1.26.10'
           cache-dependency-path: backend/libs/pkg/go.sum
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          queries: security-and-quality
 
       - name: Build Go modules
         if: matrix.language == 'go'
