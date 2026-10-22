@@ -1,4 +1,4 @@
-import { HttpError, ownsAttempt, requireExamTaker } from "@/lib/attempts";
+import { ownsAttempt, requireExamTaker } from "@/lib/attempts";
 import { sql } from "@/lib/db";
 import { onSubmissionDone } from "@/lib/notify";
 

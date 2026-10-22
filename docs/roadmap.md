@@ -146,8 +146,7 @@ Needs the owner:
 3. Single sign-on (ADR-0042): approve ZITADEL's argon2 verifier, create the
    OIDC app and the service-user token, then set `IDENTITY_SSO_*` and
    `AETHERCODE_SSO=on`.
-4. v1's FAQ page publishes the Safe Exam Browser quit password; remove it or
-   change the password.
+4. [Done in PR #33] v1's FAQ page published the Safe Exam Browser quit password; removed from `apps/exam-v1/HOPE-Assessment-FAQ.html` and `apps/exam-v1/app/faq/page.tsx` (replaced with instructions to contact proctors). Password on running servers should still be reset.
 5. Monitoring and alerts, deploys from CI, off-server backups (credentials
    and a destination needed).
 

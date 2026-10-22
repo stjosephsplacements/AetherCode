@@ -1,6 +1,5 @@
 "use server";
 
-import { headers } from "next/headers";
 import { markSessionSebVerified, requireUser } from "@/lib/auth";
 import { publicOrigin } from "@/lib/public-url";
 import { isSebConfigKeyRequest } from "@/lib/seb";
@@ -15,8 +14,15 @@ export async function verifySebPage(pageUrl: string, configKeyHash: string): Pro
 }
 
 /** Logs why a SEB JavaScript API check failed, so failures on unusual SEB builds can be diagnosed. */
-export async function reportSebCheck(reason: string, pageUrl: string): Promise<void> {
-  const user = await requireUser("student");
-  const userAgent = (await headers()).get("user-agent") ?? "";
-  console.warn(`SEB check failed for ${user.username}: ${reason.slice(0, 100)} at ${pageUrl.slice(0, 300)} (origin ${await publicOrigin()}, UA ${userAgent.slice(0, 200)})`);
+export async function reportSebCheck(reason: string, _pageUrl: string): Promise<void> {
+  await requireUser("student");
+  const allowedReasons = new Set([
+    "missing-seb-api",
+    "invalid-config-key",
+    "url-mismatch",
+    "origin-mismatch",
+    "missing-origin",
+  ]);
+  const safeReason = allowedReasons.has(reason) ? reason : "unknown";
+  console.warn(`SEB check failed for student: ${safeReason}`);
 }

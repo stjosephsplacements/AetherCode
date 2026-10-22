@@ -35,12 +35,6 @@ export function tokenize(source: string): string[] {
 const K = 8;
 const WINDOW = 4;
 
-function hash(text: string): number {
-  let value = 2166136261;
-  for (let index = 0; index < text.length; index++) value = Math.imul(value ^ text.charCodeAt(index), 16777619);
-  return value >>> 0;
-}
-
 export function fingerprints(source: string): Set<number> {
   const tokens = tokenize(source);
   const grams: number[] = [];

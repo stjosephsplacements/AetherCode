@@ -25,10 +25,12 @@ export type AuditAction =
 // caller, because a logging failure must not undo or block the action itself.
 export async function audit(user: User, action: AuditAction, target: string, details: Record<string, unknown> = {}): Promise<void> {
   try {
+    const actor = `${user.name} (${user.username})`;
     await sql`
       INSERT INTO audit_log (actor_id, actor, action, target, details)
-      VALUES (${user.id}, ${`${user.name} (${user.username})`}, ${action}, ${target}, ${sql.json(details as never)})`;
+      VALUES (${user.id}, ${actor}, ${action}, ${target}, ${sql.json(details as never)})`;
   } catch (error) {
-    console.error("audit log write failed:", action, target, error);
+    // Avoid logging user-controlled target directly to prevent log injection
+    console.error("audit log write failed for action:", action);
   }
 }

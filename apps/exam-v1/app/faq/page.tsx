@@ -156,9 +156,8 @@ export default function FaqPage() {
                 <p>SEB locks you into the exam session. If you try to quit SEB, switch to another app, or force-close it, SEB requires a password to exit or to re-enter the session.</p>
 
                 <Badge variant="fix">Fix</Badge>
-                <p>The quit password is:</p>
-                <pre><code>REDACTED</code></pre>
-                <p>Type it in the password dialog and press Enter. SEB will close. Then re-open SEB from the exam link on the portal to continue your exam.</p>
+                <p>Contact your exam proctor or lab administrator for the quit password to safely exit SEB.</p>
+                <p>Once entered, SEB will close. Then re-open SEB from the exam link on the portal to continue your exam.</p>
 
                 <Callout>
                   <strong>Note:</strong> Your exam timer is server-controlled. The time continues even when SEB is closed. Re-enter the exam as quickly as possible.
@@ -181,7 +180,7 @@ export default function FaqPage() {
                 <Badge variant="fix">Fix</Badge>
                 <ol>
                   <li>Press <code>Ctrl + R</code> (or <code>Cmd + R</code> on Mac) inside SEB to reload the page.</li>
-                  <li>If that doesn&apos;t work, quit SEB using the quit password: <code>REDACTED</code></li>
+                  <li>If that doesn&apos;t work, ask your proctor to exit SEB with the quit password.</li>
                   <li><strong>Force shut down</strong> the laptop (hold the power button for 5 seconds).</li>
                   <li>Turn it back on, reopen SEB from the exam link, and log in again.</li>
                 </ol>

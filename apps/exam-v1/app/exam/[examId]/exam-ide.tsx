@@ -5,7 +5,7 @@ import type { editor as monacoEditor } from "monaco-editor";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Markdown } from "@/components/markdown";
 import { LANGUAGES, type LanguageId } from "@/lib/languages";
-import { ThemeToggle, useTheme } from "@/components/theme-toggle";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Button, Logo, cx } from "@/components/ui";
 import { registerCompletions } from "./completions";
 import { ResultPanel, type SubmissionView } from "./result-panel";
@@ -116,7 +116,6 @@ export function ExamIde({
   const [customInput, setCustomInput] = useState<Record<string, string>>({});
   const [saveState, setSaveState] = useState<"saved" | "saving" | "offline">("saved");
   const [savedAt, setSavedAt] = useState<Date | null>(null);
-  const theme = useTheme();
   const [fontSize, setFontSize] = useState(14);
   useEffect(() => {
     try {

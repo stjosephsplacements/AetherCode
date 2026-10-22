@@ -3,6 +3,7 @@ package judgedispatch
 import (
 	"context"
 	"fmt"
+	"math"
 
 	"github.com/aethercode/aethercode/libs/pkg/database"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -55,6 +56,9 @@ func (store *Store) Claim(contextValue context.Context, limit, leaseSeconds uint
 }
 
 func (store *Store) claim(contextValue context.Context, kind Kind, query string, limit, leaseSeconds uint32) ([]Claim, error) {
+	if limit > math.MaxInt32 || leaseSeconds > math.MaxInt32 {
+		return nil, fmt.Errorf("limit and leaseSeconds must not exceed %d", math.MaxInt32)
+	}
 	rows, err := store.pool.Query(contextValue, query, int32(limit), int32(leaseSeconds))
 	if err != nil {
 		return nil, fmt.Errorf("claim %ss: %w", kind, err)

@@ -92,8 +92,9 @@ func WriteError(writer http.ResponseWriter, err error) {
 		}
 	}
 	if status == http.StatusInternalServerError {
-		// The client sees a generic message; the cause must reach the logs.
-		slog.Error("internal server error", "error", err)
+		// The client sees a generic message; the sanitized cause reaches the logs.
+		cleaned := strings.ReplaceAll(strings.ReplaceAll(err.Error(), "\r", " "), "\n", " ")
+		slog.Error("internal server error", "error", cleaned)
 	}
 	WriteJSON(writer, status, problem)
 }
