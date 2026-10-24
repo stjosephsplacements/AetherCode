@@ -1,19 +1,58 @@
 @import "tailwindcss";
 
 /*
- * AetherCode visual language: a calm, Claude.ai-inspired product UI.
- * Warm neutral canvas, one terracotta accent, Geist for the interface,
- * Source Serif 4 for display moments only, Geist Mono for code.
- * Light and dark follow the operating system (prefers-color-scheme).
+ * ═══════════════════════════════════════════════════════════════════════
+ * AetherCode Design System
+ * Inspired by Vercel.com & HackerRank.com (2024/2026 Brand Standard)
  *
- * Radius system: controls (buttons, inputs, pills) 10px; surfaces (panels,
- * dialogs, the editor) 16px. Nothing else.
+ * Typography:
+ *   --font-sans: Satoshi (Primary Body / UI)
+ *   --font-mono: JetBrains Mono / Geist Mono (Code & Tables)
+ *   --font-display: Departure Mono (Accents, Eyebrows & Terminal Callouts)
+ *
+ * Color Palette:
+ *   Brand Green: #05C770 (HackerRank signature green)
+ *   Brand Lime:  #AEF96C (Vibrant highlight / active states)
+ *   Cyan/Sky:    #73D3FB / #8AE9FF (Secondary accents)
+ *   Terminal:    #141419 (Deep obsidian background)
+ *   Terrain:     #003333 (Deep forest teal complement)
+ * ═══════════════════════════════════════════════════════════════════════
  */
 
+@font-face {
+  font-family: 'Satoshi';
+  src: url('/fonts/satoshi/Satoshi-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Satoshi';
+  src: url('/fonts/satoshi/Satoshi-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-display: swap;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Satoshi';
+  src: url('/fonts/satoshi/Satoshi-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Departure Mono';
+  src: url('/fonts/DepartureMono-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+  font-style: normal;
+}
+
 @theme {
-  --font-sans: var(--font-geist), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: 'Satoshi', var(--font-geist), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', var(--font-geist-mono), ui-monospace, Menlo, Consolas, monospace;
+  --font-eyebrow: 'Departure Mono', ui-monospace, monospace;
   --font-serif: var(--font-source-serif), ui-serif, Georgia, serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", Consolas, monospace;
 
   --color-canvas: var(--canvas);
   --color-surface: var(--surface);
@@ -24,11 +63,19 @@
   --color-ink-subtle: var(--ink-subtle);
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
+
   --color-brand: var(--brand);
   --color-brand-hover: var(--brand-hover);
   --color-brand-ink: var(--brand-ink);
   --color-brand-soft: var(--brand-soft);
   --color-brand-soft-ink: var(--brand-soft-ink);
+
+  --color-hr-green: #05c770;
+  --color-hr-lime: #aef96c;
+  --color-hr-cyan: #73d3fb;
+  --color-hr-terminal: #141419;
+  --color-hr-terrain: #003333;
+
   --color-success: var(--success);
   --color-success-soft: var(--success-soft);
   --color-danger: var(--danger);
@@ -36,12 +83,12 @@
   --color-warning: var(--warning);
   --color-warning-soft: var(--warning-soft);
 
-  --radius-control: 10px;
-  --radius-surface: 16px;
+  --radius-control: 8px;
+  --radius-surface: 14px;
 
-  --shadow-hairline: 0 1px 2px rgb(31 30 29 / 0.05);
-  --shadow-panel: 0 1px 2px rgb(31 30 29 / 0.04), 0 8px 24px -10px rgb(31 30 29 / 0.12);
-  --shadow-overlay: 0 24px 64px -16px rgb(31 30 29 / 0.28);
+  --shadow-hairline: 0 1px 2px rgb(0 0 0 / 0.05);
+  --shadow-panel: 0 1px 3px rgb(0 0 0 / 0.1), 0 10px 30px -10px rgb(0 0 0 / 0.15);
+  --shadow-overlay: 0 24px 64px -16px rgb(0 0 0 / 0.4);
 
   --animate-enter: enter 360ms cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-fade: fade 200ms ease-out both;
@@ -59,51 +106,56 @@
 @layer base {
   :root {
     color-scheme: light;
-    --canvas: #faf9f5;
-    --surface: #fdfdfb;
-    --sidebar: #f3f2ec;
-    --hover: #ecebe4;
-    --ink: #1f1e1d;
-    --ink-muted: #63625c;
-    --ink-subtle: #8f8d86;
-    --line: #e5e3da;
-    --line-strong: #d3d0c5;
-    --brand: #b5532e;
-    --brand-hover: #9f4724;
-    --brand-ink: #fdfdfb;
-    --brand-soft: #f6e9e2;
-    --brand-soft-ink: #8f3f1f;
-    --success: #2d7a4c;
-    --success-soft: #e5f1e9;
-    --danger: #b0382e;
-    --danger-soft: #f8e7e4;
-    --warning: #95591a;
-    --warning-soft: #f6eddc;
+    --canvas: #fbfbfd;
+    --surface: #ffffff;
+    --sidebar: #f6f7f9;
+    --hover: #f0f2f5;
+    --ink: #141419;
+    --ink-muted: #5e6066;
+    --ink-subtle: #8a8d93;
+    --line: #e6e8eb;
+    --line-strong: #d0d3d8;
+
+    /* HackerRank Hacker Green with sleek Vercel contrast */
+    --brand: #05c770;
+    --brand-hover: #04b364;
+    --brand-ink: #ffffff;
+    --brand-soft: #e6faf1;
+    --brand-soft-ink: #038048;
+
+    --success: #05c770;
+    --success-soft: #e6faf1;
+    --danger: #ef4444;
+    --danger-soft: #fee2e2;
+    --warning: #f59e0b;
+    --warning-soft: #fef3c7;
   }
 
   @media (prefers-color-scheme: dark) {
     :root {
       color-scheme: dark;
-      --canvas: #262624;
-      --surface: #2f2f2c;
-      --sidebar: #1f1e1d;
-      --hover: #383734;
-      --ink: #f4f3ee;
-      --ink-muted: #b0aea6;
-      --ink-subtle: #85837c;
-      --line: #3b3a37;
-      --line-strong: #4d4b47;
-      --brand: #d97757;
-      --brand-hover: #e38a6c;
-      --brand-ink: #1f1e1d;
-      --brand-soft: #46302a;
-      --brand-soft-ink: #f2b8a1;
-      --success: #72c290;
-      --success-soft: #223629;
-      --danger: #ef8b80;
-      --danger-soft: #422724;
-      --warning: #e3b06a;
-      --warning-soft: #3d3121;
+      --canvas: #0c0d10;
+      --surface: #141419;
+      --sidebar: #0f1014;
+      --hover: #1c1d23;
+      --ink: #f4f4f7;
+      --ink-muted: #9699a3;
+      --ink-subtle: #61646d;
+      --line: #22232a;
+      --line-strong: #31333d;
+
+      --brand: #05c770;
+      --brand-hover: #1ae689;
+      --brand-ink: #0c0d10;
+      --brand-soft: #082a1b;
+      --brand-soft-ink: #aef96c;
+
+      --success: #05c770;
+      --success-soft: #082a1b;
+      --danger: #f87171;
+      --danger-soft: #381515;
+      --warning: #fbbf24;
+      --warning-soft: #382808;
     }
 
     .logo-light {
@@ -136,7 +188,6 @@
     background: var(--canvas);
     color: var(--ink);
     font-family: var(--font-sans);
-    font-feature-settings: "ss01", "cv11";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -145,13 +196,34 @@
     font-family: var(--font-mono);
   }
 
+  /* Cinematic HackerRank Eyebrow styling */
+  .eyebrow {
+    font-family: var(--font-eyebrow);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 0.75rem;
+  }
+
+  /* Vercel-style subtle gradient glow backgrounds */
+  .cinematic-glow {
+    position: relative;
+    overflow: hidden;
+  }
+  .cinematic-glow::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(circle at 50% -20%, rgba(5, 199, 112, 0.12), transparent 70%);
+  }
+
   :focus-visible {
     outline: 2px solid var(--brand);
     outline-offset: 2px;
   }
 
   ::selection {
-    background: color-mix(in srgb, var(--brand) 22%, transparent);
+    background: color-mix(in srgb, var(--brand) 30%, transparent);
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -163,16 +235,14 @@
 }
 
 @layer components {
-  /* Display headings: the only place the serif appears. */
+  /* Display headings */
   .display {
-    font-family: var(--font-serif);
-    font-weight: 450;
-    letter-spacing: -0.015em;
+    font-weight: 700;
+    letter-spacing: -0.025em;
     line-height: 1.15;
-    font-optical-sizing: auto;
   }
 
-  /* Staff-written Markdown: instructions and question statements. */
+  /* Staff-written Markdown */
   .prose-exam {
     font-size: 0.9375rem;
     line-height: 1.7;
@@ -183,11 +253,11 @@
   .prose-exam h1, .prose-exam h2, .prose-exam h3, .prose-exam h4 {
     margin-top: 1.6em;
     font-size: 0.8125rem;
-    font-weight: 600;
+    font-weight: 700;
     letter-spacing: 0.01em;
     color: var(--ink);
   }
-  .prose-exam strong { font-weight: 600; }
+  .prose-exam strong { font-weight: 700; }
   .prose-exam ul { list-style: disc; padding-left: 1.25em; }
   .prose-exam ol { list-style: decimal; padding-left: 1.25em; }
   .prose-exam li + li { margin-top: 0.35em; }

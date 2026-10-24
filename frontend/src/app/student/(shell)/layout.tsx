@@ -8,20 +8,27 @@ export default async function StudentLayout({ children }: { children: React.Reac
   const viewer = await requireViewer();
   if (!isStudent(viewer) && isStaff(viewer)) redirect("/staff");
   return (
-    <AppShell viewer={viewer} brand={await brandFor(viewer.tenantId)} nav={[
-          { href: "/student", label: "My exams", icon: "exams" },
-          { href: "/student/practice", label: "Practice", icon: "practice" },
-          { href: "/student/progress", label: "My progress", icon: "progress" },
-          { href: "/student/contests", label: "Contests", icon: "contests" },
-          { href: "/student/hackathons", label: "Hackathons", icon: "hackathons" },
-          { href: "/student/open-source", label: "Open source", icon: "opensource" },
-          { href: "/student/interviews", label: "Interviews", icon: "interviews" },
-          { href: "/student/blogs", label: "Blogs", icon: "blogs" },
-          { href: "/student/tasks", label: "My tasks", icon: "tasks" },
-          { href: "/student/profile", label: "My profile", icon: "profile" },
-          { href: "/student/resume", label: "My resume", icon: "resume" },
-          { href: "/student/help", label: "Help", icon: "help" },
-        ]}>
+    <AppShell
+      viewer={viewer}
+      brand={await brandFor(viewer.tenantId)}
+      nav={[
+        { href: "/student", label: "My exams", icon: "exams" },
+        { href: "/student/scheduled", label: "Scheduled", icon: "calendar" },
+        { href: "/student/completed", label: "Completed", icon: "audit" },
+        { href: "/student/practice", label: "Practice", icon: "practice" },
+        { href: "/student/performance", label: "Performance", icon: "progress" },
+        { href: "/student/progress", label: "My progress", icon: "progress" },
+        { href: "/student/contests", label: "Contests", icon: "contests" },
+        { href: "/student/hackathons", label: "Hackathons", icon: "hackathons" },
+        { href: "/student/open-source", label: "Open source", icon: "opensource" },
+        { href: "/student/interviews", label: "Interviews", icon: "interviews" },
+        { href: "/student/blogs", label: "Blogs", icon: "blogs" },
+        { href: "/student/tasks", label: "My tasks", icon: "tasks" },
+        { href: "/student/profile", label: "My profile", icon: "profile" },
+        { href: "/student/resume", label: "My resume", icon: "resume" },
+        { href: "/student/help", label: "Help", icon: "help" },
+      ]}
+    >
       {children}
     </AppShell>
   );
