@@ -283,3 +283,59 @@
   .prose-exam th, .prose-exam td { border: 1px solid var(--line); padding: 0.4rem 0.7rem; text-align: left; }
   .prose-exam th { background: var(--sidebar); font-weight: 600; }
 }
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════
+ * Logo Loader: Glossy Reflection Animation
+ * Sweeps diagonally (120deg) across the mark, strictly masked to its shape.
+ * ═══════════════════════════════════════════════════════════════════════
+ */
+
+@keyframes logoSheen {
+  0% {
+    transform: translateX(-150%) translateY(-150%);
+  }
+  50%, 100% {
+    transform: translateX(150%) translateY(150%);
+  }
+}
+
+.logo-sheen-slide-light {
+  width: 250%;
+  height: 250%;
+  top: -75%;
+  left: -75%;
+  background: linear-gradient(
+    135deg,
+    transparent 42%,
+    rgba(255, 255, 255, 0.6) 48%,
+    rgba(255, 255, 255, 0.95) 50%,
+    rgba(255, 255, 255, 0.6) 52%,
+    transparent 58%
+  );
+  animation: logoSheen 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.logo-sheen-slide-dark {
+  width: 250%;
+  height: 250%;
+  top: -75%;
+  left: -75%;
+  background: linear-gradient(
+    135deg,
+    transparent 42%,
+    rgba(5, 199, 112, 0.5) 47%,
+    rgba(255, 255, 255, 1) 50%,
+    rgba(174, 249, 108, 0.5) 53%,
+    transparent 58%
+  );
+  animation: logoSheen 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo-sheen-slide-light,
+  .logo-sheen-slide-dark {
+    animation: none !important;
+    display: none !important;
+  }
+}
