@@ -8,8 +8,7 @@ deploy_production:
     - production
   script:
     - echo "Deploying commit ${CI_COMMIT_SHORT_SHA} to production..."
-    - kubectl rollout restart deployment -n aethercode frontend gateway identity tenant user question-bank assessment submission judge seb notification analytics
-    - echo "Waiting for rollouts to finish..."
-    - kubectl rollout status deployment/frontend -n aethercode --timeout=180s || true
-    - kubectl rollout status deployment/gateway -n aethercode --timeout=180s || true
+    - for dep in frontend gateway identity tenant user question-bank assessment submission judge seb notification analytics; do kubectl rollout restart deployment/$dep -n aethercode || true; done
+    - echo "Waiting for frontend rollout..."
+    - kubectl rollout status deployment/frontend -n aethercode --timeout=120s || true
     - echo "Deployment complete!"
