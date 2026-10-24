@@ -19,6 +19,7 @@ export default async function StudentLayout({ children }: { children: React.Reac
           { href: "/student/blogs", label: "Blogs", icon: "blogs" },
           { href: "/student/tasks", label: "My tasks", icon: "tasks" },
           { href: "/student/profile", label: "My profile", icon: "profile" },
+          { href: "/student/resume", label: "My resume", icon: "resume" },
           { href: "/student/help", label: "Help", icon: "help" },
         ]}>
       {children}

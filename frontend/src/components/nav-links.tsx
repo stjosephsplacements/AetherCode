@@ -1,11 +1,11 @@
 "use client";
 
-import { Activity, BookOpen, CalendarDays, GitFork, ListChecks, MessagesSquare, Newspaper, Rocket, Trophy, UserRound, ChartColumn, ScrollText, Building2, CodeXml, House, LifeBuoy, NotebookPen, TrendingUp, UserCog, Users } from "lucide-react";
+import { Activity, BookOpen, Briefcase, CalendarDays, FileText, GitFork, ListChecks, MessagesSquare, Newspaper, Rocket, Trophy, UserRound, ChartColumn, ScrollText, Building2, CodeXml, House, LifeBuoy, NotebookPen, TrendingUp, UserCog, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-const ICONS = { exams: NotebookPen, home: House, questions: BookOpen, students: Users, organisation: Building2, accounts: UserCog, status: Activity, help: LifeBuoy, practice: CodeXml, progress: TrendingUp, analytics: ChartColumn, audit: ScrollText, calendar: CalendarDays, contests: Trophy, hackathons: Rocket, opensource: GitFork, interviews: MessagesSquare, blogs: Newspaper, tasks: ListChecks, profile: UserRound, community: MessagesSquare };
+const ICONS = { exams: NotebookPen, home: House, questions: BookOpen, students: Users, organisation: Building2, accounts: UserCog, status: Activity, help: LifeBuoy, practice: CodeXml, progress: TrendingUp, analytics: ChartColumn, audit: ScrollText, calendar: CalendarDays, contests: Trophy, hackathons: Rocket, opensource: GitFork, interviews: MessagesSquare, blogs: Newspaper, tasks: ListChecks, profile: UserRound, resume: FileText, community: MessagesSquare, placements: Briefcase };
 
 export type NavItem = { href: string; label: string; icon: keyof typeof ICONS };
 

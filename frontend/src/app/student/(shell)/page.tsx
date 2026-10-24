@@ -3,23 +3,27 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge, Panel } from "@/components/ui/card";
-import type { Attempt, CandidateAssignment, Page } from "@/lib/api-types";
+import type { Attempt, CandidateAssignment, Page, PracticeProgress, ProfileLink } from "@/lib/api-types";
 import { groupByPhase, listAssignments } from "@/lib/server/assignments";
+import { communityList } from "@/lib/server/community";
 import { gateway } from "@/lib/server/gateway";
 import { requireViewer } from "@/lib/server/session";
 import { cn, dateTile, formatDateTime, formatDuration, formatWindow } from "@/lib/utils";
+import { OverviewMetrics } from "./overview-metrics";
 
 export const metadata: Metadata = { title: "My exams" };
 
 export default async function StudentDashboard() {
   const viewer = await requireViewer();
-  const [assignments, attempts] = viewer.tenantId
+  const [assignments, attempts, progress, links] = viewer.tenantId
     ? await Promise.all([
         listAssignments(viewer.tenantId),
         // Results links are a convenience: the dashboard still loads without them.
         gateway<Page<Attempt>>(`/submission/v1/tenants/${viewer.tenantId}/attempts?limit=100`).then((page) => page.items, () => []),
+        gateway<PracticeProgress>(`/question-bank/v1/tenants/${viewer.tenantId}/practice/progress`).catch(() => null),
+        communityList<ProfileLink>(viewer.tenantId, "profile-links").catch(() => []),
       ])
-    : [[], []];
+    : [[], [], null, []];
   const { live, upcoming, past } = groupByPhase(assignments);
   // The newest attempt of each assignment; staff extra time can keep one open past the window.
   const attemptOf = new Map<string, Attempt>();
@@ -38,6 +42,9 @@ export default async function StudentDashboard() {
             ? `Your next exam opens ${formatDateTime(upcoming[0].available_from)}.`
             : "Nothing is scheduled for you yet."}
       </p>
+
+      {/* Quick Status / Progress Cards */}
+      <OverviewMetrics progress={progress} examCount={assignments.length} linkedCount={links.filter((l) => l.handle).length} />
 
       {live.length > 0 && (
         <section aria-label="Open now" className="mt-10 space-y-3">

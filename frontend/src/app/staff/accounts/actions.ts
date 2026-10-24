@@ -46,18 +46,26 @@ export async function grantRole(_previous: ActionState, form: FormData): Promise
         ? [{ scope_kind: "department", scope_id: String(form.get("department_id") ?? "") }]
         : role === "mentor"
           ? form.getAll("batch_id").map((batch) => ({ scope_kind: "batch", scope_id: String(batch) }))
-          : [];
+          : role === "placement_user"
+            ? [{ scope_kind: "placement_department", scope_id: String(form.get("placement_department_id") ?? "") }]
+            : [];
   if (!principalId || scopes.length === 0 || scopes.some((scope) => !scope.scope_id)) {
     return { error: role === "mentor" ? "Choose at least one batch." : "Choose a role and where it applies." };
   }
   try {
     for (const scope of scopes) {
-      await gateway("/user/v1/role-assignments", {
-        method: "POST",
-        body: { principal_id: principalId, role_name: role, tenant_id: tenantId, ...scope },
-      });
-      if (role === "mentor") {
-        await gateway(`/user/v1/tenants/${tenantId}/batches/${scope.scope_id}/mentors/${principalId}`, { method: "PUT" });
+      if (role === "placement_user") {
+        await gateway(`/user/v1/placement-departments/${scope.scope_id}/staff/${principalId}`, {
+          method: "PUT",
+        });
+      } else {
+        await gateway("/user/v1/role-assignments", {
+          method: "POST",
+          body: { principal_id: principalId, role_name: role, tenant_id: tenantId, ...scope },
+        });
+        if (role === "mentor") {
+          await gateway(`/user/v1/tenants/${tenantId}/batches/${scope.scope_id}/mentors/${principalId}`, { method: "PUT" });
+        }
       }
     }
   } catch (error) {

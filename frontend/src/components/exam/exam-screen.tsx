@@ -254,7 +254,8 @@ function ExamWorkspace({ attemptPath, attemptId, attempt, paper }: Loaded & { at
   return (
     <div className="flex h-dvh flex-col bg-canvas">
       <header className="flex h-14 shrink-0 items-center gap-3 border-b px-4">
-        <Image src="/logo.png" alt="AetherCode" width={22} height={22} />
+        <Image src="/logo-light.png" alt="AetherCode" width={22} height={22} className="logo-light object-contain" />
+        <Image src="/logo-dark.png" alt="AetherCode" width={22} height={22} className="logo-dark object-contain" />
         <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{paper.title}</h1>
         <SaveIndicator state={answers.saveState} error={answers.saveError} />
         <span

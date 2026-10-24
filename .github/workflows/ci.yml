@@ -181,3 +181,45 @@ jobs:
         uses: azure/setup-helm@v5
       - name: Lint and render all charts
         run: deploy/helm/lint.sh
+
+  deploy:
+    needs: [build-images]
+    if: github.ref == 'refs/heads/production'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG }}" > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Deploy updated images to production
+        run: |
+          SHA="${{ github.sha }}"
+          REGISTRY="ghcr.io/${{ github.repository_owner }}"
+          NS="aethercode"
+
+          SERVICES="gateway identity tenant user question-bank assessment submission judge seb notification analytics frontend"
+
+          for svc in $SERVICES; do
+            IMG="$REGISTRY/aethercode-$svc:$SHA"
+            echo "→ Updating $svc to $IMG"
+            kubectl set image deployment/$svc $svc=$IMG -n $NS || true
+          done
+
+      - name: Wait for rollouts
+        run: |
+          NS="aethercode"
+          SERVICES="gateway identity tenant user assessment submission judge seb notification analytics frontend"
+          for svc in $SERVICES; do
+            echo "⏳ Waiting for $svc..."
+            kubectl rollout status deployment/$svc -n $NS --timeout=300s || true
+          done
+
+      - name: Show pod status
+        if: always()
+        run: kubectl get pods -n aethercode

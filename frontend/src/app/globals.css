@@ -105,6 +105,22 @@
       --warning: #e3b06a;
       --warning-soft: #3d3121;
     }
+
+    .logo-light {
+      display: none !important;
+    }
+    .logo-dark {
+      display: block !important;
+    }
+  }
+
+  @media (prefers-color-scheme: light), (prefers-color-scheme: no-preference) {
+    .logo-light {
+      display: block !important;
+    }
+    .logo-dark {
+      display: none !important;
+    }
   }
 
   * {

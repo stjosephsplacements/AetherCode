@@ -114,7 +114,7 @@ export function QuestionForm({ action }: { action: (previous: ActionState, form:
       )}
       <div className="grid gap-4 sm:grid-cols-3">
         <Field label="Slug (optional)" htmlFor="question-slug" hint="A short unique id; made from the title if empty.">
-          <TextInput id="question-slug" name="slug" pattern="[a-z0-9-]{3,80}" placeholder="sum-of-two-numbers" />
+          <TextInput id="question-slug" name="slug" pattern="[a-z0-9\-]{3,80}" placeholder="sum-of-two-numbers" />
         </Field>
       </div>
       <FormMessage state={state} />

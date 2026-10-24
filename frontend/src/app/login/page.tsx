@@ -5,10 +5,10 @@ import { LoginForm } from "./login-form";
 
 // Why a single sign-on did not finish (ADR-0042).
 const SSO_ERRORS: Record<string, string> = {
-  unavailable: "The St. Joseph's sign-in is unreachable right now. Use your AetherCode password.",
+  unavailable: "The institutional sign-in is unreachable right now. Use your AetherCode password.",
   cancelled: "Sign-in was cancelled.",
   expired: "That sign-in took too long or was opened in another browser. Try again.",
-  no_account: "Your St. Joseph's account has no AetherCode account yet. Ask your faculty to add you.",
+  no_account: "Your institutional account has no AetherCode account yet. Ask your faculty to add you.",
   busy: "Too many sign-in attempts. Wait a minute and try again.",
   failed: "The sign-in could not be completed. Try again, or use your AetherCode password.",
 };
@@ -22,7 +22,8 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   return (
     <main className="flex min-h-dvh flex-col items-center px-5 pt-[14vh] pb-10">
       <div className="w-full max-w-[520px] animate-enter">
-        <Image src="/logo.png" alt="AetherCode" width={44} height={44} priority className="mx-auto" />
+        <Image src="/logo-light.png" alt="AetherCode" width={44} height={44} priority className="logo-light mx-auto object-contain" />
+        <Image src="/logo-dark.png" alt="AetherCode" width={44} height={44} priority className="logo-dark mx-auto object-contain" />
         <h1 className="display mt-7 text-center text-[2.1rem] text-ink sm:text-[2.5rem]">Sign in to AetherCode</h1>
         <p className="mx-auto mt-3 max-w-[34ch] text-center text-[15px] leading-relaxed text-ink-muted">
           Use your roll number or username and the password from your college.
@@ -36,7 +37,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           {ssoEnabled && (
             <>
               <Button asChild size="lg" className="mt-8 w-full">
-                <a href={`/auth/sso${next ? `?next=${encodeURIComponent(next)}` : ""}`}>Sign in with your St. Joseph&apos;s account</a>
+                <a href={`/auth/sso${next ? `?next=${encodeURIComponent(next)}` : ""}`}>Sign in with your institutional account</a>
               </Button>
               <div className="mt-6 flex items-center gap-3 text-xs text-ink-subtle" aria-hidden>
                 <span className="h-px flex-1 bg-line" />

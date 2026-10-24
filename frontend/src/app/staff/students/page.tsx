@@ -75,7 +75,11 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
                 <Table head={["Roll number", "Placement department", "Status", ""]}>
                   {students.map((student) => (
                     <tr key={student.id}>
-                      <td className="px-4 py-2.5 font-mono text-[13px] text-ink">{student.enrollment_number}</td>
+                      <td className="px-4 py-2.5 font-mono text-[13px]">
+                        <Link href={`/staff/students/${student.id}`} className="font-medium text-brand hover:underline">
+                          {student.enrollment_number}
+                        </Link>
+                      </td>
                       <td className="px-4 py-2.5 text-ink-muted">{placementName.get(student.placement_department_id ?? "") ?? "Not visible to your role"}</td>
                       <td className="px-4 py-2.5">
                         <Badge tone={student.status === "active" ? "success" : "neutral"}>{student.status}</Badge>

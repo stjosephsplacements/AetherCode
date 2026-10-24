@@ -29,7 +29,7 @@ config:
   AUTHZ_CLIENT_TLS_SERVER_NAME: "user"
   AUTHZ_CLIENT_TLS_CERT_FILE: "/certs/tls.crt"
   AUTHZ_CLIENT_TLS_KEY_FILE: "/certs/tls.key"
-  AUTHZ_ENDPOINT: "user:9443"
+  AUTHZ_ENDPOINT: "127.0.0.1:9443"
   AUTHZ_GRPC_ADDR: "0.0.0.0:9443"
   AUTHZ_TLS_CERT_FILE: "/certs/tls.crt"
   AUTHZ_TLS_KEY_FILE: "/certs/tls.key"

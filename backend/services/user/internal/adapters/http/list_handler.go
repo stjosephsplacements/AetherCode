@@ -135,8 +135,11 @@ func (handler *Handler) listRoleAssignments(writer http.ResponseWriter, request 
 		return
 	}
 	// Resource ID for the authorization check is the principal filter when
-	// present; otherwise empty so a staff-wide scope can cover the resource.
+	// present; otherwise tenantID so it is a valid identifier.
 	principalFilterOrTenant := principalID
+	if principalFilterOrTenant == "" {
+		principalFilterOrTenant = tenantID
+	}
 	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "role_assignments", principalFilterOrTenant, tenantID)
 	if err != nil {
 		httpx.WriteError(writer, err)

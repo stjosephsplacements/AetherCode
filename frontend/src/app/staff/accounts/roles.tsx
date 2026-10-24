@@ -9,10 +9,27 @@ import { grantRole, revokeRole } from "./actions";
 export type RoleChip = { id: string; label: string };
 type Option = { id: string; name: string };
 
-const ROLE_LABELS = { college_admin: "College administrator", department_user: "Faculty of a department", mentor: "Mentor of batches" } as const;
+const ROLE_LABELS = {
+  college_admin: "College administrator",
+  department_user: "Faculty of a department",
+  mentor: "Mentor of batches",
+  placement_user: "Placement officer",
+} as const;
 
 /** A staff member's roles, each removable, and a form to give another (ADR-0043 audits both). */
-export function RoleEditor({ principalId, roles, departments, batches }: { principalId: string; roles: RoleChip[]; departments: Option[]; batches: Option[] }) {
+export function RoleEditor({
+  principalId,
+  roles,
+  departments,
+  batches,
+  placements = [],
+}: {
+  principalId: string;
+  roles: RoleChip[];
+  departments: Option[];
+  batches: Option[];
+  placements?: Option[];
+}) {
   const [revoked, revokeAction] = useActionState(revokeRole, initialActionState);
   const [granted, grantAction] = useActionState(grantRole, initialActionState);
   const [role, setRole] = useState<keyof typeof ROLE_LABELS>("department_user");
@@ -47,6 +64,13 @@ export function RoleEditor({ principalId, roles, departments, batches }: { princ
             <select name="department_id" className="h-8 w-full rounded-[var(--radius-control)] border border-line bg-surface px-2 text-sm">
               {departments.map((department) => (
                 <option key={department.id} value={department.id}>{department.name}</option>
+              ))}
+            </select>
+          )}
+          {role === "placement_user" && (
+            <select name="placement_department_id" className="h-8 w-full rounded-[var(--radius-control)] border border-line bg-surface px-2 text-sm">
+              {placements.map((placement) => (
+                <option key={placement.id} value={placement.id}>{placement.name}</option>
               ))}
             </select>
           )}

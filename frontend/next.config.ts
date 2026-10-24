@@ -7,12 +7,12 @@ const isDev = process.env.NODE_ENV !== "production";
 // runs its tokenizer in a blob: worker.
 const contentSecurityPolicy = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
+  `script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://*.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://static.cloudflareinsights.com https://analytics-aethercode.stjosephsplacements.in${isDev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
+  "img-src 'self' data: blob: https://www.google-analytics.com https://*.google-analytics.com https://www.googletagmanager.com https://*.googletagmanager.com",
   "font-src 'self' data:",
   "worker-src 'self' blob:",
-  "connect-src 'self'",
+  "connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://*.analytics.google.com https://www.googletagmanager.com https://*.googletagmanager.com https://stats.g.doubleclick.net https://cloudflareinsights.com https://analytics-aethercode.stjosephsplacements.in",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -20,7 +20,7 @@ const contentSecurityPolicy = [
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  poweredByHeader: false,
+  poweredByHeader: true,
   // Tests and imported questions arrive through server actions; nginx accepts
   // 2 MB and the gateway 1 MiB of JSON, so a larger body could not get through.
   experimental: { serverActions: { bodySizeLimit: "2mb" } },
@@ -33,6 +33,8 @@ const nextConfig: NextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "same-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          { key: "X-Powered-By", value: "Next.js" },
+          { key: "X-Backend-Tech", value: "Go, PostgreSQL, Redis, Docker, Kubernetes, Nginx" },
         ],
       },
     ];

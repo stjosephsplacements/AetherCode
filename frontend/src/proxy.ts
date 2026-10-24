@@ -63,5 +63,5 @@ function endSession(request: NextRequest, passThrough: boolean) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|monaco/|logo\\.png|favicon\\.ico|robots\\.txt).*)"],
+  matcher: ["/((?!_next/static|_next/image|monaco/|vendor/|logo\\.png|logo-light\\.png|logo-dark\\.png|favicon\\.ico|robots\\.txt).*)"],
 };

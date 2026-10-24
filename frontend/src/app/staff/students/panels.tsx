@@ -23,7 +23,46 @@ export function ImportPanel({ batches, placements, departments }: { batches: Bat
   const departmentName = new Map(departments.map((department) => [department.id, department.code]));
 
   async function loadFile(file: File | undefined) {
-    if (file && textarea.current) textarea.current.value = await file.text();
+    if (!file || !textarea.current) return;
+    const isExcel = file.name.endsWith(".xlsx") || file.name.endsWith(".xls");
+    if (isExcel) {
+      try {
+        if (!(window as any).ExcelJS) {
+          const script = document.createElement("script");
+          script.src = "/monaco/vendor/exceljs.min.js";
+          await new Promise((resolve, reject) => {
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+          });
+        }
+        const arrayBuffer = await file.arrayBuffer();
+        const workbook = new (window as any).ExcelJS.Workbook();
+        await workbook.xlsx.load(arrayBuffer);
+        const worksheet = workbook.worksheets[0];
+        if (worksheet) {
+          const rows: string[] = [];
+          worksheet.eachRow((row: any) => {
+            const values = Array.isArray(row.values) ? row.values.slice(1) : [];
+            const line = values
+              .map((val: any) => {
+                if (val === null || val === undefined) return "";
+                if (typeof val === "object") return String(val.text ?? val.result ?? "");
+                return String(val).trim();
+              })
+              .join(",");
+            if (line.replace(/,/g, "").trim()) {
+              rows.push(line);
+            }
+          });
+          textarea.current.value = rows.join("\n");
+        }
+      } catch (err) {
+        console.error("Failed to parse Excel file with ExcelJS", err);
+      }
+    } else {
+      textarea.current.value = await file.text();
+    }
   }
 
   return (
@@ -61,8 +100,8 @@ export function ImportPanel({ batches, placements, departments }: { batches: Bat
       </Field>
       <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] font-medium text-brand hover:underline">
         <Upload className="size-4" strokeWidth={1.75} />
-        Load a CSV file
-        <input type="file" accept=".csv,text/csv,text/plain" className="sr-only" onChange={(event) => loadFile(event.target.files?.[0])} />
+        Load a CSV or Excel file (.csv, .xlsx, .xls)
+        <input type="file" accept=".csv,text/csv,text/plain,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" className="sr-only" onChange={(event) => loadFile(event.target.files?.[0])} />
       </label>
       <FormMessage state={state} />
       <SubmitButton>Import students</SubmitButton>
