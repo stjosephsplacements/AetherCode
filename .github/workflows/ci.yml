@@ -2,8 +2,13 @@ name: ci
 
 on:
   pull_request:
+    branches: [production, development]
   push:
     branches: [production, development]
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -33,6 +38,17 @@ jobs:
       - run: npm install -g pnpm@12.6.0
       - run: make web-check
       - run: make web-build
+
+  exam-v1:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - run: npm install -g pnpm@12.6.0
+      - run: make exam-check
+      - run: make exam-build
 
   integration-test:
     runs-on: ubuntu-24.04
@@ -84,12 +100,13 @@ jobs:
           cache-dependency-path: |
             backend/libs/pkg/go.sum
             backend/services/*/go.sum
-      - run: go install golang.org/x/vuln/cmd/govulncheck@latest
+      - run: go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
       - run: make vuln
 
   build-images:
     needs: [build-test]
-    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: write
@@ -174,10 +191,69 @@ jobs:
 
   helm-lint:
     needs: [build-test]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - name: Install Helm
         uses: azure/setup-helm@v5
       - name: Lint and render all charts
         run: deploy/helm/lint.sh
+
+  deploy:
+    needs:
+      - build-test
+      - web
+      - exam-v1
+      - integration-test
+      - migration-verification
+      - lint-contracts
+      - vulnerability-scan
+      - build-images
+      - helm-lint
+    if: github.event_name == 'push' && github.ref == 'refs/heads/production'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+      - uses: azure/setup-helm@v5
+      - uses: azure/setup-kubectl@v4
+
+      - name: Configure kubeconfig
+        env:
+          KUBECONFIG_CONTENT: ${{ secrets.KUBECONFIG }}
+        run: |
+          set -euo pipefail
+          test -n "$KUBECONFIG_CONTENT"
+          mkdir -p "$HOME/.kube"
+          chmod 700 "$HOME/.kube"
+          printf '%s\n' "$KUBECONFIG_CONTENT" > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+
+      - name: Run migrations and deploy production images
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          namespace=aethercode
+          chart=deploy/helm/platform-service
+          services=(gateway identity tenant user question-bank assessment submission judge seb notification analytics frontend)
+
+          helm upgrade migrations deploy/helm/platform-migrations \
+            --namespace "$namespace" \
+            --reuse-values \
+            --set image.tag="$IMAGE_TAG" \
+            --wait --atomic --timeout 15m
+
+          for service in "${services[@]}"; do
+            helm upgrade "$service" "$chart" \
+              --namespace "$namespace" \
+              --reuse-values \
+              --values "deploy/helm/platform-service/values-$service.yaml" \
+              --set image.tag="$IMAGE_TAG" \
+              --wait --atomic --timeout 10m
+          done
+
+      - name: Show production workload status
+        if: always()
+        run: kubectl get deployments,pods -n aethercode

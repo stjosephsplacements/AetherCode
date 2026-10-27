@@ -12,10 +12,6 @@ import { gzipSync } from "node:zlib";
 // Because we generate the config server-side we can compute it ourselves —
 // no manual copy-paste, same value on all platforms and SEB versions.
 
-// Never typed by anyone (allowQuit is off and SEB quits via quitURL), but part
-// of the config and therefore of the Config Key.
-
-
 /**
  * Verify an incoming SEB request. `requestUrl` must be the exact absolute URL
  * SEB requested (query included), because that is what SEB hashes.

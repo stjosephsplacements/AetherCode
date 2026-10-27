@@ -1,0 +1,31 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: en-US
+reviews:
+  profile: assertive
+  request_changes_workflow: false
+  review_status: false
+  auto_review:
+    enabled: true
+    auto_incremental_review: true
+    drafts: false
+  path_instructions:
+    - path: "backend/services/**"
+      instructions: >-
+        Review service ownership and hexagonal boundaries. Check tenant isolation,
+        row-level security, authorization capabilities, transactional outbox
+        behavior, and error handling. Flag cross-service data access or changes
+        that bypass contracts.
+    - path: "backend/libs/proto/**"
+      instructions: >-
+        Treat protobuf files as source contracts. Check backward compatibility,
+        field numbering, generated-code consistency, and whether affected
+        providers and consumers are updated together.
+    - path: "backend/services/*/internal/adapters/**"
+      instructions: >-
+        Check SQL parameterization, tenant-scoped queries, transaction and
+        resource cleanup, timeouts, retries, and safe handling of untrusted data.
+    - path: "apps/exam-v1/**"
+      instructions: >-
+        This app is a frozen fallback. Accept only security fixes. Never expose
+        hidden tests or SEB secrets, weaken server-side role and attempt checks,
+        change grading or timing rules, or bypass the worker boundary.

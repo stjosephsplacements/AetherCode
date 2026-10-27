@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=https://cubic.dev/schema/cubic-repository-config.schema.json
+version: 1
+reviews:
+  enabled: true
+  sensitivity: medium
+  incremental_commits: true
+  check_drafts: false
+  resolve_threads_when_addressed: true
+  auto_approve_behavior: disabled
+  auto_approve: disabled
+  custom_instructions: >-
+    Prioritize actionable correctness, security, and regression findings over
+    style. Respect the repository's AGENTS.md and CONTRIBUTING.md. Preserve
+    tenant isolation, row-level security, service ownership, signed
+    authorization capabilities, hidden-test confidentiality, SEB enforcement,
+    and the judge sandbox boundary. Treat apps/exam-v1 as security-fixes-only.
+    Never recommend merging when required CI checks did not run or failed.
+  ignore:
+    files:
+      - "**/vendor/**"
+      - "**/node_modules/**"
+      - "**/.next/**"
+      - "**/generated/**"
+      - "**/*.pb.go"
+      - "**/*_grpc.pb.go"

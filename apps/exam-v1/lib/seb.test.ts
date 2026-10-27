@@ -16,6 +16,7 @@ test("buildSebConfig is gzip(plnd + gzip(plist)) pointing at the origin", () => 
   assert.match(plist, /<key>taskBarHeight<\/key>\s*<integer>40<\/integer>/);
   assert.match(plist, /<key>startURLAppendQueryParameter<\/key>\s*<true\/>/);
   assert.match(plist, /<key>quitURL<\/key>\s*<string>http:\/\/localhost:3000\/student\?seb=quit<\/string>/);
+  assert.doesNotMatch(plist, /<key>hashedQuitPassword<\/key>/);
 });
 
 test("the Config Key is deterministic per origin", () => {
@@ -31,4 +32,6 @@ test("isSebConfigKeyRequest accepts SHA256(url + configKey) for the exact URL on
   assert.equal(isSebConfigKeyRequest(`${url}?seb=reload`, hash, origin), false);
   assert.equal(isSebConfigKeyRequest(url, hash, "https://exam.example.edu"), false);
   assert.equal(isSebConfigKeyRequest(url, null, origin), false);
+  const obsoleteKeyHash = createHash("sha256").update(url + "obsolete-config-key").digest("hex");
+  assert.equal(isSebConfigKeyRequest(url, obsoleteKeyHash, origin), false);
 });

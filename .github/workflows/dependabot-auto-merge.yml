@@ -11,7 +11,9 @@ permissions:
 jobs:
   auto-merge:
     runs-on: ubuntu-24.04
-    if: github.actor == 'dependabot[bot]'
+    # `github.actor` is the person who triggered or re-ran the workflow. Use
+    # the immutable PR author so maintainer re-runs still process bot PRs.
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
     steps:
       - name: Fetch Dependabot metadata
         id: meta
