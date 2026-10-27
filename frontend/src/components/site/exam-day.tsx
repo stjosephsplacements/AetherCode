@@ -139,11 +139,11 @@ export function ExamDay() {
             </li>
           ))}
         </motion.ol>
-        <div aria-hidden className="relative z-[2] mx-auto mb-10 w-full max-w-4xl px-6 sm:mb-14">
+        <div aria-hidden className="relative z-[2] mx-auto mb-10 w-[calc(100%-2rem)] max-w-4xl rounded-full bg-[#0f0b1e]/35 px-6 pb-2.5 pt-4 backdrop-blur-md sm:mb-14 sm:px-8">
           <div className="relative h-px bg-white/35">
             <motion.span style={{ left: dot }} className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_0_16px_4px_rgb(255_255_255/0.6)]" />
           </div>
-          <div className="mt-3 flex justify-between font-mono text-[11.5px] text-white/80 sm:text-[12.5px]">
+          <div className="mt-3 flex justify-between font-mono text-[11.5px] text-white sm:text-[12.5px]">
             {FRAMES.map((frame) => (
               <span key={frame.time}>{frame.time}</span>
             ))}
