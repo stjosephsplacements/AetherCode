@@ -24,7 +24,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const ssoError = sso ? (SSO_ERRORS[sso] ?? SSO_ERRORS.failed) : null;
   return (
     <main className="relative isolate grid min-h-dvh overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
-      {/* Ambient light: green from the left, cyan behind the runner. */}
+      {/* Ambient light: amber from the left, lavender behind the runner. */}
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute -left-40 -top-56 size-[720px] rounded-full bg-[radial-gradient(closest-side,var(--glow),transparent)]" />
         <div className="absolute -bottom-64 right-[-10%] size-[820px] rounded-full bg-[radial-gradient(closest-side,var(--glow-2),transparent)]" />
@@ -68,12 +68,12 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         <p className="text-xs text-ink-subtle">Can&apos;t sign in? Your exam administrator can reset your password.</p>
       </section>
 
-      {/* The arena: always midnight, whatever the theme. */}
-      <section aria-label="Preview" className="relative m-3 hidden max-h-[calc(100dvh-1.5rem)] overflow-hidden rounded-[28px] bg-[#0e141e] lg:flex lg:flex-col">
-        <div aria-hidden className="absolute -right-40 -top-40 size-[620px] rounded-full bg-[radial-gradient(closest-side,rgb(5_199_112/0.28),transparent)]" />
-        <div aria-hidden className="absolute -bottom-48 -left-32 size-[560px] rounded-full bg-[radial-gradient(closest-side,rgb(115_211_251/0.16),transparent)]" />
+      {/* The arena: always dusk, whatever the theme. */}
+      <section aria-label="Preview" className="relative m-3 hidden max-h-[calc(100dvh-1.5rem)] overflow-hidden rounded-[28px] bg-[#130f27] lg:flex lg:flex-col">
+        <div aria-hidden className="absolute -right-40 -top-40 size-[620px] rounded-full bg-[radial-gradient(closest-side,rgb(255_138_61/0.30),transparent)]" />
+        <div aria-hidden className="absolute -bottom-48 -left-32 size-[560px] rounded-full bg-[radial-gradient(closest-side,rgb(169_156_255/0.18),transparent)]" />
         <div className="relative px-12 pt-10">
-          <p className="max-w-[24ch] font-serif text-[1.75rem] leading-tight text-[#f3f7f7]">Every run counts. Keep the streak going.</p>
+          <p className="max-w-[24ch] font-serif text-[1.75rem] leading-tight text-[#f3eeff]">Every run counts. Keep the streak going.</p>
           <div className="mt-6 max-w-[440px] opacity-90">
             <StreakGrid />
           </div>

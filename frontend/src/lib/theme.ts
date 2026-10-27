@@ -6,7 +6,7 @@ export type Theme = "dark" | "light";
 export const THEME_COOKIE = "aether-theme";
 
 function current(): Theme {
-  return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+  return document.documentElement.dataset.theme === "light" ? "light" : "dark";
 }
 
 function subscribe(onChange: () => void) {
@@ -15,9 +15,9 @@ function subscribe(onChange: () => void) {
   return () => observer.disconnect();
 }
 
-/** The app theme, kept in sync with <html data-theme>. Light on the server. */
+/** The app theme, kept in sync with <html data-theme>. Dark on the server. */
 export function useTheme(): Theme {
-  return useSyncExternalStore(subscribe, current, () => "light");
+  return useSyncExternalStore(subscribe, current, () => "dark");
 }
 
 function functionalConsent(): boolean {

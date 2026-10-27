@@ -26,3 +26,19 @@ export function CookieSettingsLink() {
     </button>
   );
 }
+
+/** The theme switch as a single icon button, for the header. */
+export function ThemeIcon() {
+  const theme = useTheme();
+  const next = theme === "dark" ? "light" : "dark";
+  return (
+    <button
+      type="button"
+      onClick={() => setTheme(next)}
+      aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+      className="grid size-10 place-items-center rounded-full text-ink-muted transition-colors hover:bg-hover hover:text-ink"
+    >
+      {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+    </button>
+  );
+}

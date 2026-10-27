@@ -23,13 +23,13 @@ const SERVICES = [
 function Box({ title, children, tone = "plain", className = "" }: { title: string; children?: ReactNode; tone?: "plain" | "dark" | "accent"; className?: string }) {
   const tones = {
     plain: "border-line bg-surface",
-    dark: "border-transparent bg-[#0e141e] text-[#f3f7f7]",
+    dark: "border-transparent bg-[#0f0b1e] text-[#f3eeff]",
     accent: "border-accent/40 bg-brand-soft",
   };
   return (
     <div className={`rounded-[var(--radius-control)] border px-4 py-3 ${tones[tone]} ${className}`}>
       <p className={tone === "dark" ? "text-[14px] font-semibold" : "text-[14px] font-semibold text-ink"}>{title}</p>
-      {children && <div className={tone === "dark" ? "mt-0.5 text-[12.5px] text-[#9aa7b0]" : "mt-0.5 text-[12.5px] text-ink-muted"}>{children}</div>}
+      {children && <div className={tone === "dark" ? "mt-0.5 text-[12.5px] text-[#a89fc4]" : "mt-0.5 text-[12.5px] text-ink-muted"}>{children}</div>}
     </div>
   );
 }

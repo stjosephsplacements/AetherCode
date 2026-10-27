@@ -15,10 +15,10 @@
   animation-delay: var(--delay);
 }
 
-.cell[data-level="1"] { --lit: rgb(5 199 112 / 0.22); }
-.cell[data-level="2"] { --lit: rgb(5 199 112 / 0.42); }
-.cell[data-level="3"] { --lit: rgb(5 199 112 / 0.7); }
-.cell[data-level="4"] { --lit: #05c770; }
+.cell[data-level="1"] { --lit: rgb(255 138 61 / 0.22); }
+.cell[data-level="2"] { --lit: rgb(255 138 61 / 0.42); }
+.cell[data-level="3"] { --lit: rgb(255 138 61 / 0.7); }
+.cell[data-level="4"] { --lit: #ff8a3d; }
 .cell[data-level="0"] { --lit: rgb(255 255 255 / 0.05); }
 
 @keyframes light {

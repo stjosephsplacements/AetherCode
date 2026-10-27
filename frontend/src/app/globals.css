@@ -3,9 +3,9 @@
 /*
  * ═══════════════════════════════════════════════════════════════════════
  * AetherCode Design System
- * HackerRank colours on a Sarvam-style system: quiet off-white surfaces,
- * hairline cards, pill actions, a serif display voice and ambient glow.
- * Light is the default; dark (HackerRank midnight) is opt-in via data-theme.
+ * "Dusk": violet-navy night, amber actions, coral and lavender glow, on a
+ * Sarvam-style system of hairline cards, pill actions and a serif display.
+ * Dark is the default; the warm "Day" light theme is opt-in via data-theme.
  *
  * Typography:
  *   --font-sans: Satoshi (Primary Body / UI)
@@ -72,6 +72,8 @@
   --color-brand-soft: var(--brand-soft);
   --color-brand-soft-ink: var(--brand-soft-ink);
   --color-accent: var(--accent);
+  --color-coral: var(--coral);
+  --color-lavender: var(--lavender);
 
   --color-success: var(--success);
   --color-success-soft: var(--success-soft);
@@ -110,84 +112,89 @@
 }
 
 @layer base {
-  /* Light is the default (no attribute, or data-theme="light"); dark is opt-in.
-     HackerRank's palette on Sarvam-style surfaces: off-white canvas, white
-     hairline cards, midnight pill buttons, green/cyan ambient glow.
+  /* Dusk is the default (no attribute, or data-theme="dark"); Day is the
+     light twin. Violet-navy night with amber actions and a coral/lavender
+     glow; Day is warm paper with indigo ink and tangerine accents.
      Every text/background pair below meets WCAG AA (4.5:1). */
-  :root, [data-theme="light"] {
-    color-scheme: light;
-    --canvas: #fafafa;
-    --surface: #ffffff;
-    --surface-2: #f4f5f6;
-    --sidebar: #f7f8f8;
-    --hover: #f1f3f4;
-    --ink: #0e141e;
-    --ink-muted: #576871;
-    --ink-subtle: #637079;
-    --line: #e7eeef;
-    --line-strong: #dfe2e5;
-
-    /* Primary actions are midnight pills; green is the accent. */
-    --brand: #0e141e;
-    --brand-hover: #26313f;
-    --brand-ink: #ffffff;
-    --brand-soft: #e8f8ef;
-    --brand-soft-ink: #037a43;
-    --accent: #037a43;
-    --glow: rgb(5 199 112 / 0.16);
-    --glow-2: rgb(115 211 251 / 0.18);
-
-    --success: #037a43;
-    --success-soft: #e8f8ef;
-    --danger: #c42b2b;
-    --danger-soft: #fdecec;
-    --warning: #8a4b08;
-    --warning-soft: #fdf3e1;
-
-    --shadow-hairline-v: 0 1px 2px rgb(14 20 30 / 0.04);
-    --shadow-panel-v: 0 1px 2px rgb(14 20 30 / 0.04), 0 8px 24px -12px rgb(14 20 30 / 0.08);
-    --shadow-overlay-v: 0 24px 64px -16px rgb(14 20 30 / 0.22);
-  }
-
-  /* HackerRank midnight, with green pill buttons as on hackerrank.com. */
-  [data-theme="dark"] {
+  :root, [data-theme="dark"] {
     color-scheme: dark;
-    --canvas: #0e141e;
-    --surface: #141c28;
-    --surface-2: #1b2533;
-    --sidebar: #111823;
-    --hover: #1b2533;
-    --ink: #f3f7f7;
-    --ink-muted: #9aa7b0;
-    --ink-subtle: #8794a0;
+    --canvas: #0f0b1e;
+    --surface: #171230;
+    --surface-2: #211a40;
+    --sidebar: #130f27;
+    --hover: #211a40;
+    --ink: #f3eeff;
+    --ink-muted: #a89fc4;
+    --ink-subtle: #8e85ad;
     --line: rgb(255 255 255 / 0.08);
     --line-strong: rgb(255 255 255 / 0.14);
 
-    --brand: #05c770;
-    --brand-hover: #1ae689;
-    --brand-ink: #0e141e;
-    --brand-soft: rgb(5 199 112 / 0.12);
-    --brand-soft-ink: #aef96c;
-    --accent: #05c770;
-    --glow: rgb(5 199 112 / 0.14);
-    --glow-2: rgb(115 211 251 / 0.10);
+    --brand: #ff8a3d;
+    --brand-hover: #ffa463;
+    --brand-ink: #0f0b1e;
+    --brand-soft: rgb(255 138 61 / 0.14);
+    --brand-soft-ink: #ffb784;
+    --accent: #ff8a3d;
+    --coral: #ff4f79;
+    --lavender: #a99cff;
+    --glow: rgb(255 138 61 / 0.16);
+    --glow-2: rgb(169 156 255 / 0.14);
+    --horizon: linear-gradient(to top, rgb(255 79 121 / 0.30), rgb(255 138 61 / 0.22) 30%, rgb(169 156 255 / 0.08) 62%, transparent);
 
-    --success: #05c770;
-    --success-soft: rgb(5 199 112 / 0.12);
-    --danger: #f87171;
-    --danger-soft: rgb(248 113 113 / 0.12);
-    --warning: #fbbf24;
-    --warning-soft: rgb(251 191 36 / 0.12);
+    --success: #34d399;
+    --success-soft: rgb(52 211 153 / 0.12);
+    --danger: #ff6b7f;
+    --danger-soft: rgb(255 107 127 / 0.12);
+    --warning: #ffc24b;
+    --warning-soft: rgb(255 194 75 / 0.12);
 
     --shadow-hairline-v: 0 1px 0 rgb(255 255 255 / 0.03) inset;
     --shadow-panel-v: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 12px 32px -12px rgb(0 0 0 / 0.55);
     --shadow-overlay-v: 0 1px 0 rgb(255 255 255 / 0.06) inset, 0 32px 80px -16px rgb(0 0 0 / 0.7);
   }
 
-  .logo-light { display: block !important; }
-  .logo-dark { display: none !important; }
-  [data-theme="dark"] .logo-light { display: none !important; }
-  [data-theme="dark"] .logo-dark { display: block !important; }
+  /* Day: warm paper, indigo ink, tangerine as the accent. */
+  [data-theme="light"] {
+    color-scheme: light;
+    --canvas: #fbf8f4;
+    --surface: #ffffff;
+    --surface-2: #f4efe9;
+    --sidebar: #f8f4ef;
+    --hover: #f4efe9;
+    --ink: #1b1640;
+    --ink-muted: #5d5878;
+    --ink-subtle: #6c6788;
+    --line: #ece5dc;
+    --line-strong: #e0d7cc;
+
+    --brand: #1b1640;
+    --brand-hover: #2e2766;
+    --brand-ink: #ffffff;
+    --brand-soft: #fff0e3;
+    --brand-soft-ink: #b34700;
+    --accent: #b34700;
+    --coral: #d6295a;
+    --lavender: #4b3fd1;
+    --glow: rgb(255 122 0 / 0.14);
+    --glow-2: rgb(75 63 209 / 0.10);
+    --horizon: linear-gradient(to top, rgb(255 122 0 / 0.22), rgb(255 176 102 / 0.16) 34%, rgb(75 63 209 / 0.05) 66%, transparent);
+
+    --success: #0f7a4d;
+    --success-soft: #e6f6ee;
+    --danger: #c42b4a;
+    --danger-soft: #fdebef;
+    --warning: #8a4b08;
+    --warning-soft: #fdf3e1;
+
+    --shadow-hairline-v: 0 1px 2px rgb(27 22 64 / 0.04);
+    --shadow-panel-v: 0 1px 2px rgb(27 22 64 / 0.04), 0 8px 24px -12px rgb(27 22 64 / 0.10);
+    --shadow-overlay-v: 0 24px 64px -16px rgb(27 22 64 / 0.24);
+  }
+
+  .logo-light { display: none !important; }
+  .logo-dark { display: block !important; }
+  [data-theme="light"] .logo-light { display: block !important; }
+  [data-theme="light"] .logo-dark { display: none !important; }
 
   * {
     border-color: var(--line);
@@ -373,5 +380,36 @@
   .logo-sheen-slide-dark {
     animation: none !important;
     display: none !important;
+  }
+}
+
+/* Hero entrance: each word rises out of a blur, once, on load. CSS so the
+   headline is never hidden behind JavaScript. */
+@layer components {
+  .rise {
+    animation: rise 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(0.45em); filter: blur(10px); }
+    to { opacity: 1; transform: none; filter: blur(0); }
+  }
+}
+
+/* Film grain for the cinematic sections: an SVG noise tile laid over the
+   content, so gradients read like a poster print instead of a screen. */
+@layer components {
+  .grain {
+    position: relative;
+    isolation: isolate;
+  }
+  .grain::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0.22;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 }
