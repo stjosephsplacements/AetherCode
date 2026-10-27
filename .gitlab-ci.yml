@@ -1,0 +1,14 @@
+stages:
+  - deploy
+
+deploy_production:
+  stage: deploy
+  image: bitnami/kubectl:latest
+  only:
+    - production
+  script:
+    - echo "Deploying commit ${CI_COMMIT_SHORT_SHA} to production..."
+    - for dep in frontend gateway identity tenant user question-bank assessment submission judge seb notification analytics; do kubectl rollout restart deployment/$dep -n aethercode || true; done
+    - echo "Waiting for frontend rollout..."
+    - kubectl rollout status deployment/frontend -n aethercode --timeout=120s || true
+    - echo "Deployment complete!"

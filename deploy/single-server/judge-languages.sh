@@ -12,7 +12,7 @@ case "$JUDGE_ENGINE" in
 esac
 
 # Judge0 language IDs (also used as stable IDs for other engines).
-psql -v ON_ERROR_STOP=1 -h judge-db -U aether_judge_admin -d aether_judge_wrapper <<SQL
+psql -v ON_ERROR_STOP=1 -h "${PGHOST:-judge-db}" -U aether_judge_app -d aether_judge_wrapper <<SQL
 INSERT INTO judge.language_mappings (language_key, engine_name, engine_language_id, engine_version, enabled, max_parallelism)
 VALUES
     ('c', '$JUDGE_ENGINE', 50, '$version', true, $JUDGE_WORKER_CONCURRENCY),

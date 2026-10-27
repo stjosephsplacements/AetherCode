@@ -540,7 +540,7 @@ export type FeedItem = {
   phase: "upcoming" | "live" | "ended";
 };
 
-export type PlatformName = "leetcode" | "github" | "codeforces" | "codechef" | "hackerrank";
+export type PlatformName = "leetcode" | "github" | "codeforces" | "codechef" | "hackerrank" | "atcoder" | "skillrack";
 export type ProfileLink = { platform: PlatformName; handle: string };
 
 export type PersonalTask = { id: string; title: string; due_at: string | null; done: boolean };

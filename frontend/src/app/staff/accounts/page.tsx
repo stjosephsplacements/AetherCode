@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { EmptyState, LoadError, PageHeader, Section, Table } from "@/components/staff/page-header";
 import { Badge, Panel } from "@/components/ui/card";
-import { listBatches, listDepartments } from "@/lib/server/directory";
+import { listBatches, listDepartments, listPlacement, departmentLabel } from "@/lib/server/directory";
 import { describeAccounts, listRoleAssignments } from "@/lib/server/people";
 import { requireCollege } from "@/lib/server/staff";
 import { StudentActions } from "../students/panels";
@@ -11,21 +11,28 @@ import { type RoleChip, RoleEditor } from "./roles";
 
 export const metadata: Metadata = { title: "Staff accounts" };
 
-const STAFF_ROLES = new Set(["college_admin", "department_user", "mentor"]);
+const STAFF_ROLES = new Set(["college_admin", "department_user", "mentor", "placement_user"]);
 
 export default async function StaffAccountsPage() {
   const staff = await requireCollege();
   if (!staff.canManageAccounts) redirect("/staff");
   let data;
   try {
-    const [allDepartments, batches, assignments] = await Promise.all([
+    const [allDepartments, batches, assignments, placement] = await Promise.all([
       listDepartments(staff.tenantId),
       listBatches(staff.tenantId),
       listRoleAssignments(staff.tenantId),
+      listPlacement(),
     ]);
     const active = assignments.filter((assignment) => assignment.status === "active" && STAFF_ROLES.has(assignment.role_name));
     const names = active.length ? await describeAccounts(staff.tenantId, active.map((assignment) => assignment.principal_id)) : new Map();
-    data = { departments: allDepartments.filter((department) => department.department_type === "college"), batches, active, names };
+    data = {
+      departments: allDepartments.filter((department) => department.department_type === "college"),
+      batches,
+      active,
+      names,
+      placement,
+    };
   } catch (error) {
     return (
       <>
@@ -34,13 +41,21 @@ export default async function StaffAccountsPage() {
       </>
     );
   }
-  const { departments, batches, active, names } = data;
+  const { departments, batches, active, names, placement } = data;
+  const placementList = placement.organizations.flatMap((org) =>
+    org.departments.map((dep) => ({ id: dep.id, name: `${departmentLabel(dep)}, ${org.legal_name}` }))
+  );
   const scopeName = new Map<string, string>([
     ...departments.map((department) => [department.id, department.name] as const),
     ...batches.map((batch) => [batch.id, batch.name] as const),
+    ...placementList.map((p) => [p.id, p.name] as const),
   ]);
   const label = (role: string, scope?: string) =>
-    role === "college_admin" ? "College administrator" : `${role === "mentor" ? "Mentor" : "Faculty"}, ${scopeName.get(scope ?? "") ?? "another scope"}`;
+    role === "college_admin"
+      ? "College administrator"
+      : role === "placement_user"
+        ? `Placement officer, ${scopeName.get(scope ?? "") ?? "Placement"}`
+        : `${role === "mentor" ? "Mentor" : "Faculty"}, ${scopeName.get(scope ?? "") ?? "another scope"}`;
   const people = new Map<string, RoleChip[]>();
   for (const assignment of active) {
     people.set(assignment.principal_id, [...(people.get(assignment.principal_id) ?? []), { id: assignment.id, label: label(assignment.role_name, assignment.scope_id) }]);
@@ -51,7 +66,7 @@ export default async function StaffAccountsPage() {
     <>
       <PageHeader
         title="Staff accounts"
-        description="Faculty author questions and run exams for their department. Mentors follow their batches. College administrators also manage students, staff and departments."
+        description="Faculty author questions and run exams for their department. Mentors follow their batches. Placement officers oversee student placement cohorts. College administrators also manage students, staff and departments."
       />
       <Panel className="p-5 sm:p-6">
         <CreateStaffForm departments={departments} />
@@ -73,7 +88,8 @@ export default async function StaffAccountsPage() {
                   <td className="px-4 py-3">
                     <RoleEditor principalId={principalId} roles={roles}
                       departments={departments.map((department) => ({ id: department.id, name: department.name }))}
-                      batches={batches.filter((batch) => batch.status === "active").map((batch) => ({ id: batch.id, name: `${batch.name} (${batch.academic_year})` }))} />
+                      batches={batches.filter((batch) => batch.status === "active").map((batch) => ({ id: batch.id, name: `${batch.name} (${batch.academic_year})` }))}
+                      placements={placementList} />
                   </td>
                   <td className="px-4 py-3">
                     <StudentActions principalId={principalId} username={person?.username ?? ""} />

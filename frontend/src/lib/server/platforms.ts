@@ -38,6 +38,8 @@ const PROFILE_URL: Record<ProfileLink["platform"], (handle: string) => string> =
   codeforces: (handle) => `https://codeforces.com/profile/${handle}`,
   codechef: (handle) => `https://www.codechef.com/users/${handle}`,
   hackerrank: (handle) => `https://www.hackerrank.com/profile/${handle}`,
+  atcoder: (handle) => `https://atcoder.jp/users/${handle}`,
+  skillrack: (handle) => `https://www.skillrack.com/faces/resume.xhtml?id=${handle}`,
 };
 
 /**
@@ -72,6 +74,30 @@ export async function platformStats(links: ProfileLink[]): Promise<PlatformStat[
           ),
         );
         if (solved) lines = [`${solved.total} solved`, `${solved.easy} easy, ${solved.medium} medium, ${solved.hard} hard`];
+      } else if (platform === "atcoder") {
+        const atcoderRank = await fetchJson(`https://kenkoooo.com/atcoder/atcoder-api/v3/user/ac_rank?user=${encoded}`, {}, 3600) as { count?: number } | null;
+        if (atcoderRank && typeof atcoderRank.count === "number") {
+          lines = [`${atcoderRank.count} problems solved`];
+        }
+      } else if (platform === "skillrack") {
+        try {
+          const res = await fetch(`https://www.skillrack.com/faces/resume.xhtml?id=${encoded}`, {
+            headers: HEADERS,
+            signal: AbortSignal.timeout(6000),
+            next: { revalidate: 3600 },
+          });
+          if (res.ok) {
+            const html = await res.text();
+            const match =
+              html.match(/PROGRAMS SOLVED[\s\S]*?<\/i>(\d+)/i) ||
+              html.match(/programs?\s*solved[:\s]*([0-9,]+)/i);
+            if (match && match[1]) {
+              lines = [`${match[1]} programs solved`];
+            }
+          }
+        } catch {
+          // best-effort fallback: links only
+        }
       }
       return { platform, handle, url: PROFILE_URL[platform](encoded), lines };
     }),

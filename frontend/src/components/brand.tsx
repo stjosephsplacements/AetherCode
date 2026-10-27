@@ -12,7 +12,10 @@ export function Brand({ size = 22, className, brand }: { size?: number; classNam
           <img key={url} src={url} alt="" width={size} height={size} className="object-contain" style={{ width: size, height: size }} />
         ))
       ) : (
-        <Image src="/logo.png" alt="" width={size} height={size} priority />
+        <>
+          <Image src="/logo-light.png" alt="" width={size} height={size} priority className="logo-light object-contain" />
+          <Image src="/logo-dark.png" alt="" width={size} height={size} priority className="logo-dark object-contain" />
+        </>
       )}
       <span className="text-[15px] font-semibold tracking-[-0.01em] text-ink">{brand?.name ?? "AetherCode"}</span>
     </span>

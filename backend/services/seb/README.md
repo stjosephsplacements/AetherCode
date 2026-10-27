@@ -119,8 +119,18 @@ projection-worker role; it consumes normal grant snapshots plus targeted resync
 snapshots/completions. `NATS_URL` is required because the resync request is
 written through the SEB outbox and the database/RLS gate begins deny-by-default.
 `SEB_LAUNCH_BASE_URL` (the web app's public origin) and `SEB_LAUNCH_PASSWORD`
-(at least 16 characters; encrypts launch files and is SEB's quit password) are
-set together; without them the launch-file routes return 503.
+(48 hexadecimal characters generated from 24 random bytes; encrypts launch
+files and is SEB's quit password) are set together; without them the launch-file
+routes return 503. Use the repository's secret-generation scripts rather than
+choosing a human password.
+
+Upgrading: the service refuses to start if `SEB_LAUNCH_PASSWORD` is not 48 hex
+characters or looks patterned. Installations created by
+`deploy/single-server/setup.sh` or `deploy/helm/generate-secrets.sh` already
+comply. Before upgrading any other installation, check the current value and,
+if needed, replace it with `openssl rand -hex 24`. `setup.sh` never regenerates
+an existing `.env`, so edit the value there (or in the Kubernetes secret) by
+hand.
 The normal shared authorization variables (`AUTHZ_*`) configure the mTLS User
 service client. Do not expose the SEB service directly to browsers: Gateway is
 the component that rebuilds the requested URL and calls the request check.

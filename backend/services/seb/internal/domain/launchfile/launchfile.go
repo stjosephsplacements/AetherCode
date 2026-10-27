@@ -50,6 +50,8 @@ func Build(settings Settings) ([]byte, error) {
 	if settings.StartURL == "" || settings.QuitURL == "" || settings.Password == "" {
 		return nil, errors.New("launch file needs a start URL, a quit URL and a password")
 	}
+	// SEB requires SHA-256 for quitPassword. The service accepts only a
+	// 24-byte random hexadecimal password, so this is not human-password hashing.
 	quitPassword := sha256.Sum256([]byte(settings.Password))
 	var plist bytes.Buffer
 	if err := settingsTemplate.Execute(&plist, struct {

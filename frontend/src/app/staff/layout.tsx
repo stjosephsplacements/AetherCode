@@ -18,6 +18,7 @@ export default async function StaffLayout({ children }: { children: React.ReactN
   if (staff.canManageAccounts) {
     nav.push(
       { href: "/staff/students", label: "Students", icon: "students" },
+      { href: "/staff/placements", label: "Placements", icon: "placements" },
       { href: "/staff/organisation", label: "Departments", icon: "organisation" },
       { href: "/staff/accounts", label: "Staff accounts", icon: "accounts" },
       { href: "/staff/audit", label: "Audit log", icon: "audit" },

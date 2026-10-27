@@ -1,7 +1,7 @@
 import { defineConfig } from "@playwright/test";
 
-// Runs against a running platform: the frontend at E2E_BASE_URL and the
-// gateway at E2E_GATEWAY_URL (see deploy/single-server/README.md, "End-to-end test").
+// Runs against a local platform: the frontend at E2E_BASE_URL and the gateway
+// at 127.0.0.1:8380. The gateway endpoint is intentionally fixed in the test.
 export default defineConfig({
   testDir: ".",
   timeout: 300_000,

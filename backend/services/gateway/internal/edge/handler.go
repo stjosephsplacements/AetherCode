@@ -176,7 +176,7 @@ func (handler *Handler) ServeHTTP(writer http.ResponseWriter, request *http.Requ
 		writeError(writer, http.StatusNotFound, "route is not available")
 		return
 	}
-	if err := rejectUnsafeInboundHeaders(request); err != nil {
+	if err := handler.rejectUnsafeInboundHeaders(request); err != nil {
 		writeError(writer, http.StatusBadRequest, "request contains disallowed proxy headers")
 		return
 	}
@@ -323,15 +323,17 @@ func bearerAssertion(request *http.Request) (string, error) {
 	return parts[1], nil
 }
 
-func rejectUnsafeInboundHeaders(request *http.Request) error {
-	// Hop-by-hop headers (browsers send Connection: keep-alive, nginx sends
-	// Connection: close) are legitimate here; they are dropped when the
-	// request is copied upstream, as RFC 9110 requires of a proxy.
+func (handler *Handler) rejectUnsafeInboundHeaders(request *http.Request) error {
+	peer, _ := parseIPFromRemoteAddr(request.RemoteAddr)
+	trusted := peer != nil && handler.isTrustedProxy(peer)
+
 	for name := range request.Header {
 		lower := strings.ToLower(name)
 		switch lower {
 		case "forwarded", "x-forwarded-host", "x-forwarded-proto", "x-forwarded-port", "x-real-ip", "x-original-url", "x-rewrite-url", "x-accel-redirect", "x-aethercode-principal-id", "x-aethercode-actor-id", "x-aethercode-tenant-id", "x-aethercode-user-id", "x-aethercode-service", "x-aethercode-verified-principal-id":
-			return fmt.Errorf("spoofable header %q", name)
+			if !trusted {
+				return fmt.Errorf("spoofable header %q", name)
+			}
 		}
 		if strings.HasPrefix(lower, "x-aethercode-authz-") || strings.HasPrefix(lower, "x-aethercode-internal-") {
 			return fmt.Errorf("spoofable internal header %q", name)

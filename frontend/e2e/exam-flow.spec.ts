@@ -8,7 +8,9 @@ import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 
-const GATEWAY = `${process.env.E2E_GATEWAY_URL ?? "http://127.0.0.1:8380"}/api`;
+// Keep test credentials on the local platform; never let an environment
+// override redirect authentication requests to an external gateway.
+const GATEWAY = "http://127.0.0.1:8380/api";
 const [adminEmail, adminPassword] = readFileSync(process.env.E2E_ADMIN_FILE ?? `${homedir()}/aethercode-admin.txt`, "utf8").trim().split(/\s+/);
 const run = randomBytes(3).toString("hex").toUpperCase();
 const CORRECT = "n = int(input())\nprint(n * (n + 1) // 2)\n";
