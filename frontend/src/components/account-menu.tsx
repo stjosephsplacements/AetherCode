@@ -1,13 +1,15 @@
 "use client";
 
-import { ChevronsUpDown, KeyRound, LogOut } from "lucide-react";
+import { ChevronsUpDown, KeyRound, LogOut, Moon, Sun } from "lucide-react";
 import Link from "next/link";
 import { DropdownMenu } from "radix-ui";
 import { logout } from "@/app/login/actions";
 import type { Viewer } from "@/lib/viewer";
+import { setTheme, useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 export function AccountMenu({ viewer, compact = false }: { viewer: Viewer; compact?: boolean }) {
+  const theme = useTheme();
   const name = viewer.displayName || viewer.username;
   const initial = (name || "?").charAt(0).toUpperCase();
   return (
@@ -42,6 +44,21 @@ export function AccountMenu({ viewer, compact = false }: { viewer: Viewer; compa
             <p className="truncate text-xs text-ink-muted">{viewer.username}</p>
           </div>
           <DropdownMenu.Separator className="my-1 h-px bg-line" />
+          <DropdownMenu.Item
+            onSelect={(event) => {
+              // Keep the menu open so the switch is visible.
+              event.preventDefault();
+              setTheme(theme === "dark" ? "light" : "dark");
+            }}
+            className="flex w-full cursor-default items-center gap-2 rounded-md px-2.5 py-2 text-sm text-ink outline-none data-[highlighted]:bg-hover"
+          >
+            {theme === "dark" ? (
+              <Sun className="size-4 text-ink-muted" strokeWidth={1.75} />
+            ) : (
+              <Moon className="size-4 text-ink-muted" strokeWidth={1.75} />
+            )}
+            {theme === "dark" ? "Light theme" : "Dark theme"}
+          </DropdownMenu.Item>
           <DropdownMenu.Item asChild>
             <Link href="/account/password" className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm text-ink outline-none data-[highlighted]:bg-hover">
               <KeyRound className="size-4 text-ink-muted" strokeWidth={1.75} />

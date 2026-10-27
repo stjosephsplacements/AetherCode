@@ -8,7 +8,7 @@ import { type EditorSettings, updateEditorSettings, useEditorSettings } from "./
 const FONT_SIZES: EditorSettings["fontSize"][] = [12, 14, 16, 18, 20];
 const TAB_SIZES: EditorSettings["tabSize"][] = [2, 4, 8];
 const THEMES: { value: EditorSettings["theme"]; label: string }[] = [
-  { value: "system", label: "System" },
+  { value: "system", label: "Match app" },
   { value: "light", label: "Light" },
   { value: "dark", label: "Dark" },
 ];

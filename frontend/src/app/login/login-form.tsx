@@ -13,7 +13,7 @@ export function LoginForm({ next }: { next: string }) {
   const [showPassword, setShowPassword] = useState(false);
 
   return (
-    <form action={action} className="mt-9 space-y-5" noValidate>
+    <form action={action} className="space-y-5" noValidate>
       <input type="hidden" name="next" value={next} />
       <div className="space-y-2">
         <label htmlFor="identifier" className="block text-[13px] font-medium text-ink">
@@ -60,7 +60,7 @@ export function LoginForm({ next }: { next: string }) {
         </p>
       )}
       <Button type="submit" size="lg" className="w-full" disabled={pending}>
-        {pending ? <LoaderCircle className="animate-spin" /> : "Continue"}
+        {pending ? <LoaderCircle className="animate-spin" /> : "Sign in"}
       </Button>
     </form>
   );

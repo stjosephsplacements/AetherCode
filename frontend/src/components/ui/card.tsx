@@ -1,11 +1,15 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 
-/** A raised surface. Use it only where elevation means something. */
-export function Panel({ className, ...props }: ComponentProps<"div">) {
+/** A raised surface. Use it only where elevation means something. `glass` lets the ambient glow show through. */
+export function Panel({ className, glass = false, ...props }: ComponentProps<"div"> & { glass?: boolean }) {
   return (
     <div
-      className={cn("rounded-[var(--radius-surface)] border border-line bg-surface shadow-[var(--shadow-panel)]", className)}
+      className={cn(
+        "rounded-[var(--radius-surface)] border border-line shadow-[var(--shadow-panel)]",
+        glass ? "bg-surface/70 backdrop-blur-xl" : "bg-surface",
+        className,
+      )}
       {...props}
     />
   );

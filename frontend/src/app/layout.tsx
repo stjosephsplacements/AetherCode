@@ -2,6 +2,7 @@ import Script from "next/script";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Source_Serif_4 } from "next/font/google";
 import { Toaster } from "sonner";
+import { readTheme } from "@/lib/server/theme";
 import "./globals.css";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist", display: "swap" });
@@ -18,16 +19,18 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#faf9f5" },
-    { media: "(prefers-color-scheme: dark)", color: "#262624" },
+    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
+    { media: "(prefers-color-scheme: dark)", color: "#0e141e" },
   ],
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Rendered on the server from the viewer's cookie, so there is no theme flash.
+  const theme = await readTheme();
   return (
     // The font variables sit on <html> because the theme's --font-* tokens are
     // declared on :root and resolve there.
-    <html lang="en" className={`${geist.variable} ${geistMono.variable} ${sourceSerif.variable}`}>
+    <html lang="en" data-theme={theme} className={`${geist.variable} ${geistMono.variable} ${sourceSerif.variable}`}>
       <body className="antialiased">
         {/* Google Analytics (G-HQ6HC7XJL0) */}
         <Script

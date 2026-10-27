@@ -1,8 +1,9 @@
 "use client";
 
 import Editor, { type Monaco, type OnMount, loader } from "@monaco-editor/react";
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useEffect, useRef } from "react";
 import type { EditorSettings } from "./editor-settings";
+import { useTheme } from "@/lib/theme";
 import { editorLanguage } from "@/lib/utils";
 
 // Served from public/monaco (scripts/copy-monaco.mjs), never a CDN.
@@ -15,58 +16,51 @@ function defineThemes(monaco: Monaco) {
     base: "vs",
     inherit: true,
     rules: [
-      { token: "comment", foreground: "8f8d86", fontStyle: "italic" },
-      { token: "keyword", foreground: "9f4724" },
+      { token: "comment", foreground: "8a96a0", fontStyle: "italic" },
+      { token: "keyword", foreground: "037a43" },
       { token: "string", foreground: "2d7a4c" },
       { token: "number", foreground: "6a4fb0" },
+      { token: "type", foreground: "1f6f8b" },
     ],
     colors: {
-      "editor.background": "#fdfdfb",
-      "editor.lineHighlightBackground": "#f3f2ec",
+      "editor.background": "#ffffff",
+      "editor.lineHighlightBackground": "#f4f5f6",
       "editor.lineHighlightBorder": "#00000000",
-      "editorLineNumber.foreground": "#c2bfb5",
-      "editorLineNumber.activeForeground": "#63625c",
-      "editorCursor.foreground": "#b5532e",
-      "editor.selectionBackground": "#f0dcd1",
-      "editorIndentGuide.background1": "#ecebe4",
-      "editorWidget.background": "#fdfdfb",
-      "editorWidget.border": "#e5e3da",
+      "editorLineNumber.foreground": "#b8c0c6",
+      "editorLineNumber.activeForeground": "#576871",
+      "editorCursor.foreground": "#0e141e",
+      "editor.selectionBackground": "#cdeedb",
+      "editorIndentGuide.background1": "#eceff1",
+      "editorWidget.background": "#ffffff",
+      "editorWidget.border": "#dfe2e5",
     },
   });
   monaco.editor.defineTheme("aether-dark", {
     base: "vs-dark",
     inherit: true,
     rules: [
-      { token: "comment", foreground: "85837c", fontStyle: "italic" },
-      { token: "keyword", foreground: "e38a6c" },
-      { token: "string", foreground: "8fcfa4" },
-      { token: "number", foreground: "b9a6ec" },
+      { token: "comment", foreground: "6d7a86", fontStyle: "italic" },
+      { token: "keyword", foreground: "05c770" },
+      { token: "string", foreground: "aef96c" },
+      { token: "number", foreground: "c3a6f2" },
+      { token: "type", foreground: "7cc4e4" },
     ],
     colors: {
-      "editor.background": "#2f2f2c",
-      "editor.lineHighlightBackground": "#383734",
+      "editor.background": "#141c28",
+      "editor.lineHighlightBackground": "#1b2533",
       "editor.lineHighlightBorder": "#00000000",
-      "editorLineNumber.foreground": "#5c5a55",
-      "editorLineNumber.activeForeground": "#b0aea6",
-      "editorCursor.foreground": "#d97757",
-      "editor.selectionBackground": "#5a3d32",
-      "editorIndentGuide.background1": "#3b3a37",
-      "editorWidget.background": "#2f2f2c",
-      "editorWidget.border": "#3b3a37",
+      "editorLineNumber.foreground": "#3d4a5a",
+      "editorLineNumber.activeForeground": "#9aa7b0",
+      "editorCursor.foreground": "#05c770",
+      "editor.selectionBackground": "#1d4a37",
+      "editor.inactiveSelectionBackground": "#18382c",
+      "editorIndentGuide.background1": "#1f2a38",
+      "editorWidget.background": "#1b2533",
+      "editorWidget.border": "#2a3646",
+      "scrollbarSlider.background": "#ffffff14",
+      "scrollbarSlider.hoverBackground": "#ffffff24",
     },
   });
-}
-
-const DARK = "(prefers-color-scheme: dark)";
-
-function subscribeToScheme(change: () => void) {
-  const query = window.matchMedia(DARK);
-  query.addEventListener("change", change);
-  return () => query.removeEventListener("change", change);
-}
-
-function usePrefersDark(): boolean {
-  return useSyncExternalStore(subscribeToScheme, () => window.matchMedia(DARK).matches, () => false);
 }
 
 export function CodeEditor({
@@ -96,8 +90,9 @@ export function CodeEditor({
   guardPaste?: boolean;
   onBlockedPaste?: () => void;
 }) {
-  const systemDark = usePrefersDark();
-  const dark = settings.theme === "system" ? systemDark : settings.theme === "dark";
+  const appTheme = useTheme();
+  // "system" follows the app's theme toggle.
+  const dark = settings.theme === "system" ? appTheme === "dark" : settings.theme === "dark";
   // Monaco commands are registered once; they call the latest handlers.
   const handlers = useRef({ onRun, onSubmit, guardPaste, onBlockedPaste });
   useEffect(() => {

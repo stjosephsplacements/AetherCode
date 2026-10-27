@@ -3,19 +3,17 @@
 /*
  * ═══════════════════════════════════════════════════════════════════════
  * AetherCode Design System
- * Inspired by Vercel.com & HackerRank.com (2024/2026 Brand Standard)
+ * HackerRank colours on a Sarvam-style system: quiet off-white surfaces,
+ * hairline cards, pill actions, a serif display voice and ambient glow.
+ * Light is the default; dark (HackerRank midnight) is opt-in via data-theme.
  *
  * Typography:
  *   --font-sans: Satoshi (Primary Body / UI)
  *   --font-mono: JetBrains Mono / Geist Mono (Code & Tables)
  *   --font-display: Departure Mono (Accents, Eyebrows & Terminal Callouts)
  *
- * Color Palette:
- *   Brand Green: #05C770 (HackerRank signature green)
- *   Brand Lime:  #AEF96C (Vibrant highlight / active states)
- *   Cyan/Sky:    #73D3FB / #8AE9FF (Secondary accents)
- *   Terminal:    #141419 (Deep obsidian background)
- *   Terrain:     #003333 (Deep forest teal complement)
+ * Color tokens live in @layer base below; components only use the semantic
+ * names (canvas, surface, ink, line, brand, success, danger, warning).
  * ═══════════════════════════════════════════════════════════════════════
  */
 
@@ -48,6 +46,9 @@
   font-style: normal;
 }
 
+/* dark: follows the in-app theme (data-theme on <html>), not the OS setting. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 @theme {
   --font-sans: 'Satoshi', var(--font-geist), ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', var(--font-geist-mono), ui-monospace, Menlo, Consolas, monospace;
@@ -56,6 +57,7 @@
 
   --color-canvas: var(--canvas);
   --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
   --color-sidebar: var(--sidebar);
   --color-hover: var(--hover);
   --color-ink: var(--ink);
@@ -69,12 +71,7 @@
   --color-brand-ink: var(--brand-ink);
   --color-brand-soft: var(--brand-soft);
   --color-brand-soft-ink: var(--brand-soft-ink);
-
-  --color-hr-green: #05c770;
-  --color-hr-lime: #aef96c;
-  --color-hr-cyan: #73d3fb;
-  --color-hr-terminal: #141419;
-  --color-hr-terrain: #003333;
+  --color-accent: var(--accent);
 
   --color-success: var(--success);
   --color-success-soft: var(--success-soft);
@@ -86,12 +83,13 @@
   --radius-control: 8px;
   --radius-surface: 14px;
 
-  --shadow-hairline: 0 1px 2px rgb(0 0 0 / 0.05);
-  --shadow-panel: 0 1px 3px rgb(0 0 0 / 0.1), 0 10px 30px -10px rgb(0 0 0 / 0.15);
-  --shadow-overlay: 0 24px 64px -16px rgb(0 0 0 / 0.4);
+  --shadow-hairline: var(--shadow-hairline-v);
+  --shadow-panel: var(--shadow-panel-v);
+  --shadow-overlay: var(--shadow-overlay-v);
 
   --animate-enter: enter 360ms cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-fade: fade 200ms ease-out both;
+  --animate-pop: pop 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
 
   @keyframes enter {
     from { opacity: 0; transform: translateY(6px); }
@@ -101,79 +99,95 @@
     from { opacity: 0; }
     to { opacity: 1; }
   }
+  @keyframes sheet-in {
+    from { transform: translateX(24px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  @keyframes pop {
+    from { opacity: 0; transform: translateY(4px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
 }
 
 @layer base {
-  :root {
+  /* Light is the default (no attribute, or data-theme="light"); dark is opt-in.
+     HackerRank's palette on Sarvam-style surfaces: off-white canvas, white
+     hairline cards, midnight pill buttons, green/cyan ambient glow.
+     Every text/background pair below meets WCAG AA (4.5:1). */
+  :root, [data-theme="light"] {
     color-scheme: light;
-    --canvas: #fbfbfd;
+    --canvas: #fafafa;
     --surface: #ffffff;
-    --sidebar: #f6f7f9;
-    --hover: #f0f2f5;
-    --ink: #141419;
-    --ink-muted: #5e6066;
-    --ink-subtle: #8a8d93;
-    --line: #e6e8eb;
-    --line-strong: #d0d3d8;
+    --surface-2: #f4f5f6;
+    --sidebar: #f7f8f8;
+    --hover: #f1f3f4;
+    --ink: #0e141e;
+    --ink-muted: #576871;
+    --ink-subtle: #637079;
+    --line: #e7eeef;
+    --line-strong: #dfe2e5;
 
-    /* HackerRank green, darkened so text and button labels meet WCAG AA (4.5:1). */
-    --brand: #037a43;
-    --brand-hover: #026538;
+    /* Primary actions are midnight pills; green is the accent. */
+    --brand: #0e141e;
+    --brand-hover: #26313f;
     --brand-ink: #ffffff;
-    --brand-soft: #e6faf1;
-    --brand-soft-ink: #038048;
+    --brand-soft: #e8f8ef;
+    --brand-soft-ink: #037a43;
+    --accent: #037a43;
+    --glow: rgb(5 199 112 / 0.16);
+    --glow-2: rgb(115 211 251 / 0.18);
 
-    --success: #047a43;
-    --success-soft: #e6faf1;
-    --danger: #b91c1c;
-    --danger-soft: #fee2e2;
-    --warning: #92400e;
-    --warning-soft: #fef3c7;
+    --success: #037a43;
+    --success-soft: #e8f8ef;
+    --danger: #c42b2b;
+    --danger-soft: #fdecec;
+    --warning: #8a4b08;
+    --warning-soft: #fdf3e1;
+
+    --shadow-hairline-v: 0 1px 2px rgb(14 20 30 / 0.04);
+    --shadow-panel-v: 0 1px 2px rgb(14 20 30 / 0.04), 0 8px 24px -12px rgb(14 20 30 / 0.08);
+    --shadow-overlay-v: 0 24px 64px -16px rgb(14 20 30 / 0.22);
   }
 
-  @media (prefers-color-scheme: dark) {
-    :root {
-      color-scheme: dark;
-      --canvas: #0c0d10;
-      --surface: #141419;
-      --sidebar: #0f1014;
-      --hover: #1c1d23;
-      --ink: #f4f4f7;
-      --ink-muted: #9699a3;
-      --ink-subtle: #61646d;
-      --line: #22232a;
-      --line-strong: #31333d;
+  /* HackerRank midnight, with green pill buttons as on hackerrank.com. */
+  [data-theme="dark"] {
+    color-scheme: dark;
+    --canvas: #0e141e;
+    --surface: #141c28;
+    --surface-2: #1b2533;
+    --sidebar: #111823;
+    --hover: #1b2533;
+    --ink: #f3f7f7;
+    --ink-muted: #9aa7b0;
+    --ink-subtle: #8794a0;
+    --line: rgb(255 255 255 / 0.08);
+    --line-strong: rgb(255 255 255 / 0.14);
 
-      --brand: #05c770;
-      --brand-hover: #1ae689;
-      --brand-ink: #0c0d10;
-      --brand-soft: #082a1b;
-      --brand-soft-ink: #aef96c;
+    --brand: #05c770;
+    --brand-hover: #1ae689;
+    --brand-ink: #0e141e;
+    --brand-soft: rgb(5 199 112 / 0.12);
+    --brand-soft-ink: #aef96c;
+    --accent: #05c770;
+    --glow: rgb(5 199 112 / 0.14);
+    --glow-2: rgb(115 211 251 / 0.10);
 
-      --success: #05c770;
-      --success-soft: #082a1b;
-      --danger: #f87171;
-      --danger-soft: #381515;
-      --warning: #fbbf24;
-      --warning-soft: #382808;
-    }
+    --success: #05c770;
+    --success-soft: rgb(5 199 112 / 0.12);
+    --danger: #f87171;
+    --danger-soft: rgb(248 113 113 / 0.12);
+    --warning: #fbbf24;
+    --warning-soft: rgb(251 191 36 / 0.12);
 
-    .logo-light {
-      display: none !important;
-    }
-    .logo-dark {
-      display: block !important;
-    }
+    --shadow-hairline-v: 0 1px 0 rgb(255 255 255 / 0.03) inset;
+    --shadow-panel-v: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 12px 32px -12px rgb(0 0 0 / 0.55);
+    --shadow-overlay-v: 0 1px 0 rgb(255 255 255 / 0.06) inset, 0 32px 80px -16px rgb(0 0 0 / 0.7);
   }
 
-  @media (prefers-color-scheme: light), (prefers-color-scheme: no-preference) {
-    .logo-light {
-      display: block !important;
-    }
-    .logo-dark {
-      display: none !important;
-    }
-  }
+  .logo-light { display: block !important; }
+  .logo-dark { display: none !important; }
+  [data-theme="dark"] .logo-light { display: none !important; }
+  [data-theme="dark"] .logo-dark { display: block !important; }
 
   * {
     border-color: var(--line);
@@ -185,7 +199,11 @@
 
   body {
     min-height: 100dvh;
-    background: var(--canvas);
+    background:
+      radial-gradient(900px 420px at 35% -160px, var(--glow), transparent 70%) no-repeat,
+      radial-gradient(900px 420px at 70% -200px, var(--glow-2), transparent 70%) no-repeat,
+      var(--canvas);
+    font-variant-numeric: tabular-nums;
     color: var(--ink);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
@@ -214,7 +232,7 @@
     position: absolute;
     inset: 0;
     pointer-events: none;
-    background: radial-gradient(circle at 50% -20%, rgba(5, 199, 112, 0.12), transparent 70%);
+    background: radial-gradient(circle at 50% -20%, var(--glow), transparent 70%);
   }
 
   :focus-visible {
@@ -236,10 +254,12 @@
 
 @layer components {
   /* Display headings */
+  /* Editorial display voice: a serif at regular weight, tightly tracked. */
   .display {
-    font-weight: 700;
+    font-family: var(--font-serif);
+    font-weight: 400;
     letter-spacing: -0.025em;
-    line-height: 1.15;
+    line-height: 1.08;
   }
 
   /* Staff-written Markdown */
