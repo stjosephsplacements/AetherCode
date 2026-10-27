@@ -4,6 +4,8 @@
 
 # AetherCode
 
+[![CI](https://github.com/stjosephsplacements/AetherCode/actions/workflows/ci.yml/badge.svg?branch=production)](https://github.com/stjosephsplacements/AetherCode/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/stjosephsplacements/AetherCode/actions/workflows/codeql.yml/badge.svg?branch=production)](https://github.com/stjosephsplacements/AetherCode/actions/workflows/codeql.yml)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 
 AetherCode is an open-source coding-assessment platform for colleges. Staff
