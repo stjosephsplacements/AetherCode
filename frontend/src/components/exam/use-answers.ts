@@ -3,6 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import type { AnswerRevision, Attempt, PaperItem } from "@/lib/api-types";
 import { APIError, api } from "@/lib/client/api";
+import { putDraft, unsyncedDrafts } from "@/lib/client/draft-store";
 
 export type Draft = { language: string; source: string };
 export type SaveState = "saved" | "saving" | "unsaved" | "error" | "closed";
@@ -25,6 +26,8 @@ class AnswerBook {
   private closed = false;
   saveState: SaveState = "saved";
   saveError: string | null = null;
+  /** Code found on this device that the server never got, by item id. */
+  recovered = new Map<string, Draft>();
 
   constructor(
     private readonly attemptPath: string,
@@ -61,6 +64,7 @@ class AnswerBook {
   update(itemId: string, patch: Partial<Draft>) {
     this.drafts.set(itemId, { ...this.draft(itemId), ...patch });
     if (!this.closed) {
+      void putDraft(this.attemptPath, itemId, { ...this.draft(itemId), synced: false });
       this.saveState = this.hasUnsaved() ? "unsaved" : "saved";
       if (this.timer) clearTimeout(this.timer);
       this.timer = setTimeout(() => void this.flush(), AUTOSAVE_DELAY_MS);
@@ -78,6 +82,32 @@ class AnswerBook {
 
   dispose() {
     if (this.timer) clearTimeout(this.timer);
+  }
+
+  /** Looks for unsaved code left on this device by an earlier visit. */
+  async loadRecovered() {
+    const local = await unsyncedDrafts(this.attemptPath);
+    for (const [itemId, draft] of local) {
+      const current = this.drafts.get(itemId);
+      if (!current || this.closed) continue;
+      if (draft.source !== current.source || draft.language !== current.language) {
+        this.recovered.set(itemId, { language: draft.language, source: draft.source });
+      }
+    }
+    if (this.recovered.size > 0) this.changed();
+  }
+
+  /** Puts the recovered code back in the editor; autosave sends it to the server. */
+  restoreRecovered() {
+    for (const [itemId, draft] of this.recovered) this.update(itemId, draft);
+    this.recovered.clear();
+    this.changed();
+  }
+
+  discardRecovered() {
+    for (const [itemId, draft] of this.recovered) void putDraft(this.attemptPath, itemId, { ...draft, synced: true });
+    this.recovered.clear();
+    this.changed();
   }
 
   private dirty(itemId: string): boolean {
@@ -99,6 +129,7 @@ class AnswerBook {
       });
       this.version = revision.attempt_version;
       this.saved.set(itemId, draft);
+      void putDraft(this.attemptPath, itemId, { ...draft, synced: true });
       this.saveError = null;
       this.setSaveState(this.hasUnsaved() ? "unsaved" : "saved");
     } catch (error) {
@@ -132,6 +163,15 @@ export type Answers = AnswerBook;
 export function useAnswers(attemptPath: string, items: PaperItem[], initialVersion: number): AnswerBook {
   const [book] = useState(() => new AnswerBook(attemptPath, items, initialVersion));
   useSyncExternalStore(book.subscribe, book.getRevision, book.getRevision);
+
+  // Offer back code an earlier visit left unsaved, and save as soon as a
+  // dropped connection returns instead of waiting for the next keystroke.
+  useEffect(() => {
+    void book.loadRecovered();
+    const reconnect = () => void book.flush();
+    window.addEventListener("online", reconnect);
+    return () => window.removeEventListener("online", reconnect);
+  }, [book]);
 
   // Warn before leaving with code the server does not have yet.
   useEffect(() => {

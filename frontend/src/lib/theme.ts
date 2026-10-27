@@ -20,8 +20,17 @@ export function useTheme(): Theme {
   return useSyncExternalStore(subscribe, current, () => "light");
 }
 
-/** Switches the theme now and remembers it for server renders (one year). */
+function functionalConsent(): boolean {
+  try {
+    return JSON.parse(localStorage.getItem("aether-consent") ?? "{}").functional === true;
+  } catch {
+    return false;
+  }
+}
+
+/** Switches the theme now, and remembers it for server renders (one year) when allowed. */
 export function setTheme(theme: Theme) {
   document.documentElement.dataset.theme = theme;
-  document.cookie = `${THEME_COOKIE}=${theme}; path=/; max-age=31536000; samesite=lax`;
+  // Remembering it is a functional cookie: only with consent.
+  if (functionalConsent()) document.cookie = `${THEME_COOKIE}=${theme}; path=/; max-age=31536000; samesite=lax`;
 }

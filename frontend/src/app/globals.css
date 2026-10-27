@@ -269,6 +269,22 @@
     color: var(--ink);
     max-width: 68ch;
   }
+  /* Long-form documents: serif headings come from DocumentPage; body stays sans. */
+  .prose-doc { color: var(--ink-muted); font-size: 15.5px; line-height: 1.75; }
+  .prose-doc > * + * { margin-top: 1em; }
+  .prose-doc strong { color: var(--ink); font-weight: 600; }
+  .prose-doc a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line-strong); }
+  .prose-doc a:hover { text-decoration-color: var(--ink); }
+  .prose-doc ul { list-style: disc; padding-left: 1.2em; }
+  .prose-doc ol { list-style: decimal; padding-left: 1.2em; }
+  .prose-doc li + li { margin-top: 0.4em; }
+  .prose-doc li::marker { color: var(--ink-subtle); }
+  .prose-doc h3 { margin-top: 1.6em; color: var(--ink); font-weight: 600; font-size: 15.5px; }
+  .prose-doc code { font-family: var(--font-mono); font-size: 0.88em; background: var(--hover); border-radius: 5px; padding: 0.1em 0.35em; color: var(--ink); }
+  .prose-doc table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .prose-doc th, .prose-doc td { border-bottom: 1px solid var(--line); padding: 0.6rem 0.75rem 0.6rem 0; text-align: left; vertical-align: top; }
+  .prose-doc th { color: var(--ink); font-weight: 600; }
+
   .prose-exam > * + * { margin-top: 0.9em; }
   .prose-exam h1, .prose-exam h2, .prose-exam h3, .prose-exam h4 {
     margin-top: 1.6em;

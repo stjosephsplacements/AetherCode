@@ -15,6 +15,8 @@ import { formatCountdown, useNow } from "@/lib/client/use-now";
 import { cn, formatTime, languageName } from "@/lib/utils";
 import { useEditorSettings } from "./editor-settings";
 import { EditorSettingsMenu } from "./editor-settings-menu";
+import { ConnectionBanner } from "./connection-banner";
+import { ExamGuides } from "./exam-guides";
 import { EndTestDialog } from "./end-test-dialog";
 import { type QuestionStatus, QuestionRail, formatScore } from "./question-rail";
 import { RunConsole, type RunState, runSummary } from "./run-console";
@@ -258,6 +260,7 @@ function ExamWorkspace({ attemptPath, attemptId, attempt, paper }: Loaded & { at
         <Image src="/3.png" alt="AetherCode" width={22} height={22} className="logo-dark object-contain" />
         <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{paper.title}</h1>
         <SaveIndicator state={answers.saveState} error={answers.saveError} />
+        <ExamGuides />
         <span
           role="timer"
           aria-label="Time remaining"
@@ -275,6 +278,8 @@ function ExamWorkspace({ attemptPath, attemptId, attempt, paper }: Loaded & { at
         </span>
         <EndTestDialog items={items} statuses={statuses} ending={ending} onEnd={endTest} />
       </header>
+
+      <ConnectionBanner answers={answers} />
 
       {integrity.needsFullscreen && (
         <div role="dialog" aria-modal="true" className="fixed inset-0 z-40 grid place-items-center bg-canvas px-4">

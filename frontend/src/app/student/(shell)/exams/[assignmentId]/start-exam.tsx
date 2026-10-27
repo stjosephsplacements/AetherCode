@@ -3,6 +3,7 @@
 import { ArrowRight, Download, LoaderCircle, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { HonorCode } from "@/components/exam/honor-code";
 import { Button } from "@/components/ui/button";
 import type { Attempt, CandidateAssignment, Page } from "@/lib/api-types";
 import { APIError, api } from "@/lib/client/api";
@@ -10,11 +11,12 @@ import { formatCountdown, useNow } from "@/lib/client/use-now";
 
 type Status = { kind: "idle" } | { kind: "starting" } | { kind: "seb" } | { kind: "error"; message: string };
 
-export function StartExam({ assignment }: { assignment: CandidateAssignment }) {
+export function StartExam({ assignment, signature }: { assignment: CandidateAssignment; signature: string }) {
   const router = useRouter();
   const now = useNow();
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [resumeId, setResumeId] = useState<string | null>(null);
+  const [honorOpen, setHonorOpen] = useState(false);
   // One key per page visit: a double click or a retry starts one attempt, not two.
   const idempotencyKey = useRef(crypto.randomUUID());
   const attempts = `/submission/v1/tenants/${assignment.tenant_id}/attempts`;
@@ -99,10 +101,19 @@ export function StartExam({ assignment }: { assignment: CandidateAssignment }) {
           <ArrowRight />
         </Button>
       ) : (
-        <Button size="lg" onClick={start} disabled={now === null || closed || opensIn > 0 || status.kind === "starting"}>
+        <Button size="lg" onClick={() => setHonorOpen(true)} disabled={now === null || closed || opensIn > 0 || status.kind === "starting"}>
           {status.kind === "starting" ? <LoaderCircle className="animate-spin" /> : <>Start exam<ArrowRight /></>}
         </Button>
       )}
+      <HonorCode
+        open={honorOpen}
+        onOpenChange={setHonorOpen}
+        signature={signature}
+        onAgree={() => {
+          setHonorOpen(false);
+          void start();
+        }}
+      />
     </div>
   );
 }

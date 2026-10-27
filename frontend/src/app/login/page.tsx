@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
+import { SITE } from "@/lib/site";
 import { LoginForm } from "./login-form";
+import { StreakGrid } from "./streak-grid";
 import { TestRunner } from "./test-runner";
 
 // Why a single sign-on did not finish (ADR-0042).
@@ -36,7 +38,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         </div>
 
         <div className="mx-auto flex w-full max-w-[420px] flex-1 flex-col justify-center py-12 lg:mx-0">
-          <h1 className="display text-[2.75rem] text-ink sm:text-[3.5rem]">Skills over pedigree.</h1>
+          <h1 className="display text-[2.75rem] text-ink sm:text-[3.5rem]">{SITE.tagline}</h1>
           <p className="mt-4 max-w-[36ch] text-[15px] leading-relaxed text-ink-muted">
             Sign in with your roll number to see your exams, practice problems and results.
           </p>
@@ -66,9 +68,20 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         <p className="text-xs text-ink-subtle">Can&apos;t sign in? Your exam administrator can reset your password.</p>
       </section>
 
-      <section aria-label="Preview" className="relative hidden items-center justify-center px-12 py-16 lg:flex">
-        <div className="w-full max-w-[540px] animate-enter">
-          <TestRunner />
+      {/* The arena: always midnight, whatever the theme. */}
+      <section aria-label="Preview" className="relative m-3 hidden max-h-[calc(100dvh-1.5rem)] overflow-hidden rounded-[28px] bg-[#0e141e] lg:flex lg:flex-col">
+        <div aria-hidden className="absolute -right-40 -top-40 size-[620px] rounded-full bg-[radial-gradient(closest-side,rgb(5_199_112/0.28),transparent)]" />
+        <div aria-hidden className="absolute -bottom-48 -left-32 size-[560px] rounded-full bg-[radial-gradient(closest-side,rgb(115_211_251/0.16),transparent)]" />
+        <div className="relative px-12 pt-10">
+          <p className="max-w-[24ch] font-serif text-[1.75rem] leading-tight text-[#f3f7f7]">Every run counts. Keep the streak going.</p>
+          <div className="mt-6 max-w-[440px] opacity-90">
+            <StreakGrid />
+          </div>
+        </div>
+        <div className="relative mt-auto px-12 pb-10 pt-8">
+          <div className="max-w-[540px] animate-enter [animation-delay:500ms]">
+            <TestRunner />
+          </div>
         </div>
       </section>
     </main>

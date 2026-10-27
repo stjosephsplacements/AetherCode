@@ -59,7 +59,7 @@ export default async function ExamLobby({ params }: { params: Promise<{ assignme
         </ul>
       </section>
 
-      <StartExam assignment={assignment} />
+      <StartExam assignment={assignment} signature={viewer.username} />
     </div>
   );
 }

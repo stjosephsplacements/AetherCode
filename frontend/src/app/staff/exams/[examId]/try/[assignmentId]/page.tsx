@@ -56,7 +56,7 @@ export default async function TryExamPage({ params }: { params: Promise<{ examId
         <h2 className="mb-3 text-sm font-medium text-ink-muted">Instructions</h2>
         <Markdown>{assignment.instructions_markdown}</Markdown>
       </section>
-      <StartExam assignment={assignment} />
+      <StartExam assignment={assignment} signature={staff.viewer.username} />
     </div>
   );
 }

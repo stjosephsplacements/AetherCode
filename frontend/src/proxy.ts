@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { clientIP } from "@/lib/server/request";
+import { PUBLIC_PATHS } from "@/lib/site";
 import {
   ACCESS_COOKIE,
   PASSWORD_COOKIE,
@@ -15,8 +16,13 @@ import {
 // only read the access cookie.
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
-  // Single sign-on pages run before there is a session (ADR-0042).
-  const isLogin = pathname === "/login" || pathname.startsWith("/auth/sso") || pathname.startsWith("/loader-preview");
+  // Single sign-on pages run before there is a session (ADR-0042); the
+  // public trust pages and metadata files are readable by anyone.
+  const isLogin =
+    pathname === "/login" ||
+    pathname.startsWith("/auth/sso") ||
+    pathname.startsWith("/loader-preview") ||
+    isPublic(pathname);
   const isAPI = pathname.startsWith("/api/");
   const access = request.cookies.get(ACCESS_COOKIE)?.value;
   const refresh = request.cookies.get(REFRESH_COOKIE)?.value;
@@ -52,6 +58,14 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(login);
   }
   return NextResponse.next();
+}
+
+const PUBLIC_FILES = ["/sitemap.xml", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png", "/opengraph-image", "/icon", "/apple-icon", "/.well-known/security.txt"];
+
+function isPublic(pathname: string): boolean {
+  // "/" is the landing page for visitors; signed-in users are sent on from there.
+  if (pathname === "/") return true;
+  return (PUBLIC_PATHS as readonly string[]).some((path) => pathname === path || pathname.startsWith(`${path}/`)) || PUBLIC_FILES.some((file) => pathname === file || pathname.startsWith(`${file}/`) || pathname.startsWith(`${file}.`) || pathname.startsWith(`${file}?`));
 }
 
 function endSession(request: NextRequest, passThrough: boolean) {

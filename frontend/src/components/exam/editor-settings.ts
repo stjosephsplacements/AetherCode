@@ -30,7 +30,10 @@ function read(): EditorSettings {
 export function updateEditorSettings(patch: Partial<EditorSettings>) {
   current = { ...read(), ...patch };
   try {
-    window.localStorage.setItem(KEY, JSON.stringify(current));
+    // Remembering preferences across visits is a functional choice (cookie settings).
+    if (JSON.parse(window.localStorage.getItem("aether-consent") ?? "{}").functional === true) {
+      window.localStorage.setItem(KEY, JSON.stringify(current));
+    }
   } catch {
     // Private windows may refuse storage; the setting still applies now.
   }
