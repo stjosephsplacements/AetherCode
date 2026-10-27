@@ -251,6 +251,7 @@ jobs:
               --reuse-values \
               --values "deploy/helm/platform-service/values-$service.yaml" \
               --set image.tag="$IMAGE_TAG" \
+              --set "imagePullSecrets[0].name=ghcr-creds" \
               --wait --atomic --timeout 10m
           done
 

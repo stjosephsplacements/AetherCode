@@ -3,9 +3,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Panel, Badge } from "@/components/ui/card";
 import { requireViewer } from "@/lib/server/session";
-import { gateway } from "@/lib/server/gateway";
+import { listMyAttempts } from "@/lib/server/attempts";
 import { listAssignments } from "@/lib/server/assignments";
-import type { Page, Attempt } from "@/lib/api-types";
 import { formatDateTime } from "@/lib/utils";
 import { ArrowRight } from "lucide-react";
 
@@ -14,15 +13,13 @@ export const metadata: Metadata = { title: "Completed Assessments" };
 export default async function CompletedAssessmentsPage() {
   const viewer = await requireViewer();
   if (!viewer.tenantId) redirect("/student");
-  const tenantPath = `/submission/v1/tenants/${viewer.tenantId}`;
-
   const [attempts, assignments] = await Promise.all([
-    gateway<Page<Attempt>>(`${tenantPath}/attempts?limit=100`).then((p) => p.items, () => []),
+    listMyAttempts(viewer.tenantId).catch(() => []),
     listAssignments(viewer.tenantId).catch(() => []),
   ]);
 
   const titles = new Map(assignments.map((a) => [a.id, a.title]));
-  const finished = attempts.filter((a) => ["submitted", "grading", "graded", "expired"].includes(a.lifecycle_state));
+  const finished = attempts.filter((a) => ["submitted", "grading", "graded"].includes(a.lifecycle_state));
 
   return (
     <div className="animate-enter space-y-6">

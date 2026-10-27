@@ -89,7 +89,7 @@ export async function platformStats(links: ProfileLink[]): Promise<PlatformStat[
           if (res.ok) {
             const html = await res.text();
             const match =
-              html.match(/PROGRAMS SOLVED[\s\S]*?<\/i>(\d+)/i) ||
+              html.match(/PROGRAMS SOLVED[\s\S]*?<\/i>([0-9,]+)/i) ||
               html.match(/programs?\s*solved[:\s]*([0-9,]+)/i);
             if (match && match[1]) {
               lines = [`${match[1]} programs solved`];

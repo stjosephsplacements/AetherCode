@@ -1,14 +1,16 @@
 stages:
   - deploy
 
+# Restarts every deployment so pods re-pull their configured image tag, then
+# waits for each rollout. Image-tagged releases go through the GitHub Actions
+# deploy job (helm upgrade with image.tag=<sha>).
 deploy_production:
   stage: deploy
   image: bitnami/kubectl:latest
   only:
     - production
   script:
-    - echo "Deploying commit ${CI_COMMIT_SHORT_SHA} to production..."
-    - for dep in frontend gateway identity tenant user question-bank assessment submission judge seb notification analytics; do kubectl rollout restart deployment/$dep -n aethercode || true; done
-    - echo "Waiting for frontend rollout..."
-    - kubectl rollout status deployment/frontend -n aethercode --timeout=120s || true
-    - echo "Deployment complete!"
+    - services="frontend gateway identity tenant user question-bank assessment submission judge seb notification analytics"
+    - for dep in $services; do kubectl rollout restart "deployment/$dep" -n aethercode || exit 1; done
+    - for dep in $services; do kubectl rollout status "deployment/$dep" -n aethercode --timeout=300s || exit 1; done
+    - echo "Rolled out ${CI_COMMIT_SHORT_SHA}"

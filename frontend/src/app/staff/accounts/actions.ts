@@ -57,6 +57,7 @@ export async function grantRole(_previous: ActionState, form: FormData): Promise
       if (role === "placement_user") {
         await gateway(`/user/v1/placement-departments/${scope.scope_id}/staff/${principalId}`, {
           method: "PUT",
+          body: {},
         });
       } else {
         await gateway("/user/v1/role-assignments", {
