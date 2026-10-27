@@ -18,15 +18,10 @@ jobs:
       - name: Fetch Dependabot metadata
         id: meta
         uses: dependabot/fetch-metadata@v3
-
-      - name: Auto-approve patch and minor updates
-        if: |
-          steps.meta.outputs.update-type == 'version-update:semver-patch' ||
-          steps.meta.outputs.update-type == 'version-update:semver-minor'
-        run: gh pr review --approve "$PR_URL"
-        env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Dependabot commits are not signed as verified GitHub commits.
+          # Keep author and PR validation enabled while accepting that metadata.
+          skip-commit-verification: true
 
       - name: Enable auto-merge for patch and minor updates
         if: |
