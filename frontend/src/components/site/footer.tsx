@@ -56,7 +56,8 @@ export function Footer({ compact = false }: { compact?: boolean }) {
   }
 
   return (
-    <footer className="overflow-hidden border-t border-line">
+    <footer className="relative overflow-hidden">
+      <div aria-hidden className="absolute inset-x-0 top-0 h-px bg-[linear-gradient(to_right,transparent,var(--line-strong),transparent)]" />
       <div className="mx-auto max-w-6xl px-6 pt-20">
         <div className="grid gap-12 lg:grid-cols-[1.5fr_repeat(4,1fr)]">
           <div className="max-w-[300px]">

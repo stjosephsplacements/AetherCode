@@ -13,17 +13,17 @@ const TOKENS: (string | { icon: LucideIcon; tone: string })[] = [
   ..."the laptop you own,".split(" "),
   { icon: Laptop, tone: "bg-[#a99cff] text-[#0f0b1e]" },
   ..."or who you know.".split(" "),
-  { icon: Users, tone: "bg-[#ff4f79] text-[#0f0b1e]" },
+  { icon: Users, tone: "bg-[#0f0b1e] text-[#ffc24b]" },
 ];
 
 /** One sentence on an amber sheet that fills in word by word as it scrolls through the screen. */
 export function Manifesto() {
   const ref = useRef<HTMLParagraphElement>(null);
   const reduce = useReducedMotion();
-  const { scrollYProgress } = useScroll({ target: ref, offset: ["start 0.85", "end 0.5"] });
+  const { scrollYProgress } = useScroll({ target: ref, offset: ["start 0.9", "end 0.7"] });
 
   return (
-    <section className="px-2 sm:px-4">
+    <section className="px-2 pb-8 sm:px-4">
       <div className="grain mx-auto max-w-[1500px] overflow-hidden rounded-[32px] bg-[#ff8a3d] px-6 py-28 sm:rounded-[48px] sm:py-40">
         <p ref={ref} className="relative z-[2] mx-auto max-w-5xl text-center font-serif text-[2.2rem] leading-[1.18] tracking-tight text-[#0f0b1e] sm:text-[3.6rem] lg:text-[4.4rem]">
           {TOKENS.map((token, index) => (
@@ -31,7 +31,7 @@ export function Manifesto() {
               {typeof token === "string" ? (
                 token
               ) : (
-                <span aria-hidden className={`inline-grid h-[0.82em] w-[1.6em] translate-y-[0.08em] place-items-center rounded-full align-baseline ${token.tone}`}>
+                <span aria-hidden className={`inline-grid h-[0.78em] w-[1.6em] -translate-y-[0.06em] place-items-center rounded-full align-middle ${token.tone}`}>
                   <token.icon className="size-[0.42em]" strokeWidth={2.25} />
                 </span>
               )}

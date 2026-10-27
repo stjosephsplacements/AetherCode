@@ -139,6 +139,9 @@
     --lavender: #a99cff;
     --glow: rgb(255 138 61 / 0.16);
     --glow-2: rgb(169 156 255 / 0.14);
+    --poster-sky: linear-gradient(to bottom, #0f0b1e 0%, #2a1640 40%, #8a2f4f 68%, #ff7a45 88%, #ffc27a 100%);
+    --poster-ink: #f3eeff;
+    --poster-on-ink: #0f0b1e;
     --horizon: linear-gradient(to top, rgb(255 79 121 / 0.30), rgb(255 138 61 / 0.22) 30%, rgb(169 156 255 / 0.08) 62%, transparent);
 
     --success: #34d399;
@@ -177,6 +180,9 @@
     --lavender: #4b3fd1;
     --glow: rgb(255 122 0 / 0.14);
     --glow-2: rgb(75 63 209 / 0.10);
+    --poster-sky: linear-gradient(to bottom, #fbf8f4 0%, #f4e4ec 30%, #eab3bf 58%, #ff9a62 84%, #ffc27a 100%);
+    --poster-ink: #1b1640;
+    --poster-on-ink: #ffffff;
     --horizon: linear-gradient(to top, rgb(255 122 0 / 0.22), rgb(255 176 102 / 0.16) 34%, rgb(75 63 209 / 0.05) 66%, transparent);
 
     --success: #0f7a4d;
@@ -411,5 +417,28 @@
     opacity: 0.22;
     mix-blend-mode: overlay;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+}
+
+/* The hero's program line: typed out one character at a time behind a
+   caret, which blinks a few times and then gets out of the way. */
+@layer components {
+  .typed {
+    display: inline-block;
+    max-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    vertical-align: bottom;
+    border-right: 2px solid var(--accent);
+    animation:
+      type 1100ms steps(var(--chars)) 200ms forwards,
+      caret 700ms step-end 6 forwards;
+  }
+  @keyframes type {
+    to { max-width: calc(var(--chars) * 1ch + 2px); }
+  }
+  @keyframes caret {
+    50% { border-right-color: transparent; }
+    to { border-right-color: transparent; }
   }
 }
