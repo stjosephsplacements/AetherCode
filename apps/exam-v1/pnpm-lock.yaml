@@ -26,8 +26,8 @@ importers:
         specifier: 16.4.2
         version: 16.4.2(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       nodemailer:
-        specifier: ^10.0.16
-        version: 10.0.16
+        specifier: ^10.2.1
+        version: 10.2.1
       papaparse:
         specifier: 5.7.0
         version: 5.7.0
@@ -1474,8 +1474,8 @@ packages:
       sass:
         optional: true
 
-  nodemailer@10.0.16:
-    resolution: {integrity: sha512-VL9xKErxN+el77o8eBOuYKUPMyEx7F9hfnDCuiUKJRp9v3wnWMOudYgP/SWbwSHy8rUL4cylobuXtki1LpQS7A==}
+  nodemailer@10.2.1:
+    resolution: {integrity: sha512-ZrDNsPFoDMwefNs7sJwrYiEJ/CG4ClJWDZv05iNJsEBWa8GRDry1QJHTJxsuTAY9eDDKjX4k+q3SxslXJOao7w==}
     engines: {node: '>=20.0.0'}
 
   normalize-path@3.0.0:
@@ -3497,7 +3497,7 @@ snapshots:
       - '@types/node'
       - babel-plugin-macros
 
-  nodemailer@10.0.16: {}
+  nodemailer@10.2.1: {}
 
   normalize-path@3.0.0: {}
 
