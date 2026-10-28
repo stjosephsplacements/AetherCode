@@ -1,86 +1,95 @@
-import { cn } from "@/lib/utils";
+"use client";
 
-/** Four tinted cards, one per part of an exam day, each with a small sketch in the real screen's words. */
+import { Fragment, useState } from "react";
+import { cn } from "@/lib/utils";
+import { SCREENS } from "./meet-screens";
+
+const TABS = [
+  { key: "lockdown", label: "lockdown", title: "Locked when it counts", body: "Staff choose what each exam needs: Safe Exam Browser, lab networks only, fullscreen. Every request is checked against it." },
+  { key: "exam", label: "exam screen", title: "Code like it's your IDE", body: "Six languages. Run code on the samples or your own input as often as you like, and your work saves as you type." },
+  { key: "monitor", label: "live monitor", title: "Watch it happen", body: "Every student's status, questions done and time left. Add time for one student, or announce to every screen." },
+  { key: "results", label: "results", title: "Marks you can explain", body: "Hidden until faculty release them. Then each question's score and every test's verdict, never the hidden inputs." },
+] as const;
+
+/** Colours the verdict tokens inside a drawn screen line. */
+function Line({ text }: { text: string }) {
+  return (
+    <>
+      {text.split(/(\[ok\]|\[x\])/).map((part, index) =>
+        part === "[ok]" ? (
+          <span key={index} className="text-success">{part}</span>
+        ) : part === "[x]" ? (
+          <span key={index} className="text-danger">{part}</span>
+        ) : (
+          <Fragment key={index}>{part}</Fragment>
+        ),
+      )}
+    </>
+  );
+}
+
+/** One terminal-style window with a tab per part of exam day; each tab draws its screen in text. */
 export function Meet() {
+  const [active, setActive] = useState(0);
+  const tab = TABS[active]!;
+
   return (
     <section id="product" className="mx-auto max-w-6xl scroll-mt-20 px-6 py-24">
       <div className="text-center">
         <h2 className="heading text-[2.6rem] text-ink sm:text-[3.6rem]">
           Meet <span className="marker">AetherCode</span>
         </h2>
-        <p data-reveal className="mt-2 text-[18px] text-ink-subtle">
-          Everything between the question and the result
+        <p data-reveal className="mt-3 text-[15px] text-ink-subtle">
+          {"// everything between the question and the result"}
         </p>
       </div>
 
-      <div className="mt-12 grid gap-4 md:grid-cols-2">
-        <Card tone="bg-[#f7b49a] text-[#2b140a]" label="Exam lockdown" title="Locked when it counts" body="Staff choose what each exam needs. Every request is checked against it.">
-          <ul className="space-y-1 text-[1.5rem] font-medium tracking-[-0.02em]">
-            {["Safe Exam Browser", "Lab networks", "Fullscreen"].map((item, index) => (
-              <li key={item} className={cn("rounded-l-[10px] px-4 py-2", index === 0 ? "bg-[#c84a0c] text-white" : "text-[#2b140a]/80")}>
-                {item}
-              </li>
-            ))}
-          </ul>
-        </Card>
+      <div data-reveal className="mt-12 border border-ink bg-surface shadow-[6px_6px_0_var(--ink)]">
+        <div role="tablist" aria-label="Parts of an exam day" className="flex flex-wrap border-b border-ink text-[13.5px]">
+          {TABS.map((item, index) => (
+            <button
+              key={item.key}
+              role="tab"
+              type="button"
+              id={`meet-tab-${item.key}`}
+              aria-selected={active === index}
+              aria-controls="meet-panel"
+              onClick={() => setActive(index)}
+              onKeyDown={(event) => {
+                if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+                const next = (index + (event.key === "ArrowRight" ? 1 : TABS.length - 1)) % TABS.length;
+                setActive(next);
+                document.getElementById(`meet-tab-${TABS[next]!.key}`)?.focus();
+              }}
+              tabIndex={active === index ? 0 : -1}
+              className={cn(
+                "border-r border-ink px-4 py-2.5 transition-colors",
+                active === index ? "bg-brand text-brand-ink" : "text-ink-muted hover:bg-hover hover:text-ink",
+              )}
+            >
+              [{index + 1}] {item.label}
+            </button>
+          ))}
+        </div>
 
-        <Card tone="bg-[#141210] text-[#f2efe9] ring-1 ring-white/10" label="The exam screen" title="Code like it's your IDE" body="Six languages, Run code on the samples or your own input, and your work saves as you type.">
-          <div className="rounded-l-[12px] bg-[#1f1c19] p-4 font-mono text-[12.5px] leading-6">
-            <p>
-              <span className="text-[#ff8a4c]">def</span> <span className="text-[#c9c1ff]">solve</span>(nums):
+        <div id="meet-panel" role="tabpanel" aria-labelledby={`meet-tab-${tab.key}`} className="grid gap-10 p-6 sm:p-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:items-center">
+          <div key={tab.key} className="animate-enter">
+            <p className="text-[12.5px] text-ink-subtle">
+              {active + 1} / {TABS.length}
             </p>
-            <p>
-              {"    "}
-              <span className="text-[#ff8a4c]">return</span> sorted(<span className="text-[#c9c1ff]">set</span>(nums))[-2]
-            </p>
-            <p className="mt-3 text-[13px] text-[#4ade80]">\o/ 2 of 2 sample tests passed</p>
+            <h3 className="heading mt-3 text-[1.9rem] leading-[1.15] text-ink sm:text-[2.3rem]">{tab.title}</h3>
+            <p className="mt-4 max-w-[30rem] text-[14.5px] leading-relaxed text-ink-muted">{tab.body}</p>
           </div>
-        </Card>
-
-        <Card tone="bg-surface-2 text-ink" label="Live monitor" title="Watch it happen" body="Every student's status and time left. Add time for one, or announce to all.">
-          <ul className="divide-y divide-line rounded-l-[12px] bg-surface font-mono text-[12.5px]">
-            {[
-              ["21CS042", "In progress", "18:04"],
-              ["21CS051", "Handed in", "-"],
-              ["21CS063", "Not started", "60:00"],
-            ].map(([roll, status, left]) => (
-              <li key={roll} className="flex items-center gap-3 px-4 py-2.5">
-                <span>{roll}</span>
-                <span className="text-ink-muted">{status}</span>
-                <span className="ml-auto">{left}</span>
-              </li>
-            ))}
-          </ul>
-        </Card>
-
-        <Card tone="bg-[linear-gradient(135deg,#c84a0c,#a63a06)] text-white" label="Results" title="Marks you can explain" body="Hidden until faculty release them. Then every test's verdict, never the hidden inputs.">
-          <div className="flex flex-col items-start gap-2">
-            {[
-              ["Test 1 passed", true],
-              ["Test 2 passed", true],
-              ["Test 3 time limit exceeded", false],
-            ].map(([label, ok]) => (
-              <span key={String(label)} className="inline-flex items-center gap-2 rounded-l-[8px] bg-white/90 px-3 py-1.5 font-mono text-[12.5px] text-[#2b140a]">
-                <span className={ok ? "text-[#0f7a4d]" : "text-[#c42b4a]"}>{ok ? "[ok]" : "[x_x]"}</span>
-                {label}
+          <pre key={`${tab.key}-screen`} aria-hidden className="animate-enter overflow-x-auto text-[clamp(10px,1.25vw,13.5px)] leading-[1.6] text-ink">
+            {SCREENS[tab.key].map((text, index) => (
+              <span key={index} className="block">
+                <Line text={text} />
+                {"​"}
               </span>
             ))}
-          </div>
-        </Card>
+          </pre>
+        </div>
       </div>
     </section>
-  );
-}
-
-function Card({ tone, label, title, body, children }: { tone: string; label: string; title: string; body: string; children: React.ReactNode }) {
-  return (
-    <article data-reveal className={cn("grid min-h-[300px] items-center gap-6 overflow-hidden rounded-[20px] py-8 pl-8 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]", tone)}>
-      <div className="pr-8 sm:pr-0">
-        <p className="text-[12.5px] opacity-75">[ {label.toLowerCase()} ]</p>
-        <h3 className="mt-3 text-[1.9rem] font-medium leading-[1.1] tracking-[-0.03em]">{title}</h3>
-        <p className="mt-3 text-[14px] leading-relaxed opacity-80">{body}</p>
-      </div>
-      <div aria-hidden>{children}</div>
-    </article>
   );
 }
