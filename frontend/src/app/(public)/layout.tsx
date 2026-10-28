@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Footer } from "@/components/site/footer";
 import { Navbar } from "@/components/site/navbar";
 import { ScrollProgress } from "@/components/site/scroll-progress";
+import { SiteMotion } from "@/components/site/site-motion";
 import { SmoothScroll } from "@/components/site/smooth-scroll";
 
 // The app itself is never indexed (root layout); these public pages are.
@@ -24,6 +25,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
         </main>
         <Footer />
         <ScrollProgress />
+        <SiteMotion />
       </div>
     </SmoothScroll>
   );

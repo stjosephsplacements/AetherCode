@@ -33,7 +33,7 @@ export function Navbar() {
           </Link>
         </div>
 
-        <nav aria-label="Main" className="hidden items-center gap-0.5 rounded-[10px] bg-[#f2f2f2] p-1 text-[13.5px] md:flex">
+        <nav aria-label="Main" className="hidden items-center gap-0.5 rounded-[10px] bg-surface/80 p-1 text-[13.5px] ring-1 ring-line-strong backdrop-blur-md md:flex">
           {NAV.map((item) => {
             const current = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
             return (
@@ -41,7 +41,7 @@ export function Navbar() {
                 key={item.href}
                 href={item.href}
                 aria-current={current ? "page" : undefined}
-                className={cn("rounded-[7px] px-3.5 py-1.5 font-medium transition-colors", current ? "bg-[#050505] text-white" : "text-[#3a3a3a] hover:text-black")}
+                className={cn("rounded-[7px] px-3.5 py-1.5 font-medium transition-colors", current ? "bg-ink text-canvas" : "text-ink-muted hover:text-ink")}
               >
                 {item.label}
               </Link>
@@ -60,7 +60,7 @@ export function Navbar() {
             Sign in
           </Link>
           <details className="relative md:hidden">
-            <summary className="grid size-10 cursor-pointer list-none place-items-center rounded-[10px] text-ink-muted hover:bg-hover hover:text-ink [&::-webkit-details-marker]:hidden">
+            <summary className="grid size-10 cursor-pointer list-none place-items-center rounded-[10px] bg-surface/80 text-ink-muted ring-1 ring-line-strong backdrop-blur-md hover:bg-hover hover:text-ink [&::-webkit-details-marker]:hidden">
               <Menu className="size-4" />
               <span className="sr-only">Menu</span>
             </summary>

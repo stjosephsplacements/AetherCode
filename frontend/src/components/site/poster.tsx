@@ -29,7 +29,7 @@ export function Poster() {
         className="absolute bottom-[-34vw] left-1/2 size-[70vw] max-h-[900px] max-w-[900px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,#ffe7b8_0%,#ffb35c_34%,rgb(255_122_69/0)_70%)] sm:bottom-[-420px]"
       />
 
-      <div className="relative z-[2] mx-auto flex min-h-[110vh] max-w-6xl flex-col items-center px-6 pb-[42vh] pt-[22vh] text-center text-[var(--poster-ink)]">
+      <div className="relative z-[2] mx-auto flex min-h-[85vh] max-w-6xl flex-col items-center justify-center px-6 pb-48 pt-32 text-center text-[var(--poster-ink)] sm:pb-64 sm:pt-40">
         <p className="text-[14px] tracking-[0.08em] opacity-75">AetherCode presents</p>
         <motion.h2 style={{ scale: title }} className="display mt-6 text-[4rem] leading-[0.9] sm:text-[7rem] lg:text-[9.5rem]">
           Placement season.
@@ -40,7 +40,7 @@ export function Poster() {
             <Link href="/login">Sign in</Link>
           </Button>
           <Button asChild size="lg" variant="ghost" className="border border-[color-mix(in_srgb,var(--poster-ink)_28%,transparent)] bg-[color-mix(in_srgb,var(--poster-ink)_8%,transparent)] text-[var(--poster-ink)] backdrop-blur hover:bg-[color-mix(in_srgb,var(--poster-ink)_16%,transparent)] hover:text-[var(--poster-ink)]">
-            <Link href="/help">How it works</Link>
+            <Link href="/#pricing">For colleges</Link>
           </Button>
         </div>
         <p className="mt-14 max-w-[46rem] text-[12.5px] leading-[1.7] tracking-[0.02em] opacity-85 sm:text-[13px]">

@@ -121,6 +121,7 @@ export function Footer({ compact = false }: { compact?: boolean }) {
 
       <p
         aria-hidden
+        data-wordmark
         className="mt-6 select-none whitespace-nowrap text-center font-serif text-[16.5vw] leading-[0.8] tracking-[-0.04em] text-transparent [background-clip:text] [background-image:linear-gradient(to_bottom,var(--ink)_10%,var(--accent)_55%,transparent_95%)] [-webkit-background-clip:text]"
       >
         {SITE.name}

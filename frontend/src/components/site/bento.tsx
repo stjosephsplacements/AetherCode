@@ -1,7 +1,6 @@
 import { CloudOff, LockKeyhole } from "lucide-react";
 import { SITE } from "@/lib/site";
 import { cn } from "@/lib/utils";
-import { ScrollIn } from "./scroll-in";
 
 /** What the platform does, one tile each, sketched with the wording the real screens use. */
 export function Bento() {
@@ -98,13 +97,13 @@ export function Bento() {
 function Tile({ className, title, body, children }: { className?: string; title: string; body: string; children: React.ReactNode }) {
   return (
     <article className={cn("bg-canvas", className)}>
-      <ScrollIn className="flex h-full flex-col justify-between gap-10 p-7 sm:p-8">
+      <div data-reveal className="flex h-full flex-col justify-between gap-10 p-7 sm:p-8">
         <div aria-hidden>{children}</div>
         <div>
           <h3 className="text-[18px] font-semibold tracking-[-0.01em] text-ink">{title}</h3>
           <p className="mt-1.5 max-w-[34rem] text-[15px] leading-relaxed text-ink-muted">{body}</p>
         </div>
-      </ScrollIn>
+      </div>
     </article>
   );
 }

@@ -96,3 +96,7 @@ and the exam screen cannot run against the real stack.
   owner-only and SEB-locked like every Submission route.
 
 The shapes are in `src/lib/api-types.ts`.
+
+## Third-party licenses
+
+The public pages animate with [GSAP](https://gsap.com) (`gsap`, `@gsap/react`, including ScrollTrigger and SplitText). GSAP is free to use but is not open source: it ships under GSAP's own [Standard "no charge" license](https://gsap.com/standard-license), not the AGPL. Anyone redistributing a fork should read that license. Everything else in this app is under OSI-approved licenses.

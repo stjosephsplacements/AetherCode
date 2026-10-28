@@ -451,6 +451,7 @@
 @layer components {
   .halo {
     transform: translateX(-50%);
+    will-change: transform, opacity;
     border: 2px solid rgb(var(--halo) / 0.75);
     box-shadow:
       0 0 40px 6px rgb(var(--halo) / 0.35),
@@ -473,10 +474,13 @@
       radial-gradient(1.5px 1.5px at 6% 82%, rgb(var(--halo) / 0.4), transparent),
       radial-gradient(1px 1px at 66% 88%, rgb(var(--halo) / 0.5), transparent);
     background-size: 420px 420px;
+    inset: -420px 0 0 -420px;
+    will-change: transform;
     animation: stars-drift 120s linear infinite;
   }
+  /* Moves the layer, not the background, so the browser never repaints it. */
   @keyframes stars-drift {
-    to { background-position: 420px -420px; }
+    to { transform: translate3d(420px, 420px, 0); }
   }
   .pixel {
     font-family: var(--font-eyebrow);

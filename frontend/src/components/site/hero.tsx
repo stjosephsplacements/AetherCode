@@ -10,7 +10,8 @@ import { SITE } from "@/lib/site";
  * The landing hero: a white halo like an eclipse, faint
  * drifting stars, the line set in a pixel face, and the two next steps
  * pinned to the bottom corners. Scrolling away swells the halo out of
- * frame and lifts the headline; reduced motion keeps it still.
+ * frame and lifts the headline (transform and opacity only); reduced motion
+ * keeps it still.
  */
 export function Hero() {
   const ref = useRef<HTMLElement>(null);
@@ -22,30 +23,31 @@ export function Hero() {
   const starsY = useTransform(scrollYProgress, [0, 1], ["0%", still("0%", "25%") as string]);
   const textY = useTransform(scrollYProgress, [0, 1], ["0%", still("0%", "-40%") as string]);
   const textOpacity = useTransform(scrollYProgress, [0, 0.6], [1, still(1, 0) as number]);
-  const textBlur = useTransform(scrollYProgress, [0, 0.6], ["blur(0px)", still("blur(0px)", "blur(10px)") as string]);
 
   return (
     <section ref={ref} className="relative isolate -mt-[76px] flex min-h-[100svh] flex-col overflow-hidden bg-canvas text-ink">
-      <motion.div aria-hidden style={{ y: starsY }} className="stars absolute inset-0 -z-10" />
+      <motion.div aria-hidden style={{ y: starsY }} className="absolute inset-0 -z-10 overflow-hidden">
+        <div className="stars absolute" />
+      </motion.div>
       <motion.div aria-hidden style={{ scale: haloScale, opacity: haloOpacity }} className="absolute inset-0 -z-10 origin-center">
         <div className="halo absolute left-1/2 top-[14%] aspect-square w-[min(118vw,1100px)] rounded-full sm:top-[10%]" />
       </motion.div>
       <div aria-hidden className="absolute inset-x-0 bottom-0 -z-10 h-[45%] bg-[linear-gradient(to_top,var(--canvas)_25%,transparent)]" />
 
-      <motion.div style={{ y: textY, opacity: textOpacity, filter: textBlur }} className="flex flex-1 flex-col items-center justify-center px-6 pt-28 text-center">
-        <p className="pixel text-[12px] uppercase tracking-[0.28em] text-ink-muted">Coding exams for colleges</p>
-        <h1 className="pixel mt-7 max-w-[16ch] text-balance text-[2.7rem] leading-[1.02] sm:text-[4.6rem] lg:text-[5.6rem]">
+      <motion.div style={{ y: textY, opacity: textOpacity }} className="flex flex-1 flex-col items-center justify-center px-6 pt-28 text-center">
+        <p data-reveal className="pixel text-[12px] uppercase tracking-[0.28em] text-ink-muted">Coding exams for colleges</p>
+        <h1 data-type className="pixel mt-7 max-w-[16ch] text-balance text-[2.7rem] leading-[1.02] sm:text-[4.6rem] lg:text-[5.6rem]">
           {SITE.tagline}
           <span aria-hidden className="ml-2 inline-block h-[0.8em] w-[0.42em] translate-y-[0.08em] cursor-blink animate-[blink_1.1s_steps(1)_infinite] bg-[#ff5a1f]" />
         </h1>
       </motion.div>
 
       <div className="relative flex flex-col gap-8 px-6 pb-10 sm:flex-row sm:items-end sm:justify-between sm:px-10">
-        <p className="pixel max-w-[34ch] text-[12.5px] leading-[1.7] text-ink-muted">
+        <p data-reveal className="pixel max-w-[34ch] text-[12.5px] leading-[1.7] text-ink-muted">
           Timed coding exams with sandboxed judging and Safe Exam Browser lockdown, from the St. Joseph&apos;s Placements and
           Training Cell and AlgoQX.
         </p>
-        <div className="flex flex-wrap items-center gap-3">
+        <div data-reveal className="flex flex-wrap items-center gap-3">
           <Link href="/system-check" className="pixel rounded-[10px] px-4 py-3 text-[13px] text-ink-muted ring-1 ring-line-strong transition-colors hover:bg-hover hover:text-ink">
             Check my laptop
           </Link>

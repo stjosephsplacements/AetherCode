@@ -20,11 +20,11 @@ export function OpenSource() {
           <h2 className="heading text-[2.3rem] sm:text-[3.1rem]">
             Open source. Run it on your own servers.
           </h2>
-          <p className="mt-6 max-w-[30rem] text-[17px] leading-relaxed text-ink-muted">
+          <p data-reveal className="mt-6 max-w-[30rem] text-[17px] leading-relaxed text-ink-muted">
             AetherCode is licensed under the {SITE.license}. Read how marks are decided, and deploy it on one server with the
             single-server guide.
           </p>
-          <div className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-3">
+          <div data-reveal className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-3">
             <Button asChild size="lg">
               <a href={SITE.repo}>
                 View on GitHub

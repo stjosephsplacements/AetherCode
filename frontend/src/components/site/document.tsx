@@ -25,7 +25,7 @@ export function DocumentPage({ title, intro, updated, sections }: { title: strin
         </nav>
         <div className="max-w-[46rem] space-y-14">
           {sections.map((section) => (
-            <section key={section.id} id={section.id} className="scroll-mt-24">
+            <section key={section.id} id={section.id} data-reveal className="scroll-mt-24">
               <h2 className="font-serif text-[1.65rem] leading-tight text-ink">{section.title}</h2>
               <div className="prose-doc mt-4">{section.body}</div>
             </section>
