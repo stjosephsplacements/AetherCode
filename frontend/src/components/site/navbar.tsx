@@ -4,7 +4,6 @@ import { Menu } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import { SITE } from "@/lib/site";
 import { cn } from "@/lib/utils";
 import { ThemeIcon } from "./footer-controls";
@@ -51,9 +50,9 @@ export function Navbar() {
           <Link href="/system-check" className="hidden text-[14px] text-ink-muted transition-colors hover:text-ink sm:block">
             System check
           </Link>
-          <Button asChild size="sm" className="ml-2 h-8 rounded-[8px] px-3.5">
-            <Link href="/login">Sign in</Link>
-          </Button>
+          <Link href="/login" className="ml-2 whitespace-nowrap bg-brand px-3 py-1.5 text-[13.5px] text-brand-ink transition-opacity hover:opacity-90">
+            [ sign in ]
+          </Link>
           <details className="relative md:hidden">
             <summary className="grid size-9 cursor-pointer list-none place-items-center rounded-[8px] text-ink-muted hover:bg-hover hover:text-ink [&::-webkit-details-marker]:hidden">
               <Menu className="size-4" />

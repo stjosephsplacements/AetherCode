@@ -394,3 +394,33 @@
     text-wrap: balance;
   }
 }
+
+/* ASCII style for the landing page: monospace everywhere, headings
+   included, copy set on marker highlights, and text-drawn art sized so its
+   columns fill the width. */
+@layer components {
+  .ascii {
+    font-family: var(--font-mono);
+    letter-spacing: -0.02em;
+  }
+  .ascii .heading,
+  .ascii .display {
+    font-family: var(--font-eyebrow);
+    font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+  .marker {
+    background: var(--brand);
+    color: var(--brand-ink);
+    padding: 0.04em 0.22em;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+  .ascii-art {
+    font-family: var(--font-mono);
+    font-size: calc(min(100vw, 1100px) / var(--columns, 140) / 0.6);
+    line-height: 1;
+    letter-spacing: 0;
+    white-space: pre;
+  }
+}

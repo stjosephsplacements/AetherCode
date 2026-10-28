@@ -1,4 +1,3 @@
-import { Check, Clock3, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /** Four tinted cards, one per part of an exam day, each with a small sketch in the real screen's words. */
@@ -7,7 +6,7 @@ export function Meet() {
     <section id="product" className="mx-auto max-w-6xl scroll-mt-20 px-6 py-24">
       <div className="text-center">
         <h2 className="heading text-[2.6rem] text-ink sm:text-[3.6rem]">
-          Meet <span className="text-brand">AetherCode</span>
+          Meet <span className="marker">AetherCode</span>
         </h2>
         <p data-reveal className="mt-2 text-[18px] text-ink-subtle">
           Everything between the question and the result
@@ -34,9 +33,7 @@ export function Meet() {
               {"    "}
               <span className="text-[#ff8a4c]">return</span> sorted(<span className="text-[#c9c1ff]">set</span>(nums))[-2]
             </p>
-            <p className="mt-3 flex items-center gap-2 font-sans text-[13px] text-[#4ade80]">
-              <Check className="size-3.5" strokeWidth={3} />2 of 2 sample tests passed
-            </p>
+            <p className="mt-3 text-[13px] text-[#4ade80]">\o/ 2 of 2 sample tests passed</p>
           </div>
         </Card>
 
@@ -49,11 +46,8 @@ export function Meet() {
             ].map(([roll, status, left]) => (
               <li key={roll} className="flex items-center gap-3 px-4 py-2.5">
                 <span>{roll}</span>
-                <span className="font-sans text-ink-muted">{status}</span>
-                <span className="ml-auto inline-flex items-center gap-1">
-                  <Clock3 className="size-3 text-ink-subtle" />
-                  {left}
-                </span>
+                <span className="text-ink-muted">{status}</span>
+                <span className="ml-auto">{left}</span>
               </li>
             ))}
           </ul>
@@ -67,7 +61,7 @@ export function Meet() {
               ["Test 3 time limit exceeded", false],
             ].map(([label, ok]) => (
               <span key={String(label)} className="inline-flex items-center gap-2 rounded-l-[8px] bg-white/90 px-3 py-1.5 font-mono text-[12.5px] text-[#2b140a]">
-                {ok ? <Check className="size-3.5 text-[#0f7a4d]" strokeWidth={3} /> : <X className="size-3.5 text-[#c42b4a]" strokeWidth={3} />}
+                <span className={ok ? "text-[#0f7a4d]" : "text-[#c42b4a]"}>{ok ? "[ok]" : "[x_x]"}</span>
                 {label}
               </span>
             ))}
@@ -82,7 +76,7 @@ function Card({ tone, label, title, body, children }: { tone: string; label: str
   return (
     <article data-reveal className={cn("grid min-h-[300px] items-center gap-6 overflow-hidden rounded-[20px] py-8 pl-8 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]", tone)}>
       <div className="pr-8 sm:pr-0">
-        <p className="font-mono text-[12px] uppercase tracking-[0.12em] opacity-75">{label}</p>
+        <p className="text-[12.5px] opacity-75">[ {label.toLowerCase()} ]</p>
         <h3 className="mt-3 text-[1.9rem] font-medium leading-[1.1] tracking-[-0.03em]">{title}</h3>
         <p className="mt-3 text-[14px] leading-relaxed opacity-80">{body}</p>
       </div>

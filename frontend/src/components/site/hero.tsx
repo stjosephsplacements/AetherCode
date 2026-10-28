@@ -1,35 +1,53 @@
-import { CircleHelp, Laptop, ShieldCheck, Activity } from "lucide-react";
 import Link from "next/link";
-import { SITE } from "@/lib/site";
-import { RollBox } from "./roll-box";
+import { AsciiTorus } from "./ascii-torus";
+
+// "AetherCode" in figlet's slant font (56 columns), generated with pyfiglet.
+const WORDMARK = [
+  "    ___        __  __              ______          __",
+  "   /   | ___  / /_/ /_  ___  _____/ ____/___  ____/ /__",
+  "  / /| |/ _ \\/ __/ __ \\/ _ \\/ ___/ /   / __ \\/ __  / _ \\",
+  " / ___ /  __/ /_/ / / /  __/ /  / /___/ /_/ / /_/ /  __/",
+  "/_/  |_\\___/\\__/_/ /_/\\___/_/   \\____/\\____/\\__,_/\\___/",
+].join("\n");
 
 const SHORTCUTS = [
-  { href: "/system-check", label: "Check my laptop", icon: Laptop },
-  { href: "/help", label: "Help center", icon: CircleHelp },
-  { href: "/status", label: "Status", icon: Activity },
-  { href: "/security", label: "Security", icon: ShieldCheck },
+  { href: "/system-check", glyph: "[_]", label: "check my laptop" },
+  { href: "/help", glyph: "[?]", label: "help center" },
+  { href: "/status", glyph: "[~]", label: "status" },
+  { href: "/security", glyph: "[#]", label: "security" },
 ];
 
-/** The headline, the roll-number box that starts sign-in, and shortcuts to what students ask for most before an exam. */
+/** The wordmark in text over a spinning ASCII torus, the tagline, and the next steps as bracketed links. */
 export function Hero() {
   return (
-    <section className="mx-auto flex min-h-[calc(100svh-56px)] max-w-6xl flex-col items-center justify-center px-6 py-20 text-center">
-      <h1 data-split className="heading text-[3rem] text-ink sm:text-[4.4rem] lg:text-[5rem]">
-        {SITE.tagline}
-      </h1>
-      <p data-reveal className="mt-4 text-[17px] text-ink-muted">
-        Coding exams and practice for colleges, open source and self-hosted.
+    <section className="relative isolate flex min-h-[calc(100svh-56px)] flex-col items-center justify-center overflow-hidden px-4 py-20 text-center">
+      <AsciiTorus className="ascii-art pointer-events-none absolute left-1/2 top-1/2 -z-10 -translate-x-1/2 -translate-y-1/2 select-none text-ink/30" />
+      <div aria-hidden className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_62%_40%_at_50%_48%,var(--canvas)_35%,transparent)]" />
+
+      <h1 className="sr-only">AetherCode: Let your code do the talking.</h1>
+      <pre data-reveal aria-hidden className="ascii-art text-left text-brand [--columns:62]">
+        {WORDMARK}
+      </pre>
+      <p data-reveal aria-hidden className="heading mt-8 text-[1.9rem] leading-[1.3] text-ink sm:text-[2.8rem]">
+        <span className="marker">Let your code do the talking.</span>
       </p>
-      <div data-reveal className="mt-10 w-full">
-        <RollBox />
+      <p data-reveal className="mt-5 text-[14px] text-ink-muted">
+        <span className="bg-canvas px-1">{"// coding exams and practice for colleges. open source, self-hosted."}</span>
+      </p>
+
+      <div data-reveal className="mt-10 flex flex-wrap justify-center gap-3 text-[15px]">
+        <Link href="/login" className="bg-brand px-5 py-3 text-brand-ink shadow-[4px_4px_0_var(--ink)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5">
+          [ sign in -&gt; ]
+        </Link>
+        <Link href="/help" className="border border-ink bg-canvas px-5 py-3 text-ink shadow-[4px_4px_0_var(--ink)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5">
+          [ how it works ]
+        </Link>
       </div>
-      <nav data-reveal aria-label="Before your exam" className="mt-8 flex flex-wrap justify-center gap-3">
-        {SHORTCUTS.map(({ href, label, icon: Icon }) => (
-          <Link key={href} href={href} className="group flex w-[104px] flex-col items-center gap-2 text-[12.5px] text-ink-muted transition-colors hover:text-ink">
-            <span className="grid size-11 place-items-center rounded-[12px] border border-line-strong bg-surface transition-colors group-hover:border-ink-subtle">
-              <Icon className="size-[18px]" strokeWidth={1.6} />
-            </span>
-            {label}
+
+      <nav data-reveal aria-label="Before your exam" className="mt-10 flex flex-wrap justify-center gap-x-6 gap-y-2 text-[13px]">
+        {SHORTCUTS.map(({ href, glyph, label }) => (
+          <Link key={href} href={href} className="bg-canvas px-1 text-ink-muted transition-colors hover:text-ink">
+            <span className="text-brand">{glyph}</span> {label}
           </Link>
         ))}
       </nav>

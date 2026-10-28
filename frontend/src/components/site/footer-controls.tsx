@@ -27,7 +27,7 @@ export function CookieSettingsLink() {
   );
 }
 
-/** The theme switch as a single icon button, for the header. */
+/** The theme switch as a bracketed word, for the header. */
 export function ThemeIcon() {
   const theme = useTheme();
   const next = theme === "dark" ? "light" : "dark";
@@ -35,10 +35,10 @@ export function ThemeIcon() {
     <button
       type="button"
       onClick={() => setTheme(next)}
-      aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-      className="grid size-10 place-items-center rounded-full text-ink-muted transition-colors hover:bg-hover hover:text-ink"
+      aria-label={`Switch to ${next} theme`}
+      className="px-2 py-1 font-mono text-[13px] text-ink-muted transition-colors hover:text-ink"
     >
-      {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+      [{next}]
     </button>
   );
 }

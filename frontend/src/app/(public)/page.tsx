@@ -21,7 +21,7 @@ export default async function Landing() {
   if (jar.get(ACCESS_COOKIE) || jar.get(REFRESH_COOKIE)) redirect(homeFor(await requireViewer()));
 
   return (
-    <>
+    <div>
       <Hero />
       <Meet />
 
@@ -51,6 +51,6 @@ export default async function Landing() {
           </Button>
         </div>
       </section>
-    </>
+    </div>
   );
 }
