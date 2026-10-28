@@ -45,10 +45,10 @@ export function BugHunt({ className, onSolvedChange }: { className?: string; onS
     >
       <div className="flex items-center justify-between border-b border-line px-5 py-3 text-[12.5px] text-ink-subtle">
         <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-ink">second_largest.py</span>
-        <span>Return the second largest distinct number</span>
+        <span className="hidden text-right sm:inline">Return the second largest distinct number</span>
       </div>
 
-      <pre className="px-5 pb-2 pt-5 font-mono text-[14px] leading-7">
+      <pre className="overflow-x-auto px-5 pb-2 pt-5 font-mono text-[13px] leading-7 sm:text-[14px]">
         <span className="text-accent">def</span> <span className="text-lavender">second_largest</span>(nums):{"\n"}
         {"    "}
         <span className="text-accent">return</span>{" "}

@@ -118,31 +118,31 @@
      Every text/background pair below meets WCAG AA (4.5:1). */
   :root, [data-theme="dark"] {
     color-scheme: dark;
-    --canvas: #0f0b1e;
-    --surface: #171230;
-    --surface-2: #211a40;
-    --sidebar: #130f27;
-    --hover: #211a40;
-    --ink: #f3eeff;
-    --ink-muted: #a89fc4;
-    --ink-subtle: #8e85ad;
+    --canvas: #050505;
+    --surface: #0f0f0f;
+    --surface-2: #171717;
+    --sidebar: #0a0a0a;
+    --hover: #1c1c1c;
+    --ink: #f2f2f2;
+    --ink-muted: #a3a3a3;
+    --ink-subtle: #8a8a8a;
     --line: rgb(255 255 255 / 0.08);
-    --line-strong: rgb(255 255 255 / 0.14);
+    --line-strong: rgb(255 255 255 / 0.15);
 
-    --brand: #ff8a3d;
-    --brand-hover: #ffa463;
-    --brand-ink: #0f0b1e;
-    --brand-soft: rgb(255 138 61 / 0.14);
-    --brand-soft-ink: #ffb784;
-    --accent: #ff8a3d;
+    --brand: #ff5a1f;
+    --brand-hover: #ff7440;
+    --brand-ink: #050505;
+    --brand-soft: rgb(255 90 31 / 0.14);
+    --brand-soft-ink: #ff9a70;
+    --accent: #ff6a33;
     --coral: #ff4f79;
-    --lavender: #a99cff;
-    --glow: rgb(255 138 61 / 0.16);
-    --glow-2: rgb(169 156 255 / 0.14);
-    --poster-sky: linear-gradient(to bottom, #0f0b1e 0%, #2a1640 40%, #8a2f4f 68%, #ff7a45 88%, #ffc27a 100%);
-    --poster-ink: #f3eeff;
-    --poster-on-ink: #0f0b1e;
-    --horizon: linear-gradient(to top, rgb(255 79 121 / 0.30), rgb(255 138 61 / 0.22) 30%, rgb(169 156 255 / 0.08) 62%, transparent);
+    --lavender: #b9b2ff;
+    --glow: rgb(255 255 255 / 0.06);
+    --glow-2: rgb(255 90 31 / 0.08);
+    --poster-sky: linear-gradient(to bottom, #050505 0%, #1a0d08 45%, #ff5a1f 100%);
+    --poster-ink: #f2f2f2;
+    --poster-on-ink: #050505;
+    --horizon: linear-gradient(to top, rgb(255 90 31 / 0.16), rgb(255 255 255 / 0.03) 45%, transparent);
 
     --success: #34d399;
     --success-soft: rgb(52 211 153 / 0.12);
@@ -440,5 +440,64 @@
   @keyframes caret {
     50% { border-right-color: transparent; }
     to { border-right-color: transparent; }
+  }
+}
+
+
+/* The hero's eclipse: a white halo ring that slowly breathes, over a field
+   of faint stars. All CSS, so reduced motion simply holds it still. */
+@layer components {
+  .halo {
+    transform: translateX(-50%);
+    border: 2px solid rgb(255 255 255 / 0.75);
+    box-shadow:
+      0 0 40px 6px rgb(255 255 255 / 0.35),
+      0 0 160px 30px rgb(255 255 255 / 0.12),
+      inset 0 0 60px 8px rgb(255 255 255 / 0.25),
+      inset 0 0 200px 40px rgb(255 255 255 / 0.06);
+    animation: halo-breathe 7s ease-in-out infinite;
+  }
+  @keyframes halo-breathe {
+    0%, 100% { opacity: 0.85; transform: translateX(-50%) scale(1); }
+    50% { opacity: 1; transform: translateX(-50%) scale(1.015); }
+  }
+  .stars {
+    background-image:
+      radial-gradient(1px 1px at 12% 22%, rgb(255 255 255 / 0.7), transparent),
+      radial-gradient(1px 1px at 78% 14%, rgb(255 255 255 / 0.5), transparent),
+      radial-gradient(1.5px 1.5px at 34% 68%, rgb(255 255 255 / 0.6), transparent),
+      radial-gradient(1px 1px at 88% 58%, rgb(255 255 255 / 0.45), transparent),
+      radial-gradient(1px 1px at 56% 36%, rgb(255 255 255 / 0.35), transparent),
+      radial-gradient(1.5px 1.5px at 6% 82%, rgb(255 255 255 / 0.4), transparent),
+      radial-gradient(1px 1px at 66% 88%, rgb(255 255 255 / 0.5), transparent);
+    background-size: 420px 420px;
+    animation: stars-drift 120s linear infinite;
+  }
+  @keyframes stars-drift {
+    to { background-position: 420px -420px; }
+  }
+  .pixel {
+    font-family: var(--font-eyebrow);
+    font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .halo, .stars, .cursor-blink { animation: none !important; }
+}
+
+/* Section headings: one voice everywhere below the hero. */
+@layer components {
+  .heading {
+    font-family: var(--font-sans);
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    line-height: 1.05;
+    text-wrap: balance;
   }
 }

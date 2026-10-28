@@ -1,75 +1,52 @@
 "use client";
 
-import { motion } from "motion/react";
+import { ArrowUpRight, Check, Clock3, LockKeyhole } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { SITE } from "@/lib/site";
-import { cn } from "@/lib/utils";
 
-const AUDIENCES = {
-  student: {
-    label: "I'm a student",
-    lede: "Practice like it counts, because the exam will look exactly the same.",
-    points: [
-      `${SITE.languages.length} languages, from C to Go, in a proper code editor.`,
-      "Practice problems, contests and interview stories from seniors, in one place.",
-      "Results the moment staff release them, with every test case explained.",
-    ],
-    cta: { href: "/login", label: "Sign in to practice" },
-  },
-  college: {
-    label: "I run placements",
-    lede: "Run fair exams for hundreds of students at once, on your own servers.",
-    points: [
-      "Safe Exam Browser lockdown and lab-network rules, checked on every request.",
-      "Live monitoring, extra time per student, and similarity checks after the exam.",
-      "Self-hosted and open source. Your students' data never leaves your servers.",
-    ],
-    cta: { href: "/architecture", label: "See how it's built" },
-  },
-} as const;
+const STEPS = [
+  { title: "Author", body: "Write questions with test cases, build an exam from them and set when it opens and closes.", visual: "author" },
+  { title: "Run", body: "Students code and run tests in the browser while staff watch the live monitor and add time where needed.", visual: "exam" },
+  { title: "Release", body: "Review submissions and the similarity report, then release results when you're ready.", visual: "results" },
+] as const;
 
-type Audience = keyof typeof AUDIENCES;
-
-/** Two audiences behind one switch: pick who you are and the page answers you. */
 export function AudienceSwitch() {
-  const [audience, setAudience] = useState<Audience>("student");
-  const current = AUDIENCES[audience];
-
+  const [active, setActive] = useState(0);
+  const reduce = useReducedMotion();
+  const step = STEPS[active]!;
   return (
-    <section className="mx-auto max-w-6xl px-6 py-32">
-      <h2 className="display text-[2.6rem] text-ink sm:text-[3.6rem]">Who&apos;s asking?</h2>
-      <div role="group" aria-label="Show this for" className="mt-8 inline-flex rounded-full border border-line-strong bg-surface p-1">
-        {(Object.keys(AUDIENCES) as Audience[]).map((key) => (
-          <button
-            key={key}
-            type="button"
-            aria-pressed={audience === key}
-            onClick={() => setAudience(key)}
-            className={cn("relative rounded-full px-5 py-2.5 text-[15px] font-medium transition-colors", audience === key ? "text-brand-ink" : "text-ink-muted hover:text-ink")}
-          >
-            {audience === key && <motion.span layoutId="audience-pill" className="absolute inset-0 rounded-full bg-brand" transition={{ type: "spring", bounce: 0.2, duration: 0.5 }} />}
-            <span className="relative">{AUDIENCES[key].label}</span>
-          </button>
-        ))}
+    <section className="mx-auto max-w-6xl px-6 py-24 sm:py-28" aria-labelledby="workflow-heading">
+      <div className="max-w-3xl">
+        <h2 id="workflow-heading" className="heading text-[2.3rem] sm:text-[3.1rem] text-ink">From question bank to released results.</h2>
       </div>
-
-      <div key={audience} className="mt-14 grid animate-enter gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:gap-20">
-        <div>
-          <p className="font-serif text-[2rem] leading-[1.15] tracking-tight text-ink sm:text-[2.4rem]">{current.lede}</p>
-          <Button asChild size="lg" variant="secondary" className="mt-8">
-            <Link href={current.cta.href}>{current.cta.label}</Link>
-          </Button>
-        </div>
-        <ul className="border-t border-line">
-          {current.points.map((point) => (
-            <li key={point} className="border-b border-line py-6 text-[17px] leading-relaxed text-ink">
-              {point}
-            </li>
+      <div className="mt-14 grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20">
+        <div className="flex flex-col justify-center border-t border-line-strong">
+          {STEPS.map((item, index) => (
+            <div key={item.title} className="border-b border-line-strong">
+              <button type="button" aria-expanded={active === index} aria-controls="workflow-preview" onClick={() => setActive(index)} className="flex w-full items-center justify-between gap-4 py-6 text-left">
+                <span className={`text-[1.35rem] font-semibold tracking-[-0.02em] transition-colors ${active === index ? "text-ink" : "text-ink-subtle hover:text-ink"}`}>{item.title}</span>
+                <span aria-hidden className="font-mono text-xs text-accent">0{index + 1}</span>
+              </button>
+              {active === index && <p className="max-w-sm pb-6 text-[15px] leading-relaxed text-ink-muted">{item.body}</p>}
+            </div>
           ))}
-        </ul>
+          <Link href="/help" className="mt-8 inline-flex w-fit items-center gap-2 text-sm font-bold text-ink hover:text-accent">Guide for staff <ArrowUpRight aria-hidden className="size-4" /></Link>
+        </div>
+        <div id="workflow-preview" className="relative flex min-h-[400px] items-center overflow-hidden rounded-[28px] border border-line-strong bg-[image:var(--horizon)] p-5 sm:min-h-[480px] sm:p-12">
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div key={step.visual} initial={reduce ? false : { opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={reduce ? undefined : { opacity: 0, y: -14 }} transition={{ duration: 0.25 }} className="w-full rounded-2xl border border-line-strong bg-surface p-5 shadow-[var(--shadow-overlay)] sm:p-7">
+              {step.visual === "author" && <><p className="text-[1.6rem] font-semibold tracking-[-0.025em] text-ink">Placement assessment</p><div className="mt-6 space-y-3"><PreviewRow label="Questions" value="3 coding problems" /><PreviewRow label="Duration" value="60 minutes" /><PreviewRow label="Access" value="Safe Exam Browser" /></div></>}
+              {step.visual === "exam" && <><div className="flex items-center justify-between gap-4"><p className="text-[1.6rem] font-semibold tracking-[-0.025em] text-ink">Exam in progress</p><Clock3 aria-hidden className="size-5 text-accent" /></div><div className="mt-6 rounded-xl bg-surface-2 p-5 font-mono text-sm leading-7 text-ink"><span className="text-accent">def</span> solve(nums):<br />&nbsp;&nbsp;&nbsp;&nbsp;<span className="text-lavender">return</span> sorted(set(nums))[-2]</div><p className="mt-4 flex items-center gap-2 text-sm text-success"><LockKeyhole aria-hidden className="size-4" /> Safe Exam Browser verified</p></>}
+              {step.visual === "results" && <><p className="text-[1.6rem] font-semibold tracking-[-0.025em] text-ink">Results overview</p><div className="mt-6 space-y-3"><PreviewRow label="Submissions" value="Ready to review" /><PreviewRow label="Similarity" value="Report available" /><PreviewRow label="Results" value="Released by staff" /></div><p className="mt-5 flex items-center gap-2 text-sm text-success"><Check aria-hidden className="size-4" /> Review before release</p></>}
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </div>
     </section>
   );
+}
+
+function PreviewRow({ label, value }: { label: string; value: string }) {
+  return <div className="flex flex-wrap justify-between gap-2 border-b border-line py-3 text-sm"><span className="text-ink-muted">{label}</span><span className="text-ink">{value}</span></div>;
 }
