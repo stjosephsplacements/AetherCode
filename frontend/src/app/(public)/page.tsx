@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ExamPreview } from "@/components/site/exam-preview";
 import { Hero } from "@/components/site/hero";
+import { Meet } from "@/components/site/meet";
 import { Numbers } from "@/components/site/numbers";
 import { OpenSource } from "@/components/site/open-source";
-import { Product } from "@/components/site/product";
+import { Platform } from "@/components/site/platform";
 import { Button } from "@/components/ui/button";
 import { requireViewer } from "@/lib/server/session";
 import { ACCESS_COOKIE, REFRESH_COOKIE } from "@/lib/server/tokens";
@@ -21,11 +23,24 @@ export default async function Landing() {
   return (
     <>
       <Hero />
+      <Meet />
+
+      <section className="bg-surface-2 py-24">
+        <div className="mx-auto max-w-6xl px-6">
+          <h2 className="heading text-[2.2rem] text-ink sm:text-[2.8rem]">The exam screen, as students see it</h2>
+          <div className="mt-10 [perspective:1800px]">
+            <div data-tilt className="origin-top">
+              <ExamPreview />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <Platform />
       <Numbers />
-      <Product />
       <OpenSource />
 
-      <section className="mx-auto max-w-6xl px-6 py-28 text-center sm:py-32">
+      <section className="mx-auto max-w-6xl px-6 py-28 text-center">
         <h2 className="heading mx-auto max-w-[18ch] text-[2.4rem] text-ink sm:text-[3.2rem]">Sign in with the account your college gave you.</h2>
         <div data-reveal className="mt-9 flex flex-wrap justify-center gap-3">
           <Button asChild size="lg" className="rounded-[10px]">

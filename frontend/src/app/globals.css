@@ -170,10 +170,10 @@
     --line: #ece5dc;
     --line-strong: #e0d7cc;
 
-    --brand: #1b1640;
-    --brand-hover: #2e2766;
+    --brand: #c84a0c;
+    --brand-hover: #b54208;
     --brand-ink: #ffffff;
-    --brand-soft: #fff0e3;
+    --brand-soft: #fdeadf;
     --brand-soft-ink: #b34700;
     --accent: #b34700;
     --coral: #d6295a;
@@ -388,8 +388,8 @@
 @layer components {
   .heading {
     font-family: var(--font-sans);
-    font-weight: 700;
-    letter-spacing: -0.035em;
+    font-weight: 500;
+    letter-spacing: -0.04em;
     line-height: 1.05;
     text-wrap: balance;
   }

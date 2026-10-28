@@ -2,11 +2,26 @@
 
 import { Eye, EyeOff, LoaderCircle } from "lucide-react";
 import { useActionState, useState } from "react";
+import { ROLL_HANDOFF } from "@/components/site/roll-box";
 import { Button } from "@/components/ui/button";
 import { type LoginState, login } from "./actions";
 
 const fieldClass =
   "h-11 w-full rounded-[var(--radius-control)] border border-line-strong bg-surface px-3.5 text-[15px] text-ink shadow-[var(--shadow-hairline)] outline-none transition-[border-color,box-shadow] placeholder:text-ink-subtle hover:border-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15";
+
+/** Fills in a roll number typed on the landing page, once, and moves on to the password. */
+function takeHandedOffRoll(input: HTMLInputElement | null) {
+  if (!input || input.value) return;
+  try {
+    const roll = sessionStorage.getItem(ROLL_HANDOFF);
+    if (!roll) return;
+    sessionStorage.removeItem(ROLL_HANDOFF);
+    input.value = roll;
+    document.getElementById("password")?.focus();
+  } catch {
+    // Storage blocked: the field just starts empty.
+  }
+}
 
 export function LoginForm({ next }: { next: string }) {
   const [state, action, pending] = useActionState<LoginState, FormData>(login, { error: null, identifier: "" });
@@ -21,6 +36,7 @@ export function LoginForm({ next }: { next: string }) {
         </label>
         <input
           id="identifier"
+          ref={takeHandedOffRoll}
           name="identifier"
           defaultValue={state.identifier}
           autoComplete="username"
