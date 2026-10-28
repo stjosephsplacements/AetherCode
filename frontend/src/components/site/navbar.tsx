@@ -1,47 +1,44 @@
 "use client";
 
-import { ArrowRight, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { SITE } from "@/lib/site";
 import { cn } from "@/lib/utils";
 import { ThemeIcon } from "./footer-controls";
 
 const NAV = [
-  { href: "/", label: "Home" },
+  { href: "/#product", label: "Product" },
+  { href: "/security", label: "Security" },
   { href: "/help", label: "Help" },
   { href: "/status", label: "Status" },
-  { href: "/security", label: "Security" },
   { href: "/about", label: "About" },
+  { href: SITE.repo, label: "GitHub" },
 ];
 
-/**
- * The public header: the logo on the left, a white pill of links in the
- * middle with the current page as a dark tab, and sign-in on the right.
- * Phones get the links in a disclosure menu.
- */
+/** One full-width bar for the public pages; phones get the links in a disclosure menu. */
 export function Navbar() {
   const pathname = usePathname();
   return (
-    <header className="pointer-events-none sticky top-0 z-40 px-4 pb-4 pt-4 sm:px-6 [&_a]:pointer-events-auto [&_button]:pointer-events-auto [&_details]:pointer-events-auto [&_nav]:pointer-events-auto">
-      <div className="mx-auto flex max-w-7xl items-center gap-3">
-        <div className="mr-auto md:mr-0 md:flex-1">
-          <Link href="/" className="inline-flex items-center gap-2.5 rounded-[10px] bg-surface/80 px-3 py-2 ring-1 ring-line-strong backdrop-blur-md">
-          <Image src="/4.png" alt="" width={22} height={22} priority className="logo-light object-contain" />
-          <Image src="/3.png" alt="" width={22} height={22} priority className="logo-dark object-contain" />
+    <header className="sticky top-0 z-40 border-b border-line bg-canvas/75 backdrop-blur-xl">
+      <div className="mx-auto flex h-14 max-w-6xl items-center gap-8 px-6">
+        <Link href="/" className="flex items-center gap-2.5">
+          <Image src="/4.png" alt="" width={20} height={20} priority className="logo-light object-contain" />
+          <Image src="/3.png" alt="" width={20} height={20} priority className="logo-dark object-contain" />
           <span className="text-[15px] font-semibold tracking-tight text-ink">AetherCode</span>
-          </Link>
-        </div>
+        </Link>
 
-        <nav aria-label="Main" className="hidden items-center gap-0.5 rounded-[10px] bg-surface/80 p-1 text-[13.5px] ring-1 ring-line-strong backdrop-blur-md md:flex">
+        <nav aria-label="Main" className="hidden items-center gap-6 text-[14px] md:flex">
           {NAV.map((item) => {
-            const current = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+            const current = item.href.startsWith("/") && !item.href.includes("#") && pathname.startsWith(item.href);
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 aria-current={current ? "page" : undefined}
-                className={cn("rounded-[7px] px-3.5 py-1.5 font-medium transition-colors", current ? "bg-ink text-canvas" : "text-ink-muted hover:text-ink")}
+                className={cn("transition-colors", current ? "text-ink" : "text-ink-muted hover:text-ink")}
               >
                 {item.label}
               </Link>
@@ -49,23 +46,21 @@ export function Navbar() {
           })}
         </nav>
 
-        <div className="flex items-center gap-1.5 md:flex-1 md:justify-end">
-          <span className="rounded-[10px] bg-surface/80 ring-1 ring-line-strong backdrop-blur-md [&>button]:rounded-[10px]">
-            <ThemeIcon />
-          </span>
-          <Link href="/login" className="group inline-flex items-center gap-2.5 rounded-[10px] bg-surface/80 py-1 pl-1 pr-4 backdrop-blur-md text-[14px] font-medium text-ink ring-1 ring-line-strong transition-colors hover:bg-hover">
-            <span className="grid size-8 place-items-center rounded-[7px] bg-brand text-brand-ink">
-              <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-            </span>
-            Sign in
+        <div className="ml-auto flex items-center gap-2">
+          <ThemeIcon />
+          <Link href="/system-check" className="hidden text-[14px] text-ink-muted transition-colors hover:text-ink sm:block">
+            System check
           </Link>
+          <Button asChild size="sm" className="ml-2 h-8 rounded-[8px] px-3.5">
+            <Link href="/login">Sign in</Link>
+          </Button>
           <details className="relative md:hidden">
-            <summary className="grid size-10 cursor-pointer list-none place-items-center rounded-[10px] bg-surface/80 text-ink-muted ring-1 ring-line-strong backdrop-blur-md hover:bg-hover hover:text-ink [&::-webkit-details-marker]:hidden">
+            <summary className="grid size-9 cursor-pointer list-none place-items-center rounded-[8px] text-ink-muted hover:bg-hover hover:text-ink [&::-webkit-details-marker]:hidden">
               <Menu className="size-4" />
               <span className="sr-only">Menu</span>
             </summary>
-            <nav aria-label="Main" className="absolute right-0 top-12 w-48 rounded-[12px] border border-line-strong bg-surface p-2 shadow-[var(--shadow-overlay)]">
-              {NAV.map((item) => (
+            <nav aria-label="Main" className="absolute right-0 top-11 w-52 rounded-[12px] border border-line-strong bg-surface p-1.5 shadow-[var(--shadow-overlay)]">
+              {[...NAV, { href: "/system-check", label: "System check" }].map((item) => (
                 <Link key={item.href} href={item.href} className="block rounded-[8px] px-3 py-2 text-[15px] text-ink hover:bg-hover">
                   {item.label}
                 </Link>

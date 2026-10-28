@@ -31,8 +31,8 @@ const COLUMNS = [
 ] as const;
 
 /**
- * The site-wide footer: link columns, then the name set huge and fading into
- * the page like a film's end card. Compact keeps one quiet row for the app.
+ * The site-wide footer: link columns and the operator line. Compact keeps one
+ * quiet row for the app.
  */
 export function Footer({ compact = false }: { compact?: boolean }) {
   const year = new Date().getFullYear();
@@ -58,7 +58,7 @@ export function Footer({ compact = false }: { compact?: boolean }) {
   return (
     <footer className="relative overflow-hidden">
       <div aria-hidden className="absolute inset-x-0 top-0 h-px bg-[linear-gradient(to_right,transparent,var(--line-strong),transparent)]" />
-      <div className="mx-auto max-w-6xl px-6 pt-20">
+      <div className="mx-auto max-w-6xl px-6 pb-12 pt-16">
         <div className="grid gap-12 lg:grid-cols-[1.5fr_repeat(4,1fr)]">
           <div className="max-w-[300px]">
             <p className="font-serif text-[1.9rem] leading-[1.1] text-ink">{SITE.tagline}</p>
@@ -119,13 +119,6 @@ export function Footer({ compact = false }: { compact?: boolean }) {
         </div>
       </div>
 
-      <p
-        aria-hidden
-        data-wordmark
-        className="mt-6 select-none whitespace-nowrap text-center font-serif text-[16.5vw] leading-[0.8] tracking-[-0.04em] text-transparent [background-clip:text] [background-image:linear-gradient(to_bottom,var(--ink)_10%,var(--accent)_55%,transparent_95%)] [-webkit-background-clip:text]"
-      >
-        {SITE.name}
-      </p>
     </footer>
   );
 }

@@ -141,7 +141,6 @@
     --glow-2: rgb(255 90 31 / 0.08);
     --poster-sky: linear-gradient(to bottom, #050505 0%, #1a0d08 45%, #ff5a1f 100%);
     --poster-ink: #f2f2f2;
-    --halo: 255 255 255;
     --poster-on-ink: #050505;
     --horizon: linear-gradient(to top, rgb(255 90 31 / 0.16), rgb(255 255 255 / 0.03) 45%, transparent);
 
@@ -183,7 +182,6 @@
     --glow-2: rgb(75 63 209 / 0.10);
     --poster-sky: linear-gradient(to bottom, #fbf8f4 0%, #f4e4ec 30%, #eab3bf 58%, #ff9a62 84%, #ffc27a 100%);
     --poster-ink: #1b1640;
-    --halo: 27 22 64;
     --poster-on-ink: #ffffff;
     --horizon: linear-gradient(to top, rgb(255 122 0 / 0.22), rgb(255 176 102 / 0.16) 34%, rgb(75 63 209 / 0.05) 66%, transparent);
 
@@ -237,18 +235,6 @@
     font-size: 0.75rem;
   }
 
-  /* Vercel-style subtle gradient glow backgrounds */
-  .cinematic-glow {
-    position: relative;
-    overflow: hidden;
-  }
-  .cinematic-glow::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: radial-gradient(circle at 50% -20%, var(--glow), transparent 70%);
-  }
 
   :focus-visible {
     outline: 2px solid var(--brand);
@@ -391,111 +377,12 @@
   }
 }
 
-/* Hero entrance: each word rises out of a blur, once, on load. CSS so the
-   headline is never hidden behind JavaScript. */
-@layer components {
-  .rise {
-    animation: rise 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  }
-  @keyframes rise {
-    from { opacity: 0; transform: translateY(0.45em); filter: blur(10px); }
-    to { opacity: 1; transform: none; filter: blur(0); }
-  }
-}
-
-/* Film grain for the cinematic sections: an SVG noise tile laid over the
-   content, so gradients read like a poster print instead of a screen. */
-@layer components {
-  .grain {
-    position: relative;
-    isolation: isolate;
-  }
-  .grain::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    pointer-events: none;
-    opacity: 0.22;
-    mix-blend-mode: overlay;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  }
-}
-
-/* The hero's program line: typed out one character at a time behind a
-   caret, which blinks a few times and then gets out of the way. */
-@layer components {
-  .typed {
-    display: inline-block;
-    max-width: 0;
-    overflow: hidden;
-    white-space: nowrap;
-    vertical-align: bottom;
-    border-right: 2px solid var(--accent);
-    animation:
-      type 1100ms steps(var(--chars)) 200ms forwards,
-      caret 700ms step-end 6 forwards;
-  }
-  @keyframes type {
-    to { max-width: calc(var(--chars) * 1ch + 2px); }
-  }
-  @keyframes caret {
-    50% { border-right-color: transparent; }
-    to { border-right-color: transparent; }
-  }
-}
 
 
-/* The hero's eclipse: a halo ring in the theme's ink that slowly breathes, over a field
-   of faint stars. All CSS, so reduced motion simply holds it still. */
-@layer components {
-  .halo {
-    transform: translateX(-50%);
-    will-change: transform, opacity;
-    border: 2px solid rgb(var(--halo) / 0.75);
-    box-shadow:
-      0 0 40px 6px rgb(var(--halo) / 0.35),
-      0 0 160px 30px rgb(var(--halo) / 0.12),
-      inset 0 0 60px 8px rgb(var(--halo) / 0.25),
-      inset 0 0 200px 40px rgb(var(--halo) / 0.06);
-    animation: halo-breathe 7s ease-in-out infinite;
-  }
-  @keyframes halo-breathe {
-    0%, 100% { opacity: 0.85; transform: translateX(-50%) scale(1); }
-    50% { opacity: 1; transform: translateX(-50%) scale(1.015); }
-  }
-  .stars {
-    background-image:
-      radial-gradient(1px 1px at 12% 22%, rgb(var(--halo) / 0.7), transparent),
-      radial-gradient(1px 1px at 78% 14%, rgb(var(--halo) / 0.5), transparent),
-      radial-gradient(1.5px 1.5px at 34% 68%, rgb(var(--halo) / 0.6), transparent),
-      radial-gradient(1px 1px at 88% 58%, rgb(var(--halo) / 0.45), transparent),
-      radial-gradient(1px 1px at 56% 36%, rgb(var(--halo) / 0.35), transparent),
-      radial-gradient(1.5px 1.5px at 6% 82%, rgb(var(--halo) / 0.4), transparent),
-      radial-gradient(1px 1px at 66% 88%, rgb(var(--halo) / 0.5), transparent);
-    background-size: 420px 420px;
-    inset: -420px 0 0 -420px;
-    will-change: transform;
-    animation: stars-drift 120s linear infinite;
-  }
-  /* Moves the layer, not the background, so the browser never repaints it. */
-  @keyframes stars-drift {
-    to { transform: translate3d(420px, 420px, 0); }
-  }
-  .pixel {
-    font-family: var(--font-eyebrow);
-    font-weight: 400;
-    letter-spacing: -0.01em;
-  }
-}
 
-@keyframes blink {
-  50% { opacity: 0; }
-}
 
-@media (prefers-reduced-motion: reduce) {
-  .halo, .stars, .cursor-blink { animation: none !important; }
-}
+
+
 
 /* Section headings: one voice everywhere below the hero. */
 @layer components {
