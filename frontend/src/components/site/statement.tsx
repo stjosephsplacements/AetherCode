@@ -7,15 +7,15 @@
 export function Statement() {
   return (
     <section className="mx-auto grid max-w-6xl gap-10 px-6 py-24 sm:py-28 lg:grid-cols-2 lg:gap-16">
-      <h2 data-statement className="font-serif text-[2.4rem] leading-[1.12] tracking-[-0.02em] text-ink sm:text-[3.2rem]">
+      <h2 data-statement className="font-sans text-[2.4rem] font-bold leading-[1.1] tracking-[-0.04em] text-ink sm:text-[3.2rem]">
         Placements{" "}
-        <span className="relative whitespace-nowrap text-ink-subtle">
+        <span className="relative text-ink-subtle decoration-brand decoration-[3px] max-sm:line-through sm:whitespace-nowrap">
           depend on your college
-          <span data-strike aria-hidden className="absolute inset-x-0 top-[55%] h-[3px] origin-left bg-brand" />
+          <span data-strike aria-hidden className="absolute inset-x-0 top-[55%] hidden h-[3px] origin-left bg-brand sm:block" />
         </span>{" "}
         <span data-answer>depend on your code.</span>
       </h2>
-      <p data-darken className="font-serif text-[1.35rem] leading-[1.5] text-ink sm:text-[1.6rem]">
+      <p data-darken className="text-[1.25rem] leading-[1.55] text-ink sm:text-[1.45rem]">
         Every student sits the same exam, in the same editor, judged by the same hidden tests. Marks come from what you write,
         not where you studied.
       </p>

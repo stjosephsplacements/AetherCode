@@ -16,7 +16,7 @@ const NAV = [
   { href: SITE.repo, label: "github" },
 ];
 
-const cell = "flex items-center border-line px-4 transition-colors hover:bg-brand hover:text-brand-ink";
+const cell = "flex items-center border-line px-3 transition-colors sm:px-4 hover:bg-brand hover:text-brand-ink";
 
 /**
  * The public header as a terminal menu bar: one row of cells split by
@@ -52,13 +52,13 @@ export function Navbar() {
         </nav>
 
         <div className="ml-auto flex">
-          <div className={cn(cell, "border-l text-ink-muted [&>button]:hover:text-brand-ink")}>
+          <div className={cn(cell, "hidden border-l text-ink-muted sm:flex [&>button]:hover:text-brand-ink")}>
             <ThemeIcon />
           </div>
           <Link href="/system-check" className={cn(cell, "hidden border-l text-ink-muted lg:flex")}>
             system check
           </Link>
-          <Link href="/login" className="flex items-center whitespace-nowrap bg-brand px-5 text-brand-ink transition-opacity hover:opacity-90">
+          <Link href="/login" className="flex items-center whitespace-nowrap bg-brand px-3 text-brand-ink transition-opacity hover:opacity-90 sm:px-5">
             [ sign in ]
           </Link>
           <details className="relative md:hidden">

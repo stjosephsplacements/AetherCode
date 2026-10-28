@@ -53,7 +53,8 @@
   --font-sans: 'Satoshi', var(--font-geist), ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', var(--font-geist-mono), ui-monospace, Menlo, Consolas, monospace;
   --font-eyebrow: 'Departure Mono', ui-monospace, monospace;
-  --font-serif: var(--font-newsreader), ui-serif, Georgia, serif;
+  /* Two faces only: Satoshi for text (the old serif token now points at it) and Departure Mono for ASCII. */
+  --font-serif: var(--font-sans);
 
   --color-canvas: var(--canvas);
   --color-surface: var(--surface);
@@ -258,8 +259,8 @@
   /* Editorial display voice: a serif at regular weight, tightly tracked. */
   .display {
     font-family: var(--font-serif);
-    font-weight: 400;
-    letter-spacing: -0.025em;
+    font-weight: 500;
+    letter-spacing: -0.035em;
     line-height: 1.08;
   }
 
@@ -399,8 +400,9 @@
    included, copy set on marker highlights, and text-drawn art sized so its
    columns fill the width. */
 @layer components {
-  /* Satoshi for reading, Newsreader for headings; drawings and code stay monospace. */
+  /* Satoshi for every word; Departure Mono is the one ASCII face, for art, labels and code. */
   .ascii {
+    --font-mono: "Departure Mono", ui-monospace, monospace;
     font-family: var(--font-sans);
   }
   /* ASCII has no curves: every corner in the scope is square, utilities included. */
@@ -410,9 +412,9 @@
   }
   .ascii .heading,
   .ascii .display {
-    font-family: var(--font-serif);
-    font-weight: 400;
-    letter-spacing: -0.02em;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    letter-spacing: -0.04em;
   }
   .marker {
     background: var(--brand);

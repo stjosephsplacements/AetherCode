@@ -95,7 +95,8 @@ export function Meet() {
 
       <div className="pt-10">
       <div className="border border-ink bg-surface shadow-[6px_6px_0_var(--ink)]">
-        <div role="tablist" aria-label="Parts of an exam day" className="flex flex-wrap border-b border-ink font-mono text-[13px]">
+        <div className="flex border-b border-ink font-mono text-[13px]">
+        <div role="tablist" aria-label="Parts of an exam day" className="flex flex-wrap">
           {TABS.map((item, index) => (
             <button
               key={item.key}
@@ -128,23 +129,26 @@ export function Meet() {
             </button>
           ))}
         </div>
+        <p aria-hidden className="ml-auto hidden items-center px-4 text-ink-subtle sm:flex">
+          {active + 1} / {TABS.length}
+        </p>
+        </div>
 
-        <div id="meet-panel" role="tabpanel" aria-labelledby={`meet-tab-${tab.key}`} className="grid gap-10 p-6 sm:p-10 lg:min-h-[420px] lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:items-center">
-          <div key={tab.key} className="animate-enter">
-            <p className="text-[12.5px] text-ink-subtle">
-              {active + 1} / {TABS.length}
-            </p>
-            <h3 className="heading mt-3 text-[1.9rem] leading-[1.15] text-ink sm:text-[2.3rem]">{tab.title}</h3>
-            <p className="mt-4 max-w-[30rem] text-[14.5px] leading-relaxed text-ink-muted">{tab.body}</p>
+        <div id="meet-panel" role="tabpanel" aria-labelledby={`meet-tab-${tab.key}`} className="grid lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+          <div key={tab.key} className="flex animate-enter flex-col justify-center p-6 sm:p-10">
+            <h3 className="heading text-[1.9rem] leading-[1.1] text-ink sm:text-[2.4rem]">{tab.title}</h3>
+            <p className="mt-4 max-w-[30rem] text-[15px] leading-relaxed text-ink-muted">{tab.body}</p>
           </div>
-          <pre key={`${tab.key}-screen`} aria-hidden className="animate-enter overflow-x-auto text-[clamp(10px,1.25vw,13.5px)] leading-[1.6] text-ink">
-            {SCREENS[tab.key].map((text, index) => (
-              <span key={index} className="block">
-                <Line text={text} />
-                {"​"}
-              </span>
-            ))}
-          </pre>
+          <div className="flex items-center justify-center border-t border-ink bg-[#0b0b0b] p-6 text-[#f2f2f2] sm:p-10 lg:border-l lg:border-t-0">
+            <pre key={`${tab.key}-screen`} aria-hidden className="animate-enter overflow-x-auto font-mono text-[clamp(10.5px,1.2vw,15px)] leading-[1.55]">
+              {SCREENS[tab.key].map((text, index) => (
+                <span key={index} className="block">
+                  <Line text={text} />
+                  {"\u200b"}
+                </span>
+              ))}
+            </pre>
+          </div>
         </div>
       </div>
       </div>

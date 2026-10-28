@@ -37,7 +37,7 @@ export function Hero() {
         <span className="bg-canvas px-1">{"// coding exams and practice for colleges. open source, self-hosted."}</span>
       </p>
 
-      <div data-reveal className="mt-10 flex flex-wrap justify-center gap-3 text-[15px]">
+      <div data-reveal className="mt-10 flex flex-wrap justify-center gap-3 font-mono text-[14px]">
         <Link href="/login" className="bg-brand px-5 py-3 text-brand-ink shadow-[4px_4px_0_var(--ink)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5">
           [ sign in -&gt; ]
         </Link>
@@ -46,7 +46,7 @@ export function Hero() {
         </Link>
       </div>
 
-      <nav data-reveal aria-label="Before your exam" className="mt-10 flex flex-wrap justify-center gap-x-6 gap-y-2 text-[13px]">
+      <nav data-reveal aria-label="Before your exam" className="mt-10 flex flex-wrap justify-center gap-x-6 gap-y-2 font-mono text-[13px]">
         {SHORTCUTS.map(({ href, glyph, label }) => (
           <Link key={href} href={href} className="bg-canvas px-1 text-ink-muted transition-colors hover:text-ink">
             <span className="text-brand">{glyph}</span> {label}
