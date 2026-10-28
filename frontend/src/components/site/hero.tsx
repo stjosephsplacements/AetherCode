@@ -13,6 +13,11 @@ const SHORTCUTS = [
 export function Hero() {
   return (
     <section className="relative isolate flex min-h-[calc(100svh-56px)] flex-col items-center justify-center overflow-hidden px-4 py-20 text-center">
+      {/* A slow aurora behind the torus, on wide screens only. */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 -z-20 hidden overflow-hidden md:block">
+        <div className="aurora absolute -left-[10%] top-[8%] h-[55%] w-[55%] bg-[radial-gradient(closest-side,var(--brand-soft),transparent)]" />
+        <div className="aurora absolute -right-[8%] top-[30%] h-[60%] w-[50%] bg-[radial-gradient(closest-side,var(--glow-2),transparent)] [animation-delay:-9s]" />
+      </div>
       <AsciiTorus className="ascii-art pointer-events-none absolute left-1/2 top-1/2 -z-10 -translate-x-1/2 -translate-y-1/2 select-none text-ink/30" />
       <div aria-hidden className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_62%_40%_at_50%_48%,var(--canvas)_35%,transparent)]" />
 

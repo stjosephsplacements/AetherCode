@@ -15,7 +15,9 @@ gsap.registerPlugin(ScrollTrigger, SplitText, useGSAP);
  * - headings (`.heading`, `.display`, `[data-split]`) rise line by line;
  * - `[data-reveal]` blocks fade up in batches the first time they show;
  * - `[data-parallax="n"]` drifts n% against the scroll (wide screens only);
- * - `[data-tilt]` flattens from a tilt as it scrolls up (wide screens only).
+ * - `[data-tilt]` flattens from a tilt as it scrolls up (wide screens only);
+ * - `[data-statement]` draws its `[data-strike]` and reveals `[data-answer]`;
+ * - `[data-darken]` paragraphs darken word by word with the scroll.
  * Only transform and opacity move, each effect runs once, phones get a
  * lighter set, and reduced motion gets none.
  */
@@ -69,6 +71,28 @@ export function SiteMotion() {
               });
             });
           }
+
+          // The statement: the strike draws through, then the answer arrives.
+          gsap.utils.toArray<HTMLElement>("[data-statement]").forEach((element) => {
+            const timeline = gsap.timeline({ scrollTrigger: { trigger: element, start: "top 78%", end: "top 40%", scrub: 0.6 } });
+            timeline
+              .fromTo(element.querySelectorAll("[data-strike]"), { scaleX: 0 }, { scaleX: 1, ease: "none" })
+              .fromTo(element.querySelectorAll("[data-answer]"), { autoAlpha: 0, y: 12 }, { autoAlpha: 1, y: 0, ease: "power2.out" });
+          });
+
+          // Paragraphs that darken word by word as they scroll through.
+          gsap.utils.toArray<HTMLElement>("main [data-darken]").forEach((element) => {
+            SplitText.create(element, {
+              type: "words",
+              aria: "auto",
+              onSplit: (split) =>
+                gsap.fromTo(
+                  split.words,
+                  { opacity: 0.18 },
+                  { opacity: 1, stagger: 0.1, ease: "none", scrollTrigger: { trigger: element, start: "top 80%", end: "bottom 50%", scrub: true } },
+                ),
+            });
+          });
 
           if (wide) {
             gsap.utils.toArray<HTMLElement>("[data-tilt]").forEach((element) => {

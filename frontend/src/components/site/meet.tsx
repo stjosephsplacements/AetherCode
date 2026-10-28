@@ -1,6 +1,9 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { useGSAP } from "@gsap/react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { Fragment, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { SCREENS } from "./meet-screens";
 
@@ -28,10 +31,55 @@ function Line({ text }: { text: string }) {
   );
 }
 
-/** One terminal-style window with a tab per part of exam day; each tab draws its screen in text. */
+gsap.registerPlugin(ScrollTrigger, useGSAP);
+
+/**
+ * One terminal-style window with a tab per part of exam day; each tab draws
+ * its screen in text. On wide screens the window pins and scrolling steps
+ * through the tabs, filling a bar under the active one (HackerRank's pinned
+ * story); clicking a tab jumps the scroll there. Phones and reduced motion
+ * keep plain tabs.
+ */
 export function Meet() {
   const [active, setActive] = useState(0);
   const tab = TABS[active]!;
+  const pinRef = useRef<HTMLDivElement>(null);
+  const bars = useRef<(HTMLSpanElement | null)[]>([]);
+  const story = useRef<ScrollTrigger | null>(null);
+
+  useGSAP(
+    () => {
+      const media = gsap.matchMedia();
+      media.add("(prefers-reduced-motion: no-preference) and (min-width: 1024px)", () => {
+        story.current = ScrollTrigger.create({
+          trigger: pinRef.current,
+          start: "top 72px",
+          end: () => `+=${window.innerHeight * 0.7 * TABS.length}`,
+          pin: true,
+          onUpdate: (self) => {
+            const position = Math.min(self.progress * TABS.length, TABS.length - 0.0001);
+            const index = Math.floor(position);
+            setActive((current) => (current === index ? current : index));
+            bars.current.forEach((bar, barIndex) => {
+              if (bar) bar.style.transform = `scaleX(${barIndex < index ? 1 : barIndex === index ? position - index : 0})`;
+            });
+          },
+        });
+        return () => {
+          story.current = null;
+        };
+      });
+      return () => media.revert();
+    },
+    { scope: pinRef },
+  );
+
+  // When the story is pinned, a click scrolls to that tab's stretch instead of fighting the scroll.
+  const choose = (index: number) => {
+    const trigger = story.current;
+    if (trigger) window.scrollTo({ top: trigger.start + ((index + 0.5) / TABS.length) * (trigger.end - trigger.start) });
+    setActive(index);
+  };
 
   return (
     <section id="product" className="mx-auto max-w-6xl scroll-mt-20 px-6 py-24">
@@ -44,7 +92,8 @@ export function Meet() {
         </p>
       </div>
 
-      <div data-reveal className="mt-12 border border-ink bg-surface shadow-[6px_6px_0_var(--ink)]">
+      <div ref={pinRef} className="pt-12">
+      <div className="border border-ink bg-surface shadow-[6px_6px_0_var(--ink)]">
         <div role="tablist" aria-label="Parts of an exam day" className="flex flex-wrap border-b border-ink text-[13.5px]">
           {TABS.map((item, index) => (
             <button
@@ -54,20 +103,27 @@ export function Meet() {
               id={`meet-tab-${item.key}`}
               aria-selected={active === index}
               aria-controls="meet-panel"
-              onClick={() => setActive(index)}
+              onClick={() => choose(index)}
               onKeyDown={(event) => {
                 if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
                 const next = (index + (event.key === "ArrowRight" ? 1 : TABS.length - 1)) % TABS.length;
-                setActive(next);
+                choose(next);
                 document.getElementById(`meet-tab-${TABS[next]!.key}`)?.focus();
               }}
               tabIndex={active === index ? 0 : -1}
               className={cn(
-                "border-r border-ink px-4 py-2.5 transition-colors",
+                "relative border-r border-ink px-4 py-2.5 transition-colors",
                 active === index ? "bg-brand text-brand-ink" : "text-ink-muted hover:bg-hover hover:text-ink",
               )}
             >
               [{index + 1}] {item.label}
+              <span
+                ref={(bar) => {
+                  bars.current[index] = bar;
+                }}
+                aria-hidden
+                className="absolute inset-x-0 bottom-0 h-[3px] origin-left scale-x-0 bg-ink"
+              />
             </button>
           ))}
         </div>
@@ -89,6 +145,7 @@ export function Meet() {
             ))}
           </pre>
         </div>
+      </div>
       </div>
     </section>
   );

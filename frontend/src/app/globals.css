@@ -421,6 +421,15 @@
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
   }
+  .aurora {
+    filter: blur(40px);
+    will-change: transform;
+    animation: aurora-drift 18s ease-in-out infinite alternate;
+  }
+  @keyframes aurora-drift {
+    from { transform: translate3d(0, 0, 0) scale(1); }
+    to { transform: translate3d(8%, 6%, 0) scale(1.15); }
+  }
   .ascii-art {
     font-family: var(--font-mono);
     font-size: calc(min(100vw, 1100px) / var(--columns, 140) / 0.6);
@@ -433,4 +442,8 @@
 @keyframes line-in {
   from { opacity: 0; transform: translateX(-6px); }
   to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora { animation: none; }
 }

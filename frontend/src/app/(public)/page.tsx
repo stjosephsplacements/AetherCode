@@ -8,6 +8,7 @@ import { Meet } from "@/components/site/meet";
 import { Numbers } from "@/components/site/numbers";
 import { OpenSource } from "@/components/site/open-source";
 import { Platform } from "@/components/site/platform";
+import { Statement } from "@/components/site/statement";
 import { Button } from "@/components/ui/button";
 import { requireViewer } from "@/lib/server/session";
 import { ACCESS_COOKIE, REFRESH_COOKIE } from "@/lib/server/tokens";
@@ -21,8 +22,11 @@ export default async function Landing() {
   if (jar.get(ACCESS_COOKIE) || jar.get(REFRESH_COOKIE)) redirect(homeFor(await requireViewer()));
 
   return (
-    <div>
+    // HackerRank-style frame: two hairlines down the content edges, a rule between sections.
+    <div className="relative divide-y divide-line">
+      <div aria-hidden className="pointer-events-none absolute inset-y-0 left-1/2 -z-10 hidden w-full max-w-6xl -translate-x-1/2 border-x border-line lg:block" />
       <Hero />
+      <Statement />
       <Meet />
 
       <section className="bg-surface-2 py-24">
