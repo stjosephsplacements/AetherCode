@@ -141,6 +141,7 @@
     --glow-2: rgb(255 90 31 / 0.08);
     --poster-sky: linear-gradient(to bottom, #050505 0%, #1a0d08 45%, #ff5a1f 100%);
     --poster-ink: #f2f2f2;
+    --halo: 255 255 255;
     --poster-on-ink: #050505;
     --horizon: linear-gradient(to top, rgb(255 90 31 / 0.16), rgb(255 255 255 / 0.03) 45%, transparent);
 
@@ -182,6 +183,7 @@
     --glow-2: rgb(75 63 209 / 0.10);
     --poster-sky: linear-gradient(to bottom, #fbf8f4 0%, #f4e4ec 30%, #eab3bf 58%, #ff9a62 84%, #ffc27a 100%);
     --poster-ink: #1b1640;
+    --halo: 27 22 64;
     --poster-on-ink: #ffffff;
     --horizon: linear-gradient(to top, rgb(255 122 0 / 0.22), rgb(255 176 102 / 0.16) 34%, rgb(75 63 209 / 0.05) 66%, transparent);
 
@@ -444,17 +446,17 @@
 }
 
 
-/* The hero's eclipse: a white halo ring that slowly breathes, over a field
+/* The hero's eclipse: a halo ring in the theme's ink that slowly breathes, over a field
    of faint stars. All CSS, so reduced motion simply holds it still. */
 @layer components {
   .halo {
     transform: translateX(-50%);
-    border: 2px solid rgb(255 255 255 / 0.75);
+    border: 2px solid rgb(var(--halo) / 0.75);
     box-shadow:
-      0 0 40px 6px rgb(255 255 255 / 0.35),
-      0 0 160px 30px rgb(255 255 255 / 0.12),
-      inset 0 0 60px 8px rgb(255 255 255 / 0.25),
-      inset 0 0 200px 40px rgb(255 255 255 / 0.06);
+      0 0 40px 6px rgb(var(--halo) / 0.35),
+      0 0 160px 30px rgb(var(--halo) / 0.12),
+      inset 0 0 60px 8px rgb(var(--halo) / 0.25),
+      inset 0 0 200px 40px rgb(var(--halo) / 0.06);
     animation: halo-breathe 7s ease-in-out infinite;
   }
   @keyframes halo-breathe {
@@ -463,13 +465,13 @@
   }
   .stars {
     background-image:
-      radial-gradient(1px 1px at 12% 22%, rgb(255 255 255 / 0.7), transparent),
-      radial-gradient(1px 1px at 78% 14%, rgb(255 255 255 / 0.5), transparent),
-      radial-gradient(1.5px 1.5px at 34% 68%, rgb(255 255 255 / 0.6), transparent),
-      radial-gradient(1px 1px at 88% 58%, rgb(255 255 255 / 0.45), transparent),
-      radial-gradient(1px 1px at 56% 36%, rgb(255 255 255 / 0.35), transparent),
-      radial-gradient(1.5px 1.5px at 6% 82%, rgb(255 255 255 / 0.4), transparent),
-      radial-gradient(1px 1px at 66% 88%, rgb(255 255 255 / 0.5), transparent);
+      radial-gradient(1px 1px at 12% 22%, rgb(var(--halo) / 0.7), transparent),
+      radial-gradient(1px 1px at 78% 14%, rgb(var(--halo) / 0.5), transparent),
+      radial-gradient(1.5px 1.5px at 34% 68%, rgb(var(--halo) / 0.6), transparent),
+      radial-gradient(1px 1px at 88% 58%, rgb(var(--halo) / 0.45), transparent),
+      radial-gradient(1px 1px at 56% 36%, rgb(var(--halo) / 0.35), transparent),
+      radial-gradient(1.5px 1.5px at 6% 82%, rgb(var(--halo) / 0.4), transparent),
+      radial-gradient(1px 1px at 66% 88%, rgb(var(--halo) / 0.5), transparent);
     background-size: 420px 420px;
     animation: stars-drift 120s linear infinite;
   }

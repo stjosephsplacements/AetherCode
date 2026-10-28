@@ -10,16 +10,16 @@ const COMMANDS = [
   { text: "docker compose ps" },
 ];
 
-/** The developer moment: always dark, the real one-server install beside the open-source pitch. */
+/** The developer moment: the real one-server install beside the open-source pitch. */
 export function OpenSource() {
   return (
-    <section className="bg-[#050505] text-[#f2f2f2]">
+    <section className="border-y border-line bg-surface-2 text-ink">
       <div className="mx-auto grid max-w-6xl items-center gap-14 px-6 py-24 sm:py-28 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
         <div>
           <h2 className="heading text-[2.3rem] sm:text-[3.1rem]">
             Open source. Run it on your own servers.
           </h2>
-          <p className="mt-6 max-w-[30rem] text-[17px] leading-relaxed text-[#a3a3a3]">
+          <p className="mt-6 max-w-[30rem] text-[17px] leading-relaxed text-ink-muted">
             AetherCode is licensed under the {SITE.license}. Read how marks are decided, and deploy it on one server with the
             single-server guide.
           </p>
@@ -30,7 +30,7 @@ export function OpenSource() {
                 <ArrowRight />
               </a>
             </Button>
-            <a href="/architecture" className="group inline-flex items-center gap-1.5 text-[15px] font-medium">
+            <a href="/architecture" className="group inline-flex items-center gap-1.5 text-[15px] font-medium text-ink">
               How it&apos;s built
               <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
             </a>
