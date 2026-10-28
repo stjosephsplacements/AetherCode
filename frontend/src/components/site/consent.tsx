@@ -143,8 +143,8 @@ export function ConsentManager() {
           aria-label="Cookie choices"
           className="fixed inset-x-3 bottom-3 z-40 animate-pop sm:inset-x-auto sm:right-5 sm:bottom-5 sm:w-[400px]"
         >
-          <div className="rounded-[var(--radius-surface)] border border-line bg-surface/85 p-5 shadow-[var(--shadow-overlay)] backdrop-blur-xl">
-            <p className="text-[15px] font-semibold text-ink">Cookies on AetherCode</p>
+          <div className="border border-ink bg-surface p-5 font-mono shadow-[4px_4px_0_var(--ink)]">
+            <p className="text-[14px] text-ink">[ cookies on AetherCode ]</p>
             <p className="mt-1.5 text-[13.5px] leading-relaxed text-ink-muted">
               We use essential cookies to keep you signed in. With your OK we also remember your preferences and count visits.{" "}
               <a href="/privacy#cookies" className="text-ink underline underline-offset-2">
@@ -152,21 +152,22 @@ export function ConsentManager() {
               </a>
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
-              <Button size="sm" onClick={() => saveConsent({ functional: true, analytics: true })}>
-                Accept all
+              <Button size="sm" className="rounded-none font-mono" onClick={() => saveConsent({ functional: true, analytics: true })}>
+                [accept all]
               </Button>
-              <Button size="sm" variant="secondary" onClick={() => saveConsent({ functional: false, analytics: false })}>
-                Essential only
+              <Button size="sm" variant="secondary" className="rounded-none font-mono" onClick={() => saveConsent({ functional: false, analytics: false })}>
+                [essential only]
               </Button>
               <Button
                 size="sm"
                 variant="ghost"
+                className="rounded-none font-mono"
                 onClick={() => {
                   setDraft({ functional: false, analytics: false });
                   setOpen(true);
                 }}
               >
-                Choose
+                [choose]
               </Button>
             </div>
           </div>

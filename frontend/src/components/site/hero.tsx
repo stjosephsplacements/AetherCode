@@ -1,14 +1,6 @@
 import Link from "next/link";
 import { AsciiTorus } from "./ascii-torus";
-
-// "AetherCode" in figlet's slant font (56 columns), generated with pyfiglet.
-const WORDMARK = [
-  "    ___        __  __              ______          __",
-  "   /   | ___  / /_/ /_  ___  _____/ ____/___  ____/ /__",
-  "  / /| |/ _ \\/ __/ __ \\/ _ \\/ ___/ /   / __ \\/ __  / _ \\",
-  " / ___ /  __/ /_/ / / /  __/ /  / /___/ /_/ / /_/ /  __/",
-  "/_/  |_\\___/\\__/_/ /_/\\___/_/   \\____/\\____/\\__,_/\\___/",
-].join("\n");
+import { WORDMARK, WORDMARK_COLUMNS } from "./wordmark";
 
 const SHORTCUTS = [
   { href: "/system-check", glyph: "[_]", label: "check my laptop" },
@@ -25,7 +17,12 @@ export function Hero() {
       <div aria-hidden className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_62%_40%_at_50%_48%,var(--canvas)_35%,transparent)]" />
 
       <h1 className="sr-only">AetherCode: Let your code do the talking.</h1>
-      <pre data-reveal aria-hidden className="ascii-art text-left text-brand [--columns:62]">
+      <pre
+        data-reveal
+        aria-hidden
+        className="ascii-art text-left text-brand"
+        style={{ "--columns": WORDMARK_COLUMNS + 6 } as React.CSSProperties}
+      >
         {WORDMARK}
       </pre>
       <p data-reveal aria-hidden className="heading mt-8 text-[1.9rem] leading-[1.3] text-ink sm:text-[2.8rem]">

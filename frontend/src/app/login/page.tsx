@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import Image from "next/image";
-import { Button } from "@/components/ui/button";
-import { SITE } from "@/lib/site";
+import Link from "next/link";
+import { AsciiTorus } from "@/components/site/ascii-torus";
+import { WORDMARK } from "@/components/site/wordmark";
 import { LoginForm } from "./login-form";
-import { StreakGrid } from "./streak-grid";
-import { TestRunner } from "./test-runner";
+import { Transcript } from "./transcript";
 
 // Why a single sign-on did not finish (ADR-0042).
 const SSO_ERRORS: Record<string, string> = {
@@ -23,64 +22,57 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const ssoEnabled = process.env.AETHERCODE_SSO === "on";
   const ssoError = sso ? (SSO_ERRORS[sso] ?? SSO_ERRORS.failed) : null;
   return (
-    <main className="relative isolate grid min-h-dvh overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
-      {/* Ambient light: amber from the left, lavender behind the runner. */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute -left-40 -top-56 size-[720px] rounded-full bg-[radial-gradient(closest-side,var(--glow),transparent)]" />
-        <div className="absolute -bottom-64 right-[-10%] size-[820px] rounded-full bg-[radial-gradient(closest-side,var(--glow-2),transparent)]" />
-      </div>
-
+    <main className="ascii grid min-h-dvh lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
       <section className="flex flex-col px-6 py-8 sm:px-12 lg:px-16 xl:px-24">
-        <div className="flex items-center gap-2.5">
-          <Image src="/4.png" alt="" width={28} height={28} priority className="logo-light object-contain" />
-          <Image src="/3.png" alt="" width={28} height={28} priority className="logo-dark object-contain" />
-          <span className="text-[15px] font-semibold tracking-tight text-ink">AetherCode</span>
-        </div>
+        <Link href="/" className="w-fit text-[14px] text-ink-muted transition-colors hover:text-ink">
+          [&lt;- home]
+        </Link>
 
-        <div className="mx-auto flex w-full max-w-[420px] flex-1 flex-col justify-center py-12 lg:mx-0">
-          <h1 className="display text-[2.75rem] text-ink sm:text-[3.5rem]">{SITE.tagline}</h1>
-          <p className="mt-4 max-w-[36ch] text-[15px] leading-relaxed text-ink-muted">
-            Sign in with your roll number to see your exams, practice problems and results.
+        <div className="mx-auto flex w-full max-w-[440px] flex-1 flex-col justify-center py-12 lg:mx-0">
+          <h1 className="sr-only">Sign in to AetherCode</h1>
+          <pre aria-hidden className="overflow-hidden text-[clamp(6px,1.55vw,9.5px)] leading-[1.15] text-brand lg:text-[clamp(7px,0.95vw,12px)]">
+            {WORDMARK}
+          </pre>
+          <p className="heading mt-6 text-[1.6rem] leading-[1.3] text-ink sm:text-[2rem]">
+            <span className="marker">Let your code do the talking.</span>
+          </p>
+          <p className="mt-4 text-[13.5px] leading-relaxed text-ink-muted">
+            {"// sign in with your roll number to see your exams, practice and results."}
           </p>
 
           <div className="mt-10">
             {ssoError && (
-              <p role="alert" className="mb-6 rounded-[var(--radius-control)] bg-danger-soft px-3.5 py-2.5 text-sm text-danger">
-                {ssoError}
+              <p role="alert" className="mb-6 border border-danger bg-danger-soft px-3.5 py-2.5 text-[13.5px] text-danger">
+                [!] {ssoError}
               </p>
             )}
             {ssoEnabled && (
               <>
-                <Button asChild variant="secondary" size="lg" className="w-full">
-                  <a href={`/auth/sso${next ? `?next=${encodeURIComponent(next)}` : ""}`}>Sign in with your college account</a>
-                </Button>
-                <div className="my-6 flex items-center gap-3 text-xs text-ink-subtle" aria-hidden>
-                  <span className="h-px flex-1 bg-line" />
-                  or use your AetherCode password
-                  <span className="h-px flex-1 bg-line" />
-                </div>
+                <a
+                  href={`/auth/sso${next ? `?next=${encodeURIComponent(next)}` : ""}`}
+                  className="block w-full border border-ink bg-surface py-3 text-center text-[14px] text-ink shadow-[4px_4px_0_var(--ink)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"
+                >
+                  [ sign in with your college account ]
+                </a>
+                <p className="my-6 text-center text-[12.5px] text-ink-subtle" aria-hidden>
+                  ---- or use your AetherCode password ----
+                </p>
               </>
             )}
             <LoginForm next={next ?? ""} />
           </div>
         </div>
 
-        <p className="text-xs text-ink-subtle">Can&apos;t sign in? Your exam administrator can reset your password.</p>
+        <p className="text-[12.5px] text-ink-subtle">[?] can&apos;t sign in? your exam administrator can reset your password.</p>
       </section>
 
-      {/* The arena: always dusk, whatever the theme. */}
-      <section aria-label="Preview" className="relative m-3 hidden max-h-[calc(100dvh-1.5rem)] overflow-hidden rounded-[28px] bg-[#130f27] lg:flex lg:flex-col">
-        <div aria-hidden className="absolute -right-40 -top-40 size-[620px] rounded-full bg-[radial-gradient(closest-side,rgb(255_138_61/0.30),transparent)]" />
-        <div aria-hidden className="absolute -bottom-48 -left-32 size-[560px] rounded-full bg-[radial-gradient(closest-side,rgb(169_156_255/0.18),transparent)]" />
-        <div className="relative px-12 pt-10">
-          <p className="max-w-[24ch] font-serif text-[1.75rem] leading-tight text-[#f3eeff]">Every run counts. Keep the streak going.</p>
-          <div className="mt-6 max-w-[440px] opacity-90">
-            <StreakGrid />
-          </div>
-        </div>
-        <div className="relative mt-auto px-12 pb-10 pt-8">
-          <div className="max-w-[540px] animate-enter [animation-delay:500ms]">
-            <TestRunner />
+      {/* The arena: always night, whatever the theme. */}
+      <section aria-label="Preview" className="relative m-3 hidden max-h-[calc(100dvh-1.5rem)] overflow-hidden bg-[#050505] text-[#f2f2f2] lg:flex lg:flex-col">
+        <AsciiTorus className="ascii-art pointer-events-none absolute left-1/2 top-[42%] -translate-x-1/2 -translate-y-1/2 select-none text-white/30 [--columns:100]" />
+        <div className="relative mt-auto p-10">
+          <div className="max-w-[520px] border border-white/20 bg-[#050505]/85 p-6 backdrop-blur-sm">
+            <p className="mb-4 text-[12.5px] text-[#8a8a8a]">[ exam day ]</p>
+            <Transcript />
           </div>
         </div>
       </section>
