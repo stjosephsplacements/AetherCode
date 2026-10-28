@@ -139,7 +139,7 @@ export function Meet() {
             <h3 className="heading text-[1.9rem] leading-[1.1] text-ink sm:text-[2.4rem]">{tab.title}</h3>
             <p className="mt-4 max-w-[30rem] text-[15px] leading-relaxed text-ink-muted">{tab.body}</p>
           </div>
-          <div className="flex items-center justify-center border-t border-ink bg-[#0b0b0b] p-6 text-[#f2f2f2] sm:p-10 lg:border-l lg:border-t-0">
+          <div className="flex items-center justify-center border-t border-ink bg-canvas p-6 text-ink sm:p-10 lg:border-l lg:border-t-0">
             <pre key={`${tab.key}-screen`} aria-hidden className="animate-enter overflow-x-auto font-mono text-[clamp(10.5px,1.2vw,15px)] leading-[1.55]">
               {SCREENS[tab.key].map((text, index) => (
                 <span key={index} className="block">

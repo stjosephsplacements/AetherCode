@@ -60,14 +60,15 @@ export function Footer({ compact = false }: { compact?: boolean }) {
       title: "Open source",
       links: [
         { href: SITE.repo, label: "GitHub" },
+        { href: SITE.engineRepo, label: "Execution engine" },
         { href: `${SITE.repo}/blob/HEAD/LICENSE`, label: "License" },
         { href: SITE.advisories, label: "Report a vulnerability" },
       ],
     },
   ];
   return (
-    <footer className="relative border-t border-line bg-canvas font-mono text-[13px]">
-      <div className="mx-auto max-w-6xl border-line lg:border-x">
+    <footer className="relative bg-canvas font-mono text-[13px]">
+      <div className="mx-auto max-w-6xl border-t border-line lg:border-x">
         <div className="grid gap-px bg-line sm:grid-cols-2 lg:grid-cols-[1.5fr_repeat(4,1fr)]">
           <div className="bg-canvas p-6">
             <p className="font-semibold text-ink">AetherCode</p>

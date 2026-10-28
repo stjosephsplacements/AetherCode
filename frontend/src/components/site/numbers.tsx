@@ -9,7 +9,7 @@ const STATS = [
 /** A quiet row of real numbers under the hero. */
 export function Numbers() {
   return (
-    <section aria-label="AetherCode in numbers" className="border-y border-line">
+    <section aria-label="AetherCode in numbers">
       <dl className="mx-auto grid max-w-6xl divide-line sm:grid-cols-3 sm:divide-x">
         {STATS.map((stat) => (
           <div key={stat.label} data-reveal className="flex flex-col-reverse px-6 py-10">

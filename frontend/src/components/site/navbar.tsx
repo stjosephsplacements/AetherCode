@@ -26,8 +26,8 @@ const cell = "flex items-center border-line px-3 transition-colors sm:px-4 hover
 export function Navbar() {
   const pathname = usePathname();
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-canvas font-mono">
-      <div className="mx-auto flex h-12 max-w-6xl border-line text-[13px] lg:border-x">
+    <header className="sticky top-0 z-40 bg-canvas font-mono">
+      <div className="mx-auto flex h-12 max-w-6xl border-b border-line text-[13px] lg:border-x">
         <Link href="/" className={cn(cell, "gap-2.5 border-r pl-5 text-ink")}>
           <Image src="/4.png" alt="" width={16} height={16} priority className="logo-light object-contain" />
           <Image src="/3.png" alt="" width={16} height={16} priority className="logo-dark object-contain" />

@@ -7,6 +7,8 @@ export const SITE = {
   description: "Open-source coding assessments for colleges: timed exams, sandboxed judging, Safe Exam Browser lockdown and results staff can trust.",
   repo: "https://github.com/AlgoQX/AetherCode",
   advisories: "https://github.com/AlgoQX/AetherCode/security/advisories/new",
+  /** The sandboxed execution engine that runs every submission (ADR-0028). */
+  engineRepo: "https://github.com/stjosephsplacements/AetherCode-Execution-Engine",
   license: "GNU AGPL v3",
   stats: { students: "10K+", runs: "1 lakh+" },
   /** Kept in step with judge-languages.sh. */

@@ -1,5 +1,3 @@
-import { ArrowRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { SITE } from "@/lib/site";
 import { Terminal } from "./terminal";
 
@@ -25,15 +23,14 @@ export function OpenSource() {
             single-server guide.
           </p>
           <div data-reveal className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-3">
-            <Button asChild size="lg">
-              <a href={SITE.repo}>
-                View on GitHub
-                <ArrowRight />
-              </a>
-            </Button>
-            <a href="/architecture" className="group inline-flex items-center gap-1.5 text-[15px] font-medium text-ink">
-              How it&apos;s built
-              <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+            <a
+              href={SITE.repo}
+              className="bg-brand px-4 py-2.5 font-mono text-[14px] text-brand-ink shadow-[3px_3px_0_var(--ink)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"
+            >
+              [ view on github -&gt; ]
+            </a>
+            <a href="/architecture" className="font-mono text-[14px] text-ink-muted transition-colors hover:text-brand">
+              [ how it&apos;s built ]
             </a>
           </div>
         </div>
