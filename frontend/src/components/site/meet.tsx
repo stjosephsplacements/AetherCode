@@ -53,8 +53,8 @@ export function Meet() {
       media.add("(prefers-reduced-motion: no-preference) and (min-width: 1024px)", () => {
         story.current = ScrollTrigger.create({
           trigger: pinRef.current,
-          start: "top 72px",
-          end: () => `+=${window.innerHeight * 0.7 * TABS.length}`,
+          start: "center center+=24",
+          end: () => `+=${window.innerHeight * 0.45 * TABS.length}`,
           pin: true,
           onUpdate: (self) => {
             const position = Math.min(self.progress * TABS.length, TABS.length - 0.0001);
@@ -83,6 +83,7 @@ export function Meet() {
 
   return (
     <section id="product" className="mx-auto max-w-6xl scroll-mt-20 px-6 py-24">
+      <div ref={pinRef}>
       <div className="text-center">
         <h2 className="heading text-[2.6rem] text-ink sm:text-[3.6rem]">
           Meet <span className="marker">AetherCode</span>
@@ -92,9 +93,9 @@ export function Meet() {
         </p>
       </div>
 
-      <div ref={pinRef} className="pt-12">
+      <div className="pt-10">
       <div className="border border-ink bg-surface shadow-[6px_6px_0_var(--ink)]">
-        <div role="tablist" aria-label="Parts of an exam day" className="flex flex-wrap border-b border-ink text-[13.5px]">
+        <div role="tablist" aria-label="Parts of an exam day" className="flex flex-wrap border-b border-ink font-mono text-[13px]">
           {TABS.map((item, index) => (
             <button
               key={item.key}
@@ -113,7 +114,7 @@ export function Meet() {
               tabIndex={active === index ? 0 : -1}
               className={cn(
                 "relative border-r border-ink px-4 py-2.5 transition-colors",
-                active === index ? "bg-brand text-brand-ink" : "text-ink-muted hover:bg-hover hover:text-ink",
+                active === index ? "bg-brand text-brand-ink" : "text-ink-muted hover:bg-brand hover:text-brand-ink",
               )}
             >
               [{index + 1}] {item.label}
@@ -128,7 +129,7 @@ export function Meet() {
           ))}
         </div>
 
-        <div id="meet-panel" role="tabpanel" aria-labelledby={`meet-tab-${tab.key}`} className="grid gap-10 p-6 sm:p-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:items-center">
+        <div id="meet-panel" role="tabpanel" aria-labelledby={`meet-tab-${tab.key}`} className="grid gap-10 p-6 sm:p-10 lg:min-h-[420px] lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:items-center">
           <div key={tab.key} className="animate-enter">
             <p className="text-[12.5px] text-ink-subtle">
               {active + 1} / {TABS.length}
@@ -145,6 +146,7 @@ export function Meet() {
             ))}
           </pre>
         </div>
+      </div>
       </div>
       </div>
     </section>

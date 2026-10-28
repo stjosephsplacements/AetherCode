@@ -447,3 +447,30 @@
 @media (prefers-reduced-motion: reduce) {
   .aurora { animation: none; }
 }
+
+/* The public and sign-in pages scroll without a visible scrollbar; the app keeps its scrollbars. */
+html:has(.ascii) {
+  scrollbar-width: none;
+}
+html:has(.ascii)::-webkit-scrollbar {
+  display: none;
+}
+
+/* An ASCII cursor on the public and sign-in pages: an orange + everywhere,
+   [>] over anything clickable, and the normal text cursor in fields. */
+.ascii,
+.ascii * {
+  cursor: url("data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2724%27%20height=%2724%27%3E%3Ctext%20x=%275%27%20y=%2718%27%20font-family=%27ui-monospace,Menlo,monospace%27%20font-size=%2722%27%20font-weight=%27700%27%20fill=%27%23ff5a1f%27%20stroke=%27%23050505%27%20stroke-width=%270.75%27%20paint-order=%27stroke%27%3E+%3C/text%3E%3C/svg%3E") 11 11, crosshair;
+}
+.ascii a,
+.ascii a *,
+.ascii button,
+.ascii button *,
+.ascii summary,
+.ascii [role="tab"] {
+  cursor: url("data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2740%27%20height=%2724%27%3E%3Ctext%20x=%272%27%20y=%2717%27%20font-family=%27ui-monospace,Menlo,monospace%27%20font-size=%2715%27%20font-weight=%27700%27%20fill=%27%23ff5a1f%27%20stroke=%27%23050505%27%20stroke-width=%270.75%27%20paint-order=%27stroke%27%3E[&gt;]%3C/text%3E%3C/svg%3E") 2 12, pointer;
+}
+.ascii input,
+.ascii textarea {
+  cursor: text;
+}

@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ExamPreview } from "@/components/site/exam-preview";
+import { AsciiField } from "@/components/site/ascii-field";
 import { Hero } from "@/components/site/hero";
 import { Meet } from "@/components/site/meet";
 import { Numbers } from "@/components/site/numbers";
@@ -24,12 +25,13 @@ export default async function Landing() {
   return (
     // HackerRank-style frame: two hairlines down the content edges, a rule between sections.
     <div className="relative divide-y divide-line">
+      <AsciiField />
       <div aria-hidden className="pointer-events-none absolute inset-y-0 left-1/2 -z-10 hidden w-full max-w-6xl -translate-x-1/2 border-x border-line lg:block" />
       <Hero />
       <Statement />
       <Meet />
 
-      <section className="bg-surface-2 py-24">
+      <section className="py-24">
         <div className="mx-auto max-w-6xl px-6">
           <h2 className="heading text-[2.2rem] text-ink sm:text-[2.8rem]">The exam screen, as students see it</h2>
           <div className="mt-10 [perspective:1800px]">

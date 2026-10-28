@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AsciiTorus } from "@/components/site/ascii-torus";
+import { AsciiField } from "@/components/site/ascii-field";
 import { WORDMARK } from "@/components/site/wordmark";
 import { LoginForm } from "./login-form";
-import { Transcript } from "./transcript";
 
 // Why a single sign-on did not finish (ADR-0042).
 const SSO_ERRORS: Record<string, string> = {
@@ -22,27 +21,30 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const ssoEnabled = process.env.AETHERCODE_SSO === "on";
   const ssoError = sso ? (SSO_ERRORS[sso] ?? SSO_ERRORS.failed) : null;
   return (
-    <main className="ascii grid min-h-dvh lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
-      <section className="flex flex-col px-6 py-8 sm:px-12 lg:px-16 xl:px-24">
-        <Link href="/" className="w-fit text-[14px] text-ink-muted transition-colors hover:text-ink">
-          [&lt;- home]
-        </Link>
+    <main className="ascii relative grid min-h-dvh place-items-center px-4 py-10">
+      <AsciiField />
+      <div className="w-full max-w-[480px] border border-ink bg-surface shadow-[6px_6px_0_var(--ink)]">
+        <div className="flex items-center justify-between border-b border-ink font-mono text-[13px]">
+          <h1 className="px-4 py-2.5 text-ink">[ sign in ]</h1>
+          <Link href="/" className="border-l border-ink px-4 py-2.5 text-ink-muted transition-colors hover:bg-brand hover:text-brand-ink">
+            [&lt;- home]
+          </Link>
+        </div>
 
-        <div className="mx-auto flex w-full max-w-[440px] flex-1 flex-col justify-center py-12 lg:mx-0">
-          <h1 className="sr-only">Sign in to AetherCode</h1>
-          <pre aria-hidden className="overflow-hidden text-[clamp(6px,1.55vw,9.5px)] leading-[1.15] text-brand lg:text-[clamp(7px,0.95vw,12px)]">
+        <div className="px-6 py-8 sm:px-8">
+          <pre aria-hidden className="overflow-hidden text-[clamp(5.5px,1.6vw,7.5px)] leading-[1.15] text-brand">
             {WORDMARK}
           </pre>
-          <p className="heading mt-6 text-[1.6rem] leading-[1.3] text-ink sm:text-[2rem]">
+          <p className="heading mt-5 text-[1.7rem] leading-[1.25] text-ink">
             <span className="marker">Let your code do the talking.</span>
           </p>
-          <p className="mt-4 text-[13.5px] leading-relaxed text-ink-muted">
+          <p className="mt-3 font-mono text-[12.5px] leading-relaxed text-ink-muted">
             {"// sign in with your roll number to see your exams, practice and results."}
           </p>
 
-          <div className="mt-10">
+          <div className="mt-8">
             {ssoError && (
-              <p role="alert" className="mb-6 border border-danger bg-danger-soft px-3.5 py-2.5 text-[13.5px] text-danger">
+              <p role="alert" className="mb-6 border border-danger bg-danger-soft px-3.5 py-2.5 font-mono text-[13px] text-danger">
                 [!] {ssoError}
               </p>
             )}
@@ -50,11 +52,11 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
               <>
                 <a
                   href={`/auth/sso${next ? `?next=${encodeURIComponent(next)}` : ""}`}
-                  className="block w-full border border-ink bg-surface py-3 text-center text-[14px] text-ink shadow-[4px_4px_0_var(--ink)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"
+                  className="block w-full border border-ink bg-surface py-3 text-center font-mono text-[14px] text-ink shadow-[4px_4px_0_var(--ink)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"
                 >
                   [ sign in with your college account ]
                 </a>
-                <p className="my-6 text-center text-[12.5px] text-ink-subtle" aria-hidden>
+                <p className="my-6 text-center font-mono text-[12px] text-ink-subtle" aria-hidden>
                   ---- or use your AetherCode password ----
                 </p>
               </>
@@ -63,19 +65,10 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           </div>
         </div>
 
-        <p className="text-[12.5px] text-ink-subtle">[?] can&apos;t sign in? your exam administrator can reset your password.</p>
-      </section>
-
-      {/* The arena: always night, whatever the theme. */}
-      <section aria-label="Preview" className="relative m-3 hidden max-h-[calc(100dvh-1.5rem)] overflow-hidden bg-[#050505] text-[#f2f2f2] lg:flex lg:flex-col">
-        <AsciiTorus className="ascii-art pointer-events-none absolute left-1/2 top-[42%] -translate-x-1/2 -translate-y-1/2 select-none text-white/30 [--columns:100]" />
-        <div className="relative mt-auto p-10">
-          <div className="max-w-[520px] border border-white/20 bg-[#050505]/85 p-6 backdrop-blur-sm">
-            <p className="mb-4 text-[12.5px] text-[#8a8a8a]">[ exam day ]</p>
-            <Transcript />
-          </div>
-        </div>
-      </section>
+        <p className="border-t border-ink px-6 py-3 font-mono text-[12px] text-ink-subtle sm:px-8">
+          [?] can&apos;t sign in? your exam administrator can reset your password.
+        </p>
+      </div>
     </main>
   );
 }

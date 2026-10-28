@@ -14,7 +14,7 @@ const COMMANDS = [
 /** The developer moment: the real one-server install beside the open-source pitch. */
 export function OpenSource() {
   return (
-    <section className="border-y border-line bg-surface-2 text-ink">
+    <section className="text-ink">
       <div className="mx-auto grid max-w-6xl items-center gap-14 px-6 py-24 sm:py-28 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
         <div>
           <h2 className="heading text-[2.3rem] sm:text-[3.1rem]">

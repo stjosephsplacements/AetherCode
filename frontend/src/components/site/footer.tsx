@@ -1,7 +1,6 @@
-import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { SITE } from "@/lib/site";
-import { CookieSettingsLink, ThemeSwitch } from "./footer-controls";
+import { CookieSettingsLink, ThemeIcon, ThemeSwitch } from "./footer-controls";
 
 const COLUMNS = [
   {
@@ -55,70 +54,55 @@ export function Footer({ compact = false }: { compact?: boolean }) {
     );
   }
 
+  const columns = [
+    ...COLUMNS,
+    {
+      title: "Open source",
+      links: [
+        { href: SITE.repo, label: "GitHub" },
+        { href: `${SITE.repo}/blob/HEAD/LICENSE`, label: "License" },
+        { href: SITE.advisories, label: "Report a vulnerability" },
+      ],
+    },
+  ];
   return (
-    <footer className="relative overflow-hidden">
-      <div aria-hidden className="absolute inset-x-0 top-0 h-px bg-[linear-gradient(to_right,transparent,var(--line-strong),transparent)]" />
-      <div className="mx-auto max-w-6xl px-6 pb-12 pt-16">
-        <div className="grid gap-12 lg:grid-cols-[1.5fr_repeat(4,1fr)]">
-          <div className="max-w-[300px]">
-            <p className="font-serif text-[1.9rem] leading-[1.1] text-ink">{SITE.tagline}</p>
-            <a
-              href={SITE.repo}
-              className="mt-6 inline-flex items-center gap-2 rounded-full border border-line-strong px-4 py-2 text-[13.5px] text-ink transition-colors hover:bg-hover"
-            >
-              Star us on GitHub
-              <ArrowUpRight className="size-3.5 text-ink-subtle" />
+    <footer className="relative border-t border-line bg-canvas font-mono text-[13px]">
+      <div className="mx-auto max-w-6xl border-line lg:border-x">
+        <div className="grid gap-px bg-line sm:grid-cols-2 lg:grid-cols-[1.5fr_repeat(4,1fr)]">
+          <div className="bg-canvas p-6">
+            <p className="font-semibold text-ink">AetherCode</p>
+            <p className="mt-2 text-ink-muted">{"// let your code"}<br />{"// do the talking."}</p>
+            <a href={SITE.repo} className="mt-6 inline-block whitespace-nowrap border border-ink px-3 py-1.5 text-ink transition-colors hover:border-brand hover:bg-brand hover:text-brand-ink">
+              [ star on github -&gt; ]
             </a>
           </div>
-          {COLUMNS.map((column) => (
-            <nav key={column.title} aria-label={column.title}>
-              <p className="text-[13px] text-ink-subtle">{column.title}</p>
-              <ul className="mt-4 space-y-3 text-[15px]">
+          {columns.map((column) => (
+            <nav key={column.title} aria-label={column.title} className="bg-canvas p-6">
+              <p className="text-ink-subtle">[ {column.title.toLowerCase()} ]</p>
+              <ul className="mt-4 space-y-2.5">
                 {column.links.map((link) => (
                   <li key={link.href}>
-                    <Link href={link.href} className="text-ink transition-colors hover:text-accent">
-                      {link.label}
+                    <Link href={link.href} className="text-ink-muted transition-colors hover:text-brand">
+                      {link.label.toLowerCase()}
                     </Link>
                   </li>
                 ))}
                 {column.title === "Legal" && (
-                  <li className="text-[15px] [&_button]:text-ink [&_button:hover]:text-accent">
+                  <li className="[&_button]:font-mono [&_button]:lowercase">
                     <CookieSettingsLink />
                   </li>
                 )}
               </ul>
             </nav>
           ))}
-          <nav aria-label="Open source">
-            <p className="text-[13px] text-ink-subtle">Open source</p>
-            <ul className="mt-4 space-y-3 text-[15px]">
-              <li>
-                <a href={SITE.repo} className="text-ink transition-colors hover:text-accent">
-                  GitHub
-                </a>
-              </li>
-              <li>
-                <a href={`${SITE.repo}/blob/HEAD/LICENSE`} className="text-ink transition-colors hover:text-accent">
-                  License
-                </a>
-              </li>
-              <li>
-                <a href={SITE.advisories} className="text-ink transition-colors hover:text-accent">
-                  Report a vulnerability
-                </a>
-              </li>
-            </ul>
-          </nav>
         </div>
-
-        <div className="mt-16 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-6">
-          <p className="max-w-[60ch] text-[12.5px] leading-relaxed text-ink-subtle">
-            © {year} {SITE.operator}. Open source under the {SITE.license}.
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-t border-line bg-canvas px-6 py-4 text-[12px] text-ink-subtle">
+          <p>
+            (c) {year} {SITE.operatorShort}. {SITE.license}.
           </p>
-          <ThemeSwitch />
+          <ThemeIcon />
         </div>
       </div>
-
     </footer>
   );
 }

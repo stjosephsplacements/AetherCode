@@ -36,7 +36,7 @@ export function ThemeIcon() {
       type="button"
       onClick={() => setTheme(next)}
       aria-label={`Switch to ${next} theme`}
-      className="px-2 py-1 font-mono text-[13px] text-ink-muted transition-colors hover:text-ink"
+      className="font-mono text-ink-muted transition-colors hover:text-ink"
     >
       [{next}]
     </button>

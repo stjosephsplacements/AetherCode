@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Footer } from "@/components/site/footer";
 import { Navbar } from "@/components/site/navbar";
-import { ScrollProgress } from "@/components/site/scroll-progress";
 import { SiteMotion } from "@/components/site/site-motion";
 import { SmoothScroll } from "@/components/site/smooth-scroll";
 
@@ -24,7 +23,6 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
           {children}
         </main>
         <Footer />
-        <ScrollProgress />
         <SiteMotion />
       </div>
     </SmoothScroll>
