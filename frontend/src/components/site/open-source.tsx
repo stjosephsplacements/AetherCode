@@ -1,6 +1,7 @@
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SITE } from "@/lib/site";
+import { Terminal } from "./terminal";
 
 const COMMANDS = [
   { text: "git clone https://github.com/AlgoQX/AetherCode" },
@@ -36,22 +37,7 @@ export function OpenSource() {
             </a>
           </div>
         </div>
-        <div className="overflow-hidden rounded-[18px] border border-white/10 bg-[#0f0f0f] shadow-[0_40px_80px_-30px_rgb(0_0_0/0.7)]">
-          <div className="flex items-center gap-1.5 border-b border-white/[0.08] px-4 py-3" aria-hidden>
-            <span className="size-2.5 rounded-full bg-white/15" />
-            <span className="size-2.5 rounded-full bg-white/15" />
-            <span className="size-2.5 rounded-full bg-white/15" />
-            <span className="ml-3 text-[12.5px] text-[#8a8a8a]">Deploy on one server</span>
-          </div>
-          <pre className="overflow-x-auto p-6 font-mono text-[13px] leading-7">
-            {COMMANDS.map((line) => (
-              <div key={line.text} className="text-[#f2f2f2]">
-                <span className="select-none text-[#ff6a33]">$ </span>
-                {line.text}
-              </div>
-            ))}
-          </pre>
-        </div>
+        <Terminal title="Deploy on one server" commands={COMMANDS.map((line) => line.text)} />
       </div>
     </section>
   );

@@ -7,8 +7,10 @@ import { AudienceSwitch } from "@/components/site/audience-switch";
 import { Bento } from "@/components/site/bento";
 import { BugHunt } from "@/components/site/bug-hunt";
 import { Hero } from "@/components/site/hero";
+import { LanguageStrip } from "@/components/site/language-strip";
 import { Numbers } from "@/components/site/numbers";
 import { OpenSource } from "@/components/site/open-source";
+import { TiltIn } from "@/components/site/tilt-in";
 import { Button } from "@/components/ui/button";
 import { requireViewer } from "@/lib/server/session";
 import { ACCESS_COOKIE, REFRESH_COOKIE } from "@/lib/server/tokens";
@@ -34,10 +36,13 @@ export default async function Landing() {
             marks and your best submission counts. Try it: one test below fails.
           </p>
         </div>
-        <BugHunt />
+        <TiltIn>
+          <BugHunt />
+        </TiltIn>
       </section>
 
       <Numbers />
+      <LanguageStrip />
       <Bento />
       <OpenSource />
       <AudienceSwitch />
