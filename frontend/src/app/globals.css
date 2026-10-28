@@ -403,6 +403,11 @@
     font-family: var(--font-mono);
     letter-spacing: -0.02em;
   }
+  /* ASCII has no curves: every corner in the scope is square, utilities included. */
+  .ascii,
+  .ascii * {
+    border-radius: 0 !important;
+  }
   .ascii .heading,
   .ascii .display {
     font-family: var(--font-eyebrow);
