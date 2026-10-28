@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Chakra_Petch, Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { ConsentManager } from "@/components/site/consent";
 import { readTheme } from "@/lib/server/theme";
@@ -8,6 +8,8 @@ import "./globals.css";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist", display: "swap" });
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono", display: "swap" });
+// Headings on the public pages: an angular, octagonal display face (free, OFL).
+const chakraPetch = Chakra_Petch({ subsets: ["latin"], weight: ["500", "600", "700"], variable: "--font-chakra", display: "swap" });
 
 function origin(): URL | undefined {
   try {
@@ -41,7 +43,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     // The font variables sit on <html> because the theme's --font-* tokens are
     // declared on :root and resolve there.
-    <html lang="en" data-theme={theme} className={`${geist.variable} ${geistMono.variable}`}>
+    <html lang="en" data-theme={theme} className={`${geist.variable} ${geistMono.variable} ${chakraPetch.variable}`}>
       <body className="antialiased">
         {children}
         <ConsentManager />

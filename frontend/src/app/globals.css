@@ -400,7 +400,7 @@
    included, copy set on marker highlights, and text-drawn art sized so its
    columns fill the width. */
 @layer components {
-  /* Satoshi for every word; Departure Mono is the one ASCII face, for art, labels and code. */
+  /* Chakra Petch for headings, Satoshi for reading, Departure Mono as the one ASCII face. */
   .ascii {
     --font-mono: "Departure Mono", ui-monospace, monospace;
     font-family: var(--font-sans);
@@ -411,10 +411,11 @@
     border-radius: 0 !important;
   }
   .ascii .heading,
-  .ascii .display {
-    font-family: var(--font-sans);
-    font-weight: 700;
-    letter-spacing: -0.04em;
+  .ascii .display,
+  .ascii [data-statement] {
+    font-family: var(--font-chakra), var(--font-sans);
+    font-weight: 600;
+    letter-spacing: -0.02em;
   }
   .marker {
     background: var(--brand);

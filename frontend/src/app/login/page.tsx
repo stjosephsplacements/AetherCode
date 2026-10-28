@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AsciiField } from "@/components/site/ascii-field";
-import { WORDMARK } from "@/components/site/wordmark";
+import { AsciiWordmark } from "@/components/site/ascii-wordmark";
 import { LoginForm } from "./login-form";
 
 // Why a single sign-on did not finish (ADR-0042).
@@ -32,9 +32,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         </div>
 
         <div className="px-6 py-8 sm:px-8">
-          <pre aria-hidden className="overflow-hidden text-[clamp(5.5px,1.6vw,7.5px)] leading-[1.15] text-brand">
-            {WORDMARK}
-          </pre>
+          <AsciiWordmark className="overflow-hidden !text-[clamp(4.5px,1.3vw,6.2px)] leading-[1.15]" />
           <p className="heading mt-5 text-[1.7rem] leading-[1.25] text-ink">
             <span className="marker">Let your code do the talking.</span>
           </p>
