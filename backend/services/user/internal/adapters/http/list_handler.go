@@ -134,11 +134,14 @@ func (handler *Handler) listRoleAssignments(writer http.ResponseWriter, request 
 		httpx.WriteError(writer, err)
 		return
 	}
-	// Resource ID for the authorization check is the principal filter when
-	// present; otherwise tenantID so it is a valid identifier.
+	// Name the collection when neither a principal nor a tenant is filtered.
+	// Authorization and RLS still determine which scopes may list it.
 	principalFilterOrTenant := principalID
 	if principalFilterOrTenant == "" {
 		principalFilterOrTenant = tenantID
+	}
+	if principalFilterOrTenant == "" {
+		principalFilterOrTenant = "all"
 	}
 	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "role_assignments", principalFilterOrTenant, tenantID)
 	if err != nil {

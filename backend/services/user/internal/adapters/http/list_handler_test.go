@@ -1,6 +1,12 @@
 package httpadapter
 
 import (
+	"context"
+	"encoding/base64"
+	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
+	"github.com/aethercode/aethercode/libs/pkg/httpauth"
+	authzv1 "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/authz/v1"
+	"google.golang.org/grpc"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -66,4 +72,37 @@ func TestListRequestPartsRejectsMissingTenant(t *testing.T) {
 	if err == nil {
 		t.Fatal("listRequestParts() accepted non-UUID tenant_id, want error")
 	}
+}
+
+func TestGlobalRoleAssignmentListUsesCollectionResource(t *testing.T) {
+	rpc := &recordingRoleListAuthorization{}
+	client, err := centralauthz.NewClient(rpc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	authorizer, err := httpauth.New(client, "user")
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := &Handler{authorizer: authorizer}
+	request := httptest.NewRequest(http.MethodGet, "/v1/role-assignments", nil)
+	claims := base64.RawURLEncoding.EncodeToString([]byte(`{"sub":"018f4b0d-08f8-7c09-9ba7-efdf9c223355"}`))
+	request.Header.Set("Authorization", "Bearer e30."+claims+".signature")
+	handler.listRoleAssignments(httptest.NewRecorder(), request)
+	if rpc.request == nil {
+		t.Fatal("authorization was not called")
+	}
+	if got := rpc.request.GetResourceId(); got != "all" {
+		t.Fatalf("resource ID = %q, want all", got)
+	}
+	if rpc.request.GetTenantId() != "" {
+		t.Fatal("global request unexpectedly has tenant")
+	}
+}
+
+type recordingRoleListAuthorization struct{ request *authzv1.AuthorizeRequest }
+
+func (rpc *recordingRoleListAuthorization) Authorize(_ context.Context, req *authzv1.AuthorizeRequest, _ ...grpc.CallOption) (*authzv1.AuthorizeResponse, error) {
+	rpc.request = req
+	return &authzv1.AuthorizeResponse{Allowed: false}, nil
 }
