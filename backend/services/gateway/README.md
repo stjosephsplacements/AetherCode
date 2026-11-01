@@ -80,6 +80,29 @@ SEB hashed.
 The SEB headers are not forwarded to the target service, preventing a backend
 from treating caller-controlled headers as an authorization signal.
 
+## Realtime (ADR-0050)
+
+`GET /api/realtime` is a WebSocket for the staff console; `GET /api/realtime/services`
+returns the same service-health snapshot over HTTP (bearer token, administrators only).
+
+```
+GATEWAY_REALTIME_ORIGINS=https://exam.example.edu   # browser origins allowed to connect; empty disables the socket
+GATEWAY_REALTIME_ACCESS_COOKIE=ac_access             # the session cookie holding the access token
+GATEWAY_REALTIME_NATS_URL=nats://nats:4222           # optional; without it only service health is pushed
+GATEWAY_REALTIME_HEALTH_INTERVAL=5s                  # how often each upstream's /healthz is probed
+GATEWAY_SERVICE_DESCRIPTIONS={"user":"Accounts, students and permissions"}  # optional, keys must be upstreams
+```
+
+A connection must send an allowed `Origin`, a valid session cookie and `?tenant=`
+naming a tenant where the caller holds a staff role (`GET /v1/me` on the user
+service decides). It receives `{"type":"changed","topic":"attempts"|"grading"|"activity"}`
+hints for that tenant only (`activity` is the staff audit log), never event payloads; college and platform
+administrators also receive `{"type":"health",...}` snapshots. The socket closes
+with code 4401 when the session expires. Each principal may hold 8 connections.
+
+The ingress must send `/api/realtime` straight to the gateway with WebSocket
+upgrades and long read timeouts; the Helm chart and `deploy/single-server` do.
+
 ## Operations
 
 `/healthz`, `/readyz`, and `/metrics` are Gateway-local. Readiness probes every

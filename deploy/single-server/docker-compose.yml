@@ -465,6 +465,9 @@ services:
       # (ADR-0022); SEB hashes the URL at the public origin.
       GATEWAY_SEB_PROTECTED_PREFIXES: '["/api/submission/v1/tenants"]'
       GATEWAY_SEB_PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?PUBLIC_ORIGIN is not set; see setup.sh}
+      GATEWAY_REALTIME_ORIGINS: ${PUBLIC_ORIGIN:?PUBLIC_ORIGIN is not set; see setup.sh}
+      GATEWAY_REALTIME_NATS_URL: nats://nats:4222
+      GATEWAY_SERVICE_DESCRIPTIONS: '{"identity":"Sign-in and passwords","tenant":"Colleges, departments and batches","user":"Accounts, students and permissions","question-bank":"Questions and test cases","assessment":"Exams and assignments","submission":"Attempts, runs and grading","seb":"Safe Exam Browser lockdown","notification":"Notifications","analytics":"Results and reports"}'
       GATEWAY_UPSTREAMS: '{"identity":"http://identity:8080","tenant":"http://tenant:8080","user":"http://user:8080","question-bank":"http://question-bank:8080","assessment":"http://assessment:8080","submission":"http://submission:8080","seb":"http://seb:8080","notification":"http://notification:8080","analytics":"http://analytics:8080"}'
     build: { context: ../../backend, dockerfile: services/gateway/Dockerfile }
     ports:

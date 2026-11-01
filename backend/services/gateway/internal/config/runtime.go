@@ -52,6 +52,17 @@ type Runtime struct {
 	RateLimit            RateLimit
 	RequestTimeout       time.Duration
 	SEBValidationTimeout time.Duration
+	Realtime             Realtime
+}
+
+// Realtime configures the staff WebSocket and service health (ADR-0050).
+type Realtime struct {
+	// Origins are the browser origins allowed to open the socket; none disables it.
+	Origins        []string
+	Cookie         string
+	NATSURL        string
+	HealthInterval time.Duration
+	Descriptions   map[string]string
 }
 
 // RateLimit bounds local memory and protects an individual gateway instance.
@@ -124,6 +135,10 @@ func Load() (Runtime, error) {
 	if requestTimeout <= 0 || sebValidationTimeout <= 0 {
 		return Runtime{}, fmt.Errorf("gateway request timeouts must be positive")
 	}
+	realtime, err := loadRealtime(upstreams)
+	if err != nil {
+		return Runtime{}, err
+	}
 	return Runtime{
 		Upstreams:            upstreams,
 		Verifier:             verifier,
@@ -133,6 +148,46 @@ func Load() (Runtime, error) {
 		RateLimit:            rateLimit,
 		RequestTimeout:       requestTimeout,
 		SEBValidationTimeout: sebValidationTimeout,
+		Realtime:             realtime,
+	}, nil
+}
+
+func loadRealtime(upstreams map[string]*url.URL) (Realtime, error) {
+	var origins []string
+	for _, origin := range strings.Split(os.Getenv("GATEWAY_REALTIME_ORIGINS"), ",") {
+		if origin = strings.TrimSpace(origin); origin != "" {
+			parsed, err := url.Parse(origin)
+			if err != nil || (parsed.Scheme != "https" && parsed.Scheme != "http") || parsed.Host == "" || parsed.Path != "" || parsed.RawQuery != "" || parsed.User != nil {
+				return Realtime{}, fmt.Errorf("GATEWAY_REALTIME_ORIGINS must list origins such as https://exam.example.edu, got %q", origin)
+			}
+			origins = append(origins, origin)
+		}
+	}
+	if len(origins) > 0 && upstreams["user"] == nil {
+		return Realtime{}, fmt.Errorf("GATEWAY_REALTIME_ORIGINS requires a user upstream")
+	}
+	interval, err := duration("GATEWAY_REALTIME_HEALTH_INTERVAL", 5*time.Second)
+	if err != nil {
+		return Realtime{}, err
+	}
+	if interval < time.Second {
+		return Realtime{}, fmt.Errorf("GATEWAY_REALTIME_HEALTH_INTERVAL must be at least 1s")
+	}
+	descriptions := map[string]string{}
+	if err := strictJSONObject(optional("GATEWAY_SERVICE_DESCRIPTIONS", "{}"), &descriptions); err != nil {
+		return Realtime{}, fmt.Errorf("parse GATEWAY_SERVICE_DESCRIPTIONS: %w", err)
+	}
+	for name := range descriptions {
+		if upstreams[name] == nil {
+			return Realtime{}, fmt.Errorf("GATEWAY_SERVICE_DESCRIPTIONS names %q, which is not an upstream", name)
+		}
+	}
+	return Realtime{
+		Origins:        origins,
+		Cookie:         optional("GATEWAY_REALTIME_ACCESS_COOKIE", "ac_access"),
+		NATSURL:        strings.TrimSpace(os.Getenv("GATEWAY_REALTIME_NATS_URL")),
+		HealthInterval: interval,
+		Descriptions:   descriptions,
 	}, nil
 }
 

@@ -27,6 +27,10 @@ config:
   GATEWAY_IDENTITY_ASSERTION_AUDIENCE: "aethercode"
   GATEWAY_SEB_PROTECTED_PREFIXES: "[\"/api/submission/v1/tenants\"]"
   GATEWAY_SEB_PUBLIC_ORIGIN: "{{ required \"global.publicOrigin is required\" .Values.global.publicOrigin }}"
+  # Staff WebSocket and service health (ADR-0050).
+  GATEWAY_REALTIME_ORIGINS: "{{ .Values.global.publicOrigin }}"
+  GATEWAY_REALTIME_NATS_URL: "{{ .Values.global.natsUrl }}"
+  GATEWAY_SERVICE_DESCRIPTIONS: "{\"identity\":\"Sign-in and passwords\",\"tenant\":\"Colleges, departments and batches\",\"user\":\"Accounts, students and permissions\",\"question-bank\":\"Questions and test cases\",\"assessment\":\"Exams and assignments\",\"submission\":\"Attempts, runs and grading\",\"seb\":\"Safe Exam Browser lockdown\",\"notification\":\"Notifications\",\"analytics\":\"Results and reports\"}"
   GATEWAY_UPSTREAMS: "{\"identity\":\"http://identity:8080\",\"tenant\":\"http://tenant:8080\",\"user\":\"http://user:8080\",\"question-bank\":\"http://question-bank:8080\",\"assessment\":\"http://assessment:8080\",\"submission\":\"http://submission:8080\",\"seb\":\"http://seb:8080\",\"notification\":\"http://notification:8080\",\"analytics\":\"http://analytics:8080\"}"
 
 secretEnv:
@@ -42,6 +46,19 @@ networkPolicy:
   allowFrom:
     - service: frontend
       ports: [8080]
+  # The ingress controller reaches /api/realtime directly; change it if yours differs.
+  allowFromNamespaces: [ingress-nginx]
+
+# Only the staff WebSocket is public; everything else under /api/ goes through the frontend.
+# The host defaults to global.publicOrigin's, the frontend's own host, because the
+# socket authenticates with the frontend's host-only session cookie.
+ingress:
+  enabled: true
+  path: /api/realtime
+  nameSuffix: realtime
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
 
 # The frontend forwards each student's address (X-Forwarded-For); the gateway
 # trusts it only from these ranges. Narrow it to your pod network CIDR.

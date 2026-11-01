@@ -1,8 +1,13 @@
 {{- if .Values.ingress.enabled }}
+{{- /* The host defaults to the public origin's, so a release needs no extra values to share the frontend's host. */}}
+{{- $host := .Values.ingress.host }}
+{{- if not $host }}
+{{- $host = (urlParse (required "ingress.host or global.publicOrigin is required" .Values.global.publicOrigin)).host }}
+{{- end }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "platform-service.fullname" . }}
+  name: {{ include "platform-service.fullname" . }}{{ with .Values.ingress.nameSuffix }}-{{ . }}{{ end }}
   labels:
     {{- include "platform-service.labels" . | nindent 4 }}
   {{- with .Values.ingress.annotations }}
@@ -16,14 +21,14 @@ spec:
   {{- if .Values.ingress.tlsSecretName }}
   tls:
     - hosts:
-        - {{ required "ingress.host is required" .Values.ingress.host | quote }}
+        - {{ $host | quote }}
       secretName: {{ .Values.ingress.tlsSecretName }}
   {{- end }}
   rules:
-    - host: {{ required "ingress.host is required" .Values.ingress.host | quote }}
+    - host: {{ $host | quote }}
       http:
         paths:
-          - path: /
+          - path: {{ .Values.ingress.path | default "/" }}
             pathType: Prefix
             backend:
               service:
