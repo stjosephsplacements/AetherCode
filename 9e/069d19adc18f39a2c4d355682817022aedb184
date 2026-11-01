@@ -1,0 +1,29 @@
+backend/services/user/internal/adapters/http/list_handler.go
+  s_86b8a24fee5dbd::t_52803d1956d92a 137-138,143-145
+backend/services/user/internal/adapters/http/list_handler_test.go
+  s_86b8a24fee5dbd::t_de6a709679c69a 4-9,76-108
+backend/services/user/internal/adapters/repo/role_list_integration_test.go
+  s_86b8a24fee5dbd::t_7d40ae80469121 1-52
+backend/services/user/internal/app/authorization_test.go
+  s_86b8a24fee5dbd::t_900c511b1d1ccb 744-772
+backend/services/user/migrations/000034_global_role_list.down.sql
+  s_86b8a24fee5dbd::t_3cc0545e2bb4e1 1-19
+backend/services/user/migrations/000034_global_role_list.up.sql
+  s_86b8a24fee5dbd::t_7c5c2581d3c2a4 1-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9e069d19adc18f39a2c4d355682817022aedb184",
+  "prompts": {},
+  "sessions": {
+    "s_86b8a24fee5dbd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a197c5-198e-7fb1-a667-abf299ffe197",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
