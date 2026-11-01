@@ -1,0 +1,21 @@
+docs/adr/0058-sub-categories-and-choice-explanations.md
+  s_40851fd2a7ba5d::t_76de0c0c474a75 1-93
+docs/adr/README.md
+  s_40851fd2a7ba5d::t_268a29fce049e4 63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cd6e3bb8f16a1510d4cd907998b41c6b01ffa2d4",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
