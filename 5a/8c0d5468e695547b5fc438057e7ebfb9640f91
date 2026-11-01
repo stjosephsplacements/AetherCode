@@ -1,0 +1,27 @@
+frontend/src/app/staff/accounts/actions.ts
+  s_40851fd2a7ba5d::t_defa0d176cf7ad 8,93-123
+frontend/src/app/staff/accounts/import-staff-dialog.tsx
+  s_40851fd2a7ba5d::t_09d064efa4a1af 1-85
+frontend/src/app/staff/accounts/page.tsx
+  s_40851fd2a7ba5d::t_d081c3a87fda4b 12,81-83
+frontend/src/lib/staff-csv.test.ts
+  s_40851fd2a7ba5d::t_defcee630e3cec 1-20
+frontend/src/lib/staff-csv.ts
+  s_40851fd2a7ba5d::t_5467410c9c104b 1-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5a8c0d5468e695547b5fc438057e7ebfb9640f91",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
