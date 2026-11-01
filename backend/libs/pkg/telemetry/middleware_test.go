@@ -1,6 +1,8 @@
 package telemetry
 
 import (
+	"bufio"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -56,5 +58,48 @@ func TestPathSanitization(t *testing.T) {
 		if got := sanitizePath(c.input); got != c.want {
 			t.Errorf("sanitizePath(%q) = %q, want %q", c.input, got, c.want)
 		}
+	}
+}
+
+// A WebSocket upgrade hijacks the connection. The wrapper used to hide that,
+// and every upgrade through a service failed with 501 (ADR-0050).
+func TestMiddlewareKeepsHijackAndFlush(t *testing.T) {
+	t.Parallel()
+	seen := make(chan [2]bool, 1)
+	server := httptest.NewServer(HTTPMiddleware("test-svc", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hijacker, hijackable := w.(http.Hijacker)
+		_, flushable := w.(http.Flusher)
+		seen <- [2]bool{hijackable, flushable}
+		if !hijackable {
+			http.Error(w, "not hijackable", http.StatusNotImplemented)
+			return
+		}
+		conn, _, err := hijacker.Hijack()
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		_, _ = conn.Write([]byte("HTTP/1.1 101 Switching Protocols\r\n\r\n"))
+		_ = conn.Close()
+	})))
+	defer server.Close()
+
+	conn, err := net.Dial("tcp", server.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = conn.Close() }()
+	if _, err := conn.Write([]byte("GET / HTTP/1.1\r\nHost: test\r\n\r\n")); err != nil {
+		t.Fatal(err)
+	}
+	line, err := bufio.NewReader(conn).ReadString('\n')
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := <-seen; !got[0] || !got[1] {
+		t.Fatalf("writer lost capabilities: hijack=%v flush=%v", got[0], got[1])
+	}
+	if want := "HTTP/1.1 101"; len(line) < len(want) || line[:len(want)] != want {
+		t.Fatalf("status line = %q, want a 101", line)
 	}
 }
