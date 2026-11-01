@@ -1,6 +1,7 @@
 import { ArrowLeft, Download } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ConfirmDelete } from "@/components/staff/confirm-delete";
 import { ActionForm } from "@/components/staff/form";
 import { LoadError, PageHeader } from "@/components/staff/page-header";
 import { type Step, Stepper } from "@/components/staff/stepper";
@@ -16,7 +17,7 @@ import { listLanguages } from "@/lib/server/languages";
 import { reviewerChoices } from "@/lib/server/reviewers";
 import { requireStaff } from "@/lib/server/staff";
 import { cn } from "@/lib/utils";
-import { draftNewVersion } from "../actions";
+import { deleteDraftVersion, draftNewVersion } from "../actions";
 import { AudienceSwitch } from "./audience-switch";
 import { ChoicesEditor } from "./choices-editor";
 import { ModelCheckPanel } from "./model-check";
@@ -123,6 +124,18 @@ export default async function QuestionPage({ params }: { params: Promise<{ versi
           <>
             {!mcq && <AudienceSwitch questionId={version.question_id} versionId={version.id} initial={version.audience ?? "test"} />}
             <Badge tone={draft ? "neutral" : "success"}>{draft ? (version.review_requested_at ? "In review" : "Draft") : "Published"}</Badge>
+            {draft && (
+              <ConfirmDelete
+                label="Delete draft"
+                title={`Delete ${version.title}?`}
+                description="Only this draft goes. A question that was published before cannot be deleted, exams may pin it."
+                redirectTo="/staff/questions"
+                onConfirm={async (reason) => {
+                  "use server";
+                  return deleteDraftVersion(versionId, reason);
+                }}
+              />
+            )}
             {/* Exports carry the hidden tests: administrators only, and each is logged (ADR-0032). */}
             {staff.canManageAccounts && !mcq && version.hidden_test_case_count > 0 && (
               <Button asChild variant="secondary" size="sm">

@@ -29,7 +29,11 @@ const ACTIONS: Record<string, string> = {
   "seb/key_rotations": "Rotated a Safe Exam Browser key",
 };
 
+/** Resource names are plural table names: batches, departments, categories. */
+const singular = (name: string) => name.replace(/ies$/, "y").replace(/(ch|sh|x|ss)es$/, "$1").replace(/s$/, "");
+
 /** A staff change in words: the known resource, or a plain fallback. */
-export function auditAction(entry: Pick<AuditEntry, "service" | "resource_type">): string {
+export function auditAction(entry: Pick<AuditEntry, "service" | "resource_type"> & { action?: AuditEntry["action"] }): string {
+  if (entry.action === "delete") return `Deleted ${singular(entry.resource_type.replaceAll("_", " "))} (${entry.service})`;
   return ACTIONS[`${entry.service}/${entry.resource_type}`] ?? `Changed ${entry.resource_type.replaceAll("_", " ")} (${entry.service})`;
 }

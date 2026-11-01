@@ -1,5 +1,7 @@
 import { ArrowUpRight, BarChart3, Eye, MonitorPlay } from "lucide-react";
 import Link from "next/link";
+import { ConfirmDelete } from "@/components/staff/confirm-delete";
+import { deleteExam } from "@/app/staff/exams/actions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import type { ExamVersion } from "@/lib/api-types";
@@ -65,6 +67,15 @@ export function ExamPeek({ exam, now, className, children, label }: { exam: { ex
                 Preview
               </Link>
             </Button>
+            {state === "draft" && (
+              <ConfirmDelete
+                label="Delete exam"
+                title={`Delete ${version.title}?`}
+                description="It has never been published. A published exam cannot be deleted."
+                confirmText={version.title}
+                onConfirm={(reason) => deleteExam(id, reason)}
+              />
+            )}
           </div>
         </div>
       </DialogContent>

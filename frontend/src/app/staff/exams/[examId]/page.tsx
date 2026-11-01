@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ActionForm, Checkbox, Field, Select, TextArea, TextInput } from "@/components/staff/form";
 import { EmptyState, LoadError, PageHeader, Section, Table } from "@/components/staff/page-header";
+import { ConfirmDelete } from "@/components/staff/confirm-delete";
 import { Button } from "@/components/ui/button";
 import { Badge, Panel } from "@/components/ui/card";
 import type { ExamVersionContent, Page, QuestionDetail, QuestionVersion, SebPolicy } from "@/lib/api-types";
@@ -11,9 +12,10 @@ import { latestVersion } from "@/lib/server/exams";
 import { GatewayError, gateway } from "@/lib/server/gateway";
 import { requireCollege } from "@/lib/server/staff";
 import { formatDuration, formatScoreText, formatWindow, isoToCollegeTime } from "@/lib/utils";
-import { addPool, addQuestion, duplicateExam, publishExam, regradeItem, saveSebPolicy, tryExam } from "../actions";
+import { addPool, addQuestion, deleteExam, duplicateExam, publishExam, regradeItem, removeExamItem, removeExamSection, saveSebPolicy, tryExam } from "../actions";
 import { AssignForm } from "./assign-form";
 import { MoveWindow } from "./move-window";
+import { RemoveFromExam } from "./remove-button";
 
 export const metadata: Metadata = { title: "Exam" };
 
@@ -102,6 +104,19 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
         actions={
           <>
             <Badge tone={draft ? "neutral" : "success"}>{draft ? "Draft" : "Published"}</Badge>
+            {draft && (
+              <ConfirmDelete
+                label="Delete exam"
+                title={`Delete ${version.title}?`}
+                description="It has never been published, so nobody has been assigned or taken it. A published exam cannot be deleted."
+                confirmText={version.title}
+                redirectTo="/staff/exams"
+                onConfirm={async (reason) => {
+                  "use server";
+                  return deleteExam(examId, reason);
+                }}
+              />
+            )}
             {items.length > 0 && (
               <Button asChild variant="secondary" size="sm">
                 <Link href={`/staff/exams/${examId}/preview`}>
@@ -145,14 +160,36 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
                   </p>
                 )}
                 {section.items.length === 0 ? (
-                  <EmptyState>No questions in this {section.draw_count !== null ? "pool" : "section"} yet.</EmptyState>
+                  <div className="flex items-center justify-between gap-3 rounded-[var(--radius-surface)] border border-dashed border-line-strong px-6 py-8 text-sm text-ink-muted">
+                    <span>No questions in this {section.draw_count !== null ? "pool" : "section"} yet.</span>
+                    {draft && sections.length > 1 && (
+                      <RemoveFromExam
+                        label={`Remove the ${section.title} section`}
+                        remove={async () => {
+                          "use server";
+                          return removeExamSection(version.id, section.id, version.content_version, examId);
+                        }}
+                      />
+                    )}
+                  </div>
                 ) : (
-                  <Table head={["#", "Question", "Marks"]}>
+                  <Table head={draft ? ["#", "Question", "Marks", ""] : ["#", "Question", "Marks"]}>
                     {section.items.map((item) => (
                       <tr key={item.id}>
                         <td className="w-10 px-4 py-2.5 text-ink-muted">{item.position}</td>
                         <td className="px-4 py-2.5 text-ink">{item.question_title ?? "Question"}</td>
                         <td className="px-4 py-2.5 tabular-nums text-ink">{formatScoreText(Number(item.maximum_score))}</td>
+                        {draft && (
+                          <td className="w-12 px-4 py-1.5 text-right">
+                            <RemoveFromExam
+                              label={`Remove ${item.question_title ?? "this question"} from the exam`}
+                              remove={async () => {
+                                "use server";
+                                return removeExamItem(version.id, section.id, item.id, version.content_version, examId);
+                              }}
+                            />
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </Table>

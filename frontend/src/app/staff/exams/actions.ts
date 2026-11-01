@@ -292,3 +292,48 @@ export async function moveWindow(_previous: ActionState, form: FormData): Promis
     return { error: error instanceof Error && !("status" in error) ? error.message : actionError(error) };
   }
 }
+
+/** Deletes an exam that was never published; the database refuses one students may have been assigned (ADR-0053). */
+export async function deleteExam(examId: string, reason: string): Promise<ActionState> {
+  const { tenantId } = await requireCollege();
+  if (!reason.trim()) return { error: "A reason is needed to delete anything." };
+  try {
+    await gateway(`/assessment/v1/tenants/${tenantId}/exams/${examId}`, { method: "DELETE", body: { reason: reason.trim() } });
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+  revalidatePath("/staff/exams");
+  revalidatePath("/staff");
+  revalidatePath("/staff/calendar");
+  return { error: null, message: "Deleted." };
+}
+
+/** Takes a question out of a draft exam. */
+export async function removeExamItem(versionId: string, sectionId: string, itemId: string, contentVersion: number, examId: string): Promise<ActionState> {
+  const { tenantId } = await requireCollege();
+  try {
+    await gateway(`/assessment/v1/tenants/${tenantId}/exam-versions/${versionId}/sections/${sectionId}/items/${itemId}`, {
+      method: "DELETE",
+      body: { expected_content_version: contentVersion },
+    });
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+  revalidatePath(`/staff/exams/${examId}`);
+  return { error: null, message: "Removed." };
+}
+
+/** Takes an empty section out of a draft exam. */
+export async function removeExamSection(versionId: string, sectionId: string, contentVersion: number, examId: string): Promise<ActionState> {
+  const { tenantId } = await requireCollege();
+  try {
+    await gateway(`/assessment/v1/tenants/${tenantId}/exam-versions/${versionId}/sections/${sectionId}`, {
+      method: "DELETE",
+      body: { expected_content_version: contentVersion },
+    });
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+  revalidatePath(`/staff/exams/${examId}`);
+  return { error: null, message: "Removed." };
+}

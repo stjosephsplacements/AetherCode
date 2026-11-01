@@ -2,10 +2,11 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { ActionForm, Field, Select, TextInput } from "@/components/staff/form";
 import { EmptyState, LoadError, PageHeader, Section, Table } from "@/components/staff/page-header";
+import { ConfirmDelete } from "@/components/staff/confirm-delete";
 import { Panel } from "@/components/ui/card";
 import { departmentLabel, listBatches, listDepartments, listPlacement } from "@/lib/server/directory";
 import { requireCollege } from "@/lib/server/staff";
-import { createBatch, createDepartment, createPlacementDepartment, createPlacementOrganization } from "./actions";
+import { createBatch, createDepartment, createPlacementDepartment, createPlacementOrganization, deleteBatch, deleteDepartment } from "./actions";
 
 export const metadata: Metadata = { title: "Departments" };
 
@@ -39,16 +40,56 @@ export default async function OrganisationPage() {
       />
 
       <Section title="College departments and batches">
+        {departments.length > 0 && (
+          <div className="mb-4">
+            <Table head={["Department", "Code", "Batches", ""]}>
+              {departments.map((department) => {
+                const inside = batches.filter((batch) => batch.department_id === department.id).length;
+                return (
+                  <tr key={department.id}>
+                    <td className="px-4 py-3 font-medium text-ink">{department.name}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-ink-muted">{department.code}</td>
+                    <td className="px-4 py-3 tabular-nums text-ink-muted">{inside}</td>
+                    <td className="px-4 py-2 text-right">
+                      {inside > 0 ? (
+                        <span className="text-xs text-ink-subtle">Delete its batches first</span>
+                      ) : (
+                        <ConfirmDelete
+                          title={`Delete ${department.name}?`}
+                          description="It has no batches. Students and staff already filed under it are not changed."
+                          onConfirm={async (reason) => {
+                            "use server";
+                            return deleteDepartment(department.id, reason);
+                          }}
+                        />
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </Table>
+          </div>
+        )}
         {batches.length === 0 ? (
           <EmptyState>No batches yet. Create a department, then a batch in it.</EmptyState>
         ) : (
-          <Table head={["Batch", "Code", "Department", "Academic year"]}>
+          <Table head={["Batch", "Code", "Department", "Academic year", ""]}>
             {batches.map((batch) => (
               <tr key={batch.id}>
                 <td className="px-4 py-3 font-medium text-ink">{batch.name}</td>
                 <td className="px-4 py-3 font-mono text-xs text-ink-muted">{batch.code}</td>
                 <td className="px-4 py-3 text-ink-muted">{departmentName.get(batch.department_id) ?? "Unknown"}</td>
                 <td className="px-4 py-3 text-ink-muted">{batch.academic_year}</td>
+                <td className="px-4 py-2 text-right">
+                  <ConfirmDelete
+                    title={`Delete ${batch.name}?`}
+                    description="A batch that still has students cannot be deleted: move them first."
+                    onConfirm={async (reason) => {
+                      "use server";
+                      return deleteBatch(batch.id, reason);
+                    }}
+                  />
+                </td>
               </tr>
             ))}
           </Table>

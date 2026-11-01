@@ -3,11 +3,13 @@
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { Markdown } from "@/components/markdown";
+import { ConfirmDelete } from "@/components/staff/confirm-delete";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { type Language, nameOf } from "@/lib/languages";
 import { cn } from "@/lib/utils";
+import { deleteDraftVersion } from "./actions";
 import type { QuestionRow } from "./question-board";
 
 const DIFFICULTY_TONE = { easy: "success", medium: "warning", hard: "danger" } as const;
@@ -57,7 +59,17 @@ export function QuestionPeek({ row, languages, className, children }: { row: Que
             <Markdown>{row.prompt}</Markdown>
           </div>
         </div>
-        <footer className="flex items-center justify-end border-t border-line px-6 py-4">
+        <footer className="flex items-center justify-between gap-3 border-t border-line px-6 py-4">
+          {row.status === "draft" ? (
+            <ConfirmDelete
+              label="Delete draft"
+              title={`Delete ${row.title}?`}
+              description="Only this draft goes. A question that was published before cannot be deleted, exams may pin it."
+              onConfirm={(reason) => deleteDraftVersion(row.versionId, reason)}
+            />
+          ) : (
+            <span />
+          )}
           <Button asChild>
             <Link href={`/staff/questions/${row.versionId}`}>
               {row.status === "published" ? "Open question" : row.kind === "coding" ? "Continue to verify" : "Continue"}

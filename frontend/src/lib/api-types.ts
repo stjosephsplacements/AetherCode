@@ -498,6 +498,8 @@ export type AuditEntry = {
   resource_type: string;
   resource_id: string;
   allowed: boolean;
+  /** Absent on entries written before deletes were logged with their own verb. */
+  action?: "write" | "delete";
 };
 
 /** Community content, served by the notification service (ADR-0048). */

@@ -1,6 +1,7 @@
 "use client";
 
-import { ChevronRight, Search, X } from "lucide-react";
+import { ArrowLeft, ChevronRight, Search, X } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Select } from "@/components/staff/form";
 import { Tile } from "@/components/staff/tile";
@@ -8,6 +9,7 @@ import { Badge } from "@/components/ui/card";
 import type { Category } from "@/lib/api-types";
 import { type Language, nameOf } from "@/lib/languages";
 import { cn } from "@/lib/utils";
+import { FolderCard } from "./folder-card";
 import { QuestionPeek } from "./question-peek";
 
 export type QuestionRow = {
@@ -47,25 +49,34 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
   const [tab, setTab] = useState<ListKey>(initial);
   const [query, setQuery] = useState("");
   const [difficulty, setDifficulty] = useState("all");
-  const [category, setCategory] = useState("all");
   const [tag, setTag] = useState("all");
-  const [folded, setFolded] = useState<Set<string>>(new Set());
+  // The open folder lives in the address (?folder=<category id>), so Back closes it and a link opens it.
+  const params = useSearchParams();
+  const folder = params.get("folder");
+  const openFolder = (id: string | null) => {
+    const url = new URL(window.location.href);
+    if (id) url.searchParams.set("folder", id);
+    else url.searchParams.delete("folder");
+    window.history.pushState(null, "", url);
+  };
 
   const needle = query.trim().toLowerCase();
   const base = lists[tab];
   const tagNames = [...new Set(base.flatMap((row) => row.tags))].sort();
   const rows = base.filter(
     (row) =>
-      (category === "all" || row.categoryId === category) &&
       (difficulty === "all" || row.difficulty === difficulty) &&
       (tag === "all" || row.tags.includes(tag)) &&
       (!needle || row.title.toLowerCase().includes(needle) || row.slug.includes(needle) || row.tags.some((entry) => entry.includes(needle))),
   );
-  // Category, then difficulty inside it. Without categories (an older question bank) there is one group.
-  const groups = (categories.length > 0 ? categories : [{ id: "", name: "Questions", question_count: 0 }])
-    .map((entry) => ({ ...entry, rows: rows.filter((row) => row.categoryId === entry.id) }))
-    .filter((entry) => entry.rows.length > 0);
-  const toggle = (id: string) => setFolded((current) => new Set(current.has(id) ? [...current].filter((entry) => entry !== id) : [...current, id]));
+  // Without categories (an older question bank) there is one folder, already open.
+  const folders = (categories.length > 0 ? categories : [{ id: "", name: "Questions", question_count: 0 }]).map((entry) => {
+    const inside = rows.filter((row) => row.categoryId === entry.id);
+    return { id: entry.id, name: entry.name, rows: inside, levels: { easy: inside.filter((row) => row.difficulty === "easy").length, medium: inside.filter((row) => row.difficulty === "medium").length, hard: inside.filter((row) => row.difficulty === "hard").length } };
+  });
+  const filtering = Boolean(needle) || difficulty !== "all" || tag !== "all";
+  const open = categories.length === 0 ? folders[0]! : folders.find((entry) => entry.id === folder) ?? null;
+  const shown = filtering ? folders.filter((entry) => entry.rows.length > 0) : folders;
   const empty = TABS.find((entry) => entry.key === tab)!.empty;
 
   return (
@@ -134,98 +145,83 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
       </div>
 
       <div className="mt-4 grid gap-x-6 gap-y-6 xl:grid-cols-12">
-        {categories.length > 0 && (
-          <nav aria-label="Categories" className="xl:col-span-3">
-            <ul className="space-y-0.5 xl:sticky xl:top-16">
-              {[{ id: "all", name: "All categories", total: base.length }, ...categories.map((entry) => ({ id: entry.id, name: entry.name, total: base.filter((row) => row.categoryId === entry.id).length }))].map((entry) => (
-                <li key={entry.id}>
-                  <button
-                    type="button"
-                    aria-pressed={category === entry.id}
-                    onClick={() => setCategory(entry.id)}
-                    className={cn(
-                      "flex h-9 w-full items-center justify-between gap-3 rounded-[var(--radius-control)] px-3 text-left text-[13.5px] transition-colors",
-                      category === entry.id ? "bg-hover font-medium text-ink" : "text-ink-muted hover:bg-hover hover:text-ink",
-                      entry.total === 0 && category !== entry.id && "opacity-55",
-                    )}
-                  >
-                    <span className="truncate">{entry.name}</span>
-                    <span className="font-mono text-[11.5px] tabular-nums text-ink-subtle">{entry.total}</span>
+        <div className="min-w-0 xl:col-span-9">
+          {open ? (
+            <>
+              {categories.length > 0 && (
+                <div className="mb-4 flex items-center gap-3">
+                  <button type="button" onClick={() => openFolder(null)} className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-control)] pr-2 text-sm text-ink-muted transition-colors hover:text-ink">
+                    <ArrowLeft className="size-4" strokeWidth={1.75} />
+                    Folders
                   </button>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        )}
-
-        <div className={cn("min-w-0", categories.length > 0 ? "xl:col-span-6" : "xl:col-span-8")}>
-          {groups.length === 0 ? (
+                  <h2 className="text-[17px] font-semibold tracking-[-0.01em] text-ink">{open.name}</h2>
+                  <span className="font-mono text-[12px] tabular-nums text-ink-subtle">{open.rows.length}</span>
+                </div>
+              )}
+              {open.rows.length === 0 ? (
+                <div className="rounded-[var(--radius-surface)] border border-dashed border-line-strong px-6 py-14 text-center text-sm text-ink-muted">
+                  {lists[tab].length === 0 ? empty : filtering ? "Nothing in this folder matches those filters." : "This folder is empty in this list."}
+                </div>
+              ) : (
+                (["easy", "medium", "hard"] as const).map((level) => {
+                  const inLevel = open.rows.filter((row) => row.difficulty === level);
+                  if (inLevel.length === 0) return null;
+                  return (
+                    <section key={level} aria-label={level} className="mb-5 last:mb-0">
+                      <h3 className="mb-1.5 flex items-center gap-2 px-1 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">
+                        <span aria-hidden className={cn("size-1.5 rounded-full", level === "easy" ? "bg-success" : level === "medium" ? "bg-warning" : "bg-danger")} />
+                        {level}
+                        <span className="tabular-nums text-ink-muted">{inLevel.length}</span>
+                      </h3>
+                      <ul className="divide-y divide-line overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface">
+                        {inLevel.map((row) => (
+                          <li key={row.versionId}>
+                            <QuestionPeek row={row} languages={languages} className="group flex w-full items-center gap-4 px-5 py-3 transition-colors hover:bg-hover">
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-[14.5px] font-medium text-ink">{row.title}</span>
+                                <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                                  <span className="font-mono text-[11.5px] text-ink-subtle">{row.slug}</span>
+                                  {row.tags.slice(0, 4).map((entry) => (
+                                    <span key={entry} className="rounded-full bg-hover px-2 py-px text-[11.5px] text-ink-muted">
+                                      {entry}
+                                    </span>
+                                  ))}
+                                  {row.tags.length > 4 && <span className="text-[11.5px] text-ink-subtle">+{row.tags.length - 4}</span>}
+                                </span>
+                              </span>
+                              <span className="hidden shrink-0 text-right text-[12.5px] text-ink-muted sm:block">
+                                {row.kind === "mcq" ? `MCQ, ${row.options} options` : `${row.sample} sample, ${row.hidden} hidden`}
+                              </span>
+                              {tab === "review" && row.forYou && <Badge tone="brand">For you</Badge>}
+                              {tab === "drafts" && <Badge>{row.inReview ? "In review" : "Draft"}</Badge>}
+                              {tab === "drafts" && row.kind === "coding" && row.sample + row.hidden === 0 && <Badge tone="warning">No tests</Badge>}
+                              <ChevronRight aria-hidden className="size-4 shrink-0 text-ink-subtle transition-transform group-hover:translate-x-0.5" strokeWidth={1.75} />
+                            </QuestionPeek>
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  );
+                })
+              )}
+            </>
+          ) : shown.length === 0 ? (
             <div className="rounded-[var(--radius-surface)] border border-dashed border-line-strong px-6 py-14 text-center text-sm text-ink-muted">
               {lists[tab].length === 0 ? empty : needle ? `Nothing matches "${query.trim()}".` : "No question matches those filters."}
             </div>
           ) : (
-            <div className="space-y-6">
-              {groups.map((group) => {
-                const closed = folded.has(group.id);
-                return (
-                  <section key={group.id || "all"} aria-label={group.name}>
-                    {categories.length > 0 && (
-                      <button type="button" aria-expanded={!closed} onClick={() => toggle(group.id)} className="mb-2 flex w-full items-center gap-2 text-left">
-                        <ChevronRight className={cn("size-4 text-ink-subtle transition-transform duration-200", !closed && "rotate-90")} strokeWidth={1.75} />
-                        <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">{group.name}</h2>
-                        <span className="font-mono text-[12px] tabular-nums text-ink-subtle">{group.rows.length}</span>
-                      </button>
-                    )}
-                    {!closed &&
-                      (["easy", "medium", "hard"] as const).map((level) => {
-                        const inLevel = group.rows.filter((row) => row.difficulty === level);
-                        if (inLevel.length === 0) return null;
-                        return (
-                          <div key={level} className="mb-4 last:mb-0">
-                            <h3 className="mb-1.5 flex items-center gap-2 px-1 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">
-                              <span aria-hidden className={cn("size-1.5 rounded-full", level === "easy" ? "bg-success" : level === "medium" ? "bg-warning" : "bg-danger")} />
-                              {level}
-                              <span className="tabular-nums text-ink-muted">{inLevel.length}</span>
-                            </h3>
-                            <ul className="divide-y divide-line overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface">
-                              {inLevel.map((row) => (
-                                <li key={row.versionId}>
-                                  <QuestionPeek row={row} languages={languages} className="group flex w-full items-center gap-4 px-5 py-3 transition-colors hover:bg-hover">
-                                    <span className="min-w-0 flex-1">
-                                      <span className="block truncate text-[14.5px] font-medium text-ink">{row.title}</span>
-                                      <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-                                        <span className="font-mono text-[11.5px] text-ink-subtle">{row.slug}</span>
-                                        {row.tags.slice(0, 4).map((entry) => (
-                                          <span key={entry} className="rounded-full bg-hover px-2 py-px text-[11.5px] text-ink-muted">
-                                            {entry}
-                                          </span>
-                                        ))}
-                                        {row.tags.length > 4 && <span className="text-[11.5px] text-ink-subtle">+{row.tags.length - 4}</span>}
-                                      </span>
-                                    </span>
-                                    <span className="hidden shrink-0 text-right text-[12.5px] text-ink-muted sm:block">
-                                      {row.kind === "mcq" ? `MCQ, ${row.options} options` : `${row.sample} sample, ${row.hidden} hidden`}
-                                    </span>
-                                    {tab === "review" && row.forYou && <Badge tone="brand">For you</Badge>}
-                                    {tab === "drafts" && <Badge>{row.inReview ? "In review" : "Draft"}</Badge>}
-                                    {tab === "drafts" && row.kind === "coding" && row.sample + row.hidden === 0 && <Badge tone="warning">No tests</Badge>}
-                                    <ChevronRight aria-hidden className="size-4 shrink-0 text-ink-subtle transition-transform group-hover:translate-x-0.5" strokeWidth={1.75} />
-                                  </QuestionPeek>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        );
-                      })}
-                  </section>
-                );
-              })}
-            </div>
+            <ul className="grid gap-x-5 gap-y-6 sm:grid-cols-2 2xl:grid-cols-3" aria-label="Categories">
+              {shown.map((entry) => (
+                <li key={entry.id}>
+                  <FolderCard name={entry.name} total={entry.rows.length} levels={entry.levels} onOpen={() => openFolder(entry.id)} />
+                </li>
+              ))}
+            </ul>
           )}
         </div>
 
-        <div className={cn("space-y-3", categories.length > 0 ? "xl:col-span-3" : "xl:col-span-4")}>
-          <Mix label={TABS.find((entry) => entry.key === tab)!.label} rows={lists[tab]} languages={languages} />
+        <div className="space-y-3 xl:col-span-3">
+          <Mix label={open && categories.length > 0 ? open.name : TABS.find((entry) => entry.key === tab)!.label} rows={open ? open.rows : lists[tab]} languages={languages} />
           <Attention lists={lists} languages={languages} onOpen={setTab} />
         </div>
       </div>
