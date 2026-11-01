@@ -135,3 +135,42 @@ export async function deleteStudent(collegeId: string, studentId: string, reason
   revalidatePath("/staff/students");
   return { error: null, message: "Deleted." };
 }
+
+export type Target = { principalId: string; collegeId: string; username: string };
+
+/** Runs `work` over targets a few at a time; one failure does not stop the rest. */
+async function eachTarget<T>(targets: Target[], work: (target: Target, tenantId: string) => Promise<T>): Promise<{ done: T[]; failed: number }> {
+  const staff = await requireStaff();
+  if (!staff.canManageAccounts) return { done: [], failed: targets.length };
+  const done: T[] = [];
+  let failed = 0;
+  for (let start = 0; start < targets.length; start += 8) {
+    const settled = await Promise.allSettled(targets.slice(start, start + 8).map((target) => work(target, collegeFor(staff, target.collegeId))));
+    for (const result of settled) {
+      if (result.status === "fulfilled") done.push(result.value);
+      else failed++;
+    }
+  }
+  return { done, failed };
+}
+
+export async function bulkSetStatus(targets: Target[], status: "active" | "disabled"): Promise<ActionState> {
+  if (targets.length === 0 || targets.length > 500) return { error: "Select between 1 and 500 students." };
+  const { done, failed } = await eachTarget(targets, (target, tenantId) =>
+    gateway(`/user/v1/tenants/${tenantId}/accounts/${target.principalId}/status`, { method: "PUT", body: { status } }),
+  );
+  revalidatePath("/staff/students");
+  if (done.length === 0) return { error: "Could not change any of them." };
+  const verb = status === "disabled" ? "disabled" : "enabled";
+  return { error: null, message: `Sign-in ${verb} for ${done.length}${failed ? `, ${failed} failed` : ""}.` };
+}
+
+export async function bulkResetPasswords(targets: Target[]): Promise<CredentialsState> {
+  if (targets.length === 0 || targets.length > 500) return { error: "Select between 1 and 500 students." };
+  const { done, failed } = await eachTarget(targets, async (target, tenantId) => {
+    const result = await gateway<{ password: string }>(`/user/v1/tenants/${tenantId}/accounts/${target.principalId}/password`, { method: "POST" });
+    return { principal_id: target.principalId, username: target.username, display_name: "", password: result.password } satisfies IssuedCredential;
+  });
+  if (done.length === 0) return { error: "Could not reset any of them." };
+  return { error: null, message: failed ? `${failed} could not be reset.` : undefined, accounts: done };
+}
