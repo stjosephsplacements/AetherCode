@@ -1,0 +1,70 @@
+backend/services/tenant/internal/adapters/repo/postgres.go
+  s_40851fd2a7ba5d::t_c0dcd194d2ae00 441-445
+docs/adr/0053-deleting-what-staff-create.md
+  s_40851fd2a7ba5d::t_5f594af1cbcfa8 1-52
+backend/services/user/internal/app/authorization.go
+  s_40851fd2a7ba5d::t_4c88968bb15988 93-94,289-295,331-332,496-499,501,513
+backend/services/question-bank/migrations/000023_delete_unpublished_questions.down.sql
+  s_40851fd2a7ba5d::t_f42034a6a25e78 1-6
+backend/services/question-bank/migrations/000022_categories_and_question_tags.up.sql
+  s_40851fd2a7ba5d::t_c9e69b1623e7dc 83-85
+backend/services/question-bank/internal/adapters/repo/delete_integration_test.go
+  s_40851fd2a7ba5d::t_7cb6de624e5f56 98-100,103-104
+  s_40851fd2a7ba5d::t_508e9731711873 1-97,101-102,105-128
+backend/services/user/internal/adapters/repo/postgres.go
+  s_40851fd2a7ba5d::t_4c88968bb15988 58-63
+backend/services/assessment/migrations/000034_reject_deleting_published_exams.down.sql
+  s_40851fd2a7ba5d::t_9a442d63f0215c 1-2,4-6,10
+  s_40851fd2a7ba5d::t_f2a918eacf4d38 7-9
+  s_40851fd2a7ba5d::t_6aa408faa39e04 3
+backend/services/tenant/internal/adapters/repo/delete_integration_test.go
+  s_40851fd2a7ba5d::t_ca88e9a8a4a507 1-12,14-20,106
+  s_40851fd2a7ba5d::t_aa2ec9a3434c58 13,21-105
+backend/services/tenant/migrations/000012_reject_deleting_departments_with_batches.up.sql
+  s_40851fd2a7ba5d::t_c0dcd194d2ae00 1-30
+backend/services/question-bank/internal/adapters/repo/postgres.go
+  s_40851fd2a7ba5d::t_f42034a6a25e78 397-399,419-420,482
+backend/services/user/migrations/000032_staff_audit_action.up.sql
+  s_40851fd2a7ba5d::t_3bc5f9a56082da 1-87
+backend/services/user/migrations/000032_staff_audit_action.down.sql
+  s_40851fd2a7ba5d::t_3bc5f9a56082da 1-62
+backend/services/assessment/internal/adapters/repo/delete_integration_test.go
+  s_40851fd2a7ba5d::t_657ce52ac8fca6 1-95
+backend/services/tenant/migrations/000012_reject_deleting_departments_with_batches.down.sql
+  s_40851fd2a7ba5d::t_c0dcd194d2ae00 1-6
+backend/services/assessment/migrations/000034_reject_deleting_published_exams.up.sql
+  s_40851fd2a7ba5d::t_6aa408faa39e04 45-72
+  s_40851fd2a7ba5d::t_f2a918eacf4d38 11-20
+  s_40851fd2a7ba5d::t_9a442d63f0215c 1-10,21-44,73
+docs/adr/README.md
+  s_40851fd2a7ba5d::t_5f594af1cbcfa8 59
+backend/services/assessment/internal/adapters/repo/postgres.go
+  s_40851fd2a7ba5d::t_6aa408faa39e04 758-759,766,768
+  s_40851fd2a7ba5d::t_9a442d63f0215c 761-765
+backend/services/user/internal/adapters/repo/staff_audit_integration_test.go
+  s_40851fd2a7ba5d::t_9928ef525e93bf 79
+  s_40851fd2a7ba5d::t_96e829e426a264 111-136
+backend/services/user/internal/app/authorization_test.go
+  s_40851fd2a7ba5d::t_7a489f314ea473 512-515
+  s_40851fd2a7ba5d::t_4c88968bb15988 508-511,516-560
+backend/services/question-bank/migrations/000023_delete_unpublished_questions.up.sql
+  s_40851fd2a7ba5d::t_adc0f89f650c4a 35,67
+  s_40851fd2a7ba5d::t_f42034a6a25e78 1-34,36-37,39-66,68-70,72-82
+  s_40851fd2a7ba5d::t_6f751ae9d986a7 38,71
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2d81725f66268d5a5659628712040bbc25540859",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh <shreesh@ALLENs-Mac-mini.local>"
+    }
+  }
+}
