@@ -25,6 +25,24 @@ import (
 // and applies every question-bank migration.
 func newMigratedPool(ctx context.Context, t *testing.T) *pgxpool.Pool {
 	t.Helper()
+	pool := newPreparedPool(ctx, t)
+	integration.ApplyMigrations(ctx, t, pool, migrationsDirectory(t))
+	return pool
+}
+
+// migrationsDirectory is this service's migrations folder.
+func migrationsDirectory(t *testing.T) string {
+	t.Helper()
+	_, file, _, _ := runtime.Caller(0)
+	directory, err := filepath.Abs(filepath.Join(filepath.Dir(file), "../../..", "migrations"))
+	require.NoError(t, err)
+	return directory
+}
+
+// newPreparedPool starts PostgreSQL and creates the roles the migrations expect,
+// without applying any, so a test can stop at an earlier migration.
+func newPreparedPool(ctx context.Context, t *testing.T) *pgxpool.Pool {
+	t.Helper()
 	pool := integration.StartPostgres(ctx, t)
 
 	// --- pre-migration role and schema setup -----------------------------------
@@ -47,12 +65,6 @@ func newMigratedPool(ctx context.Context, t *testing.T) *pgxpool.Pool {
 		require.NoError(t, err, "pre-migration setup: %s", stmt[:min(len(stmt), 60)])
 	}
 
-	// --- apply migrations ------------------------------------------------------
-	_, file, _, _ := runtime.Caller(0)
-	svcRoot := filepath.Join(filepath.Dir(file), "../../..")
-	migrationsDir, err := filepath.Abs(filepath.Join(svcRoot, "migrations"))
-	require.NoError(t, err)
-	integration.ApplyMigrations(ctx, t, pool, migrationsDir)
 	return pool
 }
 

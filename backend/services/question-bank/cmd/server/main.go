@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -227,6 +228,13 @@ func run(contextValue context.Context) error {
 	}
 	if os.Getenv("QBANK_REQUIRE_REVIEW") == "true" {
 		questionBank.RequireReview()
+	}
+	if raw := strings.TrimSpace(os.Getenv("QBANK_LANGUAGES")); raw != "" {
+		languages, err := app.ParseLanguages(raw)
+		if err != nil {
+			return fmt.Errorf("QBANK_LANGUAGES: %w", err)
+		}
+		questionBank.UseLanguages(languages)
 	}
 	if modelCheckRunner != nil {
 		modelCheckRunner.ReadOutputsWith(storageClient, kmsClient)

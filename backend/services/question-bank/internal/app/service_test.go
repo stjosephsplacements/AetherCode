@@ -381,6 +381,34 @@ func (s *panicStore) SetQuestionAudience(context.Context, pgx.Tx, string, string
 	panic("unexpected store call")
 }
 
+func (s *panicStore) ListCategories(context.Context, pgx.Tx) (json.RawMessage, error) {
+	panic("unexpected store call")
+}
+
+func (s *panicStore) CreateCategory(context.Context, pgx.Tx, string, string) (json.RawMessage, error) {
+	panic("unexpected store call")
+}
+
+func (s *panicStore) RenameCategory(context.Context, pgx.Tx, string, string) (json.RawMessage, error) {
+	panic("unexpected store call")
+}
+
+func (s *panicStore) DeleteCategory(context.Context, pgx.Tx, string, string) (json.RawMessage, error) {
+	panic("unexpected store call")
+}
+
+func (s *panicStore) SetQuestionCategory(context.Context, pgx.Tx, string, string) (json.RawMessage, error) {
+	panic("unexpected store call")
+}
+
+func (s *panicStore) SetQuestionTags(context.Context, pgx.Tx, string, []Tag) (json.RawMessage, error) {
+	panic("unexpected store call")
+}
+
+func (s *panicStore) ListTags(context.Context, pgx.Tx, int) (json.RawMessage, error) {
+	panic("unexpected store call")
+}
+
 func (s *panicStore) ListPracticeQuestions(context.Context, pgx.Tx) (json.RawMessage, error) {
 	panic("unexpected store call")
 }
