@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -236,6 +237,25 @@ func TestCommunity(t *testing.T) {
 	require.Empty(t, decode(t, feed))
 
 	// Linked handles.
+	for _, platform := range []string{"atcoder", "skillrack"} {
+		_, err = member(student, "write", "community_link_set", map[string]any{"platform": platform, "handle": "example"})
+		require.NoError(t, err, platform)
+		// A rollback must fail instead of deleting a linked account.
+		_, source, _, ok := runtime.Caller(0)
+		require.True(t, ok)
+		down, err := os.ReadFile(filepath.Join(filepath.Dir(source), "../../../migrations/000014_atcoder_skillrack_links.down.sql"))
+		require.NoError(t, err)
+		tx, err := pool.Begin(ctx)
+		require.NoError(t, err)
+		_, err = tx.Exec(ctx, string(down))
+		pgCode(t, err, "23514")
+		require.NoError(t, tx.Rollback(ctx))
+		links, err := member(student, "read", "community_links_get", map[string]any{})
+		require.NoError(t, err)
+		require.Equal(t, platform, decode(t, links)[0]["platform"])
+		_, err = member(student, "write", "community_link_set", map[string]any{"platform": platform, "handle": ""})
+		require.NoError(t, err, platform)
+	}
 	_, err = member(student, "write", "community_link_set", map[string]any{"platform": "github", "handle": "octocat"})
 	require.NoError(t, err)
 	_, err = member(student, "write", "community_link_set", map[string]any{"platform": "myspace", "handle": "tom"})
