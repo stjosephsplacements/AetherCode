@@ -1,0 +1,24 @@
+{{- /*
+  Prometheus scrapes this service's /metrics (request counts, latency, database
+  pool). It is on unless a service opts out (the web UI has no /metrics), and it is
+  only rendered where the Prometheus Operator is installed. A missing metrics block
+  counts as on because `helm upgrade --reuse-values` does not bring in new chart defaults.
+*/ -}}
+{{- $metrics := .Values.metrics | default dict }}
+{{- if and (ne (toString (index $metrics "enabled")) "false") (.Capabilities.APIVersions.Has "monitoring.coreos.com/v1") }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "platform-service.fullname" . }}
+  labels:
+    {{- include "platform-service.labels" . | nindent 4 }}
+    release: {{ index $metrics "prometheusRelease" | default "kube-prometheus" }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "platform-service.selectorLabels" . | nindent 6 }}
+  endpoints:
+    - port: http
+      path: {{ index $metrics "path" | default "/metrics" }}
+      interval: {{ index $metrics "interval" | default "15s" }}
+{{- end }}
