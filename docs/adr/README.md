@@ -53,3 +53,6 @@ Each decision is a numbered file; new ones start from [the template](0000-templa
 | [0047](0047-publish-needs-a-passing-model-solution.md) | A coding question is published only after a model solution passes |
 | [0048](0048-community-content.md) | Community content in the notification service |
 | [0049](0049-kubernetes-deployment.md) | Kubernetes deployment |
+| [0050](0050-realtime-gateway-websocket.md) | Realtime updates over a gateway WebSocket |
+| [0051](0051-question-authoring-flow.md) | Question authoring is a guided flow; languages come from the service |
+| [0052](0052-question-categories-and-tags.md) | Questions are filed by category, told apart by difficulty, and described by tags |
