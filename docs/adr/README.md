@@ -58,3 +58,4 @@ Each decision is a numbered file; new ones start from [the template](0000-templa
 | [0052](0052-question-categories-and-tags.md) | Questions are filed by category, told apart by difficulty, and described by tags |
 | [0053](0053-deleting-what-staff-create.md) | Staff can delete what they create, only while nothing depends on it, and every delete is logged |
 | [0054](0054-editing-what-staff-create.md) | Staff can edit what they create, until it is published |
+| [0055](0055-per-person-permissions-and-platform-scope.md) | Per-person permissions, and one platform-wide view for the root admin (proposed) |
