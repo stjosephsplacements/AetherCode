@@ -7,12 +7,10 @@ import { type ExamWithVersion, listExams, mapLimit } from "@/lib/server/exams";
 import { gateway } from "@/lib/server/gateway";
 import { requireCollege } from "@/lib/server/staff";
 import { listAllStudents } from "@/lib/server/students";
+import { PASS_SHARE } from "@/lib/results";
 import { cn, formatDateTime } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Analytics" };
-
-/** A graded attempt at or above this share of the marks passes. */
-const PASS_SHARE = 0.4;
 
 type Scored = { exam: ExamWithVersion; candidate: string; share: number };
 

@@ -2,7 +2,7 @@
 
 import { X } from "lucide-react";
 import { useActionState, useState } from "react";
-import { FormMessage, initialActionState } from "@/components/staff/form";
+import { Checkbox, FormMessage, Select, initialActionState } from "@/components/staff/form";
 import { Button } from "@/components/ui/button";
 import { grantRole, revokeRole } from "./actions";
 
@@ -54,35 +54,34 @@ export function RoleEditor({
       {open && (
         <form action={grantAction} className="space-y-2 rounded-[var(--radius-control)] border border-line bg-canvas/40 p-3">
           <input type="hidden" name="principal_id" value={principalId} />
-          <select name="role" value={role} onChange={(event) => setRole(event.target.value as keyof typeof ROLE_LABELS)}
-            className="h-8 w-full rounded-[var(--radius-control)] border border-line bg-surface px-2 text-sm">
+          <Select name="role" aria-label="Role" size="sm" className="w-full" value={role} onValueChange={(value) => setRole(value as keyof typeof ROLE_LABELS)}>
             {Object.entries(ROLE_LABELS)
               // Placement scopes are visible only to platform administrators.
               .filter(([value]) => value !== "placement_user" || placements.length > 0)
               .map(([value, label]) => (
                 <option key={value} value={value}>{label}</option>
               ))}
-          </select>
+          </Select>
           {role === "department_user" && (
-            <select name="department_id" className="h-8 w-full rounded-[var(--radius-control)] border border-line bg-surface px-2 text-sm">
+            <Select name="department_id" aria-label="Department" size="sm" className="w-full">
               {departments.map((department) => (
                 <option key={department.id} value={department.id}>{department.name}</option>
               ))}
-            </select>
+            </Select>
           )}
           {role === "placement_user" && (
-            <select name="placement_department_id" className="h-8 w-full rounded-[var(--radius-control)] border border-line bg-surface px-2 text-sm">
+            <Select name="placement_department_id" aria-label="Placement department" size="sm" className="w-full">
               {placements.map((placement) => (
                 <option key={placement.id} value={placement.id}>{placement.name}</option>
               ))}
-            </select>
+            </Select>
           )}
           {role === "mentor" && (
             <fieldset className="grid max-h-40 grid-cols-2 gap-1 overflow-y-auto text-sm">
               <legend className="mb-1 text-xs text-ink-muted">Batches (choose any number)</legend>
               {batches.map((batch) => (
                 <label key={batch.id} className="flex items-center gap-2">
-                  <input type="checkbox" name="batch_id" value={batch.id} />
+                  <Checkbox name="batch_id" value={batch.id} />
                   {batch.name}
                 </label>
               ))}

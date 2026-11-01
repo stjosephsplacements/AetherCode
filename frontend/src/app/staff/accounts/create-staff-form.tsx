@@ -19,7 +19,7 @@ export function CreateStaffForm({ departments }: { departments: Department[] }) 
           <TextInput id="staff-username" name="username" required pattern="[A-Za-z0-9._-]{3,64}" placeholder="meera.k" autoCapitalize="none" />
         </Field>
         <Field label="Role" htmlFor="staff-role">
-          <Select id="staff-role" name="role" value={role} onChange={(event) => setRole(event.target.value)}>
+          <Select id="staff-role" name="role" value={role} onValueChange={setRole}>
             <option value="department_user">Faculty</option>
             <option value="college_admin">College administrator</option>
           </Select>

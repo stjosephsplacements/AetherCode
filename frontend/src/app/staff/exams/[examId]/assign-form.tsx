@@ -27,7 +27,7 @@ export function AssignForm({
       <input type="hidden" name="version_id" value={versionId} />
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Assign to" htmlFor="assign-type">
-          <Select id="assign-type" name="target_type" value={type} onChange={(event) => setType(event.target.value as keyof typeof targets)}>
+          <Select id="assign-type" name="target_type" value={type} onValueChange={(value) => setType(value as keyof typeof targets)}>
             {(Object.keys(labels) as (keyof typeof labels)[]).map((key) => (
               <option key={key} value={key} disabled={targets[key].length === 0}>
                 {labels[key]}

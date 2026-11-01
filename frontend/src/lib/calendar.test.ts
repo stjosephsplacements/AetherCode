@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { daysOfWindow, monthGrid, parseMonth, shiftMonth } from "./calendar";
+import { daysOfWindow, monthGrid, overlappingPairs, parseMonth, shiftMonth, sharedWindow } from "./calendar";
 
 describe("calendar", () => {
   it("lays a month out in Monday-first weeks", () => {
@@ -25,5 +25,26 @@ describe("calendar", () => {
   it("lists each college day a window touches", () => {
     // 21:00 UTC on the 20th is 02:30 IST on the 21st.
     expect(daysOfWindow("2026-10-20T21:00:00Z", "2026-10-22T05:00:00Z")).toEqual(["2026-10-21", "2026-10-22"]);
+  });
+});
+
+describe("overlaps", () => {
+  const window = (id: string, opensAt: string, closesAt: string) => ({ id, opensAt, closesAt });
+  const a = window("a", "2026-11-02T09:00:00Z", "2026-11-02T12:00:00Z");
+  const b = window("b", "2026-11-02T11:00:00Z", "2026-11-02T14:00:00Z");
+  const c = window("c", "2026-11-02T12:00:00Z", "2026-11-02T13:00:00Z");
+  const far = window("far", "2026-11-09T09:00:00Z", "2026-11-09T10:00:00Z");
+
+  it("pairs windows that share time, in any input order", () => {
+    const ids = overlappingPairs([far, b, a, c]).map(([first, second]) => `${first.id}${second.id}`);
+    expect(ids).toEqual(["ab", "bc"]);
+  });
+
+  it("treats a window that opens as another closes as no clash", () => {
+    expect(overlappingPairs([a, window("next", "2026-11-02T12:00:00Z", "2026-11-02T15:00:00Z")]).map(([x, y]) => `${x.id}${y.id}`)).toEqual([]);
+  });
+
+  it("reports the shared stretch", () => {
+    expect(sharedWindow(a, b)).toEqual({ opensAt: "2026-11-02T11:00:00Z", closesAt: "2026-11-02T12:00:00Z" });
   });
 });

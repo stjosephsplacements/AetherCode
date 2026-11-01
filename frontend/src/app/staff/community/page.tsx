@@ -1,7 +1,7 @@
 import { Trash2 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ActionForm, Field, Select, TextArea, TextInput } from "@/components/staff/form";
+import { ActionForm, Checkbox, Field, Select, TextArea, TextInput } from "@/components/staff/form";
 import { EmptyState, LoadError, PageHeader, Section } from "@/components/staff/page-header";
 import { Badge, Panel } from "@/components/ui/card";
 import type { CommunityPost, FeedItem, InterviewExperience } from "@/lib/api-types";
@@ -116,7 +116,7 @@ async function Blogs({ tenantId, edit }: { tenantId: string; edit?: string }) {
               <TextInput id="post-tags" name="tags" defaultValue={editing?.tags.join(", ")} />
             </Field>
             <label className="flex items-center gap-2 text-sm text-ink">
-              <input type="checkbox" name="publish" defaultChecked={editing?.status === "published"} />
+              <Checkbox name="publish" defaultChecked={editing?.status === "published"} />
               Published
             </label>
           </ActionForm>

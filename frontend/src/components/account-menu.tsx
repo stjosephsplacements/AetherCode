@@ -3,6 +3,7 @@
 import { ChevronsUpDown, KeyRound, LogOut, Moon, Sun } from "lucide-react";
 import Link from "next/link";
 import { DropdownMenu } from "radix-ui";
+import { useTransition } from "react";
 import { logout } from "@/app/login/actions";
 import type { Viewer } from "@/lib/viewer";
 import { setTheme, useTheme } from "@/lib/theme";
@@ -10,6 +11,7 @@ import { cn } from "@/lib/utils";
 
 export function AccountMenu({ viewer, compact = false }: { viewer: Viewer; compact?: boolean }) {
   const theme = useTheme();
+  const [signingOut, startSignOut] = useTransition();
   const name = viewer.displayName || viewer.username;
   const initial = (name || "?").charAt(0).toUpperCase();
   return (
@@ -65,17 +67,15 @@ export function AccountMenu({ viewer, compact = false }: { viewer: Viewer; compa
               Change password
             </Link>
           </DropdownMenu.Item>
-          <form action={logout}>
-            <DropdownMenu.Item asChild>
-              <button
-                type="submit"
-                className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm text-ink outline-none data-[highlighted]:bg-hover"
-              >
-                <LogOut className="size-4 text-ink-muted" strokeWidth={1.75} />
-                Sign out
-              </button>
-            </DropdownMenu.Item>
-          </form>
+          {/* Called directly: a form inside the menu unmounts with it before it can submit. */}
+          <DropdownMenu.Item
+            disabled={signingOut}
+            onSelect={() => startSignOut(() => logout())}
+            className="flex w-full cursor-default items-center gap-2 rounded-md px-2.5 py-2 text-sm text-ink outline-none data-[disabled]:opacity-60 data-[highlighted]:bg-hover"
+          >
+            <LogOut className="size-4 text-ink-muted" strokeWidth={1.75} />
+            {signingOut ? "Signing out" : "Sign out"}
+          </DropdownMenu.Item>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>

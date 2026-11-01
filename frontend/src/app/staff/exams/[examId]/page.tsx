@@ -1,7 +1,7 @@
 import { Activity, ArrowLeft, BarChart3, Download, Eye } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ActionForm, Field, Select, TextArea, TextInput } from "@/components/staff/form";
+import { ActionForm, Checkbox, Field, Select, TextArea, TextInput } from "@/components/staff/form";
 import { EmptyState, LoadError, PageHeader, Section, Table } from "@/components/staff/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge, Panel } from "@/components/ui/card";
@@ -342,7 +342,7 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
             <input type="hidden" name="exam_id" value={examId} />
             <input type="hidden" name="title" value={version.title} />
             <label className="flex items-center gap-2 text-sm text-ink">
-              <input type="checkbox" name="enabled" defaultChecked={seb?.enabled ?? false} className="accent-[var(--brand)]" />
+              <Checkbox name="enabled" defaultChecked={seb?.enabled ?? false} />
               Require Safe Exam Browser
             </label>
             <Field label="Browser Exam Keys or Config Keys" htmlFor="seb-keys" hint="From Safe Exam Browser on a lab machine. One per line.">
