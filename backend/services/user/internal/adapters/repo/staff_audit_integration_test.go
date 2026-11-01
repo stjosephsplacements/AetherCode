@@ -62,6 +62,23 @@ func TestStaffAudit(t *testing.T) {
 	require.NoError(t, repository.RecordStaffAction(ctx, app.StaffAction{PrincipalID: actor, TargetService: "question-bank",
 		ResourceType: "questions", ResourceID: "resource-4", Allowed: true}))
 
+	// Each college-scoped entry also queues user.staff_audit_recorded.v1 in the same call (ADR-0050);
+	// the rolled-back appends and the platform-wide entry queue nothing.
+	var tenantEvents, otherTenantEvents, tenantless int
+	var payload string
+	var digestMatches bool
+	require.NoError(t, pool.QueryRow(ctx, `
+		SELECT count(*) FILTER (WHERE tenant_id = $2), count(*) FILTER (WHERE tenant_id = $3), count(*) FILTER (WHERE tenant_id IS NULL),
+		       min(payload::text) FILTER (WHERE tenant_id = $2),
+		       bool_and(payload_sha256 = extensions.digest(convert_to(payload::text, 'UTF8'), 'sha256'))
+		FROM app.outbox_events WHERE event_type = 'user.staff_audit_recorded.v1' AND aggregate_id = $1`,
+		actor, tenant, otherTenant).Scan(&tenantEvents, &otherTenantEvents, &tenantless, &payload, &digestMatches))
+	require.Equal(t, 1, tenantEvents)
+	require.Equal(t, 1, otherTenantEvents)
+	require.Zero(t, tenantless)
+	require.JSONEq(t, `{"allowed": true}`, payload, "the event carries the decision only")
+	require.True(t, digestMatches)
+
 	list := func(resource string) ([]map[string]any, error) {
 		var entries []map[string]any
 		transaction, err := pool.Begin(ctx)

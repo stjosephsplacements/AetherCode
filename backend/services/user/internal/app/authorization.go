@@ -159,7 +159,7 @@ var routes = map[string]route{
 	},
 	"question-bank": {
 		Audience: "aether_qbank", ActionPrefix: "qbank", ResourcePrefix: "qbank", Global: true, StaffAuthoring: true,
-		Resources:       resourceSet("questions", "question_versions", "test_case_manifests", "question_assets", "tags", "question_version_tags", "question_exports", "practice_submissions"),
+		Resources:       resourceSet("questions", "question_versions", "test_case_manifests", "question_assets", "tags", "question_version_tags", "question_exports", "categories", "category_management", "practice_submissions"),
 		TenantResources: resourceSet("practice_submissions"),
 	},
 	"assessment": {
@@ -389,9 +389,11 @@ func assignmentApplies(
 		return true
 	case "college", "department", "batch":
 		if staffAuthoring && request.TenantID == "" {
-			// Exporting a question reveals its hidden tests, so only college
-			// administrators may (ADR-0032).
-			if request.ResourceType == "question_exports" {
+			// Exporting a question reveals its hidden tests, and renaming, merging or
+			// deleting a category re-files every college's questions, so only college
+			// administrators may (ADR-0032, ADR-0052). Adding a category stays open to
+			// every author.
+			if request.ResourceType == "question_exports" || request.ResourceType == "category_management" {
 				return assignment.Role == centralauthz.RoleCollegeAdmin
 			}
 			// The global question bank is authored by every college's staff

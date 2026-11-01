@@ -420,6 +420,40 @@ func TestOnlyCollegeAdministratorsExportQuestions(t *testing.T) {
 	}
 }
 
+// ADR-0052: any author may add a category, but renaming, merging and deleting
+// one re-files every college's questions, so of the staff roles only college
+// administrators may; platform administrators still can.
+func TestOnlyCollegeAdministratorsManageCategories(t *testing.T) {
+	t.Parallel()
+	admin := Assignment{Role: centralauthz.RoleCollegeAdmin, ScopeKind: "college", TenantID: testTenant, ScopeID: testTenant}
+	platform := Assignment{Role: centralauthz.RoleSuperAdmin, ScopeKind: "platform"}
+	faculty := Assignment{Role: centralauthz.RoleDepartmentUser, ScopeKind: "department", TenantID: testTenant, ScopeID: testPrincipal}
+	mentor := Assignment{Role: centralauthz.RoleMentor, ScopeKind: "batch", TenantID: testTenant, ScopeID: testPrincipal}
+	for _, scenario := range []struct {
+		resource   string
+		assignment Assignment
+		want       bool
+	}{
+		{"category_management", admin, true},
+		{"category_management", platform, true},
+		{"category_management", faculty, false},
+		{"category_management", mentor, false},
+		{"categories", admin, true},
+		{"categories", faculty, true},
+		{"categories", mentor, false},
+	} {
+		request := Request{PrincipalID: testPrincipal, Action: "write", ResourceType: scenario.resource, ResourceID: testPrincipal}
+		if got := assignmentApplies(scenario.assignment, request, true, nil, nil, nil); got != scenario.want {
+			t.Errorf("%s on %s = %v, want %v", scenario.assignment.Role, scenario.resource, got, scenario.want)
+		}
+	}
+	for _, resource := range []string{"categories", "category_management"} {
+		if _, ok := routes["question-bank"].Resources[resource]; !ok {
+			t.Errorf("the question bank route does not list the %s resource", resource)
+		}
+	}
+}
+
 // ADR-0041: a student practises with a tenant-scoped capability for the bearer
 // subject only; the question bank's other resources stay tenant-less.
 func TestStudentsPractiseOnlyAsThemselvesWithTheirTenant(t *testing.T) {

@@ -48,3 +48,8 @@ binds every practice row to the signed actor.
 may call), `list_staff_audit` for college administrators, and
 `tenant_readable_principals`, the read-only twin of
 `tenant_account_principals`, used to name accounts. Rollback drops them.
+
+`000031_staff_audit_event` makes `users.record_staff_action` also write
+`user.staff_audit_recorded.v1` to the outbox in the same call when the action
+names a college, so the staff console refreshes its activity feed live
+(ADR-0050). The payload is only `{"allowed": bool}`.
