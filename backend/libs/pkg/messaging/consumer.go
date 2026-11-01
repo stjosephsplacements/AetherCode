@@ -212,9 +212,12 @@ func (consumer *PullConsumer) recordRetryFailure(message *nats.Msg, err error) {
 	metadata, metadataErr := message.Metadata()
 	consumer.failureMu.Lock()
 	consumer.lastFailure = err.Error()
-	consumer.retrySequence = 0
 	if metadataErr == nil {
-		consumer.retrySequence = metadata.Sequence.Stream
+		if metadata.Sequence.Stream > consumer.retrySequence {
+			consumer.retrySequence = metadata.Sequence.Stream
+		}
+	} else {
+		consumer.retrySequence = 0
 	}
 	consumer.failureMu.Unlock()
 	consumer.logger.Error("apply durable event", "error", err)
@@ -222,8 +225,9 @@ func (consumer *PullConsumer) recordRetryFailure(message *nats.Msg, err error) {
 
 func (consumer *PullConsumer) clearFailure() {
 	consumer.failureMu.Lock()
-	consumer.lastFailure = ""
-	consumer.retrySequence = 0
+	if consumer.retrySequence == 0 {
+		consumer.lastFailure = ""
+	}
 	consumer.failureMu.Unlock()
 }
 

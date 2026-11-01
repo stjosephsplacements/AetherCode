@@ -35,6 +35,19 @@ func TestRetryHandledByPeerRestoresReadiness(t *testing.T) {
 	require.NoError(t, err)
 	first.handleMessage(ctx, msgs[0])
 	require.Error(t, first.Ready(ctx))
+
+	// A later successful event cannot hide the earlier unacknowledged retry.
+	first.handler = func(context.Context, Event) error { return nil }
+	event.ID = "later"
+	data, err = event.Encode()
+	require.NoError(t, err)
+	_, err = first.stream.Publish(event.Type, data)
+	require.NoError(t, err)
+	msgs, err = first.subscription.Fetch(1, nats.MaxWait(time.Second))
+	require.NoError(t, err)
+	first.handleMessage(ctx, msgs[0])
+	require.Error(t, first.Ready(ctx))
+
 	msgs, err = second.subscription.Fetch(1, nats.MaxWait(5*time.Second))
 	require.NoError(t, err)
 	second.handleMessage(ctx, msgs[0])
