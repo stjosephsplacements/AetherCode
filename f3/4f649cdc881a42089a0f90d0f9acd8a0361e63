@@ -1,0 +1,23 @@
+backend/libs/pkg/telemetry/middleware_test.go
+  s_40851fd2a7ba5d::t_ab5ddb3ae3dfc2 4-5,63-104
+  s_40851fd2a7ba5d::t_7f55d1e78d78e4 105
+backend/libs/pkg/telemetry/middleware.go
+  s_40851fd2a7ba5d::t_bac1ff4a54d2df 4,9,108-131
+  s_40851fd2a7ba5d::t_d25c2a130a497b 132
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f34f649cdc881a42089a0f90d0f9acd8a0361e63",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh <shreesh@ALLENs-Mac-mini.local>"
+    }
+  }
+}
