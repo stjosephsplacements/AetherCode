@@ -47,12 +47,14 @@ func TestProjectionWorkerAppendsEventFactsIdempotently(t *testing.T) {
 	_, err = transaction.Exec(ctx, `SET LOCAL ROLE aether_analytics_projection_worker`)
 	require.NoError(t, err)
 	sourceEventID := uuid.New()
+	// now() is fixed for the whole transaction, so both attempts share one occurred_at and the conflict
+	// key matches; a literal date would need a partition that exists only in its own month.
 	for attempt := range 2 {
 		_, err = transaction.Exec(ctx, `
 			INSERT INTO analytics.event_facts (
 				id, occurred_at, tenant_id, source_event_id, source_service,
 				event_type, subject_id, source_subject_type, payload, legal_hold
-			) VALUES ($1, '2026-10-04T12:00:00Z', $2, $3, 'user', 'user.student.enrolled.v1', $4, 'student', '{}'::jsonb, false)
+			) VALUES ($1, now(), $2, $3, 'user', 'user.student.enrolled.v1', $4, 'student', '{}'::jsonb, false)
 			ON CONFLICT (source_event_id, occurred_at) DO NOTHING`,
 			uuid.New(), uuid.New(), sourceEventID, uuid.New())
 		require.NoError(t, err, "append attempt %d", attempt+1)
