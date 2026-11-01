@@ -41,6 +41,9 @@ type appService interface {
 	AddExamItem(context.Context, centralauthz.Capability, app.AddExamItem) (app.ExamItem, error)
 	RemoveExamSection(context.Context, centralauthz.Capability, app.RemoveExamSection) error
 	RemoveExamItem(context.Context, centralauthz.Capability, app.RemoveExamItem) error
+	UpdateExamVersion(context.Context, centralauthz.Capability, app.UpdateExamVersion) error
+	UpdateExamSection(context.Context, centralauthz.Capability, app.UpdateExamSection) error
+	UpdateExamItem(context.Context, centralauthz.Capability, app.UpdateExamItem) error
 	PublishExamVersion(context.Context, centralauthz.Capability, app.PublishExamVersion) (app.ExamVersion, error)
 	CreateAssignmentRule(context.Context, centralauthz.Capability, app.CreateAssignmentRule) (app.AssignmentRule, error)
 	MaterializeDirectCandidateAssignment(context.Context, centralauthz.Capability, app.MaterializeDirectCandidateAssignment) (app.CandidateAssignment, error)
@@ -87,6 +90,9 @@ func NewHandler(serviceName string, service *app.Service, readiness httpx.Readin
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/sections/{section_id}/items", handler.addExamItem)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/items/{item_id}/repin", handler.repinExamItem)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/assignment-rules/{assignment_rule_id}/window", handler.moveAssignmentWindow)
+	mux.HandleFunc("PATCH /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}", handler.updateExamVersion)
+	mux.HandleFunc("PATCH /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/sections/{section_id}", handler.updateExamSection)
+	mux.HandleFunc("PATCH /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/sections/{section_id}/items/{item_id}", handler.updateExamItem)
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/sections/{section_id}", handler.removeExamSection)
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/sections/{section_id}/items/{item_id}", handler.removeExamItem)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/publish", handler.publishExamVersion)

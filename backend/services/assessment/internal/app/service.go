@@ -53,6 +53,9 @@ type Store interface {
 	AddExamItem(context.Context, pgx.Tx, AddExamItem) (ExamItem, error)
 	RemoveExamSection(context.Context, pgx.Tx, RemoveExamSection) error
 	RemoveExamItem(context.Context, pgx.Tx, RemoveExamItem) error
+	UpdateExamVersion(context.Context, pgx.Tx, UpdateExamVersion) error
+	UpdateExamSection(context.Context, pgx.Tx, UpdateExamSection) error
+	UpdateExamItem(context.Context, pgx.Tx, UpdateExamItem) error
 	PublishExamVersion(context.Context, pgx.Tx, PublishExamVersion) (ExamVersion, error)
 	CreateAssignmentRule(context.Context, pgx.Tx, CreateAssignmentRule) (AssignmentRule, error)
 	MaterializeDirectCandidateAssignment(context.Context, pgx.Tx, MaterializeDirectCandidateAssignment) (CandidateAssignment, error)

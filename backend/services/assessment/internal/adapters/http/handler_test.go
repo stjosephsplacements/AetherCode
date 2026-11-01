@@ -52,6 +52,7 @@ type stubService struct {
 	listProctorPolicyVersionsFn func(context.Context, centralauthz.Capability, app.ListProctorPolicyVersions) (app.Page[app.ProctorPolicyVersion], error)
 	removeExamSectionFn         func(context.Context, centralauthz.Capability, app.RemoveExamSection) error
 	removeExamItemFn            func(context.Context, centralauthz.Capability, app.RemoveExamItem) error
+	updateExamVersionFn         func(context.Context, centralauthz.Capability, app.UpdateExamVersion) error
 	addExamItemFn               func(context.Context, centralauthz.Capability, app.AddExamItem) (app.ExamItem, error)
 }
 
@@ -122,6 +123,15 @@ func (s *stubService) RemoveExamSection(ctx context.Context, cap centralauthz.Ca
 }
 func (s *stubService) RemoveExamItem(ctx context.Context, cap centralauthz.Capability, cmd app.RemoveExamItem) error {
 	return s.removeExamItemFn(ctx, cap, cmd)
+}
+func (s *stubService) UpdateExamVersion(ctx context.Context, cap centralauthz.Capability, cmd app.UpdateExamVersion) error {
+	return s.updateExamVersionFn(ctx, cap, cmd)
+}
+func (s *stubService) UpdateExamSection(context.Context, centralauthz.Capability, app.UpdateExamSection) error {
+	panic("UpdateExamSection not expected")
+}
+func (s *stubService) UpdateExamItem(context.Context, centralauthz.Capability, app.UpdateExamItem) error {
+	panic("UpdateExamItem not expected")
 }
 func (s *stubService) PublishExamVersion(context.Context, centralauthz.Capability, app.PublishExamVersion) (app.ExamVersion, error) {
 	panic("PublishExamVersion not expected")
@@ -742,5 +752,34 @@ func TestRemoveExamItemRejectsInvalidItemID(t *testing.T) {
 
 	if writer.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400", writer.Code)
+	}
+}
+
+func TestUpdateExamVersionPassesOnlyTheGivenFields(t *testing.T) {
+	t.Parallel()
+	var got app.UpdateExamVersion
+	svc := &stubService{
+		updateExamVersionFn: func(_ context.Context, _ centralauthz.Capability, cmd app.UpdateExamVersion) error {
+			got = cmd
+			return nil
+		},
+	}
+	handler := &Handler{service: svc, authorizer: allowedAuthorizer()}
+	writer := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPatch, "/v1/tenants/"+testTenantID+"/exam-versions/"+testVersionID, strings.NewReader(`{"expected_content_version":3,"title":"Mid-term"}`))
+	request.Header.Set("Idempotency-Key", "assessment:update-version")
+	request.SetPathValue("tenant_id", testTenantID)
+	request.SetPathValue("exam_version_id", testVersionID)
+
+	handler.updateExamVersion(writer, request)
+
+	if writer.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want 204", writer.Code)
+	}
+	if got.Title == nil || *got.Title != "Mid-term" || got.ExpectedContentVersion != 3 {
+		t.Fatalf("command = %+v", got)
+	}
+	if got.InstructionsMarkdown != nil || got.OpensAt != nil || got.ClosesAt != nil || got.DurationSeconds != nil {
+		t.Fatalf("fields that were not sent must stay nil: %+v", got)
 	}
 }
