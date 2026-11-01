@@ -1,0 +1,53 @@
+docs/adr/0056-platform-analytics-from-prometheus.md
+  s_40851fd2a7ba5d::t_094ef0f05c2f5d 1-39
+docs/adr/README.md
+  s_40851fd2a7ba5d::t_87c585126f7d94 62
+frontend/src/app/api/platform/metrics/route.ts
+  s_40851fd2a7ba5d::t_754fa8e3120aea 1-16
+frontend/src/app/globals.css
+  s_40851fd2a7ba5d::t_46fc62c2316089 125-133,175-183
+frontend/src/app/staff/analytics/charts.tsx
+  s_40851fd2a7ba5d::t_bde8b33a694c12 1-139
+frontend/src/app/staff/analytics/page.tsx
+  s_40851fd2a7ba5d::t_70e550bc8eacb5 2,6,11-14,43,59-60,63-68,70-86,88-92,96-101,103-112,114-116,119-126
+frontend/src/app/staff/analytics/platform/page.tsx
+  s_40851fd2a7ba5d::t_25476d07c85a6f 1-25
+frontend/src/app/staff/analytics/platform/platform-live.tsx
+  s_40851fd2a7ba5d::t_710e37b3d85387 1-227
+frontend/src/app/staff/analytics/platform/time-series.tsx
+  s_40851fd2a7ba5d::t_e9f5694f7b6a6a 1-222
+frontend/src/app/staff/analytics/student-list.tsx
+  s_40851fd2a7ba5d::t_f0baf59d77712e 1-48
+frontend/src/app/staff/analytics/tabs.tsx
+  s_40851fd2a7ba5d::t_3b9e1d13032216 1-25
+frontend/src/app/staff/analytics/view.tsx
+  s_40851fd2a7ba5d::t_47d19b778f962a 1-240
+frontend/src/lib/analytics.test.ts
+  s_40851fd2a7ba5d::t_794231991e5ed1 1-68
+frontend/src/lib/analytics.ts
+  s_40851fd2a7ba5d::t_7267e44e4db7af 1-64
+frontend/src/lib/platform-metrics.test.ts
+  s_40851fd2a7ba5d::t_78394a9e412fbd 1-65
+frontend/src/lib/platform-metrics.ts
+  s_40851fd2a7ba5d::t_fcb62c6e19e770 1-152
+frontend/src/lib/server/platform-snapshot.ts
+  s_40851fd2a7ba5d::t_5f9d9da12a3353 1-118
+frontend/src/lib/server/prometheus.ts
+  s_40851fd2a7ba5d::t_788500cf25dfe7 1-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c57e7bc7b287ffc67f2768501efda8d4af08ad89",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
