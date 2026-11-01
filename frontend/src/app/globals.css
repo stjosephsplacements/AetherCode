@@ -122,6 +122,15 @@
     --canvas: #050505;
     --surface: #0f0f0f;
     --surface-2: #171717;
+    /* Chart series, one per busy service. Validated with the dataviz checks against this theme. */
+    --series-1: #3d94d6;
+    --series-2: #c47a00;
+    --series-3: #c06aa9;
+    --series-4: #1aa57d;
+    --series-5: #8f7cf0;
+    --series-6: #e0662a;
+    --series-7: #2f9fc9;
+    --series-8: #b08a2e;
     --sidebar: #0a0a0a;
     --hover: #1c1c1c;
     --ink: #f2f2f2;
@@ -163,6 +172,15 @@
     --canvas: #fbf8f4;
     --surface: #ffffff;
     --surface-2: #f4efe9;
+    /* Chart series, one per busy service. Validated with the dataviz checks against this theme. */
+    --series-1: #0072B2;
+    --series-2: #D98200;
+    --series-3: #B34F9B;
+    --series-4: #009E73;
+    --series-5: #6C5CE7;
+    --series-6: #D55E00;
+    --series-7: #3FA7D6;
+    --series-8: #8C6D1F;
     --sidebar: #f8f4ef;
     --hover: #f4efe9;
     --ink: #1b1640;

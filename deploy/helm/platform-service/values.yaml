@@ -162,3 +162,10 @@ tolerations: []
 affinity: {}
 nameOverride: ""
 fullnameOverride: ""
+
+# Prometheus scrapes /metrics on the http port (a ServiceMonitor, where the Operator exists).
+metrics:
+  enabled: true
+  interval: 15s
+  path: /metrics
+  prometheusRelease: kube-prometheus
