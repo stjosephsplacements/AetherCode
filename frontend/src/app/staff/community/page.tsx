@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ActionForm, Checkbox, Field, Select, TextArea, TextInput } from "@/components/staff/form";
 import { EmptyState, LoadError, PageHeader, Section } from "@/components/staff/page-header";
+import { CollegeBar } from "@/components/staff/college-bar";
 import { Badge, Panel } from "@/components/ui/card";
 import type { CommunityPost, FeedItem, InterviewExperience } from "@/lib/api-types";
 import { communityList } from "@/lib/server/community";
@@ -25,6 +26,7 @@ export default async function CommunityPage({ searchParams }: { searchParams: Pr
   const tab = TABS.find((candidate) => candidate.id === requested)?.id ?? "interviews";
   return (
     <>
+      <CollegeBar staff={staff} />
       <PageHeader title="Community" description="What students read beyond exams: approve interview experiences, write blogs and keep the contest, hackathon and open-source lists current." />
       <nav aria-label="Community sections" className="mb-6 flex flex-wrap gap-1.5">
         {TABS.map((item) => (

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { ActionForm, Field, Select, TextInput } from "@/components/staff/form";
 import { EmptyState, LoadError, PageHeader, Section, Table } from "@/components/staff/page-header";
+import { CollegeBar } from "@/components/staff/college-bar";
 import { ConfirmDelete } from "@/components/staff/confirm-delete";
 import { EditDialog } from "@/components/staff/edit-dialog";
 import { Panel } from "@/components/ui/card";
@@ -25,7 +26,8 @@ export default async function OrganisationPage() {
   } catch (error) {
     return (
       <>
-        <PageHeader title="Departments" />
+        <CollegeBar staff={staff} />
+      <PageHeader title="Departments" />
         <LoadError error={error} />
       </>
     );
@@ -35,6 +37,7 @@ export default async function OrganisationPage() {
 
   return (
     <>
+      <CollegeBar staff={staff} />
       <PageHeader
         title="Departments"
         description="Every student belongs to one college department, through a batch, and one placement department."

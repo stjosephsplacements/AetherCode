@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { EmptyState, LoadError, PageHeader, Section, Table } from "@/components/staff/page-header";
+import { CollegeBar } from "@/components/staff/college-bar";
 import type { ExamResult, Page, Student } from "@/lib/api-types";
 import { listBatches, listDepartments } from "@/lib/server/directory";
 import { type ExamWithVersion, listExams, mapLimit } from "@/lib/server/exams";
@@ -43,7 +44,8 @@ export default async function AnalyticsPage() {
   } catch (error) {
     return (
       <>
-        <PageHeader title="Analytics" />
+        <CollegeBar staff={staff} />
+      <PageHeader title="Analytics" />
         <LoadError error={error} />
       </>
     );
@@ -85,6 +87,7 @@ export default async function AnalyticsPage() {
 
   return (
     <>
+      <CollegeBar staff={staff} />
       <PageHeader title="Analytics" description={`Graded exam results across the college. Pass means at least ${percent(PASS_SHARE)} of the marks.`} />
       {scored.length === 0 ? (
         <EmptyState>No graded exams yet. Results appear here once students finish an exam.</EmptyState>

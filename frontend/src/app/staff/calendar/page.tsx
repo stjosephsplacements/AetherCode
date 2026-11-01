@@ -2,6 +2,7 @@ import { ChevronLeft, ChevronRight, TriangleAlert } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ExamPeek, examState } from "@/components/staff/exam-peek";
+import { CollegeBar } from "@/components/staff/college-bar";
 import { LoadError } from "@/components/staff/page-header";
 import { Tile } from "@/components/staff/tile";
 import { Button } from "@/components/ui/button";
@@ -120,6 +121,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
 
   return (
     <div className="animate-enter">
+      <CollegeBar staff={staff} allowAll />
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <p className="font-mono text-[12px] text-ink-subtle">Calendar / college time, {TIME_ZONE}</p>

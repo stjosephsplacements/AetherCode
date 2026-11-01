@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { LoadError, PageHeader } from "@/components/staff/page-header";
+import { CollegeBar } from "@/components/staff/college-bar";
 import { LiveRefresh } from "@/lib/client/realtime";
 import { type ExamWithVersion, listAllExams, listExams } from "@/lib/server/exams";
 import { requireCollege } from "@/lib/server/staff";
@@ -17,7 +18,8 @@ export default async function ExamsPage() {
   } catch (error) {
     return (
       <>
-        <PageHeader title="Exams" />
+        <CollegeBar staff={staff} allowAll />
+      <PageHeader title="Exams" />
         <LoadError error={error} />
       </>
     );
@@ -25,6 +27,7 @@ export default async function ExamsPage() {
   return (
     <>
       <LiveRefresh topics={["attempts"]} />
+      <CollegeBar staff={staff} allowAll />
       <PageHeader
         title="Exams"
         description="Build an exam from published questions, publish it, then assign it to a batch, a department or a placement department. Click an exam for its quick view."

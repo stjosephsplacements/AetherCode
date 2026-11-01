@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { EmptyState, LoadError, PageHeader, Section, Table } from "@/components/staff/page-header";
+import { CollegeBar } from "@/components/staff/college-bar";
 import { Badge, Panel } from "@/components/ui/card";
 import { listBatches, listDepartments, listPlacement, departmentLabel } from "@/lib/server/directory";
 import { describeAccounts, listRoleAssignments } from "@/lib/server/people";
@@ -36,7 +37,8 @@ export default async function StaffAccountsPage() {
   } catch (error) {
     return (
       <>
-        <PageHeader title="Staff accounts" />
+        <CollegeBar staff={staff} />
+      <PageHeader title="Staff accounts" />
         <LoadError error={error} />
       </>
     );
@@ -64,6 +66,7 @@ export default async function StaffAccountsPage() {
 
   return (
     <>
+      <CollegeBar staff={staff} />
       <PageHeader
         title="Staff accounts"
         description="Faculty author questions and run exams for their department. Mentors follow their batches. Placement officers oversee student placement cohorts. College administrators also manage students, staff and departments."

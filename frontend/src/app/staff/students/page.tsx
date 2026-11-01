@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { EmptyState, LoadError, PageHeader, Section, Table } from "@/components/staff/page-header";
+import { CollegeBar } from "@/components/staff/college-bar";
 import { Badge, Panel } from "@/components/ui/card";
 import type { Page, Student } from "@/lib/api-types";
 import { departmentLabel, listBatches, listDepartments, listPlacement } from "@/lib/server/directory";
@@ -28,7 +29,8 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
   } catch (error) {
     return (
       <>
-        <PageHeader title="Students" />
+        <CollegeBar staff={staff} />
+      <PageHeader title="Students" />
         <LoadError error={error} />
       </>
     );
@@ -41,6 +43,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
 
   return (
     <>
+      <CollegeBar staff={staff} />
       <PageHeader title="Students" description="Import a batch from a spreadsheet, hand out passwords, and reset or disable accounts." />
 
       {batches.length === 0 ? (

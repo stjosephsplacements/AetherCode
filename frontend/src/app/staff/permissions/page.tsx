@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { EmptyState, LoadError, PageHeader } from "@/components/staff/page-header";
+import { CollegeBar } from "@/components/staff/college-bar";
 import { Badge } from "@/components/ui/card";
 import { type CataloguePermission, groupResources } from "@/lib/permissions";
 import { gateway } from "@/lib/server/gateway";
@@ -42,7 +43,8 @@ export default async function PermissionsPage({ searchParams }: { searchParams: 
   } catch (error) {
     return (
       <>
-        <PageHeader title="Permissions" />
+        <CollegeBar staff={staff} />
+      <PageHeader title="Permissions" />
         <LoadError error={error} />
       </>
     );
@@ -52,6 +54,7 @@ export default async function PermissionsPage({ searchParams }: { searchParams: 
 
   return (
     <>
+      <CollegeBar staff={staff} />
       <PageHeader
         title="Permissions"
         description="Give a person more than their role allows. Whatever the role already permits stays; these are added on top. Changing or deleting something always includes seeing it."

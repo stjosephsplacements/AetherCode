@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { EmptyState, LoadError, PageHeader, Table } from "@/components/staff/page-header";
+import { CollegeBar } from "@/components/staff/college-bar";
 import { Badge } from "@/components/ui/card";
 import type { AuditEntry } from "@/lib/api-types";
 import { gateway } from "@/lib/server/gateway";
@@ -25,7 +26,8 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
   } catch (error) {
     return (
       <>
-        <PageHeader title="Audit log" />
+        <CollegeBar staff={staff} />
+      <PageHeader title="Audit log" />
         <LoadError error={error} />
       </>
     );
@@ -36,6 +38,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
   return (
     <>
       {!before && <LiveRefresh topics={["activity"]} />}
+      <CollegeBar staff={staff} />
       <PageHeader
         title="Audit log"
         description="Every change staff made in this college, newest first, including attempts the platform refused. Kept for 400 days."

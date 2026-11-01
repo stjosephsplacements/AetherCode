@@ -1,6 +1,7 @@
 import { Briefcase, Building2, CheckCircle2, GraduationCap, Users } from "lucide-react";
 import type { Metadata } from "next";
 import { EmptyState, LoadError, PageHeader, Section } from "@/components/staff/page-header";
+import { CollegeBar } from "@/components/staff/college-bar";
 import { Badge, Panel } from "@/components/ui/card";
 import { listBatches, listDepartments, listPlacement } from "@/lib/server/directory";
 import { listAllStudents } from "@/lib/server/students";
@@ -23,7 +24,8 @@ export default async function PlacementsPage() {
   } catch (error) {
     return (
       <>
-        <PageHeader title="Placements & Campus Drives" />
+        <CollegeBar staff={staff} />
+      <PageHeader title="Placements & Campus Drives" />
         <LoadError error={error} />
       </>
     );
@@ -34,6 +36,7 @@ export default async function PlacementsPage() {
 
   return (
     <div className="space-y-6">
+      <CollegeBar staff={staff} />
       <PageHeader
         title="Placements & Campus Drives"
         description="Oversee corporate placement organizations, training cohorts (HOPE, PEP, Elite), and track student recruitment eligibility across engineering departments."

@@ -1,4 +1,3 @@
-import { TenantSwitcher } from "@/components/staff/tenant-switcher";
 import { type NavGroup } from "@/components/staff/staff-nav";
 import { StaffShell } from "@/components/staff/staff-shell";
 import { brandFor } from "@/lib/server/branding";
@@ -45,7 +44,6 @@ export default async function StaffLayout({ children }: { children: React.ReactN
       tenantId={staff.tenantId}
       groups={groups}
       brand={await brandFor(staff.tenantId)}
-      college={staff.isPlatformAdmin ? <TenantSwitcher tenants={staff.tenants} current={staff.viewAll ? "all" : staff.tenantId} /> : undefined}
     >
       {children}
     </StaffShell>

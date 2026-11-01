@@ -8,6 +8,7 @@ import { brandFor } from "@/lib/server/branding";
 import { listExams, mapLimit } from "@/lib/server/exams";
 import { gateway } from "@/lib/server/gateway";
 import { describeAccounts } from "@/lib/server/people";
+import { CollegeBar } from "@/components/staff/college-bar";
 import { requireStaff } from "@/lib/server/staff";
 import { serviceHealth } from "@/lib/server/status";
 import { LiveRefresh } from "@/lib/client/realtime";
@@ -112,6 +113,7 @@ export default async function Dashboard() {
 
   return (
     <div className="animate-enter">
+      <CollegeBar staff={staff} />
       <LiveRefresh topics={["attempts", "grading", "activity"]} />
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
