@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
 	"github.com/aethercode/aethercode/services/identity/internal/domain"
@@ -262,6 +263,14 @@ type AccountSummary struct {
 	Email       string `json:"email,omitempty"`
 	DisplayName string `json:"display_name"`
 	Status      string `json:"status"`
+	Phone       string `json:"phone,omitempty"`
+	// CreatedAt is when the account was made, LastAuthenticatedAt its last sign-in (nil: never).
+	CreatedAt           time.Time  `json:"created_at"`
+	LastAuthenticatedAt *time.Time `json:"last_authenticated_at,omitempty"`
+	// PasswordState is "temporary" while the issued password has not been changed, "set"
+	// after, and empty for an account with no password (single sign-on only).
+	PasswordState     string     `json:"password_state,omitempty"`
+	PasswordChangedAt *time.Time `json:"password_changed_at,omitempty"`
 }
 
 // AccountDirectory reads account summaries.

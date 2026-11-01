@@ -258,11 +258,16 @@ func recordAccountEvents(contextValue context.Context, transaction pgx.Tx, ids [
 	return nil
 }
 
-// DescribeAccounts reads the name and status of existing principals (ADR-0043).
+// DescribeAccounts reads the name, status, contact and password state of existing principals (ADR-0043, ADR-0057).
 func (repository *Postgres) DescribeAccounts(contextValue context.Context, ids []string) ([]app.AccountSummary, error) {
 	rows, err := repository.pool.Query(contextValue, `
-		SELECT id::text, COALESCE(username, ''), COALESCE(email, ''), display_name, status
-		FROM identity.principals WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL
+		SELECT principal.id::text, COALESCE(principal.username, ''), COALESCE(principal.email, ''), principal.display_name, principal.status,
+		       COALESCE(principal.phone, ''), principal.created_at, principal.last_authenticated_at,
+		       CASE WHEN credential.principal_id IS NULL THEN '' WHEN credential.must_change THEN 'temporary' ELSE 'set' END,
+		       credential.changed_at
+		FROM identity.principals AS principal
+		LEFT JOIN identity.password_credentials AS credential ON credential.principal_id = principal.id
+		WHERE principal.id = ANY($1::uuid[]) AND principal.deleted_at IS NULL
 	`, ids)
 	if err != nil {
 		return nil, fmt.Errorf("describe accounts: %w", err)
@@ -271,7 +276,10 @@ func (repository *Postgres) DescribeAccounts(contextValue context.Context, ids [
 	summaries := []app.AccountSummary{}
 	for rows.Next() {
 		var summary app.AccountSummary
-		if err := rows.Scan(&summary.PrincipalID, &summary.Username, &summary.Email, &summary.DisplayName, &summary.Status); err != nil {
+		if err := rows.Scan(
+			&summary.PrincipalID, &summary.Username, &summary.Email, &summary.DisplayName, &summary.Status,
+			&summary.Phone, &summary.CreatedAt, &summary.LastAuthenticatedAt, &summary.PasswordState, &summary.PasswordChangedAt,
+		); err != nil {
 			return nil, fmt.Errorf("scan account summary: %w", err)
 		}
 		summaries = append(summaries, summary)
