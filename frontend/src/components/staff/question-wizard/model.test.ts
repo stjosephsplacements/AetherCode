@@ -89,3 +89,23 @@ describe("tags", () => {
     expect(cleanTags(["Arrays", "arrays", " ", "Sorting", "ARRAYS"])).toEqual(["arrays", "sorting"]);
   });
 });
+
+import { parseTestFile } from "./model";
+
+describe("parseTestFile", () => {
+  it("reads this editor's own keys", () => {
+    const result = parseTestFile(JSON.stringify([{ input: "1", expected_output: "2", sample: true, weight: 3 }]));
+    expect(result.tests).toEqual([{ input: "1\n", expected_output: "2\n", sample: true, weight: 3 }]);
+  });
+  it("reads the exam-app keys, where isHidden is the opposite of sample", () => {
+    const result = parseTestFile(JSON.stringify([{ input: "1", output: "2", isHidden: false }, { input: "3", output: "4", isHidden: true }]));
+    expect(result.tests?.map((test) => test.sample)).toEqual([true, false]);
+    expect(result.tests?.[0]?.weight).toBe(1);
+  });
+  it("says what is wrong", () => {
+    expect(parseTestFile("nope").error).toMatch(/JSON/);
+    expect(parseTestFile("{}").error).toMatch(/list/);
+    expect(parseTestFile("[]").error).toMatch(/at least one/);
+    expect(parseTestFile(JSON.stringify([{ input: "1" }])).error).toMatch(/Test 1/);
+  });
+});

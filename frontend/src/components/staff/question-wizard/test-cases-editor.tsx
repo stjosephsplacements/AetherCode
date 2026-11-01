@@ -1,11 +1,11 @@
 "use client";
 
-import { Copy, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { Copy, Download, Plus, Trash2, Upload } from "lucide-react";
+import { useRef, useState } from "react";
 import { Checkbox, TextArea, TextInput } from "@/components/staff/form";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { type TestDraft, LIMITS, blankTest, marksShare, summarizeTests, testsProblem } from "./model";
+import { type TestDraft, LIMITS, TEST_FILE_TEMPLATE, blankTest, marksShare, parseTestFile, summarizeTests, testsProblem } from "./model";
 
 const firstLine = (value: string) => value.split("\n").find((line) => line.trim() !== "")?.trim() ?? "";
 const lines = (value: string) => (value === "" ? 0 : value.replace(/\n$/, "").split("\n").length);
@@ -17,6 +17,8 @@ const lines = (value: string) => (value === "" ? 0 : value.replace(/\n$/, "").sp
  */
 export function TestCasesEditor({ tests, onChange }: { tests: TestDraft[]; onChange: (tests: TestDraft[]) => void }) {
   const [selected, setSelected] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
   const index = Math.min(selected, tests.length - 1);
   const current = tests[index];
   const summary = summarizeTests(tests);
@@ -27,6 +29,20 @@ export function TestCasesEditor({ tests, onChange }: { tests: TestDraft[]; onCha
     onChange([...tests, test]);
     setSelected(tests.length);
   };
+  async function upload(file: File | undefined) {
+    if (!file) return;
+    const result = parseTestFile(await file.text());
+    if (fileInput.current) fileInput.current.value = "";
+    if (!result.tests) return setUploadError(result.error);
+    setUploadError(null);
+    onChange([...tests, ...result.tests]);
+    setSelected(tests.length);
+  }
+  function downloadTemplate() {
+    const url = URL.createObjectURL(new Blob([JSON.stringify(TEST_FILE_TEMPLATE, null, 2)], { type: "application/json" }));
+    Object.assign(document.createElement("a"), { href: url, download: "tests-template.json" }).click();
+    URL.revokeObjectURL(url);
+  }
   const remove = () => {
     onChange(tests.filter((_, position) => position !== index));
     setSelected(Math.max(0, index - 1));
@@ -70,6 +86,18 @@ export function TestCasesEditor({ tests, onChange }: { tests: TestDraft[]; onCha
               Sample
             </Button>
           </div>
+          <div className="flex items-center gap-1 border-t border-line px-3 py-2">
+            <input ref={fileInput} type="file" accept=".json,application/json" className="sr-only" aria-label="Upload tests from a JSON file" onChange={(event) => upload(event.target.files?.[0])} />
+            <Button type="button" variant="ghost" size="sm" onClick={() => fileInput.current?.click()}>
+              <Upload />
+              Upload JSON
+            </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={downloadTemplate}>
+              <Download />
+              Template
+            </Button>
+          </div>
+          {uploadError && <p role="alert" className="border-t border-line px-3 py-2 text-[12px] text-danger">{uploadError}</p>}
         </div>
 
         {current ? (
