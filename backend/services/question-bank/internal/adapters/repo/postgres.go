@@ -122,11 +122,11 @@ func (repository *Postgres) CreateQuestion(contextValue context.Context, transac
 	var raw json.RawMessage
 	err = transaction.QueryRow(contextValue, `
 		SELECT qbank.create_question(
-			$1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, NULL, NULL, NULL, $11::jsonb
+			$1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, NULL, NULL, NULL, $11::jsonb, $12
 		)
 	`, command.ID, command.VersionID, command.EventID, command.Slug,
 		command.Content.Title, command.Content.PromptMarkdown, command.Content.Difficulty,
-		languages, command.Content.TimeLimitMS, command.Content.MemoryLimitKiB, tags).Scan(&raw)
+		languages, command.Content.TimeLimitMS, command.Content.MemoryLimitKiB, tags, nullableUUID(command.CategoryID)).Scan(&raw)
 	if err != nil {
 		return app.QuestionDetail{}, mapCommandError(err, "create question")
 	}
@@ -493,8 +493,8 @@ func mapCommandError(err error, operation string) error {
 		case "42501":
 			return apperrors.New(apperrors.CodeForbidden, "authorization context does not permit this operation")
 		case "55000":
-			// Publishing rules are written for the author to read (ADR-0044, ADR-0047).
-			if strings.HasPrefix(postgresError.Message, "run a model solution") || strings.HasPrefix(postgresError.Message, "ask for a review") {
+			// Publishing and category rules are written for the author to read (ADR-0044, ADR-0047, ADR-0052).
+			if strings.HasPrefix(postgresError.Message, "run a model solution") || strings.HasPrefix(postgresError.Message, "ask for a review") || strings.HasPrefix(postgresError.Message, "category ") {
 				return apperrors.New(apperrors.CodeConflict, postgresError.Message)
 			}
 			return apperrors.New(apperrors.CodeConflict, "question resource changed or conflicts with an immutable state")

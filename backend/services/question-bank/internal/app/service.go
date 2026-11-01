@@ -54,6 +54,13 @@ type Store interface {
 	StartModelCheck(context.Context, pgx.Tx, string, StartModelCheck, BundleReference) (json.RawMessage, error)
 	ListModelChecks(context.Context, pgx.Tx, string) (json.RawMessage, error)
 	SetQuestionAudience(context.Context, pgx.Tx, string, string) error
+	ListCategories(context.Context, pgx.Tx) (json.RawMessage, error)
+	CreateCategory(context.Context, pgx.Tx, string, string) (json.RawMessage, error)
+	RenameCategory(context.Context, pgx.Tx, string, string) (json.RawMessage, error)
+	DeleteCategory(context.Context, pgx.Tx, string, string) (json.RawMessage, error)
+	SetQuestionCategory(context.Context, pgx.Tx, string, string) (json.RawMessage, error)
+	SetQuestionTags(context.Context, pgx.Tx, string, []Tag) (json.RawMessage, error)
+	ListTags(context.Context, pgx.Tx, int) (json.RawMessage, error)
 	ListPracticeQuestions(context.Context, pgx.Tx) (json.RawMessage, error)
 	GetPracticeQuestion(context.Context, pgx.Tx, string) (json.RawMessage, error)
 	StartPractice(context.Context, pgx.Tx, string, StartPractice, BundleReference) (json.RawMessage, error)
@@ -134,6 +141,9 @@ type Question struct {
 	ArchivedAt     *time.Time `json:"archived_at,omitempty"`
 	Version        int64      `json:"version"`
 	Audience       string     `json:"audience,omitempty"`
+	// CategoryID and Category say where the question is filed (ADR-0052).
+	CategoryID string       `json:"category_id,omitempty"`
+	Category   *CategoryRef `json:"category,omitempty"`
 }
 
 // QuestionVersion is intentionally metadata-only. Encrypted object keys,
@@ -168,6 +178,9 @@ type QuestionVersion struct {
 	MultipleChoice bool     `json:"multiple_choice"`
 	// Audience is the question's: "test" or "practice" (ADR-0041).
 	Audience string `json:"audience,omitempty"`
+	// CategoryID and Category are the question's too (ADR-0052).
+	CategoryID string       `json:"category_id,omitempty"`
+	Category   *CategoryRef `json:"category,omitempty"`
 }
 
 type QuestionDetail struct {
@@ -212,6 +225,8 @@ type CreateQuestion struct {
 	EventID   string
 	Slug      string
 	Content   VersionContent
+	// CategoryID files the question; empty means Uncategorised.
+	CategoryID string
 }
 
 type CreateDraftQuestionVersion struct {
@@ -327,6 +342,8 @@ type Service struct {
 	modelChecks ModelCheckRunner
 	// requireReview makes publishing need a review from another member of staff (ADR-0044).
 	requireReview bool
+	// languages is what authors may offer; QBANK_LANGUAGES replaces the defaults.
+	languages []Language
 }
 
 // NewService creates a new Question Bank service. Storage and KMS are required:
@@ -335,7 +352,7 @@ func NewService(pool *pgxpool.Pool, store Store, storage storage.Object, kms kms
 	if pool == nil || store == nil || storage == nil || kms == nil || logger == nil {
 		return nil, fmt.Errorf("question-bank database pool, store, object storage, KMS and logger are required")
 	}
-	return &Service{pool: pool, store: store, storage: storage, kms: kms, logger: logger}, nil
+	return &Service{pool: pool, store: store, storage: storage, kms: kms, logger: logger, languages: DefaultLanguages()}, nil
 }
 
 func (service *Service) CreateQuestion(contextValue context.Context, capability centralauthz.Capability, command CreateQuestion) (QuestionDetail, error) {
@@ -346,11 +363,16 @@ func (service *Service) CreateQuestion(contextValue context.Context, capability 
 	if err := normalizeVersionContent(&command.Content); err != nil {
 		return QuestionDetail{}, err
 	}
+	command.CategoryID = strings.ToLower(strings.TrimSpace(command.CategoryID))
+	if command.CategoryID != "" && !isUUID(command.CategoryID) {
+		return QuestionDetail{}, apperrors.New(apperrors.CodeInvalidArgument, "category identifier is invalid")
+	}
 	return runWrite(service, contextValue, capability, "question.create", command.IdempotencyKey,
 		struct {
-			Slug    string                    `json:"slug"`
-			Content versionContentFingerprint `json:"content"`
-		}{Slug: command.Slug, Content: fingerprintVersionContent(command.Content)}, 201,
+			Slug       string                    `json:"slug"`
+			Content    versionContentFingerprint `json:"content"`
+			CategoryID string                    `json:"category_id"`
+		}{Slug: command.Slug, Content: fingerprintVersionContent(command.Content), CategoryID: command.CategoryID}, 201,
 		func(transaction pgx.Tx) (QuestionDetail, error) {
 			return service.store.CreateQuestion(contextValue, transaction, command)
 		},
@@ -536,6 +558,12 @@ func (service *Service) ReplaceQuestionVersionTags(contextValue context.Context,
 
 // RequireReview makes publishing need a review request from somebody else.
 func (service *Service) RequireReview() { service.requireReview = true }
+
+// UseLanguages replaces the languages authors may offer.
+func (service *Service) UseLanguages(languages []Language) { service.languages = languages }
+
+// Languages is a copy of the languages authors may offer.
+func (service *Service) Languages() []Language { return append([]Language(nil), service.languages...) }
 
 // ReviewRequired reports whether publishing needs a review.
 func (service *Service) ReviewRequired() bool { return service.requireReview }

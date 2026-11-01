@@ -113,6 +113,9 @@ Optional:
 
 - `QBANK_REQUIRE_REVIEW=true` — publishing needs a review request from
   another member of staff (ADR-0044). Off by default.
+- `QBANK_LANGUAGES` — JSON array of `{"key","name","editor"}` the staff console
+  offers when writing a coding question, served at `GET /v1/languages`. Keys are
+  Judge language keys. Defaults to c, cpp17, java, python3, javascript and go.
 
 When `NATS_URL` is set (mandatory in staging and production):
 

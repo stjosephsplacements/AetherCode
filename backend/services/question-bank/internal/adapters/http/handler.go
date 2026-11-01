@@ -44,6 +44,8 @@ func NewHandler(serviceName string, service *app.Service, readiness httpx.Readin
 	mux.HandleFunc("POST /v1/question-versions/{question_version_id}/publish", handler.publishQuestionVersion)
 	mux.HandleFunc("POST /v1/question-versions/{question_version_id}/request-review", handler.requestQuestionReview)
 	mux.HandleFunc("GET /v1/review-policy", handler.reviewPolicy)
+	mux.HandleFunc("GET /v1/languages", handler.languages)
+	handler.registerCategoryRoutes(mux)
 	mux.HandleFunc("DELETE /v1/questions/{question_id}", handler.deleteQuestion)
 	mux.HandleFunc("DELETE /v1/questions/{question_id}/hard", handler.hardDeleteQuestion)
 	mux.HandleFunc("DELETE /v1/question-versions/{question_version_id}", handler.deleteQuestionVersion)
@@ -91,6 +93,8 @@ func (request versionContentRequest) commandContent() app.VersionContent {
 
 type createQuestionRequest struct {
 	Slug string `json:"slug"`
+	// CategoryID files the question; empty means Uncategorised (ADR-0052).
+	CategoryID string `json:"category_id"`
 	versionContentRequest
 }
 
@@ -127,7 +131,7 @@ func (handler *Handler) createQuestion(writer http.ResponseWriter, request *http
 	}
 	question, err := handler.service.CreateQuestion(request.Context(), decision.Capability, app.CreateQuestion{
 		WriteCommand: app.WriteCommand{IdempotencyKey: key}, ID: questionID, VersionID: versionID,
-		EventID: eventID, Slug: body.Slug, Content: body.commandContent(),
+		EventID: eventID, Slug: body.Slug, Content: body.commandContent(), CategoryID: body.CategoryID,
 	})
 	if err != nil {
 		httpx.WriteError(writer, err)
@@ -371,6 +375,15 @@ func (handler *Handler) reviewPolicy(writer http.ResponseWriter, request *http.R
 		return
 	}
 	httpx.WriteJSON(writer, http.StatusOK, map[string]bool{"require_review": handler.service.ReviewRequired()})
+}
+
+// languages lists what authors may offer in a coding question, so no client hardcodes it.
+func (handler *Handler) languages(writer http.ResponseWriter, request *http.Request) {
+	if _, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "questions", "policy", ""); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, map[string][]app.Language{"languages": handler.service.Languages()})
 }
 
 // requestQuestionReview asks for a review of a draft (ADR-0044).

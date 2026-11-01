@@ -70,6 +70,8 @@ paths:
                   required: [slug]
                   properties:
                     slug: {type: string, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'}
+                    category_id:
+                      {$ref: '#/components/schemas/UUID', description: The category to file the question under; Uncategorised when omitted (ADR-0052).}
                 - {$ref: '#/components/schemas/VersionContentInput'}
       responses:
         '201': {$ref: '#/components/responses/QuestionDetail'}
@@ -293,6 +295,187 @@ paths:
                 required: [require_review]
                 properties:
                   require_review: {type: boolean}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+  /v1/categories:
+    get:
+      summary: Every category with its question count, Uncategorised last (ADR-0052)
+      operationId: listCategories
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: The categories.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [categories]
+                properties:
+                  categories: {type: array, items: {$ref: '#/components/schemas/Category'}}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+    post:
+      summary: Add a category, open to every author. A name that exists in any letter case returns the existing one.
+      operationId: createCategory
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: {type: string, minLength: 1, maxLength: 80}
+      responses:
+        '200':
+          description: The category, and whether this call created it.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, name, created]
+                properties:
+                  id: {$ref: '#/components/schemas/UUID'}
+                  name: {type: string}
+                  created: {type: boolean}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+  /v1/categories/{category_id}:
+    patch:
+      summary: Rename a category. Administrators only; Uncategorised is built in.
+      operationId: renameCategory
+      security: [{bearerAuth: []}]
+      parameters: [{name: category_id, in: path, required: true, schema: {$ref: '#/components/schemas/UUID'}}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: {type: string, minLength: 1, maxLength: 80}
+      responses:
+        '200':
+          description: The renamed category.
+          content:
+            application/json:
+              schema: {type: object, required: [id, name], properties: {id: {$ref: '#/components/schemas/UUID'}, name: {type: string}}}
+        '400': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+    delete:
+      summary: Delete (or merge) a category. Administrators only. Its questions move to move_to, or to Uncategorised.
+      operationId: deleteCategory
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: category_id, in: path, required: true, schema: {$ref: '#/components/schemas/UUID'}}
+        - {name: move_to, in: query, required: false, schema: {$ref: '#/components/schemas/UUID'}}
+      responses:
+        '200':
+          description: Where the questions went.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deleted, moved_to, moved]
+                properties:
+                  deleted: {$ref: '#/components/schemas/UUID'}
+                  moved_to: {$ref: '#/components/schemas/UUID'}
+                  moved: {type: integer, minimum: 0}
+        '400': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+  /v1/questions/{question_id}/category:
+    put:
+      summary: File a question under a category, at any time, without a new version (ADR-0052)
+      operationId: setQuestionCategory
+      security: [{bearerAuth: []}]
+      parameters: [{name: question_id, in: path, required: true, schema: {$ref: '#/components/schemas/UUID'}}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, required: [category_id], properties: {category_id: {$ref: '#/components/schemas/UUID'}}}
+      responses:
+        '200':
+          description: The category the question is now in.
+          content:
+            application/json:
+              schema: {type: object, required: [category_id], properties: {category_id: {$ref: '#/components/schemas/UUID'}}}
+        '400': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+  /v1/questions/{question_id}/tags:
+    put:
+      summary: Replace a question's tags, at any time, without a new version. An empty list clears them (ADR-0052).
+      operationId: setQuestionTags
+      security: [{bearerAuth: []}]
+      parameters: [{name: question_id, in: path, required: true, schema: {$ref: '#/components/schemas/UUID'}}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, required: [tags], properties: {tags: {type: array, maxItems: 50, items: {type: string, minLength: 1, maxLength: 80}}}}
+      responses:
+        '200':
+          description: The question's tags now.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [tags]
+                properties:
+                  tags: {type: array, items: {type: object, required: [id, name], properties: {id: {$ref: '#/components/schemas/UUID'}, name: {type: string}}}}
+        '400': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+  /v1/tags:
+    get:
+      summary: The tags in use, most used first, for suggestions
+      operationId: listTags
+      security: [{bearerAuth: []}]
+      parameters: [{name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}]
+      responses:
+        '200':
+          description: The tags with how many questions carry each.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [tags]
+                properties:
+                  tags: {type: array, items: {type: object, required: [name, count], properties: {name: {type: string}, count: {type: integer}}}}
+        '400': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+  /v1/languages:
+    get:
+      summary: The languages an author may offer in a coding question (ADR-0050)
+      operationId: listLanguages
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The languages, in display order. Operators change them with QBANK_LANGUAGES.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [languages]
+                properties:
+                  languages:
+                    type: array
+                    items:
+                      type: object
+                      required: [key, name, editor]
+                      properties:
+                        key: {type: string, description: The Judge language key stored in supported_languages.}
+                        name: {type: string, description: What people see.}
+                        editor: {type: string, description: The code editor's syntax mode.}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
   /v1/question-versions/{question_version_id}/request-review:
@@ -592,6 +775,21 @@ components:
         created_at: {type: string, format: date-time}
         archived_at: {type: [string, 'null'], format: date-time}
         version: {type: integer, minimum: 1}
+        category_id: {$ref: '#/components/schemas/UUID'}
+        category: {$ref: '#/components/schemas/CategoryRef'}
+    CategoryRef:
+      type: object
+      required: [id, name]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        name: {type: string}
+    Category:
+      type: object
+      required: [id, name, question_count]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        name: {type: string, minLength: 1, maxLength: 80}
+        question_count: {type: integer, minimum: 0, description: Live questions filed under it.}
     QuestionVersion:
       type: object
       required: [id, question_id, version_number, title, prompt_markdown, difficulty, supported_languages, time_limit_ms, memory_limit_kib, status, created_at, version, tags, sample_test_case_count, hidden_test_case_count, asset_count]
