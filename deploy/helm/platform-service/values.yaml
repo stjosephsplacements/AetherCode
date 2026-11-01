@@ -119,6 +119,10 @@ ingress:
   enabled: false
   className: ""
   host: ""
+  # The path this workload serves on the shared host; the frontend takes "/".
+  path: /
+  # Appended to the Ingress name, for a second ingress beside one made outside this chart.
+  nameSuffix: ""
   tlsSecretName: ""
   annotations: {}
 

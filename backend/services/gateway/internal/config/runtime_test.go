@@ -5,7 +5,9 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"net/url"
 	"testing"
+	"time"
 )
 
 func TestLoadRequiresVerifierInEveryEnvironment(t *testing.T) {
@@ -91,5 +93,36 @@ func TestParsePublicOrigin(t *testing.T) {
 		if _, err := parsePublicOrigin(raw); (err == nil) != valid {
 			t.Errorf("parsePublicOrigin(%q) error = %v, want valid %v", raw, err, valid)
 		}
+	}
+}
+
+func TestLoadRealtime(t *testing.T) {
+	upstreams := map[string]*url.URL{"user": {Scheme: "http", Host: "user.internal"}, "analytics": {Scheme: "http", Host: "analytics.internal"}}
+	t.Setenv("GATEWAY_REALTIME_ORIGINS", "https://exam.example.edu, http://localhost:3000")
+	t.Setenv("GATEWAY_SERVICE_DESCRIPTIONS", `{"user":"Accounts, students and permissions"}`)
+	realtime, err := loadRealtime(upstreams)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(realtime.Origins) != 2 || realtime.Cookie != "ac_access" || realtime.HealthInterval != 5*time.Second || realtime.Descriptions["user"] == "" {
+		t.Fatalf("unexpected realtime config: %+v", realtime)
+	}
+
+	for name, env := range map[string][2]string{
+		"origin with a path":          {"GATEWAY_REALTIME_ORIGINS", "https://exam.example.edu/app"},
+		"description of no upstream":  {"GATEWAY_SERVICE_DESCRIPTIONS", `{"billing":"Payments"}`},
+		"health interval under a sec": {"GATEWAY_REALTIME_HEALTH_INTERVAL", "100ms"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Setenv(env[0], env[1])
+			if _, err := loadRealtime(upstreams); err == nil {
+				t.Fatal("expected an error")
+			}
+		})
+	}
+
+	t.Setenv("GATEWAY_SERVICE_DESCRIPTIONS", "")
+	if _, err := loadRealtime(map[string]*url.URL{"analytics": {Scheme: "http", Host: "analytics.internal"}}); err == nil {
+		t.Fatal("realtime origins without a user upstream were accepted")
 	}
 }
