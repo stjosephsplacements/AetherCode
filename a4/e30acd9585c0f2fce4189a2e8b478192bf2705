@@ -1,0 +1,31 @@
+backend/services/question-bank/api/openapi.yaml
+  s_40851fd2a7ba5d::t_007e674f34b316 159-181
+backend/services/user/api/openapi.yaml
+  s_40851fd2a7ba5d::t_007e674f34b316 116-132
+backend/services/assessment/api/openapi.yaml
+  s_40851fd2a7ba5d::t_007e674f34b316 194-217,375-428
+  s_40851fd2a7ba5d::t_9bd30e39a3e2d5 374
+backend/services/tenant/api/openapi.yaml
+  s_40851fd2a7ba5d::t_007e674f34b316 50-67,237-301
+  s_40851fd2a7ba5d::t_9bd30e39a3e2d5 236
+docs/adr/0054-editing-what-staff-create.md
+  s_40851fd2a7ba5d::t_51674dc154a471 1-52
+docs/adr/README.md
+  s_40851fd2a7ba5d::t_4b5ec916fa7393 60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a4e30acd9585c0f2fce4189a2e8b478192bf2705",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh <shreesh@ALLENs-Mac-mini.local>"
+    }
+  }
+}
