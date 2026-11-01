@@ -1,0 +1,37 @@
+backend/go.work.sum
+  s_40851fd2a7ba5d::t_35c4617938c09d 563,702
+backend/services/user/internal/adapters/http/handler.go
+  s_40851fd2a7ba5d::t_fea48855f15de3 41
+backend/services/user/internal/adapters/http/list_handler.go
+  s_40851fd2a7ba5d::t_32665148f5bc0d 67-138
+backend/services/user/internal/adapters/repo/postgres.go
+  s_40851fd2a7ba5d::t_d9349e493d7f52 994-1052
+backend/services/user/internal/adapters/repo/postgres_test.go
+  s_40851fd2a7ba5d::t_6e5ee226708810 114-120
+backend/services/user/internal/adapters/repo/roster_integration_test.go
+  s_40851fd2a7ba5d::t_3fdcff47661c22 1-145
+backend/services/user/internal/app/management.go
+  s_40851fd2a7ba5d::t_78b2ba7cfc1799 49,212-243,514-565
+backend/services/user/internal/app/management_test.go
+  s_40851fd2a7ba5d::t_015c914f1fcc36 7,160-163,240-258
+backend/services/user/migrations/000035_student_roster.down.sql
+  s_40851fd2a7ba5d::t_496c3386af5f8b 1-5
+backend/services/user/migrations/000035_student_roster.up.sql
+  s_40851fd2a7ba5d::t_05d64a670eb3ed 1-112
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "92bd34af8d1acf37495e1bc18b590f0e0db46128",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
