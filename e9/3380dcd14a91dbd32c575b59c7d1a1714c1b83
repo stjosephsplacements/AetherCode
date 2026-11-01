@@ -1,0 +1,27 @@
+frontend/package.json
+  s_40851fd2a7ba5d::t_a76f7cb49420ff 26
+frontend/pnpm-lock.yaml
+  s_40851fd2a7ba5d::t_d5bb38d7d41df7 185-187,2438-2440,6062-6063
+frontend/src/components/staff/question-wizard/model.test.ts
+  s_40851fd2a7ba5d::t_44f96e058caf56 112-144
+frontend/src/components/staff/question-wizard/test-cases-editor.tsx
+  s_40851fd2a7ba5d::t_ec1a9c83c1e41c 8-9,35-37,45-46,93,96
+frontend/src/components/staff/question-wizard/test-zip.ts
+  s_40851fd2a7ba5d::t_244d5127ae2988 1-98
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e93380dcd14a91dbd32c575b59c7d1a1714c1b83",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
