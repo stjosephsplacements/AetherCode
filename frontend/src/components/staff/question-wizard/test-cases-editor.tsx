@@ -5,7 +5,8 @@ import { useRef, useState } from "react";
 import { Checkbox, TextArea, TextInput } from "@/components/staff/form";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { type TestDraft, LIMITS, TEST_FILE_TEMPLATE, blankTest, marksShare, parseTestFile, summarizeTests, testsProblem } from "./model";
+import { type TestDraft, LIMITS, blankTest, marksShare, parseTestFile, summarizeTests, testsProblem } from "./model";
+import { parseTestZip, testZipTemplate } from "./test-zip";
 
 const firstLine = (value: string) => value.split("\n").find((line) => line.trim() !== "")?.trim() ?? "";
 const lines = (value: string) => (value === "" ? 0 : value.replace(/\n$/, "").split("\n").length);
@@ -31,7 +32,9 @@ export function TestCasesEditor({ tests, onChange }: { tests: TestDraft[]; onCha
   };
   async function upload(file: File | undefined) {
     if (!file) return;
-    const result = parseTestFile(await file.text());
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const isZip = bytes[0] === 0x50 && bytes[1] === 0x4b;
+    const result = isZip ? parseTestZip(bytes) : parseTestFile(new TextDecoder().decode(bytes));
     if (fileInput.current) fileInput.current.value = "";
     if (!result.tests) return setUploadError(result.error);
     setUploadError(null);
@@ -39,8 +42,8 @@ export function TestCasesEditor({ tests, onChange }: { tests: TestDraft[]; onCha
     setSelected(tests.length);
   }
   function downloadTemplate() {
-    const url = URL.createObjectURL(new Blob([JSON.stringify(TEST_FILE_TEMPLATE, null, 2)], { type: "application/json" }));
-    Object.assign(document.createElement("a"), { href: url, download: "tests-template.json" }).click();
+    const url = URL.createObjectURL(new Blob([testZipTemplate() as BlobPart], { type: "application/zip" }));
+    Object.assign(document.createElement("a"), { href: url, download: "tests-template.zip" }).click();
     URL.revokeObjectURL(url);
   }
   const remove = () => {
@@ -87,10 +90,10 @@ export function TestCasesEditor({ tests, onChange }: { tests: TestDraft[]; onCha
             </Button>
           </div>
           <div className="flex items-center gap-1 border-t border-line px-3 py-2">
-            <input ref={fileInput} type="file" accept=".json,application/json" className="sr-only" aria-label="Upload tests from a JSON file" onChange={(event) => upload(event.target.files?.[0])} />
+            <input ref={fileInput} type="file" accept=".zip,.json,application/zip,application/json" className="sr-only" aria-label="Upload tests from a zip or JSON file" onChange={(event) => upload(event.target.files?.[0])} />
             <Button type="button" variant="ghost" size="sm" onClick={() => fileInput.current?.click()}>
               <Upload />
-              Upload JSON
+              Upload zip
             </Button>
             <Button type="button" variant="ghost" size="sm" onClick={downloadTemplate}>
               <Download />

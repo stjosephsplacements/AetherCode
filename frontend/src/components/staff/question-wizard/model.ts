@@ -112,12 +112,6 @@ export const marksShare = (test: TestDraft, tests: TestDraft[]): number => {
   return total === 0 ? 0 : Math.round((test.weight / total) * 100);
 };
 
-/** What the "Template" button downloads: one visible and one hidden test, in the shape the upload reads. */
-export const TEST_FILE_TEMPLATE = [
-  { input: "1\n2\n", expected_output: "3\n", sample: true, weight: 1 },
-  { input: "10\n20\n", expected_output: "30\n", sample: false, weight: 1 },
-];
-
 export const MAX_UPLOADED_TESTS = 200;
 
 /**
