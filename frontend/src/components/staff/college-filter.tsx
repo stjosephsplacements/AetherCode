@@ -1,15 +1,20 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useTransition } from "react";
 import { Select } from "@/components/staff/form";
+import { SwitchingOverlay } from "@/components/staff/switching-overlay";
 
 /** Narrows a list that covers every college to one (`?college=`), like codepro's college filter. */
 export function CollegeFilter({ colleges }: { colleges: { id: string; name: string }[] }) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
+  const [pending, startTransition] = useTransition();
   if (colleges.length < 2) return null;
   return (
+    <>
+    {pending && <SwitchingOverlay label="Loading colleges" />}
     <Select
       aria-label="College"
       size="sm"
@@ -20,7 +25,7 @@ export function CollegeFilter({ colleges }: { colleges: { id: string; name: stri
         if (next === "all") query.delete("college");
         else query.set("college", next);
         const text = query.toString();
-        router.push(text ? `${pathname}?${text}` : pathname);
+        startTransition(() => router.push(text ? `${pathname}?${text}` : pathname));
       }}
     >
       <option value="all">Every college</option>
@@ -30,5 +35,6 @@ export function CollegeFilter({ colleges }: { colleges: { id: string; name: stri
         </option>
       ))}
     </Select>
+    </>
   );
 }

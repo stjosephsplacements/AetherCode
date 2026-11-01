@@ -1,8 +1,9 @@
 "use client";
 
 import { usePathname, useSearchParams } from "next/navigation";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Select } from "@/components/staff/form";
+import { SwitchingOverlay } from "@/components/staff/switching-overlay";
 
 /**
  * Which college this page is about, for a root administrator. Picking one comes back
@@ -14,13 +15,18 @@ import { Select } from "@/components/staff/form";
  */
 export function CollegeSelect({ colleges, current, allowAll }: { colleges: { id: string; name: string }[]; current: string; allowAll: boolean }) {
   const form = useRef<HTMLFormElement>(null);
+  const [switching, setSwitching] = useState(false);
   const pathname = usePathname();
   const search = useSearchParams().toString();
   return (
     <form ref={form} method="get" action="/staff/switch" className="mb-5 flex items-center gap-3">
       <input type="hidden" name="next" value={search ? `${pathname}?${search}` : pathname} />
       <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">College</span>
-      <Select name="college" aria-label="College" size="sm" className="w-64" value={current} onValueChange={() => form.current?.requestSubmit()}>
+      <Select name="college" aria-label="College" size="sm" className="w-64" value={current} onValueChange={() => {
+          setSwitching(true);
+          form.current?.requestSubmit();
+        }}
+      >
         {allowAll && <option value="all">All colleges</option>}
         {colleges.map((college) => (
           <option key={college.id} value={college.id}>
@@ -28,6 +34,7 @@ export function CollegeSelect({ colleges, current, allowAll }: { colleges: { id:
           </option>
         ))}
       </Select>
+      {switching && <SwitchingOverlay />}
     </form>
   );
 }
