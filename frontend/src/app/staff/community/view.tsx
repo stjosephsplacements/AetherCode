@@ -1,3 +1,5 @@
+import { Pager } from "@/components/staff/pager";
+import { paginate } from "@/lib/paginate";
 import { CheckCheck, ChevronRight, ExternalLink, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { ConfirmDelete } from "@/components/staff/confirm-delete";
@@ -41,6 +43,7 @@ export type CommunityViewProps = {
   tab: (typeof TABS)[number]["id"];
   kind?: FeedKind;
   collegeParam?: string;
+  page?: string;
   several: boolean;
   /** Every college, for a root administrator: the filter and the pickers in the forms. */
   all?: College[];
@@ -53,7 +56,7 @@ export type CommunityViewProps = {
 };
 
 /** Everything the Community page shows, from rows already loaded; no loading happens here. */
-export function CommunityView({ tab, kind, collegeParam, several, all, fixed, queue, posts, items, unreachable }: CommunityViewProps) {
+export function CommunityView({ tab, kind, collegeParam, page, several, all, fixed, queue, posts, items, unreachable }: CommunityViewProps) {
   const importCollege = several ? (fixed ?? ALL_COLLEGES) : "";
   const href = (next: Record<string, string | undefined>) => {
     const query = new URLSearchParams();
@@ -64,6 +67,9 @@ export function CommunityView({ tab, kind, collegeParam, several, all, fixed, qu
   const published = posts.filter(({ row }) => row.status === "published").length;
   const counting = items.filter(({ row }) => row.phase !== "ended").length;
   const shownItems = items.filter(({ row }) => !kind || row.kind === kind);
+  const pagedQueue = paginate(queue, page);
+  const pagedPosts = paginate(posts, page);
+  const pagedItems = paginate(shownItems, page);
   const counts: Record<(typeof TABS)[number]["id"], number> = { interviews: queue.length, blogs: posts.length, listings: items.length };
 
   return (
@@ -125,7 +131,7 @@ export function CommunityView({ tab, kind, collegeParam, several, all, fixed, qu
           </div>
         ) : (
           <ul className="divide-y divide-line overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface">
-            {queue.map(({ row: experience, college }) => {
+            {pagedQueue.rows.map(({ row: experience, college }) => {
               const [verdict, tone] = VERDICT[experience.verdict];
               const meta = [experience.experience_level, experience.drive_type, experience.year_of_interview, experience.package_offered].filter(Boolean).join(" · ");
               return (
@@ -166,13 +172,14 @@ export function CommunityView({ tab, kind, collegeParam, several, all, fixed, qu
             })}
           </ul>
         ))}
+      {tab === "interviews" && <Pager meta={pagedQueue} noun="submissions" />}
 
       {tab === "blogs" &&
         (posts.length === 0 ? (
           <EmptyState>No posts yet. Write one with New post.</EmptyState>
         ) : (
           <ul className="divide-y divide-line overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface">
-            {posts.map(({ row: post, college }) => (
+            {pagedPosts.rows.map(({ row: post, college }) => (
               <li key={post.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[14.5px] font-medium text-ink">{post.title}</p>
@@ -211,6 +218,7 @@ export function CommunityView({ tab, kind, collegeParam, several, all, fixed, qu
             ))}
           </ul>
         ))}
+      {tab === "blogs" && <Pager meta={pagedPosts} noun="posts" />}
 
       {tab === "listings" && (
         <div className="space-y-4">
@@ -246,7 +254,7 @@ export function CommunityView({ tab, kind, collegeParam, several, all, fixed, qu
             <EmptyState>No listings here yet. Add one, or fill from the web above.</EmptyState>
           ) : (
             <ul className="divide-y divide-line overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface">
-              {shownItems.map(({ row: item, college }) => {
+              {pagedItems.rows.map(({ row: item, college }) => {
                 const phase = PHASE[item.phase];
                 return (
                   <li key={item.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5">
@@ -285,6 +293,7 @@ export function CommunityView({ tab, kind, collegeParam, several, all, fixed, qu
           )}
         </div>
       )}
+      {tab === "listings" && <Pager meta={pagedItems} noun="listings" />}
     </>
   );
 }
