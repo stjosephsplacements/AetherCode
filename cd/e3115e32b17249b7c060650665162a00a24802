@@ -1,0 +1,31 @@
+backend/go.work.sum
+  s_40851fd2a7ba5d::t_003370b07d9246 563,702
+backend/services/identity/internal/adapters/repo/accounts.go
+  s_40851fd2a7ba5d::t_91907181f96222 261,264-270,279-282
+backend/services/identity/internal/adapters/repo/sso_integration_test.go
+  s_40851fd2a7ba5d::t_2be7d4bc6f23f2 39-45
+backend/services/identity/internal/app/accounts.go
+  s_40851fd2a7ba5d::t_2cb5b8440987f9 8,266-273
+backend/services/identity/migrations/000016_principal_phone.down.sql
+  s_40851fd2a7ba5d::t_bcd03165e36653 1-5
+backend/services/identity/migrations/000016_principal_phone.up.sql
+  s_40851fd2a7ba5d::t_2ab0266a1bb9dd 1-8
+backend/services/user/internal/app/accounts.go
+  s_40851fd2a7ba5d::t_e615b232d1ce4f 42-49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cde3115e32b17249b7c060650665162a00a24802",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
