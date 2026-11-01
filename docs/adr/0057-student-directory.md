@@ -1,6 +1,6 @@
 # ADR-0057: A student directory the staff console can search, filter and act on
 
-- Status: proposed
+- Status: accepted (items 1, 2 and 4 built; item 3 not yet)
 - Date: 2026-11-02
 
 ## Context
@@ -59,9 +59,11 @@ Each item: the student fields, `batch_id`, `batch_name`, `department_id`, `mento
 (from `mentor_batch_assignments`, active only) and `profile_name` (from `users.profiles`).
 The response carries `total` for the filtered set, computed with the same predicate.
 
-It reads through the existing row-level-security policies, so a mentor still sees only their
-batches and a department user only their department. No policy changes; the roster is a
-join over tables the caller can already read. Keyset pagination on `(sort key, id)`.
+It is a `SECURITY DEFINER` function, `users.student_roster`, because the app role has no
+direct access to the batch affiliation table and profiles and mentor assignments are scoped to
+their own resources. The function keeps the students table's rule, `current_context_valid_student`
+per student, so a mentor still sees only their batches, a department user only their department,
+and a placement officer only their placement. Keyset pagination on `(sort key, id)`.
 
 ### 3. Server-side filters on account state
 
@@ -88,8 +90,7 @@ for rosters up to 5,000, which is where it is today.
 
 `POST /v1/tenants/{t}/accounts/bulk-status` (`principal_ids`, `status`) and
 `POST /v1/tenants/{t}/accounts/bulk-password` (`principal_ids`, returns the new passwords once).
-Both take at most 500 ids, require an `Idempotency-Key`, run in one transaction per call, and
-write a single audit entry with the count plus one per principal. A principal outside the
+Both take at most 500 ids. Identity applies the whole list in one transaction and records one audit event per principal. There is no `Idempotency-Key`: setting a status twice is harmless, and a replayed reset only issues newer passwords. A principal outside the
 college is an error for the whole call, not a skipped row, so a bad selection cannot half apply.
 The web server's current loop of single calls is replaced by these.
 
@@ -104,9 +105,10 @@ The web server's current loop of single calls is replaced by these.
 
 ## Migrations
 
-- identity `000019`: `principals.phone` plus its check constraint.
-- user `000035`: `account_state_projections`, its RLS policy (read by `user.read`), and the
-  inbox table for the events.
+- identity `000016`: `principals.phone` plus its check constraint (built).
+- user `000035`: the `users.student_roster` function (built).
+- user, later: `account_state_projections`, its RLS policy (read by `user.read`), and the
+  inbox table for the events (item 3, not built).
 - Both are additive and reversible; the down migrations drop what they add.
 
 ## Not in this ADR
@@ -126,3 +128,13 @@ a gap is found.
   the edit route's authorisation, user service integration tests for roster filters and keyset
   paging under RLS (mentor, department user, college admin), and a projection test that replays
   events out of order.
+
+## Found while building
+
+- The existing `GET /v1/tenants/{t}/students` never fills `college_department_id` or
+  `placement_department_id`, and its `batch_id` filter reads the batch affiliation table, which
+  the app role cannot select from. The roster replaces it for the console; the old route is
+  unchanged.
+- Verified against PostgreSQL 18.4 with the integration tag: the roster (joins, search with
+  LIKE characters escaped, filters, paging, another college seeing nothing) and the account
+  edit (partial updates, verified mark, conflict, audit).
