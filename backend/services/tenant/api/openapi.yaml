@@ -47,6 +47,24 @@ paths:
         '403': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
   /v1/tenants/{tenant_id}:
+    patch:
+      summary: Rename a college; only the fields sent change
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  legal_name: {type: string}
+                  display_name: {type: string}
+      responses:
+        '200': {description: The updated tenant}
+        '400': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
     get:
       summary: Read a tenant
       security: [{bearerAuth: []}]
@@ -215,6 +233,72 @@ paths:
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
+  /v1/placement-organizations/{organization_id}:
+    parameters:
+      - {name: organization_id, in: path, required: true, schema: {type: string, format: uuid}}
+    patch:
+      summary: Rename a placement organisation
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  legal_name: {type: string}
+      responses:
+        '200': {description: The updated organisation}
+        '400': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+  /v1/tenants/{tenant_id}/departments/{department_id}:
+    parameters:
+      - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: department_id, in: path, required: true, schema: {type: string, format: uuid}}
+    patch:
+      summary: Edit a department's code or name
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  code: {type: string}
+                  name: {type: string}
+      responses:
+        '200': {description: The updated department}
+        '400': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+  /v1/tenants/{tenant_id}/batches/{batch_id}:
+    parameters:
+      - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: batch_id, in: path, required: true, schema: {type: string, format: uuid}}
+    patch:
+      summary: Edit a batch's code, name or academic year (YYYY-YYYY)
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  code: {type: string}
+                  name: {type: string}
+                  academic_year: {type: string}
+      responses:
+        '200': {description: The updated batch}
+        '400': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+
 components:
   securitySchemes:
     bearerAuth:
