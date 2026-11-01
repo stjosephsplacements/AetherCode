@@ -128,6 +128,18 @@ func (uncalledManagementStore) GetStudentIncludeDeleted(context.Context, pgx.Tx,
 	panic("unexpected persistence call")
 }
 
+func (uncalledManagementStore) ReplacePermissionGrants(context.Context, pgx.Tx, SetPermissionGrants) ([]string, error) {
+	panic("unexpected persistence call")
+}
+
+func (uncalledManagementStore) CallerHasPlatformAccess(context.Context, pgx.Tx) (bool, error) {
+	panic("unexpected persistence call")
+}
+
+func (uncalledManagementStore) ListPermissionGrants(context.Context, pgx.Tx, string, string) ([]string, error) {
+	panic("unexpected persistence call")
+}
+
 func (uncalledManagementStore) UpdateStudent(context.Context, pgx.Tx, UpdateStudent) (Student, error) {
 	panic("unexpected persistence call")
 }

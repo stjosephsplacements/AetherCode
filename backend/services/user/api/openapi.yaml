@@ -394,6 +394,66 @@ paths:
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '409': {$ref: '#/components/responses/Problem409'}
+  /v1/permission-catalogue:
+    get:
+      summary: Everything that can be granted to a person, as service.resource.verb (ADR-0055)
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: The catalogue; platform_only entries need a root administrator}
+        '403': {$ref: '#/components/responses/Problem403'}
+  /v1/tenants/{tenant_id}/staff/{principal_id}/permissions:
+    parameters:
+      - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: principal_id, in: path, required: true, schema: {type: string, format: uuid}}
+    get:
+      summary: A staff member's extra permissions in one college
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: The permissions}
+        '403': {$ref: '#/components/responses/Problem403'}
+    put:
+      summary: Replace a staff member's extra permissions in one college; write and delete add the read they imply
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [permissions]
+              properties:
+                permissions: {type: array, items: {type: string}}
+      responses:
+        '200': {description: The permissions now held, with implied reads}
+        '400': {$ref: '#/components/responses/Problem400'}
+        '403': {$ref: '#/components/responses/Problem403'}
+  /v1/staff/{principal_id}/permissions:
+    parameters:
+      - {name: principal_id, in: path, required: true, schema: {type: string, format: uuid}}
+    get:
+      summary: A staff member's platform-wide extra permissions (root administrators only)
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: The permissions}
+        '403': {$ref: '#/components/responses/Problem403'}
+    put:
+      summary: Replace a staff member's platform-wide extra permissions (root administrators only)
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [permissions]
+              properties:
+                permissions: {type: array, items: {type: string}}
+      responses:
+        '200': {description: The permissions now held}
+        '403': {$ref: '#/components/responses/Problem403'}
+
 components:
   securitySchemes:
     bearerAuth:

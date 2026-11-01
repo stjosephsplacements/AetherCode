@@ -648,3 +648,96 @@ func TestStudentsUseCommunityContentButNeverModeration(t *testing.T) {
 		t.Fatalf("Authorize(student moderation as self) = %#v, %v; want denied", decision, err)
 	}
 }
+
+// ADR-0055: a per-person grant adds to what the role allows. It covers only the
+// permission it names, only in its own college, never turns a delete into a write,
+// and never makes a student into staff.
+func TestGrantsAddToARolesAccess(t *testing.T) {
+	t.Parallel()
+	keyring, err := centralauthz.ParseKeyring(`[{"audience":"aether_assessment","key_id":"` + testKeyID + `","secret_base64":"` + base64.StdEncoding.EncodeToString([]byte(strings.Repeat("a", 32))) + `"}]`)
+	if err != nil {
+		t.Fatalf("ParseKeyring() error = %v", err)
+	}
+	mentor := Assignment{Role: centralauthz.RoleMentor, ScopeKind: "batch", TenantID: testTenant, ScopeID: testPrincipal}
+	rules := []centralauthz.PolicyRule{{PType: "p", Values: []string{"mentor", "batch", "/*", "read"}}}
+	other := "018f4b0d-08f8-7c09-9ba7-efdf9c22aaaa"
+	request := func(action, resource string) Request {
+		return Request{PrincipalID: testPrincipal, TenantID: testTenant, RequestID: testRequestID, Action: action,
+			ResourceType: resource, ResourceID: "018f4b0d-08f8-7c09-9ba7-efdf9c229001", TargetService: "assessment"}
+	}
+	authorize := func(assignments []Assignment, grants []Grant, req Request) bool {
+		service, err := NewService(fakeStore{snapshot: Snapshot{Revision: 2, Assignments: assignments, PolicyRules: rules, Grants: grants}}, keyring, nil, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		decision, err := service.Authorize(context.Background(), req)
+		if err != nil {
+			t.Fatalf("Authorize() error = %v", err)
+		}
+		return decision.Allowed
+	}
+	college := func(permission string) []Grant {
+		return []Grant{{ScopeKind: "college", TenantID: testTenant, Permission: permission}}
+	}
+
+	if authorize([]Assignment{mentor}, nil, request("write", "exams")) {
+		t.Fatal("a mentor wrote an exam with no grant")
+	}
+	if !authorize([]Assignment{mentor}, college("assessment.exams.write"), request("write", "exams")) {
+		t.Fatal("a write grant did not allow a write")
+	}
+	if !authorize([]Assignment{mentor}, college("assessment.exams.write"), request("read", "exams")) {
+		t.Fatal("a write grant did not cover reading the same resource")
+	}
+	if authorize([]Assignment{mentor}, college("assessment.exams.write"), request("write", "exam_items")) {
+		t.Fatal("a grant for exams allowed exam items")
+	}
+	if authorize([]Assignment{mentor}, college("assessment.exams.delete"), request("write", "exams")) {
+		t.Fatal("a delete grant allowed a write")
+	}
+	if !authorize([]Assignment{mentor}, college("assessment.exams.delete"), request("delete", "exams")) {
+		t.Fatal("a delete grant did not allow a delete")
+	}
+	if authorize([]Assignment{mentor}, []Grant{{ScopeKind: "college", TenantID: other, Permission: "assessment.exams.write"}}, request("write", "exams")) {
+		t.Fatal("a grant for another college applied here")
+	}
+	if !authorize([]Assignment{mentor}, []Grant{{ScopeKind: "platform", Permission: "assessment.exams.write"}}, request("write", "exams")) {
+		t.Fatal("a platform grant did not apply in a college")
+	}
+	student := Assignment{Role: centralauthz.RoleStudent, ScopeKind: "self", TenantID: testTenant, ScopeID: testPrincipal}
+	if authorize([]Assignment{student}, college("assessment.exams.write"), request("write", "exams")) {
+		t.Fatal("a grant made a student into staff")
+	}
+}
+
+func TestExpandingPermissionsAddsTheReadsTheyImply(t *testing.T) {
+	t.Parallel()
+	got := ExpandPermissions([]string{"assessment.exams.write", "tenant.batches.delete", "user.students.read", "assessment.exams.write"})
+	want := []string{"assessment.exams.read", "assessment.exams.write", "tenant.batches.delete", "tenant.batches.read", "user.students.read"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("ExpandPermissions() = %v, want %v", got, want)
+	}
+}
+
+func TestPermissionCatalogueListsEveryVerbAndMarksPlatformOnly(t *testing.T) {
+	t.Parallel()
+	catalogue := PermissionCatalogue()
+	byKey := map[string]Permission{}
+	for _, permission := range catalogue {
+		byKey[permission.Key] = permission
+	}
+	for _, key := range []string{"assessment.exams.read", "assessment.exams.write", "assessment.exams.delete", "question-bank.questions.write", "user.students.delete"} {
+		if _, found := byKey[key]; !found {
+			t.Errorf("%s is missing from the catalogue", key)
+		}
+	}
+	if !byKey["tenant.tenants.write"].PlatformOnly || !byKey["user.permission_grants.write"].PlatformOnly {
+		t.Error("colleges and permission grants must be platform-only")
+	}
+	if byKey["assessment.exams.write"].PlatformOnly {
+		t.Error("exams must be grantable by a college administrator")
+	}
+	if _, found := byKey["user.profiles.write"]; found {
+		t.Error("a person's own profile should not be in the editor")
+	}
+}
