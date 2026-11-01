@@ -80,7 +80,9 @@ BEGIN
 END
 $policies$;
 
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE qbank.categories, qbank.question_tags TO aether_question_bank_app;
+-- Like every other table here, these are reached only through the functions below (migration 000003):
+-- the application role gets no direct access.
+REVOKE ALL ON TABLE qbank.categories, qbank.question_tags FROM aether_question_bank_app;
 
 -- Tags move to the question.
 CREATE FUNCTION qbank.apply_question_tags(p_question_id uuid, p_tags jsonb)
