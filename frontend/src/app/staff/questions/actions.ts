@@ -4,58 +4,90 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ActionState } from "@/components/staff/form";
 import type { Audience, QuestionDetail, QuestionVersion } from "@/lib/api-types";
+import { listCategories } from "@/lib/server/categories";
 import { actionError } from "@/lib/server/actions";
 import { gateway } from "@/lib/server/gateway";
 import { requireStaff } from "@/lib/server/staff";
+import { type Choices, type Details, type TestDraft, choicesProblem, cleanTags, detailsProblem, prepareTests, slugOf, testsProblem } from "@/components/staff/question-wizard/model";
 
-/** The version fields shared by a new question and a new draft version. */
-function versionContent(form: FormData) {
-  return {
-    title: String(form.get("title") ?? "").trim(),
-    prompt_markdown: String(form.get("prompt_markdown") ?? ""),
-    difficulty: String(form.get("difficulty") ?? "easy"),
-    supported_languages: form.getAll("languages").map(String),
-    time_limit_ms: Math.round(Number(form.get("time_limit_seconds") ?? 2) * 1000),
-    memory_limit_kib: Math.round(Number(form.get("memory_limit_mb") ?? 256) * 1024),
-    tags: [],
-  };
-}
+/** What a new question needs: its details, plus its tests (coding) or its options (multiple choice). */
+export type NewQuestion = { details: Details; tests?: TestDraft[]; choices?: Choices };
+/** versionId is set once the draft exists, even when a later step failed, so the author can carry on there. */
+export type CreatedDraft = ActionState & { versionId?: string };
 
-export async function createQuestion(_previous: ActionState, form: FormData): Promise<ActionState> {
+/**
+ * Saves a question as a draft in one go: the details first, then the tests or
+ * the options. Everything was already checked in the browser; this checks it again.
+ */
+export async function createDraft(input: NewQuestion): Promise<CreatedDraft> {
   await requireStaff();
-  const content = versionContent(form);
-  // A multiple-choice question has no languages (ADR-0035); its draft is
-  // recognised by that until its options are saved.
-  if (form.get("kind") === "mcq") content.supported_languages = [];
-  else if (content.supported_languages.length === 0) return { error: "Choose at least one language." };
-  const slug =
-    String(form.get("slug") ?? "").trim() ||
-    content.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
+  const { details } = input;
+  const mcq = details.kind === "mcq";
+  // A question bank from before categories has none to choose, and rejects the field.
+  const categorised = (await listCategories()).length > 0;
+  const problem = detailsProblem(details, { categories: categorised }) ?? (mcq ? choicesProblem(input.choices ?? { options: [], correct: [], multiple: false }) : testsProblem(input.tests ?? []));
+  if (problem) return { error: problem };
+
   let created: QuestionDetail;
   try {
-    created = await gateway<QuestionDetail>("/question-bank/v1/questions", { method: "POST", body: { slug, ...content } });
+    created = await gateway<QuestionDetail>("/question-bank/v1/questions", {
+      method: "POST",
+      body: {
+        slug: slugOf(details),
+        title: details.title.trim(),
+        prompt_markdown: details.prompt,
+        difficulty: details.difficulty,
+        // A multiple-choice question has no languages (ADR-0035); its draft is
+        // recognised by that until its options are saved.
+        supported_languages: mcq ? [] : details.languages,
+        time_limit_ms: mcq ? 2000 : Math.round(details.timeSeconds * 1000),
+        memory_limit_kib: mcq ? 256 * 1024 : Math.round(details.memoryMb * 1024),
+        tags: cleanTags(details.tags),
+        ...(categorised ? { category_id: details.categoryId } : {}),
+      },
+    });
   } catch (error) {
     return { error: actionError(error) };
   }
-  redirect(`/staff/questions/${created.question_version.id}`);
+  const version = created.question_version;
+  try {
+    if (mcq) {
+      const choices = input.choices!;
+      await gateway<QuestionVersion>(`/question-bank/v1/question-versions/${version.id}/choices`, {
+        method: "PUT",
+        body: { expected_question_version: version.version, choices: choices.options.map((option) => option.trim()), correct_choices: choices.correct, multiple_choice: choices.multiple },
+      });
+    } else {
+      await gateway<QuestionVersion>(`/question-bank/v1/question-versions/${version.id}/tests`, {
+        method: "PUT",
+        body: { expected_question_version: version.version, tests: prepareTests(input.tests!) },
+      });
+    }
+  } catch (error) {
+    revalidatePath("/staff/questions");
+    return { error: `The draft was created, but its ${mcq ? "options were" : "tests were"} not saved: ${actionError(error)}`, versionId: version.id };
+  }
+  revalidatePath("/staff/questions");
+  return { error: null, versionId: version.id };
 }
 
-export type Test = { input: string; expected_output: string; sample: boolean; weight: number };
+export type Test = TestDraft;
 
+/** Replaces every test of a draft; the old ones are encrypted and cannot be read back. */
 export async function saveTests(versionId: string, expectedVersion: number, tests: Test[]): Promise<ActionState> {
   await requireStaff();
-  if (!tests.some((test) => test.sample)) return { error: "Mark at least one test as a sample, so students can run their code." };
-  if (!tests.some((test) => !test.sample)) return { error: "Add at least one hidden test. Hidden tests decide the marks." };
+  const problem = testsProblem(tests);
+  if (problem) return { error: problem };
   try {
     await gateway<QuestionVersion>(`/question-bank/v1/question-versions/${versionId}/tests`, {
       method: "PUT",
-      body: { expected_question_version: expectedVersion, tests },
+      body: { expected_question_version: expectedVersion, tests: prepareTests(tests) },
     });
   } catch (error) {
     return { error: actionError(error) };
   }
   revalidatePath(`/staff/questions/${versionId}`);
-  return { error: null, message: `${tests.length} tests saved and encrypted.` };
+  return { error: null, message: `${tests.length} tests saved. Run your solution again to verify them.` };
 }
 
 export async function publishQuestion(_previous: ActionState, form: FormData): Promise<ActionState> {
@@ -179,21 +211,18 @@ export async function importQuestion(_previous: ActionState, form: FormData): Pr
 }
 
 /** Run an author's reference solution on every test of a version (ADR-0033). */
-export async function startModelCheck(_previous: ActionState, form: FormData): Promise<ActionState> {
+/** Runs a reference solution on every test of a draft, hidden ones included (ADR-0033). */
+export async function runModelCheck(versionId: string, language: string, source: string): Promise<ActionState> {
   await requireStaff();
-  const versionId = String(form.get("version_id") ?? "");
-  const source = String(form.get("source") ?? "");
-  if (!source.trim()) return { error: "Paste a solution first." };
+  if (!source.trim()) return { error: "Write a solution first." };
+  if (new TextEncoder().encode(source).length > 64 * 1024) return { error: "A solution can be at most 64 KB." };
   try {
-    await gateway(`/question-bank/v1/question-versions/${versionId}/model-checks`, {
-      method: "POST",
-      body: { language: String(form.get("language") ?? ""), source },
-    });
+    await gateway(`/question-bank/v1/question-versions/${versionId}/model-checks`, { method: "POST", body: { language, source } });
   } catch (error) {
     return { error: actionError(error) };
   }
   revalidatePath(`/staff/questions/${versionId}`);
-  return { error: null, message: "Running on every test. Results appear below in a few seconds." };
+  return { error: null, message: "Running on every test." };
 }
 
 /** Options and answer of a multiple-choice draft (ADR-0035). */
@@ -295,4 +324,61 @@ export async function setAudience(questionId: string, versionId: string, audienc
     error: null,
     message: audience === "practice" ? "Now a practice problem: students can see and solve it." : "Now a test question: hidden from practice.",
   };
+}
+
+/** Adds a category, or finds the one with that name (ADR-0052). Open to every author. */
+export async function createCategory(name: string): Promise<ActionState & { category?: { id: string; name: string } }> {
+  await requireStaff();
+  try {
+    const result = await gateway<{ id: string; name: string }>("/question-bank/v1/categories", { method: "POST", body: { name } });
+    revalidatePath("/staff/questions");
+    return { error: null, category: { id: result.id, name: result.name } };
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+}
+
+/** Renaming, merging and deleting re-file every college's questions: administrators only. */
+async function requireCategoryAdmin() {
+  const staff = await requireStaff();
+  return staff.canManageAccounts ? null : ({ error: "Only an administrator can rename, merge or delete categories." } satisfies ActionState);
+}
+
+export async function renameCategory(id: string, name: string): Promise<ActionState> {
+  const refused = await requireCategoryAdmin();
+  if (refused) return refused;
+  try {
+    await gateway(`/question-bank/v1/categories/${id}`, { method: "PATCH", body: { name } });
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+  revalidatePath("/staff/questions");
+  return { error: null, message: "Renamed." };
+}
+
+/** Deletes a category; its questions move to `moveTo`, or to Uncategorised. */
+export async function deleteCategory(id: string, moveTo: string): Promise<ActionState> {
+  const refused = await requireCategoryAdmin();
+  if (refused) return refused;
+  try {
+    const result = await gateway<{ moved: number }>(`/question-bank/v1/categories/${id}${moveTo ? `?move_to=${encodeURIComponent(moveTo)}` : ""}`, { method: "DELETE" });
+    revalidatePath("/staff/questions");
+    return { error: null, message: result.moved === 1 ? "Deleted. 1 question moved." : `Deleted. ${result.moved} questions moved.` };
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+}
+
+/** Files a question under a category and sets its tags, on any version state (ADR-0052). */
+export async function saveOrganisation(questionId: string, versionId: string, categoryId: string, tags: string[]): Promise<ActionState> {
+  await requireStaff();
+  try {
+    await gateway(`/question-bank/v1/questions/${questionId}/category`, { method: "PUT", body: { category_id: categoryId } });
+    await gateway(`/question-bank/v1/questions/${questionId}/tags`, { method: "PUT", body: { tags: cleanTags(tags) } });
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+  revalidatePath(`/staff/questions/${versionId}`);
+  revalidatePath("/staff/questions");
+  return { error: null, message: "Saved." };
 }

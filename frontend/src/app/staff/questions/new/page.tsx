@@ -1,20 +1,19 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/staff/page-header";
-import { QuestionForm } from "@/components/staff/question-form";
-import { Panel } from "@/components/ui/card";
+import { QuestionWizard } from "@/components/staff/question-wizard/question-wizard";
+import { listCategories, listTagSuggestions } from "@/lib/server/categories";
+import { listLanguages } from "@/lib/server/languages";
 import { requireStaff } from "@/lib/server/staff";
-import { createQuestion } from "../actions";
 
 export const metadata: Metadata = { title: "New question" };
 
 export default async function NewQuestionPage() {
   await requireStaff();
+  const [{ languages }, categories, tagSuggestions] = await Promise.all([listLanguages(), listCategories(), listTagSuggestions()]);
   return (
     <>
-      <PageHeader title="New question" description="Write the statement first. You add tests on the next page, then publish." />
-      <Panel className="p-5 sm:p-6">
-        <QuestionForm action={createQuestion} />
-      </Panel>
+      <PageHeader title="New question" description="Write the statement, add the tests, then save. A coding question is checked with a model solution before it can be published." />
+      <QuestionWizard languages={languages} categories={categories} tagSuggestions={tagSuggestions} />
     </>
   );
 }

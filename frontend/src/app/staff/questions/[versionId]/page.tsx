@@ -1,23 +1,59 @@
 import { ArrowLeft, Download } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ActionForm, Field, Select } from "@/components/staff/form";
-import { LoadError, PageHeader, Section } from "@/components/staff/page-header";
+import { ActionForm } from "@/components/staff/form";
+import { LoadError, PageHeader } from "@/components/staff/page-header";
+import { type Step, Stepper } from "@/components/staff/stepper";
 import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import { Badge, Panel } from "@/components/ui/card";
 import type { ModelCheck, QuestionVersion } from "@/lib/api-types";
+import { nameOf } from "@/lib/languages";
+import { type CheckStatus, checkStatus, isVerified } from "@/lib/model-checks";
 import { gateway } from "@/lib/server/gateway";
+import { listCategories, listTagSuggestions } from "@/lib/server/categories";
+import { listLanguages } from "@/lib/server/languages";
 import { reviewerChoices } from "@/lib/server/reviewers";
 import { requireStaff } from "@/lib/server/staff";
-import { languageName } from "@/lib/utils";
-import { draftNewVersion, publishQuestion, requestReview } from "../actions";
+import { cn } from "@/lib/utils";
+import { draftNewVersion } from "../actions";
 import { AudienceSwitch } from "./audience-switch";
-import { ModelCheckPanel } from "./model-check";
 import { ChoicesEditor } from "./choices-editor";
+import { ModelCheckPanel } from "./model-check";
+import { Organise } from "./organise";
+import { PublishPanel, publishBlocker } from "./publish-panel";
 import { TestsEditor } from "./tests-editor";
 
 export const metadata: Metadata = { title: "Question" };
+
+const CHECK_NOTE: Record<CheckStatus, string> = {
+  idle: "Not run yet",
+  running: "Running now",
+  verified: "Every test passes",
+  failing: "Some tests fail",
+  stale: "Tests changed, run again",
+  unrunnable: "Could not run",
+};
+
+/** A numbered section of the workbench. */
+function Section({ number, title, note, children, className }: { number: number; title: string; note?: string; children: React.ReactNode; className?: string }) {
+  return (
+    <section className={className} aria-labelledby={`section-${number}`}>
+      <div className="mb-3 flex items-baseline gap-3">
+        <span aria-hidden className="font-mono text-[12px] tabular-nums text-ink-subtle">
+          0{number}
+        </span>
+        <div className="min-w-0">
+          <h2 id={`section-${number}`} className="text-[15px] font-semibold tracking-[-0.01em] text-ink">
+            {title}
+          </h2>
+          {note && <p className="mt-0.5 text-[13px] text-ink-muted">{note}</p>}
+        </div>
+      </div>
+      {children}
+    </section>
+  );
+}
 
 export default async function QuestionPage({ params }: { params: Promise<{ versionId: string }> }) {
   const staff = await requireStaff();
@@ -39,31 +75,56 @@ export default async function QuestionPage({ params }: { params: Promise<{ versi
       </>
     );
   }
+  const [{ languages }, categories, tagSuggestions] = await Promise.all([listLanguages(), listCategories(), listTagSuggestions()]);
+  const filing = categories.length > 0 && (
+    <Panel className="mt-6 p-5">
+      <h2 className="mb-4 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">Filing</h2>
+      <Organise
+        questionId={version.question_id}
+        versionId={version.id}
+        categories={categories}
+        tagSuggestions={tagSuggestions}
+        initial={{ categoryId: version.category_id ?? categories[0]!.id, tags: (version.tags ?? []).map((tag) => tag.name) }}
+      />
+    </Panel>
+  );
+
   const draft = version.status === "draft";
+  const mcq = version.kind === "mcq";
   // A multiple-choice draft has no languages until its options are saved (ADR-0035).
-  const choice = version.kind === "mcq" || version.supported_languages.length === 0;
-  const ready = choice ? version.kind === "mcq" : version.sample_test_case_count > 0 && version.hidden_test_case_count > 0;
-  // A coding question is published only after a model solution passed every test (ADR-0047).
-  const verified = checks.some((check) => check.lifecycle_state === "completed" && check.verdict === "accepted" && check.current);
-  const canPublish = ready && (choice || verified);
-  const reviewers = canPublish && requireReview && !version.review_requested_at ? await reviewerChoices(staff.tenantId, staff.viewer.principalId) : [];
+  const choice = mcq || version.supported_languages.length === 0;
+  const tests = version.sample_test_case_count + version.hidden_test_case_count;
+  const ready = choice ? mcq : version.sample_test_case_count > 0 && version.hidden_test_case_count > 0;
+  const verified = isVerified(checks);
+  const blocker = publishBlocker(version, verified);
+  const reviewers = !blocker && requireReview && !version.review_requested_at ? await reviewerChoices(staff.tenantId, staff.viewer.principalId) : [];
+  const status = checkStatus(checks);
+  const limits = `${version.time_limit_ms / 1000} s, ${Math.round(version.memory_limit_kib / 1024)} MB`;
+
+  const steps: Step[] = [
+    { id: "details", label: "Details", note: mcq ? version.difficulty : `${version.difficulty}, ${limits}`, state: "done" },
+    mcq || choice
+      ? { id: "options", label: "Options", note: ready ? "Saved" : "None saved yet", state: ready ? "done" : "current" }
+      : { id: "tests", label: "Test cases", note: ready ? `${version.sample_test_case_count} sample, ${version.hidden_test_case_count} hidden` : "None saved yet", state: ready ? "done" : "current" },
+    ...(choice ? [] : [{ id: "verify", label: "Verify", note: CHECK_NOTE[status], state: !ready ? ("todo" as const) : verified ? ("done" as const) : ("current" as const) }]),
+    { id: "publish", label: "Publish", note: draft ? (blocker ? "Locked until the steps above are done" : "Ready") : "Published", state: !draft ? "done" : blocker ? "locked" : "current" },
+  ];
+
   return (
     <>
-      <Link href="/staff/questions" className="mb-6 inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink">
+      <Link href="/staff/questions" className="mb-6 inline-flex items-center gap-1.5 text-sm text-ink-muted transition-colors hover:text-ink">
         <ArrowLeft className="size-4" strokeWidth={1.75} />
         Questions
       </Link>
       <PageHeader
         title={version.title}
-        description={`Version ${version.version_number}, ${version.difficulty}, ${version.time_limit_ms / 1000} s, ${Math.round(version.memory_limit_kib / 1024)} MB, ${version.supported_languages.map(languageName).join(", ")}`}
+        description={mcq ? `Version ${version.version_number}, ${version.difficulty}, multiple choice` : `Version ${version.version_number}, ${version.difficulty}, ${limits}, ${version.supported_languages.map((key) => nameOf(languages, key)).join(", ")}`}
         actions={
           <>
-            {version.kind !== "mcq" && (
-              <AudienceSwitch questionId={version.question_id} versionId={version.id} initial={version.audience ?? "test"} />
-            )}
+            {!mcq && <AudienceSwitch questionId={version.question_id} versionId={version.id} initial={version.audience ?? "test"} />}
             <Badge tone={draft ? "neutral" : "success"}>{draft ? (version.review_requested_at ? "In review" : "Draft") : "Published"}</Badge>
             {/* Exports carry the hidden tests: administrators only, and each is logged (ADR-0032). */}
-            {staff.canManageAccounts && version.kind !== "mcq" && version.hidden_test_case_count > 0 && (
+            {staff.canManageAccounts && !mcq && version.hidden_test_case_count > 0 && (
               <Button asChild variant="secondary" size="sm">
                 <a href={`/api/question-bank/v1/question-versions/${version.id}/export`} download={`${version.title.replace(/[^A-Za-z0-9]+/g, "-")}.json`}>
                   <Download />
@@ -75,122 +136,81 @@ export default async function QuestionPage({ params }: { params: Promise<{ versi
         }
       />
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_1.1fr]">
-        <Panel className="p-5">
-          <h2 className="mb-3 text-sm font-semibold text-ink">Statement</h2>
-          <Markdown>{version.prompt_markdown}</Markdown>
-        </Panel>
-        <div>
-          {draft ? (
-            <>
+      <Stepper steps={steps} label="Question steps" />
+      {filing}
+
+      {draft ? (
+        <div className="mt-8 grid gap-x-8 gap-y-10 xl:grid-cols-12">
+          <div className="min-w-0 space-y-10 xl:col-span-5">
+            <Section number={1} title="Statement">
+              <Panel className="p-5">
+                <Markdown>{version.prompt_markdown}</Markdown>
+              </Panel>
+              <p className="mt-2 text-xs text-ink-muted">A saved draft&apos;s statement and limits are fixed. To change them, write the question again.</p>
+            </Section>
+
+            <Section
+              number={2}
+              title={choice ? "Options" : "Test cases"}
+              note={choice ? undefined : ready ? `${version.sample_test_case_count} sample, ${version.hidden_test_case_count} hidden, saved encrypted` : "None saved yet"}
+            >
               {choice ? (
-                <>
-                  <h2 className="mb-3 text-sm font-semibold text-ink">Options</h2>
-                  <ChoicesEditor
-                    versionId={version.id}
-                    expectedVersion={version.version}
-                    initial={{ choices: version.choices ?? [], correct: version.correct_choices ?? [], multiple: version.multiple_choice }}
-                  />
-                </>
+                <ChoicesEditor versionId={version.id} expectedVersion={version.version} initial={{ choices: version.choices ?? [], correct: version.correct_choices ?? [], multiple: version.multiple_choice }} />
               ) : (
-              <>
-              <h2 className="mb-3 text-sm font-semibold text-ink">
-                Tests{" "}
-                <span className="font-normal text-ink-muted">
-                  ({version.sample_test_case_count} sample, {version.hidden_test_case_count} hidden saved)
-                </span>
-              </h2>
-              <TestsEditor versionId={version.id} expectedVersion={version.version} existing={version.sample_test_case_count + version.hidden_test_case_count} />
-              </>
+                <div className="flex flex-wrap items-center gap-3">
+                  <TestsEditor versionId={version.id} expectedVersion={version.version} existing={tests} />
+                  <span className="text-[13px] text-ink-muted">Saved tests cannot be shown again. Replacing them asks for a new check.</span>
+                </div>
               )}
-              <Section
-                title="Publish"
-                description={
-                  canPublish
-                    ? "Published questions cannot be edited; you can start a new draft version later."
-                    : ready
-                      ? "Run a model solution on every test in the check below. It must pass all of them, hidden tests included, before this question can be published. Changing the tests asks for a new check."
-                    : choice
-                      ? "Save the options and the correct answer first."
-                      : "Save at least one sample and one hidden test first."
-                }
-              >
-                {canPublish && !requireReview && (
-                  <ActionForm action={publishQuestion} submitLabel="Publish question">
-                    <input type="hidden" name="version_id" value={version.id} />
-                    <input type="hidden" name="expected_version" value={version.version} />
-                  </ActionForm>
-                )}
-                {canPublish && requireReview && !version.review_requested_at && (
-                  <>
-                    <p className="mb-3 text-sm text-ink-muted">A different member of staff has to approve this question before it is published.</p>
-                    <ActionForm action={requestReview} submitLabel="Ask for a review">
-                      <input type="hidden" name="version_id" value={version.id} />
-                      <input type="hidden" name="expected_version" value={version.version} />
-                      {reviewers.length > 0 && (
-                        <Field label="Reviewer (optional)" hint="Anyone else on staff can still approve" htmlFor="reviewer">
-                          <Select id="reviewer" name="reviewer_id" defaultValue="">
-                            <option value="">Any reviewer</option>
-                            {reviewers.map((reviewer) => (
-                              <option key={reviewer.id} value={reviewer.id}>
-                                {reviewer.name}
-                              </option>
-                            ))}
-                          </Select>
-                        </Field>
-                      )}
-                    </ActionForm>
-                  </>
-                )}
-                {canPublish && requireReview && version.review_requested_at && version.review_requested_by === staff.viewer.principalId && (
-                  <p className="text-sm text-ink-muted">Waiting for another member of staff to review it. If you change it, ask again.</p>
-                )}
-                {canPublish && requireReview && version.review_requested_at && version.review_requested_by !== staff.viewer.principalId && (
-                  <>
-                    <p className="mb-3 text-sm text-ink-muted">
-                      {version.assigned_reviewer_id === staff.viewer.principalId ? "This was sent to you. " : ""}Read the statement and tests, then approve. Approving publishes this version.
-                    </p>
-                    <ActionForm action={publishQuestion} submitLabel="Approve and publish">
-                      <input type="hidden" name="version_id" value={version.id} />
-                      <input type="hidden" name="expected_version" value={version.version} />
-                    </ActionForm>
-                  </>
+            </Section>
+          </div>
+
+          <div className="min-w-0 space-y-10 xl:col-span-7">
+            {!choice && (
+              <Section number={3} title="Verify" note="Write a correct solution. Every test has to pass before this question can be published.">
+                {ready ? (
+                  <ModelCheckPanel versionId={version.id} languages={languages} supported={version.supported_languages} checks={checks} tests={tests} />
+                ) : (
+                  <p className="rounded-[var(--radius-surface)] border border-dashed border-line-strong px-6 py-10 text-center text-sm text-ink-muted">Save at least one sample and one hidden test to unlock the editor.</p>
                 )}
               </Section>
-            </>
-          ) : (
-            <Panel className="p-5">
-              {version.kind === "mcq" && (
-                <ol className="mb-4 space-y-1.5 text-sm">
-                  {(version.choices ?? []).map((option, index) => (
-                    <li key={index} className={version.correct_choices?.includes(index) ? "font-medium text-success" : "text-ink"}>
-                      {String.fromCharCode(65 + index)}. {option}
-                      {version.correct_choices?.includes(index) && " (correct)"}
-                    </li>
-                  ))}
-                </ol>
-              )}
-              <p className="text-sm text-ink">
-                {version.kind === "mcq"
-                  ? `${version.multiple_choice ? "Several" : "One"} correct option${version.multiple_choice ? "s" : ""}.`
-                  : `${version.sample_test_case_count} sample and ${version.hidden_test_case_count} hidden tests.`}{" "}
-                Add it to an exam from{" "}
-                <Link href="/staff/exams" className="text-brand hover:underline">
-                  Exams
-                </Link>
-                .
-              </p>
-              <ActionForm action={draftNewVersion} submitLabel="Edit as a new draft" className="mt-4">
-                <input type="hidden" name="question_id" value={version.question_id} />
-              </ActionForm>
-            </Panel>
-          )}
+            )}
+            <Section number={choice ? 3 : 4} title="Publish">
+              <Panel className={cn("p-5", blocker && "border-dashed")}>
+                <PublishPanel version={version} blocker={blocker} requireReview={requireReview} reviewers={reviewers} viewerId={staff.viewer.principalId} />
+              </Panel>
+            </Section>
+          </div>
         </div>
-      </div>
-      {ready && !choice && (
-        <Section title="Check a model solution" description="Run a correct solution on every test before students do. A failing test usually means a wrong expected output.">
-          <ModelCheckPanel versionId={version.id} languages={version.supported_languages} checks={checks} />
-        </Section>
+      ) : (
+        <div className="mt-8 grid gap-6 lg:grid-cols-[1.1fr_1fr]">
+          <Panel className="p-5">
+            <h2 className="mb-3 text-sm font-semibold text-ink">Statement</h2>
+            <Markdown>{version.prompt_markdown}</Markdown>
+          </Panel>
+          <Panel className="h-fit p-5">
+            {mcq && (
+              <ol className="mb-4 space-y-1.5 text-sm">
+                {(version.choices ?? []).map((option, index) => (
+                  <li key={index} className={version.correct_choices?.includes(index) ? "font-medium text-success" : "text-ink"}>
+                    {String.fromCharCode(65 + index)}. {option}
+                    {version.correct_choices?.includes(index) && " (correct)"}
+                  </li>
+                ))}
+              </ol>
+            )}
+            <p className="text-sm text-ink">
+              {mcq ? `${version.multiple_choice ? "Several" : "One"} correct option${version.multiple_choice ? "s" : ""}.` : `${version.sample_test_case_count} sample and ${version.hidden_test_case_count} hidden tests.`} Add it to an exam from{" "}
+              <Link href="/staff/exams" className="text-brand hover:underline">
+                Exams
+              </Link>
+              .
+            </p>
+            <ActionForm action={draftNewVersion} submitLabel="Edit as a new draft" className="mt-4">
+              <input type="hidden" name="question_id" value={version.question_id} />
+            </ActionForm>
+          </Panel>
+        </div>
       )}
     </>
   );
