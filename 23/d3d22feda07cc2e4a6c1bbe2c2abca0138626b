@@ -1,0 +1,23 @@
+deploy/helm/platform-service/templates/servicemonitor.yaml
+  s_40851fd2a7ba5d::t_49f2440201e46d 1-24
+deploy/helm/platform-service/values-frontend.yaml
+  s_40851fd2a7ba5d::t_bb752a7d5f42a9 25-30
+deploy/helm/platform-service/values.yaml
+  s_40851fd2a7ba5d::t_a8ef0dbe2162de 165-171
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "23d3d22feda07cc2e4a6c1bbe2c2abca0138626b",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
