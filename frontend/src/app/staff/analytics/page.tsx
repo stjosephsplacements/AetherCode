@@ -1,23 +1,21 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { EmptyState, LoadError, PageHeader, Section, Table } from "@/components/staff/page-header";
+import { LoadError, PageHeader } from "@/components/staff/page-header";
 import { CollegeFilter } from "@/components/staff/college-filter";
 import type { ExamResult, Page, Student } from "@/lib/api-types";
 import { listBatches, listDepartments } from "@/lib/server/directory";
-import { type ExamWithVersion, listExams, mapLimit } from "@/lib/server/exams";
+import { listExams, mapLimit } from "@/lib/server/exams";
 import { gateway } from "@/lib/server/gateway";
 import { inColleges } from "@/lib/server/colleges";
 import { collegesFor, requireStaff } from "@/lib/server/staff";
 import { listAllStudents } from "@/lib/server/students";
-import { PASS_SHARE } from "@/lib/results";
-import { cn, formatDateTime } from "@/lib/utils";
+import { type Attempt, type ExamPoint, latestChange, mean, passes, shareOf, summarize } from "@/lib/analytics";
+import { type StudentRow } from "./student-list";
+import { AnalyticsTabs } from "./tabs";
+import { AnalyticsView } from "./view";
 
 export const metadata: Metadata = { title: "Analytics" };
 
-type Scored = { exam: ExamWithVersion; candidate: string; share: number };
 
-const percent = (share: number) => `${Math.round(share * 100)}%`;
-const mean = (values: number[]) => (values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0);
 
 /** Exam results across the college, by exam, department, batch and student. */
 export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<{ college?: string }> }) {
@@ -42,7 +40,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
     // Every id is a UUID, so the colleges' data can be pooled and the same tables work across them.
     const several = staff.isPlatformAdmin;
     data = {
-      results: perCollege.flatMap(({ value }) => value?.results ?? []),
+      results: perCollege.flatMap(({ college, value }) => (value?.results ?? []).map((entry) => ({ ...entry, college }))),
       students: perCollege.flatMap(({ value }) => value?.students ?? []),
       departments: perCollege.flatMap(({ college, value }) => (value?.departments ?? []).map((department) => (several ? { ...department, name: `${department.name} (${college.name})` } : department))),
       batches: perCollege.flatMap(({ value }) => value?.batches ?? []),
@@ -58,152 +56,73 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
     );
   }
   const { results, students, departments, batches, batchOf, unreachable } = data;
+  const several = staff.isPlatformAdmin;
+  const collegeName = new Map(staff.tenants.map((tenant) => [tenant.id, tenant.display_name]));
   const studentBy = new Map(students.map((student) => [student.principal_id, student]));
 
-  const scored: Scored[] = results.flatMap(({ exam, results: rows }) =>
-    rows
-      .filter((row) => Number(row.maximum_score) > 0)
-      .map((row) => ({ exam, candidate: row.candidate_id, share: Number(row.score) / Number(row.maximum_score) })),
+  const held = results.filter((entry) => entry.results.some((row) => shareOf(row.score, row.maximum_score) !== null));
+  const attempts: Attempt[] = held.flatMap(({ exam, results: rows }) =>
+    rows.flatMap((row) => {
+      const share = shareOf(row.score, row.maximum_score);
+      return share === null ? [] : [{ exam: exam.exam.id, candidate: row.candidate_id, share }];
+    }),
   );
-  const examsHeld = results.filter((entry) => entry.results.length > 0);
+  const points: ExamPoint[] = held.map(({ exam, college, results: rows }) => {
+    const shares = rows.flatMap((row) => {
+      const share = shareOf(row.score, row.maximum_score);
+      return share === null ? [] : [share];
+    });
+    return {
+      id: exam.exam.id,
+      title: exam.version!.title,
+      at: exam.version!.opens_at,
+      graded: shares.length,
+      average: mean(shares),
+      pass: shares.filter(passes).length / Math.max(shares.length, 1),
+      highest: Math.max(...shares),
+      lowest: Math.min(...shares),
+      college: several ? { id: college.id, name: college.name } : undefined,
+    };
+  });
 
-  const group = (key: (row: Scored) => string | undefined) => {
-    const groups = new Map<string, Scored[]>();
-    for (const row of scored) {
-      const id = key(row);
-      if (id) groups.set(id, [...(groups.get(id) ?? []), row]);
+  const group = (key: (attempt: Attempt) => string | undefined) => {
+    const groups = new Map<string, Attempt[]>();
+    for (const attempt of attempts) {
+      const id = key(attempt);
+      if (id) groups.set(id, [...(groups.get(id) ?? []), attempt]);
     }
     return groups;
   };
-  const summary = (rows: Scored[]) => ({
-    attempts: rows.length,
-    students: new Set(rows.map((row) => row.candidate)).size,
-    average: mean(rows.map((row) => row.share)),
-    pass: rows.filter((row) => row.share >= PASS_SHARE).length / Math.max(rows.length, 1),
-  });
-  const byDepartment = group((row) => studentBy.get(row.candidate)?.college_department_id);
-  const byBatch = group((row) => batchOf.get(row.candidate));
-  const byStudent = [...group((row) => row.candidate)].map(([candidate, rows]) => ({
-    candidate,
-    roll: studentBy.get(candidate)?.enrollment_number ?? candidate.slice(0, 8),
-    exams: rows.length,
-    average: mean(rows.map((row) => row.share)),
-  }));
-  const ranked = [...byStudent].sort((a, b) => b.average - a.average || b.exams - a.exams);
-  const overall = summary(scored);
+  const byDepartment = group((attempt) => studentBy.get(attempt.candidate)?.college_department_id);
+  const byBatch = group((attempt) => batchOf.get(attempt.candidate));
+  const rank = (items: { id: string; name: string }[], groups: Map<string, Attempt[]>) =>
+    items.map((item) => ({ ...item, ...summarize(groups.get(item.id) ?? []) })).filter((row) => row.attempts > 0).sort((a, b) => b.average - a.average);
+  const departmentRows = rank(departments, byDepartment);
+  const batchRows = rank(batches.map((batch) => ({ id: batch.id, name: `${batch.name} (${batch.academic_year})` })), byBatch);
+
+  const students_: StudentRow[] = [...group((attempt) => attempt.candidate)]
+    .map(([candidate, rows]) => ({
+      candidate,
+      roll: studentBy.get(candidate)?.enrollment_number ?? candidate.slice(0, 8),
+      exams: rows.length,
+      average: mean(rows.map((row) => row.share)),
+      college: collegeName.get(studentBy.get(candidate)?.tenant_id ?? ""),
+    }))
+    .sort((a, b) => b.average - a.average || b.exams - a.exams);
+  const needAttention = students_.filter((row) => !passes(row.average)).reverse();
+
+  const overall = summarize(attempts);
+  const change = latestChange(points);
+  const recent = [...points].sort((a, b) => b.at.localeCompare(a.at));
 
   return (
-    <>
-      <PageHeader
-        title="Analytics"
-        description={`Graded exam results across ${staff.isPlatformAdmin ? "the colleges" : "the college"}. Pass means at least ${percent(PASS_SHARE)} of the marks.`}
-        actions={staff.isPlatformAdmin ? <CollegeFilter colleges={staff.tenants.map((tenant) => ({ id: tenant.id, name: tenant.display_name }))} /> : undefined}
-      />
-      {unreachable.length > 0 && <p role="alert" className="mb-4 text-sm text-warning">Could not load: {unreachable.join(", ")}.</p>}
-      {scored.length === 0 ? (
-        <EmptyState>No graded exams yet. Results appear here once students finish an exam.</EmptyState>
-      ) : (
-        <>
-          <section aria-label="Summary" className="grid gap-3 sm:grid-cols-4">
-            <Stat label="Exams held" value={String(examsHeld.length)} />
-            <Stat label="Graded attempts" value={String(overall.attempts)} />
-            <Stat label="Average score" value={percent(overall.average)} />
-            <Stat label="Pass rate" value={percent(overall.pass)} />
-          </section>
-
-          <Section title="Exams">
-            <Table head={["Exam", "Opened", "Graded", "Average", "Highest", "Lowest", "Pass rate"]}>
-              {examsHeld
-                .sort((a, b) => b.exam.version!.opens_at.localeCompare(a.exam.version!.opens_at))
-                .map(({ exam, results: rows }) => {
-                  const shares = rows.filter((row) => Number(row.maximum_score) > 0).map((row) => Number(row.score) / Number(row.maximum_score));
-                  return (
-                    <tr key={exam.exam.id} className="border-t border-line">
-                      <td className="px-4 py-2.5">
-                        <Link href={`/staff/exams/${exam.exam.id}/results`} className="font-medium text-ink hover:text-brand">
-                          {exam.version!.title}
-                        </Link>
-                      </td>
-                      <td className="px-4 py-2.5 text-ink-muted">{formatDateTime(exam.version!.opens_at)}</td>
-                      <td className="px-4 py-2.5 tabular-nums">{rows.length}</td>
-                      <td className="px-4 py-2.5 tabular-nums">{percent(mean(shares))}</td>
-                      <td className="px-4 py-2.5 tabular-nums">{shares.length ? percent(Math.max(...shares)) : "-"}</td>
-                      <td className="px-4 py-2.5 tabular-nums">{shares.length ? percent(Math.min(...shares)) : "-"}</td>
-                      <td className="px-4 py-2.5 tabular-nums">{percent(shares.filter((share) => share >= PASS_SHARE).length / Math.max(shares.length, 1))}</td>
-                    </tr>
-                  );
-                })}
-            </Table>
-          </Section>
-
-          <div className="grid gap-x-6 lg:grid-cols-2">
-            <Breakdown title="By department" rows={departments.map((department) => ({ id: department.id, name: department.name, ...summary(byDepartment.get(department.id) ?? []) }))} />
-            <Breakdown title="By batch" rows={batches.map((batch) => ({ id: batch.id, name: `${batch.name} (${batch.academic_year})`, ...summary(byBatch.get(batch.id) ?? []) }))} />
-          </div>
-
-          <div className="grid gap-x-6 lg:grid-cols-2">
-            <StudentList title="Top performers" rows={ranked.slice(0, 10)} />
-            <StudentList title="Needs attention" description={`Average below ${percent(PASS_SHARE)}, lowest first.`} rows={ranked.filter((row) => row.average < PASS_SHARE).reverse().slice(0, 10)} />
-          </div>
-        </>
-      )}
-    </>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-[var(--radius-surface)] border border-line bg-surface px-5 py-4">
-      <p className="text-[13px] text-ink-muted">{label}</p>
-      <p className="mt-1 font-mono text-[1.75rem] font-medium leading-tight tabular-nums text-ink">{value}</p>
-    </div>
-  );
-}
-
-function Breakdown({ title, rows }: { title: string; rows: { id: string; name: string; attempts: number; students: number; average: number; pass: number }[] }) {
-  const shown = rows.filter((row) => row.attempts > 0).sort((a, b) => b.average - a.average);
-  return (
-    <Section title={title}>
-      {shown.length === 0 ? (
-        <EmptyState>No graded attempts yet.</EmptyState>
-      ) : (
-        <Table head={["Name", "Students", "Attempts", "Average", "Pass rate"]}>
-          {shown.map((row) => (
-            <tr key={row.id} className="border-t border-line">
-              <td className="px-4 py-2.5 font-medium text-ink">
-                {row.name}
-                <span className="mt-1 block h-1 w-full max-w-40 overflow-hidden rounded-full bg-hover">
-                  <span className={cn("block h-full rounded-full", row.average >= PASS_SHARE ? "bg-success" : "bg-danger")} style={{ width: percent(row.average) }} />
-                </span>
-              </td>
-              <td className="px-4 py-2.5 tabular-nums">{row.students}</td>
-              <td className="px-4 py-2.5 tabular-nums">{row.attempts}</td>
-              <td className="px-4 py-2.5 tabular-nums">{percent(row.average)}</td>
-              <td className="px-4 py-2.5 tabular-nums">{percent(row.pass)}</td>
-            </tr>
-          ))}
-        </Table>
-      )}
-    </Section>
-  );
-}
-
-function StudentList({ title, description, rows }: { title: string; description?: string; rows: { candidate: string; roll: string; exams: number; average: number }[] }) {
-  return (
-    <Section title={title} description={description}>
-      {rows.length === 0 ? (
-        <EmptyState>Nobody here.</EmptyState>
-      ) : (
-        <Table head={["Roll number", "Exams", "Average"]}>
-          {rows.map((row) => (
-            <tr key={row.candidate} className="border-t border-line">
-              <td className="px-4 py-2.5 font-mono text-[13px] text-ink">{row.roll}</td>
-              <td className="px-4 py-2.5 tabular-nums">{row.exams}</td>
-              <td className="px-4 py-2.5 tabular-nums">{percent(row.average)}</td>
-            </tr>
-          ))}
-        </Table>
-      )}
-    </Section>
+    <AnalyticsView
+      several={several}
+      tabs={<AnalyticsTabs active="exams" platform={staff.isPlatformAdmin} />}
+      scope={staff.isPlatformAdmin ? "the colleges" : "the college"}
+      actions={staff.isPlatformAdmin ? <CollegeFilter colleges={staff.tenants.map((tenant) => ({ id: tenant.id, name: tenant.display_name }))} /> : undefined}
+      notice={unreachable.length > 0 ? <p role="alert" className="mb-4 text-sm text-warning">Could not load: {unreachable.join(", ")}.</p> : undefined}
+      data={{ attempts, points, recent, overall, change, departmentRows, batchRows, students: students_, needAttention }}
+    />
   );
 }
