@@ -51,6 +51,7 @@ var (
 // already authorized transaction and must never create an unscoped one.
 type Store interface {
 	SetQuestionVersionChoices(context.Context, pgx.Tx, SetQuestionVersionChoices) (QuestionVersion, error)
+	UpdateQuestionVersion(context.Context, pgx.Tx, UpdateQuestionVersion) (QuestionVersion, error)
 	StartModelCheck(context.Context, pgx.Tx, string, StartModelCheck, BundleReference) (json.RawMessage, error)
 	ListModelChecks(context.Context, pgx.Tx, string) (json.RawMessage, error)
 	SetQuestionAudience(context.Context, pgx.Tx, string, string) error
@@ -1072,6 +1073,58 @@ func isUUID(value string) bool {
 		}
 	}
 	return true
+}
+
+// UpdateQuestionVersion changes a draft's title, statement, difficulty or limits
+// (ADR-0054). A nil field is left as it is; at least one is needed.
+type UpdateQuestionVersion struct {
+	QuestionVersionID       string
+	ExpectedQuestionVersion int64
+	Title                   *string
+	PromptMarkdown          *string
+	Difficulty              *string
+	TimeLimitMS             *int
+	MemoryLimitKiB          *int
+}
+
+func (service *Service) UpdateQuestionVersion(contextValue context.Context, capability centralauthz.Capability, command UpdateQuestionVersion) (QuestionVersion, error) {
+	if !isUUID(command.QuestionVersionID) || command.ExpectedQuestionVersion <= 0 {
+		return QuestionVersion{}, apperrors.New(apperrors.CodeInvalidArgument, "question version identifier or expected revision is invalid")
+	}
+	if command.Title != nil {
+		title := strings.TrimSpace(*command.Title)
+		command.Title = &title
+		if runeCount(title) < 1 || runeCount(title) > 300 {
+			return QuestionVersion{}, apperrors.New(apperrors.CodeInvalidArgument, "the title needs 1 to 300 characters")
+		}
+	}
+	if command.PromptMarkdown != nil {
+		prompt := strings.TrimSpace(*command.PromptMarkdown)
+		command.PromptMarkdown = &prompt
+		if prompt == "" {
+			return QuestionVersion{}, apperrors.New(apperrors.CodeInvalidArgument, "the statement cannot be empty")
+		}
+	}
+	if command.Difficulty != nil && *command.Difficulty != "easy" && *command.Difficulty != "medium" && *command.Difficulty != "hard" {
+		return QuestionVersion{}, apperrors.New(apperrors.CodeInvalidArgument, "difficulty is easy, medium or hard")
+	}
+	if command.TimeLimitMS != nil && (*command.TimeLimitMS < 50 || *command.TimeLimitMS > 600000) {
+		return QuestionVersion{}, apperrors.New(apperrors.CodeInvalidArgument, "the time limit is 50 ms to 600 s")
+	}
+	if command.MemoryLimitKiB != nil && (*command.MemoryLimitKiB < 1024 || *command.MemoryLimitKiB > 4194304) {
+		return QuestionVersion{}, apperrors.New(apperrors.CodeInvalidArgument, "the memory limit is 1 MiB to 4 GiB")
+	}
+	if command.Title == nil && command.PromptMarkdown == nil && command.Difficulty == nil && command.TimeLimitMS == nil && command.MemoryLimitKiB == nil {
+		return QuestionVersion{}, apperrors.New(apperrors.CodeInvalidArgument, "give at least one field to change")
+	}
+	command.QuestionVersionID = strings.ToLower(strings.TrimSpace(command.QuestionVersionID))
+	var result QuestionVersion
+	err := database.WithTenantTx(contextValue, service.pool, capability, func(transaction pgx.Tx) error {
+		var storeErr error
+		result, storeErr = service.store.UpdateQuestionVersion(contextValue, transaction, command)
+		return storeErr
+	})
+	return result, err
 }
 
 // SetQuestionVersionChoices makes a draft multiple-choice (ADR-0035): 2 to 10

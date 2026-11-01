@@ -531,6 +531,15 @@ func (repository *Postgres) SetQuestionVersionChoices(contextValue context.Conte
 	return decodeQuestionVersion(raw)
 }
 
+func (repository *Postgres) UpdateQuestionVersion(contextValue context.Context, transaction pgx.Tx, command app.UpdateQuestionVersion) (app.QuestionVersion, error) {
+	var raw json.RawMessage
+	if err := transaction.QueryRow(contextValue, `SELECT qbank.update_question_version($1, $2, $3, $4, $5, $6, $7)`,
+		command.QuestionVersionID, command.ExpectedQuestionVersion, command.Title, command.PromptMarkdown, command.Difficulty, command.TimeLimitMS, command.MemoryLimitKiB).Scan(&raw); err != nil {
+		return app.QuestionVersion{}, mapCommandError(err, "update question version")
+	}
+	return decodeQuestionVersion(raw)
+}
+
 // callJSON runs one practice function that returns jsonb. Those functions
 // raise 55000 and 22023 only with messages written for the student, such as
 // "wait for your last run to finish", so those pass through.

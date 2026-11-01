@@ -377,6 +377,10 @@ func (s *panicStore) SetQuestionVersionChoices(context.Context, pgx.Tx, SetQuest
 	panic("unexpected store call")
 }
 
+func (s *panicStore) UpdateQuestionVersion(context.Context, pgx.Tx, UpdateQuestionVersion) (QuestionVersion, error) {
+	panic("unexpected store call")
+}
+
 func (s *panicStore) SetQuestionAudience(context.Context, pgx.Tx, string, string) error {
 	panic("unexpected store call")
 }
