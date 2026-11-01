@@ -1,0 +1,51 @@
+frontend/src/app/staff/exams/actions.ts
+  s_40851fd2a7ba5d::t_a1a8d001fc2c10 295-339
+frontend/src/components/staff/exam-peek.tsx
+  s_40851fd2a7ba5d::t_5fbe928e4c6597 3-4,70-78
+frontend/src/app/staff/questions/question-board.tsx
+  s_40851fd2a7ba5d::t_95145f9ab2797f 3-4,12,53-61,72-79,148-155,157-208,213-219,223-224
+frontend/src/lib/api-types.ts
+  s_40851fd2a7ba5d::t_e05994475d30ff 501-502
+frontend/src/app/staff/organisation/actions.ts
+  s_40851fd2a7ba5d::t_c9171faa299c50 5,90-92
+  s_40851fd2a7ba5d::t_a1a8d001fc2c10 72-89,93-99
+frontend/src/app/staff/questions/actions.ts
+  s_40851fd2a7ba5d::t_a1a8d001fc2c10 385-412
+frontend/src/app/staff/questions/question-peek.tsx
+  s_40851fd2a7ba5d::t_e05994475d30ff 6,12,62-72
+frontend/src/components/staff/confirm-delete.tsx
+  s_40851fd2a7ba5d::t_685507e2abd8b1 1-108
+frontend/src/app/staff/exams/[examId]/page.tsx
+  s_40851fd2a7ba5d::t_5fbe928e4c6597 6,15,18,107-119,163-174,176,182-192
+frontend/src/components/staff/tenant-switcher.tsx
+  s_40851fd2a7ba5d::t_66205caf6c2fe9 3,10-17,24-32
+frontend/src/app/staff/questions/folder-card.tsx
+  s_40851fd2a7ba5d::t_95145f9ab2797f 1-47
+frontend/src/lib/audit.test.ts
+  s_40851fd2a7ba5d::t_be82646013050f 1-17
+frontend/src/app/staff/questions/[versionId]/page.tsx
+  s_40851fd2a7ba5d::t_e05994475d30ff 4,20,127-138
+frontend/src/app/staff/organisation/page.tsx
+  s_40851fd2a7ba5d::t_c9171faa299c50 5,9,43-72,76,83-92
+frontend/src/lib/audit.ts
+  s_40851fd2a7ba5d::t_e05994475d30ff 36
+  s_40851fd2a7ba5d::t_c27d08bd61da72 32-34,37
+frontend/src/app/staff/exams/[examId]/remove-button.tsx
+  s_40851fd2a7ba5d::t_5fbe928e4c6597 1-36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4f62bd629d2bbc936216aa7a6e7cc448ed78c4b8",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh <shreesh@ALLENs-Mac-mini.local>"
+    }
+  }
+}
