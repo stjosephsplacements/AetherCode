@@ -2,40 +2,45 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { EmptyState, LoadError, PageHeader, Section, Table } from "@/components/staff/page-header";
-import { CollegeBar } from "@/components/staff/college-bar";
+import { CollegeFilter } from "@/components/staff/college-filter";
 import { Badge, Panel } from "@/components/ui/card";
 import type { Page, Student } from "@/lib/api-types";
 import { departmentLabel, listBatches, listDepartments, listPlacement } from "@/lib/server/directory";
 import { gateway } from "@/lib/server/gateway";
-import { requireCollege } from "@/lib/server/staff";
+import { inColleges } from "@/lib/server/colleges";
+import { collegesFor, requireStaff } from "@/lib/server/staff";
 import { cn } from "@/lib/utils";
 import { ImportPanel, ReissuePanel, StudentActions } from "./panels";
 
 export const metadata: Metadata = { title: "Students" };
 
-export default async function StudentsPage({ searchParams }: { searchParams: Promise<{ batch?: string }> }) {
-  const staff = await requireCollege();
+export default async function StudentsPage({ searchParams }: { searchParams: Promise<{ batch?: string; college?: string }> }) {
+  const staff = await requireStaff();
   if (!staff.canManageAccounts) redirect("/staff");
-  const { batch: batchParam } = await searchParams;
+  const { batch: batchParam, college: collegeParam } = await searchParams;
 
   let data;
   try {
-    const [batches, departments, placement] = await Promise.all([listBatches(staff.tenantId), listDepartments(staff.tenantId), listPlacement()]);
+    const colleges = collegesFor(staff, collegeParam);
+    const [perCollege, placement] = await Promise.all([
+      inColleges(colleges, async (collegeId) => ({ batches: await listBatches(collegeId), departments: await listDepartments(collegeId) })),
+      listPlacement(),
+    ]);
+    const batches = perCollege.flatMap(({ college, value }) => (value?.batches ?? []).map((candidate) => ({ ...candidate, collegeName: college.name })));
+    const departments = perCollege.flatMap(({ value }) => value?.departments ?? []);
     const batch = batches.find((candidate) => candidate.id === batchParam) ?? batches[0];
-    const students = batch
-      ? (await gateway<Page<Student>>(`/user/v1/tenants/${staff.tenantId}/students?batch_id=${batch.id}&limit=100`)).items
-      : [];
-    data = { batches, departments, placement, batch, students };
+    const students = batch ? (await gateway<Page<Student>>(`/user/v1/tenants/${batch.tenant_id}/students?batch_id=${batch.id}&limit=100`)).items : [];
+    data = { batches, departments, placement, batch, students, unreachable: perCollege.filter((entry) => entry.failed).map((entry) => entry.college.name) };
   } catch (error) {
     return (
       <>
-        <CollegeBar staff={staff} />
       <PageHeader title="Students" />
         <LoadError error={error} />
       </>
     );
   }
-  const { batches, departments, placement, batch, students } = data;
+  const { batches, departments, placement, batch, students, unreachable } = data;
+  const several = staff.isPlatformAdmin;
   const placements = placement.organizations.flatMap((organization) =>
     organization.departments.map((department) => ({ id: department.id, label: `${departmentLabel(department)}, ${organization.legal_name}` })),
   );
@@ -43,8 +48,12 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
 
   return (
     <>
-      <CollegeBar staff={staff} />
-      <PageHeader title="Students" description="Import a batch from a spreadsheet, hand out passwords, and reset or disable accounts." />
+      <PageHeader
+        title="Students"
+        description="Import a batch from a spreadsheet, hand out passwords, and reset or disable accounts."
+        actions={staff.isPlatformAdmin ? <CollegeFilter colleges={staff.tenants.map((tenant) => ({ id: tenant.id, name: tenant.display_name }))} /> : undefined}
+      />
+      {unreachable.length > 0 && <p role="alert" className="mb-4 text-sm text-warning">Could not load: {unreachable.join(", ")}.</p>}
 
       {batches.length === 0 ? (
         <EmptyState>
@@ -56,13 +65,14 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
             {batches.map((candidate) => (
               <Link
                 key={candidate.id}
-                href={`/staff/students?batch=${candidate.id}`}
+                href={`/staff/students?batch=${candidate.id}${collegeParam ? `&college=${collegeParam}` : ""}`}
                 className={cn(
                   "rounded-full px-3 py-1 text-[13px] transition-colors",
                   candidate.id === batch?.id ? "bg-ink text-canvas" : "bg-hover text-ink-muted hover:text-ink",
                 )}
               >
                 {candidate.name}
+                {several && candidate.collegeName && <span className="ml-1.5 opacity-60">{candidate.collegeName}</span>}
               </Link>
             ))}
           </nav>
@@ -79,7 +89,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
                   {students.map((student) => (
                     <tr key={student.id}>
                       <td className="px-4 py-2.5 font-mono text-[13px]">
-                        <Link href={`/staff/students/${student.id}`} className="font-medium text-brand hover:underline">
+                        <Link href={`/staff/students/${student.id}?college=${batch?.tenant_id ?? ""}`} className="font-medium text-brand hover:underline">
                           {student.enrollment_number}
                         </Link>
                       </td>
@@ -88,7 +98,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
                         <Badge tone={student.status === "active" ? "success" : "neutral"}>{student.status}</Badge>
                       </td>
                       <td className="px-4 py-2.5">
-                        <StudentActions principalId={student.principal_id} username={student.enrollment_number.toLowerCase()} />
+                        <StudentActions principalId={student.principal_id} username={student.enrollment_number.toLowerCase()} collegeId={student.tenant_id} />
                       </td>
                     </tr>
                   ))}

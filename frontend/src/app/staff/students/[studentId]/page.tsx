@@ -13,28 +13,29 @@ import { communityList } from "@/lib/server/community";
 import { describeAccounts } from "@/lib/server/people";
 import { platformStats } from "@/lib/server/platforms";
 import { gateway } from "@/lib/server/gateway";
-import { requireCollege } from "@/lib/server/staff";
+import { collegeFor, requireStaff } from "@/lib/server/staff";
 import { deleteStudent, updateStudent } from "../actions";
 import { StudentActions } from "../panels";
 
 export const metadata: Metadata = { title: "Student profile" };
 
-export default async function StudentDetailPage({ params }: { params: Promise<{ studentId: string }> }) {
-  const staff = await requireCollege();
+export default async function StudentDetailPage({ params, searchParams }: { params: Promise<{ studentId: string }>; searchParams: Promise<{ college?: string }> }) {
+  const staff = await requireStaff();
+  const collegeId = collegeFor(staff, (await searchParams).college);
   if (!staff.canManageAccounts) redirect("/staff");
   const { studentId } = await params;
 
   let data;
   try {
     const [departments, student] = await Promise.all([
-      listDepartments(staff.tenantId),
-      gateway<Student>(`/user/v1/tenants/${staff.tenantId}/students/${studentId}`).catch(() => null),
+      listDepartments(collegeId),
+      gateway<Student>(`/user/v1/tenants/${collegeId}/students/${studentId}`).catch(() => null),
     ]);
 
     const [accountMap, links] = student
       ? await Promise.all([
-          describeAccounts(staff.tenantId, [student.principal_id]).catch(() => new Map<string, AccountSummary>()),
-          communityList<ProfileLink>(staff.tenantId, "profile-links").catch(() => [] as ProfileLink[]),
+          describeAccounts(collegeId, [student.principal_id]).catch(() => new Map<string, AccountSummary>()),
+          communityList<ProfileLink>(collegeId, "profile-links").catch(() => [] as ProfileLink[]),
         ])
       : [new Map<string, AccountSummary>(), [] as ProfileLink[]];
     const stats = await platformStats(links.filter((link) => link.handle));
@@ -77,7 +78,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
               fields={[{ name: "enrollment_number", label: "Roll number", value: student.enrollment_number }]}
               onSave={async (changes) => {
                 "use server";
-                return updateStudent(student.id, changes);
+                return updateStudent(collegeId, student.id, changes);
               }}
             />
             <ConfirmDelete
@@ -87,7 +88,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
               redirectTo="/staff/students"
               onConfirm={async (reason) => {
                 "use server";
-                return deleteStudent(student.id, reason);
+                return deleteStudent(collegeId, student.id, reason);
               }}
             />
           </>
@@ -129,7 +130,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
         <Panel className="p-6 space-y-4">
           <h3 className="text-xs font-bold uppercase tracking-wider text-ink-muted">Account Administration</h3>
           <p className="text-xs text-ink-muted">Reset passwords or enable/disable account sign-in access.</p>
-          <StudentActions principalId={student.principal_id} username={account?.username || student.enrollment_number} />
+          <StudentActions principalId={student.principal_id} username={account?.username || student.enrollment_number} collegeId={collegeId} />
         </Panel>
       </div>
 

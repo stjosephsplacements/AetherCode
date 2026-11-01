@@ -32,7 +32,7 @@ export function ImportPanel({ batches, placements, departments }: { batches: Bat
         <Field label="Batch" htmlFor="import-batch" hint="The college department comes from the batch.">
           <Select id="import-batch" name="batch_id" required>
             {batches.map((batch) => (
-              <option key={batch.id} value={batch.id}>
+              <option key={batch.id} value={`${batch.tenant_id}:${batch.id}`}>
                 {batch.name} ({departmentName.get(batch.department_id) ?? "?"}, {batch.academic_year})
               </option>
             ))}
@@ -87,6 +87,7 @@ export function ReissuePanel({ batch }: { batch: Batch }) {
       className="space-y-3"
     >
       <input type="hidden" name="batch_id" value={batch.id} />
+      <input type="hidden" name="college_id" value={batch.tenant_id} />
       <FormMessage state={state} />
       <SubmitButton variant="secondary">
         <KeyRound />
@@ -103,7 +104,7 @@ export function ReissuePanel({ batch }: { batch: Batch }) {
 }
 
 /** Per-student actions: reset the password, or turn sign-in off and on. */
-export function StudentActions({ principalId, username }: { principalId: string; username: string }) {
+export function StudentActions({ principalId, username, collegeId }: { principalId: string; username: string; collegeId: string }) {
   const [reset, resetAction] = useActionState<CredentialsState, FormData>(resetPassword, initialActionState);
   const [status, statusAction] = useActionState(setAccountStatus, initialActionState);
   const item = "flex w-full items-center rounded-md px-2.5 py-2 text-left text-sm text-ink outline-none data-[highlighted]:bg-hover";
@@ -125,6 +126,7 @@ export function StudentActions({ principalId, username }: { principalId: string;
           <DropdownMenu.Content align="end" sideOffset={4} className="z-50 min-w-[190px] animate-fade rounded-[var(--radius-control)] border border-line bg-surface p-1 shadow-[var(--shadow-overlay)]">
             <form action={resetAction}>
               <input type="hidden" name="principal_id" value={principalId} />
+              <input type="hidden" name="college_id" value={collegeId} />
               <input type="hidden" name="username" value={username} />
               <DropdownMenu.Item asChild>
                 <button type="submit" className={item}>
@@ -135,6 +137,7 @@ export function StudentActions({ principalId, username }: { principalId: string;
             {(["disabled", "active"] as const).map((value) => (
               <form key={value} action={statusAction}>
                 <input type="hidden" name="principal_id" value={principalId} />
+              <input type="hidden" name="college_id" value={collegeId} />
                 <input type="hidden" name="status" value={value} />
                 <DropdownMenu.Item asChild>
                   <button type="submit" className={item}>

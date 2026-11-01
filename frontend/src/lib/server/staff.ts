@@ -45,3 +45,28 @@ export async function requireCollege(): Promise<StaffContext & { tenantId: strin
   if (!staff.tenantId) redirect("/staff");
   return staff as StaffContext & { tenantId: string };
 }
+
+export type CollegeRef = { id: string; name: string };
+
+/**
+ * The colleges a list page covers. A root administrator sees every college together
+ * (narrowed by `?college=`), the way codepro's super admin does; anyone else sees
+ * their own college only.
+ */
+export function collegesFor(staff: StaffContext, requested?: string | null): CollegeRef[] {
+  if (!staff.isPlatformAdmin) return staff.tenantId ? [{ id: staff.tenantId, name: "" }] : [];
+  const all = staff.tenants.map((tenant) => ({ id: tenant.id, name: tenant.display_name }));
+  const chosen = all.find((college) => college.id === requested);
+  return chosen ? [chosen] : all;
+}
+
+/**
+ * The college a change targets. A root administrator names it (a form field or the
+ * row being edited); it must be a real college. Anyone else always acts in their own,
+ * whatever they send.
+ */
+export function collegeFor(staff: StaffContext, requested?: string | null): string {
+  if (staff.isPlatformAdmin && staff.tenants.some((tenant) => tenant.id === requested)) return requested as string;
+  if (!staff.tenantId) redirect("/staff");
+  return staff.tenantId;
+}

@@ -2,56 +2,64 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { ActionForm, Field, Select, TextInput } from "@/components/staff/form";
 import { EmptyState, LoadError, PageHeader, Section, Table } from "@/components/staff/page-header";
-import { CollegeBar } from "@/components/staff/college-bar";
 import { ConfirmDelete } from "@/components/staff/confirm-delete";
 import { EditDialog } from "@/components/staff/edit-dialog";
 import { Panel } from "@/components/ui/card";
 import { departmentLabel, listBatches, listDepartments, listPlacement } from "@/lib/server/directory";
-import { requireCollege } from "@/lib/server/staff";
+import { CollegeFilter } from "@/components/staff/college-filter";
+import { inColleges } from "@/lib/server/colleges";
+import { collegesFor, requireStaff } from "@/lib/server/staff";
 import { createBatch, createDepartment, createPlacementDepartment, createPlacementOrganization, deleteBatch, deleteDepartment, deletePlacementOrganization, updateBatch, updateDepartment, updatePlacementOrganization } from "./actions";
 
 export const metadata: Metadata = { title: "Departments" };
 
-export default async function OrganisationPage() {
-  const staff = await requireCollege();
+export default async function OrganisationPage({ searchParams }: { searchParams: Promise<{ college?: string }> }) {
+  const staff = await requireStaff();
   if (!staff.canManageAccounts) redirect("/staff");
   let data;
   try {
-    const [departments, batches, placement] = await Promise.all([
-      listDepartments(staff.tenantId),
-      listBatches(staff.tenantId),
+    const colleges = collegesFor(staff, (await searchParams).college);
+    const [perCollege, placement] = await Promise.all([
+      inColleges(colleges, async (collegeId) => ({ departments: await listDepartments(collegeId), batches: await listBatches(collegeId) })),
       listPlacement(),
     ]);
-    data = { departments: departments.filter((department) => department.department_type === "college"), batches, placement };
+    data = {
+      departments: perCollege.flatMap(({ college, value }) => (value?.departments ?? []).filter((department) => department.department_type === "college").map((department) => ({ ...department, collegeId: college.id, collegeName: college.name }))),
+      batches: perCollege.flatMap(({ college, value }) => (value?.batches ?? []).map((batch) => ({ ...batch, collegeId: college.id, collegeName: college.name }))),
+      unreachable: perCollege.filter((entry) => entry.failed).map((entry) => entry.college.name),
+      placement,
+    };
   } catch (error) {
     return (
       <>
-        <CollegeBar staff={staff} />
       <PageHeader title="Departments" />
         <LoadError error={error} />
       </>
     );
   }
-  const { departments, batches, placement } = data;
+  const { departments, batches, placement, unreachable } = data;
+  const several = staff.isPlatformAdmin;
   const departmentName = new Map(departments.map((department) => [department.id, departmentLabel(department)]));
 
   return (
     <>
-      <CollegeBar staff={staff} />
       <PageHeader
         title="Departments"
         description="Every student belongs to one college department, through a batch, and one placement department."
+        actions={staff.isPlatformAdmin ? <CollegeFilter colleges={staff.tenants.map((tenant) => ({ id: tenant.id, name: tenant.display_name }))} /> : undefined}
       />
+      {unreachable.length > 0 && <p role="alert" className="mb-4 text-sm text-warning">Could not load: {unreachable.join(", ")}.</p>}
 
       <Section title="College departments and batches">
         {departments.length > 0 && (
           <div className="mb-4">
-            <Table head={["Department", "Code", "Batches", ""]}>
+            <Table head={several ? ["Department", "College", "Code", "Batches", ""] : ["Department", "Code", "Batches", ""]}>
               {departments.map((department) => {
                 const inside = batches.filter((batch) => batch.department_id === department.id).length;
                 return (
                   <tr key={department.id}>
                     <td className="px-4 py-3 font-medium text-ink">{department.name}</td>
+                    {several && <td className="px-4 py-3 text-ink-muted">{department.collegeName}</td>}
                     <td className="px-4 py-3 font-mono text-xs text-ink-muted">{department.code}</td>
                     <td className="px-4 py-3 tabular-nums text-ink-muted">{inside}</td>
                     <td className="px-4 py-2">
@@ -64,7 +72,7 @@ export default async function OrganisationPage() {
                           ]}
                           onSave={async (changes) => {
                             "use server";
-                            return updateDepartment(department.id, changes);
+                            return updateDepartment(department.collegeId, department.id, changes);
                           }}
                         />
                         {inside > 0 ? (
@@ -75,7 +83,7 @@ export default async function OrganisationPage() {
                             description="It has no batches. Students and staff already filed under it are not changed."
                             onConfirm={async (reason) => {
                               "use server";
-                              return deleteDepartment(department.id, reason);
+                              return deleteDepartment(department.collegeId, department.id, reason);
                             }}
                           />
                         )}
@@ -90,10 +98,11 @@ export default async function OrganisationPage() {
         {batches.length === 0 ? (
           <EmptyState>No batches yet. Create a department, then a batch in it.</EmptyState>
         ) : (
-          <Table head={["Batch", "Code", "Department", "Academic year", ""]}>
+          <Table head={several ? ["Batch", "College", "Code", "Department", "Academic year", ""] : ["Batch", "Code", "Department", "Academic year", ""]}>
             {batches.map((batch) => (
               <tr key={batch.id}>
                 <td className="px-4 py-3 font-medium text-ink">{batch.name}</td>
+                {several && <td className="px-4 py-3 text-ink-muted">{batch.collegeName}</td>}
                 <td className="px-4 py-3 font-mono text-xs text-ink-muted">{batch.code}</td>
                 <td className="px-4 py-3 text-ink-muted">{departmentName.get(batch.department_id) ?? "Unknown"}</td>
                 <td className="px-4 py-3 text-ink-muted">{batch.academic_year}</td>
@@ -108,7 +117,7 @@ export default async function OrganisationPage() {
                       ]}
                       onSave={async (changes) => {
                         "use server";
-                        return updateBatch(batch.id, changes);
+                        return updateBatch(batch.collegeId, batch.id, changes);
                       }}
                     />
                     <ConfirmDelete
@@ -116,7 +125,7 @@ export default async function OrganisationPage() {
                       description="A batch that still has students cannot be deleted: move them first."
                       onConfirm={async (reason) => {
                         "use server";
-                        return deleteBatch(batch.id, reason);
+                        return deleteBatch(batch.collegeId, batch.id, reason);
                       }}
                     />
                   </div>
@@ -129,6 +138,17 @@ export default async function OrganisationPage() {
           <Panel className="p-5">
             <h3 className="mb-4 text-sm font-semibold text-ink">New department</h3>
             <ActionForm action={createDepartment} submitLabel="Create department">
+              {staff.isPlatformAdmin && (
+                <Field label="College" htmlFor="department-college">
+                  <Select id="department-college" name="college_id" required defaultValue={staff.tenants[0]?.id}>
+                    {staff.tenants.map((tenant) => (
+                      <option key={tenant.id} value={tenant.id}>
+                        {tenant.display_name}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+              )}
               <div className="grid grid-cols-3 gap-3">
                 <Field label="Code" htmlFor="department-code">
                   <TextInput id="department-code" name="code" required maxLength={32} placeholder="CSE" />
@@ -148,7 +168,8 @@ export default async function OrganisationPage() {
                 <Field label="Department" htmlFor="batch-department">
                   <Select id="batch-department" name="department_id" required>
                     {departments.map((department) => (
-                      <option key={department.id} value={department.id}>
+                      <option key={department.id} value={`${department.collegeId}:${department.id}`}>
+                        {several ? `${department.collegeName}, ` : ""}
                         {departmentLabel(department)}
                       </option>
                     ))}

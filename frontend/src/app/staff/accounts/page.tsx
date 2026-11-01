@@ -95,7 +95,7 @@ export default async function StaffAccountsPage() {
                       placements={placementList} />
                   </td>
                   <td className="px-4 py-3">
-                    <StudentActions principalId={principalId} username={person?.username ?? ""} />
+                    <StudentActions principalId={principalId} username={person?.username ?? ""} collegeId={staff.tenantId} />
                   </td>
                 </tr>
               );
