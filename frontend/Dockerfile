@@ -7,7 +7,7 @@ RUN pnpm install --frozen-lockfile
 FROM deps AS build
 COPY . .
 # GATEWAY_URL and PUBLIC_ORIGIN are read at runtime, not baked into the build.
-RUN pnpm build
+RUN NEXT_CPU_COUNT=4 pnpm build
 
 # The standalone server needs only its own output, the static assets and public/.
 FROM node:24-bookworm-slim
