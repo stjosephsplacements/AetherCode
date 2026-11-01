@@ -1,0 +1,31 @@
+backend/services/user/internal/adapters/repo/permission_grants_integration_test.go
+  s_86b8a24fee5dbd::t_e96c2b5bae74dc 1-46
+backend/services/user/internal/adapters/repo/permissions.go
+  s_86b8a24fee5dbd::t_77a7cb816d9d96 49
+backend/services/user/internal/app/authorization.go
+  s_86b8a24fee5dbd::t_4005473894ba88 161,262-278
+backend/services/user/internal/app/authorization_test.go
+  s_86b8a24fee5dbd::t_bfa8d38407eb67 773-804
+backend/services/user/migrations/000035_permission_staff_lookup.down.sql
+  s_86b8a24fee5dbd::t_1781ed4e6c89a2 1-3
+backend/services/user/migrations/000035_permission_staff_lookup.up.sql
+  s_86b8a24fee5dbd::t_d48b4ad8b5d0e1 1-19
+docs/adr/0055-per-person-permissions-and-platform-scope.md
+  s_86b8a24fee5dbd::t_da3e782ba0a557 38-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fc4a46ead6cdca2bc98946bac376a8b43216a727",
+  "prompts": {},
+  "sessions": {
+    "s_86b8a24fee5dbd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a197c5-198e-7fb1-a667-abf299ffe197",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
