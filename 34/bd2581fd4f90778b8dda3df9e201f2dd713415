@@ -1,0 +1,94 @@
+frontend/src/app/staff/questions/[versionId]/page.tsx
+  s_40851fd2a7ba5d::t_90dd8dd4994dba 4-6,11-12,15,18-19,22,24,29-56,91,93,95-112,115,121,124,127,139,141-156,158,160-163,165-174,177-212
+  s_40851fd2a7ba5d::t_a9fee518f0c42e 14,23,78-90,140
+  s_40851fd2a7ba5d::t_5755da489ba2a5 57
+frontend/src/app/staff/questions/[versionId]/tests-editor.tsx
+  s_40851fd2a7ba5d::t_81625d4c1f48bb 3,6-8,10-11,13,16-18,22-24,29-32,37-50,52-75
+frontend/src/app/staff/questions/page.tsx
+  s_40851fd2a7ba5d::t_25b391f82c7f3a 4,9,11,13,17-32,36,42-46,50-52,54,63,65-73,78,80,82-89,92-94,96-98
+  s_40851fd2a7ba5d::t_ddbcddbf5e01b6 40-41
+  s_40851fd2a7ba5d::t_9f32e5368219dd 37-39
+  s_40851fd2a7ba5d::t_2cdc74e6363497 7,12,33-35,64,81,95
+frontend/src/app/staff/questions/[versionId]/choices-editor.tsx
+  s_40851fd2a7ba5d::t_81625d4c1f48bb 5-6,10,20,26,28
+frontend/src/components/staff/question-wizard/model.test.ts
+  s_40851fd2a7ba5d::t_198a1b4317f911 1,3,5-12,14-75,90-91
+  s_40851fd2a7ba5d::t_b844d28e380adc 2,4,13,76-89
+frontend/src/components/staff/question-wizard/test-cases-editor.tsx
+  s_40851fd2a7ba5d::t_6cd5f1a5f3a3d6 1-152
+frontend/src/app/staff/questions/[versionId]/publish-panel.tsx
+  s_40851fd2a7ba5d::t_81625d4c1f48bb 1-99
+frontend/src/components/staff/category-picker.tsx
+  s_40851fd2a7ba5d::t_cc1be6488f3f37 1-98
+frontend/src/components/staff/question-wizard/model.ts
+  s_40851fd2a7ba5d::t_f00bc6d16d90f9 1-19,23-31,34-35,45-62,64,66-113
+  s_40851fd2a7ba5d::t_b844d28e380adc 20-22,32-33,36-44
+  s_40851fd2a7ba5d::t_655e0f1266fbc8 63,65
+frontend/src/app/staff/questions/question-board.tsx
+  s_40851fd2a7ba5d::t_2cdc74e6363497 8,23-25,46,50-52,55-68,115-124,137-154,158-223,227
+  s_40851fd2a7ba5d::t_25b391f82c7f3a 1-5,7,9-10,12-22,26,32-45,47-49,53-54,69-114,125-135,251,287,305,313-316,323-324
+  s_40851fd2a7ba5d::t_9f32e5368219dd 6,11,27-31
+  s_40851fd2a7ba5d::t_ddbcddbf5e01b6 136,155-157,224-226,228-250,252-286,288-304,306-312,317-322
+frontend/src/app/staff/questions/question-peek.tsx
+  s_40851fd2a7ba5d::t_9f32e5368219dd 3-4,6-11,13,15-16,22-25,29-37,39-46,56-57,60-69
+  s_40851fd2a7ba5d::t_2cdc74e6363497 17-21,26-27,47-55
+frontend/src/app/staff/questions/new/page.tsx
+  s_40851fd2a7ba5d::t_29613ee76452c4 3,5,15
+  s_40851fd2a7ba5d::t_f6cac573e9c81c 4,12,16
+frontend/src/components/staff/question-wizard/choices-fields.tsx
+  s_40851fd2a7ba5d::t_c70adf2ecfdded 1-73
+frontend/src/app/staff/questions/[versionId]/organise.tsx
+  s_40851fd2a7ba5d::t_a9fee518f0c42e 1-62
+frontend/src/components/staff/question-wizard/question-wizard.tsx
+  s_40851fd2a7ba5d::t_29613ee76452c4 3,46,189-207
+  s_40851fd2a7ba5d::t_f6cac573e9c81c 10,12,15,36,38,72,127-143,225,259,271-278
+  s_40851fd2a7ba5d::t_361e2778326607 1-2,4-9,11,13-14,16-35,37,39-45,47-71,73-126,144-188,208-224,226-258,260-270,279-337
+frontend/src/lib/languages.ts
+  s_40851fd2a7ba5d::t_6ae6cf5ddbf56c 1-10
+frontend/src/lib/server/categories.ts
+  s_40851fd2a7ba5d::t_655e0f1266fbc8 1-26
+frontend/src/app/staff/questions/[versionId]/model-check.tsx
+  s_40851fd2a7ba5d::t_61aab20114adf4 3,5-10,12-47,51-54,56,58-71,74,78-91,93-110,114-175
+frontend/src/app/staff/questions/actions.ts
+  s_40851fd2a7ba5d::t_655e0f1266fbc8 7,11,26-28,45-46,328-384
+  s_40851fd2a7ba5d::t_b14154f43bd0e3 13-16,18-22,24-25,29-30,33-44,47-48,52-71,214-215,217-218,220,225
+  s_40851fd2a7ba5d::t_4830832078d265 74,76,79-80,84,90
+frontend/src/app/staff/questions/import-dialog.tsx
+  s_40851fd2a7ba5d::t_25b391f82c7f3a 1-25
+frontend/src/app/staff/questions/import-form.tsx
+  s_40851fd2a7ba5d::t_050efac2c0c7fb 5,13
+frontend/src/lib/model-checks.ts
+  s_40851fd2a7ba5d::t_503977a01656b9 34
+  s_40851fd2a7ba5d::t_17652f03b5754c 1-33,35-37
+frontend/src/app/staff/questions/manage-categories.tsx
+  s_40851fd2a7ba5d::t_818b070907ffef 1-129
+frontend/src/lib/client/use-stored-text.ts
+  s_40851fd2a7ba5d::t_6ae6cf5ddbf56c 1-48
+frontend/src/components/staff/tag-input.tsx
+  s_40851fd2a7ba5d::t_cc1be6488f3f37 1-128
+frontend/src/components/staff/stepper.tsx
+  s_40851fd2a7ba5d::t_6ae6cf5ddbf56c 1-54
+frontend/src/lib/api-types.ts
+  s_40851fd2a7ba5d::t_b844d28e380adc 208-211,216-221,223
+frontend/src/lib/server/languages.ts
+  s_40851fd2a7ba5d::t_6ae6cf5ddbf56c 2
+  s_40851fd2a7ba5d::t_23d673f80cb89b 1,3-28
+frontend/src/lib/model-checks.test.ts
+  s_40851fd2a7ba5d::t_17652f03b5754c 1-44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "34bd2581fd4f90778b8dda3df9e201f2dd713415",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh <shreesh@ALLENs-Mac-mini.local>"
+    }
+  }
+}
