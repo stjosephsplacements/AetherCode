@@ -1,0 +1,31 @@
+frontend/src/app/staff/accounts/actions.ts
+  s_40851fd2a7ba5d::t_e69b320d07e006 7,12-15,28,42,83
+frontend/src/app/staff/accounts/create-staff-form.tsx
+  s_40851fd2a7ba5d::t_538ce95dc57443 9,12-13,23-33,43-44
+frontend/src/app/staff/accounts/page.tsx
+  s_40851fd2a7ba5d::t_1a1f6151b5143b 4,8-9,18-19,23-30,33,42-43,47-69,74,79,81,86-88,90,95,98-100,104
+frontend/src/app/staff/accounts/roles.tsx
+  s_40851fd2a7ba5d::t_51157cdeea0568 21,28,46,60
+frontend/src/app/staff/audit/page.tsx
+  s_40851fd2a7ba5d::t_69cf8ac1cd2108 5,10-11,18-19,21,24-34,43-44,52-53,55,60,62,66,81
+frontend/src/app/staff/permissions/actions.ts
+  s_40851fd2a7ba5d::t_2e645ddf32af83 7,13-15,18
+frontend/src/app/staff/permissions/page.tsx
+  s_40851fd2a7ba5d::t_1982169fab618a 9-10,20-21,23,28-29,31-37,39-43,55,70,72-73,80,101,112,118
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4e20c7cf4870ba3ba97aed9a13451b5b8a5df465",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
