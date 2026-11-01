@@ -32,6 +32,18 @@ func (panicStore) CreatePlacementDepartment(context.Context, pgx.Tx, CreatePlace
 func (panicStore) CreateBatch(context.Context, pgx.Tx, CreateBatch) (Batch, error) {
 	panic("unexpected persistence call")
 }
+func (panicStore) UpdateTenant(context.Context, pgx.Tx, UpdateTenant) (Tenant, error) {
+	panic("unexpected persistence call")
+}
+func (panicStore) UpdatePlacementOrganization(context.Context, pgx.Tx, UpdatePlacementOrganization) (PlacementOrganization, error) {
+	panic("unexpected persistence call")
+}
+func (panicStore) UpdateDepartment(context.Context, pgx.Tx, UpdateDepartment) (Department, error) {
+	panic("unexpected persistence call")
+}
+func (panicStore) UpdateBatch(context.Context, pgx.Tx, UpdateBatch) (Batch, error) {
+	panic("unexpected persistence call")
+}
 func (panicStore) SetRetentionPolicy(context.Context, pgx.Tx, SetRetentionPolicy) (RetentionPolicy, error) {
 	panic("unexpected persistence call")
 }
@@ -325,5 +337,21 @@ func TestListPlacementOrganizationsRejectsInvalidCursor(t *testing.T) {
 	_, err := service.ListPlacementOrganizations(context.Background(), centralauthz.Capability{}, ListPlacementOrganizations{
 		Limit: 20, CursorSort: "not-a-timestamp", CursorID: testUUID,
 	})
+	assertInvalidArgument(t, err)
+}
+
+func TestUpdatesNeedAValidField(t *testing.T) {
+	t.Parallel()
+	service := &Service{pool: &pgxpool.Pool{}, store: panicStore{}}
+	blank, badCode, badYear := " ", "-x", "2026"
+	_, err := service.UpdateTenant(context.Background(), centralauthz.Capability{}, UpdateTenant{ID: testUUID})
+	assertInvalidArgument(t, err)
+	_, err = service.UpdateTenant(context.Background(), centralauthz.Capability{}, UpdateTenant{ID: testUUID, DisplayName: &blank})
+	assertInvalidArgument(t, err)
+	_, err = service.UpdatePlacementOrganization(context.Background(), centralauthz.Capability{}, UpdatePlacementOrganization{ID: "nope", LegalName: &badCode})
+	assertInvalidArgument(t, err)
+	_, err = service.UpdateDepartment(context.Background(), centralauthz.Capability{}, UpdateDepartment{ID: testUUID, Code: &badCode})
+	assertInvalidArgument(t, err)
+	_, err = service.UpdateBatch(context.Background(), centralauthz.Capability{}, UpdateBatch{ID: testUUID, AcademicYear: &badYear})
 	assertInvalidArgument(t, err)
 }

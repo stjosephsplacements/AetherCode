@@ -62,6 +62,10 @@ type Store interface {
 	SetRetentionPolicy(context.Context, pgx.Tx, SetRetentionPolicy) (RetentionPolicy, error)
 	PlaceLegalHold(context.Context, pgx.Tx, PlaceLegalHold) (LegalHold, error)
 	ReleaseLegalHold(context.Context, pgx.Tx, ReleaseLegalHold) (LegalHold, error)
+	UpdateTenant(context.Context, pgx.Tx, UpdateTenant) (Tenant, error)
+	UpdatePlacementOrganization(context.Context, pgx.Tx, UpdatePlacementOrganization) (PlacementOrganization, error)
+	UpdateDepartment(context.Context, pgx.Tx, UpdateDepartment) (Department, error)
+	UpdateBatch(context.Context, pgx.Tx, UpdateBatch) (Batch, error)
 	Ping(context.Context) error
 }
 
