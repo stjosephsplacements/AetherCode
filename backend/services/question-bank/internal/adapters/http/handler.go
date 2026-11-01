@@ -36,6 +36,7 @@ func NewHandler(serviceName string, service *app.Service, readiness httpx.Readin
 	mux.HandleFunc("GET /v1/question-versions/{question_version_id}", handler.getQuestionVersion)
 	mux.HandleFunc("GET /v1/question-versions/{question_version_id}/export", handler.exportQuestionVersion)
 	mux.HandleFunc("PUT /v1/question-versions/{question_version_id}/choices", handler.setQuestionVersionChoices)
+	mux.HandleFunc("PATCH /v1/question-versions/{question_version_id}", handler.updateQuestionVersion)
 	mux.HandleFunc("POST /v1/question-versions/{question_version_id}/model-checks", handler.startModelCheck)
 	mux.HandleFunc("GET /v1/question-versions/{question_version_id}/model-checks", handler.listModelChecks)
 	mux.HandleFunc("PUT /v1/question-versions/{question_version_id}/tests", handler.setQuestionVersionTests)
@@ -844,6 +845,43 @@ func (handler *Handler) setQuestionVersionChoices(writer http.ResponseWriter, re
 	version, err := handler.service.SetQuestionVersionChoices(request.Context(), decision.Capability, app.SetQuestionVersionChoices{
 		QuestionVersionID: questionVersionID, ExpectedQuestionVersion: body.ExpectedQuestionVersion,
 		Choices: body.Choices, CorrectChoices: body.CorrectChoices, MultipleChoice: body.MultipleChoice,
+	})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, version)
+}
+
+type updateVersionRequest struct {
+	ExpectedQuestionVersion int64   `json:"expected_question_version"`
+	Title                   *string `json:"title"`
+	PromptMarkdown          *string `json:"prompt_markdown"`
+	Difficulty              *string `json:"difficulty"`
+	TimeLimitMS             *int    `json:"time_limit_ms"`
+	MemoryLimitKiB          *int    `json:"memory_limit_kib"`
+}
+
+// updateQuestionVersion edits a draft's title, statement, difficulty or limits (ADR-0054).
+func (handler *Handler) updateQuestionVersion(writer http.ResponseWriter, request *http.Request) {
+	questionVersionID, err := httpx.ParseUUIDPathValue(request, "question_version_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var body updateVersionRequest
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "question_versions", questionVersionID, "")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	version, err := handler.service.UpdateQuestionVersion(request.Context(), decision.Capability, app.UpdateQuestionVersion{
+		QuestionVersionID: questionVersionID, ExpectedQuestionVersion: body.ExpectedQuestionVersion, Title: body.Title,
+		PromptMarkdown: body.PromptMarkdown, Difficulty: body.Difficulty, TimeLimitMS: body.TimeLimitMS, MemoryLimitKiB: body.MemoryLimitKiB,
 	})
 	if err != nil {
 		httpx.WriteError(writer, err)
