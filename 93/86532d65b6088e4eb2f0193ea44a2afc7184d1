@@ -1,0 +1,68 @@
+deploy/helm/platform-service/templates/ingress.yaml
+  s_40851fd2a7ba5d::t_2832c4bb00d6ef 2,10,24,28
+  s_40851fd2a7ba5d::t_bba34ba93c6d78 3-6
+  s_40851fd2a7ba5d::t_6001982de84b7b 31
+backend/services/gateway/internal/realtime/health.go
+  s_40851fd2a7ba5d::t_28562de0471e06 1-109
+backend/services/gateway/internal/config/runtime.go
+  s_40851fd2a7ba5d::t_38535aeea62c60 55-65,138-141,151-158,162-190
+  s_40851fd2a7ba5d::t_e7fb9ef850bf0e 159-161
+deploy/helm/platform-service/values.yaml
+  s_40851fd2a7ba5d::t_2832c4bb00d6ef 124-125
+  s_40851fd2a7ba5d::t_b8a0b42f8c4ad5 122-123
+backend/services/gateway/cmd/server/main.go
+  s_40851fd2a7ba5d::t_e7fb9ef850bf0e 5,7,20,78-81,83-84,88-96,101,103-125
+  s_40851fd2a7ba5d::t_fe86587cb6dc07 21
+  s_40851fd2a7ba5d::t_e02029f023e1d5 97-100,102
+  s_40851fd2a7ba5d::t_74f5404d867d8f 126
+backend/services/gateway/go.mod
+  s_40851fd2a7ba5d::t_37b275cbbb39d4 15-17,23,26-33,35-36,51,53,60-61
+  s_40851fd2a7ba5d::t_c5c60bd84bec4a 7-11
+backend/services/gateway/internal/config/runtime_test.go
+  s_40851fd2a7ba5d::t_524432b8ba0913 98-127
+  s_40851fd2a7ba5d::t_d7a971b4951a6b 8,10
+  s_40851fd2a7ba5d::t_2508ce905f37f5 128
+backend/services/gateway/internal/realtime/realtime_test.go
+  s_40851fd2a7ba5d::t_fe86587cb6dc07 17
+  s_40851fd2a7ba5d::t_f276cf09dd492d 153-154,162-170,186,191-192
+  s_40851fd2a7ba5d::t_26041a544a21d1 314-317
+  s_40851fd2a7ba5d::t_79b036039d029b 16,303-313,318-347
+  s_40851fd2a7ba5d::t_e46f3c832886b2 7,252,261-266,268,271,274,276-277
+  s_40851fd2a7ba5d::t_6179a126444f46 1-6,8-15,18-38,41-152,155-161,171-185,187-190,193-251,253-260,267,269-270,272-273,275,278-302,348
+  s_40851fd2a7ba5d::t_251186fc095223 39-40
+backend/services/gateway/README.md
+  s_40851fd2a7ba5d::t_7dfe4c4764be4f 98-99
+  s_40851fd2a7ba5d::t_b97132270486b6 83-97,100-105
+deploy/single-server/nginx-site.conf
+  s_40851fd2a7ba5d::t_33b9648ec86c47 32-43
+backend/services/gateway/internal/realtime/hub.go
+  s_40851fd2a7ba5d::t_251186fc095223 27,36-37
+  s_40851fd2a7ba5d::t_642c154698dbf4 1-26,28-35,38-132
+backend/services/gateway/internal/realtime/server.go
+  s_40851fd2a7ba5d::t_d82037fc368e64 188-190,215-217
+  s_40851fd2a7ba5d::t_fe86587cb6dc07 15
+  s_40851fd2a7ba5d::t_b030687278df39 1-14,16-187,191-214,218-256
+deploy/single-server/docker-compose.yml
+  s_40851fd2a7ba5d::t_33b9648ec86c47 468-470
+deploy/helm/platform-service/values-gateway.yaml
+  s_40851fd2a7ba5d::t_2832c4bb00d6ef 53-58
+  s_40851fd2a7ba5d::t_10a149029003b2 30-33,49-52,59-61
+backend/services/gateway/go.sum
+  s_40851fd2a7ba5d::t_4a44c1fac79412 1-2,5-7,12-20,28-29,38-43,48-54,57-62,101,104,119-121
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9386532d65b6088e4eb2f0193ea44a2afc7184d1",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh <shreesh@ALLENs-Mac-mini.local>"
+    }
+  }
+}
