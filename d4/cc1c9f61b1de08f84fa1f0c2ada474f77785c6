@@ -1,0 +1,35 @@
+backend/services/question-bank/internal/adapters/http/handler.go
+  s_40851fd2a7ba5d::t_083bec7c238c07 39,856-884,886-889,891
+  s_40851fd2a7ba5d::t_ae5fce463c65ea 885,890,892
+backend/services/question-bank/internal/app/service.go
+  s_40851fd2a7ba5d::t_083bec7c238c07 54,1078-1128
+  s_40851fd2a7ba5d::t_98b5d6d0d4bcb3 1129
+backend/services/question-bank/internal/app/service_test.go
+  s_40851fd2a7ba5d::t_083bec7c238c07 380-383
+backend/services/question-bank/internal/adapters/repo/postgres.go
+  s_40851fd2a7ba5d::t_083bec7c238c07 534-542
+backend/services/question-bank/internal/adapters/repo/update_integration_test.go
+  s_40851fd2a7ba5d::t_3e96272567e1f2 63-67,69-74,76-87
+  s_40851fd2a7ba5d::t_083bec7c238c07 1-60,68,75,88
+  s_40851fd2a7ba5d::t_627d9d0485606e 61-62
+backend/services/question-bank/migrations/000024_update_draft_question_version.down.sql
+  s_40851fd2a7ba5d::t_083bec7c238c07 1-5
+backend/services/question-bank/migrations/000024_update_draft_question_version.up.sql
+  s_40851fd2a7ba5d::t_083bec7c238c07 1-72
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d4cc1c9f61b1de08f84fa1f0c2ada474f77785c6",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh <shreesh@ALLENs-Mac-mini.local>"
+    }
+  }
+}
