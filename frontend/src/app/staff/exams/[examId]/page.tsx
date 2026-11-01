@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ActionForm, Checkbox, Field, Select, TextArea, TextInput } from "@/components/staff/form";
 import { EmptyState, LoadError, PageHeader, Section, Table } from "@/components/staff/page-header";
 import { ConfirmDelete } from "@/components/staff/confirm-delete";
+import { EditDialog } from "@/components/staff/edit-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge, Panel } from "@/components/ui/card";
 import type { ExamVersionContent, Page, QuestionDetail, QuestionVersion, SebPolicy } from "@/lib/api-types";
@@ -12,7 +13,7 @@ import { latestVersion } from "@/lib/server/exams";
 import { GatewayError, gateway } from "@/lib/server/gateway";
 import { requireCollege } from "@/lib/server/staff";
 import { formatDuration, formatScoreText, formatWindow, isoToCollegeTime } from "@/lib/utils";
-import { addPool, addQuestion, deleteExam, duplicateExam, publishExam, regradeItem, removeExamItem, removeExamSection, saveSebPolicy, tryExam } from "../actions";
+import { addPool, addQuestion, deleteExam, duplicateExam, publishExam, regradeItem, removeExamItem, removeExamSection, saveSebPolicy, tryExam, updateExamDetails, updateExamItemMarks, updateExamSection } from "../actions";
 import { AssignForm } from "./assign-form";
 import { MoveWindow } from "./move-window";
 import { RemoveFromExam } from "./remove-button";
@@ -105,6 +106,23 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
           <>
             <Badge tone={draft ? "neutral" : "success"}>{draft ? "Draft" : "Published"}</Badge>
             {draft && (
+              <EditDialog
+                title="Edit exam"
+                description="Times are in the college's time zone. Students are told the new window once it is published."
+                fields={[
+                  { name: "title", label: "Title", value: version.title },
+                  { name: "instructions", label: "Instructions (Markdown)", value: version.instructions_markdown, kind: "textarea" },
+                  { name: "opens_at", label: "Opens", value: isoToCollegeTime(version.opens_at), kind: "datetime" },
+                  { name: "closes_at", label: "Closes", value: isoToCollegeTime(version.closes_at), kind: "datetime" },
+                  { name: "duration_minutes", label: "Minutes per student", value: String(Math.round(version.duration_seconds / 60)), kind: "number", min: 1, max: 720 },
+                ]}
+                onSave={async (changes) => {
+                  "use server";
+                  return updateExamDetails(version.id, version.content_version, examId, changes);
+                }}
+              />
+            )}
+            {draft && (
               <ConfirmDelete
                 label="Delete exam"
                 title={`Delete ${version.title}?`}
@@ -152,12 +170,27 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
           <div className="space-y-4">
             {sections.map((section) => (
               <div key={section.id}>
-                {sections.length > 1 && (
-                  <p className="mb-2 text-[13px] font-medium text-ink-muted">
-                    {section.title}
-                    {section.draw_count !== null &&
-                      `: pool, each student gets ${section.draw_count} of ${section.items.length} question${section.items.length === 1 ? "" : "s"}`}
-                  </p>
+                {(sections.length > 1 || draft) && (
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <p className="text-[13px] font-medium text-ink-muted">
+                      {section.title}
+                      {section.draw_count !== null &&
+                        `: pool, each student gets ${section.draw_count} of ${section.items.length} question${section.items.length === 1 ? "" : "s"}`}
+                    </p>
+                    {draft && (
+                      <EditDialog
+                        title={`Edit ${section.title}`}
+                        fields={[
+                          { name: "title", label: "Section title", value: section.title },
+                          { name: "time_limit_minutes", label: "Time limit (minutes)", value: "", kind: "number", min: 1, max: 720, optional: true, hint: "Gives this section a limit of its own." },
+                        ]}
+                        onSave={async (changes) => {
+                          "use server";
+                          return updateExamSection(version.id, section.id, version.content_version, examId, changes);
+                        }}
+                      />
+                    )}
+                  </div>
                 )}
                 {section.items.length === 0 ? (
                   <div className="flex items-center justify-between gap-3 rounded-[var(--radius-surface)] border border-dashed border-line-strong px-6 py-8 text-sm text-ink-muted">
@@ -180,7 +213,16 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
                         <td className="px-4 py-2.5 text-ink">{item.question_title ?? "Question"}</td>
                         <td className="px-4 py-2.5 tabular-nums text-ink">{formatScoreText(Number(item.maximum_score))}</td>
                         {draft && (
-                          <td className="w-12 px-4 py-1.5 text-right">
+                          <td className="w-28 px-4 py-1.5 text-right">
+                            <EditDialog
+                              label="Marks"
+                              title={`Marks for ${item.question_title ?? "this question"}`}
+                              fields={[{ name: "marks", label: "Marks", value: String(Number(item.maximum_score)), kind: "number", min: 0.0001, max: 99999999, step: 0.5 }]}
+                              onSave={async (changes) => {
+                                "use server";
+                                return updateExamItemMarks(version.id, section.id, item.id, version.content_version, examId, changes.marks ?? "");
+                              }}
+                            />
                             <RemoveFromExam
                               label={`Remove ${item.question_title ?? "this question"} from the exam`}
                               remove={async () => {

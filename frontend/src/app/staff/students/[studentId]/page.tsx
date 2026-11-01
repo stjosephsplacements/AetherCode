@@ -2,6 +2,8 @@ import { ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { ConfirmDelete } from "@/components/staff/confirm-delete";
+import { EditDialog } from "@/components/staff/edit-dialog";
 import { LoadError, PageHeader } from "@/components/staff/page-header";
 import { Badge, Panel } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +12,7 @@ import { listDepartments, departmentLabel } from "@/lib/server/directory";
 import { describeAccounts } from "@/lib/server/people";
 import { gateway } from "@/lib/server/gateway";
 import { requireCollege } from "@/lib/server/staff";
+import { deleteStudent, updateStudent } from "../actions";
 import { StudentActions } from "../panels";
 
 export const metadata: Metadata = { title: "Student profile" };
@@ -60,6 +63,29 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
       <PageHeader
         title={account?.display_name || student.enrollment_number}
         description={`Roll number: ${student.enrollment_number} · Status: ${student.status}`}
+        actions={
+          <>
+            <EditDialog
+              title="Edit student"
+              description="Name and email belong to the account. The roll number must be unique in this college."
+              fields={[{ name: "enrollment_number", label: "Roll number", value: student.enrollment_number }]}
+              onSave={async (changes) => {
+                "use server";
+                return updateStudent(student.id, changes);
+              }}
+            />
+            <ConfirmDelete
+              title={`Delete ${student.enrollment_number}?`}
+              description="The student record is removed. To stop someone signing in without losing anything, turn their account off instead."
+              confirmText={student.enrollment_number}
+              redirectTo="/staff/students"
+              onConfirm={async (reason) => {
+                "use server";
+                return deleteStudent(student.id, reason);
+              }}
+            />
+          </>
+        }
       />
 
       {/* Main Student Card */}

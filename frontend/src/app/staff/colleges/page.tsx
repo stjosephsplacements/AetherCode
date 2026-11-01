@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { ConfirmDelete } from "@/components/staff/confirm-delete";
+import { EditDialog } from "@/components/staff/edit-dialog";
 import { ActionForm, Field, TextInput } from "@/components/staff/form";
 import { EmptyState, LoadError, PageHeader, Section, Table } from "@/components/staff/page-header";
 import { Badge, Panel } from "@/components/ui/card";
 import type { Page, Tenant } from "@/lib/api-types";
 import { gateway } from "@/lib/server/gateway";
 import { requireStaff } from "@/lib/server/staff";
-import { createCollege } from "./actions";
+import { createCollege, deleteCollege, updateCollege } from "./actions";
 
 export const metadata: Metadata = { title: "Colleges" };
 
@@ -30,7 +32,7 @@ export default async function CollegesPage() {
       {tenants.length === 0 ? (
         <EmptyState>No colleges yet.</EmptyState>
       ) : (
-        <Table head={["College", "Short name", "ID", "Status"]}>
+        <Table head={["College", "Short name", "ID", "Status", ""]}>
           {tenants.map((tenant) => (
             <tr key={tenant.id}>
               <td className="px-4 py-3">
@@ -41,6 +43,30 @@ export default async function CollegesPage() {
               <td className="px-4 py-3 font-mono text-[12px] text-ink-muted">{tenant.id}</td>
               <td className="px-4 py-3">
                 <Badge tone={tenant.status === "active" ? "success" : "neutral"}>{tenant.status}</Badge>
+              </td>
+              <td className="px-4 py-2">
+                <div className="flex items-center justify-end gap-1">
+                  <EditDialog
+                    title={`Edit ${tenant.display_name}`}
+                    fields={[
+                      { name: "display_name", label: "Display name", value: tenant.display_name },
+                      { name: "legal_name", label: "Legal name", value: tenant.legal_name },
+                    ]}
+                    onSave={async (changes) => {
+                      "use server";
+                      return updateCollege(tenant.id, changes);
+                    }}
+                  />
+                  <ConfirmDelete
+                    title={`Delete ${tenant.display_name}?`}
+                    description="The college and everything filed under it stop appearing. Its students can no longer sign in. This is for a college that should not exist; turn accounts off to pause one."
+                    confirmText={tenant.slug}
+                    onConfirm={async (reason) => {
+                      "use server";
+                      return deleteCollege(tenant.id, reason);
+                    }}
+                  />
+                </div>
               </td>
             </tr>
           ))}

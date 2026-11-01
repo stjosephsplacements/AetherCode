@@ -337,3 +337,55 @@ export async function removeExamSection(versionId: string, sectionId: string, co
   revalidatePath(`/staff/exams/${examId}`);
   return { error: null, message: "Removed." };
 }
+
+/** Edits a draft exam's title, instructions, window or duration. A published exam is refused (ADR-0054). */
+export async function updateExamDetails(versionId: string, contentVersion: number, examId: string, changes: Record<string, string>): Promise<ActionState> {
+  const { tenantId } = await requireCollege();
+  const body: Record<string, string | number> = { expected_content_version: contentVersion };
+  try {
+    if ("title" in changes) body.title = changes.title!.trim();
+    if ("instructions" in changes) body.instructions_markdown = changes.instructions!.trim();
+    if ("opens_at" in changes) body.opens_at = collegeTimeToISO(changes.opens_at!);
+    if ("closes_at" in changes) body.closes_at = collegeTimeToISO(changes.closes_at!);
+    if ("duration_minutes" in changes) body.duration_seconds = Math.round(Number(changes.duration_minutes) * 60);
+    await gateway(`/assessment/v1/tenants/${tenantId}/exam-versions/${versionId}`, { method: "PATCH", body });
+  } catch (error) {
+    return { error: error instanceof Error && !("status" in error) ? error.message : actionError(error) };
+  }
+  revalidatePath(`/staff/exams/${examId}`);
+  revalidatePath("/staff/exams");
+  revalidatePath("/staff/calendar");
+  return { error: null, message: "Saved." };
+}
+
+export async function updateExamSection(versionId: string, sectionId: string, contentVersion: number, examId: string, changes: Record<string, string>): Promise<ActionState> {
+  const { tenantId } = await requireCollege();
+  const body: Record<string, string | number | boolean> = { expected_content_version: contentVersion };
+  if ("title" in changes) body.title = changes.title!.trim();
+  if ("time_limit_minutes" in changes) {
+    const minutes = changes.time_limit_minutes!.trim();
+    if (minutes === "") body.clear_time_limit = true;
+    else body.time_limit_seconds = Math.round(Number(minutes) * 60);
+  }
+  try {
+    await gateway(`/assessment/v1/tenants/${tenantId}/exam-versions/${versionId}/sections/${sectionId}`, { method: "PATCH", body });
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+  revalidatePath(`/staff/exams/${examId}`);
+  return { error: null, message: "Saved." };
+}
+
+export async function updateExamItemMarks(versionId: string, sectionId: string, itemId: string, contentVersion: number, examId: string, marks: string): Promise<ActionState> {
+  const { tenantId } = await requireCollege();
+  try {
+    await gateway(`/assessment/v1/tenants/${tenantId}/exam-versions/${versionId}/sections/${sectionId}/items/${itemId}`, {
+      method: "PATCH",
+      body: { expected_content_version: contentVersion, maximum_score: marks.trim() },
+    });
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+  revalidatePath(`/staff/exams/${examId}`);
+  return { error: null, message: "Saved." };
+}

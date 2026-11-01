@@ -2,6 +2,7 @@ import { ArrowLeft, Download } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ConfirmDelete } from "@/components/staff/confirm-delete";
+import { EditDialog } from "@/components/staff/edit-dialog";
 import { ActionForm } from "@/components/staff/form";
 import { LoadError, PageHeader } from "@/components/staff/page-header";
 import { type Step, Stepper } from "@/components/staff/stepper";
@@ -17,7 +18,7 @@ import { listLanguages } from "@/lib/server/languages";
 import { reviewerChoices } from "@/lib/server/reviewers";
 import { requireStaff } from "@/lib/server/staff";
 import { cn } from "@/lib/utils";
-import { deleteDraftVersion, draftNewVersion } from "../actions";
+import { deleteDraftVersion, draftNewVersion, updateQuestionDetails } from "../actions";
 import { AudienceSwitch } from "./audience-switch";
 import { ChoicesEditor } from "./choices-editor";
 import { ModelCheckPanel } from "./model-check";
@@ -124,6 +125,37 @@ export default async function QuestionPage({ params }: { params: Promise<{ versi
           <>
             {!mcq && <AudienceSwitch questionId={version.question_id} versionId={version.id} initial={version.audience ?? "test"} />}
             <Badge tone={draft ? "neutral" : "success"}>{draft ? (version.review_requested_at ? "In review" : "Draft") : "Published"}</Badge>
+            {draft && (
+              <EditDialog
+                title="Edit question"
+                description="Changing the time or memory limit means the model solution has to be checked again."
+                fields={[
+                  { name: "title", label: "Title", value: version.title },
+                  { name: "prompt", label: "Statement (Markdown)", value: version.prompt_markdown, kind: "textarea" },
+                  {
+                    name: "difficulty",
+                    label: "Difficulty",
+                    value: version.difficulty,
+                    kind: "select",
+                    options: [
+                      { value: "easy", label: "Easy" },
+                      { value: "medium", label: "Medium" },
+                      { value: "hard", label: "Hard" },
+                    ],
+                  },
+                  ...(mcq
+                    ? []
+                    : [
+                        { name: "time_seconds", label: "Time limit (seconds)", value: String(version.time_limit_ms / 1000), kind: "number" as const, min: 0.05, max: 600, step: 0.05 },
+                        { name: "memory_mb", label: "Memory limit (MB)", value: String(Math.round(version.memory_limit_kib / 1024)), kind: "number" as const, min: 1, max: 4096 },
+                      ]),
+                ]}
+                onSave={async (changes) => {
+                  "use server";
+                  return updateQuestionDetails(versionId, version.version, changes);
+                }}
+              />
+            )}
             {draft && (
               <ConfirmDelete
                 label="Delete draft"

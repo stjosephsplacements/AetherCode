@@ -410,3 +410,22 @@ export async function deleteDraftVersion(versionId: string, reason: string): Pro
   revalidatePath("/staff/questions");
   return { error: null, message: "Deleted." };
 }
+
+/** Edits a draft's title, statement, difficulty or limits. A published version is refused (ADR-0054). */
+export async function updateQuestionDetails(versionId: string, expectedVersion: number, changes: Record<string, string>): Promise<ActionState> {
+  await requireStaff();
+  const body: Record<string, string | number> = { expected_question_version: expectedVersion };
+  if ("title" in changes) body.title = changes.title!.trim();
+  if ("prompt" in changes) body.prompt_markdown = changes.prompt!.trim();
+  if ("difficulty" in changes) body.difficulty = changes.difficulty!;
+  if ("time_seconds" in changes) body.time_limit_ms = Math.round(Number(changes.time_seconds) * 1000);
+  if ("memory_mb" in changes) body.memory_limit_kib = Math.round(Number(changes.memory_mb) * 1024);
+  try {
+    await gateway(`/question-bank/v1/question-versions/${versionId}`, { method: "PATCH", body });
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+  revalidatePath("/staff/questions");
+  revalidatePath(`/staff/questions/${versionId}`);
+  return { error: null, message: "Saved." };
+}
