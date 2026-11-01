@@ -1,0 +1,19 @@
+backend/services/seb/internal/domain/launchfile/settings.plist.tmpl
+  s_40851fd2a7ba5d::t_e88865d9edf2ec 16-17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5125ec52b6e862f392a6f737fac639c8b949b8b6",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh <shreesh@ALLENs-Mac-mini.local>"
+    }
+  }
+}
