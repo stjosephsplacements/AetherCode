@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect } from "react";
 import { EmptyState, Section, Table } from "@/components/staff/page-header";
-import { ActionForm, Field, FormMessage, SubmitButton, TextArea, TextInput, initialActionState } from "@/components/staff/form";
+import { ActionForm, Checkbox, Field, FormMessage, SubmitButton, TextArea, TextInput, initialActionState } from "@/components/staff/form";
 import { Badge, Panel } from "@/components/ui/card";
 import type { ExamMonitor, MonitorCandidate } from "@/lib/api-types";
 import { formatCountdown, useNow } from "@/lib/client/use-now";
@@ -133,11 +133,11 @@ export function MonitorBoard({
         <ActionForm action={setIntegrity} submitLabel="Save integrity settings">
           {hidden}
           <label className="flex items-center gap-2 text-sm text-ink">
-            <input type="checkbox" name="require_fullscreen" defaultChecked={monitor.require_fullscreen} className="accent-[var(--brand)]" />
+            <Checkbox name="require_fullscreen" defaultChecked={monitor.require_fullscreen} />
             Require fullscreen
           </label>
           <label className="flex items-center gap-2 text-sm text-ink">
-            <input type="checkbox" name="block_external_paste" defaultChecked={monitor.block_external_paste} className="accent-[var(--brand)]" />
+            <Checkbox name="block_external_paste" defaultChecked={monitor.block_external_paste} />
             Block pasting from outside the exam
           </label>
         </ActionForm>

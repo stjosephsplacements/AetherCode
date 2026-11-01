@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Download, Search } from "lucide-react";
+import { Select } from "@/components/staff/form";
 import { Button } from "@/components/ui/button";
 import { Table } from "@/components/staff/page-header";
 import type { Department, Student } from "@/lib/api-types";
@@ -60,18 +61,14 @@ export function PlacementsFilter({
               className="h-9 w-full rounded-[var(--radius-control)] border border-line bg-surface pl-9 pr-3 text-xs text-ink placeholder:text-ink-muted focus:outline-none focus:ring-1 focus:ring-brand"
             />
           </div>
-          <select
-            value={selectedDept}
-            onChange={(e) => setSelectedDept(e.target.value)}
-            className="h-9 rounded-[var(--radius-control)] border border-line bg-surface px-3 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-brand"
-          >
+          <Select size="sm" aria-label="Department" className="min-w-48" value={selectedDept} onValueChange={setSelectedDept}>
             <option value="all">All Departments ({departments.length})</option>
             {departments.map((dept) => (
               <option key={dept.id} value={dept.id}>
                 {dept.name} ({dept.code})
               </option>
             ))}
-          </select>
+          </Select>
         </div>
         <Button variant="secondary" size="sm" onClick={exportList} className="gap-1.5 shrink-0">
           <Download className="size-3.5" />
