@@ -1,0 +1,39 @@
+backend/services/assessment/internal/app/edit.go
+  s_40851fd2a7ba5d::t_f54428121ea2c1 1-99,101-108
+  s_40851fd2a7ba5d::t_238c18d80f3d0d 100
+backend/services/assessment/internal/adapters/http/handler_test.go
+  s_40851fd2a7ba5d::t_a4e20a0efba95b 55,127-134
+  s_40851fd2a7ba5d::t_2705413c687ae8 135,757-785
+backend/services/assessment/migrations/000035_edit_draft_exam_content.down.sql
+  s_40851fd2a7ba5d::t_96706baaf4e358 1-7
+backend/services/assessment/migrations/000035_edit_draft_exam_content.up.sql
+  s_40851fd2a7ba5d::t_96706baaf4e358 1-157
+backend/services/assessment/internal/adapters/http/edit_handler.go
+  s_40851fd2a7ba5d::t_238c18d80f3d0d 1-150
+backend/services/assessment/internal/adapters/repo/edit.go
+  s_40851fd2a7ba5d::t_238c18d80f3d0d 1-46
+backend/services/assessment/internal/adapters/http/handler.go
+  s_40851fd2a7ba5d::t_238c18d80f3d0d 44-46,93-95
+backend/services/assessment/internal/adapters/repo/edit_integration_test.go
+  s_40851fd2a7ba5d::t_c24ece4450fbcd 1-130
+backend/services/assessment/internal/app/service_test.go
+  s_40851fd2a7ba5d::t_2705413c687ae8 612-639
+backend/services/assessment/internal/app/service.go
+  s_40851fd2a7ba5d::t_238c18d80f3d0d 56-58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4e10da67a60500abdd0c0b9a4346971c59959720",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh <shreesh@ALLENs-Mac-mini.local>"
+    }
+  }
+}
