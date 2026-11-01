@@ -1,0 +1,55 @@
+backend/services/identity/go.mod
+  s_40851fd2a7ba5d::t_933977f3325ca1 12,91-93
+backend/services/identity/go.sum
+  s_40851fd2a7ba5d::t_c093839cd86d18 100,110,194-195,200-201,207-210,212-213
+deploy/helm/README.md
+  s_40851fd2a7ba5d::t_859239cb1d7eab 40
+deploy/helm/install.sh
+  s_40851fd2a7ba5d::t_a18730074f440d 21
+deploy/helm/lint.sh
+  s_40851fd2a7ba5d::t_8c923852c25f18 13-19
+deploy/helm/platform-infra/templates/minio.yaml
+  s_40851fd2a7ba5d::t_e5dc4c9f81e06a 114
+deploy/helm/platform-migrations/templates/jobs.yaml
+  s_40851fd2a7ba5d::t_b92e62cabafda7 29,62,94
+deploy/helm/platform-migrations/values.yaml
+  s_40851fd2a7ba5d::t_43aa67cc157c01 12-17
+deploy/helm/values-common.yaml
+  s_40851fd2a7ba5d::t_53d5d7e22b2c7b 1-2,4-7,13-15
+deploy/helm/values-infra-external-db.yaml
+  s_40851fd2a7ba5d::t_effc21bcd86eff 2,4-8
+frontend/Dockerfile
+  s_40851fd2a7ba5d::t_8781f870866fb2 10
+frontend/next.config.ts
+  s_40851fd2a7ba5d::t_ace767dbf41385 23
+frontend/src/app/layout.tsx
+  s_40851fd2a7ba5d::t_3cc4719da72c87 65-66,68-69
+frontend/src/app/staff/exams/[examId]/results/export-button.tsx
+  s_40851fd2a7ba5d::t_e3300e83ddac59 3,7-8,14,18-21
+frontend/src/app/staff/placements/page.tsx
+  s_40851fd2a7ba5d::t_55c16d3a276ab5 123
+frontend/src/app/staff/placements/placements-filter.tsx
+  s_40851fd2a7ba5d::t_79e794ca80d748 13,18,35-42,98-101,106-111
+frontend/src/app/staff/students/[studentId]/page.tsx
+  s_40851fd2a7ba5d::t_e0fb90f886829a 10,12,35-41,43,53-54
+frontend/src/app/staff/students/panels.tsx
+  s_40851fd2a7ba5d::t_2cf58051a316d4 95-96
+frontend/src/lib/client/exceljs.ts
+  s_40851fd2a7ba5d::t_bfb48f6db268d8 5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b500341393f6a08f027ccf3e4e1c0c1bf4349aa5",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh <shreesh@ALLENs-Mac-mini.local>"
+    }
+  }
+}
