@@ -205,12 +205,22 @@ export type QuestionVersion = {
   multiple_choice: boolean;
   /** The question's: test questions never reach practice (ADR-0041). */
   audience?: Audience;
+  /** The question's, not the version's: where it is filed, and how it is described (ADR-0052). */
+  category_id?: string;
+  category?: CategoryRef;
+  tags?: { id: string; name: string }[];
 };
 
 export type Audience = "test" | "practice";
 
+/** A category as a question refers to it. */
+export type CategoryRef = { id: string; name: string };
+
+/** GET /question-bank/v1/categories */
+export type Category = CategoryRef & { question_count: number };
+
 export type QuestionDetail = {
-  question: { id: string; slug: string; lifecycle_state: string; version: number; audience?: Audience };
+  question: { id: string; slug: string; lifecycle_state: string; version: number; audience?: Audience; category_id?: string; category?: CategoryRef };
   question_version: QuestionVersion;
 };
 
