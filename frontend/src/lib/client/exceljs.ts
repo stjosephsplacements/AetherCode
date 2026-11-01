@@ -2,12 +2,8 @@
 export type ExcelCell = null | undefined | string | number | boolean | { text?: unknown; result?: unknown };
 export type ExcelRow = { values: unknown };
 export type ExcelWorkbook = {
-  xlsx: { load(buffer: ArrayBuffer): Promise<unknown>; writeBuffer(): Promise<ArrayBuffer> };
+  xlsx: { load(buffer: ArrayBuffer): Promise<unknown> };
   worksheets: { eachRow(callback: (row: ExcelRow) => void): void }[];
-  addWorksheet(name: string): {
-    addRow(values: unknown): unknown;
-    getRow(index: number): { font: unknown };
-  };
 };
 type ExcelNamespace = { Workbook: new () => ExcelWorkbook };
 

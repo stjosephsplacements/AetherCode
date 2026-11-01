@@ -1,8 +1,11 @@
 # Overlay for clusters that already run PostgreSQL (for example a CloudNativePG
-# cluster) for both the platform and judge databases. Pass it after the defaults:
+# cluster) for both the platform and judge databases. Pass it to platform-infra:
 #   helm upgrade --install infra platform-infra -f values-infra-external-db.yaml
-# and point global.postgresHost / global.judgeDbHost in values-common.yaml at
-# that cluster. Backups are then the external cluster's job.
+# Set global.postgresHost / global.judgeDbHost in values-common.yaml to that
+# cluster. platform-migrations and platform-service both read them from that
+# file, so pass it to the migrations release too or its hooks cannot connect:
+#   helm upgrade --install migrations platform-migrations -f values-common.yaml --set image.tag=<tag>
+# Backups are then the external cluster's job.
 postgres:
   enabled: false
 
