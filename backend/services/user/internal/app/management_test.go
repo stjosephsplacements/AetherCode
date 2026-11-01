@@ -128,6 +128,10 @@ func (uncalledManagementStore) GetStudentIncludeDeleted(context.Context, pgx.Tx,
 	panic("unexpected persistence call")
 }
 
+func (uncalledManagementStore) UpdateStudent(context.Context, pgx.Tx, UpdateStudent) (Student, error) {
+	panic("unexpected persistence call")
+}
+
 func (uncalledManagementStore) SoftDeleteStudent(context.Context, pgx.Tx, DeleteStudent) error {
 	panic("unexpected persistence call")
 }
@@ -195,4 +199,24 @@ func TestHardDeleteStudent_RequiresSuperAdminRole(t *testing.T) {
 		Reason:  "",
 	})
 	assertManagementErrorCode(t, err, apperrors.CodeInvalidArgument)
+}
+
+// TestUpdateStudent_RequiresValidInputs verifies that nothing reaches the store for a bad edit.
+func TestUpdateStudent_RequiresValidInputs(t *testing.T) {
+	t.Parallel()
+	service := &ManagementService{pool: &pgxpool.Pool{}, store: uncalledManagementStore{}}
+	blank, badDate, number := "  ", "01/02/2026", "21CS001"
+
+	for name, command := range map[string]UpdateStudent{
+		"nothing to change":  {ID: managementStudentID},
+		"blank enrolment":    {ID: managementStudentID, EnrollmentNumber: &blank},
+		"bad admission date": {ID: managementStudentID, AdmittedAt: &badDate},
+		"not a student id":   {ID: "not-a-uuid", EnrollmentNumber: &number},
+	} {
+		_, err := service.UpdateStudent(context.Background(), centralauthz.Capability{}, command)
+		if err == nil {
+			t.Fatalf("%s: want an invalid-argument error", name)
+		}
+		assertManagementErrorCode(t, err, apperrors.CodeInvalidArgument)
+	}
 }

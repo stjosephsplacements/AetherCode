@@ -47,6 +47,7 @@ func NewHandler(serviceName string, service *app.ManagementService, accounts *ap
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/staff", handler.createStaff)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/accounts/describe", handler.describeAccounts)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/students/{student_id}", handler.getStudent)
+	mux.HandleFunc("PATCH /v1/tenants/{tenant_id}/students/{student_id}", handler.updateStudent)
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/students/{student_id}", handler.deleteStudent)
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/students/{student_id}/hard", handler.hardDeleteStudent)
 	mux.HandleFunc("POST /v1/role-assignments", handler.assignRole)
