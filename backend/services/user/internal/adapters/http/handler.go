@@ -38,6 +38,7 @@ func NewHandler(serviceName string, service *app.ManagementService, accounts *ap
 	mux.HandleFunc("GET /v1/me", handler.getSelf)
 	mux.HandleFunc("PUT /v1/profiles/{principal_id}", handler.upsertProfile)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/students", handler.listStudents)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/students/roster", handler.listStudentRoster)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/staff-audit", handler.listStaffAudit)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/students", handler.enrollStudent)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/students/import", handler.importStudents)

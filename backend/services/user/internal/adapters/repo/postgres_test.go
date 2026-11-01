@@ -111,3 +111,10 @@ func TestStudentGormRepo_SoftDeleteStudent_FiltersFromQueries(t *testing.T) {
 	assert.NotNil(t, deleted.DeletedAt)
 	assert.Equal(t, actor, *deleted.DeletedBy)
 }
+
+func TestLikePatternEscapesWhatLIKEReads(t *testing.T) {
+	t.Parallel()
+	require.Nil(t, likePattern("   "))
+	require.Equal(t, "%21cs%", likePattern(" 21cs "))
+	require.Equal(t, `%50\%\_a\\b%`, likePattern(`50%_a\b`))
+}
