@@ -1,0 +1,18 @@
+frontend/src/components/staff/college-filter.tsx
+  h_8540f154048b04 4,6,13,16-17,28,38
+frontend/src/components/staff/college-select.tsx
+  h_8540f154048b04 4,6,18,25-29,37
+frontend/src/components/staff/switching-overlay.tsx
+  h_8540f154048b04 1-10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2b07ac0b3d430c28058fdc1bede3f521b595dca0",
+  "prompts": {},
+  "humans": {
+    "h_8540f154048b04": {
+      "author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
