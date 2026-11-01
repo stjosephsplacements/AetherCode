@@ -1,20 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Download, Search } from "lucide-react";
-import { Select } from "@/components/staff/form";
+import { Download, Search, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Table } from "@/components/staff/page-header";
-import type { Department, Student } from "@/lib/api-types";
+import type { Batch, Department, Student } from "@/lib/api-types";
 
 export function PlacementsFilter({
   students,
   departments,
-  truncated,
+  batches,
 }: {
   students: Student[];
   departments: Department[];
-  truncated: boolean;
+  batches: Batch[];
 }) {
   const [selectedDept, setSelectedDept] = useState<string>("all");
   const [search, setSearch] = useState<string>("");
@@ -31,14 +30,12 @@ export function PlacementsFilter({
   });
 
   function exportList() {
-    const csv = ["Roll Number,Department,Status"]
-      .concat(
-        filtered.map((s) =>
-          [s.enrollment_number, deptMap.get(s.college_department_id || "") || "General", s.status].map(csvCell).join(","),
-        ),
-      )
-      .join("\n");
-    const encodedUri = "data:text/csv;charset=utf-8," + encodeURIComponent(csv);
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      ["Roll Number,Department,Status"].concat(
+        filtered.map((s) => `${s.enrollment_number},"${deptMap.get(s.college_department_id || "") || "General"}",${s.status}`)
+      ).join("\n");
+    const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
     link.setAttribute("download", `placement_candidates_${new Date().toISOString().slice(0, 10)}.csv`);
@@ -61,14 +58,18 @@ export function PlacementsFilter({
               className="h-9 w-full rounded-[var(--radius-control)] border border-line bg-surface pl-9 pr-3 text-xs text-ink placeholder:text-ink-muted focus:outline-none focus:ring-1 focus:ring-brand"
             />
           </div>
-          <Select size="sm" aria-label="Department" className="min-w-48" value={selectedDept} onValueChange={setSelectedDept}>
+          <select
+            value={selectedDept}
+            onChange={(e) => setSelectedDept(e.target.value)}
+            className="h-9 rounded-[var(--radius-control)] border border-line bg-surface px-3 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-brand"
+          >
             <option value="all">All Departments ({departments.length})</option>
             {departments.map((dept) => (
               <option key={dept.id} value={dept.id}>
                 {dept.name} ({dept.code})
               </option>
             ))}
-          </Select>
+          </select>
         </div>
         <Button variant="secondary" size="sm" onClick={exportList} className="gap-1.5 shrink-0">
           <Download className="size-3.5" />
@@ -90,17 +91,8 @@ export function PlacementsFilter({
         ))}
       </Table>
       {filtered.length > 25 && (
-        <p className="text-center text-xs text-ink-muted">Showing first 25 of {filtered.length} matching candidates. Use Export for the full list.</p>
-      )}
-      {truncated && (
-        <p className="text-center text-xs text-warning">Only the first 5,000 students were loaded, so this list and its export are incomplete.</p>
+        <p className="text-center text-xs text-ink-muted">Showing first 25 of {filtered.length} matching candidates. Use Export for complete dataset.</p>
       )}
     </div>
   );
-}
-
-// Quotes a CSV field and neutralizes spreadsheet formula prefixes (=, +, -, @).
-function csvCell(value: string): string {
-  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
-  return `"${safe.replace(/"/g, '""')}"`;
 }

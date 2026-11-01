@@ -1,8 +1,8 @@
-import { Briefcase, Building2, CheckCircle2, GraduationCap, Users } from "lucide-react";
+import { Briefcase, Building2, CheckCircle2, ChevronRight, Download, Filter, GraduationCap, Users } from "lucide-react";
 import type { Metadata } from "next";
-import { EmptyState, LoadError, PageHeader, Section } from "@/components/staff/page-header";
+import { EmptyState, LoadError, PageHeader, Section, Table } from "@/components/staff/page-header";
 import { Badge, Panel } from "@/components/ui/card";
-import { listBatches, listDepartments, listPlacement } from "@/lib/server/directory";
+import { listBatches, listDepartments, listPlacement, departmentLabel } from "@/lib/server/directory";
 import { listAllStudents } from "@/lib/server/students";
 import { requireCollege } from "@/lib/server/staff";
 import { PlacementsFilter } from "./placements-filter";
@@ -119,8 +119,8 @@ export default async function PlacementsPage() {
       </Section>
 
       {/* Interactive Drives & Candidate Filter */}
-      <Section title="Candidate Pool Eligibility Filter" description="Filter students by department or search by roll number.">
-        <PlacementsFilter students={students} departments={collegeDepts} truncated={students.length >= 5000} />
+      <Section title="Candidate Pool Eligibility Filter" description="Filter students by department, batch, and cohort readiness.">
+        <PlacementsFilter students={students} departments={collegeDepts} batches={batches} />
       </Section>
     </div>
   );
