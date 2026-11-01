@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { EmptyState, LoadError, PageHeader, Section, Table } from "@/components/staff/page-header";
-import { CollegeBar } from "@/components/staff/college-bar";
+import { CollegeFilter } from "@/components/staff/college-filter";
 import type { ExamResult, Page, Student } from "@/lib/api-types";
 import { listBatches, listDepartments } from "@/lib/server/directory";
 import { type ExamWithVersion, listExams, mapLimit } from "@/lib/server/exams";
 import { gateway } from "@/lib/server/gateway";
-import { requireCollege } from "@/lib/server/staff";
+import { inColleges } from "@/lib/server/colleges";
+import { collegesFor, requireStaff } from "@/lib/server/staff";
 import { listAllStudents } from "@/lib/server/students";
 import { PASS_SHARE } from "@/lib/results";
 import { cn, formatDateTime } from "@/lib/utils";
@@ -19,38 +20,44 @@ const percent = (share: number) => `${Math.round(share * 100)}%`;
 const mean = (values: number[]) => (values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0);
 
 /** Exam results across the college, by exam, department, batch and student. */
-export default async function AnalyticsPage() {
-  const staff = await requireCollege();
+export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<{ college?: string }> }) {
+  const staff = await requireStaff();
   let data;
   try {
-    const [exams, students, departments, batches] = await Promise.all([
-      listExams(staff.tenantId),
-      listAllStudents(staff.tenantId),
-      listDepartments(staff.tenantId),
-      listBatches(staff.tenantId),
-    ]);
-    const published = exams.filter((entry) => entry.version && entry.version.status !== "draft");
-    const results = await mapLimit(published, 6, async (entry) => ({
+    const perCollege = await inColleges(collegesFor(staff, (await searchParams).college), async (collegeId) => {
+      const [exams, students, departments, batches] = await Promise.all([listExams(collegeId), listAllStudents(collegeId), listDepartments(collegeId), listBatches(collegeId)]);
+      const published = exams.filter((entry) => entry.version && entry.version.status !== "draft");
+      const results = await mapLimit(published, 6, async (entry) => ({
         exam: entry,
-      results: await gateway<ExamResult[]>(`/analytics/v1/tenants/${staff.tenantId}/exam-results?exam_version_id=${entry.version!.id}&limit=5000`).catch(() => []),
-    }));
-    // Batch membership comes from each batch's student list.
-    const batchOf = new Map<string, string>();
-    await mapLimit(batches, 6, async (batch) => {
-      const page = await gateway<Page<Student>>(`/user/v1/tenants/${staff.tenantId}/students?batch_id=${batch.id}&limit=100`).catch(() => null);
-      for (const student of page?.items ?? []) batchOf.set(student.principal_id, batch.id);
+        results: await gateway<ExamResult[]>(`/analytics/v1/tenants/${collegeId}/exam-results?exam_version_id=${entry.version!.id}&limit=5000`).catch(() => []),
+      }));
+      // Batch membership comes from each batch's student list.
+      const batchOf = new Map<string, string>();
+      await mapLimit(batches, 6, async (batch) => {
+        const page = await gateway<Page<Student>>(`/user/v1/tenants/${collegeId}/students?batch_id=${batch.id}&limit=100`).catch(() => null);
+        for (const student of page?.items ?? []) batchOf.set(student.principal_id, batch.id);
+      });
+      return { results, students, departments, batches, batchOf };
     });
-    data = { results, students, departments, batches, batchOf };
+    // Every id is a UUID, so the colleges' data can be pooled and the same tables work across them.
+    const several = staff.isPlatformAdmin;
+    data = {
+      results: perCollege.flatMap(({ value }) => value?.results ?? []),
+      students: perCollege.flatMap(({ value }) => value?.students ?? []),
+      departments: perCollege.flatMap(({ college, value }) => (value?.departments ?? []).map((department) => (several ? { ...department, name: `${department.name} (${college.name})` } : department))),
+      batches: perCollege.flatMap(({ value }) => value?.batches ?? []),
+      batchOf: new Map(perCollege.flatMap(({ value }) => [...(value?.batchOf ?? [])])),
+      unreachable: perCollege.filter((entry) => entry.failed).map((entry) => entry.college.name),
+    };
   } catch (error) {
     return (
       <>
-        <CollegeBar staff={staff} />
       <PageHeader title="Analytics" />
         <LoadError error={error} />
       </>
     );
   }
-  const { results, students, departments, batches, batchOf } = data;
+  const { results, students, departments, batches, batchOf, unreachable } = data;
   const studentBy = new Map(students.map((student) => [student.principal_id, student]));
 
   const scored: Scored[] = results.flatMap(({ exam, results: rows }) =>
@@ -87,8 +94,12 @@ export default async function AnalyticsPage() {
 
   return (
     <>
-      <CollegeBar staff={staff} />
-      <PageHeader title="Analytics" description={`Graded exam results across the college. Pass means at least ${percent(PASS_SHARE)} of the marks.`} />
+      <PageHeader
+        title="Analytics"
+        description={`Graded exam results across ${staff.isPlatformAdmin ? "the colleges" : "the college"}. Pass means at least ${percent(PASS_SHARE)} of the marks.`}
+        actions={staff.isPlatformAdmin ? <CollegeFilter colleges={staff.tenants.map((tenant) => ({ id: tenant.id, name: tenant.display_name }))} /> : undefined}
+      />
+      {unreachable.length > 0 && <p role="alert" className="mb-4 text-sm text-warning">Could not load: {unreachable.join(", ")}.</p>}
       {scored.length === 0 ? (
         <EmptyState>No graded exams yet. Results appear here once students finish an exam.</EmptyState>
       ) : (

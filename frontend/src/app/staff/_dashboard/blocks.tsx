@@ -9,7 +9,7 @@ import type { ExamWithVersion } from "@/lib/server/exams";
 import { PASS_SHARE } from "@/lib/results";
 import { TIME_ZONE, cn, formatDateTime, formatDuration, formatTime, formatWindow } from "@/lib/utils";
 
-export type Scheduled = ExamWithVersion & { version: ExamVersion };
+export type Scheduled = ExamWithVersion & { version: ExamVersion; college?: { id: string; name: string } };
 /** Who is where in a live exam, from its monitor. */
 export type Floor = { exam: Scheduled; waiting: number; writing: number; submitted: number; flags: number };
 export type Outcome = { exam: Scheduled; attempts: number; average: number; pass: number };
