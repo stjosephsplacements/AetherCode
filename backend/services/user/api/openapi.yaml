@@ -113,6 +113,23 @@ paths:
         '403': {$ref: '#/components/responses/Problem403'}
         '409': {$ref: '#/components/responses/Problem409'}
   /v1/tenants/{tenant_id}/students/{student_id}:
+    patch:
+      summary: Edit a student's enrolment number or admission date (YYYY-MM-DD, empty clears it)
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  enrollment_number: {type: string}
+                  admitted_at: {type: string}
+      responses:
+        '200': {description: The updated student}
+        '400': {$ref: '#/components/responses/Problem400'}
+        '403': {$ref: '#/components/responses/Problem403'}
     parameters:
       - $ref: '#/components/parameters/TenantID'
       - $ref: '#/components/parameters/StudentID'

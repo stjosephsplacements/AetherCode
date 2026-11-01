@@ -191,6 +191,30 @@ paths:
                         assigned_candidates: {type: integer, minimum: 0}
         default: {$ref: '#/components/responses/Problem'}
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}:
+    patch:
+      summary: Edit a draft exam's title, instructions, window or duration
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [expected_content_version]
+                properties:
+                  expected_content_version: {type: integer, format: int64}
+                  title: {type: string}
+                  instructions_markdown: {type: string}
+                  opens_at: {type: string, format: date-time}
+                  closes_at: {type: string, format: date-time}
+                  duration_seconds: {type: integer}
+      responses:
+        '204': {description: Updated}
+        '400': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
     parameters:
       - {$ref: '#/components/parameters/TenantID'}
       - {$ref: '#/components/parameters/ExamVersionID'}
@@ -347,6 +371,61 @@ paths:
       responses:
         '200': {$ref: '#/components/responses/CandidateAssignment'}
         default: {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/sections/{section_id}:
+    parameters:
+      - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: exam_version_id, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: section_id, in: path, required: true, schema: {type: string, format: uuid}}
+    patch:
+      summary: Edit a draft section's title, instructions or time limit
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [expected_content_version]
+                properties:
+                  expected_content_version: {type: integer, format: int64}
+                  title: {type: string}
+                  instructions_markdown: {type: string}
+                  time_limit_seconds: {type: integer}
+                  clear_time_limit: {type: boolean}
+      responses:
+        '204': {description: Updated}
+        '400': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/sections/{section_id}/items/{item_id}:
+    parameters:
+      - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: exam_version_id, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: section_id, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: item_id, in: path, required: true, schema: {type: string, format: uuid}}
+    patch:
+      summary: Change the marks of a question in a draft exam
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [expected_content_version, maximum_score]
+                properties:
+                  expected_content_version: {type: integer, format: int64}
+                  maximum_score: {type: string, description: Decimal, up to 4 places}
+      responses:
+        '204': {description: Updated}
+        '400': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+
 components:
   securitySchemes:
     bearerAuth:

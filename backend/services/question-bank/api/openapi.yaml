@@ -156,6 +156,29 @@ paths:
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
   /v1/question-versions/{question_version_id}:
+    patch:
+      summary: Edit a draft's title, statement, difficulty or limits; a published version is immutable
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [expected_question_version]
+                properties:
+                  expected_question_version: {type: integer, format: int64}
+                  title: {type: string}
+                  prompt_markdown: {type: string}
+                  difficulty: {type: string, enum: [easy, medium, hard]}
+                  time_limit_ms: {type: integer}
+                  memory_limit_kib: {type: integer}
+      responses:
+        '200': {$ref: '#/components/responses/QuestionVersion'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
     get:
       operationId: getQuestionVersion
       parameters: [{$ref: '#/components/parameters/QuestionVersionID'}]
