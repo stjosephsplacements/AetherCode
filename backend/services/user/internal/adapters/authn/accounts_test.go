@@ -68,3 +68,24 @@ func TestAccountsClientPassesActionableErrorsOnly(t *testing.T) {
 		}
 	}
 }
+
+func TestAccountsClientSendsOnlyTheChangedFields(t *testing.T) {
+	t.Parallel()
+	var path string
+	var sent map[string]any
+	client := newTestAccountsClient(t, func(writer http.ResponseWriter, request *http.Request) {
+		path = request.URL.Path
+		_ = json.NewDecoder(request.Body).Decode(&sent)
+		writer.WriteHeader(http.StatusNoContent)
+	})
+	phone := "+91 98765 43210"
+	if err := client.UpdateAccount(context.Background(), "p1", app.AccountChanges{Phone: &phone}, testAudit); err != nil {
+		t.Fatalf("UpdateAccount() error = %v", err)
+	}
+	if path != "/v1/internal/accounts/update" || sent["principal_id"] != "p1" || sent["phone"] != phone {
+		t.Fatalf("sent %s %#v", path, sent)
+	}
+	if _, present := sent["display_name"]; present {
+		t.Fatalf("display_name was sent although it did not change: %#v", sent)
+	}
+}

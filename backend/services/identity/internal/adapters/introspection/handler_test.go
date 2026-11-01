@@ -49,6 +49,10 @@ func (accounts *fakeAccounts) SetAccountStatus(_ context.Context, _ []string, st
 	return nil
 }
 
+func (accounts *fakeAccounts) UpdateAccount(context.Context, string, app.AccountChanges, app.AccountAudit) error {
+	return nil
+}
+
 func (accounts *fakeAccounts) DescribeAccounts(context.Context, []string) ([]app.AccountSummary, error) {
 	return []app.AccountSummary{}, nil
 }

@@ -28,6 +28,7 @@ type Accounts interface {
 	ReissuePasswords(context.Context, []string, app.AccountAudit) ([]app.IssuedCredential, error)
 	SetAccountStatus(context.Context, []string, string, app.AccountAudit) error
 	DiscardAccounts(context.Context, []string, app.AccountAudit) error
+	UpdateAccount(context.Context, string, app.AccountChanges, app.AccountAudit) error
 	DescribeAccounts(context.Context, []string) ([]app.AccountSummary, error)
 }
 
@@ -59,6 +60,7 @@ func NewHandler(service SessionValidator, accounts Accounts, accessVerifier Acce
 	mux.HandleFunc("POST /v1/internal/accounts", handler.provisionAccounts)
 	mux.HandleFunc("POST /v1/internal/accounts/passwords", handler.reissuePasswords)
 	mux.HandleFunc("POST /v1/internal/accounts/status", handler.setAccountStatus)
+	mux.HandleFunc("POST /v1/internal/accounts/update", handler.updateAccount)
 	mux.HandleFunc("POST /v1/internal/accounts/discard", handler.discardAccounts)
 	mux.HandleFunc("POST /v1/internal/accounts/describe", handler.describeAccounts)
 	return noStore(mux), nil
@@ -118,6 +120,24 @@ func (handler *Handler) setAccountStatus(writer http.ResponseWriter, request *ht
 		return
 	}
 	if err := handler.accounts.SetAccountStatus(request.Context(), body.PrincipalIDs, body.Status, body.toApp()); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.WriteHeader(http.StatusNoContent)
+}
+
+type updateAccountRequest struct {
+	accountAudit
+	PrincipalID string `json:"principal_id"`
+	app.AccountChanges
+}
+
+func (handler *Handler) updateAccount(writer http.ResponseWriter, request *http.Request) {
+	var body updateAccountRequest
+	if !handler.decodeTrusted(writer, request, &body) {
+		return
+	}
+	if err := handler.accounts.UpdateAccount(request.Context(), body.PrincipalID, body.AccountChanges, body.toApp()); err != nil {
 		httpx.WriteError(writer, err)
 		return
 	}

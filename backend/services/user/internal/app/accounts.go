@@ -28,6 +28,7 @@ type Accounts interface {
 	ReissuePasswords(context.Context, []string, AccountAudit) ([]IssuedCredential, error)
 	SetAccountStatus(context.Context, []string, string, AccountAudit) error
 	DiscardAccounts(context.Context, []string, AccountAudit) error
+	UpdateAccount(context.Context, string, AccountChanges, AccountAudit) error
 	DescribeAccounts(context.Context, []string) ([]AccountSummary, error)
 }
 
@@ -69,6 +70,14 @@ type AccountRequest struct {
 	Username    string `json:"username"`
 	Email       string `json:"email,omitempty"`
 	DisplayName string `json:"display_name"`
+}
+
+// AccountChanges are the fields staff may change on an account (ADR-0057). A nil field is left
+// as it is; an empty email or phone clears it.
+type AccountChanges struct {
+	DisplayName *string `json:"display_name,omitempty"`
+	Email       *string `json:"email,omitempty"`
+	Phone       *string `json:"phone,omitempty"`
 }
 
 type AccountAudit struct {
@@ -286,6 +295,19 @@ func (service *AccountService) SetAccountStatus(contextValue context.Context, au
 		return err
 	}
 	return service.identity.SetAccountStatus(contextValue, []string{principalID}, status, audit)
+}
+
+// UpdateAccount changes the name, email or phone of one student or staff member of the college.
+// Identity validates the values and records the change against the actor.
+func (service *AccountService) UpdateAccount(contextValue context.Context, authorize Authorize, actorID, tenantID, principalID string, changes AccountChanges) error {
+	if changes.DisplayName == nil && changes.Email == nil && changes.Phone == nil {
+		return apperrors.New(apperrors.CodeInvalidArgument, "send at least one of display_name, email or phone")
+	}
+	audit, err := service.requireTenantAccount(contextValue, authorize, actorID, tenantID, principalID)
+	if err != nil {
+		return err
+	}
+	return service.identity.UpdateAccount(contextValue, principalID, changes, audit)
 }
 
 // CreateStaff provisions a college administrator or a department's faculty

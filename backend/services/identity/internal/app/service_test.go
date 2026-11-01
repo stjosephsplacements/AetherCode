@@ -26,6 +26,7 @@ type memoryStore struct {
 	mfaChallenge MFAChallenge
 	session      Session
 	provisioned  []NewAccount
+	updated      *AccountChanges
 }
 
 func (store *memoryStore) Register(_ context.Context, command Registration) error {
@@ -245,6 +246,10 @@ func (store *memoryStore) SetPasswords(context.Context, []PasswordAssignment, Ac
 	return nil, nil
 }
 func (store *memoryStore) SetAccountStatus(context.Context, []string, string, AccountAudit) error {
+	return nil
+}
+func (store *memoryStore) UpdateAccount(_ context.Context, _ string, changes AccountChanges, _ AccountAudit) error {
+	store.updated = &changes
 	return nil
 }
 func (store *memoryStore) DiscardAccounts(context.Context, []string, AccountAudit) error { return nil }

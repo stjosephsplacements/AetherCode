@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -27,6 +28,15 @@ type AccountStore interface {
 	SetPasswords(context.Context, []PasswordAssignment, AccountAudit) ([]AccountName, error)
 	SetAccountStatus(context.Context, []string, string, AccountAudit) error
 	DiscardAccounts(context.Context, []string, AccountAudit) error
+	UpdateAccount(context.Context, string, AccountChanges, AccountAudit) error
+}
+
+// AccountChanges are the fields an administrator may change on an account (ADR-0057). A nil
+// field is left as it is; an empty email or phone clears it. A name cannot be cleared.
+type AccountChanges struct {
+	DisplayName *string `json:"display_name,omitempty"`
+	Email       *string `json:"email,omitempty"`
+	Phone       *string `json:"phone,omitempty"`
 }
 
 // AccountAudit names the administrator and request behind an account change.
@@ -180,6 +190,46 @@ func (service *Service) SetAccountStatus(contextValue context.Context, principal
 		return err
 	}
 	return service.store.SetAccountStatus(contextValue, ids, status, audit)
+}
+
+var phonePattern = regexp.MustCompile(`^[0-9 +()-]{6,20}$`)
+
+// UpdateAccount changes an account's name, email or phone. Changing the email clears its
+// verified mark, because the new address has not been proven.
+func (service *Service) UpdateAccount(contextValue context.Context, principalID string, changes AccountChanges, audit AccountAudit) error {
+	if err := validAudit(audit); err != nil {
+		return err
+	}
+	ids, err := normalizePrincipalIDs([]string{principalID})
+	if err != nil {
+		return err
+	}
+	if changes.DisplayName == nil && changes.Email == nil && changes.Phone == nil {
+		return apperrors.New(apperrors.CodeInvalidArgument, "send at least one of display_name, email or phone")
+	}
+	clean := AccountChanges{}
+	if changes.DisplayName != nil {
+		name := strings.TrimSpace(*changes.DisplayName)
+		if name == "" || len(name) > 200 {
+			return apperrors.New(apperrors.CodeInvalidArgument, "display_name must be 1 to 200 characters")
+		}
+		clean.DisplayName = &name
+	}
+	if changes.Email != nil {
+		email := strings.TrimSpace(*changes.Email)
+		if email != "" && (len(email) < 3 || len(email) > 320 || strings.ContainsAny(email, " \t\r\n") || strings.Index(email, "@") < 1) {
+			return apperrors.New(apperrors.CodeInvalidArgument, "email is not an email address")
+		}
+		clean.Email = &email
+	}
+	if changes.Phone != nil {
+		phone := strings.TrimSpace(*changes.Phone)
+		if phone != "" && !phonePattern.MatchString(phone) {
+			return apperrors.New(apperrors.CodeInvalidArgument, "phone may hold digits, spaces, + ( ) and -, 6 to 20 characters")
+		}
+		clean.Phone = &phone
+	}
+	return service.store.UpdateAccount(contextValue, ids[0], clean, audit)
 }
 
 // DiscardAccounts soft-deletes accounts the caller just provisioned but could
