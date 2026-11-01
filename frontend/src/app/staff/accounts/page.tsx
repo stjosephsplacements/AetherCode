@@ -9,6 +9,7 @@ import { inColleges } from "@/lib/server/colleges";
 import { collegesFor, requireStaff } from "@/lib/server/staff";
 import { StudentActions } from "../students/panels";
 import { CreateStaffForm } from "./create-staff-form";
+import { ImportStaffDialog } from "./import-staff-dialog";
 import { type RoleChip, RoleEditor } from "./roles";
 
 export const metadata: Metadata = { title: "Staff accounts" };
@@ -77,6 +78,9 @@ export default async function StaffAccountsPage({ searchParams }: { searchParams
       />
       <Panel className="p-5 sm:p-6">
         <CreateStaffForm departments={departments} colleges={staff.isPlatformAdmin ? staff.tenants.map((tenant) => ({ id: tenant.id, name: tenant.display_name })) : undefined} />
+        <div className="mt-4 border-t border-line pt-4">
+          <ImportStaffDialog departments={departments} colleges={staff.isPlatformAdmin ? staff.tenants.map((tenant) => ({ id: tenant.id, name: tenant.display_name })) : undefined} />
+        </div>
       </Panel>
       {unreachable.length > 0 && <p role="alert" className="mb-4 text-sm text-warning">Could not load: {unreachable.join(", ")}.</p>}
       <Section title="Staff" description="Every change here is recorded in the audit log.">
