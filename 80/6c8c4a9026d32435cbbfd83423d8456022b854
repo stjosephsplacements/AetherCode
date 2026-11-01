@@ -1,0 +1,42 @@
+frontend/src/app/staff/exams/actions.ts
+  s_40851fd2a7ba5d::t_97636aebe5ac4b 340-391
+frontend/src/app/staff/colleges/actions.ts
+  s_40851fd2a7ba5d::t_97636aebe5ac4b 24-52
+frontend/src/app/staff/questions/[versionId]/page.tsx
+  s_40851fd2a7ba5d::t_c0f7ea2d519461 5,21,128-158
+frontend/src/app/staff/questions/actions.ts
+  s_40851fd2a7ba5d::t_97636aebe5ac4b 413-431
+frontend/src/app/staff/organisation/page.tsx
+  s_40851fd2a7ba5d::t_1c8a4753330471 6,10,54-62,64,67-79,97-119,178-208
+  s_40851fd2a7ba5d::t_074203c9a26838 177,220
+frontend/src/app/staff/exams/[examId]/page.tsx
+  s_40851fd2a7ba5d::t_33482cad028f98 7,16,108-124,173-184,186-193,216-225
+  s_40851fd2a7ba5d::t_6c41c8733a3b20 185
+frontend/src/app/staff/colleges/page.tsx
+  s_40851fd2a7ba5d::t_f30ec7b838078f 3-4,11,35,47-69
+  s_40851fd2a7ba5d::t_a8a94904e75933 70
+frontend/src/app/staff/students/[studentId]/page.tsx
+  s_40851fd2a7ba5d::t_16247dfa92dd3c 5-6,15,66-88
+frontend/src/app/staff/organisation/actions.ts
+  s_40851fd2a7ba5d::t_97636aebe5ac4b 100-158
+frontend/src/components/staff/edit-dialog.tsx
+  s_40851fd2a7ba5d::t_e90d1d500f861b 1-136
+frontend/src/app/staff/students/actions.ts
+  s_40851fd2a7ba5d::t_97636aebe5ac4b 107-134
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "806c8c4a9026d32435cbbfd83423d8456022b854",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh <shreesh@ALLENs-Mac-mini.local>"
+    }
+  }
+}
