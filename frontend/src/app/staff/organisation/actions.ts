@@ -97,3 +97,62 @@ export async function deleteBatch(id: string, reason: string): Promise<ActionSta
   revalidatePath("/staff/organisation");
   return { error: null, message: "Deleted." };
 }
+
+const REASON = "A reason is needed to delete anything.";
+
+/** Renames or recodes a department. Only what changed is sent (ADR-0054). */
+export async function updateDepartment(departmentId: string, changes: Record<string, string>): Promise<ActionState> {
+  const { tenantId } = await requireCollege();
+  const body: Record<string, string> = {};
+  if ("name" in changes) body.name = changes.name!.trim();
+  if ("code" in changes) body.code = changes.code!.trim().toUpperCase();
+  try {
+    await gateway(`/tenant/v1/tenants/${tenantId}/departments/${departmentId}`, { method: "PATCH", body });
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+  revalidatePath("/staff/organisation");
+  return { error: null, message: "Saved." };
+}
+
+export async function updateBatch(batchId: string, changes: Record<string, string>): Promise<ActionState> {
+  const { tenantId } = await requireCollege();
+  const body: Record<string, string> = {};
+  if ("name" in changes) body.name = changes.name!.trim();
+  if ("code" in changes) body.code = changes.code!.trim().toUpperCase();
+  if ("academic_year" in changes) body.academic_year = changes.academic_year!.trim();
+  try {
+    await gateway(`/tenant/v1/tenants/${tenantId}/batches/${batchId}`, { method: "PATCH", body });
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+  revalidatePath("/staff/organisation");
+  revalidatePath("/staff/students");
+  return { error: null, message: "Saved." };
+}
+
+export async function updatePlacementOrganization(organizationId: string, changes: Record<string, string>): Promise<ActionState> {
+  const staff = await requireCollege();
+  if (!staff.isPlatformAdmin) return { error: "Only platform administrators change placement organizations." };
+  try {
+    await gateway(`/tenant/v1/placement-organizations/${organizationId}`, { method: "PATCH", body: { legal_name: changes.legal_name?.trim() } });
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+  revalidatePath("/staff/organisation");
+  return { error: null, message: "Saved." };
+}
+
+/** Root administrators only: it removes the organization and, with it, the placement departments under it. */
+export async function deletePlacementOrganization(organizationId: string, reason: string): Promise<ActionState> {
+  const staff = await requireCollege();
+  if (!staff.isPlatformAdmin) return { error: "Only platform administrators delete placement organizations." };
+  if (!reason.trim()) return { error: REASON };
+  try {
+    await gateway(`/tenant/v1/placement-organizations/${organizationId}`, { method: "DELETE", body: { reason: reason.trim() } });
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+  revalidatePath("/staff/organisation");
+  return { error: null, message: "Deleted." };
+}

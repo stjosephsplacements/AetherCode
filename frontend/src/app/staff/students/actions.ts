@@ -104,3 +104,31 @@ export async function setAccountStatus(_previous: ActionState, form: FormData): 
     return { error: actionError(error) };
   }
 }
+
+export async function updateStudent(studentId: string, changes: Record<string, string>): Promise<ActionState> {
+  const { tenantId } = await requireCollege();
+  const body: Record<string, string> = {};
+  if ("enrollment_number" in changes) body.enrollment_number = changes.enrollment_number!.trim();
+  if ("admitted_at" in changes) body.admitted_at = changes.admitted_at!.trim();
+  try {
+    await gateway(`/user/v1/tenants/${tenantId}/students/${studentId}`, { method: "PATCH", body });
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+  revalidatePath("/staff/students");
+  return { error: null, message: "Saved." };
+}
+
+/** Removes a student record. Their sign-in can be turned off instead, which is easy to undo. */
+export async function deleteStudent(studentId: string, reason: string): Promise<ActionState> {
+  const staff = await requireCollege();
+  if (!staff.canManageAccounts) return { error: "Only administrators delete students." };
+  if (!reason.trim()) return { error: "A reason is needed to delete anything." };
+  try {
+    await gateway(`/user/v1/tenants/${staff.tenantId}/students/${studentId}`, { method: "DELETE", body: { reason: reason.trim() } });
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+  revalidatePath("/staff/students");
+  return { error: null, message: "Deleted." };
+}

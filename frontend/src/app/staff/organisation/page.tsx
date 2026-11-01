@@ -3,10 +3,11 @@ import { redirect } from "next/navigation";
 import { ActionForm, Field, Select, TextInput } from "@/components/staff/form";
 import { EmptyState, LoadError, PageHeader, Section, Table } from "@/components/staff/page-header";
 import { ConfirmDelete } from "@/components/staff/confirm-delete";
+import { EditDialog } from "@/components/staff/edit-dialog";
 import { Panel } from "@/components/ui/card";
 import { departmentLabel, listBatches, listDepartments, listPlacement } from "@/lib/server/directory";
 import { requireCollege } from "@/lib/server/staff";
-import { createBatch, createDepartment, createPlacementDepartment, createPlacementOrganization, deleteBatch, deleteDepartment } from "./actions";
+import { createBatch, createDepartment, createPlacementDepartment, createPlacementOrganization, deleteBatch, deleteDepartment, deletePlacementOrganization, updateBatch, updateDepartment, updatePlacementOrganization } from "./actions";
 
 export const metadata: Metadata = { title: "Departments" };
 
@@ -50,19 +51,32 @@ export default async function OrganisationPage() {
                     <td className="px-4 py-3 font-medium text-ink">{department.name}</td>
                     <td className="px-4 py-3 font-mono text-xs text-ink-muted">{department.code}</td>
                     <td className="px-4 py-3 tabular-nums text-ink-muted">{inside}</td>
-                    <td className="px-4 py-2 text-right">
-                      {inside > 0 ? (
-                        <span className="text-xs text-ink-subtle">Delete its batches first</span>
-                      ) : (
-                        <ConfirmDelete
-                          title={`Delete ${department.name}?`}
-                          description="It has no batches. Students and staff already filed under it are not changed."
-                          onConfirm={async (reason) => {
+                    <td className="px-4 py-2">
+                      <div className="flex items-center justify-end gap-1">
+                        <EditDialog
+                          title={`Edit ${department.name}`}
+                          fields={[
+                            { name: "name", label: "Name", value: department.name },
+                            { name: "code", label: "Code", value: department.code, hint: "Unique within the college." },
+                          ]}
+                          onSave={async (changes) => {
                             "use server";
-                            return deleteDepartment(department.id, reason);
+                            return updateDepartment(department.id, changes);
                           }}
                         />
-                      )}
+                        {inside > 0 ? (
+                          <span className="text-xs text-ink-subtle">Delete its batches first</span>
+                        ) : (
+                          <ConfirmDelete
+                            title={`Delete ${department.name}?`}
+                            description="It has no batches. Students and staff already filed under it are not changed."
+                            onConfirm={async (reason) => {
+                              "use server";
+                              return deleteDepartment(department.id, reason);
+                            }}
+                          />
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -80,15 +94,29 @@ export default async function OrganisationPage() {
                 <td className="px-4 py-3 font-mono text-xs text-ink-muted">{batch.code}</td>
                 <td className="px-4 py-3 text-ink-muted">{departmentName.get(batch.department_id) ?? "Unknown"}</td>
                 <td className="px-4 py-3 text-ink-muted">{batch.academic_year}</td>
-                <td className="px-4 py-2 text-right">
-                  <ConfirmDelete
-                    title={`Delete ${batch.name}?`}
-                    description="A batch that still has students cannot be deleted: move them first."
-                    onConfirm={async (reason) => {
-                      "use server";
-                      return deleteBatch(batch.id, reason);
-                    }}
-                  />
+                <td className="px-4 py-2">
+                  <div className="flex items-center justify-end gap-1">
+                    <EditDialog
+                      title={`Edit ${batch.name}`}
+                      fields={[
+                        { name: "name", label: "Name", value: batch.name },
+                        { name: "code", label: "Code", value: batch.code },
+                        { name: "academic_year", label: "Academic year", value: batch.academic_year, hint: "Like 2026-2030." },
+                      ]}
+                      onSave={async (changes) => {
+                        "use server";
+                        return updateBatch(batch.id, changes);
+                      }}
+                    />
+                    <ConfirmDelete
+                      title={`Delete ${batch.name}?`}
+                      description="A batch that still has students cannot be deleted: move them first."
+                      onConfirm={async (reason) => {
+                        "use server";
+                        return deleteBatch(batch.id, reason);
+                      }}
+                    />
+                  </div>
                 </td>
               </tr>
             ))}
@@ -146,6 +174,38 @@ export default async function OrganisationPage() {
         ) : placement.organizations.length === 0 ? (
           <EmptyState>No placement organizations yet.</EmptyState>
         ) : (
+          <>
+          <div className="mb-4">
+            <Table head={["Placement organization", "Code", ""]}>
+              {placement.organizations.map((organization) => (
+                <tr key={organization.id}>
+                  <td className="px-4 py-3 font-medium text-ink">{organization.legal_name}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-ink-muted">{organization.code}</td>
+                  <td className="px-4 py-2">
+                    <div className="flex items-center justify-end gap-1">
+                      <EditDialog
+                        title={`Edit ${organization.legal_name}`}
+                        fields={[{ name: "legal_name", label: "Legal name", value: organization.legal_name }]}
+                        onSave={async (changes) => {
+                          "use server";
+                          return updatePlacementOrganization(organization.id, changes);
+                        }}
+                      />
+                      <ConfirmDelete
+                        title={`Delete ${organization.legal_name}?`}
+                        description="Its placement departments go with it. Students already placed through it keep their records."
+                        confirmText={organization.code}
+                        onConfirm={async (reason) => {
+                          "use server";
+                          return deletePlacementOrganization(organization.id, reason);
+                        }}
+                      />
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </Table>
+          </div>
           <Table head={["Placement department", "Code", "Organization"]}>
             {placement.organizations.flatMap((organization) =>
               organization.departments.map((department) => (
@@ -157,6 +217,7 @@ export default async function OrganisationPage() {
               )),
             )}
           </Table>
+          </>
         )}
         {placement.readable && (
           <div className="mt-4 grid gap-4 md:grid-cols-2">
