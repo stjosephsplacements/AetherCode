@@ -239,9 +239,14 @@ jobs:
           chart=deploy/helm/platform-service
           services=(gateway identity tenant user question-bank assessment submission judge seb notification analytics frontend)
 
+          migration_values=$(helm get values migrations --namespace "$namespace" -o json)
+          postgres_host=$(jq -er '.global.postgresHost // .postgresHost | select(type == "string" and length > 0)' <<<"$migration_values")
+          judge_db_host=$(jq -er '.global.judgeDbHost // .judgeDbHost | select(type == "string" and length > 0)' <<<"$migration_values")
           helm upgrade migrations deploy/helm/platform-migrations \
             --namespace "$namespace" \
-            --reuse-values \
+            --reset-then-reuse-values \
+            --set-string global.postgresHost="$postgres_host" \
+            --set-string global.judgeDbHost="$judge_db_host" \
             --set image.tag="$IMAGE_TAG" \
             --wait --atomic --timeout 15m
 
