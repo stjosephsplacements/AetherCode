@@ -3,7 +3,6 @@
 import { KeyRound, MoreHorizontal, Upload } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
 import { useActionState, useRef } from "react";
-import { type ExcelCell, newWorkbook } from "@/lib/client/exceljs";
 import { CredentialsTable } from "@/components/staff/credentials";
 import { Field, FormMessage, Select, SubmitButton, TextArea, initialActionState } from "@/components/staff/form";
 import type { Batch, Department } from "@/lib/api-types";
@@ -24,37 +23,7 @@ export function ImportPanel({ batches, placements, departments }: { batches: Bat
   const departmentName = new Map(departments.map((department) => [department.id, department.code]));
 
   async function loadFile(file: File | undefined) {
-    if (!file || !textarea.current) return;
-    const isExcel = file.name.endsWith(".xlsx") || file.name.endsWith(".xls");
-    if (isExcel) {
-      try {
-        const workbook = await newWorkbook();
-        const arrayBuffer = await file.arrayBuffer();
-        await workbook.xlsx.load(arrayBuffer);
-        const worksheet = workbook.worksheets[0];
-        if (worksheet) {
-          const rows: string[] = [];
-          worksheet.eachRow((row) => {
-            const values = Array.isArray(row.values) ? row.values.slice(1) : [];
-            const line = values
-              .map((val: ExcelCell) => {
-                if (val === null || val === undefined) return "";
-                if (typeof val === "object") return String(val.text ?? val.result ?? "");
-                return String(val).trim();
-              })
-              .join(",");
-            if (line.replace(/,/g, "").trim()) {
-              rows.push(line);
-            }
-          });
-          textarea.current.value = rows.join("\n");
-        }
-      } catch (err) {
-        console.error("Failed to parse Excel file with ExcelJS", err);
-      }
-    } else {
-      textarea.current.value = await file.text();
-    }
+    if (file && textarea.current) textarea.current.value = await file.text();
   }
 
   return (
