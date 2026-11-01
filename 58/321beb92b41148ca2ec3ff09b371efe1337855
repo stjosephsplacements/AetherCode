@@ -1,0 +1,25 @@
+backend/services/analytics/internal/adapters/projection/postgres_integration_test.go
+  s_40851fd2a7ba5d::t_d2d3d4ddb58f8f 50-51,57
+backend/services/gateway/go.sum
+  s_40851fd2a7ba5d::t_d9de892f9c5541 31,33,35,75
+frontend/src/app/robots.ts
+  s_40851fd2a7ba5d::t_44f278e18942e3 5-7
+frontend/src/app/sitemap.ts
+  s_40851fd2a7ba5d::t_098463f33a43da 5-7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "58321beb92b41148ca2ec3ff09b371efe1337855",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh <shreesh@ALLENs-Mac-mini.local>"
+    }
+  }
+}
