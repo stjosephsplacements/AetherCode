@@ -609,3 +609,31 @@ func TestRunWriteIdempotencyKeyBoundaryConditions(t *testing.T) {
 		})
 	}
 }
+
+func TestExamEditsRejectInvalidFields(t *testing.T) {
+	t.Parallel()
+	service := &Service{pool: nil, store: nil}
+	empty, tooShort, soon, earlier := "  ", 30, time.Now().Add(time.Hour), time.Now()
+	id := "11111111-1111-4111-8111-111111111111"
+	for name, run := range map[string]func() error{
+		"nothing to change": func() error {
+			return service.UpdateExamVersion(t.Context(), centralauthz.Capability{}, UpdateExamVersion{ID: id, TenantID: id, ExpectedContentVersion: 1})
+		},
+		"blank title": func() error {
+			return service.UpdateExamVersion(t.Context(), centralauthz.Capability{}, UpdateExamVersion{ID: id, TenantID: id, ExpectedContentVersion: 1, Title: &empty})
+		},
+		"opens after it closes": func() error {
+			return service.UpdateExamVersion(t.Context(), centralauthz.Capability{}, UpdateExamVersion{ID: id, TenantID: id, ExpectedContentVersion: 1, OpensAt: &soon, ClosesAt: &earlier})
+		},
+		"section time limit under a minute": func() error {
+			return service.UpdateExamSection(t.Context(), centralauthz.Capability{}, UpdateExamSection{ID: id, TenantID: id, ExamVersionID: id, ExpectedContentVersion: 1, TimeLimitSeconds: &tooShort})
+		},
+		"marks must be positive": func() error {
+			return service.UpdateExamItem(t.Context(), centralauthz.Capability{}, UpdateExamItem{ID: id, TenantID: id, ExamVersionID: id, ExpectedContentVersion: 1, MaximumScore: "0"})
+		},
+	} {
+		if err := run(); err == nil {
+			t.Fatalf("%s: want an invalid-argument error", name)
+		}
+	}
+}
