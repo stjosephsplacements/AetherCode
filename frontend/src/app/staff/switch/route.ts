@@ -1,5 +1,6 @@
+import { redirectTo } from "@/lib/redirect";
 import { cookies } from "next/headers";
-import { NextResponse, type NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 import { secureCookies } from "@/lib/server/config";
 import { ALL_COLLEGES, TENANT_COOKIE, requireStaff } from "@/lib/server/staff";
 
@@ -17,5 +18,5 @@ export async function GET(request: NextRequest) {
   if (staff.isPlatformAdmin && (college === ALL_COLLEGES || staff.tenants.some((tenant) => tenant.id === college))) {
     (await cookies()).set({ name: TENANT_COOKIE, value: college, httpOnly: true, secure: secureCookies(), sameSite: "strict", path: "/" });
   }
-  return NextResponse.redirect(new URL(target, request.nextUrl.origin));
+  return redirectTo(target, 303);
 }
