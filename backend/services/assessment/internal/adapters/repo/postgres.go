@@ -755,16 +755,17 @@ func (repository *Postgres) UpdateExam(ctx context.Context, transaction pgx.Tx, 
 }
 
 func (repository *Postgres) SoftDeleteExam(ctx context.Context, transaction pgx.Tx, command app.DeleteExam) error {
-	result, err := transaction.Exec(ctx, `
-		UPDATE assessment.exams
-		SET deleted_at = clock_timestamp(), deleted_by = $3::uuid, deletion_reason = $4,
-		    updated_at = clock_timestamp()
-		WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-	`, command.ID, command.TenantID, command.ActorID, command.Reason)
+	var found bool
+	err := transaction.QueryRow(ctx, `SELECT assessment.soft_delete_exam($1, $2, $3::uuid, $4)`, command.ID, command.TenantID, command.ActorID, command.Reason).Scan(&found)
 	if err != nil {
-		return fmt.Errorf("soft delete exam: %w", err)
+		var postgresError *pgconn.PgError
+		// The database's own rule, written for the author to read (ADR-0053).
+		if errors.As(err, &postgresError) && postgresError.Code == "55000" && strings.HasPrefix(postgresError.Message, "deleting ") {
+			return apperrors.New(apperrors.CodeConflict, postgresError.Message)
+		}
+		return mapWriteError(err, "exam could not be deleted")
 	}
-	if result.RowsAffected() == 0 {
+	if !found {
 		return apperrors.New(apperrors.CodeNotFound, "exam not found or already deleted")
 	}
 	if err := repository.enqueue(ctx, transaction, "exam", command.ID, command.TenantID, "assessment.exam.soft_deleted.v1", struct {

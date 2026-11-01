@@ -90,6 +90,8 @@ type StaffAction struct {
 	ResourceType  string
 	ResourceID    string
 	Allowed       bool
+	// Action is "write" or "delete" (ADR-0053).
+	Action string
 }
 
 // SnapshotQuery narrows relationship checks needed for placement scopes.
@@ -284,7 +286,13 @@ func (service *Service) Authorize(contextValue context.Context, request Request)
 	decision.Allowed = true
 	decision.Scopes = uniqueScopes(matchingScopes)
 
-	databaseAction := targetRoute.ActionPrefix + "." + validated.Action
+	// A delete is a write as far as the databases go: their policies and functions accept
+	// <service>.write. The audit log below keeps the real verb (ADR-0053).
+	databaseVerb := validated.Action
+	if databaseVerb == "delete" {
+		databaseVerb = "write"
+	}
+	databaseAction := targetRoute.ActionPrefix + "." + databaseVerb
 	databaseResource := targetRoute.ResourcePrefix + "." + validated.ResourceType
 	capability, err := service.keyring.Issue(
 		targetRoute.Audience,
@@ -320,8 +328,8 @@ func validateRequest(request Request) (Request, route, error) {
 	if !uuidPattern.MatchString(request.PrincipalID) {
 		return Request{}, route{}, &ValidationError{Field: "principal_id", Reason: "must be a UUID"}
 	}
-	if request.Action != "read" && request.Action != "write" {
-		return Request{}, route{}, &ValidationError{Field: "action", Reason: "must be read or write"}
+	if request.Action != "read" && request.Action != "write" && request.Action != "delete" {
+		return Request{}, route{}, &ValidationError{Field: "action", Reason: "must be read, write or delete"}
 	}
 	if !resourceTypePattern.MatchString(request.ResourceType) {
 		return Request{}, route{}, &ValidationError{Field: "resource_type", Reason: "must be a lowercase database resource name"}
@@ -485,11 +493,12 @@ func uniqueScopes(scopes []Scope) []Scope {
 	return unique
 }
 
-// auditStaffWrite records a write decision for anyone holding a staff role
-// (ADR-0043). Students' own writes are not staff actions. Recording is best
-// effort: an audit failure is logged, never turned into a denied exam action.
+// auditStaffWrite records a write or delete decision for anyone holding a staff
+// role (ADR-0043, ADR-0053). Students' own writes are not staff actions.
+// Recording is best effort: an audit failure is logged, never turned into a
+// denied exam action.
 func (service *Service) auditStaffWrite(contextValue context.Context, request Request, assignments []Assignment, allowed bool) {
-	if request.Action != "write" {
+	if request.Action != "write" && request.Action != "delete" {
 		return
 	}
 	staff := false
@@ -501,7 +510,7 @@ func (service *Service) auditStaffWrite(contextValue context.Context, request Re
 	}
 	if err := service.store.RecordStaffAction(contextValue, StaffAction{
 		PrincipalID: request.PrincipalID, TenantID: request.TenantID, TargetService: request.TargetService,
-		ResourceType: request.ResourceType, ResourceID: request.ResourceID, Allowed: allowed,
+		ResourceType: request.ResourceType, ResourceID: request.ResourceID, Allowed: allowed, Action: request.Action,
 	}); err != nil {
 		slog.Warn("record staff action", "error", err, "principal_id", request.PrincipalID)
 	}

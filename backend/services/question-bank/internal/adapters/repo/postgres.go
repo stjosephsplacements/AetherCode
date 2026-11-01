@@ -394,16 +394,9 @@ func (repository *Postgres) GetQuestionVersionIncludeDeleted(contextValue contex
 }
 
 func (repository *Postgres) SoftDeleteQuestion(contextValue context.Context, transaction pgx.Tx, command app.DeleteQuestion) error {
-	result, err := transaction.Exec(contextValue, `
-		UPDATE qbank.questions
-		SET deleted_at = clock_timestamp(), deleted_by = $2, deletion_reason = $3, updated_at = clock_timestamp()
-		WHERE id = $1 AND deleted_at IS NULL
-	`, command.ID, command.ActorID, command.Reason)
-	if err != nil {
-		return fmt.Errorf("soft delete question: %w", err)
-	}
-	if result.RowsAffected() == 0 {
-		return apperrors.New(apperrors.CodeNotFound, "question not found or already deleted")
+	// The actor and the permission come from the signed context inside the function (ADR-0053).
+	if _, err := transaction.Exec(contextValue, `SELECT qbank.soft_delete_question($1, $2)`, command.ID, command.Reason); err != nil {
+		return mapCommandError(err, "soft delete question")
 	}
 	return nil
 }
@@ -423,16 +416,8 @@ func (repository *Postgres) HardDeleteQuestion(contextValue context.Context, tra
 }
 
 func (repository *Postgres) SoftDeleteQuestionVersion(contextValue context.Context, transaction pgx.Tx, command app.DeleteQuestionVersion) error {
-	result, err := transaction.Exec(contextValue, `
-		UPDATE qbank.question_versions
-		SET deleted_at = clock_timestamp(), deleted_by = $2, deletion_reason = $3, updated_at = clock_timestamp()
-		WHERE id = $1 AND deleted_at IS NULL
-	`, command.ID, command.ActorID, command.Reason)
-	if err != nil {
-		return fmt.Errorf("soft delete question version: %w", err)
-	}
-	if result.RowsAffected() == 0 {
-		return apperrors.New(apperrors.CodeNotFound, "question version not found or already deleted")
+	if _, err := transaction.Exec(contextValue, `SELECT qbank.soft_delete_question_version($1, $2)`, command.ID, command.Reason); err != nil {
+		return mapCommandError(err, "soft delete question version")
 	}
 	return nil
 }
@@ -494,7 +479,7 @@ func mapCommandError(err error, operation string) error {
 			return apperrors.New(apperrors.CodeForbidden, "authorization context does not permit this operation")
 		case "55000":
 			// Publishing and category rules are written for the author to read (ADR-0044, ADR-0047, ADR-0052).
-			if strings.HasPrefix(postgresError.Message, "run a model solution") || strings.HasPrefix(postgresError.Message, "ask for a review") || strings.HasPrefix(postgresError.Message, "category ") {
+			if strings.HasPrefix(postgresError.Message, "run a model solution") || strings.HasPrefix(postgresError.Message, "ask for a review") || strings.HasPrefix(postgresError.Message, "category ") || strings.HasPrefix(postgresError.Message, "deleting ") {
 				return apperrors.New(apperrors.CodeConflict, postgresError.Message)
 			}
 			return apperrors.New(apperrors.CodeConflict, "question resource changed or conflicts with an immutable state")

@@ -438,6 +438,11 @@ func (repository *Postgres) SoftDeleteDepartment(contextValue context.Context, t
 		return apperrors.New(apperrors.CodeNotFound, "department not found or already deleted")
 	}
 	if err != nil {
+		var postgresError *pgconn.PgError
+		// The database's own rule, written for the author to read (ADR-0053).
+		if errors.As(err, &postgresError) && postgresError.Code == "55000" && strings.HasPrefix(postgresError.Message, "deleting ") {
+			return apperrors.New(apperrors.CodeConflict, postgresError.Message)
+		}
 		return fmt.Errorf("soft delete department: %w", err)
 	}
 	payload, err := json.Marshal(struct {

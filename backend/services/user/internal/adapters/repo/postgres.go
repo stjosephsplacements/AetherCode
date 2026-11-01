@@ -55,8 +55,12 @@ func (repository *Postgres) RecordStaffAction(contextValue context.Context, acti
 	if action.TenantID != "" {
 		tenantID = action.TenantID
 	}
-	_, err := repository.pool.Exec(contextValue, `SELECT users.record_staff_action($1, $2, $3, $4, $5, $6)`,
-		action.PrincipalID, tenantID, action.TargetService, action.ResourceType, action.ResourceID, action.Allowed)
+	verb := action.Action
+	if verb == "" {
+		verb = "write"
+	}
+	_, err := repository.pool.Exec(contextValue, `SELECT users.record_staff_action($1, $2, $3, $4, $5, $6, $7)`,
+		action.PrincipalID, tenantID, action.TargetService, action.ResourceType, action.ResourceID, action.Allowed, verb)
 	if err != nil {
 		return fmt.Errorf("record staff action: %w", err)
 	}

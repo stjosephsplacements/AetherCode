@@ -505,6 +505,59 @@ func TestStudentsPractiseOnlyAsThemselvesWithTheirTenant(t *testing.T) {
 	}
 }
 
+// ADR-0053: a delete is authorised like a write, reaches the databases as one,
+// and is audited under its own name, which the audit log did not record before.
+func TestDeletesAreAuthorisedAuditedAndIssuedAsWrites(t *testing.T) {
+	t.Parallel()
+	keyring, err := centralauthz.ParseKeyring(`[{"audience":"aether_assessment","key_id":"` + testKeyID + `","secret_base64":"` + base64.StdEncoding.EncodeToString([]byte(strings.Repeat("a", 32))) + `"}]`)
+	if err != nil {
+		t.Fatalf("ParseKeyring() error = %v", err)
+	}
+	var recorded []StaffAction
+	faculty := Assignment{Role: centralauthz.RoleDepartmentUser, ScopeKind: "department", TenantID: testTenant, ScopeID: testPrincipal}
+	service, err := NewService(fakeStore{snapshot: Snapshot{
+		Revision: 2, Assignments: []Assignment{faculty},
+		PolicyRules: []centralauthz.PolicyRule{{PType: "p", Values: []string{"department_user", "department", "/*", "*"}}},
+	}, audit: &recorded}, keyring, nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, time.October, 20, 12, 0, 0, 0, time.UTC)
+	service.now = func() time.Time { return now }
+	request := Request{PrincipalID: testPrincipal, TenantID: testTenant, RequestID: testRequestID, Action: "delete",
+		ResourceType: "exams", ResourceID: "018f4b0d-08f8-7c09-9ba7-efdf9c229001", TargetService: "assessment"}
+
+	decision, err := service.Authorize(context.Background(), request)
+	if err != nil || !decision.Allowed {
+		t.Fatalf("Authorize(delete) = %#v, %v; want allowed", decision, err)
+	}
+	capability, err := centralauthz.DecodeCapability(decision.Capability, now.Add(time.Second))
+	if err != nil {
+		t.Fatalf("DecodeCapability() error = %v", err)
+	}
+	if capability.Action != "assessment.write" || capability.Resource != "assessment.exams" {
+		t.Fatalf("capability = %q on %q, want assessment.write on assessment.exams", capability.Action, capability.Resource)
+	}
+	if len(recorded) != 1 || recorded[0].Action != "delete" || recorded[0].ResourceType != "exams" || !recorded[0].Allowed {
+		t.Fatalf("audit = %#v, want one allowed delete of an exam", recorded)
+	}
+
+	denied := faculty
+	denied.Role = centralauthz.RoleMentor
+	denied.ScopeKind = "batch"
+	refusing, err := NewService(fakeStore{snapshot: Snapshot{Revision: 2, Assignments: []Assignment{denied}}, audit: &recorded}, keyring, nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decision, err := refusing.Authorize(context.Background(), request); err != nil || decision.Allowed {
+		t.Fatalf("a mentor deleting an exam = %#v, %v; want denied", decision, err)
+	}
+	if _, err := service.Authorize(context.Background(), Request{PrincipalID: testPrincipal, TenantID: testTenant, RequestID: testRequestID, Action: "archive",
+		ResourceType: "exams", ResourceID: "x", TargetService: "assessment"}); err == nil {
+		t.Fatal("an unknown action was accepted")
+	}
+}
+
 // ADR-0043: staff write decisions, allowed or denied, become the audit log;
 // reads and students' own writes do not, and only college administrators
 // read the log, however broad a department's policy is.

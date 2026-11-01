@@ -76,7 +76,7 @@ func TestStaffAudit(t *testing.T) {
 	require.Equal(t, 1, tenantEvents)
 	require.Equal(t, 1, otherTenantEvents)
 	require.Zero(t, tenantless)
-	require.JSONEq(t, `{"allowed": true}`, payload, "the event carries the decision only")
+	require.JSONEq(t, `{"allowed": true, "action": "write"}`, payload, "the event carries the decision and its verb, nothing else")
 	require.True(t, digestMatches)
 
 	list := func(resource string) ([]map[string]any, error) {
@@ -108,4 +108,30 @@ func TestStaffAudit(t *testing.T) {
 	require.Len(t, entries, 1, "only this college's entries recorded through the repository")
 	require.Equal(t, "resource-2", entries[0]["resource_id"])
 	require.Equal(t, true, entries[0]["allowed"])
+	require.Equal(t, "write", entries[0]["action"], "a write is recorded as one")
+
+	// Deletes are audited under their own name (ADR-0053), allowed or refused.
+	require.NoError(t, repository.RecordStaffAction(ctx, app.StaffAction{PrincipalID: actor, TenantID: tenant, TargetService: "question-bank",
+		ResourceType: "questions", ResourceID: "resource-5", Allowed: true, Action: "delete"}))
+	require.NoError(t, repository.RecordStaffAction(ctx, app.StaffAction{PrincipalID: actor, TenantID: tenant, TargetService: "assessment",
+		ResourceType: "exams", ResourceID: "resource-6", Allowed: false, Action: "delete"}))
+	// The previous release calls the six-argument function; its entries are writes.
+	_, err = pool.Exec(ctx, `SELECT users.record_staff_action($1, $2, 'assessment', 'exams', 'resource-7', true)`, actor, tenant)
+	require.NoError(t, err)
+
+	entries, err = list("users.staff_audit")
+	require.NoError(t, err)
+	verbs := map[string]string{}
+	for _, entry := range entries {
+		verbs[entry["resource_id"].(string)] = entry["action"].(string)
+	}
+	require.Equal(t, map[string]string{"resource-2": "write", "resource-5": "delete", "resource-6": "delete", "resource-7": "write"}, verbs)
+
+	var deleteEvents int
+	require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM app.outbox_events WHERE event_type = 'user.staff_audit_recorded.v1' AND payload ->> 'action' = 'delete' AND tenant_id = $1`, tenant).Scan(&deleteEvents))
+	require.Equal(t, 2, deleteEvents, "the live feed hears about deletes too")
+
+	var bad error
+	_, bad = pool.Exec(ctx, `SELECT users.record_staff_action($1, $2, 'assessment', 'exams', 'x', true, 'purge')`, actor, tenant)
+	require.Error(t, bad, "only write and delete are valid actions")
 }

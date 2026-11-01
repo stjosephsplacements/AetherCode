@@ -56,3 +56,4 @@ Each decision is a numbered file; new ones start from [the template](0000-templa
 | [0050](0050-realtime-gateway-websocket.md) | Realtime updates over a gateway WebSocket |
 | [0051](0051-question-authoring-flow.md) | Question authoring is a guided flow; languages come from the service |
 | [0052](0052-question-categories-and-tags.md) | Questions are filed by category, told apart by difficulty, and described by tags |
+| [0053](0053-deleting-what-staff-create.md) | Staff can delete what they create, only while nothing depends on it, and every delete is logged |
