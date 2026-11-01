@@ -1,0 +1,51 @@
+backend/services/user/migrations/000033_permission_grants.up.sql
+  s_40851fd2a7ba5d::t_c4a2168ae65da8 1-66
+backend/services/user/internal/app/authorization_test.go
+  s_40851fd2a7ba5d::t_1f661495df49c2 651-743
+backend/services/user/internal/adapters/http/handler.go
+  s_40851fd2a7ba5d::t_8de4a465181796 53-57
+backend/services/user/internal/adapters/http/permissions_handler.go
+  s_40851fd2a7ba5d::t_8de4a465181796 1-85,87-109
+  s_40851fd2a7ba5d::t_fd0ad112fd2e26 86
+backend/services/user/internal/app/permissions.go
+  s_40851fd2a7ba5d::t_18dc61fd7bca7c 1-146,151-157,159-163,165-168,178-196
+  s_40851fd2a7ba5d::t_fd0ad112fd2e26 147-150,158,164,169-177
+backend/services/user/internal/app/management.go
+  s_40851fd2a7ba5d::t_9cf4c1efbf53f7 44-45
+  s_40851fd2a7ba5d::t_fd0ad112fd2e26 46
+backend/services/user/internal/app/management_test.go
+  s_40851fd2a7ba5d::t_fd0ad112fd2e26 135-138
+  s_40851fd2a7ba5d::t_9cf4c1efbf53f7 131-134,139-142
+backend/services/user/migrations/000033_permission_grants.down.sql
+  s_40851fd2a7ba5d::t_c4a2168ae65da8 1-6
+backend/services/user/internal/app/authorization.go
+  s_40851fd2a7ba5d::t_18dc61fd7bca7c 73-74,162,284-286
+  s_40851fd2a7ba5d::t_4ac69fc22e9eb7 287-288
+backend/services/user/internal/adapters/repo/permissions.go
+  s_40851fd2a7ba5d::t_fd0ad112fd2e26 8,102-111
+  s_40851fd2a7ba5d::t_9cf4c1efbf53f7 1-7,9-101,112
+backend/services/user/internal/adapters/repo/postgres.go
+  s_40851fd2a7ba5d::t_8de4a465181796 221-226
+backend/services/user/api/openapi.yaml
+  s_40851fd2a7ba5d::t_cdf70e3d51853b 397-456
+docs/adr/0055-per-person-permissions-and-platform-scope.md
+  s_40851fd2a7ba5d::t_2556a43d2a99f3 3
+docs/adr/README.md
+  s_40851fd2a7ba5d::t_61455d2f4bcd5b 61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1ef2f5769d801f9d07bf736dc8dfae80b0080962",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh <shreesh@ALLENs-Mac-mini.local>"
+    }
+  }
+}
