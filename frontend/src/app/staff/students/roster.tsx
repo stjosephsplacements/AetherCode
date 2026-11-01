@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { paginate } from "@/lib/paginate";
 import { cn } from "@/lib/utils";
-import { type CredentialsState, bulkResetPasswords, bulkSetStatus, deleteStudent, updateStudent } from "./actions";
+import { type CredentialsState, bulkResetPasswords, bulkSetStatus, deleteStudent, updateAccount, updateStudent } from "./actions";
 import { StudentActions } from "./panels";
 
 export type StudentRow = {
@@ -26,6 +26,12 @@ export type StudentRow = {
   roll: string;
   name: string;
   email: string;
+  phone: string;
+  /** ISO timestamps from the account; empty when the account has none (never signed in, not reported). */
+  joinedAt: string;
+  lastSignIn: string;
+  /** "temporary", "set", or empty when unknown. */
+  passwordState: string;
   username: string;
   status: string;
   batchId: string;
@@ -35,24 +41,50 @@ export type StudentRow = {
   placement: string;
 };
 
-type Facet = "college" | "department" | "batch" | "placement" | "status";
+type Facet = "college" | "department" | "batch" | "placement" | "status" | "password" | "joined" | "signedIn";
 const FACETS: { key: Facet; label: string }[] = [
   { key: "college", label: "College" },
   { key: "department", label: "Department" },
   { key: "batch", label: "Batch" },
   { key: "placement", label: "Placement department" },
   { key: "status", label: "Sign-in" },
+  { key: "password", label: "Password" },
+  { key: "joined", label: "Joined" },
+  { key: "signedIn", label: "Has signed in" },
 ];
 
+const DAY = 86_400_000;
+/** Exclusive buckets, so choosing two of them means "either". */
+const JOINED = ["Today", "Past week", "Past month", "Older"] as const;
+function joinedBucket(iso: string, now: number): string {
+  if (!iso) return "";
+  const age = now - new Date(iso).getTime();
+  return age < DAY ? "Today" : age < 7 * DAY ? "Past week" : age < 30 * DAY ? "Past month" : "Older";
+}
+const PASSWORD_LABEL: Record<string, string> = { temporary: "Not changed yet", set: "Changed" };
+const when = (iso: string) => (iso ? new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "");
+
+const emptyFilters = (): Record<Facet, Set<string>> => ({ college: new Set(), department: new Set(), batch: new Set(), placement: new Set(), status: new Set(), password: new Set(), joined: new Set(), signedIn: new Set() });
 const compare = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
 // A spreadsheet runs a cell that starts with one of these, so the export escapes it.
 const cell = (value: string) => `"${(/^[=+\-@\t\r]/.test(value) ? `'${value}` : value).replaceAll('"', '""')}"`;
+
+function facetValue(row: StudentRow, facet: Facet, now: number): string {
+  switch (facet) {
+    case "status": return row.status === "active" ? "Can sign in" : "Disabled";
+    case "placement": return row.placement;
+    case "password": return PASSWORD_LABEL[row.passwordState] ?? "";
+    case "joined": return joinedBucket(row.joinedAt, now);
+    case "signedIn": return row.joinedAt ? (row.lastSignIn ? "Yes" : "Never") : "";
+    default: return row[facet];
+  }
+}
 
 /** Every student in scope: search, filter on five facets, sort, export, select and act in bulk. */
 export function Roster({ rows, several }: { rows: StudentRow[]; several: boolean }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const [picked, setPicked] = useState<Record<Facet, Set<string>>>({ college: new Set(), department: new Set(), batch: new Set(), placement: new Set(), status: new Set() });
+  const [picked, setPicked] = useState<Record<Facet, Set<string>>>(emptyFilters());
   const [sort, setSort] = useState<"roll" | "name">("roll");
   const [descending, setDescending] = useState(false);
   const [page, setPage] = useState(1);
@@ -61,22 +93,28 @@ export function Roster({ rows, several }: { rows: StudentRow[]; several: boolean
   const [notice, setNotice] = useState<{ error: boolean; text: string } | null>(null);
   const [issued, setIssued] = useState<CredentialsState["accounts"]>();
 
-  const value = (row: StudentRow, facet: Facet) => (facet === "status" ? (row.status === "active" ? "Can sign in" : "Disabled") : facet === "placement" ? row.placement : row[facet]);
+  const [now] = useState(() => Date.now());
   const options = useMemo(
-    () => Object.fromEntries(FACETS.map(({ key }) => [key, [...new Set(rows.map((row) => value(row, key)).filter(Boolean))].sort(compare)])) as Record<Facet, string[]>,
-    [rows],
+    () =>
+      Object.fromEntries(
+        FACETS.map(({ key }) => {
+          const found = [...new Set(rows.map((row) => facetValue(row, key, now)).filter(Boolean))];
+          return [key, key === "joined" ? JOINED.filter((bucket) => found.includes(bucket)) : found.sort(compare)];
+        }),
+      ) as Record<Facet, string[]>,
+    [rows, now],
   );
 
   const needle = query.trim().toLowerCase();
   const shown = useMemo(() => {
     const matching = rows.filter(
       (row) =>
-        FACETS.every(({ key }) => picked[key].size === 0 || picked[key].has(value(row, key))) &&
-        (!needle || row.roll.toLowerCase().includes(needle) || row.name.toLowerCase().includes(needle) || row.email.toLowerCase().includes(needle)),
+        FACETS.every(({ key }) => picked[key].size === 0 || picked[key].has(facetValue(row, key, now))) &&
+        (!needle || row.roll.toLowerCase().includes(needle) || row.name.toLowerCase().includes(needle) || row.email.toLowerCase().includes(needle) || row.phone.replace(/\D/g, "").includes(needle.replace(/\D/g, "") || "\u0000")),
     );
     const sign = descending ? -1 : 1;
     return matching.sort((a, b) => compare(a.college, b.college) || sign * compare(sort === "name" ? a.name || a.roll : a.roll, sort === "name" ? b.name || b.roll : b.roll));
-  }, [rows, picked, needle, sort, descending]);
+  }, [rows, picked, needle, sort, descending, now]);
   const paged = paginate(shown, page);
   const filterCount = FACETS.reduce((total, { key }) => total + picked[key].size, 0);
   const active = shown.filter((row) => row.status === "active").length;
@@ -91,13 +129,13 @@ export function Roster({ rows, several }: { rows: StudentRow[]; several: boolean
     setPage(1);
   };
   const clearFilters = () => {
-    setPicked({ college: new Set(), department: new Set(), batch: new Set(), placement: new Set(), status: new Set() });
+    setPicked(emptyFilters());
     setPage(1);
   };
 
   function exportCsv() {
-    const head = ["Roll number", "Name", "Email", "Username", ...(several ? ["College"] : []), "Department", "Batch", "Placement department", "Sign-in"];
-    const lines = shown.map((row) => [row.roll, row.name, row.email, row.username, ...(several ? [row.college] : []), row.department, row.batch, row.placement, row.status].map(cell).join(","));
+    const head = ["Roll number", "Name", "Email", "Phone", "Username", ...(several ? ["College"] : []), "Department", "Batch", "Placement department", "Sign-in", "Password", "Joined", "Last sign-in"];
+    const lines = shown.map((row) => [row.roll, row.name, row.email, row.phone, row.username, ...(several ? [row.college] : []), row.department, row.batch, row.placement, row.status, PASSWORD_LABEL[row.passwordState] ?? "", when(row.joinedAt), when(row.lastSignIn)].map(cell).join(","));
     const url = URL.createObjectURL(new Blob([[head.map(cell).join(","), ...lines].join("\n")], { type: "text/csv" }));
     Object.assign(document.createElement("a"), { href: url, download: `students_${new Date().toISOString().slice(0, 10)}.csv` }).click();
     URL.revokeObjectURL(url);
@@ -119,7 +157,7 @@ export function Roster({ rows, several }: { rows: StudentRow[]; several: boolean
   const colleges = [...new Set(paged.rows.map((row) => row.college))];
 
   const table = (list: StudentRow[]) => (
-    <Table head={["", "Roll number", "Name", "Department", "Placement department", "Status", ""]}>
+    <Table head={["", "Roll number", "Name", "Department", "Placement department", "Account", ""]}>
       {list.map((student) => (
         <tr key={student.id} className={cn(selected.has(student.id) && "bg-brand-soft/40")}>
           <td className="w-10 px-4 py-2.5">
@@ -139,6 +177,7 @@ export function Roster({ rows, several }: { rows: StudentRow[]; several: boolean
           <td className="px-4 py-2.5">
             <span className="block text-ink">{student.name || <span className="text-ink-subtle">Unnamed</span>}</span>
             {student.email && <span className="block text-[12px] text-ink-muted">{student.email}</span>}
+            {student.phone && <span className="block font-mono text-[11.5px] text-ink-subtle">{student.phone}</span>}
           </td>
           <td className="px-4 py-2.5 text-ink-muted">
             {student.department}
@@ -146,16 +185,36 @@ export function Roster({ rows, several }: { rows: StudentRow[]; several: boolean
           </td>
           <td className="px-4 py-2.5 text-ink-muted">{student.placement}</td>
           <td className="px-4 py-2.5">
-            <Badge tone={student.status === "active" ? "success" : "neutral"}>{student.status}</Badge>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Badge tone={student.status === "active" ? "success" : "neutral"}>{student.status}</Badge>
+              {student.passwordState === "temporary" && <Badge tone="warning">password not changed</Badge>}
+            </div>
+            {student.joinedAt && (
+              <span className="mt-1 block text-[11.5px] text-ink-subtle">
+                Joined {when(student.joinedAt)} · {student.lastSignIn ? `last in ${when(student.lastSignIn)}` : "never signed in"}
+              </span>
+            )}
           </td>
           <td className="px-4 py-2.5">
             <div className="flex items-center justify-end gap-1">
               <StudentActions principalId={student.principalId} username={student.username} collegeId={student.tenantId} />
               <EditDialog
                 title="Edit student"
-                description="The roll number must be unique in this college."
-                fields={[{ name: "enrollment_number", label: "Roll number", value: student.roll }]}
-                onSave={(changes) => updateStudent(student.tenantId, student.id, changes)}
+                description="The roll number must be unique in this college. Name, email and phone belong to the account."
+                fields={[
+                  { name: "enrollment_number", label: "Roll number", value: student.roll },
+                  { name: "display_name", label: "Name", value: student.name },
+                  { name: "email", label: "Email", value: student.email, optional: true, hint: "A new email is not verified until they confirm it." },
+                  { name: "phone", label: "Phone", value: student.phone, optional: true },
+                ]}
+                onSave={async (changes) => {
+                  const { enrollment_number, ...account } = changes;
+                  if (enrollment_number !== undefined) {
+                    const result = await updateStudent(student.tenantId, student.id, { enrollment_number });
+                    if (result.error) return result;
+                  }
+                  return Object.keys(account).length > 0 ? updateAccount(student.tenantId, student.principalId, account) : { error: null, message: "Saved." };
+                }}
               />
               <ConfirmDelete
                 title={`Delete ${student.roll}?`}

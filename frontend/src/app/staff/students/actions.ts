@@ -121,6 +121,23 @@ export async function updateStudent(collegeId: string, studentId: string, change
   return { error: null, message: "Saved." };
 }
 
+/** Changes an account's name, email or phone (ADR-0057). Only the fields sent change; empty clears an email or phone. */
+export async function updateAccount(collegeId: string, principalId: string, changes: Record<string, string>): Promise<ActionState> {
+  const staff = await requireStaff();
+  if (!staff.canManageAccounts) return { error: "Only administrators edit accounts." };
+  const tenantId = collegeFor(staff, collegeId);
+  const body: Record<string, string> = {};
+  for (const key of ["display_name", "email", "phone"]) if (key in changes) body[key] = changes[key]!.trim();
+  if (Object.keys(body).length === 0) return { error: "Nothing to change." };
+  try {
+    await gateway(`/user/v1/tenants/${tenantId}/accounts/${principalId}`, { method: "PATCH", body });
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+  revalidatePath("/staff/students");
+  return { error: null, message: "Saved." };
+}
+
 /** Removes a student record. Their sign-in can be turned off instead, which is easy to undo. */
 export async function deleteStudent(collegeId: string, studentId: string, reason: string): Promise<ActionState> {
   const staff = await requireStaff();

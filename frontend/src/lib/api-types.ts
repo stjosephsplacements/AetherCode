@@ -489,7 +489,20 @@ export type RoleAssignment = {
 };
 
 /** POST /user/v1/tenants/{t}/accounts/describe (ADR-0043). */
-export type AccountSummary = { principal_id: string; username?: string; email?: string; display_name: string; status: string };
+export type AccountSummary = {
+  principal_id: string;
+  username?: string;
+  email?: string;
+  display_name: string;
+  status: string;
+  phone?: string;
+  created_at?: string;
+  /** Absent: never signed in. */
+  last_authenticated_at?: string;
+  /** "temporary" while the issued password is unchanged, "set" after; absent for single sign-on accounts. */
+  password_state?: "temporary" | "set";
+  password_changed_at?: string;
+};
 
 /** GET /user/v1/tenants/{t}/staff-audit (ADR-0043): one staff write decision. */
 export type AuditEntry = {
