@@ -120,7 +120,7 @@ export default async function PlacementsPage() {
 
       {/* Interactive Drives & Candidate Filter */}
       <Section title="Candidate Pool Eligibility Filter" description="Filter students by department, batch, and cohort readiness.">
-        <PlacementsFilter students={students} departments={collegeDepts} batches={batches} />
+        <PlacementsFilter students={students} departments={collegeDepts} batches={batches} truncated={students.length >= 5000} />
       </Section>
     </div>
   );

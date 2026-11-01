@@ -1,54 +1,23 @@
 "use client";
 
-import { Download, FileSpreadsheet } from "lucide-react";
+import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { newWorkbook } from "@/lib/client/exceljs";
 
 export function ExportButton({ rows, filename }: { rows: string[][]; filename: string }) {
-  function downloadCsv() {
+  function download() {
+    // Cells starting with = + - @ would run as spreadsheet formulas.
     const cell = (value: string) => {
       const safe = /^[=+\-@]/.test(value) ? `'${value}` : value;
       return /[",\n]/.test(safe) ? `"${safe.replaceAll('"', '""')}"` : safe;
     };
     const url = URL.createObjectURL(new Blob([rows.map((row) => row.map(cell).join(",")).join("\n")], { type: "text/csv" }));
-    Object.assign(document.createElement("a"), { href: url, download: filename.endsWith(".csv") ? filename : `${filename}.csv` }).click();
+    Object.assign(document.createElement("a"), { href: url, download: filename }).click();
     URL.revokeObjectURL(url);
   }
-
-  async function downloadExcel() {
-    try {
-      const workbook = await newWorkbook();
-      const worksheet = workbook.addWorksheet("Exam Results");
-      if (rows.length > 0) {
-        worksheet.addRow(rows[0]);
-        const headerRow = worksheet.getRow(1);
-        headerRow.font = { bold: true };
-        for (let i = 1; i < rows.length; i++) {
-          worksheet.addRow(rows[i]);
-        }
-      }
-      const buffer = await workbook.xlsx.writeBuffer();
-      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-      const url = URL.createObjectURL(blob);
-      const xlsxName = filename.replace(/\.csv$/, "") + ".xlsx";
-      Object.assign(document.createElement("a"), { href: url, download: xlsxName }).click();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("ExcelJS export failed, falling back to CSV", err);
-      downloadCsv();
-    }
-  }
-
   return (
-    <div className="inline-flex items-center gap-2">
-      <Button variant="secondary" size="sm" onClick={downloadCsv} className="gap-1.5">
-        <Download className="size-3.5" />
-        CSV
-      </Button>
-      <Button size="sm" onClick={downloadExcel} className="gap-1.5">
-        <FileSpreadsheet className="size-3.5" />
-        Export Excel (.xlsx)
-      </Button>
-    </div>
+    <Button variant="secondary" size="sm" onClick={download}>
+      <Download />
+      Export CSV
+    </Button>
   );
 }

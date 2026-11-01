@@ -92,8 +92,8 @@ export function ImportPanel({ batches, placements, departments }: { batches: Bat
       </Field>
       <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] font-medium text-brand hover:underline">
         <Upload className="size-4" strokeWidth={1.75} />
-        Load a CSV or Excel file (.csv, .xlsx, .xls)
-        <input type="file" accept=".csv,text/csv,text/plain,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" className="sr-only" onChange={(event) => loadFile(event.target.files?.[0])} />
+        Load a CSV file
+        <input type="file" accept=".csv,text/csv,text/plain" className="sr-only" onChange={(event) => loadFile(event.target.files?.[0])} />
       </label>
       <FormMessage state={state} />
       <SubmitButton>Import students</SubmitButton>

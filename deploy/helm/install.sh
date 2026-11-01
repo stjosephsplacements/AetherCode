@@ -18,7 +18,7 @@ kubectl get secret aethercode-secrets -n "$namespace" >/dev/null ||
 
 helm upgrade --install pki platform-pki -n "$namespace" --wait
 helm upgrade --install infra platform-infra -n "$namespace" --wait --timeout 10m
-helm upgrade --install migrations platform-migrations -n "$namespace" --set image.tag="$tag" --wait --timeout 15m
+helm upgrade --install migrations platform-migrations -n "$namespace" -f values-common.yaml --set image.tag="$tag" --wait --timeout 15m
 
 for svc in gateway identity tenant user question-bank assessment submission judge seb notification analytics frontend; do
   extra=()

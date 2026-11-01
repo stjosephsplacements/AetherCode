@@ -10,6 +10,13 @@ helm template pki platform-pki >/dev/null
 helm template infra platform-infra >/dev/null
 helm template migrations platform-migrations "${secrets[@]}" >/dev/null
 
+# The migration hooks must follow values-common.yaml's database hosts.
+migrations=$(helm template migrations platform-migrations -f values-common.yaml \
+  --set global.postgresHost=pg.example.edu --set global.judgeDbHost=judge-pg.example.edu --set image.tag=ci)
+grep -q 'value: "pg.example.edu"' <<<"$migrations"
+grep -qF '@judge-pg.example.edu:5432' <<<"$migrations"
+grep -q 'value: "judge-pg.example.edu"' <<<"$migrations"
+
 for values in platform-service/values-*.yaml; do
   svc="${values#platform-service/values-}"; svc="${svc%.yaml}"
   extra=()

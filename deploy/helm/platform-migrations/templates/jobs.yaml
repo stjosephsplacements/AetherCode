@@ -26,7 +26,7 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
             - name: PGHOST
-              value: {{ .Values.postgresHost | quote }}
+              value: {{ .Values.global.postgresHost | quote }}
             {{- range $platformSecrets }}
             {{- include "migrations.secretEnv" (dict "name" . "secret" $.Values.secretName) | nindent 12 }}
             {{- end }}
@@ -59,7 +59,7 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["/bin/sh", "-c"]
           args:
-            - exec migrate --source file:///migrations/judge --direction up --database-url "postgres://aether_judge_migrator:${JUDGE_DB_PASSWORD}@{{ .Values.judgeDbHost }}:5432/aether_judge_wrapper?sslmode=disable"
+            - exec migrate --source file:///migrations/judge --direction up --database-url "postgres://aether_judge_migrator:${JUDGE_DB_PASSWORD}@{{ .Values.global.judgeDbHost }}:5432/aether_judge_wrapper?sslmode=disable"
           env:
             {{- include "migrations.secretEnv" (dict "name" "JUDGE_DB_PASSWORD" "secret" .Values.secretName) | nindent 12 }}
           securityContext:
@@ -91,7 +91,7 @@ spec:
           command: ["/bin/bash", "/scripts/judge-languages.sh"]
           env:
             - name: PGHOST
-              value: {{ .Values.judgeDbHost | quote }}
+              value: {{ .Values.global.judgeDbHost | quote }}
             - name: JUDGE_ENGINE
               value: {{ .Values.judgeEngine | quote }}
             - name: JUDGE_WORKER_CONCURRENCY

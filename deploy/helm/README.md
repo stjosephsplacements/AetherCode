@@ -37,7 +37,7 @@ means every session is invalidated and the capability keys must be re-issued.
 `install.sh` runs, in order: `platform-pki`, `platform-infra`, `platform-migrations`,
 then each service. Each step waits for readiness. Migrations run as Helm
 pre-install and pre-upgrade hooks, so a failed migration stops a rollout before
-any pod changes.
+any pod changes. `platform-migrations` and every service read the database hosts from `values-common.yaml`; for an existing PostgreSQL see `values-infra-external-db.yaml`.
 
 Create the first administrator with the `bootstrap` command in the tools image, run as a one-off pod with the same Secret variables the migration Job uses. Its flags are documented in `deploy/single-server/README.md`.
 
