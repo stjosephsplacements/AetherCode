@@ -1,3 +1,5 @@
+import { Pager } from "@/components/staff/pager";
+import { paginate } from "@/lib/paginate";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -14,10 +16,10 @@ import { ImportPanel, ReissuePanel, StudentActions } from "./panels";
 
 export const metadata: Metadata = { title: "Students" };
 
-export default async function StudentsPage({ searchParams }: { searchParams: Promise<{ batch?: string; college?: string }> }) {
+export default async function StudentsPage({ searchParams }: { searchParams: Promise<{ batch?: string; college?: string; page?: string }> }) {
   const staff = await requireStaff();
   if (!staff.canManageAccounts) redirect("/staff");
-  const { batch: batchParam, college: collegeParam } = await searchParams;
+  const { batch: batchParam, college: collegeParam, page } = await searchParams;
 
   let data;
   try {
@@ -41,6 +43,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
   }
   const { batches, departments, placement, batch, students, unreachable } = data;
   const several = staff.isPlatformAdmin;
+  const paged = paginate(students, page);
   const placements = placement.organizations.flatMap((organization) =>
     organization.departments.map((department) => ({ id: department.id, label: `${departmentLabel(department)}, ${organization.legal_name}` })),
   );
@@ -86,7 +89,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
                 <EmptyState>No students in this batch yet. Import them below.</EmptyState>
               ) : (
                 <Table head={["Roll number", "Placement department", "Status", ""]}>
-                  {students.map((student) => (
+                  {paged.rows.map((student) => (
                     <tr key={student.id}>
                       <td className="px-4 py-2.5 font-mono text-[13px]">
                         <Link href={`/staff/students/${student.id}?college=${batch?.tenant_id ?? ""}`} className="font-medium text-brand hover:underline">
@@ -104,6 +107,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
                   ))}
                 </Table>
               )}
+              <Pager meta={paged} noun="students" />
               {students.length > 0 && (
                 <div className="mt-4">
                   <ReissuePanel batch={batch} />

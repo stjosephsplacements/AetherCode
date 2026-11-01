@@ -1,3 +1,5 @@
+import { Pager } from "@/components/staff/pager";
+import { paginate } from "@/lib/paginate";
 import { ArrowLeft, ScanSearch } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -14,7 +16,7 @@ import { ExportButton } from "./export-button";
 
 export const metadata: Metadata = { title: "Results" };
 
-export default async function ResultsPage({ params }: { params: Promise<{ examId: string }> }) {
+export default async function ResultsPage({ params, searchParams }: { params: Promise<{ examId: string }>; searchParams: Promise<{ page?: string }> }) {
   const staff = await requireCollege();
   const { examId } = await params;
   let data;
@@ -41,6 +43,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ examId
     .map((result) => ({ ...result, roll: rollNumber.get(result.candidate_id) ?? result.candidate_id.slice(0, 8) }))
     .sort((a, b) => Number(b.score) - Number(a.score) || a.roll.localeCompare(b.roll));
   const assigned = content.assignment_rules.reduce((sum, rule) => sum + rule.assigned_candidates, 0);
+  const paged = paginate(rows, (await searchParams).page);
   const scores = rows.map((row) => Number(row.score));
   const maximum = rows[0] ? Number(rows[0].maximum_score) : 0;
   const average = scores.length ? scores.reduce((sum, score) => sum + score, 0) / scores.length : 0;
@@ -92,7 +95,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ examId
         <EmptyState>No graded attempts yet.</EmptyState>
       ) : (
         <Table head={["Roll number", "Score", "Status", "Submitted"]}>
-          {rows.map((row) => (
+          {paged.rows.map((row) => (
             <tr key={row.attempt_id}>
               <td className="px-4 py-2.5 font-mono text-[13px] text-ink">{row.roll}</td>
               <td className="px-4 py-2.5 font-mono tabular-nums text-ink">
@@ -106,6 +109,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ examId
           ))}
         </Table>
       )}
+      <Pager meta={paged} noun="attempts" />
     </>
   );
 }
