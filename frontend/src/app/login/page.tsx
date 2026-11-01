@@ -30,8 +30,8 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <div className="w-full max-w-[460px] animate-enter rounded-[var(--radius-surface)] border border-line bg-surface/90 p-8 shadow-[var(--shadow-overlay)] backdrop-blur-xl sm:p-10">
         <div className="flex flex-col items-center text-center">
           <div className="relative mb-6">
-            <Image src="/logo-light.png" alt="AetherCode" width={48} height={48} priority className="logo-light object-contain" />
-            <Image src="/logo-dark.png" alt="AetherCode" width={48} height={48} priority className="logo-dark object-contain" />
+            <Image src="/4.png" alt="AetherCode" width={48} height={48} priority className="logo-light object-contain" />
+            <Image src="/3.png" alt="AetherCode" width={48} height={48} priority className="logo-dark object-contain" />
           </div>
 
           <span className="eyebrow text-brand font-semibold">SKILLS OVER PEDIGREE</span>

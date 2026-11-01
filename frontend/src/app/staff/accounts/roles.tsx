@@ -56,9 +56,12 @@ export function RoleEditor({
           <input type="hidden" name="principal_id" value={principalId} />
           <select name="role" value={role} onChange={(event) => setRole(event.target.value as keyof typeof ROLE_LABELS)}
             className="h-8 w-full rounded-[var(--radius-control)] border border-line bg-surface px-2 text-sm">
-            {Object.entries(ROLE_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
+            {Object.entries(ROLE_LABELS)
+              // Placement scopes are visible only to platform administrators.
+              .filter(([value]) => value !== "placement_user" || placements.length > 0)
+              .map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
           </select>
           {role === "department_user" && (
             <select name="department_id" className="h-8 w-full rounded-[var(--radius-control)] border border-line bg-surface px-2 text-sm">

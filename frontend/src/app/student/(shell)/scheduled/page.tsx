@@ -14,7 +14,8 @@ export default async function ScheduledAssessmentsPage() {
   const viewer = await requireViewer();
   if (!viewer.tenantId) redirect("/student");
 
-  const assignments = await listAssignments(viewer.tenantId).catch(() => []);
+  // Failures go to the error boundary; an empty list would read as "no exams".
+  const assignments = await listAssignments(viewer.tenantId);
   const { upcoming, live } = groupByPhase(assignments);
 
   return (

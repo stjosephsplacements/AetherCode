@@ -9,9 +9,11 @@ import type { Department, Student } from "@/lib/api-types";
 export function PlacementsFilter({
   students,
   departments,
+  truncated,
 }: {
   students: Student[];
   departments: Department[];
+  truncated: boolean;
 }) {
   const [selectedDept, setSelectedDept] = useState<string>("all");
   const [search, setSearch] = useState<string>("");
@@ -28,12 +30,14 @@ export function PlacementsFilter({
   });
 
   function exportList() {
-    const csvContent =
-      "data:text/csv;charset=utf-8," +
-      ["Roll Number,Department,Status"].concat(
-        filtered.map((s) => `${s.enrollment_number},"${deptMap.get(s.college_department_id || "") || "General"}",${s.status}`)
-      ).join("\n");
-    const encodedUri = encodeURI(csvContent);
+    const csv = ["Roll Number,Department,Status"]
+      .concat(
+        filtered.map((s) =>
+          [s.enrollment_number, deptMap.get(s.college_department_id || "") || "General", s.status].map(csvCell).join(","),
+        ),
+      )
+      .join("\n");
+    const encodedUri = "data:text/csv;charset=utf-8," + encodeURIComponent(csv);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
     link.setAttribute("download", `placement_candidates_${new Date().toISOString().slice(0, 10)}.csv`);
@@ -89,8 +93,17 @@ export function PlacementsFilter({
         ))}
       </Table>
       {filtered.length > 25 && (
-        <p className="text-center text-xs text-ink-muted">Showing first 25 of {filtered.length} matching candidates. Use Export for complete dataset.</p>
+        <p className="text-center text-xs text-ink-muted">Showing first 25 of {filtered.length} matching candidates. Use Export for the full list.</p>
+      )}
+      {truncated && (
+        <p className="text-center text-xs text-warning">Only the first 5,000 students were loaded, so this list and its export are incomplete.</p>
       )}
     </div>
   );
+}
+
+// Quotes a CSV field and neutralizes spreadsheet formula prefixes (=, +, -, @).
+function csvCell(value: string): string {
+  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+  return `"${safe.replace(/"/g, '""')}"`;
 }

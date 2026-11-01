@@ -20,10 +20,11 @@ const contentSecurityPolicy = [
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  poweredByHeader: true,
+  poweredByHeader: false,
   // Tests and imported questions arrive through server actions; nginx accepts
   // 2 MB and the gateway 1 MiB of JSON, so a larger body could not get through.
-  experimental: { serverActions: { bodySizeLimit: "2mb" } },
+  // cpus caps build workers so the Docker build fits in builder memory.
+  experimental: { serverActions: { bodySizeLimit: "2mb" }, cpus: 4 },
   async headers() {
     return [
       {
@@ -33,8 +34,6 @@ const nextConfig: NextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "same-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
-          { key: "X-Powered-By", value: "Next.js" },
-          { key: "X-Backend-Tech", value: "Go, PostgreSQL, Redis, Docker, Kubernetes, Nginx" },
         ],
       },
     ];

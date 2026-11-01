@@ -82,7 +82,9 @@ export default async function PlacementsPage() {
 
       {/* Organizations & Cohorts listing */}
       <Section title="Placement Organizations & Specialized Training Units" description="Placement cells manage student groupings, drive eligibility, and corporate training programs.">
-        {placement.organizations.length === 0 ? (
+        {!placement.readable ? (
+          <EmptyState>Only a platform administrator can view placement organizations.</EmptyState>
+        ) : placement.organizations.length === 0 ? (
           <EmptyState>No placement organizations created yet. Add one in Departments.</EmptyState>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
@@ -118,7 +120,7 @@ export default async function PlacementsPage() {
 
       {/* Interactive Drives & Candidate Filter */}
       <Section title="Candidate Pool Eligibility Filter" description="Filter students by department or search by roll number.">
-        <PlacementsFilter students={students} departments={collegeDepts} />
+        <PlacementsFilter students={students} departments={collegeDepts} truncated={students.length >= 5000} />
       </Section>
     </div>
   );

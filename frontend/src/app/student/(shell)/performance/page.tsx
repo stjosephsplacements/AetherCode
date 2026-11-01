@@ -5,7 +5,8 @@ import { Panel } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { requireViewer } from "@/lib/server/session";
 import { gateway } from "@/lib/server/gateway";
-import type { Page, Attempt, PracticeProgress } from "@/lib/api-types";
+import type { PracticeProgress } from "@/lib/api-types";
+import { listMyAttempts } from "@/lib/server/attempts";
 import { Award, Code, TrendingUp } from "lucide-react";
 
 export const metadata: Metadata = { title: "Performance Analysis" };
@@ -15,11 +16,11 @@ export default async function PerformancePage() {
   if (!viewer.tenantId) redirect("/student");
 
   const [attempts, practice] = await Promise.all([
-    gateway<Page<Attempt>>(`/submission/v1/tenants/${viewer.tenantId}/attempts?limit=50`).then((p) => p.items, () => []),
+    listMyAttempts(viewer.tenantId).catch(() => []),
     gateway<PracticeProgress>(`/question-bank/v1/tenants/${viewer.tenantId}/practice/progress`).catch(() => null),
   ]);
 
-  const completed = attempts.filter((a) => a.lifecycle_state === "submitted" || a.lifecycle_state === "graded");
+  const completed = attempts.filter((a) => ["submitted", "grading", "graded"].includes(a.lifecycle_state));
 
   return (
     <div className="animate-enter space-y-8">
@@ -62,7 +63,7 @@ export default async function PerformancePage() {
               <TrendingUp className="size-5" />
             </div>
             <div>
-              <p className="text-xs text-ink-muted">Consistency Rate</p>
+              <p className="text-xs text-ink-muted">Practice Completion</p>
               <p className="font-mono text-2xl font-bold text-ink">
                 {practice && practice.available > 0 ? `${Math.round(((practice.solved || 0) / practice.available) * 100)}%` : "0%"}
               </p>

@@ -116,18 +116,18 @@
     --line: #e6e8eb;
     --line-strong: #d0d3d8;
 
-    /* HackerRank Hacker Green with sleek Vercel contrast */
-    --brand: #05c770;
-    --brand-hover: #04b364;
+    /* HackerRank green, darkened so text and button labels meet WCAG AA (4.5:1). */
+    --brand: #037a43;
+    --brand-hover: #026538;
     --brand-ink: #ffffff;
     --brand-soft: #e6faf1;
     --brand-soft-ink: #038048;
 
-    --success: #05c770;
+    --success: #047a43;
     --success-soft: #e6faf1;
-    --danger: #ef4444;
+    --danger: #b91c1c;
     --danger-soft: #fee2e2;
-    --warning: #f59e0b;
+    --warning: #92400e;
     --warning-soft: #fef3c7;
   }
 

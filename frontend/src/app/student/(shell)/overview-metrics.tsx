@@ -20,8 +20,10 @@ export function OverviewMetrics({
           <div>
             <span className="eyebrow text-brand">DEVELOPER BENCHMARK</span>
             <p className="mt-2 font-mono text-3xl font-bold tracking-tight text-ink">
-              {progress?.solved ?? 0}
-              <span className="text-xs font-normal text-ink-muted ml-2 font-sans">/ {progress?.available ?? 0} solved</span>
+              {progress ? progress.solved : "?"}
+              <span className="text-xs font-normal text-ink-muted ml-2 font-sans">
+                {progress ? `/ ${progress.available} solved` : "progress unavailable"}
+              </span>
             </p>
             <Link href="/student/practice" className="mt-3 text-xs text-brand font-medium hover:underline inline-flex items-center gap-1">
               Continue practicing <span>→</span>

@@ -1,4 +1,4 @@
-import { GraduationCap, Trophy, User, ExternalLink, Code } from "lucide-react";
+import { GraduationCap, User, ExternalLink, Code } from "lucide-react";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Panel } from "@/components/ui/card";
@@ -110,33 +110,7 @@ export default async function ResumePage() {
             <h3 className="text-xs font-bold uppercase tracking-wider text-ink">Education & Academics</h3>
           </div>
           <div className="rounded-[var(--radius-control)] border border-line p-4 space-y-2 bg-canvas/20">
-            <div className="flex items-center justify-between font-medium text-sm text-ink">
-              <span>B.E. Computer Science and Engineering</span>
-              <span className="text-ink-muted font-mono text-xs">Undergraduate</span>
-            </div>
-            <p className="text-xs text-ink-muted">{institutionName}</p>
-          </div>
-        </div>
-
-        {/* Technical Competencies */}
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Trophy className="size-4 text-brand" />
-            <h3 className="text-xs font-bold uppercase tracking-wider text-ink">Skills & Core Strengths</h3>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs text-ink-muted">
-            <div className="border border-line rounded-lg p-3">
-              <span className="font-semibold text-ink block mb-1">Languages</span>
-              Python, C++, Java, TypeScript, SQL
-            </div>
-            <div className="border border-line rounded-lg p-3">
-              <span className="font-semibold text-ink block mb-1">Core Fundamentals</span>
-              Data Structures, Algorithms, OOP, DBMS, OS
-            </div>
-            <div className="border border-line rounded-lg p-3">
-              <span className="font-semibold text-ink block mb-1">Platforms</span>
-              Linux, Docker, Git & GitHub, Kubernetes
-            </div>
+            <p className="font-medium text-sm text-ink">{institutionName}</p>
           </div>
         </div>
       </div>
