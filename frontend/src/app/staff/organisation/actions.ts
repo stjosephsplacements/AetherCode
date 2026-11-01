@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import type { ActionState } from "@/components/staff/form";
+import type { Page, Student } from "@/lib/api-types";
 import { actionError } from "@/lib/server/actions";
 import { gateway } from "@/lib/server/gateway";
 import { requireCollege } from "@/lib/server/staff";
@@ -67,4 +68,32 @@ export async function createPlacementDepartment(_previous: ActionState, form: Fo
   }
   revalidatePath("/staff/organisation");
   return { error: null, message: "Placement department created." };
+}
+
+/** Deletes a department with no live batch; the database refuses one that still has some (ADR-0053). */
+export async function deleteDepartment(id: string, reason: string): Promise<ActionState> {
+  const { tenantId } = await requireCollege();
+  if (!reason.trim()) return { error: "A reason is needed to delete anything." };
+  try {
+    await gateway(`/tenant/v1/tenants/${tenantId}/departments/${id}`, { method: "DELETE", body: { reason: reason.trim() } });
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+  revalidatePath("/staff/organisation");
+  return { error: null, message: "Deleted." };
+}
+
+export async function deleteBatch(id: string, reason: string): Promise<ActionState> {
+  const { tenantId } = await requireCollege();
+  if (!reason.trim()) return { error: "A reason is needed to delete anything." };
+  try {
+    // Students live in another service's database, so the tenant service cannot see them; this guard is ours.
+    const members = await gateway<Page<Student>>(`/user/v1/tenants/${tenantId}/students?batch_id=${id}&limit=1`);
+    if (members.items.length > 0) return { error: "This batch still has students. Move them to another batch first." };
+    await gateway(`/tenant/v1/tenants/${tenantId}/batches/${id}`, { method: "DELETE", body: { reason: reason.trim() } });
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+  revalidatePath("/staff/organisation");
+  return { error: null, message: "Deleted." };
 }

@@ -382,3 +382,31 @@ export async function saveOrganisation(questionId: string, versionId: string, ca
   revalidatePath("/staff/questions");
   return { error: null, message: "Saved." };
 }
+
+const REASON = "A reason is needed to delete anything.";
+
+/** Deletes a question that was never published. The database refuses one that was, because exams pin it (ADR-0053). */
+export async function deleteQuestion(questionId: string, reason: string): Promise<ActionState> {
+  await requireStaff();
+  if (!reason.trim()) return { error: REASON };
+  try {
+    await gateway(`/question-bank/v1/questions/${questionId}`, { method: "DELETE", body: { reason: reason.trim() } });
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+  revalidatePath("/staff/questions");
+  return { error: null, message: "Deleted." };
+}
+
+/** Deletes one draft version; a published one is refused. The question goes with its last version. */
+export async function deleteDraftVersion(versionId: string, reason: string): Promise<ActionState> {
+  await requireStaff();
+  if (!reason.trim()) return { error: REASON };
+  try {
+    await gateway(`/question-bank/v1/question-versions/${versionId}`, { method: "DELETE", body: { reason: reason.trim() } });
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+  revalidatePath("/staff/questions");
+  return { error: null, message: "Deleted." };
+}
