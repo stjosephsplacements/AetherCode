@@ -45,7 +45,7 @@ export default async function StaffLayout({ children }: { children: React.ReactN
       tenantId={staff.tenantId}
       groups={groups}
       brand={await brandFor(staff.tenantId)}
-      college={staff.isPlatformAdmin ? <TenantSwitcher tenants={staff.tenants} current={staff.tenantId} /> : undefined}
+      college={staff.isPlatformAdmin ? <TenantSwitcher tenants={staff.tenants} current={staff.viewAll ? "all" : staff.tenantId} /> : undefined}
     >
       {children}
     </StaffShell>

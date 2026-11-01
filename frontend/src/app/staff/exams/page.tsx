@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { LoadError, PageHeader } from "@/components/staff/page-header";
 import { LiveRefresh } from "@/lib/client/realtime";
-import { type ExamWithVersion, listExams } from "@/lib/server/exams";
+import { type ExamWithVersion, listAllExams, listExams } from "@/lib/server/exams";
 import { requireCollege } from "@/lib/server/staff";
 import { ExamBoard } from "./exam-board";
 import { NewExamDialog } from "./new-exam-dialog";
@@ -11,9 +11,9 @@ export const metadata: Metadata = { title: "Exams" };
 export default async function ExamsPage() {
   const staff = await requireCollege();
   const renderedAt = new Date().getTime();
-  let exams: ExamWithVersion[];
+  let exams: (ExamWithVersion & { college?: { id: string; name: string } })[];
   try {
-    exams = await listExams(staff.tenantId);
+    exams = staff.viewAll ? await listAllExams(staff.tenants) : await listExams(staff.tenantId);
   } catch (error) {
     return (
       <>
@@ -28,9 +28,9 @@ export default async function ExamsPage() {
       <PageHeader
         title="Exams"
         description="Build an exam from published questions, publish it, then assign it to a batch, a department or a placement department. Click an exam for its quick view."
-        actions={<NewExamDialog />}
+        actions={<NewExamDialog colleges={staff.viewAll ? staff.tenants.map((tenant) => ({ id: tenant.id, name: tenant.display_name })) : undefined} />}
       />
-      <ExamBoard exams={exams.map(({ exam, version }) => ({ exam: { id: exam.id, created_at: exam.created_at }, version }))} renderedAt={renderedAt} />
+      <ExamBoard exams={exams.map(({ exam, version, college }) => ({ exam: { id: exam.id, created_at: exam.created_at }, version, college }))} renderedAt={renderedAt} />
     </>
   );
 }

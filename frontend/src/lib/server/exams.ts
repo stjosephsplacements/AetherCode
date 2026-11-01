@@ -33,6 +33,18 @@ export async function listExams(tenantId: string, { previews = false }: { previe
   return previews ? listed : listed.filter(({ version }) => !version?.title.startsWith(PREVIEW_PREFIX));
 }
 
+/** An exam tagged with the college it belongs to, for a root administrator's all-colleges lists. */
+export type CollegeExam = ExamWithVersion & { college: { id: string; name: string } };
+
+/** Every college's exams, a few colleges at a time. A college that fails to load is left out, not fatal. */
+export async function listAllExams(colleges: { id: string; display_name: string }[]): Promise<CollegeExam[]> {
+  const perCollege = await mapLimit(colleges, 4, async (college) => {
+    const exams = await listExams(college.id).catch(() => [] as ExamWithVersion[]);
+    return exams.map((entry) => ({ ...entry, college: { id: college.id, name: college.display_name } }));
+  });
+  return perCollege.flat();
+}
+
 /**
  * A preview is a private copy of an exam that one member of staff takes as a
  * student (ADR-0046). Copies carry this title prefix and stay out of the

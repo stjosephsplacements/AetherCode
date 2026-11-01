@@ -35,7 +35,10 @@ async function standardPolicyVersion(tenantId: string): Promise<string> {
 }
 
 export async function createExam(_previous: ActionState, form: FormData): Promise<ActionState> {
-  const { tenantId } = await requireCollege();
+  const staff = await requireCollege();
+  // A root administrator on the all-colleges list names the college in the form; anyone else works in their own.
+  const named = String(form.get("college_id") ?? "");
+  const tenantId = staff.isPlatformAdmin && staff.tenants.some((tenant) => tenant.id === named) ? named : staff.tenantId;
   const base = `/assessment/v1/tenants/${tenantId}`;
   let examId: string;
   try {

@@ -7,6 +7,7 @@ import { gateway } from "./gateway";
 import { requireViewer } from "./session";
 
 export const TENANT_COOKIE = "ac_tenant";
+export const ALL_COLLEGES = "all";
 
 export type StaffContext = {
   viewer: Viewer;
@@ -14,6 +15,8 @@ export type StaffContext = {
   tenantId: string | null;
   /** Colleges a platform administrator can switch between. */
   tenants: Tenant[];
+  /** A platform administrator who has not narrowed to one college sees every college's lists at once. */
+  viewAll: boolean;
   isPlatformAdmin: boolean;
   /** College administrators manage students, staff and departments. */
   canManageAccounts: boolean;
@@ -26,12 +29,14 @@ export async function requireStaff(): Promise<StaffContext> {
   const isPlatformAdmin = viewer.roles.includes("super_admin");
   const canManageAccounts = isPlatformAdmin || viewer.roles.includes("college_admin");
   if (!isPlatformAdmin) {
-    return { viewer, tenantId: viewer.tenantId, tenants: [], isPlatformAdmin, canManageAccounts };
+    return { viewer, tenantId: viewer.tenantId, tenants: [], viewAll: false, isPlatformAdmin, canManageAccounts };
   }
   const page = await gateway<Page<Tenant>>("/tenant/v1/tenants?limit=100");
   const chosen = (await cookies()).get(TENANT_COOKIE)?.value;
+  // Until a college is chosen, lists cover every college (the working college, for pages that need one, is the first).
   const tenantId = page.items.find((tenant) => tenant.id === chosen)?.id ?? page.items[0]?.id ?? null;
-  return { viewer, tenantId, tenants: page.items, isPlatformAdmin, canManageAccounts };
+  const viewAll = chosen === undefined || chosen === ALL_COLLEGES || !page.items.some((tenant) => tenant.id === chosen);
+  return { viewer, tenantId, tenants: page.items, viewAll, isPlatformAdmin, canManageAccounts };
 }
 
 /** requireStaff, for pages that need a college. */

@@ -5,6 +5,7 @@ import { deleteExam } from "@/app/staff/exams/actions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import type { ExamVersion } from "@/lib/api-types";
+import { collegeHref } from "@/lib/links";
 import { cn, formatDuration, formatWindow } from "@/lib/utils";
 
 export const STATE_LABEL = { draft: "Draft", live: "Live now", next: "Scheduled", closed: "Closed" } as const;
@@ -15,7 +16,7 @@ export function examState(version: ExamVersion, now: number): "draft" | "live" |
 }
 
 /** Clicking an exam anywhere on the dashboard opens this, not a new page. */
-export function ExamPeek({ exam, now, className, children, label }: { exam: { exam: { id: string }; version: ExamVersion }; now: number; className?: string; children: React.ReactNode; label?: string }) {
+export function ExamPeek({ exam, now, className, children, label }: { exam: { exam: { id: string }; version: ExamVersion; college?: { id: string; name: string } }; now: number; className?: string; children: React.ReactNode; label?: string }) {
   const { version } = exam;
   const state = examState(version, now);
   const id = exam.exam.id;
@@ -40,14 +41,14 @@ export function ExamPeek({ exam, now, className, children, label }: { exam: { ex
           </dl>
           <div className="flex flex-wrap gap-2">
             <Button asChild>
-              <Link href={`/staff/exams/${id}`}>
+              <Link href={collegeHref(`/staff/exams/${id}`, exam.college?.id)}>
                 Open exam
                 <ArrowUpRight />
               </Link>
             </Button>
             {(state === "live" || state === "closed") && (
               <Button asChild variant="secondary">
-                <Link href={`/staff/exams/${id}/monitor`}>
+                <Link href={collegeHref(`/staff/exams/${id}/monitor`, exam.college?.id)}>
                   <MonitorPlay />
                   Monitor
                 </Link>
@@ -55,19 +56,19 @@ export function ExamPeek({ exam, now, className, children, label }: { exam: { ex
             )}
             {state === "closed" && (
               <Button asChild variant="secondary">
-                <Link href={`/staff/exams/${id}/results`}>
+                <Link href={collegeHref(`/staff/exams/${id}/results`, exam.college?.id)}>
                   <BarChart3 />
                   Results
                 </Link>
               </Button>
             )}
             <Button asChild variant="ghost">
-              <Link href={`/staff/exams/${id}/preview`}>
+              <Link href={collegeHref(`/staff/exams/${id}/preview`, exam.college?.id)}>
                 <Eye />
                 Preview
               </Link>
             </Button>
-            {state === "draft" && (
+            {state === "draft" && !exam.college && (
               <ConfirmDelete
                 label="Delete exam"
                 title={`Delete ${version.title}?`}

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import type { ExamVersion } from "@/lib/api-types";
 import { daysOfWindow, monthGrid, monthOf, overlappingPairs, parseMonth, shiftMonth, sharedWindow } from "@/lib/calendar";
-import { type ExamWithVersion, listExams } from "@/lib/server/exams";
+import { type ExamWithVersion, listAllExams, listExams } from "@/lib/server/exams";
 import { requireCollege } from "@/lib/server/staff";
 import { TIME_ZONE, cn, formatDateTime, formatTime } from "@/lib/utils";
 import { NewExamDialog } from "../exams/new-exam-dialog";
@@ -19,7 +19,7 @@ const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 /** Exams shown in a day before the rest fold into "+N more". */
 const CHIPS = 3;
 
-type Entry = { examId: string; version: ExamVersion; opensAt: string; closesAt: string; first: boolean };
+type Entry = { examId: string; version: ExamVersion; opensAt: string; closesAt: string; first: boolean; college?: { id: string; name: string } };
 type State = ReturnType<typeof examState>;
 
 const CHIP: Record<State, string> = {
@@ -37,7 +37,7 @@ const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: TIME_ZONE });
 function Chip({ entry, state, now }: { entry: Entry; state: State; now: number }) {
   return (
     <ExamPeek
-      exam={{ exam: { id: entry.examId }, version: entry.version }}
+      exam={{ exam: { id: entry.examId }, version: entry.version, college: entry.college }}
       now={now}
       label={`${entry.version.title}, ${STATE_NAME[state].toLowerCase()}, ${formatDateTime(entry.opensAt)}`}
       className={cn("flex h-6 w-full items-center gap-1.5 rounded-[6px] px-1.5 text-[12px] font-medium transition-[filter] hover:brightness-110", CHIP[state])}
@@ -73,15 +73,15 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const now = new Date().getTime();
   const today = todayKey.format(now);
   const month = parseMonth((await searchParams).month) ?? monthOf(new Date(now));
-  let exams: ExamWithVersion[];
+  let exams: (ExamWithVersion & { college?: { id: string; name: string } })[];
   try {
-    exams = await listExams(staff.tenantId);
+    exams = staff.viewAll ? await listAllExams(staff.tenants) : await listExams(staff.tenantId);
   } catch (error) {
     return <LoadError error={error} />;
   }
 
-  const scheduled = exams.flatMap(({ exam, version }) =>
-    version && version.status !== "retired" ? [{ examId: exam.id, version, opensAt: version.opens_at, closesAt: version.closes_at }] : [],
+  const scheduled = exams.flatMap(({ exam, version, college }) =>
+    version && version.status !== "retired" ? [{ examId: exam.id, version, opensAt: version.opens_at, closesAt: version.closes_at, college }] : [],
   );
   const byDay = new Map<string, Entry[]>();
   for (const item of scheduled) {
@@ -91,7 +91,9 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   }
 
   // Windows that share time: where labs and invigilators could be double-booked.
-  const clashes = overlappingPairs(scheduled)
+  // Two colleges' labs do not clash, so overlaps are looked for within each college.
+  const clashes = [...Map.groupBy(scheduled, (item) => item.college?.id ?? "").values()]
+    .flatMap((group) => overlappingPairs(group))
     .map(([a, b]) => ({ a, b, shared: sharedWindow(a, b) }))
     .filter(({ shared }) => daysOfWindow(shared.opensAt, shared.closesAt).some((key) => key.startsWith(month)));
   const clashDays = new Set(clashes.flatMap(({ shared }) => daysOfWindow(shared.opensAt, shared.closesAt)));
@@ -102,11 +104,11 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const clashRow = ({ a, b, shared }: (typeof clashes)[number]) => (
     <li key={`${a.examId}-${b.examId}`} className="py-2.5 first:pt-0 last:pb-0">
       <p className="flex flex-wrap items-center gap-x-1.5 text-[13px] font-medium text-ink">
-        <ExamPeek exam={{ exam: { id: a.examId }, version: a.version }} now={now} className="truncate transition-colors hover:text-brand">
+        <ExamPeek exam={{ exam: { id: a.examId }, version: a.version, college: a.college }} now={now} className="truncate transition-colors hover:text-brand">
           {a.version.title}
         </ExamPeek>
         <span className="font-mono text-[11px] text-ink-subtle">and</span>
-        <ExamPeek exam={{ exam: { id: b.examId }, version: b.version }} now={now} className="truncate transition-colors hover:text-brand">
+        <ExamPeek exam={{ exam: { id: b.examId }, version: b.version, college: b.college }} now={now} className="truncate transition-colors hover:text-brand">
           {b.version.title}
         </ExamPeek>
       </p>
@@ -137,7 +139,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
               <ChevronRight />
             </Link>
           </Button>
-          <NewExamDialog />
+          <NewExamDialog colleges={staff.viewAll ? staff.tenants.map((tenant) => ({ id: tenant.id, name: tenant.display_name })) : undefined} />
         </div>
       </header>
 
