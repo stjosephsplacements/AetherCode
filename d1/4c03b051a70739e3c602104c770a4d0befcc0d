@@ -1,0 +1,30 @@
+backend/services/user/internal/app/management.go
+  s_40851fd2a7ba5d::t_b1e069350c4907 43
+backend/services/user/internal/app/student_update.go
+  s_40851fd2a7ba5d::t_b1e069350c4907 1-47
+backend/services/user/internal/adapters/repo/student_update.go
+  s_40851fd2a7ba5d::t_b1e069350c4907 1-40
+backend/services/user/internal/app/management_test.go
+  s_40851fd2a7ba5d::t_b1e069350c4907 131-134
+  s_40851fd2a7ba5d::t_9d1694b6eb1fa2 203-222
+backend/services/user/internal/adapters/http/handler.go
+  s_40851fd2a7ba5d::t_b1e069350c4907 50
+backend/services/user/internal/adapters/http/student_update_handler.go
+  s_40851fd2a7ba5d::t_b1e069350c4907 1-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d14c03b051a70739e3c602104c770a4d0befcc0d",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh <shreesh@ALLENs-Mac-mini.local>"
+    }
+  }
+}
