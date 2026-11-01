@@ -45,6 +45,9 @@ const TABS: { key: ListKey; label: string; empty: string }[] = [
   { key: "review", label: "To review", empty: "Nothing is waiting for a review." },
 ];
 
+// The address value for the folder of questions that have no category.
+const UNCATEGORISED = "uncategorised";
+
 export function QuestionBoard({ lists, languages, categories, capped, initial }: { lists: Lists; languages: Language[]; categories: Category[]; capped: Partial<Record<ListKey, boolean>>; initial: ListKey }) {
   const [tab, setTab] = useState<ListKey>(initial);
   const [query, setQuery] = useState("");
@@ -69,13 +72,13 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
       (tag === "all" || row.tags.includes(tag)) &&
       (!needle || row.title.toLowerCase().includes(needle) || row.slug.includes(needle) || row.tags.some((entry) => entry.includes(needle))),
   );
-  // Without categories (an older question bank) there is one folder, already open.
-  const folders = (categories.length > 0 ? categories : [{ id: "", name: "Questions", question_count: 0 }]).map((entry) => {
+  // An older question bank has no categories; its questions sit in one "Uncategorised" folder, as the backfill files them.
+  const folders = (categories.length > 0 ? categories : [{ id: "", name: "Uncategorised", question_count: 0 }]).map((entry) => {
     const inside = rows.filter((row) => row.categoryId === entry.id);
     return { id: entry.id, name: entry.name, rows: inside, levels: { easy: inside.filter((row) => row.difficulty === "easy").length, medium: inside.filter((row) => row.difficulty === "medium").length, hard: inside.filter((row) => row.difficulty === "hard").length } };
   });
   const filtering = Boolean(needle) || difficulty !== "all" || tag !== "all";
-  const open = categories.length === 0 ? folders[0]! : folders.find((entry) => entry.id === folder) ?? null;
+  const open = folders.find((entry) => (entry.id || UNCATEGORISED) === folder) ?? null;
   const shown = filtering ? folders.filter((entry) => entry.rows.length > 0) : folders;
   const empty = TABS.find((entry) => entry.key === tab)!.empty;
 
@@ -148,16 +151,14 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
         <div className="min-w-0 xl:col-span-9">
           {open ? (
             <>
-              {categories.length > 0 && (
-                <div className="mb-4 flex items-center gap-3">
-                  <button type="button" onClick={() => openFolder(null)} className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-control)] pr-2 text-sm text-ink-muted transition-colors hover:text-ink">
-                    <ArrowLeft className="size-4" strokeWidth={1.75} />
-                    Folders
-                  </button>
-                  <h2 className="text-[17px] font-semibold tracking-[-0.01em] text-ink">{open.name}</h2>
-                  <span className="font-mono text-[12px] tabular-nums text-ink-subtle">{open.rows.length}</span>
-                </div>
-              )}
+              <div className="mb-4 flex items-center gap-3">
+                <button type="button" onClick={() => openFolder(null)} className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-control)] pr-2 text-sm text-ink-muted transition-colors hover:text-ink">
+                  <ArrowLeft className="size-4" strokeWidth={1.75} />
+                  Folders
+                </button>
+                <h2 className="text-[17px] font-semibold tracking-[-0.01em] text-ink">{open.name}</h2>
+                <span className="font-mono text-[12px] tabular-nums text-ink-subtle">{open.rows.length}</span>
+              </div>
               {open.rows.length === 0 ? (
                 <div className="rounded-[var(--radius-surface)] border border-dashed border-line-strong px-6 py-14 text-center text-sm text-ink-muted">
                   {lists[tab].length === 0 ? empty : filtering ? "Nothing in this folder matches those filters." : "This folder is empty in this list."}
@@ -213,7 +214,7 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
             <ul className="grid gap-x-5 gap-y-6 sm:grid-cols-2 2xl:grid-cols-3" aria-label="Categories">
               {shown.map((entry) => (
                 <li key={entry.id}>
-                  <FolderCard name={entry.name} total={entry.rows.length} levels={entry.levels} onOpen={() => openFolder(entry.id)} />
+                  <FolderCard name={entry.name} total={entry.rows.length} levels={entry.levels} onOpen={() => openFolder(entry.id || UNCATEGORISED)} />
                 </li>
               ))}
             </ul>
@@ -221,7 +222,7 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
         </div>
 
         <div className="space-y-3 xl:col-span-3">
-          <Mix label={open && categories.length > 0 ? open.name : TABS.find((entry) => entry.key === tab)!.label} rows={open ? open.rows : lists[tab]} languages={languages} />
+          <Mix label={open ? open.name : TABS.find((entry) => entry.key === tab)!.label} rows={open ? open.rows : lists[tab]} languages={languages} />
           <Attention lists={lists} languages={languages} onOpen={setTab} />
         </div>
       </div>
