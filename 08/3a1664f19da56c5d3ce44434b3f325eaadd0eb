@@ -1,0 +1,25 @@
+frontend/src/app/staff/_dashboard/blocks.tsx
+  s_40851fd2a7ba5d::t_f83094b503fef3 12
+frontend/src/app/staff/analytics/page.tsx
+  s_40851fd2a7ba5d::t_3aac99397483b4 4,9-10,23-24,27-30,32-40,42-51,60,97-102
+frontend/src/app/staff/page.tsx
+  s_40851fd2a7ba5d::t_cf8074c8d0c0b5 6,8,11-12,43-64,85-88,90,92-100,103-104,120,132,137,173
+frontend/src/app/staff/placements/page.tsx
+  s_40851fd2a7ba5d::t_573feff0efd3ea 4,8-9,14-15,18,20-24,26-31,41,47,52-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "083a1664f19da56c5d3ce44434b3f325eaadd0eb",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
