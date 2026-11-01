@@ -280,6 +280,67 @@ func (service *AccountService) SetAccountStatus(contextValue context.Context, au
 	return service.identity.SetAccountStatus(contextValue, []string{principalID}, status, audit)
 }
 
+// MaxBulkAccounts bounds one bulk account action (ADR-0057).
+const MaxBulkAccounts = 500
+
+// requireTenantAccounts checks that every named account belongs to the college. One account
+// outside it fails the whole call, so a bad selection can never half apply.
+func (service *AccountService) requireTenantAccounts(contextValue context.Context, authorize Authorize, actorID, tenantID string, principalIDs []string) (AccountAudit, error) {
+	if !isUUID(tenantID) || !isUUID(actorID) {
+		return AccountAudit{}, apperrors.New(apperrors.CodeInvalidArgument, "tenant and actor IDs must be UUIDs")
+	}
+	if len(principalIDs) == 0 || len(principalIDs) > MaxBulkAccounts {
+		return AccountAudit{}, apperrors.New(apperrors.CodeInvalidArgument, fmt.Sprintf("between 1 and %d accounts are required", MaxBulkAccounts))
+	}
+	seen := make(map[string]bool, len(principalIDs))
+	for _, id := range principalIDs {
+		if !isUUID(id) || seen[id] {
+			return AccountAudit{}, apperrors.New(apperrors.CodeInvalidArgument, "principal IDs must be distinct UUIDs")
+		}
+		seen[id] = true
+	}
+	var manageable []string
+	if err := service.inAccountTx(contextValue, authorize, func(transaction pgx.Tx) error {
+		var err error
+		manageable, err = service.store.TenantAccountPrincipals(contextValue, transaction, tenantID, principalIDs)
+		return err
+	}); err != nil {
+		return AccountAudit{}, err
+	}
+	if len(manageable) != len(principalIDs) {
+		return AccountAudit{}, apperrors.New(apperrors.CodeNotFound, "one or more accounts are not in this college")
+	}
+	return service.audit(actorID)
+}
+
+// BulkSetAccountStatus enables or disables many students or staff of the college at once.
+// Disabling signs them out. The actor cannot include their own account.
+func (service *AccountService) BulkSetAccountStatus(contextValue context.Context, authorize Authorize, actorID, tenantID string, principalIDs []string, status string) error {
+	if status != "active" && status != "disabled" {
+		return apperrors.New(apperrors.CodeInvalidArgument, "status must be active or disabled")
+	}
+	for _, id := range principalIDs {
+		if id == actorID {
+			return apperrors.New(apperrors.CodeInvalidArgument, "you cannot change the status of your own account")
+		}
+	}
+	audit, err := service.requireTenantAccounts(contextValue, authorize, actorID, tenantID, principalIDs)
+	if err != nil {
+		return err
+	}
+	return service.identity.SetAccountStatus(contextValue, principalIDs, status, audit)
+}
+
+// BulkResetPasswords gives many students or staff of the college new generated passwords and
+// signs them out. The passwords are returned once.
+func (service *AccountService) BulkResetPasswords(contextValue context.Context, authorize Authorize, actorID, tenantID string, principalIDs []string) ([]IssuedCredential, error) {
+	audit, err := service.requireTenantAccounts(contextValue, authorize, actorID, tenantID, principalIDs)
+	if err != nil {
+		return nil, err
+	}
+	return service.identity.ReissuePasswords(contextValue, principalIDs, audit)
+}
+
 // CreateStaff provisions a college administrator or a department's faculty
 // account with a generated password.
 func (service *AccountService) CreateStaff(contextValue context.Context, authorize Authorize, actorID string, command StaffAccount) (StaffAccountResult, error) {
