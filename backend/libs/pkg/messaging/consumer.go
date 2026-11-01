@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
-	"sync/atomic"
+	"sync"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -44,13 +44,15 @@ func Permanent(err error) error {
 // subject. A durable name identifies the logical projection, so replicas may
 // take over delivery without replaying side effects outside their inbox.
 type PullConsumer struct {
-	connection   *nats.Conn
-	stream       nats.JetStreamContext
-	subscription *nats.Subscription
-	handler      EventHandler
-	logger       *slog.Logger
-	batchSize    int
-	lastFailure  atomic.Value
+	connection    *nats.Conn
+	stream        nats.JetStreamContext
+	subscription  *nats.Subscription
+	handler       EventHandler
+	logger        *slog.Logger
+	batchSize     int
+	failureMu     sync.Mutex
+	lastFailure   string
+	retrySequence uint64
 }
 
 // NewPullConsumer creates or binds a durable explicit-ack consumer. It starts
@@ -148,14 +150,15 @@ func (consumer *PullConsumer) handleMessage(contextValue context.Context, messag
 		return
 	}
 	if err := consumer.handler(contextValue, event); err != nil {
-		consumer.recordFailure("apply durable event", err)
 		var permanentError PermanentError
 		if errors.As(err, &permanentError) {
+			consumer.recordFailure("apply durable event", err)
 			if termErr := message.Term(); termErr != nil {
 				consumer.recordFailure("terminate invalid durable event", termErr)
 			}
 			return
 		}
+		consumer.recordRetryFailure(message, err)
 		if nakErr := message.NakWithDelay(2 * time.Second); nakErr != nil {
 			consumer.recordFailure("retry durable event", nakErr)
 		}
@@ -165,7 +168,7 @@ func (consumer *PullConsumer) handleMessage(contextValue context.Context, messag
 		consumer.recordFailure("ack durable event", err)
 		return
 	}
-	consumer.lastFailure.Store("")
+	consumer.clearFailure()
 }
 
 // Ready exposes broker and consumer health to service readiness checks.
@@ -173,8 +176,18 @@ func (consumer *PullConsumer) Ready(contextValue context.Context) error {
 	if consumer == nil || consumer.connection == nil || !consumer.connection.IsConnected() {
 		return fmt.Errorf("platform event consumer is disconnected")
 	}
-	if failure, found := consumer.lastFailure.Load().(string); found && strings.TrimSpace(failure) != "" {
-		return fmt.Errorf("platform event consumer retrying: %s", failure)
+	consumer.failureMu.Lock()
+	defer consumer.failureMu.Unlock()
+	if consumer.lastFailure != "" {
+		if consumer.retrySequence == 0 {
+			return fmt.Errorf("platform event consumer retrying: %s", consumer.lastFailure)
+		}
+		info, err := consumer.subscription.ConsumerInfo()
+		if err != nil || info.AckFloor.Stream < consumer.retrySequence {
+			return fmt.Errorf("platform event consumer retrying: %s", consumer.lastFailure)
+		}
+		consumer.lastFailure = ""
+		consumer.retrySequence = 0
 	}
 	if _, err := consumer.stream.AccountInfo(); err != nil {
 		return fmt.Errorf("check platform JetStream consumer readiness: %w", err)
@@ -186,8 +199,32 @@ func (consumer *PullConsumer) recordFailure(operation string, err error) {
 	if consumer == nil || err == nil {
 		return
 	}
-	consumer.lastFailure.Store(err.Error())
+	consumer.failureMu.Lock()
+	consumer.lastFailure = err.Error()
+	consumer.retrySequence = 0
+	consumer.failureMu.Unlock()
 	consumer.logger.Error(operation, "error", err)
+}
+
+// recordRetryFailure tracks the stream sequence so readiness can recover if
+// another replica acknowledges the same durable message.
+func (consumer *PullConsumer) recordRetryFailure(message *nats.Msg, err error) {
+	metadata, metadataErr := message.Metadata()
+	consumer.failureMu.Lock()
+	consumer.lastFailure = err.Error()
+	consumer.retrySequence = 0
+	if metadataErr == nil {
+		consumer.retrySequence = metadata.Sequence.Stream
+	}
+	consumer.failureMu.Unlock()
+	consumer.logger.Error("apply durable event", "error", err)
+}
+
+func (consumer *PullConsumer) clearFailure() {
+	consumer.failureMu.Lock()
+	consumer.lastFailure = ""
+	consumer.retrySequence = 0
+	consumer.failureMu.Unlock()
 }
 
 // isEmptyFetch reports whether a pull fetch ended only because no event
