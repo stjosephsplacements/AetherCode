@@ -481,23 +481,34 @@ export function ActionForm({
   action,
   submitLabel,
   className,
+  onSuccess,
+  submitVariant = "primary",
   children,
 }: {
   action: (previous: ActionState, form: FormData) => Promise<ActionState>;
   submitLabel: string;
+  /** Secondary for a form that is one of several actions on a page, so it does not compete with the main one. */
+  submitVariant?: "primary" | "secondary";
   className?: string;
+  /** Called once after a save succeeds, for example to close the dialog the form sits in. */
+  onSuccess?: () => void;
   children: React.ReactNode;
 }) {
   const [state, formAction] = useActionState(action, initialActionState);
   const formRef = useRef<HTMLFormElement>(null);
   useEffect(() => {
-    if (state.message && !state.error) formRef.current?.reset();
+    if (state.message && !state.error) {
+      formRef.current?.reset();
+      onSuccess?.();
+    }
+    // onSuccess is a fresh function each render; the saved state is what should trigger it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
   return (
     <form ref={formRef} action={formAction} className={cn("space-y-4", className)}>
       {children}
       <FormMessage state={state} />
-      <SubmitButton>{submitLabel}</SubmitButton>
+      <SubmitButton variant={submitVariant}>{submitLabel}</SubmitButton>
     </form>
   );
 }
