@@ -16,8 +16,8 @@ export default async function ChangePasswordPage({ searchParams }: { searchParam
   return (
     <main className="grid min-h-dvh place-items-center bg-canvas px-4 py-10">
       <div className="w-full max-w-sm animate-enter">
-        <Image src="/logo-light.png" alt="AetherCode" width={36} height={36} className="logo-light mx-auto object-contain" />
-        <Image src="/logo-dark.png" alt="AetherCode" width={36} height={36} className="logo-dark mx-auto object-contain" />
+        <Image src="/4.png" alt="AetherCode" width={36} height={36} className="logo-light mx-auto object-contain" />
+        <Image src="/3.png" alt="AetherCode" width={36} height={36} className="logo-dark mx-auto object-contain" />
         <h1 className="display mt-6 text-center text-[2rem] text-ink">{required ? "Choose your password" : "Change password"}</h1>
         <p className="mx-auto mt-2 max-w-[34ch] text-center text-sm text-ink-muted">
           {required

@@ -1,15 +1,13 @@
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { EmptyState, LoadError, PageHeader, Section } from "@/components/staff/page-header";
+import { notFound, redirect } from "next/navigation";
+import { LoadError, PageHeader } from "@/components/staff/page-header";
 import { Badge, Panel } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import type { Student, ProfileLink } from "@/lib/api-types";
+import type { Student } from "@/lib/api-types";
 import { listDepartments, departmentLabel } from "@/lib/server/directory";
 import { describeAccounts } from "@/lib/server/people";
-import { platformStats } from "@/lib/server/platforms";
-import { communityList } from "@/lib/server/community";
 import { gateway } from "@/lib/server/gateway";
 import { requireCollege } from "@/lib/server/staff";
 import { StudentActions } from "../panels";
@@ -18,6 +16,7 @@ export const metadata: Metadata = { title: "Student profile" };
 
 export default async function StudentDetailPage({ params }: { params: Promise<{ studentId: string }> }) {
   const staff = await requireCollege();
+  if (!staff.canManageAccounts) redirect("/staff");
   const { studentId } = await params;
 
   let data;
@@ -27,17 +26,11 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
       gateway<Student>(`/user/v1/tenants/${staff.tenantId}/students/${studentId}`).catch(() => null),
     ]);
 
-    if (!student) notFound();
+    const accountMap = student
+      ? await describeAccounts(staff.tenantId, [student.principal_id]).catch(() => new Map())
+      : new Map();
 
-    const [accountMap, links] = await Promise.all([
-      describeAccounts(staff.tenantId, [student.principal_id]).catch(() => new Map()),
-      communityList<ProfileLink>(staff.tenantId, "profile-links").catch(() => []),
-    ]);
-
-    const account = accountMap.get(student.principal_id);
-    const stats = await platformStats(links.filter((l) => l.handle));
-
-    data = { student, account, departments, stats };
+    data = { student, account: student ? accountMap.get(student.principal_id) : undefined, departments };
   } catch (error) {
     return (
       <>
@@ -47,7 +40,9 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
     );
   }
 
-  const { student, account, departments, stats } = data;
+  // notFound() throws a route-control error, so it must run outside the try.
+  if (!data.student) notFound();
+  const { student, account, departments } = data;
   const deptMap = new Map(departments.map((d) => [d.id, departmentLabel(d)]));
   const dept = deptMap.get(student.college_department_id || "") || "General Engineering";
 
@@ -106,35 +101,6 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
         </Panel>
       </div>
 
-      {/* Competitive Profiles */}
-      <Section title="Linked Coding Profiles" description="External platforms linked by the student.">
-        {stats.length === 0 ? (
-          <EmptyState>No external coding profiles linked yet.</EmptyState>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {stats.map((stat) => (
-              <Panel key={stat.platform} className="p-4 bg-canvas/30">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-sm capitalize text-ink">{stat.platform}</span>
-                  <a href={stat.url} target="_blank" rel="noopener noreferrer" className="text-xs text-brand hover:underline inline-flex items-center gap-1">
-                    {stat.handle}
-                    <ExternalLink className="size-3" />
-                  </a>
-                </div>
-                {stat.lines && stat.lines.length > 0 ? (
-                  <ul className="mt-2 space-y-0.5 text-xs text-ink-muted">
-                    {stat.lines.map((l) => (
-                      <li key={l}>{l}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="mt-1 text-xs text-ink-muted">Profile connected</p>
-                )}
-              </Panel>
-            ))}
-          </div>
-        )}
-      </Section>
     </div>
   );
 }

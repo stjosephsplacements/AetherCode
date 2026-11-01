@@ -102,7 +102,8 @@ spec:
         - name: mb
           image: {{ .Values.images.minioClient }}
           # The image has no shell: MC_HOST_local configures the alias, built from two secret keys.
-          args: ["mb", "--ignore-existing", "local/{{ .Values.minio.bucket }}"]
+          # mc writes its config dir, so point it at an emptyDir and keep the root filesystem read-only.
+          args: ["--config-dir", "/tmp/.mc", "mb", "--ignore-existing", "local/{{ .Values.minio.bucket }}"]
           env:
             {{- include "infra.secretEnv" (dict "name" "MINIO_ROOT_USER" "secret" .Values.secretName) | nindent 12 }}
             {{- include "infra.secretEnv" (dict "name" "MINIO_ROOT_PASSWORD" "secret" .Values.secretName) | nindent 12 }}
@@ -110,7 +111,12 @@ spec:
               value: http://$(MINIO_ROOT_USER):$(MINIO_ROOT_PASSWORD)@minio:9000
           securityContext:
             allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: false
+            readOnlyRootFilesystem: true
             capabilities:
               drop: [ALL]
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: tmp
+          emptyDir: {}
 {{- end }}

@@ -124,12 +124,17 @@ export default async function StudentDashboard() {
                     <p className="font-medium text-sm text-ink">{assignment.title}</p>
                     <p className="text-xs text-ink-muted">Finished {formatDateTime(assignment.available_until)}</p>
                   </div>
-                  {attempt ? (
+                  {attempt && (attempt.lifecycle_state === "created" || attempt.lifecycle_state === "active") ? (
+                    <Link href={`/student/attempts/${attempt.id}`} className="text-xs font-medium text-brand hover:underline">
+                      Resume attempt →
+                    </Link>
+                  ) : attempt ? (
                     <Link href={`/student/results/${attempt.id}`} className="text-xs font-medium text-brand hover:underline">
                       Review attempt →
                     </Link>
                   ) : (
-                    <span className="text-xs text-ink-subtle">Missed</span>
+                    // Attempts load best-effort, so a missing one is not proof the exam was missed.
+                    <span className="text-xs text-ink-subtle">{assignment.lifecycle_state === "expired" ? "Missed" : "Ended"}</span>
                   )}
                 </div>
               );

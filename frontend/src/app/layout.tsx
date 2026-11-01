@@ -13,13 +13,7 @@ export const metadata: Metadata = {
   description: "Coding exams for colleges.",
   icons: { icon: "/logo.png" },
   robots: { index: false, follow: false },
-  generator: "Next.js",
-  applicationName: "Tailwind CSS",
-  keywords: ["go", "golang", "git", "self-hosted", "gitea", "postgresql", "redis", "docker", "kubernetes"],
-  other: {
-    "next-size-adjust": "",
-    "tech-stack": "Go, Python, Next.js, React, Tailwind CSS, Monaco Editor, PostgreSQL, Redis, Docker, Kubernetes, Nginx",
-  },
+  applicationName: "AetherCode",
 };
 
 export const viewport: Viewport = {
@@ -45,8 +39,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
+            // UUID segments (attempt, exam, student ids) never leave the browser.
+            var redacted = window.location.pathname.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, ":id");
             gtag('config', 'G-HQ6HC7XJL0', {
-              page_path: window.location.pathname,
+              page_path: redacted,
+              page_location: window.location.origin + redacted,
               send_page_view: true
             });
           `}
@@ -57,39 +54,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           data-website-id="b476ff2a-f844-48b6-9bb2-1e9d0a68d001"
           strategy="afterInteractive"
         />
-        {/* Cloudflare Web Analytics */}
-        <Script
-          src="https://static.cloudflareinsights.com/beacon.min.js"
-          data-cf-beacon='{"token": ""}'
-          strategy="afterInteractive"
-        />
-        {/* Tech Stack Identifiers for Wappalyzer & Developer Tools */}
-        <Script id="tech-stack-globals" strategy="beforeInteractive">
-          {`
-            window.React = window.React || { version: "19.3.1" };
-            window.__NEXT_DATA__ = window.__NEXT_DATA__ || { buildId: "production", page: "/", props: {} };
-            window.next = window.next || { version: "16.4.2" };
-            window.tailwind = window.tailwind || {};
-            window.MonacoEnvironment = window.MonacoEnvironment || {};
-            window.webpackChunk = window.webpackChunk || [];
-            window.go = window.go || { version: "1.24" };
-            window.Golang = window.Golang || { version: "1.24" };
-            window.config = window.config || { assetVersionEncoded: "1.22.0-gitea-1.22.0" };
-            window.__AETHERCODE_TECH_STACK__ = {
-              frontend: ["Next.js", "React", "Tailwind CSS", "Monaco Editor", "Lucide"],
-              backend: ["Go (Golang)", "Python"],
-              database: ["PostgreSQL", "Redis"],
-              infrastructure: ["Kubernetes", "Docker", "Nginx", "Cloudflare"]
-            };
-          `}
-        </Script>
-        {/* Hidden detection anchors for Wappalyzer signatures */}
-        <div hidden aria-hidden="true" style={{ display: "none" }} data-stack="go-golang-postgresql-docker-k8s">
-          <div className="ui left">© Gitea Version: 1.22.0 Page:</div>
-          <div ng-app="kubernetesDashboard"></div>
-          {/* This comment is expected by the docker HEALTHCHECK  */}
-          <span>Powered by Go, PostgreSQL, Redis, Kubernetes, Docker, Nginx, Next.js, React</span>
-        </div>
         {children}
         <Toaster
           position="bottom-center"

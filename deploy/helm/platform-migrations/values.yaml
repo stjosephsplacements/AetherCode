@@ -9,8 +9,12 @@ image:
   pullPolicy: IfNotPresent
 imagePullSecrets: []
 
-postgresHost: postgres
-judgeDbHost: judge-db
+# Same keys as values-common.yaml, which install.sh passes to this release so
+# every release reaches the same databases. Point them at your own database when
+# platform-infra's PostgreSQL and judge database are disabled.
+global:
+  postgresHost: postgres
+  judgeDbHost: judge-db
 postgresImage: postgres:18.4
 
 # Judge engine whose languages are enabled in judge.language_mappings: aethercode or judge0.
