@@ -1,0 +1,29 @@
+backend/services/user/migrations/000031_staff_audit_event.up.sql
+  s_40851fd2a7ba5d::t_1e3ad3b88b23a3 1-36
+backend/services/user/internal/adapters/repo/staff_audit_integration_test.go
+  s_40851fd2a7ba5d::t_890aae4e6740a9 65-81
+backend/services/user/migrations/000031_staff_audit_event.down.sql
+  s_40851fd2a7ba5d::t_1e3ad3b88b23a3 1-20
+backend/services/user/internal/app/authorization.go
+  s_40851fd2a7ba5d::t_a0da71a5084694 162,392-396
+backend/services/user/migrations/README.md
+  s_40851fd2a7ba5d::t_890aae4e6740a9 51-55
+backend/services/user/internal/app/authorization_test.go
+  s_40851fd2a7ba5d::t_a0da71a5084694 423-456
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d5fd7b690c0116d45ed5bbd557503acb8a381180",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh <shreesh@ALLENs-Mac-mini.local>"
+    }
+  }
+}
