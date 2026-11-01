@@ -8,7 +8,7 @@ import { actionError } from "@/lib/server/actions";
 import { communityRequest } from "@/lib/server/community";
 import { mapLimit } from "@/lib/server/exams";
 import { goodFirstIssues, upcomingCodeforcesContests } from "@/lib/server/platforms";
-import { requireCollege } from "@/lib/server/staff";
+import { ALL_COLLEGES, collegeFor, collegesFor, requireStaff } from "@/lib/server/staff";
 import { collegeTimeToISO } from "@/lib/utils";
 
 const MODERATION = "moderation";
@@ -23,8 +23,13 @@ const tags = (form: FormData) =>
     .map((tag) => tag.trim())
     .filter(Boolean);
 
+/** The college a form names (a root admin picks one); anyone else always acts in their own. */
+async function collegeOf(form: FormData): Promise<string> {
+  return collegeFor(await requireStaff(), String(form.get("college_id") ?? ""));
+}
+
 export async function reviewExperience(form: FormData): Promise<void> {
-  const { tenantId } = await requireCollege();
+  const tenantId = await collegeOf(form);
   await communityRequest(tenantId, `${MODERATION}/interview-experiences/${String(form.get("id"))}/review`, "POST", {
     approve: form.get("approve") === "true",
     note: String(form.get("note") ?? ""),
@@ -34,7 +39,7 @@ export async function reviewExperience(form: FormData): Promise<void> {
 
 export async function savePost(_previous: ActionState, form: FormData): Promise<ActionState> {
   try {
-    const { tenantId } = await requireCollege();
+    const tenantId = await collegeOf(form);
     const id = String(form.get("id") ?? "");
     await communityRequest(tenantId, `${MODERATION}/posts`, "PUT", {
       ...(id ? { id } : {}),
@@ -50,15 +55,19 @@ export async function savePost(_previous: ActionState, form: FormData): Promise<
   return { error: null, message: "Saved." };
 }
 
-export async function deletePost(form: FormData): Promise<void> {
-  const { tenantId } = await requireCollege();
-  await communityRequest(tenantId, `${MODERATION}/posts/${String(form.get("id"))}`, "DELETE");
+export async function removePost(collegeId: string, id: string): Promise<ActionState> {
+  try {
+    await communityRequest(collegeFor(await requireStaff(), collegeId), `${MODERATION}/posts/${id}`, "DELETE");
+  } catch (error) {
+    return failure(error);
+  }
   revalidatePath("/staff/community");
+  return { error: null, message: "Deleted." };
 }
 
 export async function saveListing(_previous: ActionState, form: FormData): Promise<ActionState> {
   try {
-    const { tenantId } = await requireCollege();
+    const tenantId = await collegeOf(form);
     const id = String(form.get("id") ?? "");
     const at = (name: string) => {
       const value = String(form.get(name) ?? "");
@@ -82,32 +91,42 @@ export async function saveListing(_previous: ActionState, form: FormData): Promi
   return { error: null, message: "Saved." };
 }
 
-export async function deleteListing(form: FormData): Promise<void> {
-  const { tenantId } = await requireCollege();
-  await communityRequest(tenantId, `${MODERATION}/feed/${String(form.get("id"))}`, "DELETE");
-  revalidatePath("/staff/community");
-}
-
-async function importListings(listings: ListingDraft[] | null, source: string, kind: FeedKind): Promise<ActionState> {
-  if (listings === null) return { error: `${source} did not answer. Try again in a few minutes.` };
-  if (listings.length === 0) return { error: null, message: `${source} has nothing new to list.` };
+export async function removeListing(collegeId: string, id: string): Promise<ActionState> {
   try {
-    const { tenantId } = await requireCollege();
-    // Re-importing updates the same listings: each carries a stable external ID.
-    await mapLimit(listings, 4, (listing) => communityRequest(tenantId, `${MODERATION}/feed`, "PUT", { ...listing, kind }));
+    await communityRequest(collegeFor(await requireStaff(), collegeId), `${MODERATION}/feed/${id}`, "DELETE");
   } catch (error) {
     return failure(error);
   }
   revalidatePath("/staff/community");
-  return { error: null, message: `${listings.length} listings from ${source} are up to date.` };
+  return { error: null, message: "Deleted." };
 }
 
-export async function importContests(): Promise<ActionState> {
-  await requireCollege();
-  return importListings(await upcomingCodeforcesContests(), "Codeforces", "contest");
+/** Colleges an import covers: the one named, or every college when a root admin picks "all". */
+async function importTargets(form: FormData): Promise<string[]> {
+  const staff = await requireStaff();
+  const named = String(form.get("college_id") ?? "");
+  if (staff.isPlatformAdmin && named === ALL_COLLEGES) return collegesFor(staff, undefined).map((college) => college.id);
+  return [collegeFor(staff, named)];
 }
 
-export async function importIssues(): Promise<ActionState> {
-  await requireCollege();
-  return importListings(await goodFirstIssues(), "GitHub", "opensource");
+async function importListings(form: FormData, listings: ListingDraft[] | null, source: string, kind: FeedKind): Promise<ActionState> {
+  if (listings === null) return { error: `${source} did not answer. Try again in a few minutes.` };
+  if (listings.length === 0) return { error: null, message: `${source} has nothing new to list.` };
+  try {
+    const targets = await importTargets(form);
+    // Re-importing updates the same listings: each carries a stable external ID.
+    for (const tenantId of targets) await mapLimit(listings, 4, (listing) => communityRequest(tenantId, `${MODERATION}/feed`, "PUT", { ...listing, kind }));
+    revalidatePath("/staff/community");
+    return { error: null, message: `${listings.length} listings from ${source} are up to date${targets.length > 1 ? ` in ${targets.length} colleges` : ""}.` };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+export async function importContests(_previous: ActionState, form: FormData): Promise<ActionState> {
+  return importListings(form, await upcomingCodeforcesContests(), "Codeforces", "contest");
+}
+
+export async function importIssues(_previous: ActionState, form: FormData): Promise<ActionState> {
+  return importListings(form, await goodFirstIssues(), "GitHub", "opensource");
 }
