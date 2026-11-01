@@ -1,3 +1,4 @@
+import { listAllStudents } from "@/lib/server/students";
 import { Pager } from "@/components/staff/pager";
 import { paginate } from "@/lib/paginate";
 import type { Metadata } from "next";
@@ -6,9 +7,7 @@ import { redirect } from "next/navigation";
 import { EmptyState, LoadError, PageHeader, Section, Table } from "@/components/staff/page-header";
 import { CollegeFilter } from "@/components/staff/college-filter";
 import { Badge, Panel } from "@/components/ui/card";
-import type { Page, Student } from "@/lib/api-types";
 import { departmentLabel, listBatches, listDepartments, listPlacement } from "@/lib/server/directory";
-import { gateway } from "@/lib/server/gateway";
 import { inColleges } from "@/lib/server/colleges";
 import { collegesFor, requireStaff } from "@/lib/server/staff";
 import { cn } from "@/lib/utils";
@@ -31,7 +30,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
     const batches = perCollege.flatMap(({ college, value }) => (value?.batches ?? []).map((candidate) => ({ ...candidate, collegeName: college.name })));
     const departments = perCollege.flatMap(({ value }) => value?.departments ?? []);
     const batch = batches.find((candidate) => candidate.id === batchParam) ?? batches[0];
-    const students = batch ? (await gateway<Page<Student>>(`/user/v1/tenants/${batch.tenant_id}/students?batch_id=${batch.id}&limit=100`)).items : [];
+    const students = batch ? await listAllStudents(batch.tenant_id, batch.id) : [];
     data = { batches, departments, placement, batch, students, unreachable: perCollege.filter((entry) => entry.failed).map((entry) => entry.college.name) };
   } catch (error) {
     return (
