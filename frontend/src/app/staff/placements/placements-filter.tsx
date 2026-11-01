@@ -1,20 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { Download, Search, Users } from "lucide-react";
+import { Download, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Table } from "@/components/staff/page-header";
-import type { Batch, Department, Student } from "@/lib/api-types";
+import type { Department, Student } from "@/lib/api-types";
 
 export function PlacementsFilter({
   students,
   departments,
-  batches,
   truncated,
 }: {
   students: Student[];
   departments: Department[];
-  batches: Batch[];
   truncated: boolean;
 }) {
   const [selectedDept, setSelectedDept] = useState<string>("all");
