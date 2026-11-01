@@ -1,0 +1,28 @@
+docs/adr/0050-realtime-gateway-websocket.md
+  s_40851fd2a7ba5d::t_227961a6ceda69 1-41,45-62,67-68
+  s_40851fd2a7ba5d::t_251186fc095223 42-44,63-66
+docs/adr/0051-question-authoring-flow.md
+  s_40851fd2a7ba5d::t_88d44c8df5acd1 1-53
+docs/adr/README.md
+  s_40851fd2a7ba5d::t_d7a971b4951a6b 56
+  s_40851fd2a7ba5d::t_88d44c8df5acd1 57
+  s_40851fd2a7ba5d::t_ac4a9189e9a460 58
+docs/adr/0052-question-categories-and-tags.md
+  s_40851fd2a7ba5d::t_ac4a9189e9a460 1-68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "826f3aa2875fe20f086b7e7e491eaff408eae1a3",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh <shreesh@ALLENs-Mac-mini.local>"
+    }
+  }
+}
