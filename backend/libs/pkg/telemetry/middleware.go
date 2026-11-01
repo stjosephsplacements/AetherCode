@@ -1,10 +1,12 @@
 package telemetry
 
 import (
+	"bufio"
 	"context"
 	"crypto/rand"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -101,6 +103,31 @@ type responseWriter struct {
 func (rw *responseWriter) WriteHeader(code int) {
 	rw.status = code
 	rw.ResponseWriter.WriteHeader(code)
+}
+
+// Unwrap lets http.ResponseController reach the real writer.
+func (rw *responseWriter) Unwrap() http.ResponseWriter { return rw.ResponseWriter }
+
+// Flush keeps streaming responses working through the wrapper.
+func (rw *responseWriter) Flush() {
+	if flusher, ok := rw.ResponseWriter.(http.Flusher); ok {
+		flusher.Flush()
+	}
+}
+
+// Hijack lets a handler take over the connection, as a WebSocket upgrade does
+// (the staff console's realtime socket, ADR-0050). Without it the wrapper hides
+// the capability and every upgrade fails with 501. The request counts as a 101.
+func (rw *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	hijacker, ok := rw.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, fmt.Errorf("telemetry: the underlying ResponseWriter cannot be hijacked")
+	}
+	conn, buffer, err := hijacker.Hijack()
+	if err == nil {
+		rw.status = http.StatusSwitchingProtocols
+	}
+	return conn, buffer, err
 }
 
 func newRequestID() string {
