@@ -1,0 +1,29 @@
+frontend/src/lib/permissions.test.ts
+  s_40851fd2a7ba5d::t_6e3195304ed79f 1-55
+frontend/src/app/staff/layout.tsx
+  s_40851fd2a7ba5d::t_a98879fa11254f 30
+frontend/src/app/staff/permissions/editor.tsx
+  s_40851fd2a7ba5d::t_ec25e8fb52fcbd 1-190
+frontend/src/lib/permissions.ts
+  s_40851fd2a7ba5d::t_6e3195304ed79f 1-83
+frontend/src/app/staff/permissions/actions.ts
+  s_40851fd2a7ba5d::t_ec25e8fb52fcbd 1-25
+frontend/src/app/staff/permissions/page.tsx
+  s_40851fd2a7ba5d::t_a98879fa11254f 1-124
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "857984efaa0bc024d929d2415a799ee75f0a46e3",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh <shreesh@ALLENs-Mac-mini.local>"
+    }
+  }
+}
