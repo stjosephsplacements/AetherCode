@@ -741,3 +741,32 @@ func TestPermissionCatalogueListsEveryVerbAndMarksPlatformOnly(t *testing.T) {
 		t.Error("a person's own profile should not be in the editor")
 	}
 }
+
+func TestGlobalRoleAssignmentListRequiresPlatformScope(t *testing.T) {
+	keyring, err := centralauthz.ParseKeyring(`[{"audience":"aether_users","key_id":"` + testKeyID + `","secret_base64":"` + base64.StdEncoding.EncodeToString([]byte(strings.Repeat("u", 32))) + `"}]`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := Request{PrincipalID: testPrincipal, RequestID: testRequestID, Action: "read", ResourceType: "role_assignments", ResourceID: "all", TargetService: "user"}
+	for _, tc := range []struct {
+		name, role, scope, tenant string
+		allowed                   bool
+	}{
+		{name: "platform", role: "super_admin", scope: "platform", allowed: true},
+		{name: "college", role: "college_admin", scope: "college", tenant: testTenant, allowed: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			service, err := NewService(fakeStore{snapshot: Snapshot{Revision: 1, Assignments: []Assignment{{Role: centralauthz.Role(tc.role), ScopeKind: tc.scope, TenantID: tc.tenant, ScopeID: tc.tenant}}, PolicyRules: []centralauthz.PolicyRule{{PType: "p", Values: []string{tc.role, tc.scope, "/role_assignments/:id", "read"}}}}}, keyring, nil, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			decision, err := service.Authorize(context.Background(), request)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if decision.Allowed != tc.allowed {
+				t.Fatalf("allowed = %v, want %v", decision.Allowed, tc.allowed)
+			}
+		})
+	}
+}
