@@ -5,6 +5,8 @@ import { DropdownMenu } from "radix-ui";
 import { useActionState, useRef } from "react";
 import { CredentialsTable } from "@/components/staff/credentials";
 import { Field, FormMessage, Select, SubmitButton, TextArea, initialActionState } from "@/components/staff/form";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import type { Batch, Department } from "@/lib/api-types";
 import {
   type CredentialsState,
@@ -150,5 +152,42 @@ export function StudentActions({ principalId, username, collegeId }: { principal
         </DropdownMenu.Portal>
       </DropdownMenu.Root>
     </div>
+  );
+}
+
+export function ImportDialog(props: { batches: Batch[]; placements: PlacementOption[]; departments: Department[]; disabledReason?: string }) {
+  const { disabledReason, ...panel } = props;
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button disabled={Boolean(disabledReason)} title={disabledReason}>
+          <Upload />
+          Import students
+        </Button>
+      </DialogTrigger>
+      <DialogContent title="Import students" description="Each student gets a username (their roll number in lowercase) and a one-time password.">
+        <div className="min-h-0 overflow-y-auto p-6">
+          <ImportPanel {...panel} />
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function ReissueDialog({ batch }: { batch: Batch }) {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="secondary">
+          <KeyRound />
+          Reissue passwords
+        </Button>
+      </DialogTrigger>
+      <DialogContent title={`Reissue passwords for ${batch.name}`} description="Every student in this batch gets a new one-time password and is signed out.">
+        <div className="min-h-0 overflow-y-auto p-6">
+          <ReissuePanel batch={batch} />
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
