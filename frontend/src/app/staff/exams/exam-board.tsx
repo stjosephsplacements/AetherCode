@@ -4,11 +4,13 @@ import { ChevronRight, Search, X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { ExamPeek, examState } from "@/components/staff/exam-peek";
+import { Select } from "@/components/staff/form";
 import type { ExamVersion } from "@/lib/api-types";
 import { useNow } from "@/lib/client/use-now";
+import { collegeHref } from "@/lib/links";
 import { cn, formatDuration, formatWindow } from "@/lib/utils";
 
-export type BoardExam = { exam: { id: string; created_at: string }; version: ExamVersion | null };
+export type BoardExam = { exam: { id: string; created_at: string }; version: ExamVersion | null; college?: { id: string; name: string } };
 
 type State = "live" | "next" | "draft" | "closed";
 type Filter = "all" | State;
@@ -48,9 +50,11 @@ export function ExamBoard({ exams, renderedAt }: { exams: BoardExam[]; renderedA
   const now = useNow(30_000) ?? renderedAt;
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
+  const [college, setCollege] = useState("all");
+  const colleges = [...new Map(exams.flatMap((entry) => (entry.college ? [[entry.college.id, entry.college.name] as const] : []))).entries()].sort((a, b) => a[1].localeCompare(b[1]));
 
   const needle = query.trim().toLowerCase();
-  const matching = exams.filter((entry) => !needle || (entry.version?.title ?? "untitled exam").toLowerCase().includes(needle) || entry.exam.id.startsWith(needle));
+  const matching = exams.filter((entry) => (college === "all" || entry.college?.id === college) && (!needle || (entry.version?.title ?? "untitled exam").toLowerCase().includes(needle) || entry.exam.id.startsWith(needle)));
   const grouped = Object.fromEntries(GROUPS.map(({ state }) => [state, matching.filter((entry) => stateOf(entry, now) === state).sort(compare(state))])) as Record<State, BoardExam[]>;
   const counts = Object.fromEntries(GROUPS.map(({ state }) => [state, exams.filter((entry) => stateOf(entry, now) === state).length])) as Record<State, number>;
   const shown = GROUPS.filter(({ state }) => (filter === "all" || filter === state) && grouped[state].length > 0);
@@ -102,6 +106,16 @@ export function ExamBoard({ exams, renderedAt }: { exams: BoardExam[]; renderedA
             </button>
           )}
         </div>
+        {colleges.length > 1 && (
+          <Select aria-label="College" size="sm" className="w-52" value={college} onValueChange={setCollege}>
+            <option value="all">Every college</option>
+            {colleges.map(([id, name]) => (
+              <option key={id} value={id}>
+                {name}
+              </option>
+            ))}
+          </Select>
+        )}
         <p className="ml-auto shrink-0 font-mono text-[12px] text-ink-subtle" aria-live="polite">
           {shown.reduce((sum, { state }) => sum + grouped[state].length, 0)} shown
         </p>
@@ -146,6 +160,7 @@ function Row({ entry, state, now }: { entry: BoardExam; state: State; now: numbe
       <span className="min-w-0">
         <span className="block truncate text-[14.5px] font-medium text-ink">{version?.title ?? "Untitled exam"}</span>
         <span className="mt-0.5 block truncate font-mono text-[11.5px] text-ink-subtle">
+          {entry.college && `${entry.college.name} / `}
           {entry.exam.id.slice(0, 8)}
           {version && ` / v${version.version_number} / ${formatDuration(version.duration_seconds)}`}
         </span>
@@ -159,11 +174,11 @@ function Row({ entry, state, now }: { entry: BoardExam; state: State; now: numbe
   );
   const layout = "group relative grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 py-3.5 pl-5 pr-4 text-left transition-colors hover:bg-hover md:grid-cols-[minmax(0,1.4fr)_minmax(0,1.3fr)_180px_auto]";
   return version ? (
-    <ExamPeek exam={{ exam: entry.exam, version }} now={now} className={layout}>
+    <ExamPeek exam={{ exam: entry.exam, version, college: entry.college }} now={now} className={layout}>
       {body}
     </ExamPeek>
   ) : (
-    <Link href={`/staff/exams/${entry.exam.id}`} className={layout}>
+    <Link href={collegeHref(`/staff/exams/${entry.exam.id}`, entry.college?.id)} className={layout}>
       {body}
     </Link>
   );

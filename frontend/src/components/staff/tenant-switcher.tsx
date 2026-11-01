@@ -30,6 +30,7 @@ export function TenantSwitcher({ tenants, current }: { tenants: Tenant[]; curren
           form.current?.requestSubmit();
         }}
       >
+        <option value="all">All colleges</option>
         {tenants.map((tenant) => (
           <option key={tenant.id} value={tenant.id}>
             {tenant.display_name}

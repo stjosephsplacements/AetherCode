@@ -1,14 +1,14 @@
 "use client";
 
 import { Plus } from "lucide-react";
-import { ActionForm, Field, TextArea, TextInput } from "@/components/staff/form";
+import { ActionForm, Field, Select, TextArea, TextInput } from "@/components/staff/form";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { TIME_ZONE } from "@/lib/utils";
 import { createExam } from "./actions";
 
 /** Create an exam without leaving the page; on success the action opens its editor to add questions. */
-export function NewExamDialog() {
+export function NewExamDialog({ colleges }: { colleges?: { id: string; name: string }[] }) {
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -20,6 +20,17 @@ export function NewExamDialog() {
       <DialogContent title="New exam" description="Set the window and duration. You add questions next.">
         <div className="min-h-0 overflow-y-auto p-6">
           <ActionForm action={createExam} submitLabel="Create exam">
+            {colleges && colleges.length > 0 && (
+              <Field label="College" htmlFor="exam-college" hint="The exam belongs to one college and is assigned to its students.">
+                <Select id="exam-college" name="college_id" defaultValue={colleges[0]!.id} required>
+                  {colleges.map((college) => (
+                    <option key={college.id} value={college.id}>
+                      {college.name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            )}
             <Field label="Title" htmlFor="exam-title">
               <TextInput id="exam-title" name="title" required maxLength={300} placeholder="Data Structures, Lab Test 2" autoFocus />
             </Field>
