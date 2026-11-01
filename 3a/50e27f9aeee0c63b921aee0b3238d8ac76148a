@@ -1,0 +1,46 @@
+frontend/src/components/staff/tenant-switcher.tsx
+  s_40851fd2a7ba5d::t_c08e54cddeae8c 33
+frontend/src/components/staff/exam-peek.tsx
+  s_40851fd2a7ba5d::t_dfca735f425199 8,19,44,51,59,66,71
+frontend/src/lib/links.ts
+  s_40851fd2a7ba5d::t_ee1991b9467a9a 1-8
+frontend/src/lib/server/exams.ts
+  s_40851fd2a7ba5d::t_dfca735f425199 36-47
+frontend/src/app/staff/exams/page.tsx
+  s_40851fd2a7ba5d::t_a97ef391559210 4,14,16,31,33
+frontend/src/app/staff/layout.tsx
+  s_40851fd2a7ba5d::t_c08e54cddeae8c 48
+frontend/src/app/staff/exams/exam-board.tsx
+  s_40851fd2a7ba5d::t_dfca735f425199 10,13,177,181
+  s_40851fd2a7ba5d::t_a97ef391559210 7,53-54,57,109-118,163
+frontend/src/app/staff/exams/actions.ts
+  s_40851fd2a7ba5d::t_a97ef391559210 38-41
+frontend/src/lib/links.test.ts
+  s_40851fd2a7ba5d::t_b7acd680f8b836 1-12
+frontend/src/app/staff/exams/new-exam-dialog.tsx
+  s_40851fd2a7ba5d::t_a97ef391559210 4,11,23-33
+frontend/src/app/staff/switch/route.ts
+  s_40851fd2a7ba5d::t_ee1991b9467a9a 1-21
+frontend/src/lib/server/staff.ts
+  s_40851fd2a7ba5d::t_ee1991b9467a9a 10,18-19,32,36,38-39
+frontend/src/app/staff/calendar/page.tsx
+  s_40851fd2a7ba5d::t_bfcdbf2102b280 11
+  s_40851fd2a7ba5d::t_c08e54cddeae8c 107,111,142
+  s_40851fd2a7ba5d::t_a97ef391559210 22,40,76,78,83-84,94-96
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3a50e27f9aeee0c63b921aee0b3238d8ac76148a",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh <shreesh@ALLENs-Mac-mini.local>"
+    }
+  }
+}
