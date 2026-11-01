@@ -39,13 +39,16 @@ export type StudentRow = {
   department: string;
   placementId: string;
   placement: string;
+  /** The batch's mentors, by name. */
+  mentors: string;
 };
 
-type Facet = "college" | "department" | "batch" | "placement" | "status" | "password" | "joined" | "signedIn";
+type Facet = "college" | "department" | "batch" | "mentor" | "placement" | "status" | "password" | "joined" | "signedIn";
 const FACETS: { key: Facet; label: string }[] = [
   { key: "college", label: "College" },
   { key: "department", label: "Department" },
   { key: "batch", label: "Batch" },
+  { key: "mentor", label: "Mentor" },
   { key: "placement", label: "Placement department" },
   { key: "status", label: "Sign-in" },
   { key: "password", label: "Password" },
@@ -64,7 +67,7 @@ function joinedBucket(iso: string, now: number): string {
 const PASSWORD_LABEL: Record<string, string> = { temporary: "Not changed yet", set: "Changed" };
 const when = (iso: string) => (iso ? new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "");
 
-const emptyFilters = (): Record<Facet, Set<string>> => ({ college: new Set(), department: new Set(), batch: new Set(), placement: new Set(), status: new Set(), password: new Set(), joined: new Set(), signedIn: new Set() });
+const emptyFilters = (): Record<Facet, Set<string>> => ({ college: new Set(), department: new Set(), batch: new Set(), mentor: new Set(), placement: new Set(), status: new Set(), password: new Set(), joined: new Set(), signedIn: new Set() });
 const compare = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
 // A spreadsheet runs a cell that starts with one of these, so the export escapes it.
 const cell = (value: string) => `"${(/^[=+\-@\t\r]/.test(value) ? `'${value}` : value).replaceAll('"', '""')}"`;
@@ -73,6 +76,7 @@ function facetValue(row: StudentRow, facet: Facet, now: number): string {
   switch (facet) {
     case "status": return row.status === "active" ? "Can sign in" : "Disabled";
     case "placement": return row.placement;
+    case "mentor": return row.mentors;
     case "password": return PASSWORD_LABEL[row.passwordState] ?? "";
     case "joined": return joinedBucket(row.joinedAt, now);
     case "signedIn": return row.joinedAt ? (row.lastSignIn ? "Yes" : "Never") : "";
@@ -134,8 +138,8 @@ export function Roster({ rows, several }: { rows: StudentRow[]; several: boolean
   };
 
   function exportCsv() {
-    const head = ["Roll number", "Name", "Email", "Phone", "Username", ...(several ? ["College"] : []), "Department", "Batch", "Placement department", "Sign-in", "Password", "Joined", "Last sign-in"];
-    const lines = shown.map((row) => [row.roll, row.name, row.email, row.phone, row.username, ...(several ? [row.college] : []), row.department, row.batch, row.placement, row.status, PASSWORD_LABEL[row.passwordState] ?? "", when(row.joinedAt), when(row.lastSignIn)].map(cell).join(","));
+    const head = ["Roll number", "Name", "Email", "Phone", "Username", ...(several ? ["College"] : []), "Department", "Batch", "Mentor", "Placement department", "Sign-in", "Password", "Joined", "Last sign-in"];
+    const lines = shown.map((row) => [row.roll, row.name, row.email, row.phone, row.username, ...(several ? [row.college] : []), row.department, row.batch, row.mentors, row.placement, row.status, PASSWORD_LABEL[row.passwordState] ?? "", when(row.joinedAt), when(row.lastSignIn)].map(cell).join(","));
     const url = URL.createObjectURL(new Blob([[head.map(cell).join(","), ...lines].join("\n")], { type: "text/csv" }));
     Object.assign(document.createElement("a"), { href: url, download: `students_${new Date().toISOString().slice(0, 10)}.csv` }).click();
     URL.revokeObjectURL(url);
@@ -182,6 +186,7 @@ export function Roster({ rows, several }: { rows: StudentRow[]; several: boolean
           <td className="px-4 py-2.5 text-ink-muted">
             {student.department}
             <span className="block font-mono text-[11px] text-ink-subtle">{student.batch}</span>
+            {student.mentors && <span className="block text-[11.5px] text-ink-subtle">Mentor: {student.mentors}</span>}
           </td>
           <td className="px-4 py-2.5 text-ink-muted">{student.placement}</td>
           <td className="px-4 py-2.5">

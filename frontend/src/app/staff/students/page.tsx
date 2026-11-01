@@ -7,7 +7,7 @@ import { departmentLabel, listBatches, listDepartments, listPlacement } from "@/
 import { inColleges } from "@/lib/server/colleges";
 import { describeAccounts } from "@/lib/server/people";
 import { collegesFor, requireStaff } from "@/lib/server/staff";
-import { listAllStudents } from "@/lib/server/students";
+import { listRoster } from "@/lib/server/students";
 import { EnrolDialog, ImportDialog } from "./panels";
 import { Roster, type StudentRow } from "./roster";
 
@@ -24,9 +24,9 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
     const [perCollege, placement] = await Promise.all([
       inColleges(colleges, async (collegeId) => {
         const [batches, departments] = await Promise.all([listBatches(collegeId), listDepartments(collegeId)]);
-        const perBatch = await Promise.all(batches.map(async (batch) => ({ batch, students: await listAllStudents(collegeId, batch.id) })));
-        const people = await describeAccounts(collegeId, perBatch.flatMap((entry) => entry.students.map((student) => student.principal_id))).catch(() => new Map());
-        return { batches, departments, perBatch, people };
+        const students = await listRoster(collegeId);
+        const people = await describeAccounts(collegeId, students.flatMap((student) => [student.principal_id, ...student.mentor_principal_ids])).catch(() => new Map());
+        return { batches, departments, students, people };
       }),
       listPlacement(),
     ]);
@@ -51,31 +51,33 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
   const rows: StudentRow[] = perCollege.flatMap(({ college, value }) => {
     if (!value) return [];
     const departmentOf = new Map(value.departments.map((department) => [department.id, departmentLabel(department)]));
-    return value.perBatch.flatMap(({ batch, students }) =>
-      students.map((student) => {
-        const person = value.people.get(student.principal_id);
-        return {
-          id: student.id,
-          principalId: student.principal_id,
-          tenantId: student.tenant_id,
-          college: college.name,
-          roll: student.enrollment_number,
-          name: person?.display_name ?? "",
-          email: person?.email ?? "",
-          phone: person?.phone ?? "",
-          joinedAt: person?.created_at ?? "",
-          lastSignIn: person?.last_authenticated_at ?? "",
-          passwordState: person?.password_state ?? "",
-          username: person?.username ?? student.enrollment_number.toLowerCase(),
-          status: student.status,
-          batchId: batch.id,
-          batch: `${batch.name} (${batch.academic_year})`,
-          department: departmentOf.get(batch.department_id) ?? "",
-          placementId: student.placement_department_id ?? "",
-          placement: placementName.get(student.placement_department_id ?? "") ?? "Not visible to your role",
-        };
-      }),
-    );
+    const batchOf = new Map(value.batches.map((batch) => [batch.id, batch]));
+    return value.students.map((student) => {
+      const person = value.people.get(student.principal_id);
+      const batch = batchOf.get(student.batch_id ?? "");
+      const mentors = student.mentor_principal_ids.map((id) => value.people.get(id)?.display_name).filter((name): name is string => Boolean(name));
+      return {
+        id: student.id,
+        principalId: student.principal_id,
+        tenantId: student.tenant_id,
+        college: college.name,
+        roll: student.enrollment_number,
+        name: person?.display_name ?? student.profile_name ?? "",
+        email: person?.email ?? "",
+        phone: person?.phone ?? "",
+        joinedAt: person?.created_at ?? "",
+        lastSignIn: person?.last_authenticated_at ?? "",
+        passwordState: person?.password_state ?? "",
+        username: person?.username ?? student.enrollment_number.toLowerCase(),
+        status: student.status,
+        batchId: student.batch_id ?? "",
+        batch: batch ? `${batch.name} (${batch.academic_year})` : "No batch",
+        department: departmentOf.get(student.college_department_id ?? batch?.department_id ?? "") ?? "",
+        mentors: mentors.join(", "),
+        placementId: student.placement_department_id ?? "",
+        placement: placementName.get(student.placement_department_id ?? "") ?? "Not visible to your role",
+      };
+    });
   });
 
   const why = placements.length === 0 ? (placement.readable ? "Create a placement department first" : "Ask a platform administrator to create a placement department") : undefined;
