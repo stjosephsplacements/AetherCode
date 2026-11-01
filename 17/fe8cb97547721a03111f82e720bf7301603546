@@ -1,0 +1,63 @@
+backend/services/question-bank/internal/app/categories.go
+  s_40851fd2a7ba5d::t_f93f2f77b7e13d 1-151
+backend/services/question-bank/api/openapi.yaml
+  s_40851fd2a7ba5d::t_a1e501ce632901 455-480
+  s_40851fd2a7ba5d::t_1aac65d254fa58 73-74,300-454,778-792
+backend/services/question-bank/cmd/server/main.go
+  s_40851fd2a7ba5d::t_c4b0880ea85ee1 11
+  s_40851fd2a7ba5d::t_a1e501ce632901 232-237
+  s_40851fd2a7ba5d::t_f31a98c6c08082 238
+backend/services/question-bank/internal/adapters/http/handler.go
+  s_40851fd2a7ba5d::t_db7648ff9978d3 48,96-97,134
+  s_40851fd2a7ba5d::t_a1e501ce632901 47,380-386
+  s_40851fd2a7ba5d::t_d2dd8e46241731 387-388
+backend/services/question-bank/internal/app/service.go
+  s_40851fd2a7ba5d::t_82e3d3be3ee7e8 366-369,372-375
+  s_40851fd2a7ba5d::t_47db609b5f3d93 181-183
+  s_40851fd2a7ba5d::t_a1e501ce632901 345-346,355,562-566
+  s_40851fd2a7ba5d::t_ad9a35bb0bf818 57-63,144-146,228-229
+  s_40851fd2a7ba5d::t_0aa81ce68caeb7 567
+backend/services/question-bank/internal/app/service_test.go
+  s_40851fd2a7ba5d::t_11a5e4abf2748c 384-411
+backend/services/question-bank/internal/adapters/repo/category_integration_test.go
+  s_40851fd2a7ba5d::t_ce6a06a5bc650f 206,209,211
+  s_40851fd2a7ba5d::t_47db609b5f3d93 221-247
+  s_40851fd2a7ba5d::t_cd9c419eb583c0 195
+  s_40851fd2a7ba5d::t_31ac72836d26a3 1-194,196-205,207-208,210,212-220
+backend/services/question-bank/README.md
+  s_40851fd2a7ba5d::t_a1e501ce632901 116-118
+backend/services/question-bank/internal/app/languages_test.go
+  s_40851fd2a7ba5d::t_509c4e935723a9 1-47
+  s_40851fd2a7ba5d::t_11a5e4abf2748c 48-62
+backend/services/question-bank/internal/adapters/http/categories.go
+  s_40851fd2a7ba5d::t_db7648ff9978d3 1-194
+backend/services/question-bank/internal/adapters/repo/postgres.go
+  s_40851fd2a7ba5d::t_82e3d3be3ee7e8 125,129,496-497
+backend/services/question-bank/internal/adapters/repo/categories.go
+  s_40851fd2a7ba5d::t_82e3d3be3ee7e8 1-57
+backend/services/question-bank/migrations/000022_categories_and_question_tags.up.sql
+  s_40851fd2a7ba5d::t_47db609b5f3d93 253-259
+  s_40851fd2a7ba5d::t_2ac120b230e278 1-252,260-622
+backend/services/question-bank/internal/app/languages.go
+  s_40851fd2a7ba5d::t_991bb6bb17b9e7 1-70
+backend/services/question-bank/internal/adapters/repo/postgres_integration_test.go
+  s_40851fd2a7ba5d::t_31ac72836d26a3 27-44
+backend/services/question-bank/migrations/000022_categories_and_question_tags.down.sql
+  s_40851fd2a7ba5d::t_2ac120b230e278 1-279
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "17fe8cb97547721a03111f82e720bf7301603546",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh <shreesh@ALLENs-Mac-mini.local>"
+    }
+  }
+}
