@@ -1,6 +1,6 @@
 # ADR-0055: Per-person permissions, and one platform-wide view for the root admin
 
-- Status: proposed (needs review: it changes authorization)
+- Status: accepted (permissions and grants built; platform-wide view in the console follows)
 - Date: 2026-11-01
 
 ## Context

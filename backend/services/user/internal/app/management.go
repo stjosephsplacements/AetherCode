@@ -41,6 +41,9 @@ type ManagementStore interface {
 	GetStudentIncludeDeleted(context.Context, pgx.Tx, string) (Student, error)
 	SoftDeleteStudent(context.Context, pgx.Tx, DeleteStudent) error
 	UpdateStudent(context.Context, pgx.Tx, UpdateStudent) (Student, error)
+	ReplacePermissionGrants(context.Context, pgx.Tx, SetPermissionGrants) ([]string, error)
+	ListPermissionGrants(context.Context, pgx.Tx, string, string) ([]string, error)
+	CallerHasPlatformAccess(context.Context, pgx.Tx) (bool, error)
 	HardDeleteStudent(context.Context, pgx.Tx, DeleteStudent) error
 	ListStudents(context.Context, pgx.Tx, ListStudents) ([]Student, error)
 	ListMentorBatchAssignments(context.Context, pgx.Tx, ListMentorBatchAssignments) ([]MentorBatchAssignment, error)

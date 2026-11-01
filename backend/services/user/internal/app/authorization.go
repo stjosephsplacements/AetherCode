@@ -70,6 +70,8 @@ type Snapshot struct {
 	TargetStudentPlacementScopes map[string]struct{}
 	PlacementStaffScopes         map[string]struct{}
 	OwnedCandidateAssignments    map[string]struct{}
+	// Grants are the per-person permissions that add to the role's (ADR-0055).
+	Grants []Grant
 }
 
 // Store supplies one authorization snapshot. Its adapter authenticates as the
@@ -157,7 +159,7 @@ var routes = map[string]route{
 	"user": {
 		Audience: "aether_users", ActionPrefix: "user", ResourcePrefix: "users",
 		OptionalTenantResources: resourceSet("role_assignments", "placement_department_memberships"),
-		Resources:               resourceSet("staff_audit", "accounts", "profiles", "students", "student_department_memberships", "current_student_affiliations", "student_batch_affiliations", "mentor_batch_assignments", "role_assignments", "placement_department_memberships"),
+		Resources:               resourceSet("staff_audit", "permission_grants", "accounts", "profiles", "students", "student_department_memberships", "current_student_affiliations", "student_batch_affiliations", "mentor_batch_assignments", "role_assignments", "placement_department_memberships"),
 	},
 	"question-bank": {
 		Audience: "aether_qbank", ActionPrefix: "qbank", ResourcePrefix: "qbank", Global: true, StaffAuthoring: true,
@@ -277,6 +279,11 @@ func (service *Service) Authorize(contextValue context.Context, request Request)
 		}
 		if allowed {
 			matchingScopes = append(matchingScopes, Scope{Kind: assignment.ScopeKind, ID: assignment.ScopeID})
+		}
+	}
+	if len(matchingScopes) == 0 && holdsStaffRole(snapshot.Assignments) {
+		if scope, granted := grantAllows(snapshot.Grants, validated, targetRoute.StaffAuthoring); granted {
+			matchingScopes = append(matchingScopes, scope)
 		}
 	}
 	service.auditStaffWrite(contextValue, validated, snapshot.Assignments, len(matchingScopes) > 0)

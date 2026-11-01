@@ -218,6 +218,12 @@ func (repository *Postgres) Snapshot(contextValue context.Context, query app.Sna
 		}
 	}
 
+	grants, err := grantsFor(contextValue, transaction, query.PrincipalID)
+	if err != nil {
+		return app.Snapshot{}, err
+	}
+	snapshot.Grants = grants
+
 	if err := transaction.Commit(contextValue); err != nil {
 		return app.Snapshot{}, fmt.Errorf("commit authorization snapshot: %w", err)
 	}
