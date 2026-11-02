@@ -206,7 +206,11 @@ grades stdout with `dispatcher.OutputsMatch`, which normalizes line endings,
 trailing whitespace per line and trailing blank lines. Language keys are the
 platform's (`c`, `cpp17`, `java`, `python3`, `javascript`, `go`), mapped to the
 engine's (`c`, `cpp`, `java`, `python`, `javascript`, `go`); Java, Python and
-JavaScript get twice the unit's time limit. Each unit is sent with its id as the
+JavaScript get twice the unit's time limit. A job's pending units that share the same program are sent to the engine
+as one job of up to 100 tests (`SubmitBatch`): one queue entry and one compile,
+with the tests running side by side, and each unit is graded from its own
+result. Units of different programs, a single pending unit, or a failed batch
+fall back to one engine job per unit. A unit sent alone carries its id as the
 `Idempotency-Key`, so a submit repeated after a timeout returns the engine's
 original job instead of running the unit twice.
 

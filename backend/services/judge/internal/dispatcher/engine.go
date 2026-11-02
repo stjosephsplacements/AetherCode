@@ -11,6 +11,21 @@ type Engine interface {
 	Poll(ctx context.Context, token string) (*UnitVerdict, error)
 }
 
+// BatchEngine is an Engine that can run several units of one program in a
+// single job: one queue entry, one compile, the tests running side by side.
+// Every request in a batch has the same language, source and limits and a
+// different stdin. SubmitBatch returns one token per request, in order; Poll
+// then returns each unit's verdict as for Submit. Forget releases a token whose
+// verdict will not be polled.
+type BatchEngine interface {
+	Engine
+	SubmitBatch(ctx context.Context, requests []UnitRequest) (tokens []string, err error)
+	Forget(token string)
+}
+
+// MaxBatchUnits is the most units sent to a BatchEngine in one job.
+const MaxBatchUnits = 100
+
 // UnitRequest is a single test-unit evaluation request forwarded to the engine.
 type UnitRequest struct {
 	Language       string
