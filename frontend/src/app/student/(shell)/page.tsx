@@ -65,7 +65,7 @@ export default async function StudentDashboard() {
           <div>
             <p className="font-[family-name:var(--font-eyebrow)] text-[10.5px] uppercase tracking-[0.14em] text-ink-subtle">{dateLine}</p>
             <h1 className="mt-2 text-[28px] font-semibold leading-tight tracking-[-0.025em] text-ink sm:text-[34px]">
-              {greeting}, {firstName}
+              {greeting}, <span className="marker">{firstName}</span>
             </h1>
             <p className="mt-2 max-w-[52ch] text-[15px] leading-relaxed text-ink-muted">
               {live.length > 0
