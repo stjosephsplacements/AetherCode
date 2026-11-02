@@ -1,0 +1,21 @@
+docs/adr/0057-student-directory.md
+  s_40851fd2a7ba5d::t_2ee9868cd9fc56 1-128
+docs/adr/README.md
+  s_40851fd2a7ba5d::t_c3bd4cf96fde98 63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "67f1f43be1cef762fed2ffe520ca1b2a1e46e2ef",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+backend/go.work.sum
+  s_40851fd2a7ba5d::t_5c75abbe2c5d9f 563,702
+backend/services/user/internal/adapters/http/accounts.go
+  s_40851fd2a7ba5d::t_409e328fccfbc9 109-160
+backend/services/user/internal/adapters/http/handler.go
+  s_40851fd2a7ba5d::t_3e8ca655c72f60 47-48
+backend/services/user/internal/app/accounts.go
+  s_40851fd2a7ba5d::t_4a2aa901e736d0 283-343
+backend/services/user/internal/app/accounts_test.go
+  s_40851fd2a7ba5d::t_5604fc6b912913 6,130-162
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "26ccac2db0b179a5f59f3a581a768ffdfd4e9467",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}

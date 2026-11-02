@@ -1,0 +1,25 @@
+backend/services/notification/internal/adapters/repo/community_integration_test.go
+  s_86b8a24fee5dbd::t_30ce027d634b17 9,240-258
+backend/services/notification/migrations/000014_atcoder_skillrack_links.down.sql
+  s_86b8a24fee5dbd::t_b6b77882cae8b7 1-48
+backend/services/notification/migrations/000014_atcoder_skillrack_links.up.sql
+  s_86b8a24fee5dbd::t_b7df2ef33a4a01 1-49
+frontend/src/app/student/(shell)/profile/page.tsx
+  s_86b8a24fee5dbd::t_1b93dc6a6ff2bb 21-22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4b7ab974e913fcad41bafa90a41cbd8e6fd462a9",
+  "prompts": {},
+  "sessions": {
+    "s_86b8a24fee5dbd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a197c5-198e-7fb1-a667-abf299ffe197",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}

@@ -1,0 +1,35 @@
+frontend/src/app/staff/accounts/page.tsx
+  s_40851fd2a7ba5d::t_9829328027cd28 10-11,20,25-26,36,45,73,91,115
+frontend/src/app/staff/colleges/page.tsx
+  s_40851fd2a7ba5d::t_74c47d61aa84f8 11-12,17,31,39,78
+frontend/src/app/staff/exams/[examId]/results/page.tsx
+  s_40851fd2a7ba5d::t_f9660ab8d26fde 1-2,19,46,98,112
+frontend/src/app/staff/organisation/page.tsx
+  s_40851fd2a7ba5d::t_dc893e95c18fe6 8-9,18,23-24,34,44,46-50,66,105,112,147,215,243,246-252,254
+frontend/src/app/staff/placements/placements-filter.tsx
+  s_40851fd2a7ba5d::t_5b2cdf2bbd2153 7-8,22,35-36,64,70,88,100
+frontend/src/app/staff/students/page.tsx
+  s_40851fd2a7ba5d::t_90e79fd97891d1 1-2,19,22,46,92,110
+frontend/src/components/staff/pager.tsx
+  s_40851fd2a7ba5d::t_c05c34611e1c2e 1-62
+frontend/src/lib/paginate.test.ts
+  s_40851fd2a7ba5d::t_a6052874f2f8aa 1-25
+frontend/src/lib/paginate.ts
+  s_40851fd2a7ba5d::t_080bb99a139239 1-22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "34493bcc3a469dc7413d8567b570f4b3f39be3c8",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}

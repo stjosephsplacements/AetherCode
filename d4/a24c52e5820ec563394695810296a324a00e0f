@@ -1,0 +1,21 @@
+apps/exam-v1/pnpm-lock.yaml
+  s_40851fd2a7ba5d::t_8aa184956baedc 9,300,306,312,318,324,330,336,342,349,356,363,370,377,384,391,398,427-429,476,483,490,497,557,564,571,578,698-700,723-725,1221,1228,1235,1242,1459-1461,2116-2117,2365,2386,2388,2736,3471,3473-3474,3636
+apps/exam-v1/pnpm-workspace.yaml
+  s_40851fd2a7ba5d::t_37e20246929858 7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d4a24c52e5820ec563394695810296a324a00e0f",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}

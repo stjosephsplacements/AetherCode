@@ -1,0 +1,21 @@
+docs/adr/0059-codepro-parity.md
+  s_40851fd2a7ba5d::t_be3eca0f92d106 1-93
+docs/adr/README.md
+  s_40851fd2a7ba5d::t_ed0ea8089278ad 63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6aaf8c01d7d49769b9ae551ddbd4d60f869391c7",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}

@@ -1,0 +1,29 @@
+frontend/src/app/staff/community/actions.ts
+  s_40851fd2a7ba5d::t_a63b826f5d6bc5 11,26-30,32,42,58-63,65,70,94-99,101,104-112,116,118-120,126-127,130-131
+frontend/src/app/staff/community/editors.tsx
+  s_40851fd2a7ba5d::t_7d241e45e44f9e 1-121
+frontend/src/app/staff/community/page.tsx
+  s_40851fd2a7ba5d::t_62c8809e88d08a 3,5-6,10-31,33-44
+frontend/src/app/staff/community/view.tsx
+  s_40851fd2a7ba5d::t_d2f817501e183f 1-290
+frontend/src/components/staff/confirm-delete.tsx
+  s_40851fd2a7ba5d::t_bdd1a6e1dd6643 22,32-33,47,87-91
+frontend/src/components/staff/form.tsx
+  s_40851fd2a7ba5d::t_00fb444fbc9d81 484-485,490-491,493-494,500-505,511
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9c293702f872cc4259df1400990f0539c3990aa3",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}

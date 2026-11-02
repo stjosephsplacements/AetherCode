@@ -1,0 +1,19 @@
+frontend/src/components/staff/college-select.tsx
+  s_40851fd2a7ba5d::t_c5cba3a95272a7 3-4,8-13,16,20-21,23,31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2f6750f354848f6b69cf4e3fd8d12b57aeccac1b",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}

@@ -1,0 +1,43 @@
+backend/services/identity/internal/adapters/introspection/handler.go
+  s_40851fd2a7ba5d::t_d3cb6ddeff53eb 31,63,129-146
+backend/services/identity/internal/adapters/introspection/handler_test.go
+  s_40851fd2a7ba5d::t_c3ee951da80c08 52-55
+backend/services/identity/internal/adapters/repo/accounts.go
+  s_40851fd2a7ba5d::t_a9da286c487795 121-156
+backend/services/identity/internal/app/accounts.go
+  s_40851fd2a7ba5d::t_91718ff4c637f1 6,31-39,193-232
+backend/services/identity/internal/app/accounts_test.go
+  s_40851fd2a7ba5d::t_0572b006663575 90-121
+backend/services/identity/internal/app/delete_test.go
+  s_40851fd2a7ba5d::t_43f57c2cbcd4ef 15-17
+backend/services/identity/internal/app/service_test.go
+  s_40851fd2a7ba5d::t_c934c00b266b6b 29,251-254
+backend/services/user/internal/adapters/authn/accounts.go
+  s_40851fd2a7ba5d::t_fb0c9b43d77dbc 84-91
+backend/services/user/internal/adapters/authn/accounts_test.go
+  s_40851fd2a7ba5d::t_79751ce212896a 71-91
+backend/services/user/internal/adapters/http/accounts.go
+  s_40851fd2a7ba5d::t_f474dd7c75ea12 109-125
+backend/services/user/internal/adapters/http/handler.go
+  s_40851fd2a7ba5d::t_67a13baca1b3ff 47
+backend/services/user/internal/app/accounts.go
+  s_40851fd2a7ba5d::t_1b8a42a0d25bf3 31,75-82,300-312
+backend/services/user/internal/app/accounts_test.go
+  s_40851fd2a7ba5d::t_36155948569610 65-67,132-143
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ce91f3293c710261605e00ed23b0c856bcc46ab0",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}

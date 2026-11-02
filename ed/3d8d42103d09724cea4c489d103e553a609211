@@ -1,0 +1,25 @@
+frontend/src/app/staff/students/actions.ts
+  s_40851fd2a7ba5d::t_182b7cdd33cc97 124-140
+frontend/src/app/staff/students/page.tsx
+  s_40851fd2a7ba5d::t_e4f635ff395c09 65-68
+frontend/src/app/staff/students/roster.tsx
+  s_40851fd2a7ba5d::t_f96664ad44b4e2 18,29-34,44,51-53,56-67,72-82,87,96,98-105,112-113,117,132,137-138,160,180,188-196,203-217
+frontend/src/lib/api-types.ts
+  s_40851fd2a7ba5d::t_71e1e6fc55887d 492-505
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ed3d8d42103d09724cea4c489d103e553a609211",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}

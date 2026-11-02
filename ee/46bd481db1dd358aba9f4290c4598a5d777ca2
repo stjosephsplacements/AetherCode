@@ -1,0 +1,45 @@
+frontend/src/app/staff/accounts/page.tsx
+  s_40851fd2a7ba5d::t_ec80c229ecad78 4,40-41,69
+frontend/src/app/staff/analytics/page.tsx
+  s_40851fd2a7ba5d::t_d11d1aa0727385 4,47-48,90
+frontend/src/app/staff/audit/page.tsx
+  s_40851fd2a7ba5d::t_adadd46c8629fd 5,29-30,41
+frontend/src/app/staff/calendar/page.tsx
+  s_40851fd2a7ba5d::t_1ea859a0524a61 5,124
+frontend/src/app/staff/community/page.tsx
+  s_40851fd2a7ba5d::t_b2db764d56a6de 6,29
+frontend/src/app/staff/exams/page.tsx
+  s_40851fd2a7ba5d::t_45b4da547673a2 3,21-22,30
+frontend/src/app/staff/organisation/page.tsx
+  s_40851fd2a7ba5d::t_b53de6df1ea88a 5,29-30,40
+frontend/src/app/staff/page.tsx
+  s_40851fd2a7ba5d::t_cae3d19efd8196 11,116
+frontend/src/app/staff/permissions/page.tsx
+  s_40851fd2a7ba5d::t_eefb82a59925fe 5,46-47,57
+frontend/src/app/staff/placements/page.tsx
+  s_40851fd2a7ba5d::t_8e0769fefa7e45 4,27-28,39
+frontend/src/app/staff/students/page.tsx
+  s_40851fd2a7ba5d::t_fdc965bf9ccead 5,32-33,46
+frontend/src/app/staff/switch/route.ts
+  s_40851fd2a7ba5d::t_c9a9757853854c 4,17
+frontend/src/components/staff/college-bar.tsx
+  s_40851fd2a7ba5d::t_3be8df527bcfa9 1-13
+frontend/src/components/staff/college-select.tsx
+  s_40851fd2a7ba5d::t_01be5412b15964 3,6-13,15-16,18-22,24-27,31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ee46bd481db1dd358aba9f4290c4598a5d777ca2",
+  "prompts": {},
+  "sessions": {
+    "s_40851fd2a7ba5d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1ebb9043-d11d-46bd-86f5-1807394d0083",
+        "model": "claude-sonnet-5-5"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}

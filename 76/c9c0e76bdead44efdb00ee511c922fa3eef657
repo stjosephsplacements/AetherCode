@@ -1,0 +1,21 @@
+backend/libs/pkg/messaging/consumer.go
+  s_86b8a24fee5dbd::t_1c639ca897f8dc 216-220,228-230
+backend/libs/pkg/messaging/consumer_integration_test.go
+  s_86b8a24fee5dbd::t_66ff0dd03fcb7d 38-50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "76c9c0e76bdead44efdb00ee511c922fa3eef657",
+  "prompts": {},
+  "sessions": {
+    "s_86b8a24fee5dbd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a197c5-198e-7fb1-a667-abf299ffe197",
+        "model": "gpt-6.1-terra"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
