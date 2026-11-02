@@ -1,0 +1,23 @@
+frontend/src/app/staff/students/actions.ts
+  s_4a7f3c46d06453::t_7c371f6ccc3012 7,168-170,180-185,207-216
+frontend/src/app/staff/students/page.tsx
+  s_4a7f3c46d06453::t_1a22fbdaf4f6e1 43
+frontend/src/lib/server/students.ts
+  s_4a7f3c46d06453::t_73ca3e83523696 3,8-12,15-24,26-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5607746eab3be5b0ee452350c372bd598e0b844a",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
