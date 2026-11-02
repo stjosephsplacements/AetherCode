@@ -19,7 +19,9 @@ function Check_({ name, label, defaultChecked }: { name: string; label: string; 
 export function PublicProfileForm({ profile, origin, suggestion }: { profile: PublicProfile; origin: string; suggestion: string }) {
   const [slug, setSlug] = useState(profile.slug || suggestion);
   const [copied, setCopied] = useState(false);
-  const url = `${origin}/u/${slug.toLowerCase()}`;
+  const url = `${origin}/u/${encodeURIComponent(slug.toLowerCase())}`;
+  // The open link uses the saved address (checked by the server), never what is being typed.
+  const savedUrl = `${origin}/u/${encodeURIComponent(profile.slug)}`;
   const content = profile.content;
   return (
     <div className="border border-ink bg-surface p-5 shadow-[4px_4px_0_var(--ink)]">
@@ -48,7 +50,7 @@ export function PublicProfileForm({ profile, origin, suggestion }: { profile: Pu
             {copied ? "copied" : "copy"}
           </button>
           {profile.enabled && (
-            <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-ink hover:text-brand">
+            <a href={savedUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-ink hover:text-brand">
               <ExternalLink className="size-3.5" />
               open
             </a>
