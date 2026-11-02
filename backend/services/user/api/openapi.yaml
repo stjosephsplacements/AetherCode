@@ -644,6 +644,7 @@ components:
         expires_at: {$ref: '#/components/schemas/Timestamp'}
         version: {type: integer, minimum: 1}
         created_at: {$ref: '#/components/schemas/Timestamp'}
+        root: {type: boolean, description: 'The first super_admin, which granted itself. Its access is fixed.'}
     SetPlacementStaffMembership:
       type: object
       additionalProperties: false

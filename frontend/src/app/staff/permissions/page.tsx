@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { KeyRound, ShieldCheck, Users } from "lucide-react";
+import { KeyRound, Lock, ShieldCheck, Users } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
@@ -7,7 +7,7 @@ import { EmptyState, LoadError, PageHeader } from "@/components/staff/page-heade
 import { Badge } from "@/components/ui/card";
 import { type CataloguePermission, groupResources } from "@/lib/permissions";
 import { gateway } from "@/lib/server/gateway";
-import { describeAccounts, listRoleAssignments } from "@/lib/server/people";
+import { describeAccounts, listRoleAssignments, listSuperAdmins } from "@/lib/server/people";
 import { inColleges } from "@/lib/server/colleges";
 import { collegesFor, requireStaff } from "@/lib/server/staff";
 import { cn } from "@/lib/utils";
@@ -25,7 +25,7 @@ export default async function PermissionsPage({ searchParams }: { searchParams: 
   const staff = await requireStaff();
   if (!staff.canManageAccounts) redirect("/staff");
   const { person, scope: scopeParam, college: collegeParam } = await searchParams;
-  const scope: "college" | "platform" = scopeParam === "platform" && staff.isPlatformAdmin ? "platform" : "college";
+  const scope: "college" | "platform" = (scopeParam === "platform" || collegeParam === "platform") && staff.isPlatformAdmin ? "platform" : "college";
 
   let data;
   try {
@@ -40,13 +40,18 @@ export default async function PermissionsPage({ searchParams }: { searchParams: 
         return [...roles.entries()].map(([principalId, labels]) => ({ principalId, labels: [...new Set(labels)], name: names.get(principalId)?.display_name ?? names.get(principalId)?.username ?? principalId.slice(0, 8) }));
       }),
     ]);
-    const people = perCollege
-      .flatMap(({ college, value }) => (value ?? []).map((entry) => ({ ...entry, collegeId: college.id, collegeName: college.name })))
-      .sort((a, b) => a.name.localeCompare(b.name) || a.collegeName.localeCompare(b.collegeName));
-    const chosen = people.find((entry) => entry.principalId === person && (!collegeParam || entry.collegeId === collegeParam)) ?? null;
+    const superAdmins = staff.isPlatformAdmin ? await listSuperAdmins(staff.tenants, staff.viewer).catch(() => []) : [];
+    const people = [
+      ...superAdmins.map((admin) => ({ principalId: admin.principalId, collegeId: "platform", collegeName: "Platform", name: admin.name, labels: [admin.root ? "Root" : "Super admin"], root: admin.root })),
+      ...perCollege
+        .flatMap(({ college, value }) => (value ?? []).map((entry) => ({ ...entry, collegeId: college.id, collegeName: college.name, root: false })))
+        .sort((a, b) => a.name.localeCompare(b.name) || a.collegeName.localeCompare(b.collegeName)),
+    ];
+    const chosen = people.find((entry) => entry.principalId === person && (!collegeParam ? entry.collegeId !== "platform" || scopeParam === "platform" : entry.collegeId === collegeParam)) ?? null;
+    const viewerIsRoot = superAdmins.some((admin) => admin.root && admin.principalId === staff.viewer.principalId);
     const path = scope === "platform" ? `/user/v1/staff/${chosen?.principalId}/permissions` : `/user/v1/tenants/${chosen?.collegeId}/staff/${chosen?.principalId}/permissions`;
-    const held = chosen ? (await gateway<{ permissions: string[] }>(path)).permissions : [];
-    data = { groups: groupResources(catalogue.permissions), people, chosen, held };
+    const held = chosen && !chosen.root ? (await gateway<{ permissions: string[] }>(path)).permissions : [];
+    data = { groups: groupResources(catalogue.permissions), people, chosen, held, viewerIsRoot };
   } catch (error) {
     return (
       <>
@@ -55,7 +60,7 @@ export default async function PermissionsPage({ searchParams }: { searchParams: 
       </>
     );
   }
-  const { groups, people, chosen, held } = data;
+  const { groups, people, chosen, held, viewerIsRoot } = data;
   const href = (principalId: string, collegeId: string, scopeKind = scope) => `/staff/permissions?person=${principalId}&college=${collegeId}${scopeKind === "platform" ? "&scope=platform" : ""}`;
 
   const list = people.map((entry) => ({ ...entry, href: href(entry.principalId, entry.collegeId) }));
@@ -104,7 +109,7 @@ export default async function PermissionsPage({ searchParams }: { searchParams: 
                       {staff.isPlatformAdmin && <span className="text-[12px] text-ink-subtle">{chosen.collegeName}</span>}
                     </div>
                   </div>
-                  {staff.isPlatformAdmin && (
+                  {staff.isPlatformAdmin && chosen.collegeId !== "platform" && (
                     <div className="ml-auto inline-flex rounded-[var(--radius-control)] border border-line bg-sidebar p-0.5 text-[13px]" role="group" aria-label="Where these apply">
                       {(["college", "platform"] as const).map((kind) => (
                         <Link
@@ -119,6 +124,17 @@ export default async function PermissionsPage({ searchParams }: { searchParams: 
                     </div>
                   )}
                 </div>
+                {chosen.root ? (
+                  <div className="rounded-[var(--radius-surface)] border border-line bg-surface p-6 text-sm text-ink-muted">
+                    <p className="mb-1 flex items-center gap-2 font-medium text-ink">
+                      <Lock className="size-4" strokeWidth={1.75} />
+                      Every permission, fixed
+                    </p>
+                    The root administrator holds every permission across every college. It cannot be edited or removed, so there is nothing to change here.
+                  </div>
+                ) : chosen.collegeId === "platform" && !viewerIsRoot ? (
+                  <div className="rounded-[var(--radius-surface)] border border-line bg-surface p-6 text-sm text-ink-muted">Only the root administrator edits a super admin&apos;s permissions.</div>
+                ) : (
                 <PermissionEditor
                   key={`${chosen.collegeId}-${chosen.principalId}-${scope}`}
                   groups={groups}
@@ -129,6 +145,7 @@ export default async function PermissionsPage({ searchParams }: { searchParams: 
                     return savePermissions(chosen.principalId, scope, permissions, chosen.collegeId);
                   }}
                 />
+                )}
               </>
             )}
           </div>

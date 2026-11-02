@@ -60,6 +60,14 @@ type Assignment struct {
 	ScopeKind string
 	TenantID  string
 	ScopeID   string
+	// Delegated is a super_admin that someone else granted. Only the root
+	// administrator, who granted itself, holds the platform's blanket policy;
+	// a delegated one holds just the permissions it was given (ADR-0061).
+	Delegated bool
+}
+
+func (assignment Assignment) isRoot() bool {
+	return assignment.Role == centralauthz.RoleSuperAdmin && assignment.ScopeKind == "platform" && !assignment.Delegated
 }
 
 // Snapshot is one current, non-cached view of the canonical policy state.
@@ -265,7 +273,7 @@ func (service *Service) Authorize(contextValue context.Context, request Request)
 	if validated.TargetService == "user" && validated.ResourceType == "permission_grants" && validated.Action != "read" {
 		permitted := false
 		for _, assignment := range snapshot.Assignments {
-			if (assignment.Role == centralauthz.RoleSuperAdmin && assignment.ScopeKind == "platform") ||
+			if assignment.isRoot() ||
 				(assignment.Role == centralauthz.RoleCollegeAdmin && assignment.ScopeKind == "college" && validated.TenantID != "" && assignment.TenantID == validated.TenantID) {
 				permitted = true
 				break
@@ -289,6 +297,13 @@ func (service *Service) Authorize(contextValue context.Context, request Request)
 			snapshot.PlacementStaffScopes, snapshot.OwnedCandidateAssignments,
 		) {
 			continue
+		}
+		// A delegated super admin has no blanket policy: only what is internal or its own
+		// (resources the permission editor never lists) comes from the role; the rest from grants.
+		if assignment.Role == centralauthz.RoleSuperAdmin && assignment.Delegated {
+			if _, own := unlistedResources[validated.TargetService+"."+validated.ResourceType]; !own {
+				continue
+			}
 		}
 		allowed, enforceErr := engine.Authorize(assignment.Role, assignment.ScopeKind, casbinResource, validated.Action)
 		if enforceErr != nil {
