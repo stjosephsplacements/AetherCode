@@ -31,6 +31,7 @@ export async function api<T>(path: string, options: Options = {}): Promise<T> {
   if (method !== "GET") headers["Idempotency-Key"] = options.idempotencyKey ?? crypto.randomUUID();
 
   for (let attempt = 0; ; attempt++) {
+    const sent = Date.now();
     const response = await fetch(`/api${path}`, {
       method,
       headers,
@@ -38,6 +39,7 @@ export async function api<T>(path: string, options: Options = {}): Promise<T> {
       cache: "no-store",
       signal: options.signal,
     });
+    noteServerTime(response, sent);
     if (response.status === 503 && attempt < 3) {
       const wait = Math.min(Number(response.headers.get("Retry-After")) || 1, 5);
       await new Promise((resolve) => setTimeout(resolve, wait * 1000));
@@ -53,6 +55,24 @@ export async function api<T>(path: string, options: Options = {}): Promise<T> {
     if (!response.ok) throw toAPIError(response.status, payload);
     return payload as T;
   }
+}
+
+// The server's clock minus this browser's, from the Date header of the quickest reply seen so far (the
+// header is whole seconds, so half a second is added). A wrong laptop clock then cannot skew a countdown.
+let clockOffset = 0;
+let bestRoundTrip = Infinity;
+function noteServerTime(response: Response, sent: number) {
+  const server = Date.parse(response.headers.get("Date") ?? "");
+  const received = Date.now();
+  const roundTrip = received - sent;
+  if (!Number.isFinite(server) || roundTrip >= bestRoundTrip) return;
+  bestRoundTrip = roundTrip;
+  clockOffset = server + 500 - (sent + roundTrip / 2);
+}
+
+/** The time on the server, in epoch milliseconds, as best this browser can tell. */
+export function serverNow(): number {
+  return Date.now() + clockOffset;
 }
 
 const SEB_REFUSAL = "secure exam browser validation failed";
