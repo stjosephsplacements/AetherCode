@@ -31,3 +31,9 @@ assignments follow and are snapshotted again. Rollback drops it.
 IDs)`, readable with a read capability on `exams` (ADR-0043). The exam list
 then carries each exam's latest version, so staff pages list exams in one
 request instead of one per exam. Rollback drops it.
+
+`000036_mcq_choice_explanations` adds `exam_items.choice_explanations`
+(ADR-0058), pinned from Question Bank beside the options. `add_exam_mcq_item`
+gains an optional last argument, and the candidate assignment snapshot carries
+the explanations to Submission. Rollback drops the column and restores the
+functions.
