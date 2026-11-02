@@ -140,3 +140,10 @@ evaluations exist.
 read on `score_summaries`, the college's graded evaluations and sample runs
 waiting for Judge, the oldest wait, and last-hour completions, failures and
 median and p95 time to verdict.
+
+`000036_choice_explanations` stores a multiple-choice item's explanations from
+the assignment snapshot (ADR-0058). `get_attempt_result_for_candidate` returns
+each such item's options with whether each was correct and its explanation,
+only once staff release results. `get_attempt_paper_for_candidate` is
+unchanged, so an open attempt never carries them. Rollback restores both
+functions and drops the column.
