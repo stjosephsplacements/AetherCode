@@ -106,7 +106,7 @@ The web server's current loop of single calls is replaced by these.
 ## Migrations
 
 - identity `000016`: `principals.phone` plus its check constraint (built).
-- user `000035`: the `users.student_roster` function (built).
+- user `000036`: the `users.student_roster` function (built).
 - user, later: `account_state_projections`, its RLS policy (read by `user.read`), and the
   inbox table for the events (item 3, not built).
 - Both are additive and reversible; the down migrations drop what they add.
