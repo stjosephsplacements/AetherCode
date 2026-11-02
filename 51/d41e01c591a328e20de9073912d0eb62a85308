@@ -1,0 +1,27 @@
+backend/services/submission/internal/adapters/projection/projection.go
+  s_4a7f3c46d06453::t_d2aba2329e4e80 81-82,380-382
+backend/services/submission/internal/adapters/repo/choice_explanations_integration_test.go
+  s_4a7f3c46d06453::t_f590e57c8d7340 1-86
+backend/services/submission/migrations/000036_choice_explanations.down.sql
+  s_4a7f3c46d06453::t_67bd5d6eca6d39 1-267
+backend/services/submission/migrations/000036_choice_explanations.up.sql
+  s_4a7f3c46d06453::t_61a2069feea79d 1-280
+backend/services/submission/migrations/README.md
+  s_4a7f3c46d06453::t_29c508c39f07b8 143-149
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "51d41e01c591a328e20de9073912d0eb62a85308",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
