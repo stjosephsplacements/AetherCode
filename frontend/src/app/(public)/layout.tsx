@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Footer } from "@/components/site/footer";
+import { AsciiField } from "@/components/site/ascii-field";
 import { Navbar } from "@/components/site/navbar";
+import { PathBar } from "@/components/site/path-bar";
 import { SiteMotion } from "@/components/site/site-motion";
 import { SmoothScroll } from "@/components/site/smooth-scroll";
 
@@ -11,7 +13,10 @@ export const metadata: Metadata = { robots: { index: true, follow: true } };
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
     <SmoothScroll>
-      <div className="ascii flex min-h-dvh flex-col">
+      <div className="ascii relative flex min-h-dvh flex-col">
+        {/* Every public page sits in the same frame over the same ASCII field. */}
+        <AsciiField />
+        <div aria-hidden className="pointer-events-none absolute inset-y-0 left-1/2 -z-10 hidden w-full max-w-6xl -translate-x-1/2 border-x border-line lg:block" />
         <a
           href="#content"
           className="fixed left-4 top-4 z-50 -translate-y-24 rounded-full bg-brand px-4 py-2 text-[14px] font-medium text-brand-ink transition-transform focus:translate-y-0"
@@ -19,6 +24,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
           Skip to content
         </a>
         <Navbar />
+        <PathBar />
         <main id="content" className="flex-1">
           {children}
         </main>
