@@ -1,0 +1,139 @@
+AGENTS.md
+  s_4a7f3c46d06453::t_a8b44a2cffeef4 15,22,52
+apps/exam-v1/.env.example
+  s_4a7f3c46d06453::t_b3d270cebce91a 3
+apps/exam-v1/README.md
+  s_4a7f3c46d06453::t_954d07c70bc5f1 10,32,34,43,211-213,231,283,292,294,303
+apps/exam-v1/app/admin/system/page.tsx
+  s_4a7f3c46d06453::t_e3d07b6fedcc09 55
+apps/exam-v1/app/faculty/actions.ts
+  s_4a7f3c46d06453::t_3322aae9b06d5a 9,26
+apps/exam-v1/deploy/.env.example
+  s_4a7f3c46d06453::t_26765c15360bc5 22-23
+apps/exam-v1/lib/engine.ts
+  s_4a7f3c46d06453::t_8326b5451bec18 50
+apps/exam-v1/lib/health.ts
+  s_4a7f3c46d06453::t_1ecc84e321db04 16
+apps/exam-v1/lib/limits.ts
+  s_4a7f3c46d06453::t_a192f14f86b9d8 1-2
+apps/exam-v1/lib/test-files.test.ts
+  s_4a7f3c46d06453::t_70b7b0a30dfa17 3
+apps/exam-v1/lib/zip.test.ts
+  s_4a7f3c46d06453::t_367fa030dbafa4 7
+apps/exam-v1/lib/zip.ts
+  s_4a7f3c46d06453::t_5f32037f628fd2 15
+apps/exam-v1/scripts/engine-check.ts
+  s_4a7f3c46d06453::t_9500014b89f5b4 50
+apps/exam-v1/worker/main.ts
+  s_4a7f3c46d06453::t_6e8357cf8c6d0a 55,184,211
+backend/libs/pkg/evalbundle/evalbundle.go
+  s_4a7f3c46d06453::t_0a0d77a3aec2f2 18
+backend/services/judge/README.md
+  s_4a7f3c46d06453::t_297a19498600f9 7,12-13,28,91,185,207-211,217,222
+backend/services/judge/cmd/server/main.go
+  s_4a7f3c46d06453::t_537ee476647645 30,143
+backend/services/judge/internal/adapters/aethercode/client.go
+  s_4a7f3c46d06453::t_b04092ef7a8de3 4-6,29,117,157-159,171-173,181
+backend/services/judge/internal/adapters/aethercode/client_test.go
+  s_4a7f3c46d06453::t_c08f75541e7285 85-86,127-147
+backend/services/judge/internal/adapters/aethercode/languages.go
+  s_4a7f3c46d06453::t_e3c3e1960926f7 5-6
+backend/services/judge/internal/adapters/grpc/server.go
+  s_4a7f3c46d06453::t_863732b3cf7d33 19
+backend/services/judge/internal/adapters/repo/postgres.go
+  s_4a7f3c46d06453::t_bb8da454669ab9 20
+backend/services/judge/internal/adapters/stub/stub.go
+  s_4a7f3c46d06453::t_e707cd15f54ddd 1-2,14
+backend/services/judge/internal/config/chart_env_test.go
+  s_4a7f3c46d06453::t_3d17c36e7f12d6 17-18
+backend/services/judge/internal/config/runtime_test.go
+  s_4a7f3c46d06453::t_4e57c3815bcfea 52,54-57,64,69,71-72
+backend/services/judge/internal/dispatcher/engine.go
+  s_4a7f3c46d06453::t_dac7f05f4c4bb6 7-8,22-24
+backend/services/judge/internal/dispatcher/runtime.go
+  s_4a7f3c46d06453::t_62d57612a110be 58-59
+backend/services/judge/internal/dispatcher/worker.go
+  s_4a7f3c46d06453::t_0b087a3de90378 79,114-115
+backend/services/judge/internal/dispatcher/worker_test.go
+  s_4a7f3c46d06453::t_ba638f571f0ff4 187
+backend/services/judge/migrations/README.md
+  s_4a7f3c46d06453::t_90c1165df77dfc 4,29,87
+backend/services/submission/README.md
+  s_4a7f3c46d06453::t_2c56eaf24a1e50 3
+backend/services/submission/internal/adapters/judgecompletion/runtime.go
+  s_4a7f3c46d06453::t_fb3faed8179143 2
+deploy/compose/README.judge-control.md
+  s_4a7f3c46d06453::t_1171d98f2fa008 5-6,10,28-29
+deploy/database/judge-control/README.md
+  s_4a7f3c46d06453::t_e8b7814e41b66c 3-4
+deploy/helm/README.md
+  s_4a7f3c46d06453::t_bb77e5780c39b1 57
+deploy/helm/charts/judge-control/Chart.yaml
+  s_4a7f3c46d06453::t_cbc00c6a4a741d 3
+deploy/helm/charts/judge-control/templates/_helpers.tpl
+  s_4a7f3c46d06453::t_7d735fbfcb3df0 46-48
+deploy/helm/charts/judge-control/templates/configmap.yaml
+  s_4a7f3c46d06453::t_00a99fbbd9e495 18-19
+deploy/helm/charts/judge-control/templates/deployment.yaml
+  s_4a7f3c46d06453::t_7b6e03e85ca198 28
+deploy/helm/charts/judge-control/values.yaml
+  s_4a7f3c46d06453::t_33ffcf15af84c5 31
+deploy/helm/platform-migrations/files/judge-languages.sh
+  s_4a7f3c46d06453::t_0f12dce10adcca 13
+deploy/helm/platform-migrations/values.yaml
+  s_4a7f3c46d06453::t_379925dc84a0b6 20
+deploy/helm/platform-postgres-ha/README.md
+  s_4a7f3c46d06453::t_9b7eb99adc21ac 7
+deploy/helm/platform-service/values-judge.yaml
+  s_4a7f3c46d06453::t_0744bd998195f8 70
+deploy/kustomize/judge-control/README.md
+  s_4a7f3c46d06453::t_8a906a200ab471 18-19
+deploy/single-server/README.md
+  s_4a7f3c46d06453::t_a620ec63df1e6b 6,29,35-36
+deploy/single-server/docker-compose.yml
+  s_4a7f3c46d06453::t_599532dba26042 399
+deploy/single-server/judge-languages.sh
+  s_4a7f3c46d06453::t_f295178a1ab52d 13
+deploy/single-server/setup.sh
+  s_4a7f3c46d06453::t_812d6dd4c84522 4,16-17,87
+docs/PLAN.md
+  s_4a7f3c46d06453::t_32c651eff806d6 5,25,59-60,84-85,87-88,170,178,180-181,184,188-190,274,357,374,378,395-396
+docs/README.md
+  s_4a7f3c46d06453::t_af07463e805fa6 5,72,80-82
+docs/adr/0009-judge0-gvisor-compatibility-gate.md
+  s_4a7f3c46d06453::t_cf1152b7b41325 3
+docs/adr/0060-remove-judge0.md
+  s_4a7f3c46d06453::t_517d34d7520f1e 1-51
+docs/adr/README.md
+  s_4a7f3c46d06453::t_dbf8a1d4f83882 14-15,66
+docs/architecture/ARCHITECTURE_DIAGRAM.md
+  s_4a7f3c46d06453::t_9c722ec336d99d 43,45
+docs/architecture/version-verification.md
+  s_4a7f3c46d06453::t_2081cd0d5f9c5d 22,24-25
+docs/database/README.md
+  s_4a7f3c46d06453::t_9f535447cde362 9-10
+docs/platform-guide.md
+  s_4a7f3c46d06453::t_a4af6f223ffd2c 44,48-50,63-66
+docs/roadmap.md
+  s_4a7f3c46d06453::t_dc0494e114fe5b 28,167,176,207,267,291-294
+docs/runbooks/judge-control-operations.md
+  s_4a7f3c46d06453::t_0265ca93427afa 7,15-16,27,120-123
+frontend/src/content/changelog.ts
+  s_4a7f3c46d06453::t_12bb6e0731c0d1 31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "eb5ae60e1d8186727fbeefee9ff50cc83f8554ad",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
