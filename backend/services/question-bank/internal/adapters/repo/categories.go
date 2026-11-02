@@ -28,8 +28,12 @@ func (repository *Postgres) ListCategories(contextValue context.Context, transac
 	return queryJSON(contextValue, transaction, "list categories", `SELECT qbank.list_categories()`)
 }
 
-func (repository *Postgres) CreateCategory(contextValue context.Context, transaction pgx.Tx, id, name string) (json.RawMessage, error) {
-	return queryJSON(contextValue, transaction, "create category", `SELECT qbank.create_category($1, $2)`, id, name)
+func (repository *Postgres) CreateCategory(contextValue context.Context, transaction pgx.Tx, id, name, parentID string) (json.RawMessage, error) {
+	return queryJSON(contextValue, transaction, "create category", `SELECT qbank.create_category($1, $2, $3)`, id, name, nullableUUID(parentID))
+}
+
+func (repository *Postgres) MoveCategory(contextValue context.Context, transaction pgx.Tx, id, parentID string) (json.RawMessage, error) {
+	return queryJSON(contextValue, transaction, "move category", `SELECT qbank.move_category($1, $2)`, id, nullableUUID(parentID))
 }
 
 func (repository *Postgres) RenameCategory(contextValue context.Context, transaction pgx.Tx, id, name string) (json.RawMessage, error) {

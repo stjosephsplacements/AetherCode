@@ -350,6 +350,7 @@ paths:
               required: [name]
               properties:
                 name: {type: string, minLength: 1, maxLength: 80}
+                parent_id: {$ref: '#/components/schemas/UUID', description: Files it as a sub-category of a top-level category (ADR-0058).}
       responses:
         '200':
           description: The category, and whether this call created it.
@@ -361,13 +362,14 @@ paths:
                 properties:
                   id: {$ref: '#/components/schemas/UUID'}
                   name: {type: string}
+                  parent_id: {type: [string, 'null'], format: uuid}
                   created: {type: boolean}
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
   /v1/categories/{category_id}:
     patch:
-      summary: Rename a category. Administrators only; Uncategorised is built in.
+      summary: Rename a category, move it (parent_id, null for top level), or both. Administrators only; Uncategorised is built in (ADR-0058).
       operationId: renameCategory
       security: [{bearerAuth: []}]
       parameters: [{name: category_id, in: path, required: true, schema: {$ref: '#/components/schemas/UUID'}}]
@@ -377,21 +379,22 @@ paths:
           application/json:
             schema:
               type: object
-              required: [name]
+              minProperties: 1
               properties:
                 name: {type: string, minLength: 1, maxLength: 80}
+                parent_id: {type: [string, 'null'], format: uuid, description: A top-level category with no sub-categories may only move under another top-level one; null moves to top level.}
       responses:
         '200':
-          description: The renamed category.
+          description: The updated category.
           content:
             application/json:
-              schema: {type: object, required: [id, name], properties: {id: {$ref: '#/components/schemas/UUID'}, name: {type: string}}}
+              schema: {type: object, required: [id, name], properties: {id: {$ref: '#/components/schemas/UUID'}, name: {type: string}, parent_id: {type: [string, 'null'], format: uuid}}}
         '400': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
     delete:
-      summary: Delete (or merge) a category. Administrators only. Its questions move to move_to, or to Uncategorised.
+      summary: Delete (or merge) a category. Administrators only. Its questions move to move_to, or to Uncategorised. Refused (409) while it has sub-categories.
       operationId: deleteCategory
       security: [{bearerAuth: []}]
       parameters:
@@ -812,7 +815,9 @@ components:
       properties:
         id: {$ref: '#/components/schemas/UUID'}
         name: {type: string, minLength: 1, maxLength: 80}
-        question_count: {type: integer, minimum: 0, description: Live questions filed under it.}
+        parent_id: {type: [string, 'null'], format: uuid, description: Null for a top-level category.}
+        question_count: {type: integer, minimum: 0, description: Live questions filed directly under it.}
+        question_count_total: {type: integer, minimum: 0, description: Top-level categories only; own questions plus those in its sub-categories.}
     QuestionVersion:
       type: object
       required: [id, question_id, version_number, title, prompt_markdown, difficulty, supported_languages, time_limit_ms, memory_limit_kib, status, created_at, version, tags, sample_test_case_count, hidden_test_case_count, asset_count]

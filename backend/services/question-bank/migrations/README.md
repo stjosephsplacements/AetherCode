@@ -30,3 +30,10 @@ refuses while mcq versions or language-less versions exist.
 history, one run, progress), plus `finish_practice_submission` for the
 Judge completion worker. Rollback drops them and restores the earlier
 functions.
+
+`000025_category_parent` adds one level of sub-categories (ADR-0058):
+`categories.parent_id`, a depth trigger, name uniqueness among siblings,
+`move_category`, a three-argument `create_category`, and a `list_categories`
+that returns `parent_id` and `question_count_total`. `delete_category` is
+refused while a category has sub-categories. Rollback refuses while two
+categories share a name under different parents.

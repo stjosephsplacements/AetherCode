@@ -389,11 +389,15 @@ func (s *panicStore) ListCategories(context.Context, pgx.Tx) (json.RawMessage, e
 	panic("unexpected store call")
 }
 
-func (s *panicStore) CreateCategory(context.Context, pgx.Tx, string, string) (json.RawMessage, error) {
+func (s *panicStore) CreateCategory(context.Context, pgx.Tx, string, string, string) (json.RawMessage, error) {
 	panic("unexpected store call")
 }
 
 func (s *panicStore) RenameCategory(context.Context, pgx.Tx, string, string) (json.RawMessage, error) {
+	panic("unexpected store call")
+}
+
+func (s *panicStore) MoveCategory(context.Context, pgx.Tx, string, string) (json.RawMessage, error) {
 	panic("unexpected store call")
 }
 

@@ -56,8 +56,9 @@ type Store interface {
 	ListModelChecks(context.Context, pgx.Tx, string) (json.RawMessage, error)
 	SetQuestionAudience(context.Context, pgx.Tx, string, string) error
 	ListCategories(context.Context, pgx.Tx) (json.RawMessage, error)
-	CreateCategory(context.Context, pgx.Tx, string, string) (json.RawMessage, error)
+	CreateCategory(context.Context, pgx.Tx, string, string, string) (json.RawMessage, error)
 	RenameCategory(context.Context, pgx.Tx, string, string) (json.RawMessage, error)
+	MoveCategory(context.Context, pgx.Tx, string, string) (json.RawMessage, error)
 	DeleteCategory(context.Context, pgx.Tx, string, string) (json.RawMessage, error)
 	SetQuestionCategory(context.Context, pgx.Tx, string, string) (json.RawMessage, error)
 	SetQuestionTags(context.Context, pgx.Tx, string, []Tag) (json.RawMessage, error)
