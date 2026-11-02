@@ -1,0 +1,19 @@
+frontend/src/app/staff/placements/placements-filter.tsx
+  s_4a7f3c46d06453::t_2d60e772d9fd13 8,84-87,89-90,95-97,99,103-144,146-158,160-179,181-213,215-227,229-272,274-276,278-291,293-318,323-338
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "183426ffd826089105282d394d257d54cac5a512",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
