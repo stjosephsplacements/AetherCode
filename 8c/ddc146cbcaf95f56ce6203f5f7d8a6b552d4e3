@@ -1,0 +1,23 @@
+frontend/src/components/exam/exam-screen.tsx
+  s_4a7f3c46d06453::t_4698140198f7b1 4,265
+frontend/src/components/practice/practice-workspace.tsx
+  s_4a7f3c46d06453::t_e1eaf9c91a308b 16,329
+frontend/src/components/practice/workspace-tools.tsx
+  s_4a7f3c46d06453::t_41b0401afa421b 1-258
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8cddc146cbcaf95f56ce6203f5f7d8a6b552d4e3",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
