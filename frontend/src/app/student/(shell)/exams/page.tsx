@@ -1,146 +1,105 @@
-import { ArrowRight, Clock3 } from "lucide-react";
+import { Clock3 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { EmptyState, PageHeader } from "@/components/staff/page-header";
 import { Button } from "@/components/ui/button";
-import { Badge, Panel } from "@/components/ui/card";
-import type { Attempt, Page, PracticeProgress, ProfileLink } from "@/lib/api-types";
+import { Badge } from "@/components/ui/card";
+import type { Attempt, Page } from "@/lib/api-types";
 import { groupByPhase, listAssignments } from "@/lib/server/assignments";
-import { communityList } from "@/lib/server/community";
 import { gateway } from "@/lib/server/gateway";
 import { requireViewer } from "@/lib/server/session";
-import { formatDateTime, formatDuration, formatWindow } from "@/lib/utils";
-import { OverviewMetrics } from "../overview-metrics";
+import { cn, formatDateTime, formatDuration, formatWindow } from "@/lib/utils";
+import { Countdown } from "../countdown";
 
 export const metadata: Metadata = { title: "My exams" };
 
-export default async function MyExams() {
+const TABS = [
+  { key: "live", label: "Open now" },
+  { key: "upcoming", label: "Upcoming" },
+  { key: "past", label: "Past" },
+] as const;
+
+export default async function MyExams({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const viewer = await requireViewer();
-  const [assignments, attempts, progress, links] = viewer.tenantId
+  const [assignments, attempts] = viewer.tenantId
     ? await Promise.all([
         listAssignments(viewer.tenantId),
-        // Results links are a convenience: the dashboard still loads without them.
         gateway<Page<Attempt>>(`/submission/v1/tenants/${viewer.tenantId}/attempts?limit=100`).then((page) => page.items, () => []),
-        gateway<PracticeProgress>(`/question-bank/v1/tenants/${viewer.tenantId}/practice/progress`).catch(() => null),
-        communityList<ProfileLink>(viewer.tenantId, "profile-links").catch(() => []),
       ])
-    : [[], [], null, []];
-  const { live, upcoming, past } = groupByPhase(assignments);
-  // The newest attempt of each assignment; staff extra time can keep one open past the window.
+    : [[], []];
+  const phases = groupByPhase(assignments);
+  const requested = (await searchParams).tab;
+  const tab = TABS.find((entry) => entry.key === requested)?.key ?? (phases.live.length ? "live" : phases.upcoming.length ? "upcoming" : phases.past.length ? "past" : "live");
   const attemptOf = new Map<string, Attempt>();
   for (const attempt of [...attempts].sort((a, b) => a.attempt_number - b.attempt_number)) attemptOf.set(attempt.candidate_assignment_id, attempt);
-  const firstName = viewer.displayName.split(" ")[0];
+  const rows = phases[tab];
 
   return (
-    <div className="animate-enter space-y-10">
-      <div>
-        <div className="flex items-center gap-2 mb-2">
-          <span className="eyebrow text-brand">DEVELOPER WORKSPACE</span>
-        </div>
-        <h1 className="display text-[2.25rem] text-ink sm:text-[2.6rem]">{firstName ? `Welcome back, ${firstName}` : "Welcome back"}</h1>
-        <p className="mt-2 text-[15px] text-ink-muted">
-          {live.length > 0
-            ? live.length === 1
-              ? "You have an exam open right now."
-              : `You have ${live.length} exams open right now.`
-            : upcoming[0]
-              ? `Your next exam opens ${formatDateTime(upcoming[0].available_from)}.`
-              : "Ready to practice or take assigned assessments."}
-        </p>
-      </div>
+    <div className="animate-enter">
+      <PageHeader title="My exams" description="Everything assigned to you, with its window and time limit." />
+      <nav aria-label="Exam groups" className="mb-5 inline-flex max-w-full gap-1 overflow-x-auto rounded-[var(--radius-control)] border border-line bg-sidebar p-1">
+        {TABS.map((entry) => (
+          <Link
+            key={entry.key}
+            href={`/student/exams?tab=${entry.key}`}
+            scroll={false}
+            aria-current={entry.key === tab ? "page" : undefined}
+            className={cn(
+              "inline-flex shrink-0 items-center gap-2 rounded-[calc(var(--radius-control)-2px)] px-3.5 py-1.5 text-[13px] font-medium outline-none transition-colors focus-visible:ring-4 focus-visible:ring-brand/15",
+              entry.key === tab ? "bg-surface text-ink shadow-[var(--shadow-hairline)]" : "text-ink-muted hover:text-ink",
+            )}
+          >
+            {entry.label}
+            <span className="font-mono text-[11px] tabular-nums text-ink-subtle">{phases[entry.key].length}</span>
+          </Link>
+        ))}
+      </nav>
 
-      <OverviewMetrics progress={progress} examCount={assignments.length} linkedCount={links.length} />
-
-      {/* Live now */}
-      {live.length > 0 && (
-        <section aria-label="Open now" className="space-y-4">
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-brand"></span>
-            </span>
-            <h2 className="eyebrow text-brand">LIVE ASSESSMENTS</h2>
-          </div>
-          <div className="space-y-3">
-            {live.map((assignment) => {
-              const attempt = attemptOf.get(assignment.id);
-              const opensNow = attempt?.lifecycle_state === "active";
-              return (
-                <Panel key={assignment.id} className="relative overflow-hidden border-brand/30 bg-surface/90 p-5 shadow-sm transition-all hover:border-brand">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <Badge tone="brand">Open now</Badge>
-                        <span className="text-xs text-ink-muted">{formatWindow(assignment.available_from, assignment.available_until)}</span>
-                      </div>
-                      <h3 className="mt-2 text-lg font-semibold text-ink">{assignment.title}</h3>
-                      <p className="mt-1 text-sm text-ink-muted flex items-center gap-1.5">
-                        <Clock3 className="size-3.5" /> {formatDuration(assignment.duration_seconds)} limit
-                      </p>
-                    </div>
-                    <Button asChild size="lg" className="shrink-0 font-medium">
-                      <Link href={`/student/exams/${assignment.id}`}>
-                        {opensNow ? "Resume exam" : "Start exam"} <ArrowRight className="size-4 ml-1" />
-                      </Link>
-                    </Button>
-                  </div>
-                </Panel>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* Upcoming exams */}
-      {upcoming.length > 0 && (
-        <section aria-label="Upcoming" className="space-y-4">
-          <h2 className="eyebrow text-ink-muted">SCHEDULED ASSESSMENTS</h2>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {upcoming.map((assignment) => (
-              <Panel key={assignment.id} className="p-5 border-line bg-surface/70">
-                <span className="text-xs text-ink-subtle">{formatDateTime(assignment.available_from)}</span>
-                <h3 className="mt-1 text-base font-medium text-ink">{assignment.title}</h3>
-                <p className="mt-2 text-xs text-ink-muted">Duration: {formatDuration(assignment.duration_seconds)}</p>
-              </Panel>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Past attempts */}
-      {past.length > 0 && (
-        <section aria-label="Past" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="eyebrow text-ink-muted">COMPLETED EXAMS</h2>
-            <Link href="/student/progress" className="text-xs text-brand hover:underline font-medium">
-              View all results →
-            </Link>
-          </div>
-          <Panel className="divide-y divide-line overflow-hidden">
-            {past.slice(0, 5).map((assignment) => {
-              const attempt = attemptOf.get(assignment.id);
-              return (
-                <div key={assignment.id} className="flex items-center justify-between p-4 transition-colors hover:bg-hover/50">
-                  <div>
-                    <p className="font-medium text-sm text-ink">{assignment.title}</p>
-                    <p className="text-xs text-ink-muted">Finished {formatDateTime(assignment.available_until)}</p>
-                  </div>
-                  {attempt && (attempt.lifecycle_state === "created" || attempt.lifecycle_state === "active") ? (
-                    <Link href={`/student/attempts/${attempt.id}`} className="text-xs font-medium text-brand hover:underline">
-                      Resume attempt →
-                    </Link>
-                  ) : attempt ? (
-                    <Link href={`/student/results/${attempt.id}`} className="text-xs font-medium text-brand hover:underline">
-                      Review attempt →
-                    </Link>
-                  ) : (
-                    // Attempts load best-effort, so a missing one is not proof the exam was missed.
-                    <span className="text-xs text-ink-subtle">{assignment.lifecycle_state === "expired" ? "Missed" : "Ended"}</span>
-                  )}
+      {rows.length === 0 ? (
+        <EmptyState>{tab === "live" ? "Nothing is open right now." : tab === "upcoming" ? "No upcoming exams." : "No past exams yet."}</EmptyState>
+      ) : (
+        <ul className="grid gap-3 md:grid-cols-2">
+          {rows.map((assignment) => {
+            const attempt = attemptOf.get(assignment.id);
+            const unfinished = attempt && (attempt.lifecycle_state === "created" || attempt.lifecycle_state === "active");
+            return (
+              <li key={assignment.id} className={cn("flex flex-col rounded-[var(--radius-surface)] border bg-surface p-5", tab === "live" ? "border-brand/40" : "border-line")}>
+                <div className="flex items-center justify-between gap-2">
+                  {tab === "live" ? <Badge tone="brand">Open now</Badge> : tab === "upcoming" ? <Badge tone="neutral">Upcoming</Badge> : <Badge tone="neutral">{assignment.lifecycle_state === "expired" ? "Missed" : "Ended"}</Badge>}
+                  <span className="inline-flex items-center gap-1.5 font-mono text-xs text-ink-subtle">
+                    <Clock3 className="size-3.5" />
+                    {formatDuration(assignment.duration_seconds)}
+                  </span>
                 </div>
-              );
-            })}
-          </Panel>
-        </section>
+                <h2 className="mt-3 line-clamp-2 text-[16px] font-semibold tracking-[-0.01em] text-ink">{assignment.title}</h2>
+                <p className="mt-1 text-[12.5px] text-ink-muted">{tab === "past" ? `Finished ${formatDateTime(assignment.available_until)}` : formatWindow(assignment.available_from, assignment.available_until)}</p>
+                <div className="mt-auto flex items-end justify-between gap-3 pt-5">
+                  {tab !== "past" ? (
+                    <div>
+                      <p className="text-[11px] text-ink-subtle">{tab === "live" ? "Closes in" : "Opens in"}</p>
+                      <Countdown to={tab === "live" ? assignment.available_until : assignment.available_from} className="font-mono text-[18px] font-semibold tabular-nums text-ink" />
+                    </div>
+                  ) : (
+                    <span />
+                  )}
+                  {tab === "live" ? (
+                    <Button asChild>
+                      <Link href={`/student/exams/${assignment.id}`}>{attempt?.lifecycle_state === "active" ? "Resume exam" : "Start exam"}</Link>
+                    </Button>
+                  ) : tab === "upcoming" ? (
+                    <Button asChild variant="secondary" size="sm">
+                      <Link href={`/student/exams/${assignment.id}`}>Details</Link>
+                    </Button>
+                  ) : attempt ? (
+                    <Button asChild variant="secondary" size="sm">
+                      <Link href={unfinished ? `/student/attempts/${attempt.id}` : `/student/results/${attempt.id}`}>{unfinished ? "Resume attempt" : "View result"}</Link>
+                    </Button>
+                  ) : null}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       )}
     </div>
   );

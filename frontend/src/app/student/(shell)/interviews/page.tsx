@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { RoundsEditor } from "@/components/community/rounds-editor";
 import { ActionForm, Field, Select, TextArea, TextInput } from "@/components/staff/form";
-import { EmptyState, Section } from "@/components/staff/page-header";
+import { EmptyState, Section, PageHeader } from "@/components/staff/page-header";
 import { Panel } from "@/components/ui/card";
 import type { InterviewExperience } from "@/lib/api-types";
 import { communityList } from "@/lib/server/community";
@@ -23,8 +23,7 @@ export default async function InterviewsPage({ searchParams }: { searchParams: P
   const waiting = mine.filter((experience) => experience.status !== "approved");
   return (
     <div className="animate-enter">
-      <h1 className="display text-[2.25rem] text-ink sm:text-[2.6rem]">Interview experiences</h1>
-      <p className="mt-2 max-w-[60ch] text-[15px] text-ink-muted">What seniors in your college were asked, round by round. Posts are anonymous and approved by the placement team first.</p>
+      <PageHeader title={"Interview experiences"} description={"What seniors in your college were asked, round by round. Posts are anonymous and approved by the placement team first."} />
 
       <form className="mt-6 flex max-w-[420px] gap-2" role="search">
         <TextInput name="company" defaultValue={company} placeholder="Filter by company" aria-label="Filter by company" />

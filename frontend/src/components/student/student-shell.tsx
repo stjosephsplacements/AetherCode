@@ -44,7 +44,6 @@ const NAV: Entry[] = [
   {
     label: "Me",
     items: [
-      { href: "/student/progress", label: "My progress", icon: "progress" },
       { href: "/student/tasks", label: "My tasks", icon: "tasks" },
       { href: "/student/profile", label: "My profile", icon: "profile" },
       { href: "/student/resume", label: "My resume", icon: "resume" },
