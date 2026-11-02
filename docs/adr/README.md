@@ -60,4 +60,6 @@ Each decision is a numbered file; new ones start from [the template](0000-templa
 | [0054](0054-editing-what-staff-create.md) | Staff can edit what they create, until it is published |
 | [0055](0055-per-person-permissions-and-platform-scope.md) | Per-person permissions, and one platform-wide view for the root admin (accepted) |
 | [0056](0056-platform-analytics-from-prometheus.md) | Platform analytics reads Prometheus through the web UI, for platform administrators only |
+| [0057](0057-student-directory.md) | A student directory for the staff console, with account summaries and bulk account actions (accepted) |
+| [0058](0058-sub-categories-and-choice-explanations.md) | Sub-categories, and an explanation for each multiple-choice option (accepted) |
 | [0059](0059-codepro-parity.md) | Closing the remaining gaps with the reference product: branding, failed work, profile sync (proposed) |
