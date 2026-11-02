@@ -1,0 +1,27 @@
+frontend/src/app/staff/accounts/page.tsx
+  s_4a7f3c46d06453::t_162fd94be3a2da 101,112
+frontend/src/app/staff/students/[studentId]/page.tsx
+  s_4a7f3c46d06453::t_87a7bd04c7ec71 133
+frontend/src/app/staff/students/actions.ts
+  s_4a7f3c46d06453::t_088e92692b0c60 87,105
+frontend/src/app/staff/students/panels.tsx
+  s_4a7f3c46d06453::t_24f257889499e3 5,223-227,229-247,249,251,256-261,265-283
+frontend/src/app/staff/students/roster.tsx
+  s_4a7f3c46d06453::t_b31540d74f81fb 245
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "172372b83b08467de714b3eb77b60ad1126276f3",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
