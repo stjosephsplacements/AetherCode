@@ -1,0 +1,19 @@
+frontend/src/app/staff/students/roster.tsx
+  s_4a7f3c46d06453::t_2640e1e73cb217 11,214,338,350,353,394
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b3a468b74b96487160c5db672dce4d75810852b8",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
