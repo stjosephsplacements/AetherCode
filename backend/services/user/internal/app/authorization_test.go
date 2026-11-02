@@ -770,3 +770,35 @@ func TestGlobalRoleAssignmentListRequiresPlatformScope(t *testing.T) {
 		})
 	}
 }
+
+func TestPermissionEditorWriteIsLimitedToAdministrators(t *testing.T) {
+	keyring, err := centralauthz.ParseKeyring(`[{"audience":"aether_users","key_id":"` + testKeyID + `","secret_base64":"` + base64.StdEncoding.EncodeToString([]byte(strings.Repeat("u", 32))) + `"}]`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name          string
+		role          centralauthz.Role
+		scope, tenant string
+		allowed       bool
+	}{
+		{name: "root", role: "super_admin", scope: "platform", allowed: true},
+		{name: "college admin", role: "college_admin", scope: "college", tenant: testTenant, allowed: true},
+		{name: "department user", role: "department_user", scope: "department", tenant: testTenant, allowed: false},
+		{name: "platform placement user", role: "placement_user", scope: "platform", allowed: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			service, err := NewService(fakeStore{snapshot: Snapshot{Revision: 1, Assignments: []Assignment{{Role: tc.role, ScopeKind: tc.scope, TenantID: tc.tenant, ScopeID: tc.tenant}}, Grants: []Grant{{ScopeKind: "college", TenantID: tc.tenant, Permission: "user.permission_grants.write"}}, PolicyRules: []centralauthz.PolicyRule{{PType: "p", Values: []string{string(tc.role), tc.scope, "/*", "*"}}}}}, keyring, nil, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			decision, err := service.Authorize(context.Background(), Request{PrincipalID: testPrincipal, TenantID: tc.tenant, RequestID: testRequestID, Action: "write", TargetService: "user", ResourceType: "permission_grants", ResourceID: testPrincipal})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if decision.Allowed != tc.allowed {
+				t.Fatalf("allowed = %v, want %v", decision.Allowed, tc.allowed)
+			}
+		})
+	}
+}

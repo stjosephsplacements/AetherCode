@@ -35,9 +35,11 @@ authorizer expands it again when it evaluates, so a hand-edited row cannot creat
 without read.
 
 **4. A ceiling on who can grant.** A person can grant only what they hold themselves,
-and only inside their own scope. A college admin grants within their college (and the
-colleges mapped to them); only a root administrator grants platform scope. Every grant
-and revoke is written to the staff audit log (ADR-0043).
+and only inside their own scope. A college admin grants within their college; only a root
+administrator grants platform scope or platform-only permissions. Permission changes
+are restricted to those administrator roles until a per-permission ceiling is enforced
+for delegated administrators. Every grant and revoke is written to the staff audit log
+(ADR-0043).
 
 **5. The root administrator has everything.** `super_admin` already holds
 `platform /* *`. That stands: read, write and delete on every resource, in every college.

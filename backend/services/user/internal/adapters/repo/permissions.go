@@ -46,11 +46,7 @@ func scopeOf(tenantID string) string {
 func (repository *Postgres) ReplacePermissionGrants(contextValue context.Context, transaction pgx.Tx, command app.SetPermissionGrants) ([]string, error) {
 	var staff bool
 	if err := transaction.QueryRow(contextValue, `
-		SELECT EXISTS (
-			SELECT 1 FROM users.active_role_assignments
-			WHERE principal_id = $1 AND role_name <> 'student'
-			  AND (scope_kind = 'platform' OR tenant_id = NULLIF($2, '')::uuid OR ($2 = '' AND tenant_id IS NOT NULL))
-		)
+		SELECT users.permission_target_is_staff($1::uuid, NULLIF($2, '')::uuid)
 	`, command.PrincipalID, command.TenantID).Scan(&staff); err != nil {
 		return nil, fmt.Errorf("check staff role: %w", err)
 	}

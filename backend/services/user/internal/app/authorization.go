@@ -158,7 +158,7 @@ var routes = map[string]route{
 	},
 	"user": {
 		Audience: "aether_users", ActionPrefix: "user", ResourcePrefix: "users",
-		OptionalTenantResources: resourceSet("role_assignments", "placement_department_memberships"),
+		OptionalTenantResources: resourceSet("role_assignments", "placement_department_memberships", "permission_grants"),
 		Resources:               resourceSet("staff_audit", "permission_grants", "accounts", "profiles", "students", "student_department_memberships", "current_student_affiliations", "student_batch_affiliations", "mentor_batch_assignments", "role_assignments", "placement_department_memberships"),
 	},
 	"question-bank": {
@@ -258,6 +258,23 @@ func (service *Service) Authorize(contextValue context.Context, request Request)
 	decision := Decision{DecisionID: decisionID, AuthzRevision: snapshot.Revision}
 	if snapshot.Revision <= 0 || len(snapshot.Assignments) == 0 || len(snapshot.PolicyRules) == 0 {
 		return decision, nil
+	}
+	// Permission changes can confer access. Limit them to root and the
+	// target college's administrators; broader delegated administration
+	// requires a per-permission ceiling before it can be enabled safely.
+	if validated.TargetService == "user" && validated.ResourceType == "permission_grants" && validated.Action != "read" {
+		permitted := false
+		for _, assignment := range snapshot.Assignments {
+			if (assignment.Role == centralauthz.RoleSuperAdmin && assignment.ScopeKind == "platform") ||
+				(assignment.Role == centralauthz.RoleCollegeAdmin && assignment.ScopeKind == "college" && validated.TenantID != "" && assignment.TenantID == validated.TenantID) {
+				permitted = true
+				break
+			}
+		}
+		if !permitted {
+			service.auditStaffWrite(contextValue, validated, snapshot.Assignments, false)
+			return decision, nil
+		}
 	}
 
 	engine, err := centralauthz.NewEngineFromRules(snapshot.PolicyRules)
