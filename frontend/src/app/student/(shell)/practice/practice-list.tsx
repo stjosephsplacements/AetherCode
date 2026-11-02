@@ -1,5 +1,6 @@
 "use client";
 
+import { Select as FormSelect } from "@/components/staff/form";
 import { CircleCheck, CircleDashed, Search } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -94,19 +95,12 @@ export function PracticeList({ problems }: { problems: PracticeProblem[] }) {
 
 function Select({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: [string, string][] }) {
   return (
-    <label>
-      <span className="sr-only">{label}</span>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-9 rounded-[var(--radius-control)] border border-line bg-surface px-3 text-sm text-ink outline-none focus:border-brand focus:ring-4 focus:ring-brand/15"
-      >
-        {options.map(([optionValue, optionLabel]) => (
-          <option key={optionValue} value={optionValue}>
-            {optionLabel}
-          </option>
-        ))}
-      </select>
-    </label>
+    <FormSelect aria-label={label} value={value} onValueChange={onChange} size="sm" className="w-44">
+      {options.map(([optionValue, optionLabel]) => (
+        <option key={optionValue} value={optionValue}>
+          {optionLabel}
+        </option>
+      ))}
+    </FormSelect>
   );
 }

@@ -2,7 +2,7 @@ import { Check, Circle, Trash2 } from "lucide-react";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { ActionForm, Field, TextInput } from "@/components/staff/form";
-import { EmptyState } from "@/components/staff/page-header";
+import { EmptyState, PageHeader } from "@/components/staff/page-header";
 import { Panel } from "@/components/ui/card";
 import type { PersonalTask } from "@/lib/api-types";
 import { communityList } from "@/lib/server/community";
@@ -18,8 +18,7 @@ export default async function TasksPage() {
   const tasks = await communityList<PersonalTask>(viewer.tenantId, "tasks");
   return (
     <div className="animate-enter">
-      <h1 className="display text-[2.25rem] text-ink sm:text-[2.6rem]">My tasks</h1>
-      <p className="mt-2 max-w-[60ch] text-[15px] text-ink-muted">Your own to-do list: mock tests, applications, revision. Only you can see it.</p>
+      <PageHeader title={"My tasks"} description={"Your own to-do list: mock tests, applications, revision. Only you can see it."} />
       <Panel className="mt-6 p-5">
         <ActionForm action={addTask} submitLabel="Add task">
           <div className="grid gap-4 sm:grid-cols-[1fr_180px]">

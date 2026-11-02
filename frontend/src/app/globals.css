@@ -515,3 +515,100 @@ html:has(.ascii)::-webkit-scrollbar {
   from { width: 0; }
   to { width: 100%; }
 }
+
+/* The student app wears the landing page's terminal skin, kept calm for reading:
+   square corners, the Departure Mono accent face, Chakra Petch headings and
+   hard-shadow primary buttons, with no ASCII cursor and no animated field. */
+@layer components {
+  .skin {
+    --font-mono: "Departure Mono", ui-monospace, monospace;
+  }
+  .skin,
+  .skin * {
+    border-radius: 0 !important;
+  }
+  .skin h1,
+  .skin h2 {
+    font-family: var(--font-chakra), var(--font-sans);
+    letter-spacing: -0.02em;
+  }
+  .skin h1 {
+    font-weight: 600;
+  }
+  .skin [data-variant="primary"] {
+    box-shadow: 3px 3px 0 var(--ink) !important;
+    transition: transform 120ms ease, box-shadow 120ms ease, background-color 200ms;
+  }
+  .skin [data-variant="primary"]:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: 4px 4px 0 var(--ink) !important;
+  }
+  .skin [data-variant="primary"]:active {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0 var(--ink) !important;
+  }
+  .skin [data-variant="secondary"] {
+    border-color: var(--ink);
+    box-shadow: 3px 3px 0 var(--ink) !important;
+    transition: transform 120ms ease, box-shadow 120ms ease, background-color 200ms;
+  }
+  .skin [data-variant="secondary"]:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: 4px 4px 0 var(--ink) !important;
+  }
+  /* Page titles are as large as on the public pages. */
+  .skin header > div > h1 {
+    font-size: clamp(1.9rem, 4.2vw, 2.7rem) !important;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+  }
+  .skin header > div > h1 + p {
+    font-size: 15px;
+    max-width: 62ch;
+  }
+  /* Boxes are drawn in ink with a hard shadow, as on the help page; nested ones stay flat. */
+  .skin main .bg-surface.border-line:not(.bg-surface .bg-surface, [class*="border-dashed"]) {
+    border-color: var(--ink);
+    box-shadow: 3px 3px 0 var(--ink);
+  }
+  .skin main .divide-line > * + * {
+    border-color: var(--line);
+  }
+  /* Small buttons stay quiet: a flat edge, no lift. */
+  .skin [data-variant][data-size="sm"] {
+    box-shadow: 2px 2px 0 var(--ink) !important;
+  }
+}
+
+/* Scrollbars in the app: square, thin, hairline track and an ink thumb that turns orange on hover.
+   The public pages keep theirs hidden (html:has(.ascii) above). */
+html:not(:has(.ascii)),
+html:not(:has(.ascii)) * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ink-subtle) transparent;
+}
+html:not(:has(.ascii))::-webkit-scrollbar,
+html:not(:has(.ascii)) *::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+  background: transparent;
+}
+html:not(:has(.ascii))::-webkit-scrollbar-track,
+html:not(:has(.ascii)) *::-webkit-scrollbar-track {
+  background: transparent;
+  border-left: 1px solid var(--line);
+}
+html:not(:has(.ascii))::-webkit-scrollbar-thumb,
+html:not(:has(.ascii)) *::-webkit-scrollbar-thumb {
+  background: var(--ink-subtle);
+  border: 2px solid var(--canvas);
+  border-radius: 0;
+}
+html:not(:has(.ascii))::-webkit-scrollbar-thumb:hover,
+html:not(:has(.ascii)) *::-webkit-scrollbar-thumb:hover {
+  background: var(--brand);
+}
+html:not(:has(.ascii))::-webkit-scrollbar-corner,
+html:not(:has(.ascii)) *::-webkit-scrollbar-corner {
+  background: transparent;
+}

@@ -1,102 +1,127 @@
+import { Award, Flame, Percent, Trophy } from "lucide-react";
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Panel } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { requireViewer } from "@/lib/server/session";
+import { redirect } from "next/navigation";
+import type { ReactNode } from "react";
+import { EmptyState, PageHeader } from "@/components/staff/page-header";
+import type { Attempt, AttemptResult, CandidateAssignment, Page, PracticeProgress } from "@/lib/api-types";
+import { listAssignments } from "@/lib/server/assignments";
 import { gateway } from "@/lib/server/gateway";
-import type { PracticeProgress } from "@/lib/api-types";
-import { listMyAttempts } from "@/lib/server/attempts";
-import { Award, Code, TrendingUp } from "lucide-react";
+import { requireViewer } from "@/lib/server/session";
+import { currentStreak, weekGrid } from "@/lib/streak";
+import { TIME_ZONE, cn, formatDateTime } from "@/lib/utils";
+import { SolvedBars } from "../progress/solved-bars";
 
-export const metadata: Metadata = { title: "Performance Analysis" };
+export const metadata: Metadata = { title: "Performance" };
+
+const DAY = new Intl.DateTimeFormat("en-CA", { timeZone: TIME_ZONE });
+
+function Tile({ icon, label, value, note }: { icon: ReactNode; label: string; value: string; note?: string }) {
+  return (
+    <div className="rounded-[var(--radius-surface)] border border-line bg-surface p-5">
+      <div className="flex items-center justify-between">
+        <span className="font-[family-name:var(--font-eyebrow)] text-[10.5px] uppercase tracking-[0.14em] text-ink-subtle">{label}</span>
+        <span aria-hidden className="grid size-8 place-items-center rounded-[var(--radius-control)] bg-hover text-ink-muted">
+          {icon}
+        </span>
+      </div>
+      <p className="mt-3 font-mono text-[28px] font-semibold leading-none tracking-tight text-ink">{value}</p>
+      {note && <p className="mt-1.5 text-[12.5px] text-ink-muted">{note}</p>}
+    </div>
+  );
+}
 
 export default async function PerformancePage() {
   const viewer = await requireViewer();
   if (!viewer.tenantId) redirect("/student");
-
-  const [attempts, practice] = await Promise.all([
-    listMyAttempts(viewer.tenantId).catch(() => []),
+  const tenantPath = `/submission/v1/tenants/${viewer.tenantId}`;
+  const [practice, attempts, assignments] = await Promise.all([
     gateway<PracticeProgress>(`/question-bank/v1/tenants/${viewer.tenantId}/practice/progress`).catch(() => null),
+    gateway<Page<Attempt>>(`${tenantPath}/attempts?limit=100`).then((page) => page.items, () => [] as Attempt[]),
+    listAssignments(viewer.tenantId).catch(() => [] as CandidateAssignment[]),
   ]);
-
-  const completed = attempts.filter((a) => ["submitted", "grading", "graded"].includes(a.lifecycle_state));
+  const titles = new Map(assignments.map((assignment) => [assignment.id, assignment.title]));
+  const finished = attempts
+    .filter((attempt) => ["submitted", "grading", "graded", "expired"].includes(attempt.lifecycle_state))
+    .sort((a, b) => (b.submitted_at ?? b.submission_deadline).localeCompare(a.submitted_at ?? a.submission_deadline))
+    .slice(0, 20);
+  const results = await Promise.all(
+    finished.map(async (attempt) => ({ attempt, result: await gateway<AttemptResult>(`${tenantPath}/attempts/${attempt.id}/result`).catch(() => null) })),
+  );
+  const released = results.filter((entry) => entry.result?.released && entry.result.maximum_score > 0);
+  const average = released.length ? released.reduce((sum, entry) => sum + (entry.result!.released ? entry.result!.score / entry.result!.maximum_score : 0), 0) / released.length : null;
+  const today = DAY.format(new Date());
+  const streak = practice ? currentStreak(practice.active_days, today) : 0;
+  const grid = practice ? weekGrid(practice.active_days, today, 26) : [];
+  const recentDays = grid.flat().filter((cell) => cell.active).length;
 
   return (
-    <div className="animate-enter space-y-8">
-      <div>
-        <span className="eyebrow text-brand">ANALYTICS & METRICS</span>
-        <h1 className="display mt-1 text-[2.25rem] text-ink sm:text-[2.6rem]">Performance Analysis</h1>
-        <p className="mt-2 text-[15px] text-ink-muted">
-          Continuous tracking of your coding competencies, test consistency, and skill milestones.
-        </p>
-      </div>
+    <div className="animate-enter">
+      <PageHeader title="Performance" description="Your exam scores and practice, with how consistent you have been." />
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Panel className="p-5 border-line bg-surface/70">
-          <div className="flex items-center gap-3">
-            <div className="grid size-9 place-items-center rounded-lg bg-brand/10 text-brand">
-              <Award className="size-5" />
-            </div>
-            <div>
-              <p className="text-xs text-ink-muted">Assessments Completed</p>
-              <p className="font-mono text-2xl font-bold text-ink">{completed.length}</p>
+      <section aria-label="Summary" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Tile icon={<Award className="size-4" />} label="Exams taken" value={String(finished.length)} note={finished.length === 1 ? "exam finished" : "exams finished"} />
+        <Tile icon={<Percent className="size-4" />} label="Average score" value={average === null ? "-" : `${Math.round(average * 100)}%`} note={average === null ? "once results are released" : `over ${released.length} released`} />
+        <Tile
+          icon={<Trophy className="size-4" />}
+          label="Practice accepted"
+          value={practice && practice.submissions > 0 ? `${Math.round((practice.accepted / practice.submissions) * 100)}%` : "-"}
+          note={practice ? `${practice.accepted} of ${practice.submissions} submissions` : undefined}
+        />
+        <Tile icon={<Flame className="size-4" />} label="Day streak" value={String(streak)} note={streak > 0 ? "days in a row" : "practice today to start"} />
+      </section>
+
+      {practice && (
+        <section aria-label="Practice" className="mt-8">
+          <h2 className="mb-2.5 font-mono text-[13px] text-ink-muted">[ practice ]</h2>
+          {practice.available > 0 ? <SolvedBars progress={practice} /> : <EmptyState>No practice problems yet. Your faculty adds them.</EmptyState>}
+          <div className="mt-3 rounded-[var(--radius-surface)] border border-line bg-surface p-5">
+            <p className="text-[13px] text-ink-muted">
+              Practised on <span className="font-medium text-ink">{recentDays}</span> day{recentDays === 1 ? "" : "s"} in the last six months
+            </p>
+            <div className="mt-3 flex gap-[3px] overflow-x-auto" role="img" aria-label={`${recentDays} active days in the last six months`}>
+              {grid.map((column) => (
+                <div key={column[0]!.day} className="flex flex-none flex-col gap-[3px]">
+                  {column.map((cell) => (
+                    <span key={cell.day} title={cell.day} className={cn("size-3 rounded-[3px]", cell.future ? "bg-transparent" : cell.active ? "bg-brand" : "bg-hover")} />
+                  ))}
+                </div>
+              ))}
             </div>
           </div>
-        </Panel>
+        </section>
+      )}
 
-        <Panel className="p-5 border-line bg-surface/70">
-          <div className="flex items-center gap-3">
-            <div className="grid size-9 place-items-center rounded-lg bg-brand-soft text-brand-soft-ink">
-              <Code className="size-5" />
-            </div>
-            <div>
-              <p className="text-xs text-ink-muted">Problems Solved</p>
-              <p className="font-mono text-2xl font-bold text-ink">{practice?.solved ?? 0}</p>
-            </div>
-          </div>
-        </Panel>
-
-        <Panel className="p-5 border-line bg-surface/70">
-          <div className="flex items-center gap-3">
-            <div className="grid size-9 place-items-center rounded-lg bg-success-soft text-success">
-              <TrendingUp className="size-5" />
-            </div>
-            <div>
-              <p className="text-xs text-ink-muted">Practice Completion</p>
-              <p className="font-mono text-2xl font-bold text-ink">
-                {practice && practice.available > 0 ? `${Math.round(((practice.solved || 0) / practice.available) * 100)}%` : "0%"}
-              </p>
-            </div>
-          </div>
-        </Panel>
-      </div>
-
-      <Panel className="p-6 border-line bg-surface/80">
-        <h2 className="text-base font-semibold text-ink">Practice Breakdown</h2>
-        <p className="text-xs text-ink-muted mt-1">Detailed evaluation across core programming paradigms.</p>
-        
-        <div className="mt-6 space-y-4">
-          <div>
-            <div className="flex justify-between text-xs mb-1">
-              <span className="font-medium text-ink">Problem Solving & Algorithms</span>
-              <span className="font-mono text-ink-muted">{practice?.solved ?? 0} solved</span>
-            </div>
-            <div className="h-2 w-full rounded-full bg-hover overflow-hidden">
-              <div 
-                className="h-full bg-brand transition-all duration-500" 
-                style={{ width: `${Math.min(100, Math.max(5, ((practice?.solved || 0) / (practice?.available || 1)) * 100))}%` }} 
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-8 flex justify-end">
-          <Button asChild variant="secondary" size="sm">
-            <Link href="/student/progress">View Detailed Timeline →</Link>
-          </Button>
-        </div>
-      </Panel>
+      <section aria-label="Exams" className="mt-8">
+        <h2 className="mb-2.5 font-mono text-[13px] text-ink-muted">[ exam results ]</h2>
+        {results.length === 0 ? (
+          <EmptyState>Exams you finish appear here with their scores.</EmptyState>
+        ) : (
+          <ul className="divide-y divide-line overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface">
+            {results.map(({ attempt, result }) => {
+              const share = result?.released && result.maximum_score > 0 ? Math.round((result.score / result.maximum_score) * 100) : null;
+              return (
+                <li key={attempt.id}>
+                  <Link href={`/student/results/${attempt.id}`} className="flex flex-wrap items-center gap-4 px-5 py-3.5 transition-colors hover:bg-hover">
+                    <div className="min-w-0 flex-1 basis-56">
+                      <p className="truncate text-[14.5px] font-medium text-ink">{titles.get(attempt.candidate_assignment_id) ?? "Exam"}</p>
+                      <p className="mt-0.5 text-[12.5px] text-ink-muted">{formatDateTime(attempt.submitted_at ?? attempt.submission_deadline)}</p>
+                    </div>
+                    {share !== null && (
+                      <span className="hidden h-1.5 w-32 overflow-hidden rounded-full bg-line sm:block" aria-hidden>
+                        <span className="block h-full rounded-full bg-brand" style={{ width: `${share}%` }} />
+                      </span>
+                    )}
+                    <span className="w-24 text-right font-mono text-sm tabular-nums text-ink">
+                      {result?.released ? `${result.score} / ${result.maximum_score}` : <span className="text-ink-subtle">Not released</span>}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { ExternalLink } from "lucide-react";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { ActionForm, Field, TextInput } from "@/components/staff/form";
-import { Section } from "@/components/staff/page-header";
+import { Section, PageHeader } from "@/components/staff/page-header";
 import { Panel } from "@/components/ui/card";
 import type { PlatformName, ProfileLink } from "@/lib/api-types";
 import { communityList } from "@/lib/server/community";
@@ -33,8 +33,7 @@ export default async function ProfilePage() {
   const handleOf = (platform: PlatformName) => links.find((link) => link.platform === platform)?.handle ?? "";
   return (
     <div className="animate-enter">
-      <h1 className="display text-[2.25rem] text-ink sm:text-[2.6rem]">{viewer.displayName || "My profile"}</h1>
-      <p className="mt-2 max-w-[60ch] text-[15px] text-ink-muted">Link your coding accounts to see your public numbers in one place. Numbers refresh hourly and come from each site; if one is down it shows only the link.</p>
+      <PageHeader title={viewer.displayName || "My profile"} description={"Link your coding accounts to see your public numbers in one place. Numbers refresh hourly and come from each site; if one is down it shows only the link."} />
 
       {publicProfile && (
         <div className="mt-8">

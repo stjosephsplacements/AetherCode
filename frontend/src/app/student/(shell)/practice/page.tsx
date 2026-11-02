@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/staff/page-header";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import type { PracticeProblem, PracticeProgress } from "@/lib/api-types";
@@ -18,10 +19,7 @@ export default async function PracticePage() {
   ]);
   return (
     <div className="animate-enter">
-      <h1 className="display text-[2.25rem] text-ink sm:text-[2.6rem]">Practice</h1>
-      <p className="mt-2 max-w-[60ch] text-[15px] text-ink-muted">
-        Problems your faculty set aside for practice. Run your code on the samples, then submit to check it against every test. Nothing here counts towards an exam.
-      </p>
+      <PageHeader title={"Practice"} description={"Problems your faculty set aside for practice. Run your code on the samples, then submit to check it against every test. Nothing here counts towards an exam."} />
       {progress && progress.available > 0 && <SolvedBars progress={progress} className="mt-8" />}
       <PracticeList problems={problems} />
     </div>

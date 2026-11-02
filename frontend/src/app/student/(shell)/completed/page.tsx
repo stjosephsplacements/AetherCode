@@ -1,66 +1,55 @@
+import { ArrowRight, CircleCheck } from "lucide-react";
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Panel, Badge } from "@/components/ui/card";
-import { requireViewer } from "@/lib/server/session";
-import { listMyAttempts } from "@/lib/server/attempts";
+import { redirect } from "next/navigation";
+import { EmptyState, PageHeader } from "@/components/staff/page-header";
+import { Badge } from "@/components/ui/card";
 import { listAssignments } from "@/lib/server/assignments";
+import { listMyAttempts } from "@/lib/server/attempts";
+import { requireViewer } from "@/lib/server/session";
 import { formatDateTime } from "@/lib/utils";
-import { ArrowRight } from "lucide-react";
 
-export const metadata: Metadata = { title: "Completed Assessments" };
+export const metadata: Metadata = { title: "Completed" };
 
-export default async function CompletedAssessmentsPage() {
+const STATE = { submitted: ["Submitted", "neutral"], grading: ["Being graded", "warning"], graded: ["Graded", "success"] } as const;
+
+export default async function CompletedPage() {
   const viewer = await requireViewer();
   if (!viewer.tenantId) redirect("/student");
-  const [attempts, assignments] = await Promise.all([
-    listMyAttempts(viewer.tenantId).catch(() => []),
-    listAssignments(viewer.tenantId).catch(() => []),
-  ]);
-
-  const titles = new Map(assignments.map((a) => [a.id, a.title]));
-  const finished = attempts.filter((a) => ["submitted", "grading", "graded"].includes(a.lifecycle_state));
+  const [attempts, assignments] = await Promise.all([listMyAttempts(viewer.tenantId).catch(() => []), listAssignments(viewer.tenantId).catch(() => [])]);
+  const titles = new Map(assignments.map((assignment) => [assignment.id, assignment.title]));
+  const finished = attempts
+    .filter((attempt) => attempt.lifecycle_state in STATE)
+    .sort((a, b) => (b.submitted_at ?? b.submission_deadline).localeCompare(a.submitted_at ?? a.submission_deadline));
 
   return (
-    <div className="animate-enter space-y-6">
-      <div>
-        <span className="eyebrow text-brand">SUBMISSION ARCHIVE</span>
-        <h1 className="display mt-1 text-[2.25rem] text-ink sm:text-[2.6rem]">Completed Assessments</h1>
-        <p className="mt-2 text-[15px] text-ink-muted">
-          Historical record of all finished coding tests, exam attempts, and evaluations.
-        </p>
-      </div>
-
+    <div className="animate-enter">
+      <PageHeader title="Completed" description="Every exam you have finished, newest first, with its result once it is released." />
       {finished.length === 0 ? (
-        <Panel className="p-8 text-center border-line bg-surface/70">
-          <p className="text-sm text-ink-muted">No completed assessments recorded yet.</p>
-        </Panel>
+        <EmptyState>
+          <CircleCheck className="mx-auto mb-3 size-6 text-ink-subtle" strokeWidth={1.5} />
+          Exams you finish appear here.
+        </EmptyState>
       ) : (
-        <div className="space-y-3">
-          {finished.map((attempt) => (
-            <Panel key={attempt.id} className="p-5 border-line bg-surface/80 transition-colors hover:border-brand/40">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <Badge tone="success">Submitted</Badge>
-                    <span className="text-xs text-ink-subtle">
-                      {formatDateTime(attempt.submitted_at ?? attempt.submission_deadline)}
-                    </span>
+        <ul className="divide-y divide-line overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface">
+          {finished.map((attempt) => {
+            const [label, tone] = STATE[attempt.lifecycle_state as keyof typeof STATE];
+            return (
+              <li key={attempt.id}>
+                <Link href={`/student/results/${attempt.id}`} className="flex flex-wrap items-center gap-3 px-5 py-4 transition-colors hover:bg-hover">
+                  <div className="min-w-0 flex-1 basis-56">
+                    <p className="truncate text-[15px] font-medium text-ink">{titles.get(attempt.candidate_assignment_id) ?? "Exam"}</p>
+                    <p className="mt-0.5 text-[12.5px] text-ink-muted">{formatDateTime(attempt.submitted_at ?? attempt.submission_deadline)}</p>
                   </div>
-                  <h3 className="mt-2 text-base font-semibold text-ink">
-                    {titles.get(attempt.candidate_assignment_id) ?? "Assessment Attempt"}
-                  </h3>
-                </div>
-                <Link
-                  href={`/student/results/${attempt.id}`}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand hover:underline"
-                >
-                  Review Result <ArrowRight className="size-3.5" />
+                  <Badge tone={tone}>{label}</Badge>
+                  <span className="inline-flex items-center gap-1 text-[13px] font-medium text-brand">
+                    View result <ArrowRight className="size-3.5" />
+                  </span>
                 </Link>
-              </div>
-            </Panel>
-          ))}
-        </div>
+              </li>
+            );
+          })}
+        </ul>
       )}
     </div>
   );
