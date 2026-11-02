@@ -11,6 +11,10 @@ import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/card";
 import { useEditorSettings } from "@/components/exam/editor-settings";
+import { LayoutMenu } from "./layout-menu";
+import { Splitter } from "./splitter";
+import { WorkspaceTools } from "./workspace-tools";
+import { DEFAULT_LAYOUT, updateLayout, useLayout } from "./layout-settings";
 import { EditorSettingsMenu } from "@/components/exam/editor-settings-menu";
 import { RunConsole, type RunState } from "@/components/exam/run-console";
 import type { CodeRun, PracticeQuestion, PracticeRun } from "@/lib/api-types";
@@ -174,20 +178,14 @@ export function PracticeWorkspace({ tenantId, question }: { tenantId: string; qu
 
   const solved = history?.some((entry) => entry.verdict === "accepted") ?? false;
 
-  return (
-    <div className="flex h-dvh flex-col bg-canvas">
-      <header className="flex h-14 shrink-0 items-center gap-3 border-b px-4">
-        <Link href="/student/practice" className="flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink">
-          <ArrowLeft className="size-4" strokeWidth={1.75} />
-          Practice
-        </Link>
-        <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{question.title}</h1>
-        {solved && <Badge tone="success">Solved</Badge>}
-      </header>
+  const layout = useLayout();
+  const row = useRef<HTMLDivElement>(null);
+  const column = useRef<HTMLDivElement>(null);
+  const side = layout.console === "right";
 
-      <div className="flex min-h-0 flex-1 flex-col gap-3 p-3 lg:flex-row">
-        <section aria-label="Problem" className="flex min-h-0 flex-col lg:w-[40%] lg:max-w-[640px]">
-          <article className="min-h-0 flex-1 overflow-y-auto px-3 pb-8 pt-3 lg:px-4">
+  const problemPane = (
+    <section aria-label="Problem" className="flex min-h-[260px] min-w-0 flex-col overflow-hidden rounded-3xl border border-line bg-surface shadow-[var(--shadow-panel)] lg:min-h-0" style={{ flexBasis: `${layout.problemPct}%` }}>
+          <article className="min-h-0 flex-1 overflow-y-auto px-5 pb-8 pt-4">
             <h2 className="display text-[1.75rem] text-ink">{question.title}</h2>
             <p className="mt-3 flex flex-wrap gap-2 text-[13px] text-ink-muted">
               <Badge tone={DIFFICULTY_TONE[question.difficulty]}>{question.difficulty}</Badge>
@@ -210,39 +208,12 @@ export function PracticeWorkspace({ tenantId, question }: { tenantId: string; qu
               </div>
             ))}
           </article>
-        </section>
+    </section>
+  );
 
-        <section
-          aria-label="Your code"
-          className="flex min-h-[460px] flex-1 flex-col overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface shadow-[var(--shadow-panel)]"
-        >
-          <div className="flex h-12 shrink-0 items-center gap-1 border-b px-2.5">
-            <Select aria-label="Language" size="sm" className="w-40" value={language} onValueChange={setLanguage}>
-              {question.languages.map((key) => (
-                <option key={key} value={key}>
-                  {languageName(key)}
-                </option>
-              ))}
-            </Select>
-            <div className="ml-auto">
-              <EditorSettingsMenu />
-            </div>
-          </div>
-
-          <div className="min-h-0 flex-1">
-            <CodeEditor
-              path={`${question.question_id}-${language}`}
-              language={language}
-              value={source}
-              onChange={setSource}
-              readOnly={false}
-              settings={settings}
-              onRun={runCode}
-              onSubmit={submitCode}
-            />
-          </div>
-
-          <Tabs.Root value={consoleTab} onValueChange={(value) => setConsoleTab(value as ConsoleTab)} className="flex h-[40%] min-h-[220px] shrink-0 flex-col border-t bg-canvas/40">
+  const consolePane = (
+    <div className="flex min-h-0 min-w-0 flex-col" style={{ flexBasis: `${layout.consolePct}%` }}>
+          <Tabs.Root value={consoleTab} onValueChange={(value) => setConsoleTab(value as ConsoleTab)} className="flex min-h-0 min-w-0 flex-1 flex-col bg-canvas/40">
             <Tabs.List aria-label="Console" className="flex h-10 shrink-0 items-center gap-0.5 px-2">
               <TabTrigger value="results" active={consoleTab === "results"}>
                 Test results
@@ -284,7 +255,37 @@ export function PracticeWorkspace({ tenantId, question }: { tenantId: string; qu
               <History runs={history} onOpen={openSubmission} />
             </Tabs.Content>
           </Tabs.Root>
+    </div>
+  );
 
+  const editorPane = (
+    <section aria-label="Your code" className="flex min-h-[520px] min-w-0 flex-1 flex-col overflow-hidden rounded-3xl border border-line bg-surface shadow-[var(--shadow-panel)] lg:min-h-0">
+      <div className="flex h-12 shrink-0 items-center gap-1 border-b px-2.5">
+        <Select aria-label="Language" size="sm" className="w-40" value={language} onValueChange={setLanguage}>
+          {question.languages.map((key) => (
+            <option key={key} value={key}>
+              {languageName(key)}
+            </option>
+          ))}
+        </Select>
+        <div className="ml-auto flex items-center gap-0.5">
+          <LayoutMenu />
+          <EditorSettingsMenu />
+        </div>
+      </div>
+      <div ref={column} className={cn("flex min-h-0 flex-1", side ? "flex-row" : "flex-col")}>
+        <div className="min-h-[200px] min-w-0 flex-1">
+          <CodeEditor path={`${question.question_id}-${language}`} language={language} value={source} onChange={setSource} readOnly={false} settings={settings} onRun={runCode} onSubmit={submitCode} />
+        </div>
+        <Splitter
+          direction={side ? "horizontal" : "vertical"}
+          container={column}
+          label="Resize the console"
+          onChange={(percent) => updateLayout({ consolePct: Math.round(100 - percent) })}
+          onReset={() => updateLayout({ consolePct: DEFAULT_LAYOUT.consolePct })}
+        />
+        {consolePane}
+      </div>
           <div className="flex h-14 shrink-0 items-center gap-3 border-t px-3">
             <label className="flex cursor-pointer items-center gap-2 text-[13px] text-ink">
               <Checkbox.Root
@@ -313,7 +314,29 @@ export function PracticeWorkspace({ tenantId, question }: { tenantId: string; qu
               </Button>
             </div>
           </div>
-        </section>
+    </section>
+  );
+
+  return (
+    <div className="flex h-dvh flex-col bg-canvas">
+      <header className="flex h-14 shrink-0 items-center gap-3 border-b px-4">
+        <Link href="/student/practice" className="flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink">
+          <ArrowLeft className="size-4" strokeWidth={1.75} />
+          Practice
+        </Link>
+        <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{question.title}</h1>
+        {solved && <Badge tone="success">Solved</Badge>}
+        <WorkspaceTools storageKey={`practice-${question.question_id}`} />
+      </header>
+
+      <div ref={row} className={cn("flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 lg:flex-row lg:overflow-hidden", layout.swap && "lg:flex-row-reverse")}>
+        {!layout.focus && (
+          <>
+            {problemPane}
+            <Splitter direction="horizontal" container={row} label="Resize the problem" onChange={(percent) => updateLayout({ problemPct: layout.swap ? 100 - percent : percent })} onReset={() => updateLayout({ problemPct: DEFAULT_LAYOUT.problemPct })} />
+          </>
+        )}
+        {editorPane}
       </div>
     </div>
   );

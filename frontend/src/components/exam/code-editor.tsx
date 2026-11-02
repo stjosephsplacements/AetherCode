@@ -63,6 +63,40 @@ function defineThemes(monaco: Monaco) {
   });
 }
 
+type Palette = { base: "vs" | "vs-dark" | "hc-black"; bg: string; line: string; num: string; cursor: string; select: string; keyword: string; string: string; number: string; type: string; comment: string };
+const PALETTES: Record<string, Palette> = {
+  "github-light": { base: "vs", bg: "#ffffff", line: "#f6f8fa", num: "#8c959f", cursor: "#24292f", select: "#b6e3ff", keyword: "cf222e", string: "0a3069", number: "0550ae", type: "8250df", comment: "6e7781" },
+  solarized: { base: "vs-dark", bg: "#002b36", line: "#073642", num: "#586e75", cursor: "#93a1a1", select: "#174652", keyword: "859900", string: "2aa198", number: "d33682", type: "b58900", comment: "586e75" },
+  dracula: { base: "vs-dark", bg: "#282a36", line: "#44475a55", num: "#6272a4", cursor: "#f8f8f2", select: "#44475a", keyword: "ff79c6", string: "f1fa8c", number: "bd93f9", type: "8be9fd", comment: "6272a4" },
+  monokai: { base: "vs-dark", bg: "#272822", line: "#3e3d32", num: "#90908a", cursor: "#f8f8f0", select: "#49483e", keyword: "f92672", string: "e6db74", number: "ae81ff", type: "66d9ef", comment: "75715e" },
+  nord: { base: "vs-dark", bg: "#2e3440", line: "#3b4252", num: "#616e88", cursor: "#d8dee9", select: "#434c5e", keyword: "81a1c1", string: "a3be8c", number: "b48ead", type: "8fbcbb", comment: "616e88" },
+  "high-contrast": { base: "hc-black", bg: "#000000", line: "#1a1a1a", num: "#ffffff", cursor: "#ffff00", select: "#264f78", keyword: "ffff00", string: "00ff9f", number: "ff9d00", type: "00e5ff", comment: "9aa0a6" },
+};
+
+function definePalettes(monaco: Monaco) {
+  for (const [name, p] of Object.entries(PALETTES)) {
+    monaco.editor.defineTheme(`aether-${name}`, {
+      base: p.base,
+      inherit: true,
+      rules: [
+        { token: "comment", foreground: p.comment, fontStyle: "italic" },
+        { token: "keyword", foreground: p.keyword },
+        { token: "string", foreground: p.string },
+        { token: "number", foreground: p.number },
+        { token: "type", foreground: p.type },
+      ],
+      colors: {
+        "editor.background": p.bg,
+        "editor.lineHighlightBackground": p.line,
+        "editor.lineHighlightBorder": "#00000000",
+        "editorLineNumber.foreground": p.num,
+        "editorCursor.foreground": p.cursor,
+        "editor.selectionBackground": p.select,
+      },
+    });
+  }
+}
+
 export function CodeEditor({
   path,
   language,
@@ -93,6 +127,7 @@ export function CodeEditor({
   const appTheme = useTheme();
   // "system" follows the app's theme toggle.
   const dark = settings.theme === "system" ? appTheme === "dark" : settings.theme === "dark";
+  const monacoTheme = settings.theme in PALETTES ? `aether-${settings.theme}` : dark ? "aether-dark" : "aether-light";
   // Monaco commands are registered once; they call the latest handlers.
   const handlers = useRef({ onRun, onSubmit, guardPaste, onBlockedPaste });
   useEffect(() => {
@@ -129,9 +164,12 @@ export function CodeEditor({
       language={editorLanguage(language)}
       value={value}
       onChange={(next) => onChange(next ?? "")}
-      beforeMount={defineThemes}
+      beforeMount={(monaco) => {
+        defineThemes(monaco);
+        definePalettes(monaco);
+      }}
       onMount={mount}
-      theme={dark ? "aether-dark" : "aether-light"}
+      theme={monacoTheme}
       loading={null}
       options={{
         readOnly,
@@ -141,7 +179,9 @@ export function CodeEditor({
         fontSize: settings.fontSize,
         lineHeight: Math.round(settings.fontSize * 1.6),
         fontLigatures: false,
-        minimap: { enabled: false },
+        minimap: { enabled: settings.minimap },
+        wordWrap: settings.wordWrap ? "on" : "off",
+        lineNumbers: settings.lineNumbers ? "on" : "off",
         scrollBeyondLastLine: false,
         smoothScrolling: true,
         cursorBlinking: "smooth",

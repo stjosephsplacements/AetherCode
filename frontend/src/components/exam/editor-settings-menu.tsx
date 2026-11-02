@@ -3,16 +3,10 @@
 import { Settings2 } from "lucide-react";
 import { Popover, Switch } from "radix-ui";
 import { cn } from "@/lib/utils";
-import { type EditorSettings, updateEditorSettings, useEditorSettings } from "./editor-settings";
+import { EDITOR_THEMES, type EditorSettings, updateEditorSettings, useEditorSettings } from "./editor-settings";
 
 const FONT_SIZES: EditorSettings["fontSize"][] = [12, 14, 16, 18, 20];
 const TAB_SIZES: EditorSettings["tabSize"][] = [2, 4, 8];
-const THEMES: { value: EditorSettings["theme"]; label: string }[] = [
-  { value: "system", label: "Match app" },
-  { value: "light", label: "Light" },
-  { value: "dark", label: "Dark" },
-];
-
 export function EditorSettingsMenu() {
   const settings = useEditorSettings();
   return (
@@ -27,7 +21,7 @@ export function EditorSettingsMenu() {
         <Popover.Content
           align="end"
           sideOffset={6}
-          className="z-50 w-[260px] animate-fade space-y-4 rounded-[var(--radius-control)] border border-line bg-surface p-4 shadow-[var(--shadow-overlay)]"
+          className="z-50 w-[300px] max-h-[80vh] overflow-y-auto animate-fade space-y-4 rounded-[var(--radius-control)] border border-line bg-surface p-4 shadow-[var(--shadow-overlay)]"
         >
           <p className="text-[13px] font-semibold text-ink">Editor settings</p>
           <Row label="Font size">
@@ -41,18 +35,43 @@ export function EditorSettingsMenu() {
             <Segmented options={TAB_SIZES.map((size) => ({ value: size, label: String(size) }))} value={settings.tabSize} onChange={(tabSize) => updateEditorSettings({ tabSize })} />
           </Row>
           <Row label="Theme">
-            <Segmented options={THEMES} value={settings.theme} onChange={(theme) => updateEditorSettings({ theme })} />
+            <div className="grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="Editor theme">
+              {EDITOR_THEMES.map((theme) => (
+                <button
+                  key={theme.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={settings.theme === theme.value}
+                  onClick={() => updateEditorSettings({ theme: theme.value })}
+                  className={cn("flex flex-col items-center gap-1.5 rounded-xl border p-1.5 text-[10.5px] font-medium transition-colors", settings.theme === theme.value ? "border-brand text-ink" : "border-line text-ink-muted hover:border-line-strong hover:text-ink")}
+                >
+                  <span className="grid h-8 w-full place-items-center rounded-lg font-mono text-[11px]" style={{ background: theme.bg, color: theme.fg }}>
+                    {"{ }"}
+                  </span>
+                  {theme.label}
+                </button>
+              ))}
+            </div>
           </Row>
-          <label className="flex items-center justify-between gap-3 text-[13px] text-ink">
-            Autocomplete
-            <Switch.Root
-              checked={settings.autocomplete}
-              onCheckedChange={(autocomplete) => updateEditorSettings({ autocomplete })}
-              className="relative h-5 w-9 rounded-full bg-line-strong outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand data-[state=checked]:bg-brand"
-            >
-              <Switch.Thumb className="block size-4 translate-x-0.5 rounded-full bg-surface shadow-[var(--shadow-hairline)] transition-transform data-[state=checked]:translate-x-[18px]" />
-            </Switch.Root>
-          </label>
+          {(
+            [
+              ["autocomplete", "Autocomplete"],
+              ["wordWrap", "Wrap long lines"],
+              ["lineNumbers", "Line numbers"],
+              ["minimap", "Minimap"],
+            ] as const
+          ).map(([key, label]) => (
+            <label key={key} className="flex items-center justify-between gap-3 text-[13px] text-ink">
+              {label}
+              <Switch.Root
+                checked={settings[key]}
+                onCheckedChange={(value) => updateEditorSettings({ [key]: value })}
+                className="relative h-5 w-9 rounded-full bg-line-strong outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand data-[state=checked]:bg-brand"
+              >
+                <Switch.Thumb className="block size-4 translate-x-0.5 rounded-full bg-surface shadow-[var(--shadow-hairline)] transition-transform data-[state=checked]:translate-x-[18px]" />
+              </Switch.Root>
+            </label>
+          ))}
           <p className="border-t border-line pt-3 text-xs leading-relaxed text-ink-muted">
             <Kbd>Ctrl</Kbd> + <Kbd>Enter</Kbd> runs your code. Add <Kbd>Shift</Kbd> to submit.
           </p>
