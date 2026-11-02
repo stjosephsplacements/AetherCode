@@ -1,0 +1,25 @@
+frontend/src/app/globals.css
+  s_4a7f3c46d06453::t_0366e286a87171 518-596
+frontend/src/app/student/(shell)/page.tsx
+  s_4a7f3c46d06453::t_e4b7608b69dfe7 68
+frontend/src/components/student/student-shell.tsx
+  s_4a7f3c46d06453::t_ecdc0032cc0b84 7-8,13,58-60,65-74,76-78,81-93,98-99,101-102,107-147,153-154,191-194,196-197,200-201,205
+frontend/src/components/ui/button.tsx
+  s_4a7f3c46d06453::t_f85fae5e87c81b 35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "97fc912055b1fd58a2af2e436db756174cbc0de4",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
