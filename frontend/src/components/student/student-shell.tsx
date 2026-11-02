@@ -57,33 +57,39 @@ const active = (pathname: string, href: string) => (href === "/student" ? pathna
 
 const linkClass = (on: boolean) =>
   cn(
-    "relative inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[13.5px] outline-none transition-colors focus-visible:ring-4 focus-visible:ring-brand/15",
-    on ? "bg-hover font-medium text-ink" : "text-ink-muted hover:bg-hover hover:text-ink",
+    "relative inline-flex h-10 items-center gap-2 rounded-xl px-3.5 text-[13.5px] font-medium outline-none transition-all focus-visible:ring-4 focus-visible:ring-brand/20",
+    on ? "bg-brand-soft text-brand-soft-ink" : "text-ink-muted hover:bg-hover hover:text-ink",
   );
 
 function Desktop() {
   const pathname = usePathname();
   return (
-    <nav aria-label="Main" className="hidden items-center gap-0.5 lg:flex">
-      {NAV.map((entry) =>
-        isGroup(entry) ? (
+    <nav aria-label="Main" className="hidden items-center gap-1 lg:flex">
+      {NAV.map((entry) => {
+        const on = isGroup(entry) ? entry.items.some((item) => active(pathname, item.href)) : active(pathname, entry.href);
+        const Lead = isGroup(entry) ? ICONS[entry.items[0]!.icon] : ICONS[entry.icon];
+        return isGroup(entry) ? (
           <DropdownMenu.Root key={entry.label}>
-            <DropdownMenu.Trigger className={cn(linkClass(entry.items.some((item) => active(pathname, item.href))), "data-[state=open]:bg-hover data-[state=open]:text-ink")}>
+            <DropdownMenu.Trigger className={cn(linkClass(on), "data-[state=open]:bg-hover data-[state=open]:text-ink")}>
+              <Lead className="size-4" strokeWidth={1.75} />
               {entry.label}
-              <ChevronDown className="size-3.5" strokeWidth={1.75} />
+              <ChevronDown className="size-3.5 opacity-70" strokeWidth={1.75} />
             </DropdownMenu.Trigger>
             <DropdownMenu.Portal>
-              <DropdownMenu.Content align="start" sideOffset={8} className="z-50 min-w-[200px] animate-fade rounded-[var(--radius-surface)] border border-line bg-surface p-1.5 shadow-[var(--shadow-overlay)]">
+              <DropdownMenu.Content align="start" sideOffset={10} className="z-50 min-w-[220px] animate-fade rounded-2xl border border-line bg-surface p-1.5 shadow-[var(--shadow-overlay)]">
                 {entry.items.map((item) => {
                   const Icon = ICONS[item.icon];
+                  const here = active(pathname, item.href);
                   return (
                     <DropdownMenu.Item key={item.href} asChild>
                       <Link
                         href={item.href}
-                        aria-current={active(pathname, item.href) ? "page" : undefined}
-                        className={cn("flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-hover", active(pathname, item.href) ? "font-medium text-ink" : "text-ink-muted data-[highlighted]:text-ink")}
+                        aria-current={here ? "page" : undefined}
+                        className={cn("flex items-center gap-3 rounded-xl px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-hover", here ? "font-medium text-ink" : "text-ink-muted data-[highlighted]:text-ink")}
                       >
-                        <Icon className="size-4" strokeWidth={1.75} />
+                        <span className={cn("grid size-8 place-items-center rounded-lg", here ? "bg-brand-soft text-brand-soft-ink" : "bg-hover text-ink-muted")}>
+                          <Icon className="size-4" strokeWidth={1.75} />
+                        </span>
                         {item.label}
                       </Link>
                     </DropdownMenu.Item>
@@ -93,11 +99,12 @@ function Desktop() {
             </DropdownMenu.Portal>
           </DropdownMenu.Root>
         ) : (
-          <Link key={entry.href} href={entry.href} aria-current={active(pathname, entry.href) ? "page" : undefined} className={linkClass(active(pathname, entry.href))}>
+          <Link key={entry.href} href={entry.href} aria-current={on ? "page" : undefined} className={linkClass(on)}>
+            <Lead className="size-4" strokeWidth={1.75} />
             {entry.label}
           </Link>
-        ),
-      )}
+        );
+      })}
     </nav>
   );
 }
@@ -146,10 +153,10 @@ function Mobile() {
 export function StudentShell({ viewer, brand, children }: { viewer: Viewer; brand?: CollegeBrand; children: React.ReactNode }) {
   return (
     <div className="min-h-dvh" style={brand?.color ? accentStyle(brand.color) : undefined}>
-      <header className="sticky top-0 z-30 border-b border-line bg-canvas/85 backdrop-blur print:hidden">
-        <div className="mx-auto flex h-14 max-w-none items-center gap-3 px-4 sm:px-6">
+      <header className="sticky top-0 z-30 px-3 pt-3 sm:px-6 print:hidden">
+        <div className="flex h-14 items-center gap-2 rounded-2xl border border-line bg-surface/80 px-3 shadow-[var(--shadow-panel)] backdrop-blur-xl">
           <Mobile />
-          <Link href="/student" className="mr-2 shrink-0">
+          <Link href="/student" className="mr-3 shrink-0 pl-1">
             <Brand brand={brand} />
           </Link>
           <Desktop />
@@ -159,7 +166,7 @@ export function StudentShell({ viewer, brand, children }: { viewer: Viewer; bran
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-none px-5 pb-24 pt-8 sm:px-8 lg:pt-10">{children}</main>
+      <main className="w-full px-5 pb-24 pt-6 sm:px-8 lg:pt-8">{children}</main>
     </div>
   );
 }
