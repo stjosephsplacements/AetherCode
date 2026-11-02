@@ -118,25 +118,38 @@ export async function publishExam(_previous: ActionState, form: FormData): Promi
   return { error: null, message: "Published. Now assign it to students." };
 }
 
+/** Assigns one exam version to every target ticked: a few batches, whole departments, placement departments. */
 export async function assignExam(_previous: ActionState, form: FormData): Promise<ActionState> {
   const { tenantId } = await requireCollege();
   const targetType = String(form.get("target_type"));
+  const targets = [...new Set(form.getAll("target_id").map(String).filter(Boolean))];
+  if (targets.length === 0) return { error: "Tick at least one to assign the exam to." };
+  let from: string;
+  let until: string;
   try {
-    await gateway(`/assessment/v1/tenants/${tenantId}/exam-versions/${String(form.get("version_id"))}/assignment-rules`, {
-      method: "POST",
-      body: {
-        target_type: targetType,
-        target_id: String(form.get(`target_${targetType}`) ?? ""),
-        available_from: collegeTimeToISO(String(form.get("available_from"))),
-        available_until: collegeTimeToISO(String(form.get("available_until"))),
-        accommodations: {},
-      },
-    });
+    from = collegeTimeToISO(String(form.get("available_from")));
+    until = collegeTimeToISO(String(form.get("available_until")));
   } catch (error) {
-    return { error: error instanceof Error && !("status" in error) ? error.message : actionError(error) };
+    return { error: error instanceof Error ? error.message : "The window is not valid." };
+  }
+  const failed: string[] = [];
+  let assigned = 0;
+  for (const targetId of targets) {
+    try {
+      await gateway(`/assessment/v1/tenants/${tenantId}/exam-versions/${String(form.get("version_id"))}/assignment-rules`, {
+        method: "POST",
+        body: { target_type: targetType, target_id: targetId, available_from: from, available_until: until, accommodations: {} },
+      });
+      assigned++;
+    } catch (error) {
+      // A target that already has the exam is not an error worth stopping for.
+      failed.push(`${String(form.get(`label_${targetId}`) ?? targetId.slice(0, 8))}: ${error instanceof Error && !("status" in error) ? error.message : actionError(error)}`);
+    }
   }
   revalidatePath(`/staff/exams/${String(form.get("exam_id"))}`);
-  return { error: null, message: "Assigned. Students see the exam on their dashboard within a few seconds." };
+  if (assigned === 0) return { error: failed.slice(0, 3).join(" ") };
+  const noun = targetType === "batch" ? "batch" : targetType === "department" ? "department" : "placement department";
+  return { error: null, message: `Assigned to ${assigned} ${noun}${assigned === 1 ? "" : targetType === "batch" ? "es" : "s"}.${failed.length ? ` Not assigned: ${failed.slice(0, 3).join("; ")}.` : ""} Students see the exam on their dashboard within a few seconds.` };
 }
 
 export async function saveSebPolicy(_previous: ActionState, form: FormData): Promise<ActionState> {
