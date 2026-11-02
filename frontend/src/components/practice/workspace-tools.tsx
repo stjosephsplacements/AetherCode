@@ -4,6 +4,7 @@ import { Eraser, GripHorizontal, NotebookPen, Pause, Play, Plus, RotateCcw, Stic
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { uuid } from "@/lib/client/uuid";
 
 /* ---------- storage: this browser only, kept when functional cookies are allowed ---------- */
 
@@ -123,9 +124,11 @@ export function WorkspaceTools({ storageKey, timer: withTimer = true }: { storag
   const MIN_H = 240;
   /** Keeps the whole window inside the page, so its title bar can never be lost off an edge. */
   const fit = (g: { x: number; y: number; w: number; h: number }) => {
-    const w = Math.min(Math.max(g.w, MIN_W), window.innerWidth - 8);
-    const h = Math.min(Math.max(g.h, MIN_H), window.innerHeight - 8);
-    return { w, h, x: Math.min(Math.max(g.x, 4), window.innerWidth - w - 4), y: Math.min(Math.max(g.y, 4), window.innerHeight - h - 4) };
+    const width = document.documentElement.clientWidth;
+    const height = window.innerHeight;
+    const w = Math.min(Math.max(g.w, MIN_W), width - 8);
+    const h = Math.min(Math.max(g.h, MIN_H), height - 8);
+    return { w, h, x: Math.min(Math.max(g.x, 4), width - w - 4), y: Math.min(Math.max(g.y, 4), height - h - 4) };
   };
   const show = (next: typeof tab) => {
     setTab(next);
@@ -176,6 +179,9 @@ export function WorkspaceTools({ storageKey, timer: withTimer = true }: { storag
               if (drag.current) setGeometry((g) => (g ? fit({ ...g, x: event.clientX - drag.current!.dx, y: event.clientY - drag.current!.dy }) : g));
             }}
             onPointerUp={() => (drag.current = null)}
+            onPointerCancel={() => (drag.current = null)}
+            onDoubleClick={() => setGeometry(fit({ w: 340, h: 420, x: window.innerWidth - 360, y: window.innerHeight - 440 }))}
+            title="Drag to move. Double-click to bring it back to the corner."
           >
             <GripHorizontal className="size-4 text-ink-subtle" />
             <div role="tablist" className="flex flex-1 gap-1" onPointerDown={(event) => event.stopPropagation()}>
@@ -253,7 +259,7 @@ export function WorkspaceTools({ storageKey, timer: withTimer = true }: { storag
                   </div>
                 );
               })}
-              <button type="button" disabled={notes.length >= 12} onClick={() => saveNotes([...notes, { id: crypto.randomUUID(), color: notes.length % COLORS.length, text: "" }])} className="flex w-full items-center justify-center gap-1.5 rounded-2xl border border-dashed border-line-strong py-2.5 text-[13px] font-medium text-ink-muted transition-colors hover:border-brand hover:text-brand disabled:opacity-50">
+              <button type="button" disabled={notes.length >= 12} onClick={() => saveNotes([...notes, { id: uuid(), color: notes.length % COLORS.length, text: "" }])} className="flex w-full items-center justify-center gap-1.5 rounded-2xl border border-dashed border-line-strong py-2.5 text-[13px] font-medium text-ink-muted transition-colors hover:border-brand hover:text-brand disabled:opacity-50">
                 <Plus className="size-4" />
                 Add a note
               </button>

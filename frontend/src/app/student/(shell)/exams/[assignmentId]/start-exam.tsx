@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import type { Attempt, CandidateAssignment, Page } from "@/lib/api-types";
 import { APIError, api } from "@/lib/client/api";
 import { formatCountdown, useNow } from "@/lib/client/use-now";
+import { uuid } from "@/lib/client/uuid";
 
 type Status = { kind: "idle" } | { kind: "starting" } | { kind: "seb" } | { kind: "error"; message: string };
 
@@ -18,7 +19,7 @@ export function StartExam({ assignment, signature }: { assignment: CandidateAssi
   const [resumeId, setResumeId] = useState<string | null>(null);
   const [honorOpen, setHonorOpen] = useState(false);
   // One key per page visit: a double click or a retry starts one attempt, not two.
-  const idempotencyKey = useRef(crypto.randomUUID());
+  const idempotencyKey = useRef(uuid());
   const attempts = `/submission/v1/tenants/${assignment.tenant_id}/attempts`;
   const opensIn = now === null ? 0 : Date.parse(assignment.available_from) - now;
   const closed = now !== null && now >= Date.parse(assignment.available_until);
