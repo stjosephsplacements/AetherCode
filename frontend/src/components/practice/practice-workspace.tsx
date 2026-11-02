@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/card";
 import { useEditorSettings } from "@/components/exam/editor-settings";
 import { LayoutMenu } from "./layout-menu";
 import { Splitter } from "./splitter";
+import { WorkspaceTools } from "./workspace-tools";
 import { DEFAULT_LAYOUT, updateLayout, useLayout } from "./layout-settings";
 import { EditorSettingsMenu } from "@/components/exam/editor-settings-menu";
 import { RunConsole, type RunState } from "@/components/exam/run-console";
@@ -325,6 +326,7 @@ export function PracticeWorkspace({ tenantId, question }: { tenantId: string; qu
         </Link>
         <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{question.title}</h1>
         {solved && <Badge tone="success">Solved</Badge>}
+        <WorkspaceTools storageKey={`practice-${question.question_id}`} />
       </header>
 
       <div ref={row} className={cn("flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 lg:flex-row lg:overflow-hidden", layout.swap && "lg:flex-row-reverse")}>

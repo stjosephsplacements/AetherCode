@@ -1,6 +1,7 @@
 "use client";
 
 import { Select } from "@/components/staff/form";
+import { WorkspaceTools } from "@/components/practice/workspace-tools";
 import { Check, ChevronDown, Clock3, CloudOff, LoaderCircle, Maximize2, Megaphone, Minimize2, Play, RotateCcw, ShieldCheck, Upload, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
@@ -261,6 +262,7 @@ function ExamWorkspace({ attemptPath, attemptId, attempt, paper }: Loaded & { at
         <Image src="/3.png" alt="AetherCode" width={22} height={22} className="logo-dark object-contain" />
         <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{paper.title}</h1>
         <SaveIndicator state={answers.saveState} error={answers.saveError} />
+        <WorkspaceTools storageKey={`exam-${paper.title}-${currentId}`} />
         <ExamGuides />
         <span
           role="timer"
