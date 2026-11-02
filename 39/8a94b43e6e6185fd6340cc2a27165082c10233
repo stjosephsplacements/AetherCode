@@ -1,0 +1,39 @@
+frontend/src/app/globals.css
+  s_4a7f3c46d06453::t_51b1602b4adbee 504-517
+frontend/src/app/staff/checklist.tsx
+  s_4a7f3c46d06453::t_f55a040bcb4121 1-48
+frontend/src/app/staff/get-started.tsx
+  s_4a7f3c46d06453::t_9148b53e33714a 1-50
+frontend/src/app/staff/get-started/page.tsx
+  s_4a7f3c46d06453::t_6a43abd26e56f5 1-121
+frontend/src/app/staff/help/faq.tsx
+  s_4a7f3c46d06453::t_ad8afe7fae00a0 1-33
+frontend/src/app/staff/help/flows.tsx
+  s_4a7f3c46d06453::t_7da53b4bc68744 1-125
+frontend/src/app/staff/help/page.tsx
+  s_4a7f3c46d06453::t_707e30c951a239 1-22
+frontend/src/app/staff/layout.tsx
+  s_4a7f3c46d06453::t_27861ca235b2f2 4,6,10-13,16,19,25,27-32,35-46,55,57,59
+frontend/src/components/nav-links.tsx
+  s_4a7f3c46d06453::t_36adbe3b49d138 3,8,10
+frontend/src/components/staff/staff-nav.tsx
+  s_4a7f3c46d06453::t_54b767ae872781 3,34-49,73
+frontend/src/lib/server/setup.ts
+  s_4a7f3c46d06453::t_cf55bafa3aff90 1-66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "398a94b43e6e6185fd6340cc2a27165082c10233",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
