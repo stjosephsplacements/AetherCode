@@ -61,3 +61,11 @@ sso:
   adminTokenFile: ""
   organizationId: ""
   emailDomain: ""
+
+# Password hashing is memory-hard: a bulk student import runs many hashes at once and was OOM-killed at 512Mi.
+resources:
+  requests:
+    cpu: 100m
+    memory: 512Mi
+  limits:
+    memory: 2Gi
