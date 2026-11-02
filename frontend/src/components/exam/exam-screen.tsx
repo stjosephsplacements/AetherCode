@@ -2,7 +2,10 @@
 
 import { Select } from "@/components/staff/form";
 import { WorkspaceTools } from "@/components/practice/workspace-tools";
-import { Check, ChevronDown, Clock3, CloudOff, LoaderCircle, Maximize2, Megaphone, Minimize2, Play, RotateCcw, ShieldCheck, Upload, X } from "lucide-react";
+import { LayoutMenu } from "@/components/practice/layout-menu";
+import { Splitter } from "@/components/practice/splitter";
+import { DEFAULT_LAYOUT, updateLayout, useLayout } from "@/components/practice/layout-settings";
+import { Check, ChevronDown, Clock3, Eye, EyeOff, CloudOff, LoaderCircle, Maximize2, Megaphone, Minimize2, Play, RotateCcw, ShieldCheck, Upload, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -124,6 +127,10 @@ function ExamWorkspace({ attemptPath, attemptId, attempt, paper }: Loaded & { at
   const warned = useRef(new Set<number>());
   const live = useLiveState(attemptPath, attempt.submission_deadline);
   const now = useNow();
+  const layout = useLayout();
+  const row = useRef<HTMLDivElement>(null);
+  const column = useRef<HTMLDivElement>(null);
+  const side = layout.console === "right";
   const remaining = now === null ? null : Date.parse(live.deadline) - now;
   const [dismissed, setDismissed] = useState<string | null>(null);
   const latestNote = live.announcements[0];
@@ -262,23 +269,29 @@ function ExamWorkspace({ attemptPath, attemptId, attempt, paper }: Loaded & { at
         <Image src="/3.png" alt="AetherCode" width={22} height={22} className="logo-dark object-contain" />
         <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{paper.title}</h1>
         <SaveIndicator state={answers.saveState} error={answers.saveError} />
-        <WorkspaceTools storageKey={`exam-${paper.title}-${currentId}`} />
+        <WorkspaceTools storageKey={`exam-${paper.title}-${currentId}`} timer={false} />
         <ExamGuides />
-        <span
-          role="timer"
-          aria-label="Time remaining"
-          className={cn(
-            "flex items-center gap-1.5 rounded-full px-3 py-1 font-mono text-[13px] font-medium tabular-nums transition-colors",
-            minutesLeft !== null && minutesLeft <= 5
-              ? "bg-danger-soft text-danger"
-              : minutesLeft !== null && minutesLeft <= 10
-                ? "bg-warning-soft text-warning"
-                : "bg-hover text-ink",
-          )}
-        >
-          <Clock3 className="size-3.5" strokeWidth={2} />
-          {remaining === null ? "--:--" : formatCountdown(remaining)}
-        </span>
+        {layout.hideClock ? (
+          <button type="button" onClick={() => updateLayout({ hideClock: false })} aria-label="Show the exam clock" className="flex items-center gap-1.5 rounded-full bg-hover px-3 py-1 text-[13px] font-medium text-ink-muted transition-colors hover:text-ink">
+            <EyeOff className="size-3.5" strokeWidth={2} />
+            Clock hidden
+          </button>
+        ) : (
+          <span
+            role="timer"
+            aria-label="Time remaining"
+            className={cn(
+              "flex items-center gap-1.5 rounded-full py-1 pl-3 pr-1.5 font-mono text-[13px] font-medium tabular-nums transition-colors",
+              minutesLeft !== null && minutesLeft <= 5 ? "bg-danger-soft text-danger" : minutesLeft !== null && minutesLeft <= 10 ? "bg-warning-soft text-warning" : "bg-hover text-ink",
+            )}
+          >
+            <Clock3 className="size-3.5" strokeWidth={2} />
+            {remaining === null ? "--:--" : formatCountdown(remaining)}
+            <button type="button" onClick={() => updateLayout({ hideClock: true })} aria-label="Hide the exam clock" title="Hide the clock. The exam still ends on time and you are warned as it nears." className="grid size-5 place-items-center rounded-full opacity-70 hover:bg-black/10 hover:opacity-100">
+              <Eye className="size-3.5" strokeWidth={2} />
+            </button>
+          </span>
+        )}
         <EndTestDialog items={items} statuses={statuses} ending={ending} onEnd={endTest} />
       </header>
 
@@ -319,12 +332,14 @@ function ExamWorkspace({ attemptPath, attemptId, attempt, paper }: Loaded & { at
         </p>
       )}
 
-      <div className="flex min-h-0 flex-1 flex-col gap-3 p-3 lg:flex-row">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 lg:flex-row lg:overflow-hidden">
         <QuestionRail items={items} currentId={currentId} statuses={statuses} onSelect={selectQuestion} />
 
-        {statementOpen && (
-          <section aria-label="Question" className="flex min-h-0 flex-col lg:w-[38%] lg:max-w-[600px]">
-            <article className="min-h-0 flex-1 overflow-y-auto px-3 pb-8 pt-3 lg:px-4">
+        <div ref={row} className={cn("flex min-h-0 min-w-0 flex-1 flex-col gap-3 lg:flex-row", layout.swap && "lg:flex-row-reverse")}>
+        {statementOpen && !layout.focus && (
+          <>
+          <section aria-label="Question" className="flex min-h-[260px] min-w-0 flex-col overflow-hidden rounded-3xl border border-line bg-surface shadow-[var(--shadow-panel)] lg:min-h-0" style={{ flexBasis: `${layout.problemPct}%` }}>
+            <article className="min-h-0 flex-1 overflow-y-auto px-5 pb-8 pt-4">
               <p className="text-[13px] text-ink-muted">
                 Question {index + 1} of {items.length}
               </p>
@@ -344,6 +359,8 @@ function ExamWorkspace({ attemptPath, attemptId, attempt, paper }: Loaded & { at
               )}
             </article>
           </section>
+          <Splitter direction="horizontal" container={row} label="Resize the question" onChange={(percent) => updateLayout({ problemPct: layout.swap ? 100 - percent : percent })} onReset={() => updateLayout({ problemPct: DEFAULT_LAYOUT.problemPct })} />
+          </>
         )}
 
         {item.kind === "mcq" ? (
@@ -358,7 +375,7 @@ function ExamWorkspace({ attemptPath, attemptId, attempt, paper }: Loaded & { at
         ) : (
         <section
           aria-label="Your code"
-          className="flex min-h-[460px] flex-1 flex-col overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface shadow-[var(--shadow-panel)]"
+          className="flex min-h-[520px] min-w-0 flex-1 flex-col overflow-hidden rounded-3xl border border-line bg-surface shadow-[var(--shadow-panel)] lg:min-h-0"
         >
           <div className="flex h-12 shrink-0 items-center gap-1 border-b px-2.5">
             <Select aria-label="Language" size="sm" className="w-40" value={draft.language} onValueChange={(language) => answers.update(currentId, { language })} disabled={readOnly}>
@@ -370,6 +387,7 @@ function ExamWorkspace({ attemptPath, attemptId, attempt, paper }: Loaded & { at
             </Select>
             <div className="ml-auto flex items-center gap-0.5">
               <ResetCode disabled={readOnly || !draft.source} onReset={resetCode} />
+              <LayoutMenu />
               <EditorSettingsMenu />
               <IconButton
                 label={statementOpen ? "Expand editor" : "Show question"}
@@ -381,7 +399,8 @@ function ExamWorkspace({ attemptPath, attemptId, attempt, paper }: Loaded & { at
             </div>
           </div>
 
-          <div className="min-h-0 flex-1">
+          <div ref={column} className={cn("flex min-h-0 flex-1", side ? "flex-row" : "flex-col")}>
+          <div className="min-h-[200px] min-w-0 flex-1">
             <CodeEditor
               path={currentId}
               language={draft.language}
@@ -396,13 +415,17 @@ function ExamWorkspace({ attemptPath, attemptId, attempt, paper }: Loaded & { at
             />
           </div>
 
+          {consoleOpen && (
+            <Splitter direction={side ? "horizontal" : "vertical"} container={column} label="Resize the console" onChange={(percent) => updateLayout({ consolePct: Math.round(100 - percent) })} onReset={() => updateLayout({ consolePct: DEFAULT_LAYOUT.consolePct })} />
+          )}
           <Tabs.Root
+            style={consoleOpen ? { flexBasis: `${layout.consolePct}%` } : undefined}
             value={consoleTab}
             onValueChange={(value) => {
               setConsoleTab(value as ConsoleTab);
               setConsoleOpen(true);
             }}
-            className={cn("flex shrink-0 flex-col border-t bg-canvas/40", consoleOpen && "h-[42%] min-h-[220px]")}
+            className={cn("flex min-w-0 flex-col bg-canvas/40", consoleOpen ? "min-h-[160px] shrink-0" : "shrink-0 border-t")}
           >
             <div className="flex h-10 shrink-0 items-center gap-1 px-2">
               <Tabs.List aria-label="Console" className="flex items-center gap-0.5">
@@ -452,6 +475,7 @@ function ExamWorkspace({ attemptPath, attemptId, attempt, paper }: Loaded & { at
               </>
             )}
           </Tabs.Root>
+          </div>
 
           <div className="flex h-14 shrink-0 items-center gap-3 border-t px-3">
             <label className="flex cursor-pointer items-center gap-2 text-[13px] text-ink">
@@ -486,6 +510,7 @@ function ExamWorkspace({ attemptPath, attemptId, attempt, paper }: Loaded & { at
           </div>
         </section>
         )}
+        </div>
       </div>
     </div>
   );

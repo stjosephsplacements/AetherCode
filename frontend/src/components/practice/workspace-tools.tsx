@@ -108,10 +108,10 @@ function useTimer(key: string) {
  * A timer, sticky notes and a scratch pad in one small window you can drag anywhere. Everything stays in
  * this browser and is kept per problem. `storageKey` names the problem, so each has its own notes.
  */
-export function WorkspaceTools({ storageKey }: { storageKey: string }) {
+export function WorkspaceTools({ storageKey, timer: withTimer = true }: { storageKey: string; /** An exam has its own clock; there the tools are notes and a scratch pad only. */ timer?: boolean }) {
   const key = `aethercode.tools.${storageKey}`;
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<"timer" | "notes" | "scratch">("timer");
+  const [tab, setTab] = useState<"timer" | "notes" | "scratch">(withTimer ? "timer" : "notes");
   const [geometry, setGeometry] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const timer = useTimer(key);
   const [notesJson, setNotes] = useStored(`${key}.notes`, "[]");
@@ -144,6 +144,7 @@ export function WorkspaceTools({ storageKey }: { storageKey: string }) {
   return (
     <>
       <div className="flex items-center gap-1">
+        {withTimer && (
         <button
           type="button"
           onClick={() => show("timer")}
@@ -153,6 +154,7 @@ export function WorkspaceTools({ storageKey }: { storageKey: string }) {
           <Timer className="size-3.5" />
           {clock(timer.seconds)}
         </button>
+        )}
         <button type="button" onClick={() => show("notes")} aria-label="Sticky notes" className="relative grid size-8 place-items-center rounded-full text-ink-muted transition-colors hover:bg-hover hover:text-ink">
           <StickyNote className="size-4" strokeWidth={1.75} />
           {notes.length > 0 && <span className="absolute -right-0.5 -top-0.5 grid size-4 place-items-center rounded-full bg-brand text-[10px] font-semibold text-brand-ink">{notes.length}</span>}
@@ -179,7 +181,7 @@ export function WorkspaceTools({ storageKey }: { storageKey: string }) {
             <div role="tablist" className="flex flex-1 gap-1" onPointerDown={(event) => event.stopPropagation()}>
               {(
                 [
-                  ["timer", "Timer"],
+                  ...(withTimer ? ([["timer", "Timer"]] as const) : []),
                   ["notes", "Notes"],
                   ["scratch", "Scratch"],
                 ] as const

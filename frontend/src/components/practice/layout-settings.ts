@@ -14,10 +14,12 @@ export type WorkspaceLayout = {
   consolePct: number;
   /** Hide the problem to give the editor the whole width. */
   focus: boolean;
+  /** Exam screen only: hide the clock in the header (the server still keeps time). */
+  hideClock: boolean;
 };
 
 const KEY = "aethercode.workspace-layout";
-export const DEFAULT_LAYOUT: WorkspaceLayout = { swap: false, console: "bottom", problemPct: 40, consolePct: 38, focus: false };
+export const DEFAULT_LAYOUT: WorkspaceLayout = { swap: false, console: "bottom", problemPct: 40, consolePct: 38, focus: false, hideClock: false };
 
 let current: WorkspaceLayout | null = null;
 const listeners = new Set<() => void>();
