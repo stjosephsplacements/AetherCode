@@ -1,0 +1,33 @@
+frontend/src/app/staff/questions/[versionId]/choices-editor.tsx
+  s_4a7f3c46d06453::t_d5eec695fd2214 6,18,20,28
+frontend/src/app/staff/questions/[versionId]/page.tsx
+  s_4a7f3c46d06453::t_9cae22b18c37b3 203,243
+frontend/src/app/staff/questions/actions.ts
+  s_4a7f3c46d06453::t_d32a45d5a1ebb9 11,28,58,229,238
+frontend/src/components/staff/question-wizard/choices-fields.tsx
+  s_4a7f3c46d06453::t_78d5b58a931d87 6,11,19,28-33,43-65,67-72,78
+frontend/src/components/staff/question-wizard/model.test.ts
+  s_4a7f3c46d06453::t_f9d0e7a1519926 2,71-88
+frontend/src/components/staff/question-wizard/model.ts
+  s_4a7f3c46d06453::t_964a7ff0194c33 26-35,105
+frontend/src/components/staff/question-wizard/question-wizard.tsx
+  s_4a7f3c46d06453::t_382f9e7b6c8805 259,301
+frontend/src/lib/api-types.ts
+  s_4a7f3c46d06453::t_27a92cbba1e617 206-207
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4bd1dcecb7a01b4b8a7c9cccfa140001b23cda23",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
