@@ -1,0 +1,35 @@
+backend/services/question-bank/api/openapi.yaml
+  s_4a7f3c46d06453::t_ac37626fd0ff88 582,585
+backend/services/question-bank/internal/adapters/http/handler.go
+  s_4a7f3c46d06453::t_8800ba7422496e 822-826,848
+backend/services/question-bank/internal/adapters/repo/choice_explanations_integration_test.go
+  s_4a7f3c46d06453::t_dea21052ec05ed 1-127
+backend/services/question-bank/internal/adapters/repo/postgres.go
+  s_4a7f3c46d06453::t_48d82c25850a9c 526-534,536-537
+backend/services/question-bank/internal/app/service.go
+  s_4a7f3c46d06453::t_698c32386a1b99 181-183,1136-1137,1144,1160-1175
+backend/services/question-bank/internal/app/service_test.go
+  s_4a7f3c46d06453::t_1c46d50b1b0c99 123-145
+backend/services/question-bank/migrations/000026_choice_explanations.down.sql
+  s_4a7f3c46d06453::t_eed32589dbffa9 1-129
+backend/services/question-bank/migrations/000026_choice_explanations.up.sql
+  s_4a7f3c46d06453::t_c55ee57f4ea9f2 1-159
+backend/services/question-bank/migrations/README.md
+  s_4a7f3c46d06453::t_547dbef8d115ee 40-46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "099821770331203f6ad6133e5862736e9d30d81c",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
