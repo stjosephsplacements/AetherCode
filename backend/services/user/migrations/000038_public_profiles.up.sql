@@ -53,7 +53,8 @@ BEGIN
     VALUES (actor, p_tenant_id, p_slug, p_enabled, p_content)
     ON CONFLICT (principal_id) DO UPDATE
         SET slug = EXCLUDED.slug, enabled = EXCLUDED.enabled, content = EXCLUDED.content, updated_at = clock_timestamp();
-    RETURN users.own_public_profile(p_tenant_id);
+    RETURN (SELECT jsonb_build_object('slug', slug, 'enabled', enabled, 'content', content, 'updated_at', updated_at)
+            FROM users.public_profiles WHERE principal_id = actor);
 END
 $function$;
 
