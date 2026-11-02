@@ -1,6 +1,7 @@
 "use client";
 
 import { Select } from "@/components/staff/form";
+import { LanguageLabel } from "@/components/language-icon";
 import { WorkspaceTools } from "@/components/practice/workspace-tools";
 import { LayoutMenu } from "@/components/practice/layout-menu";
 import { Splitter } from "@/components/practice/splitter";
@@ -17,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import type { Attempt, CodeRun, ItemSubmission, Paper } from "@/lib/api-types";
 import { APIError, api } from "@/lib/client/api";
 import { formatCountdown, useNow } from "@/lib/client/use-now";
-import { cn, formatTime, languageName } from "@/lib/utils";
+import { cn, formatTime } from "@/lib/utils";
 import { useEditorSettings } from "./editor-settings";
 import { EditorSettingsMenu } from "./editor-settings-menu";
 import { ConnectionBanner } from "./connection-banner";
@@ -381,7 +382,7 @@ function ExamWorkspace({ attemptPath, attemptId, attempt, paper }: Loaded & { at
             <Select aria-label="Language" size="sm" className="w-40" value={draft.language} onValueChange={(language) => answers.update(currentId, { language })} disabled={readOnly}>
               {item.supported_languages.map((language) => (
                 <option key={language} value={language}>
-                  {languageName(language)}
+                  <LanguageLabel language={language} />
                 </option>
               ))}
             </Select>

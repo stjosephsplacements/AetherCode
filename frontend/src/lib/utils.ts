@@ -54,6 +54,16 @@ const LANGUAGE_NAMES: Record<string, string> = {
   python3: "Python 3",
   javascript: "JavaScript",
   go: "Go",
+  cpp: "C++",
+  python: "Python",
+  csharp: "C#",
+  typescript: "TypeScript",
+  kotlin: "Kotlin",
+  rust: "Rust",
+  ruby: "Ruby",
+  php: "PHP",
+  sqlite: "SQLite",
+  bash: "Bash",
 };
 
 export function languageName(key: string): string {
