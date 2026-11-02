@@ -19,7 +19,13 @@ VALUES
     ('java', '$JUDGE_ENGINE', 62, '$version', true, $JUDGE_WORKER_CONCURRENCY),
     ('python3', '$JUDGE_ENGINE', 71, '$version', true, $JUDGE_WORKER_CONCURRENCY),
     ('javascript', '$JUDGE_ENGINE', 63, '$version', true, $JUDGE_WORKER_CONCURRENCY),
-    ('go', '$JUDGE_ENGINE', 60, '$version', true, $JUDGE_WORKER_CONCURRENCY)
+    ('go', '$JUDGE_ENGINE', 60, '$version', true, $JUDGE_WORKER_CONCURRENCY),
+    ('rust', '$JUDGE_ENGINE', 73, '$version', true, $JUDGE_WORKER_CONCURRENCY),
+    ('ruby', '$JUDGE_ENGINE', 72, '$version', true, $JUDGE_WORKER_CONCURRENCY),
+    ('php', '$JUDGE_ENGINE', 68, '$version', true, $JUDGE_WORKER_CONCURRENCY),
+    ('csharp', '$JUDGE_ENGINE', 51, '$version', true, $JUDGE_WORKER_CONCURRENCY),
+    ('bash', '$JUDGE_ENGINE', 46, '$version', true, $JUDGE_WORKER_CONCURRENCY),
+    ('sqlite', '$JUDGE_ENGINE', 82, '$version', true, $JUDGE_WORKER_CONCURRENCY)
 ON CONFLICT (language_key) DO UPDATE
 SET engine_name = EXCLUDED.engine_name, engine_language_id = EXCLUDED.engine_language_id,
     engine_version = EXCLUDED.engine_version, enabled = true,
