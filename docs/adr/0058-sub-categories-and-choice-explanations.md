@@ -1,6 +1,6 @@
 # ADR-0058: Sub-categories, and an explanation for each multiple-choice option
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-11-02
 
 ## Context
@@ -38,7 +38,7 @@ Routes (the existing ones keep working and treat a missing parent as top level):
 | `GET /v1/categories` | each item gains `parent_id`; `question_count` is the category's own count, and top-level items add `question_count_total` (own plus children) |
 | `POST /v1/categories` | accepts optional `parent_id` |
 | `PATCH /v1/categories/{id}` | renames; accepts `parent_id` to move (top level to sub-category only if it has no children; sub-category to another parent or to top level) |
-| `DELETE /v1/categories/{id}` | refused while it has questions **or** children (ADR-0053's "only while nothing depends on it") |
+| `DELETE /v1/categories/{id}` | refused while it has children. Its questions still move to `move_to`, or to Uncategorised, as in ADR-0052 |
 
 Authorisation is unchanged: the same permission that creates a category creates a
 sub-category, and every write is in the staff audit log with the parent in the entry.
@@ -57,13 +57,16 @@ equal, so an option can never lose its explanation by index drift.
   option. The choices editor shows an optional "why" field under each option.
 - **Immutability.** Explanations are part of the published version like the choices, so a
   published version refuses edits and a new draft is the way to change them.
-- **Who sees them.** Explanations are *not* in the capability or snapshot the exam runner
-  receives, so they never reach a student during a test. They are returned only where the
-  correct answers already are: a practice question after the student has answered, and an
-  exam attempt's review once the exam has ended and results are released. Both checks reuse
-  the existing release rules; this ADR adds no new visibility rule.
-- **Export and import.** The question export format (ADR-0032) gains an optional
-  `explanations` list; an import without it produces none.
+- **Who sees them.** Never during a test: the exam paper (`get_attempt_paper_for_candidate`) does
+  not carry them. Practice is coding-only, so there is no multiple-choice practice to reveal
+  into. After results are released, the candidate's result (`get_attempt_result_for_candidate`)
+  lists each multiple-choice item's options with whether each was correct and its explanation,
+  behind the same release rule as the score. That result did not show options or the answer key
+  before, so this is a deliberate extension of what release reveals.
+- **Reaching the candidate.** Question Bank resolves `choice_explanations` (proto field 15,
+  additive) for Assessment, which pins them on `exam_items` and carries them in the candidate
+  assignment snapshot; Submission stores them with the item projection.
+- **Export and import.** Unchanged: the export format has no multiple-choice support.
 
 ## Not doing
 
@@ -71,14 +74,21 @@ equal, so an option can never lose its explanation by index drift.
   counts simple; deeper trees can wait for a real need.
 - Explanations for coding questions. The reference has none, and the statement and a model
   solution already do that job.
+- Recording the parent in the staff audit log. The log is written at the gateway by resource;
+  adding a field is a separate change.
 - Giving each option rich text. Plain text with line breaks matches the options themselves.
 
 ## Migrations
 
 - question-bank `000025_category_parent.up.sql`: the column, the depth trigger, the sibling
   unique index, the updated list function.
-- question-bank `000026_choice_explanations.up.sql`: the column and length check, and the
-  functions that create, update, replace and read a version.
+- question-bank `000026_choice_explanations.up.sql`: the column and length check, the
+  replace-choices function and the version summary.
+- question-bank `000027_resolve_choice_explanations.up.sql`: the resolve function returns them.
+- assessment `000036_mcq_choice_explanations.up.sql`: the `exam_items` column, the item function
+  and the snapshot functions.
+- submission `000036_choice_explanations.up.sql`: the projection column, the snapshot apply
+  function and the released result.
 - Down migrations drop the columns, the trigger and the new index, and restore the global
   unique name. A down that finds two same-named siblings fails with a message rather than
   deleting data.
