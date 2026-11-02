@@ -1,0 +1,53 @@
+frontend/public/langs/c.svg
+  s_4a7f3c46d06453::t_a68a38f2412371 1
+frontend/public/langs/cplusplus.svg
+  s_4a7f3c46d06453::t_3ac1c35c935615 1
+frontend/public/langs/dotnet.svg
+  s_4a7f3c46d06453::t_d144fbe31eac34 1
+frontend/public/langs/gnubash.svg
+  s_4a7f3c46d06453::t_a41b1da4520f98 1
+frontend/public/langs/go.svg
+  s_4a7f3c46d06453::t_f0bedc2cc561fd 1
+frontend/public/langs/javascript.svg
+  s_4a7f3c46d06453::t_6e0edde94342fd 1
+frontend/public/langs/kotlin.svg
+  s_4a7f3c46d06453::t_0092441136dff5 1
+frontend/public/langs/openjdk.svg
+  s_4a7f3c46d06453::t_a94a0d3404638a 1
+frontend/public/langs/php.svg
+  s_4a7f3c46d06453::t_71827625d6c680 1
+frontend/public/langs/python.svg
+  s_4a7f3c46d06453::t_a23297c96232d5 1
+frontend/public/langs/ruby.svg
+  s_4a7f3c46d06453::t_13a35ccd20bb85 1
+frontend/public/langs/rust.svg
+  s_4a7f3c46d06453::t_80293c22ce4099 1
+frontend/public/langs/sqlite.svg
+  s_4a7f3c46d06453::t_8169fc904bedc5 1
+frontend/public/langs/typescript.svg
+  s_4a7f3c46d06453::t_92107d8d5ad97c 1
+frontend/src/components/exam/exam-screen.tsx
+  s_4a7f3c46d06453::t_1ff90390020109 4,21,385
+frontend/src/components/language-icon.tsx
+  s_4a7f3c46d06453::t_9598a3f5bf3c43 1-39
+frontend/src/components/practice/practice-workspace.tsx
+  s_4a7f3c46d06453::t_4485689fcda724 4,268
+frontend/src/lib/utils.ts
+  s_4a7f3c46d06453::t_cec13cf0a71fc2 57-66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "19bd032721460adfc5fd55304817527890dd5af2",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
