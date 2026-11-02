@@ -33,6 +33,9 @@ export function relativeTime(iso: string, now: number): string {
 
 export const MAX_IMPORT_ROWS = 500;
 
+/** The sample file offered for download: a header row and rows that follow every rule. */
+export const IMPORT_TEMPLATE = ["roll_number,name,email", "21CS001,Asha Raman,asha.raman@example.edu", "21CS002,Vikram Iyer,", "21CS003,Meera Nair,meera.nair@example.edu"].join("\n") + "\n";
+
 export type ImportLine = { line: number; roll: string; name: string; email: string; problem: string | null };
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

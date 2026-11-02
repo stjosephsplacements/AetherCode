@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatPhone, importText, initials, parseImport, relativeTime } from "./format";
+import { IMPORT_TEMPLATE, formatPhone, importText, initials, parseImport, relativeTime } from "./format";
 
 describe("initials", () => {
   it("uses first and last word, or the roll when unnamed", () => {
@@ -41,5 +41,13 @@ describe("parseImport", () => {
 
   it("sends only the good lines", () => {
     expect(importText(parseImport("a1,Asha,a@b.co\nb2,Vik\n,bad"))).toBe("a1,Asha,a@b.co\nb2,Vik");
+  });
+});
+
+describe("IMPORT_TEMPLATE", () => {
+  it("has a header and every sample row passes the checks", () => {
+    const lines = parseImport(IMPORT_TEMPLATE);
+    expect(lines).toHaveLength(3);
+    expect(lines.every((entry) => entry.problem === null)).toBe(true);
   });
 });

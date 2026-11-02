@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, KeyRound, MoreHorizontal, TriangleAlert, Upload, UserPlus } from "lucide-react";
+import { ArrowLeft, Download, KeyRound, MoreHorizontal, TriangleAlert, Upload, UserPlus } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
 import { useActionState, useMemo, useState } from "react";
 import { CredentialsTable } from "@/components/staff/credentials";
@@ -18,7 +18,7 @@ import {
   resetPassword,
   setAccountStatus,
 } from "./actions";
-import { MAX_IMPORT_ROWS, importText, parseImport } from "./format";
+import { IMPORT_TEMPLATE, MAX_IMPORT_ROWS, importText, parseImport } from "./format";
 
 type PlacementOption = { id: string; label: string };
 
@@ -34,6 +34,12 @@ export function ImportPanel({ batches, placements, departments }: { batches: Bat
   const problems = lines.filter((entry) => entry.problem).length;
   const ready = lines.length - problems;
   const tooMany = lines.length > MAX_IMPORT_ROWS;
+
+  function downloadTemplate() {
+    const url = URL.createObjectURL(new Blob([IMPORT_TEMPLATE], { type: "text/csv" }));
+    Object.assign(document.createElement("a"), { href: url, download: "students-template.csv" }).click();
+    URL.revokeObjectURL(url);
+  }
 
   async function load(file: File | undefined) {
     setFileError(null);
@@ -141,6 +147,22 @@ export function ImportPanel({ batches, placements, departments }: { batches: Bat
             <input type="file" accept=".csv,text/csv,text/plain" className="sr-only" onChange={(event) => void load(event.target.files?.[0])} />
           </label>
           {fileError && <p role="alert" className="text-[13px] text-danger">{fileError}</p>}
+          <div className="rounded-[var(--radius-control)] border border-line bg-sidebar px-4 py-3 text-[12.5px] text-ink-muted">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">File format</span>
+              <button type="button" onClick={downloadTemplate} className="inline-flex items-center gap-1.5 font-medium text-brand hover:underline">
+                <Download className="size-3.5" />
+                Download template
+              </button>
+            </div>
+            <pre className="overflow-x-auto rounded-md bg-surface px-3 py-2 font-mono text-[12px] text-ink">{IMPORT_TEMPLATE}</pre>
+            <ul className="mt-2 list-disc space-y-0.5 pl-4">
+              <li><span className="font-mono text-ink">roll_number</span>: required, no spaces, up to 40 characters, unique in the college. It becomes the username in lowercase.</li>
+              <li><span className="font-mono text-ink">name</span>: required, up to 120 characters, no commas.</li>
+              <li><span className="font-mono text-ink">email</span>: optional. Leave it empty or leave the column out.</li>
+              <li>The header row is optional. Up to {MAX_IMPORT_ROWS} students per import. Batch and placement department are chosen above, not in the file.</li>
+            </ul>
+          </div>
           <Field label="Or paste the list" htmlFor="import-csv" hint="A header row is skipped.">
             <TextArea
               id="import-csv"
