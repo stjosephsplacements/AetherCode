@@ -250,6 +250,7 @@ func (service *Service) StartPractice(contextValue context.Context, capability c
 		TimeLimitMS: target.TimeLimitMS, MemoryLimitKiB: target.MemoryLimitKiB,
 	}
 	if err := service.modelChecks.Submit(contextValue, job); err != nil {
+		service.logger.Warn("submit practice run to Judge", "run_id", id, "error", err)
 		if failErr := service.modelChecks.Fail(context.WithoutCancel(contextValue), id); failErr != nil {
 			service.logger.Warn("mark practice run failed", "run_id", id, "error", failErr)
 		}

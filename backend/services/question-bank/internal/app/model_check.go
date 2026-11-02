@@ -109,6 +109,7 @@ func (service *Service) StartModelCheck(contextValue context.Context, capability
 		MemoryLimitKiB: target.MemoryLimitKiB,
 	}
 	if err := service.modelChecks.Submit(contextValue, job); err != nil {
+		service.logger.Warn("submit model check to Judge", "check_id", id, "error", err)
 		if failErr := service.modelChecks.Fail(context.WithoutCancel(contextValue), id); failErr != nil {
 			service.logger.Warn("mark model check failed", "check_id", id, "error", failErr)
 		}
