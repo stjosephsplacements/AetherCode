@@ -28,6 +28,12 @@ problem versions), returns full stdout per test, and answers a repeated
   test per job, and the unit id sent as `Idempotency-Key` so a unit submitted
   again after a timeout returns the original job instead of running twice. A
   `200` reply (an existing key) is accepted like a `201`.
+- A job's pending units that share a program go to the engine as one job of up
+  to 100 tests (the `BatchEngine` interface), instead of one engine job per
+  test run one after another. The engine compiles once and runs the tests side
+  by side; each unit is graded from its own result. Anything that cannot be
+  batched (one unit, different programs, a failed batch) falls back to the
+  per-unit path.
 - Expected output still never leaves Judge: the adapter compares the engine's
   stdout itself, as ADR-0028 decided.
 - `JUDGE_ENGINE_COMPATIBILITY_APPROVED` stays as the operator's approval for
