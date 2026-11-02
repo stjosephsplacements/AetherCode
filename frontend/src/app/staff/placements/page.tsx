@@ -1,139 +1,106 @@
-import { Briefcase, Building2, CheckCircle2, GraduationCap, Users } from "lucide-react";
 import type { Metadata } from "next";
-import { EmptyState, LoadError, PageHeader, Section } from "@/components/staff/page-header";
+import { Suspense } from "react";
 import { CollegeFilter } from "@/components/staff/college-filter";
-import { Badge, Panel } from "@/components/ui/card";
-import { listBatches, listDepartments, listPlacement } from "@/lib/server/directory";
-import { listAllStudents } from "@/lib/server/students";
+import { LoadError, PageHeader } from "@/components/staff/page-header";
+import { departmentLabel, listBatches, listDepartments, listPlacement } from "@/lib/server/directory";
 import { inColleges } from "@/lib/server/colleges";
 import { collegesFor, requireStaff } from "@/lib/server/staff";
-import { PlacementsFilter } from "./placements-filter";
+import { listRoster } from "@/lib/server/students";
+import { PlacementsBoard } from "./placements-filter";
+import type { CandidateRow, OrgRow } from "./stats";
 
 export const metadata: Metadata = { title: "Placements" };
 
 export default async function PlacementsPage({ searchParams }: { searchParams: Promise<{ college?: string }> }) {
   const staff = await requireStaff();
+  const { college } = await searchParams;
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Placements"
+        description="Placement organisations and their departments, and how many students each college department has assigned to them."
+        actions={staff.isPlatformAdmin ? <CollegeFilter colleges={staff.tenants.map((tenant) => ({ id: tenant.id, name: tenant.display_name }))} /> : undefined}
+      />
+      <Suspense key={college ?? ""} fallback={<PlacementsSkeleton />}>
+        <PlacementsContent staff={staff} college={college} />
+      </Suspense>
+    </div>
+  );
+}
+
+async function PlacementsContent({ staff, college }: { staff: Awaited<ReturnType<typeof requireStaff>>; college: string | undefined }) {
   let data;
   try {
     const [placement, perCollege] = await Promise.all([
       listPlacement(),
-      inColleges(collegesFor(staff, (await searchParams).college), async (collegeId) => ({
-        departments: await listDepartments(collegeId),
-        batches: await listBatches(collegeId),
-        students: await listAllStudents(collegeId),
-      })),
+      inColleges(collegesFor(staff, college), async (collegeId) => {
+        const [departments, batches] = await Promise.all([listDepartments(collegeId), listBatches(collegeId)]);
+        const students = await listRoster(collegeId, batches.map((batch) => batch.id));
+        return { departments, batches, students };
+      }),
     ]);
-    const several = staff.isPlatformAdmin;
-    // The same department name appears in several colleges, so a root admin's list says which college each is in.
-    const departments = perCollege.flatMap(({ college, value }) => (value?.departments ?? []).map((department) => (several ? { ...department, name: `${department.name} (${college.name})` } : department)));
-    const batches = perCollege.flatMap(({ value }) => value?.batches ?? []);
-    const students = perCollege.flatMap(({ value }) => value?.students ?? []);
-    data = { placement, departments, batches, students, unreachable: perCollege.filter((entry) => entry.failed).map((entry) => entry.college.name) };
+    data = { placement, perCollege };
   } catch (error) {
-    return (
-      <>
-      <PageHeader title="Placements & Campus Drives" />
-        <LoadError error={error} />
-      </>
-    );
+    return <LoadError error={error} />;
   }
+  const { placement, perCollege } = data;
+  const several = staff.isPlatformAdmin;
+  // The same department name appears in several colleges, so a root admin's lists say which college each is in.
+  const suffix = (collegeName: string) => (several ? `, ${collegeName}` : "");
 
-  const { placement, departments, batches, students, unreachable } = data;
-  const collegeDepts = departments.filter((d) => d.department_type === "college");
+  const rows: CandidateRow[] = perCollege.flatMap(({ college: entry, value }) => {
+    if (!value) return [];
+    const departmentOf = new Map(value.departments.map((department) => [department.id, departmentLabel(department) + suffix(entry.name)]));
+    const batchOf = new Map(value.batches.map((batch) => [batch.id, `${batch.name} (${batch.academic_year})`]));
+    return value.students.map((student) => ({
+      id: student.id,
+      roll: student.enrollment_number,
+      name: student.profile_name ?? "",
+      status: student.status,
+      college: entry.name,
+      batchId: student.batch_id ?? "",
+      batch: batchOf.get(student.batch_id ?? "") ?? "No batch",
+      departmentId: student.college_department_id ?? "",
+      department: departmentOf.get(student.college_department_id ?? "") ?? "",
+      placementId: student.placement_department_id ?? "",
+    }));
+  });
+  const departments = perCollege.flatMap(({ college: entry, value }) =>
+    (value?.departments ?? []).filter((department) => department.department_type === "college").map((department) => ({ id: department.id, label: departmentLabel(department) + suffix(entry.name) })),
+  );
+  const batches = perCollege.flatMap(({ college: entry, value }) => (value?.batches ?? []).map((batch) => ({ id: batch.id, label: `${batch.name} (${batch.academic_year})${suffix(entry.name)}` })));
+  const orgs: OrgRow[] = placement.organizations.map((org) => ({
+    id: org.id,
+    name: org.legal_name,
+    code: org.code,
+    status: org.status,
+    tracks: org.departments.map((department) => ({ id: department.id, label: department.name })),
+  }));
+  const unreachable = perCollege.filter((entry) => entry.failed).map((entry) => entry.college.name);
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        actions={staff.isPlatformAdmin ? <CollegeFilter colleges={staff.tenants.map((tenant) => ({ id: tenant.id, name: tenant.display_name }))} /> : undefined}
-        title="Placements & Campus Drives"
-        description="Oversee corporate placement organizations, training cohorts (HOPE, PEP, Elite), and track student recruitment eligibility across engineering departments."
-      />
-
+    <>
       {unreachable.length > 0 && <p role="alert" className="text-sm text-warning">Could not load: {unreachable.join(", ")}.</p>}
+      <PlacementsBoard rows={rows} orgs={orgs} readable={placement.readable} batches={batches} departments={departments} several={several} truncated={rows.length >= 5000} />
+    </>
+  );
+}
 
-      {/* Metrics overview */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-[var(--radius-surface)] border border-line bg-surface p-5">
-          <div className="flex items-center justify-between text-ink-muted">
-            <span className="text-xs font-semibold uppercase tracking-wider">Placement Cells</span>
-            <Building2 className="size-4 text-brand" />
-          </div>
-          <p className="mt-2 text-3xl font-bold tracking-tight text-ink">{placement.organizations.length}</p>
-          <p className="mt-1 text-xs text-ink-muted">Registered corporate cells</p>
-        </div>
-
-        <div className="rounded-[var(--radius-surface)] border border-line bg-surface p-5">
-          <div className="flex items-center justify-between text-ink-muted">
-            <span className="text-xs font-semibold uppercase tracking-wider">Active Cohorts</span>
-            <Briefcase className="size-4 text-brand" />
-          </div>
-          <p className="mt-2 text-3xl font-bold tracking-tight text-ink">
-            {placement.organizations.reduce((acc, org) => acc + org.departments.length, 0)}
-          </p>
-          <p className="mt-1 text-xs text-ink-muted">Specialized placement streams</p>
-        </div>
-
-        <div className="rounded-[var(--radius-surface)] border border-line bg-surface p-5">
-          <div className="flex items-center justify-between text-ink-muted">
-            <span className="text-xs font-semibold uppercase tracking-wider">Eligible Pool</span>
-            <Users className="size-4 text-brand" />
-          </div>
-          <p className="mt-2 text-3xl font-bold tracking-tight text-ink">{students.length}</p>
-          <p className="mt-1 text-xs text-ink-muted">Students registered in college</p>
-        </div>
-
-        <div className="rounded-[var(--radius-surface)] border border-line bg-surface p-5">
-          <div className="flex items-center justify-between text-ink-muted">
-            <span className="text-xs font-semibold uppercase tracking-wider">Engineering Batches</span>
-            <GraduationCap className="size-4 text-brand" />
-          </div>
-          <p className="mt-2 text-3xl font-bold tracking-tight text-ink">{batches.length}</p>
-          <p className="mt-1 text-xs text-ink-muted">Graduating classes tracked</p>
-        </div>
+/** The page's bands while the data loads, so nothing moves when it arrives. */
+function PlacementsSkeleton() {
+  return (
+    <div className="space-y-8" aria-busy="true" aria-label="Loading placements">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 4 }, (_, index) => (
+          <div key={index} className="h-[118px] animate-pulse rounded-[var(--radius-surface)] border border-line bg-surface" />
+        ))}
       </div>
-
-      {/* Organizations & Cohorts listing */}
-      <Section title="Placement Organizations & Specialized Training Units" description="Placement cells manage student groupings, drive eligibility, and corporate training programs.">
-        {!placement.readable ? (
-          <EmptyState>Only a platform administrator can view placement organizations.</EmptyState>
-        ) : placement.organizations.length === 0 ? (
-          <EmptyState>No placement organizations created yet. Add one in Departments.</EmptyState>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {placement.organizations.map((org) => (
-              <Panel key={org.id} className="p-5 space-y-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-semibold text-ink text-lg">{org.legal_name}</h3>
-                    <p className="text-xs text-ink-muted font-mono">{org.code || "Active Cell"}</p>
-                  </div>
-                  <Badge tone="brand">Placement Org</Badge>
-                </div>
-                <div className="border-t border-line pt-3">
-                  <p className="text-xs font-semibold text-ink-muted uppercase tracking-wider mb-2">Cohorts & Tracks</p>
-                  {org.departments.length === 0 ? (
-                    <p className="text-xs text-ink-muted italic">No department tracks assigned.</p>
-                  ) : (
-                    <div className="flex flex-wrap gap-2">
-                      {org.departments.map((dept) => (
-                        <span key={dept.id} className="inline-flex items-center gap-1.5 rounded-md bg-canvas/80 px-2.5 py-1 text-xs font-medium text-ink border border-line">
-                          <CheckCircle2 className="size-3 text-brand" />
-                          {dept.name} ({dept.code})
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </Panel>
-            ))}
-          </div>
-        )}
-      </Section>
-
-      {/* Interactive Drives & Candidate Filter */}
-      <Section title="Candidate Pool Eligibility Filter" description="Filter students by department, batch, and cohort readiness.">
-        <PlacementsFilter students={students} departments={collegeDepts} truncated={students.length >= 5000} />
-      </Section>
+      <div className="h-8 w-80 animate-pulse rounded-full bg-hover" />
+      <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+        {Array.from({ length: 3 }, (_, index) => (
+          <div key={index} className="h-52 animate-pulse rounded-[var(--radius-surface)] border border-line bg-surface" />
+        ))}
+      </div>
     </div>
   );
 }
