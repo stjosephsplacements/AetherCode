@@ -1,0 +1,27 @@
+frontend/src/app/student/(shell)/exams/page.tsx
+  s_4a7f3c46d06453::t_c6240d7b59eee0 40,47-50,52-53
+frontend/src/app/student/(shell)/page.tsx
+  s_4a7f3c46d06453::t_64be245b1bd478 1,4,6,20-34,61-99,103-125,128-133,138-140,142-143,175-177,179-180
+frontend/src/app/student/(shell)/performance/page.tsx
+  s_4a7f3c46d06453::t_04dc7590c5f456 76,96
+frontend/src/app/student/(shell)/profile/public-profile-form.tsx
+  s_4a7f3c46d06453::t_b06c66be5394ca 27,29-30,38
+frontend/src/components/student/student-shell.tsx
+  s_4a7f3c46d06453::t_98da9c75f39741 7-8,11,58-62,67-69,71-73,76-91,96-97,99-100,110-111,148-150,152-153,156-158,162
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "db16d4f94d589dfb09e8baed8e978e1be2b9effb",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
