@@ -1,0 +1,21 @@
+frontend/src/app/student/(shell)/results/[attemptId]/attempt-status.tsx
+  s_4a7f3c46d06453::t_3f547fd0dd4ec0 87-99
+frontend/src/lib/api-types.ts
+  s_4a7f3c46d06453::t_9ce7d47c59d582 403-404
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6a7135c3a2636a1218970e7e4e455d366811e0ee",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
