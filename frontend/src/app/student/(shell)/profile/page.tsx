@@ -8,7 +8,10 @@ import type { PlatformName, ProfileLink } from "@/lib/api-types";
 import { communityList } from "@/lib/server/community";
 import { platformStats } from "@/lib/server/platforms";
 import { requireViewer } from "@/lib/server/session";
+import { publicOrigin } from "@/lib/server/config";
+import { ownPublicProfile } from "@/lib/server/public-profile";
 import { saveProfileLink } from "../../community/actions";
+import { PublicProfileForm } from "./public-profile-form";
 
 export const metadata: Metadata = { title: "My profile" };
 
@@ -25,13 +28,19 @@ const PLATFORMS: { name: PlatformName; label: string; hint: string }[] = [
 export default async function ProfilePage() {
   const viewer = await requireViewer();
   if (!viewer.tenantId) redirect("/student");
-  const links = await communityList<ProfileLink>(viewer.tenantId, "profile-links");
+  const [links, publicProfile] = await Promise.all([communityList<ProfileLink>(viewer.tenantId, "profile-links"), ownPublicProfile(viewer.principalId, viewer.tenantId).catch(() => null)]);
   const stats = await platformStats(links);
   const handleOf = (platform: PlatformName) => links.find((link) => link.platform === platform)?.handle ?? "";
   return (
     <div className="animate-enter">
       <h1 className="display text-[2.25rem] text-ink sm:text-[2.6rem]">{viewer.displayName || "My profile"}</h1>
       <p className="mt-2 max-w-[60ch] text-[15px] text-ink-muted">Link your coding accounts to see your public numbers in one place. Numbers refresh hourly and come from each site; if one is down it shows only the link.</p>
+
+      {publicProfile && (
+        <div className="mt-8">
+          <PublicProfileForm profile={publicProfile} origin={publicOrigin()} suggestion={viewer.username.replace(/[^a-z0-9-]/g, "-")} />
+        </div>
+      )}
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2">
         {stats.length === 0 && <p className="text-sm text-ink-muted sm:col-span-2">No accounts linked yet.</p>}

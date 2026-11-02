@@ -22,6 +22,8 @@ type Handler struct {
 	accounts   *app.AccountService
 	self       SelfReader
 	authorizer *httpauth.Authorizer
+	// publicProfiles is optional: without it the public profile routes are not served.
+	publicProfiles *app.PublicProfiles
 }
 
 // SelfReader returns the verified caller's own access (app.Service.Self).
@@ -29,14 +31,19 @@ type SelfReader interface {
 	Self(context.Context, string) (app.Self, error)
 }
 
-func NewHandler(serviceName string, service *app.ManagementService, accounts *app.AccountService, self SelfReader, readiness httpx.ReadinessFunc, authorizer *httpauth.Authorizer) (http.Handler, error) {
+func NewHandler(serviceName string, service *app.ManagementService, accounts *app.AccountService, self SelfReader, readiness httpx.ReadinessFunc, authorizer *httpauth.Authorizer, publicProfiles *app.PublicProfiles) (http.Handler, error) {
 	if service == nil || accounts == nil || self == nil || authorizer == nil {
 		return nil, fmt.Errorf("user management service, account service, self reader, and authorizer are required")
 	}
-	handler := &Handler{service: service, accounts: accounts, self: self, authorizer: authorizer}
+	handler := &Handler{service: service, accounts: accounts, self: self, authorizer: authorizer, publicProfiles: publicProfiles}
 	mux := httpx.NewOperationalMux(serviceName, readiness)
 	mux.HandleFunc("GET /v1/me", handler.getSelf)
 	mux.HandleFunc("PUT /v1/profiles/{principal_id}", handler.upsertProfile)
+	if publicProfiles != nil {
+		mux.HandleFunc("GET /v1/profiles/{principal_id}/public", handler.getOwnPublicProfile)
+		mux.HandleFunc("PUT /v1/profiles/{principal_id}/public", handler.setOwnPublicProfile)
+		mux.HandleFunc("GET /v1/public/profiles/{slug}", handler.getPublicProfile)
+	}
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/students", handler.listStudents)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/students/roster", handler.listStudentRoster)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/staff-audit", handler.listStaffAudit)
