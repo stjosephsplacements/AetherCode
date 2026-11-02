@@ -40,3 +40,14 @@ func TestCodeTemplatesRejectBadInput(t *testing.T) {
 		}
 	}
 }
+
+func TestVersionIDFromKey(t *testing.T) {
+	t.Parallel()
+	got := versionIDFromKey("qbank/question-versions/01A19D53-761B-72E9-871D-1B926E0D7C60/01a19d53-7633-7148-b6cb-e73c3f332b05-evaluation.bundle")
+	if got != "01a19d53-761b-72e9-871d-1b926e0d7c60" {
+		t.Fatalf("version = %q", got)
+	}
+	if versionIDFromKey("qbank/practice/abc.source") != "" {
+		t.Fatal("a key without a version must give none")
+	}
+}
