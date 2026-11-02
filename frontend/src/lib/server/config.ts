@@ -1,4 +1,5 @@
 import "server-only";
+import { devOrigins } from "@/lib/dev-origins";
 
 function required(name: string): string {
   const value = process.env[name]?.trim();
@@ -18,6 +19,11 @@ export function gatewayURL(): string {
  */
 export function publicOrigin(): string {
   return required("PUBLIC_ORIGIN").replace(/\/+$/, "");
+}
+
+/** Whether a request's Origin is the site's own: PUBLIC_ORIGIN, or a development origin listed in DEV_ORIGINS. */
+export function isOwnOrigin(origin: string | null): boolean {
+  return origin !== null && (origin === publicOrigin() || devOrigins().includes(origin));
 }
 
 export function secureCookies(): boolean {

@@ -23,6 +23,11 @@ describe("realtimeURL", () => {
   it("uses a configured URL when given", () => {
     expect(realtimeURL({ protocol: "http:", host: "localhost:3000" }, "t1", "ws://localhost:8380/api/realtime")).toBe("ws://localhost:8380/api/realtime?tenant=t1");
   });
+
+  it("swaps a localhost address for the page's host when opened from another machine", () => {
+    expect(realtimeURL({ protocol: "http:", host: "192.168.1.24:3000" }, "t1", "ws://localhost:8390/api/realtime")).toBe("ws://192.168.1.24:8390/api/realtime?tenant=t1");
+    expect(realtimeURL({ protocol: "https:", host: "exam.example.edu" }, "t1", "wss://gateway.example.edu/api/realtime")).toBe("wss://gateway.example.edu/api/realtime?tenant=t1");
+  });
 });
 
 describe("backoff", () => {
