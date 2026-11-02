@@ -921,6 +921,10 @@ func mapWriteError(err error, message string) error {
 			return apperrors.New(apperrors.CodeNotFound, message)
 		case "42501":
 			return apperrors.New(apperrors.CodeForbidden, "authorization denied")
+		case "55000":
+			if strings.Contains(postgresError.Message, "root administrator") {
+				return apperrors.New(apperrors.CodeForbidden, "the root administrator cannot be revoked or changed")
+			}
 		}
 	}
 	return fmt.Errorf("write User record: %w", err)
