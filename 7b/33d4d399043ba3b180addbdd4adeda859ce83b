@@ -1,0 +1,55 @@
+backend/services/gateway/internal/edge/handler.go
+  s_4a7f3c46d06453::t_5ee33d985ae05b 14,190-191,290-296
+backend/services/gateway/internal/edge/handler_test.go
+  s_4a7f3c46d06453::t_dcbb904ef6025b 319-350
+backend/services/user/api/openapi.yaml
+  s_4a7f3c46d06453::t_538178a13690ae 82-111,678-696
+backend/services/user/cmd/server/main.go
+  s_4a7f3c46d06453::t_5b1073c750028b 346-351
+backend/services/user/internal/adapters/http/handler.go
+  s_4a7f3c46d06453::t_778f6dbcfb4a37 25-26,34,38,42-46
+backend/services/user/internal/adapters/http/public_profile_handler.go
+  s_4a7f3c46d06453::t_148a4f57fef57d 1-79
+backend/services/user/internal/app/public_profile.go
+  s_4a7f3c46d06453::t_bf9b5b1b4dcb66 1-193
+backend/services/user/internal/app/public_profile_test.go
+  s_4a7f3c46d06453::t_e625b2b2b0dbcb 1-32
+backend/services/user/migrations/000038_public_profiles.down.sql
+  s_4a7f3c46d06453::t_a0993bc8e45b44 1-8
+backend/services/user/migrations/000038_public_profiles.up.sql
+  s_4a7f3c46d06453::t_a3df4a38adf96a 1-67
+backend/services/user/test/integration/soft_delete_test.go
+  s_4a7f3c46d06453::t_c00721b6e56876 59,163
+docs/adr/0062-public-student-profile.md
+  s_4a7f3c46d06453::t_7635fa9e017686 1-28
+docs/adr/README.md
+  s_4a7f3c46d06453::t_0ed35d95eb693c 68
+frontend/src/app/(public)/u/[slug]/page.tsx
+  s_4a7f3c46d06453::t_190e1cc1f47a1e 1-92
+frontend/src/app/student/(shell)/profile/actions.ts
+  s_4a7f3c46d06453::t_a93e57739dc3dd 1-49
+frontend/src/app/student/(shell)/profile/page.tsx
+  s_4a7f3c46d06453::t_62f944fd52736c 11-12,14,31,39-44
+frontend/src/app/student/(shell)/profile/public-profile-form.tsx
+  s_4a7f3c46d06453::t_f1088cea6038a3 1-73
+frontend/src/lib/server/public-profile.ts
+  s_4a7f3c46d06453::t_173cce8af71709 1-29
+frontend/src/lib/site.ts
+  s_4a7f3c46d06453::t_28e85a0e5d6000 23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7b33d4d399043ba3b180addbdd4adeda859ce83b",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
