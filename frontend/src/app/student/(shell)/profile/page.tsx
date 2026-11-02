@@ -12,7 +12,6 @@ import { saveProfileLink } from "../../community/actions";
 
 export const metadata: Metadata = { title: "My profile" };
 
-// AtCoder and SkillRack stay hidden until the notification service accepts them.
 const PLATFORMS: { name: PlatformName; label: string; hint: string }[] = [
   { name: "leetcode", label: "LeetCode", hint: "Your username, from leetcode.com/u/…" },
   { name: "codeforces", label: "Codeforces", hint: "Your handle" },
