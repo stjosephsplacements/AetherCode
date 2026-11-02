@@ -1,0 +1,21 @@
+backend/services/tenant/migrations/000013_fix_tenant_cascade_trigger.down.sql
+  s_4a7f3c46d06453::t_8dd8430141b3c0 1-35
+backend/services/tenant/migrations/000013_fix_tenant_cascade_trigger.up.sql
+  s_4a7f3c46d06453::t_26973b0ea03214 1-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "70caf4652759f947140e81d034bbd9cc4c4327fb",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
