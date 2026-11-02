@@ -1,0 +1,37 @@
+backend/services/question-bank/api/openapi.yaml
+  s_4a7f3c46d06453::t_1c80ac07d000ac 353,365,372,382,385,388,391,397,818-820
+backend/services/question-bank/internal/adapters/http/categories.go
+  s_4a7f3c46d06453::t_730d3b097d2b53 43-44,63,71,78-81,86-94,100
+backend/services/question-bank/internal/adapters/repo/categories.go
+  s_4a7f3c46d06453::t_19b42752f18a52 31-36
+backend/services/question-bank/internal/adapters/repo/category_hierarchy_integration_test.go
+  s_4a7f3c46d06453::t_cca39f44c3bf69 1-148
+backend/services/question-bank/internal/app/categories.go
+  s_4a7f3c46d06453::t_d90c026f767988 42,44-46,49-55,98,102,106-107,110-116,118-128
+backend/services/question-bank/internal/app/service.go
+  s_4a7f3c46d06453::t_c5c91dfc5b4d9e 59,61
+backend/services/question-bank/internal/app/service_test.go
+  s_4a7f3c46d06453::t_c98932da74c080 392,400-403
+backend/services/question-bank/migrations/000025_category_parent.down.sql
+  s_4a7f3c46d06453::t_bbda7ba541de78 1-133
+backend/services/question-bank/migrations/000025_category_parent.up.sql
+  s_4a7f3c46d06453::t_78313543447825 1-227
+backend/services/question-bank/migrations/README.md
+  s_4a7f3c46d06453::t_3b92a6bb780623 33-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "342e0a7e6f59a660dc2e71deb91d5854a788ed13",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
