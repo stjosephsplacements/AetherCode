@@ -449,6 +449,7 @@ components:
         updated_by: {$ref: '#/components/schemas/UUID'}
         updated_at: {type: string, format: date-time}
         version: {type: integer, minimum: 1}
+        config_key: {type: string, pattern: "^[0-9a-f]{64}$", description: Config Key of the generated launch file; present when launch files are configured}
     ConfigurationInput:
       type: object
       required: [exam_id, exam_version_id, configuration_version, config_object_key, config_checksum, encryption_key_reference, config_key_hash]
