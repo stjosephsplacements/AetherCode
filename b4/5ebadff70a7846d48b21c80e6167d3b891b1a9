@@ -1,0 +1,20 @@
+frontend/src/app/student/(shell)/exams/[assignmentId]/start-exam.tsx
+  h_8540f154048b04 11,22
+frontend/src/components/practice/workspace-tools.tsx
+  h_8540f154048b04 7,127-131,182-184,262
+frontend/src/lib/client/api.ts
+  h_8540f154048b04 4,32
+frontend/src/lib/client/uuid.ts
+  h_8540f154048b04 1-9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b45ebadff70a7846d48b21c80e6167d3b891b1a9",
+  "prompts": {},
+  "humans": {
+    "h_8540f154048b04": {
+      "author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
