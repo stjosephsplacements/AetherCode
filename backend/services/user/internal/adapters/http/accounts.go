@@ -106,21 +106,56 @@ func (handler *Handler) setAccountStatus(writer http.ResponseWriter, request *ht
 	writer.WriteHeader(http.StatusNoContent)
 }
 
-func (handler *Handler) updateAccount(writer http.ResponseWriter, request *http.Request) {
-	var body app.AccountChanges
+type bulkAccountsRequest struct {
+	PrincipalIDs []string `json:"principal_ids"`
+	Status       string   `json:"status,omitempty"`
+}
+
+// bulkAccountAuthorizer decides up front for the whole college, since the call names many accounts.
+func (handler *Handler) bulkAccountAuthorizer(writer http.ResponseWriter, request *http.Request) (string, app.Authorize, string, bulkAccountsRequest, bool) {
+	var body bulkAccountsRequest
 	if err := httpx.DecodeJSON(request, &body); err != nil {
 		httpx.WriteError(writer, err)
-		return
+		return "", nil, "", body, false
 	}
-	tenantID, principalID, authorize, actorID, ok := handler.accountTarget(writer, request)
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return "", nil, "", body, false
+	}
+	authorize, actorID, err := handler.accountAuthorizer(request, tenantID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return "", nil, "", body, false
+	}
+	return tenantID, authorize, actorID, body, true
+}
+
+func (handler *Handler) bulkSetAccountStatus(writer http.ResponseWriter, request *http.Request) {
+	tenantID, authorize, actorID, body, ok := handler.bulkAccountAuthorizer(writer, request)
 	if !ok {
 		return
 	}
-	if err := handler.accounts.UpdateAccount(request.Context(), authorize, actorID, tenantID, principalID, body); err != nil {
+	if err := handler.accounts.BulkSetAccountStatus(request.Context(), authorize, actorID, tenantID, body.PrincipalIDs, body.Status); err != nil {
 		httpx.WriteError(writer, err)
 		return
 	}
 	writer.WriteHeader(http.StatusNoContent)
+}
+
+func (handler *Handler) bulkResetPasswords(writer http.ResponseWriter, request *http.Request) {
+	tenantID, authorize, actorID, body, ok := handler.bulkAccountAuthorizer(writer, request)
+	if !ok {
+		return
+	}
+	credentials, err := handler.accounts.BulkResetPasswords(request.Context(), authorize, actorID, tenantID, body.PrincipalIDs)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writeCredentials(writer, http.StatusOK, struct {
+		Accounts []app.IssuedCredential `json:"accounts"`
+	}{Accounts: credentials})
 }
 
 type createStaffRequest struct {

@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -130,14 +131,35 @@ func TestSetAccountStatusRejectsSelfAndUnknownStatus(t *testing.T) {
 	}
 }
 
-func TestUpdateAccountNeedsAChangeBeforeAuthorizing(t *testing.T) {
+func TestBulkAccountActionsRejectBadSelectionsBeforeAuthorizing(t *testing.T) {
 	t.Parallel()
 	service := newTestAccountService(t)
-	if err := service.UpdateAccount(context.Background(), refuseAuthorize, accountActorID, accountTenantID, accountOtherID, AccountChanges{}); err == nil || errors.Is(err, errAuthorizeCalled) {
-		t.Fatalf("empty update error = %v, want validation error before any authorization", err)
+	many := make([]string, MaxBulkAccounts+1)
+	for index := range many {
+		many[index] = "019b11a0-0000-7000-8000-" + strings.Repeat("0", 12-len(itoa(index+100))) + itoa(index+100)
 	}
-	name := "Asha Raman"
-	if err := service.UpdateAccount(context.Background(), refuseAuthorize, accountActorID, accountTenantID, accountOtherID, AccountChanges{DisplayName: &name}); !errors.Is(err, errAuthorizeCalled) {
-		t.Fatalf("update error = %v, want the authorization to be asked and to refuse", err)
+	for name, ids := range map[string][]string{
+		"nobody":             nil,
+		"too many":           many,
+		"not a uuid":         {"nope"},
+		"the same one twice": {accountOtherID, accountOtherID},
+	} {
+		if err := service.BulkSetAccountStatus(context.Background(), refuseAuthorize, accountActorID, accountTenantID, ids, "disabled"); err == nil || errors.Is(err, errAuthorizeCalled) {
+			t.Fatalf("%s: status error = %v, want validation error before authorization", name, err)
+		}
+		if _, err := service.BulkResetPasswords(context.Background(), refuseAuthorize, accountActorID, accountTenantID, ids); err == nil || errors.Is(err, errAuthorizeCalled) {
+			t.Fatalf("%s: password error = %v, want validation error before authorization", name, err)
+		}
+	}
+	if err := service.BulkSetAccountStatus(context.Background(), refuseAuthorize, accountActorID, accountTenantID, []string{accountOtherID}, "locked"); err == nil || errors.Is(err, errAuthorizeCalled) {
+		t.Fatalf("unknown status error = %v, want validation error", err)
+	}
+	if err := service.BulkSetAccountStatus(context.Background(), refuseAuthorize, accountActorID, accountTenantID, []string{accountOtherID, accountActorID}, "disabled"); err == nil || errors.Is(err, errAuthorizeCalled) {
+		t.Fatalf("self-disable in a bulk error = %v, want validation error", err)
+	}
+	if err := service.BulkSetAccountStatus(context.Background(), refuseAuthorize, accountActorID, accountTenantID, []string{accountOtherID}, "disabled"); !errors.Is(err, errAuthorizeCalled) {
+		t.Fatalf("valid selection error = %v, want the authorization to be asked and to refuse", err)
 	}
 }
+
+func itoa(value int) string { return strconv.Itoa(value) }
