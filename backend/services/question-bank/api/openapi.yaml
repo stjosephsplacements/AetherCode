@@ -579,9 +579,10 @@ paths:
                 choices: { type: array, minItems: 2, maxItems: 10, items: { type: string } }
                 correct_choices: { type: array, minItems: 1, items: { type: integer, minimum: 0 } }
                 multiple_choice: { type: boolean }
+                explanations: { type: [array, 'null'], maxItems: 10, items: { type: [string, 'null'], maxLength: 1000 }, description: Why each option is right or wrong, one entry per option (null for none). Omitting it clears the explanations. Authors see them; the exam runner never receives them (ADR-0058). }
       responses:
         '200': { description: The question version. }
-        '400': { description: Invalid options or answer. }
+        '400': { description: Invalid options, answer or explanations. }
         '409': { description: Stale revision or not a draft. }
   /v1/questions/{question_id}/audience:
     put:

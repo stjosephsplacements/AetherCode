@@ -37,3 +37,10 @@ functions.
 that returns `parent_id` and `question_count_total`. `delete_category` is
 refused while a category has sub-categories. Rollback refuses while two
 categories share a name under different parents.
+
+`000026_choice_explanations` adds `question_versions.choice_explanations`
+(ADR-0058): null, or an array as long as `choices` of text up to 1,000
+characters or null, enforced by a check. `set_question_version_choices` gains
+an optional sixth argument; omitting it clears the explanations. The resolve
+function is untouched, so the exam runner never receives them. Rollback drops
+the column and restores the five-argument function.
