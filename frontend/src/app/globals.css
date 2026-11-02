@@ -556,6 +556,24 @@ html:has(.ascii)::-webkit-scrollbar {
     transform: translate(-1px, -1px);
     box-shadow: 4px 4px 0 var(--ink) !important;
   }
+  /* Page titles are as large as on the public pages. */
+  .skin header > div > h1 {
+    font-size: clamp(1.9rem, 4.2vw, 2.7rem) !important;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+  }
+  .skin header > div > h1 + p {
+    font-size: 15px;
+    max-width: 62ch;
+  }
+  /* Boxes are drawn in ink with a hard shadow, as on the help page; nested ones stay flat. */
+  .skin main .bg-surface.border-line:not(.bg-surface .bg-surface, [class*="border-dashed"]) {
+    border-color: var(--ink);
+    box-shadow: 3px 3px 0 var(--ink);
+  }
+  .skin main .divide-line > * + * {
+    border-color: var(--line);
+  }
   /* Small buttons stay quiet: a flat edge, no lift. */
   .skin [data-variant][data-size="sm"] {
     box-shadow: 2px 2px 0 var(--ink) !important;

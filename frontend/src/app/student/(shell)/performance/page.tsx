@@ -73,7 +73,7 @@ export default async function PerformancePage() {
 
       {practice && (
         <section aria-label="Practice" className="mt-8">
-          <h2 className="mb-2.5 text-[15px] font-semibold tracking-[-0.01em] text-ink">Practice</h2>
+          <h2 className="mb-2.5 font-mono text-[13px] text-ink-muted">[ practice ]</h2>
           {practice.available > 0 ? <SolvedBars progress={practice} /> : <EmptyState>No practice problems yet. Your faculty adds them.</EmptyState>}
           <div className="mt-3 rounded-[var(--radius-surface)] border border-line bg-surface p-5">
             <p className="text-[13px] text-ink-muted">
@@ -93,7 +93,7 @@ export default async function PerformancePage() {
       )}
 
       <section aria-label="Exams" className="mt-8">
-        <h2 className="mb-2.5 text-[15px] font-semibold tracking-[-0.01em] text-ink">Exam results</h2>
+        <h2 className="mb-2.5 font-mono text-[13px] text-ink-muted">[ exam results ]</h2>
         {results.length === 0 ? (
           <EmptyState>Exams you finish appear here with their scores.</EmptyState>
         ) : (

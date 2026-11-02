@@ -37,20 +37,17 @@ export default async function MyExams({ searchParams }: { searchParams: Promise<
   return (
     <div className="animate-enter">
       <PageHeader title="My exams" description="Everything assigned to you, with its window and time limit." />
-      <nav aria-label="Exam groups" className="mb-5 inline-flex max-w-full gap-1 overflow-x-auto rounded-[var(--radius-control)] border border-line bg-sidebar p-1">
+      <nav aria-label="Exam groups" className="mb-5 inline-flex max-w-full overflow-x-auto border border-ink bg-canvas font-mono shadow-[3px_3px_0_var(--ink)]">
         {TABS.map((entry) => (
           <Link
             key={entry.key}
             href={`/student/exams?tab=${entry.key}`}
             scroll={false}
             aria-current={entry.key === tab ? "page" : undefined}
-            className={cn(
-              "inline-flex shrink-0 items-center gap-2 rounded-[calc(var(--radius-control)-2px)] px-3.5 py-1.5 text-[13px] font-medium outline-none transition-colors focus-visible:ring-4 focus-visible:ring-brand/15",
-              entry.key === tab ? "bg-surface text-ink shadow-[var(--shadow-hairline)]" : "text-ink-muted hover:text-ink",
-            )}
+            className={cn("inline-flex shrink-0 items-center gap-2 border-r border-ink px-4 py-2 text-[13px] outline-none transition-colors last:border-r-0", entry.key === tab ? "bg-brand text-brand-ink" : "text-ink-muted hover:bg-hover hover:text-ink")}
           >
-            {entry.label}
-            <span className="font-mono text-[11px] tabular-nums text-ink-subtle">{phases[entry.key].length}</span>
+            {entry.label.toLowerCase()}
+            <span className="text-[11px] tabular-nums opacity-70">{phases[entry.key].length}</span>
           </Link>
         ))}
       </nav>

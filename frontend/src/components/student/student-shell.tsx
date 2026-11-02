@@ -7,6 +7,7 @@ import { DropdownMenu } from "radix-ui";
 import { useState, useTransition } from "react";
 import { logout } from "@/app/login/actions";
 import { Brand } from "@/components/brand";
+import { AsciiField } from "@/components/site/ascii-field";
 import { ICONS } from "@/components/nav-links";
 import { Dialog, DialogTrigger, SheetContent } from "@/components/ui/dialog";
 import { accentStyle } from "@/lib/branding";
@@ -186,9 +187,27 @@ function Mobile() {
   );
 }
 
+/** Under the bar on every page but the dashboard: where you are, as a shell prompt, and the way back. */
+function PathBar() {
+  const pathname = usePathname();
+  if (pathname === "/student") return null;
+  return (
+    <div className="mx-auto flex max-w-6xl border-b border-line bg-canvas font-mono text-[12.5px] lg:border-x print:hidden">
+      <p className="truncate px-5 py-2 text-ink-muted">
+        <span className="text-brand">$ </span>cd ~{pathname.replace(/\/[0-9a-f-]{16,}.*/, "/...")}
+      </p>
+      <Link href="/student" className="ml-auto shrink-0 border-l border-line px-4 py-2 text-ink-muted transition-colors hover:bg-brand hover:text-brand-ink">
+        [&lt;- dashboard]
+      </Link>
+    </div>
+  );
+}
+
 export function StudentShell({ viewer, brand, children }: { viewer: Viewer; brand?: CollegeBrand; children: React.ReactNode }) {
   return (
     <div className="skin relative min-h-dvh" style={brand?.color ? accentStyle(brand.color) : undefined}>
+      {/* The landing page's field of ASCII, behind everything. */}
+      <AsciiField />
       <div aria-hidden className="pointer-events-none absolute inset-y-0 left-1/2 -z-10 hidden w-full max-w-6xl -translate-x-1/2 border-x border-line lg:block" />
       <header className="sticky top-0 z-30 bg-canvas font-mono print:hidden">
         <div className="mx-auto flex h-12 max-w-6xl border-b border-line text-[13px] lg:border-x">
@@ -202,6 +221,7 @@ export function StudentShell({ viewer, brand, children }: { viewer: Viewer; bran
           </div>
         </div>
       </header>
+      <PathBar />
       <main className="mx-auto w-full max-w-6xl px-4 pb-24 pt-8 sm:px-8 lg:pt-10">{children}</main>
     </div>
   );
