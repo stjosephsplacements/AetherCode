@@ -1,0 +1,59 @@
+backend/services/analytics/go.mod
+  s_4a7f3c46d06453::t_0fdfc77d30cbd7 63,99
+backend/services/analytics/go.sum
+  s_4a7f3c46d06453::t_3bb5e9f5500868 119-120,221-222
+backend/services/assessment/go.mod
+  s_4a7f3c46d06453::t_57a3f547dcff95 61
+backend/services/assessment/go.sum
+  s_4a7f3c46d06453::t_125b14622d2e1e 119-120
+backend/services/gateway/go.mod
+  s_4a7f3c46d06453::t_efb3803bc12d98 46
+backend/services/gateway/go.sum
+  s_4a7f3c46d06453::t_9e3b56d124f383 88-89
+backend/services/identity/go.mod
+  s_4a7f3c46d06453::t_c858fdda84492e 61,96
+backend/services/identity/go.sum
+  s_4a7f3c46d06453::t_a91541809bc31f 119-120,221-222
+backend/services/judge/go.sum
+  s_4a7f3c46d06453::t_9db95aee9f6540 133-134
+backend/services/notification/go.mod
+  s_4a7f3c46d06453::t_8a3b49b0dc2b0b 60,96
+backend/services/notification/go.sum
+  s_4a7f3c46d06453::t_1f4f43b3413c43 100,110,119-120,221-222
+backend/services/question-bank/go.mod
+  s_4a7f3c46d06453::t_82656b2af1b6b6 13,67
+backend/services/question-bank/go.sum
+  s_4a7f3c46d06453::t_34c92966c05bf9 133-134,252-253
+backend/services/seb/go.mod
+  s_4a7f3c46d06453::t_085d3255a3b617 65,106
+backend/services/seb/go.sum
+  s_4a7f3c46d06453::t_26e7040814e7c1 133-134,252-253
+backend/services/submission/go.mod
+  s_4a7f3c46d06453::t_669385910118e0 67
+backend/services/submission/go.sum
+  s_4a7f3c46d06453::t_15ffb864fcfb8d 133-134
+backend/services/tenant/go.mod
+  s_4a7f3c46d06453::t_ce0cd1181c0934 60,96
+backend/services/tenant/go.sum
+  s_4a7f3c46d06453::t_f3e49324e97100 100,110,119-120,221-222
+backend/services/user/go.mod
+  s_4a7f3c46d06453::t_328d5fe0579df2 13,62
+backend/services/user/go.sum
+  s_4a7f3c46d06453::t_703b0beb91aef1 100,110,119-120,221-222
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "81e55d4807424765e286671e004363819552f97a",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
