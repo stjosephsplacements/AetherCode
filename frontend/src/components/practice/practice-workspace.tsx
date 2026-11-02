@@ -1,6 +1,7 @@
 "use client";
 
 import { Select } from "@/components/staff/form";
+import { LanguageLabel } from "@/components/language-icon";
 import { ArrowLeft, Check, CircleCheck, CircleX, LoaderCircle, Lock, Play, Upload } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -264,7 +265,7 @@ export function PracticeWorkspace({ tenantId, question }: { tenantId: string; qu
         <Select aria-label="Language" size="sm" className="w-40" value={language} onValueChange={setLanguage}>
           {question.languages.map((key) => (
             <option key={key} value={key}>
-              {languageName(key)}
+              <LanguageLabel language={key} />
             </option>
           ))}
         </Select>
