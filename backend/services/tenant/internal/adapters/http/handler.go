@@ -90,7 +90,7 @@ func (handler *Handler) getTenant(writer http.ResponseWriter, request *http.Requ
 		httpx.WriteError(writer, err)
 		return
 	}
-	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "tenants", tenantID, tenantID)
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "tenants", tenantID, "")
 	if err != nil {
 		httpx.WriteError(writer, err)
 		return
@@ -402,7 +402,7 @@ func (handler *Handler) deleteTenant(writer http.ResponseWriter, request *http.R
 		httpx.WriteError(writer, err)
 		return
 	}
-	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "delete", "tenants", tenantID, tenantID)
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "delete", "tenants", tenantID, "")
 	if err != nil {
 		httpx.WriteError(writer, err)
 		return
@@ -425,7 +425,7 @@ func (handler *Handler) hardDeleteTenant(writer http.ResponseWriter, request *ht
 		httpx.WriteError(writer, err)
 		return
 	}
-	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "delete", "tenants", tenantID, tenantID)
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "delete", "tenants", tenantID, "")
 	if err != nil {
 		httpx.WriteError(writer, err)
 		return

@@ -25,7 +25,7 @@ func (handler *Handler) updateTenant(writer http.ResponseWriter, request *http.R
 		httpx.WriteError(writer, err)
 		return
 	}
-	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "tenants", tenantID, tenantID)
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "tenants", tenantID, "")
 	if err != nil {
 		httpx.WriteError(writer, err)
 		return
