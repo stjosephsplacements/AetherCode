@@ -1,0 +1,31 @@
+frontend/src/components/exam/code-editor.tsx
+  s_4a7f3c46d06453::t_d6002d2b2ac2cd 66-99,130,167-170,172,182-184
+frontend/src/components/exam/editor-settings-menu.tsx
+  s_4a7f3c46d06453::t_fd5343dd2e8a43 6,24,38-54,56-74
+frontend/src/components/exam/editor-settings.ts
+  s_4a7f3c46d06453::t_f85b0dca7343ca 10-13,16-28,30
+frontend/src/components/practice/layout-menu.tsx
+  s_4a7f3c46d06453::t_c7e7338036e94e 1-60
+frontend/src/components/practice/layout-settings.ts
+  s_4a7f3c46d06453::t_27587a9c187a28 1-50
+frontend/src/components/practice/practice-workspace.tsx
+  s_4a7f3c46d06453::t_c0d85ce2de0c65 14-16,180-183,185-187,210-211,213-215,257-258,260-287,316-337
+frontend/src/components/practice/splitter.tsx
+  s_4a7f3c46d06453::t_2f96334ae5dfcb 1-50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "72df64da28dee354a1f035eaa35e3270c1e98157",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
