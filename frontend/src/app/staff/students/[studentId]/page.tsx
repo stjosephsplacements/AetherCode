@@ -130,7 +130,7 @@ export default async function StudentDetailPage({ params, searchParams }: { para
         <Panel className="p-6 space-y-4">
           <h3 className="text-xs font-bold uppercase tracking-wider text-ink-muted">Account Administration</h3>
           <p className="text-xs text-ink-muted">Reset passwords or enable/disable account sign-in access.</p>
-          <StudentActions principalId={student.principal_id} username={account?.username || student.enrollment_number} collegeId={collegeId} />
+          <StudentActions principalId={student.principal_id} username={account?.username || student.enrollment_number} collegeId={collegeId} status={account?.status ?? student.status} />
         </Panel>
       </div>
 

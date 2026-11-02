@@ -242,7 +242,7 @@ export function Roster({ rows, several, actions }: { rows: StudentRow[]; several
               </td>
               <td className="px-4 py-2.5">
                 <div className="flex items-center justify-end gap-1">
-                  <StudentActions principalId={student.principalId} username={student.username} collegeId={student.tenantId} />
+                  <StudentActions principalId={student.principalId} username={student.username} collegeId={student.tenantId} status={student.status} />
                   <EditDialog
                     title="Edit student"
                     description="The roll number must be unique in this college. Name, email and phone belong to the account."

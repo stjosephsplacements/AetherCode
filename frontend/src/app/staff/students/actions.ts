@@ -84,6 +84,7 @@ export async function resetPassword(_previous: CredentialsState, form: FormData)
   const principalId = String(form.get("principal_id"));
   try {
     const result = await gateway<{ password: string }>(`/user/v1/tenants/${tenantId}/accounts/${principalId}/password`, { method: "POST" });
+    revalidatePath("/staff", "layout");
     return {
       error: null,
       accounts: [{ principal_id: principalId, username: String(form.get("username") ?? ""), display_name: "", password: result.password }],
@@ -101,6 +102,7 @@ export async function setAccountStatus(_previous: ActionState, form: FormData): 
       method: "PUT",
       body: { status },
     });
+    revalidatePath("/staff", "layout");
     return { error: null, message: status === "disabled" ? "Sign-in disabled." : "Sign-in enabled." };
   } catch (error) {
     return { error: actionError(error) };
