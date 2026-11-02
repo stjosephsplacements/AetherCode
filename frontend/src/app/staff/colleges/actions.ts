@@ -18,8 +18,8 @@ export async function createCollege(_previous: ActionState, form: FormData): Pro
   } catch (error) {
     return { error: actionError(error) };
   }
-  revalidatePath("/staff/colleges");
-  return { error: null, message: "College added. Switch to it above, then create its departments, batches and administrators." };
+  revalidatePath("/staff", "layout");
+  return { error: null, message: "College added. Next, add its departments." };
 }
 
 export async function updateCollege(tenantId: string, changes: Record<string, string>): Promise<ActionState> {

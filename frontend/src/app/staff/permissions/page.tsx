@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { KeyRound, ShieldCheck, Users } from "lucide-react";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { EmptyState, LoadError, PageHeader } from "@/components/staff/page-header";
 import { Badge } from "@/components/ui/card";
@@ -10,7 +12,9 @@ import { inColleges } from "@/lib/server/colleges";
 import { collegesFor, requireStaff } from "@/lib/server/staff";
 import { cn } from "@/lib/utils";
 import { savePermissions } from "./actions";
+import { lettermark } from "../placements/stats";
 import { PermissionEditor } from "./editor";
+import { PeopleList } from "./people-list";
 
 export const metadata: Metadata = { title: "Permissions" };
 
@@ -54,53 +58,60 @@ export default async function PermissionsPage({ searchParams }: { searchParams: 
   const { groups, people, chosen, held } = data;
   const href = (principalId: string, collegeId: string, scopeKind = scope) => `/staff/permissions?person=${principalId}&college=${collegeId}${scopeKind === "platform" ? "&scope=platform" : ""}`;
 
+  const list = people.map((entry) => ({ ...entry, href: href(entry.principalId, entry.collegeId) }));
+  const chip = (icon: ReactNode, label: string, value: number) => (
+    <li className="inline-flex items-center gap-2 rounded-full border border-line bg-surface py-1 pl-2.5 pr-3 text-[13px] text-ink-muted">
+      <span aria-hidden className="text-brand">{icon}</span>
+      {label}
+      <span className="font-mono tabular-nums text-ink">{value}</span>
+    </li>
+  );
+
   return (
     <>
       <PageHeader
         title="Permissions"
         description="Give a person more than their role allows. Whatever the role already permits stays; these are added on top. Changing or deleting something always includes seeing it."
       />
+      <ul className="mb-5 flex flex-wrap gap-2" aria-label="Summary">
+        {chip(<Users className="size-3.5" />, "Staff", people.length)}
+        {chip(<ShieldCheck className="size-3.5" />, "Permissions in the catalogue", groups.reduce((sum, group) => sum + group.resources.reduce((inner, resource) => inner + resource.verbs.length, 0), 0))}
+        {chosen && chip(<KeyRound className="size-3.5" />, `Extra for ${chosen.name.split(" ")[0]}`, held.length)}
+      </ul>
       {people.length === 0 ? (
-        <EmptyState>No staff yet. Create a staff account first, then come back to give them permissions.</EmptyState>
+        <EmptyState>
+          <p className="mb-3 text-[15px] font-medium text-ink">No staff yet</p>
+          Create a staff account first, then come back to give them permissions.
+        </EmptyState>
       ) : (
-        <div className="grid gap-6 xl:grid-cols-[260px_minmax(0,1fr)]">
-          <nav aria-label="Staff" className="xl:sticky xl:top-16 xl:self-start">
-            <ul className="space-y-0.5">
-              {people.map((entry) => (
-                <li key={`${entry.collegeId}-${entry.principalId}`}>
-                  <Link
-                    href={href(entry.principalId, entry.collegeId)}
-                    aria-current={chosen?.principalId === entry.principalId && chosen.collegeId === entry.collegeId ? "page" : undefined}
-                    className={cn(
-                      "flex flex-col rounded-[var(--radius-control)] px-3 py-2 transition-colors",
-                      chosen?.principalId === entry.principalId ? "bg-hover" : "hover:bg-hover",
-                    )}
-                  >
-                    <span className={cn("truncate text-[14px]", chosen?.principalId === entry.principalId ? "font-medium text-ink" : "text-ink-muted")}>{entry.name}</span>
-                    <span className="truncate text-[12px] text-ink-subtle">{[staff.isPlatformAdmin ? entry.collegeName : "", ...entry.labels].filter(Boolean).join(", ")}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
+        <div className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)]">
+          <PeopleList people={list} chosen={chosen} showCollege={staff.isPlatformAdmin} />
           <div className="min-w-0">
             {!chosen ? (
-              <EmptyState>Choose someone on the left.</EmptyState>
+              <EmptyState>Choose someone on the left to see and change what they can do.</EmptyState>
             ) : (
               <>
-                <div className="mb-4 flex flex-wrap items-center gap-3">
-                  <h2 className="text-[17px] font-semibold tracking-[-0.01em] text-ink">{chosen.name}</h2>
-                  {chosen.labels.map((label) => (
-                    <Badge key={label}>{label}</Badge>
-                  ))}
+                <div className="mb-4 flex flex-wrap items-center gap-3 rounded-[var(--radius-surface)] border border-line bg-surface px-4 py-3">
+                  <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-full bg-brand-soft font-mono text-[13px] font-semibold text-brand-soft-ink">
+                    {lettermark(chosen.name)}
+                  </span>
+                  <div className="min-w-0">
+                    <h2 className="truncate text-[16px] font-semibold tracking-[-0.01em] text-ink">{chosen.name}</h2>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                      {chosen.labels.map((label) => (
+                        <Badge key={label}>{label}</Badge>
+                      ))}
+                      {staff.isPlatformAdmin && <span className="text-[12px] text-ink-subtle">{chosen.collegeName}</span>}
+                    </div>
+                  </div>
                   {staff.isPlatformAdmin && (
-                    <div className="ml-auto inline-flex rounded-[var(--radius-control)] border border-line p-0.5 text-[13px]" role="group" aria-label="Where these apply">
+                    <div className="ml-auto inline-flex rounded-[var(--radius-control)] border border-line bg-sidebar p-0.5 text-[13px]" role="group" aria-label="Where these apply">
                       {(["college", "platform"] as const).map((kind) => (
                         <Link
                           key={kind}
                           href={href(chosen.principalId, chosen.collegeId, kind)}
                           aria-current={scope === kind ? "true" : undefined}
-                          className={cn("rounded-[calc(var(--radius-control)-2px)] px-3 py-1 transition-colors", scope === kind ? "bg-hover font-medium text-ink" : "text-ink-muted hover:text-ink")}
+                          className={cn("rounded-[calc(var(--radius-control)-2px)] px-3 py-1 transition-colors", scope === kind ? "bg-surface font-medium text-ink shadow-[var(--shadow-hairline)]" : "text-ink-muted hover:text-ink")}
                         >
                           {kind === "college" ? "This college" : "Every college"}
                         </Link>
