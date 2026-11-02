@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ActionState } from "@/components/staff/form";
-import type { Audience, QuestionDetail, QuestionVersion } from "@/lib/api-types";
+import type { Audience, CategoryRef, QuestionDetail, QuestionVersion } from "@/lib/api-types";
 import { listCategories } from "@/lib/server/categories";
 import { actionError } from "@/lib/server/actions";
 import { gateway } from "@/lib/server/gateway";
@@ -326,13 +326,13 @@ export async function setAudience(questionId: string, versionId: string, audienc
   };
 }
 
-/** Adds a category, or finds the one with that name (ADR-0052). Open to every author. */
-export async function createCategory(name: string): Promise<ActionState & { category?: { id: string; name: string } }> {
+/** Adds a category, or finds the one with that name among its siblings (ADR-0052). `parentId` files it as a sub-category (ADR-0058). Open to every author. */
+export async function createCategory(name: string, parentId?: string): Promise<ActionState & { category?: CategoryRef }> {
   await requireStaff();
   try {
-    const result = await gateway<{ id: string; name: string }>("/question-bank/v1/categories", { method: "POST", body: { name } });
+    const result = await gateway<CategoryRef>("/question-bank/v1/categories", { method: "POST", body: { name, ...(parentId ? { parent_id: parentId } : {}) } });
     revalidatePath("/staff/questions");
-    return { error: null, category: { id: result.id, name: result.name } };
+    return { error: null, category: { id: result.id, name: result.name, parent_id: result.parent_id ?? null } };
   } catch (error) {
     return { error: actionError(error) };
   }
@@ -344,16 +344,20 @@ async function requireCategoryAdmin() {
   return staff.canManageAccounts ? null : ({ error: "Only an administrator can rename, merge or delete categories." } satisfies ActionState);
 }
 
-export async function renameCategory(id: string, name: string): Promise<ActionState> {
+/** Renames a category, moves it under `parentId` (null for top level), or both (ADR-0058). */
+export async function updateCategory(id: string, changes: { name?: string; parentId?: string | null }): Promise<ActionState> {
   const refused = await requireCategoryAdmin();
   if (refused) return refused;
+  const body: { name?: string; parent_id?: string | null } = {};
+  if (changes.name !== undefined) body.name = changes.name;
+  if (changes.parentId !== undefined) body.parent_id = changes.parentId;
   try {
-    await gateway(`/question-bank/v1/categories/${id}`, { method: "PATCH", body: { name } });
+    await gateway(`/question-bank/v1/categories/${id}`, { method: "PATCH", body });
   } catch (error) {
     return { error: actionError(error) };
   }
   revalidatePath("/staff/questions");
-  return { error: null, message: "Renamed." };
+  return { error: null, message: "Saved." };
 }
 
 /** Deletes a category; its questions move to `moveTo`, or to Uncategorised. */

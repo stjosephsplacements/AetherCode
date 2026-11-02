@@ -214,10 +214,13 @@ export type QuestionVersion = {
 export type Audience = "test" | "practice";
 
 /** A category as a question refers to it. */
-export type CategoryRef = { id: string; name: string };
+export type CategoryRef = { id: string; name: string; parent_id?: string | null };
 
-/** GET /question-bank/v1/categories */
-export type Category = CategoryRef & { question_count: number };
+/**
+ * GET /question-bank/v1/categories. `question_count` is the category's own; top-level
+ * items add `question_count_total`, their own plus their sub-categories' (ADR-0058).
+ */
+export type Category = CategoryRef & { question_count: number; question_count_total?: number };
 
 export type QuestionDetail = {
   question: { id: string; slug: string; lifecycle_state: string; version: number; audience?: Audience; category_id?: string; category?: CategoryRef };
