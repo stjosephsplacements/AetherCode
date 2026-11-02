@@ -8,7 +8,7 @@ import { type ReactNode, useEffect, useMemo, useState, useTransition } from "rea
 import { CredentialsTable } from "@/components/staff/credentials";
 import { ConfirmDelete } from "@/components/staff/confirm-delete";
 import { EditDialog } from "@/components/staff/edit-dialog";
-import { Select } from "@/components/staff/form";
+import { Checkbox, Select } from "@/components/staff/form";
 import { LocalPager } from "@/components/staff/pager";
 import { Badge } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -211,7 +211,7 @@ export function Roster({ rows, several, actions }: { rows: StudentRow[]; several
           {list.map((student) => (
             <tr key={student.id} className={cn(selected.has(student.id) && "bg-brand-soft/40")}>
               <td className="w-10 px-4 py-2.5">
-                <input type="checkbox" aria-label={`Select ${student.roll}`} checked={selected.has(student.id)} onChange={() => toggleRow(student.id)} className="size-4 accent-[var(--brand)]" />
+                <Checkbox aria-label={`Select ${student.roll}`} checked={selected.has(student.id)} onCheckedChange={() => toggleRow(student.id)} />
               </td>
               <td className="px-4 py-2.5">
                 <div className="flex items-center gap-3">
@@ -335,7 +335,7 @@ export function Roster({ rows, several, actions }: { rows: StudentRow[]; several
                   <div className="space-y-0.5">
                     {options[key].map((option) => (
                       <label key={option} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-[13px] text-ink hover:bg-hover">
-                        <input type="checkbox" checked={picked[key].has(option)} onChange={() => toggle(key, option)} className="size-4 accent-[var(--brand)]" />
+                        <Checkbox checked={picked[key].has(option)} onCheckedChange={() => toggle(key, option)} />
                         <span className="min-w-0 truncate">{option}</span>
                       </label>
                     ))}
@@ -347,15 +347,10 @@ export function Roster({ rows, several, actions }: { rows: StudentRow[]; several
         </Popover.Root>
 
         <div className="flex items-center gap-1">
-          <select
-            aria-label="Sort by"
-            value={sort}
-            onChange={(event) => setSort(event.target.value as "roll" | "name")}
-            className="h-8 rounded-full border border-line-strong bg-surface px-3 text-[13px] text-ink outline-none focus:border-brand"
-          >
+          <Select aria-label="Sort by" size="sm" className="w-36" value={sort} onValueChange={(value) => setSort(value as "roll" | "name")}>
             <option value="roll">Roll number</option>
             <option value="name">Name</option>
-          </select>
+          </Select>
           <Button variant="ghost" size="icon" aria-label={descending ? "Sorted descending" : "Sorted ascending"} onClick={() => setDescending((current) => !current)}>
             {descending ? <ArrowUpAZ /> : <ArrowDownAZ />}
           </Button>
@@ -396,12 +391,7 @@ export function Roster({ rows, several, actions }: { rows: StudentRow[]; several
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] text-ink-muted">
             <label className="inline-flex cursor-pointer items-center gap-2">
-              <input
-                type="checkbox"
-                checked={allOnPage}
-                onChange={() => setSelected((current) => { const next = new Set(current); for (const id of pageIds) { if (allOnPage) next.delete(id); else next.add(id); } return next; })}
-                className="size-4 accent-[var(--brand)]"
-              />
+              <Checkbox checked={allOnPage} onCheckedChange={() => setSelected((current) => { const next = new Set(current); for (const id of pageIds) { if (allOnPage) next.delete(id); else next.add(id); } return next; })} />
               Select the {pageIds.length} on this page
             </label>
             {shown.length > pageIds.length && (
