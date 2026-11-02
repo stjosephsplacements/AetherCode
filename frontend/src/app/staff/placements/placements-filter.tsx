@@ -354,3 +354,9 @@ function Bar({ value, label, className }: { value: number; label: string; classN
     </div>
   );
 }
+
+// Quotes a CSV field and neutralizes spreadsheet formula prefixes (=, +, -, @).
+function csvCell(value: string): string {
+  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+  return `"${safe.replace(/"/g, '""')}"`;
+}
