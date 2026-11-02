@@ -1,0 +1,19 @@
+frontend/src/app/student/(shell)/profile/public-profile-form.tsx
+  s_4a7f3c46d06453::t_201505eca26a61 22-24,53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e619d1604f5fd269a38535bd9c917c5365c974ee",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
