@@ -52,7 +52,7 @@ export default async function StudentDashboard() {
   return (
     <div className="animate-enter space-y-6">
       {/* Hero */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand via-brand to-[#ff8a3d] p-6 text-brand-ink shadow-[var(--shadow-panel)] sm:p-9">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1b1640] via-[#5a210d] to-[#b84a0d] p-6 text-white shadow-[var(--shadow-panel)] sm:p-9">
         <div aria-hidden className="pointer-events-none absolute -right-16 -top-20 size-72 rounded-full bg-white/15 blur-2xl" />
         <div aria-hidden className="pointer-events-none absolute -bottom-24 left-1/3 size-72 rounded-full bg-black/10 blur-3xl" />
         <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.12] [background-image:radial-gradient(circle_at_1px_1px,white_1px,transparent_0)] [background-size:22px_22px]" />
@@ -62,7 +62,7 @@ export default async function StudentDashboard() {
             <h1 className="mt-4 text-[2rem] font-semibold leading-[1.1] tracking-[-0.03em] sm:text-[2.8rem]">
               {greeting}, {firstName}
             </h1>
-            <p className="mt-3 max-w-[52ch] text-[15.5px] leading-relaxed text-white/85">
+            <p className="mt-3 max-w-[52ch] text-[15.5px] leading-relaxed text-white/90">
               {live.length > 0
                 ? live.length === 1
                   ? "You have an exam open right now. Good luck."
@@ -75,12 +75,12 @@ export default async function StudentDashboard() {
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               {live[0] ? (
-                <Link href={`/student/exams/${live[0].id}`} className="inline-flex h-11 items-center gap-2 rounded-full bg-white px-6 text-[15px] font-semibold text-ink shadow-lg transition-transform hover:-translate-y-0.5">
+                <Link href={`/student/exams/${live[0].id}`} className="inline-flex h-11 items-center gap-2 rounded-full bg-white px-6 text-[15px] font-semibold text-[#1b1640] shadow-lg transition-transform hover:-translate-y-0.5">
                   {resume ? "Resume exam" : "Start exam"}
                   <ArrowRight className="size-4" />
                 </Link>
               ) : (
-                <Link href="/student/practice" className="inline-flex h-11 items-center gap-2 rounded-full bg-white px-6 text-[15px] font-semibold text-ink shadow-lg transition-transform hover:-translate-y-0.5">
+                <Link href="/student/practice" className="inline-flex h-11 items-center gap-2 rounded-full bg-white px-6 text-[15px] font-semibold text-[#1b1640] shadow-lg transition-transform hover:-translate-y-0.5">
                   <Code2 className="size-4" />
                   Practice now
                 </Link>
@@ -95,13 +95,13 @@ export default async function StudentDashboard() {
             {next ? (
               <>
                 <div className="flex items-center justify-between gap-2 text-[12.5px]">
-                  <span className="rounded-full bg-white px-2.5 py-0.5 font-semibold text-ink">{live[0] ? "Open now" : "Next exam"}</span>
-                  <span className="text-white/80">{formatDuration(next.duration_seconds)} limit</span>
+                  <span className="rounded-full bg-white px-2.5 py-0.5 font-semibold text-[#1b1640]">{live[0] ? "Open now" : "Next exam"}</span>
+                  <span className="text-white/85">{formatDuration(next.duration_seconds)} limit</span>
                 </div>
                 <h2 className="mt-3 line-clamp-2 text-[19px] font-semibold leading-snug">{next.title}</h2>
-                <p className="mt-1 text-[13px] text-white/80">{formatWindow(next.available_from, next.available_until)}</p>
+                <p className="mt-1 text-[13px] text-white/85">{formatWindow(next.available_from, next.available_until)}</p>
                 <div className="mt-5 flex items-end justify-between border-t border-white/25 pt-4">
-                  <span className="text-[12.5px] text-white/80">{live[0] ? "Closes in" : "Opens in"}</span>
+                  <span className="text-[12.5px] text-white/85">{live[0] ? "Closes in" : "Opens in"}</span>
                   <Countdown to={live[0] ? next.available_until : next.available_from} className="font-mono text-[34px] font-semibold tabular-nums leading-none" />
                 </div>
               </>
@@ -111,18 +111,18 @@ export default async function StudentDashboard() {
                   <span className="font-mono text-[22px] font-semibold">{solvedShare}%</span>
                 </Ring>
                 <div>
-                  <p className="text-[13px] text-white/80">Practice set</p>
+                  <p className="text-[13px] text-white/85">Practice set</p>
                   <p className="mt-0.5 text-[22px] font-semibold">
                     {progress.solved}/{progress.available} solved
                   </p>
-                  <p className="mt-1 text-[13px] text-white/80">No exams scheduled yet.</p>
+                  <p className="mt-1 text-[13px] text-white/85">No exams scheduled yet.</p>
                 </div>
               </div>
             ) : (
               <div className="py-6 text-center">
                 <CalendarClock className="mx-auto size-7" strokeWidth={1.5} />
                 <p className="mt-2 font-semibold">No exams scheduled</p>
-                <p className="mt-0.5 text-[13px] text-white/80">New ones appear here as soon as faculty assign them.</p>
+                <p className="mt-0.5 text-[13px] text-white/85">New ones appear here as soon as faculty assign them.</p>
               </div>
             )}
           </div>
@@ -195,7 +195,7 @@ export default async function StudentDashboard() {
             <div className="grid grid-cols-7 gap-2">
               {week.map((cell, index) => (
                 <div key={cell.day} className={cn("flex flex-col items-center gap-1.5 rounded-2xl py-3", cell.day === today ? "bg-brand text-brand-ink" : "bg-hover/70")}>
-                  <span className={cn("text-[11px] font-medium", cell.day === today ? "text-white/80" : "text-ink-subtle")}>{WEEKDAYS[index]}</span>
+                  <span className={cn("text-[11px] font-medium", cell.day === today ? "text-white/85" : "text-ink-subtle")}>{WEEKDAYS[index]}</span>
                   <span className="font-mono text-[15px] font-semibold">{Number(cell.day.slice(8))}</span>
                   <span className="flex h-2 items-center gap-1">
                     {examDays.has(cell.day) && <span className={cn("size-1.5 rounded-full", cell.day === today ? "bg-white" : "bg-brand")} />}
@@ -330,7 +330,7 @@ export default async function StudentDashboard() {
                   {grid.map((column) => (
                     <div key={column[0]!.day} className="flex flex-1 flex-col gap-[3px]">
                       {column.map((cell) => (
-                        <span key={cell.day} title={cell.day} className={cn("aspect-square rounded-[4px]", cell.future ? "bg-transparent" : cell.active ? "bg-brand" : "bg-hover")} />
+                        <span key={cell.day} title={cell.day} className={cn("aspect-square rounded-[4px]", cell.future ? "bg-transparent" : cell.active ? "bg-brand" : "bg-line-strong")} />
                       ))}
                     </div>
                   ))}
