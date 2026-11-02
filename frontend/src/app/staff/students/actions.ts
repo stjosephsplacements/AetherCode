@@ -46,15 +46,29 @@ export async function importStudents(_previous: ImportState, form: FormData): Pr
     const batches = await gateway<Page<Batch>>(`/tenant/v1/tenants/${tenantId}/batches?limit=100`);
     const batch = batches.items.find((candidate) => candidate.id === batchId);
     if (!batch) return { error: "Choose a batch." };
-    const result = await gateway<StudentImportResult>(`/user/v1/tenants/${tenantId}/students/import`, {
-      method: "POST",
-      body: {
-        batch_id: batch.id,
-        college_department_id: batch.department_id,
-        placement_department_id: String(form.get("placement_department_id") ?? ""),
-        students: rows,
-      },
-    });
+    // A placement department created seconds ago reaches the user service a moment later; until then
+    // the import names a target it cannot see yet, so wait for it rather than fail.
+    const send = () =>
+      gateway<StudentImportResult>(`/user/v1/tenants/${tenantId}/students/import`, {
+        method: "POST",
+        body: {
+          batch_id: batch.id,
+          college_department_id: batch.department_id,
+          placement_department_id: String(form.get("placement_department_id") ?? ""),
+          students: rows,
+        },
+      });
+    let result: StudentImportResult | undefined;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        result = await send();
+        break;
+      } catch (error) {
+        const notYet = error instanceof GatewayError && error.status === 400 && /import targets are invalid/.test(error.message);
+        if (!notYet || attempt >= 4) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 2500));
+      }
+    }
     revalidatePath("/staff/students");
     return {
       error: null,
