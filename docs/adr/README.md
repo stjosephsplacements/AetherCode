@@ -11,8 +11,8 @@ Each decision is a numbered file; new ones start from [the template](0000-templa
 | [0005](0005-platform-postgres-ha.md) | Three-node India-hosted PostgreSQL HA topology |
 | [0006](0006-signed-authz-context.md) | Signed authorization context for local RLS |
 | [0007](0007-india-residency-retention.md) | India-only residency and tenant-configurable retention |
-| [0008](0008-judge-persistence-boundary.md) | Isolate Judge wrapper persistence from the Judge0 engine |
-| [0009](0009-judge0-gvisor-compatibility-gate.md) | Block Judge0 promotion until gVisor isolation is proven |
+| [0008](0008-judge-persistence-boundary.md) | Isolate Judge wrapper persistence from the execution engine |
+| [0009](0009-judge0-gvisor-compatibility-gate.md) | Block Judge0 promotion until gVisor isolation is proven (superseded by 0060) |
 | [0010](0010-judge-control-plane-ha.md) | Use independent HA control-plane and queue clusters for Judge |
 | [0011](0011-assignment-revocation-cancellation.md) | Assignment revocation cancels nonterminal candidate work |
 | [0012](0012-gateway-seb-enforcement-boundary.md) | Fail-closed Gateway and SEB enforcement boundary |
@@ -63,3 +63,4 @@ Each decision is a numbered file; new ones start from [the template](0000-templa
 | [0057](0057-student-directory.md) | A student directory for the staff console, with account summaries and bulk account actions (accepted) |
 | [0058](0058-sub-categories-and-choice-explanations.md) | Sub-categories, and an explanation for each multiple-choice option (accepted) |
 | [0059](0059-codepro-parity.md) | Closing the remaining gaps with the reference product: branding, failed work, profile sync (proposed) |
+| [0060](0060-remove-judge0.md) | Remove Judge0; the AetherCode Execution Engine is the only engine (accepted) |

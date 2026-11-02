@@ -1,9 +1,9 @@
 // Package aethercode is an evaluation engine adapter for the AetherCode
 // Execution Engine (github.com/stjosephsplacements/AetherCode-Execution-Engine),
 // the college's own on-premise engine on go-judge (ADR-0028). It uses the
-// engine's run mode only: the engine executes the code and returns its
-// output, and this adapter grades it with dispatcher.OutputsMatch, so no test
-// data is stored inside the engine.
+// engine as a pure executor: each unit is one job with a single test, the
+// engine returns the full output, and this adapter grades it with
+// dispatcher.OutputsMatch, so no expected output ever reaches the engine.
 package aethercode
 
 import (
@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	// The engine's accepted ranges for run-mode limits.
+	// The engine's accepted ranges for per-test limits.
 	minTimeLimitMS   = 100
 	maxTimeLimitMS   = 20_000
 	minMemoryLimitKB = 16_384
@@ -85,7 +85,6 @@ type testCase struct {
 type executeRequest struct {
 	Language      string     `json:"language"`
 	SourceCode    string     `json:"source_code"`
-	Mode          string     `json:"mode"`
 	Tests         []testCase `json:"tests"`
 	TimeLimitMS   int        `json:"time_limit_ms"`
 	MemoryLimitKB int        `json:"memory_limit_kb"`
@@ -115,10 +114,9 @@ func (client *Client) Submit(ctx context.Context, req dispatcher.UnitRequest) (s
 	if err != nil {
 		return "", err
 	}
-	jobID, streamToken, err := client.createJob(ctx, executeRequest{
+	jobID, streamToken, err := client.createJob(ctx, req.IdempotencyKey, executeRequest{
 		Language:   language.engineName,
 		SourceCode: req.SourceCode,
-		Mode:       "run",
 		// The expected output stays here: this adapter compares, not the engine.
 		Tests:         []testCase{{Input: req.Stdin, ExpectedOutput: ""}},
 		TimeLimitMS:   clamp(req.TimeLimitMS*language.timeMultiplier, minTimeLimitMS, maxTimeLimitMS),
@@ -156,7 +154,9 @@ func (client *Client) Poll(_ context.Context, token string) (*dispatcher.UnitVer
 	return &verdict, nil
 }
 
-func (client *Client) createJob(ctx context.Context, request executeRequest) (string, string, error) {
+// createJob posts the unit. A non-empty idempotencyKey makes a retry after a timeout
+// or restart return the original job instead of running the unit twice.
+func (client *Client) createJob(ctx context.Context, idempotencyKey string, request executeRequest) (string, string, error) {
 	body, err := json.Marshal(request)
 	if err != nil {
 		return "", "", fmt.Errorf("aethercode: encode execute request: %w", err)
@@ -168,6 +168,9 @@ func (client *Client) createJob(ctx context.Context, request executeRequest) (st
 			return "", "", fmt.Errorf("aethercode: build execute request: %w", err)
 		}
 		httpRequest.Header.Set("Content-Type", "application/json")
+		if idempotencyKey != "" {
+			httpRequest.Header.Set("Idempotency-Key", idempotencyKey)
+		}
 		httpResponse, err := client.http.Do(httpRequest)
 		if err != nil {
 			return "", "", fmt.Errorf("aethercode: execute request failed: %w", err)
@@ -175,7 +178,7 @@ func (client *Client) createJob(ctx context.Context, request executeRequest) (st
 		responseBody, _ := io.ReadAll(io.LimitReader(httpResponse.Body, 4096))
 		_ = httpResponse.Body.Close()
 		switch httpResponse.StatusCode {
-		case http.StatusCreated:
+		case http.StatusCreated, http.StatusOK: // 200: the engine already had this idempotency key
 			var created struct {
 				JobID       string `json:"job_id"`
 				StreamToken string `json:"stream_token"`

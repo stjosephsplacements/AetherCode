@@ -4,8 +4,8 @@ package dispatcher
 import "context"
 
 // Engine is the evaluation engine port. The stub is used by default; the
-// Judge0 (JUDGE_ENGINE=judge0) and AetherCode (JUDGE_ENGINE=aethercode) adapters
-// require the engine compatibility gate.
+// AetherCode Execution Engine adapter (JUDGE_ENGINE=aethercode) requires the
+// engine compatibility gate.
 type Engine interface {
 	Submit(ctx context.Context, req UnitRequest) (token string, err error)
 	Poll(ctx context.Context, token string) (*UnitVerdict, error)
@@ -19,6 +19,9 @@ type UnitRequest struct {
 	TimeLimitMS    int
 	MemLimitKB     int
 	ExpectedOutput string
+	// IdempotencyKey identifies the unit, so an engine can return the original
+	// result when the same unit is submitted again after a timeout or restart.
+	IdempotencyKey string
 }
 
 // UnitVerdict is the terminal result returned by the engine for one test unit.

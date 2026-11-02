@@ -41,13 +41,13 @@ required before promotion.
 
 Judge control-plane state is isolated in `aether_judge_wrapper` with its own
 PostgreSQL HA deployment and RabbitMQ quorum cluster. It does not own or share
-Redis with the platform; Redis is an internal dependency of the separately
-operated Judge0 engine after approval. The wrapper accepts durable, encrypted
+Redis with the platform. The wrapper accepts durable, encrypted
 references and leases completions through private mTLS gRPC.
 
 Implemented on the judge side:
-- a real Judge0 HTTP client (`backend/services/judge/internal/adapters/judge0`), selected
-  with `JUDGE_ENGINE` and only enabled when `JUDGE_ENGINE_COMPATIBILITY_APPROVED`
+- an HTTP client for the AetherCode Execution Engine
+  (`backend/services/judge/internal/adapters/aethercode`), selected with
+  `JUDGE_ENGINE` and only enabled when `JUDGE_ENGINE_COMPATIBILITY_APPROVED`
   is set;
 - fan-out of an evaluation bundle into one execution unit per test case
   (ADR-0014);
@@ -60,11 +60,10 @@ test case on the engine, and Submission scores the attempt by test weight
 (ADR-0014, ADR-0015, ADR-0021). The single-server stack runs code on the AetherCode
 Execution Engine (ADR-0028).
 
-The Judge0 engine chart is disabled by default. It must remain blocked until
-the gVisor, no-network, non-privileged compatibility gate has approved an
-immutable image and recorded queue-replay, node-failure, and 10,000-candidate /
-five-minute load evidence, including the 60-second final-verdict P95 target.
-See [the compatibility-gate runbook](runbooks/judge0-compatibility-gate.md).
+The execution engine runs outside the cluster (ADR-0028) and is enabled only
+when `JUDGE_ENGINE_COMPATIBILITY_APPROVED` is set. That approval must be backed
+by recorded queue-replay, node-failure, and 10,000-candidate / five-minute load
+evidence, including the 60-second final-verdict P95 target.
 
 
 ## Platform: current backend scope

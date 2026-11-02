@@ -1,5 +1,5 @@
-// Package judge0 contains evaluation engine adapters for the judge dispatcher.
-package judge0
+// Package stub is the evaluation engine used when JUDGE_ENGINE=stub.
+package stub
 
 import (
 	"context"
@@ -11,8 +11,7 @@ import (
 
 // Stub is a deterministic fake evaluation engine that immediately accepts any
 // submission. It is used when JUDGE_ENGINE=stub (the default) so that the full
-// dispatch pipeline can be exercised without a real Judge0 installation or
-// gVisor approval.
+// dispatch pipeline can be exercised without a real engine.
 // Safe for concurrent use.
 type Stub struct {
 	mu      sync.Mutex

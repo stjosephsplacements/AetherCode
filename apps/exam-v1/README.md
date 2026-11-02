@@ -7,7 +7,7 @@ supervised college lab:
 - **Students** solve problems in a HackerRank-style editor, using **Run**
   (sample tests) and **Submit** (all tests).
 
-A background worker grades code through Judge0 or Piston.
+A background worker grades code through the AetherCode Execution Engine (or Piston for local development).
 
 This is the lean first version described in
 [ADR-0016](../../docs/adr/0016-lean-exam-app-for-first-launch.md). It is
@@ -29,9 +29,9 @@ or database). Those remain the long-term multi-college platform.
 | `app/` | Next.js 16 App Router. Server components query Postgres directly; form mutations are server actions (`actions.ts` beside each page); the exam screen polls small JSON routes under `app/api/`. |
 | `app/exam/[examId]/exam-ide.tsx` | The exam screen: problem pane, CodeMirror editor, results/custom-input console, timer, autosave, fullscreen gate, paste guard, announcements. |
 | `worker/main.ts` | Claims queued submissions (`FOR UPDATE SKIP LOCKED`, runs before submits), grades them, stores per-test results; retries failed engine calls 3×; reclaims work from crashed workers after 5 min; auto-submits final drafts when attempts end; writes a heartbeat every 5 s. |
-| `lib/engine.ts` | Engine adapters. `Judge0Engine` (production, with compile-once batching) and `PistonEngine` (local dev / cgroup v2 hosts). Add an engine by implementing `Engine.execute` (and optionally `executeBatch`). |
+| `lib/engine.ts` | Engine adapters. `AetherCodeEngine` (production) and `PistonEngine` (local development). Add an engine by implementing `Engine.execute` (and optionally `executeBatch`). |
 | `lib/grade.ts` | Turns engine results into verdicts and scores: batched per test group when the engine supports it, otherwise per test with a compile-error short-circuit. Picks the worst verdict, sums passed weight. |
-| `lib/batch.ts` | Builds the compile-once job for Judge0's multi-file mode: source, a `compile` script, a `run` script that runs each input under its own CPU limit, and framed base64 output per test. Also a minimal ZIP writer. |
+| `lib/zip.ts`, `lib/limits.ts` | A minimal ZIP writer (used by tests) and the per-test output limit. |
 | `lib/compare.ts` | Output comparison: ignores trailing spaces per line, trailing blank lines and CRLF. |
 | `lib/attempts.ts`, `lib/net.ts`, `lib/client-ip.ts` | Student API guards: session, attempt ownership, deadline (with draft grace), IPv4 network allow-list. |
 | `lib/results.ts` | Per-slot scores for the results table and CSV export. |
@@ -40,7 +40,7 @@ or database). Those remain the long-term multi-college platform.
 | `lib/health.ts` | Database, worker-heartbeat, engine and queue checks for `/api/health` and `/admin/system`. |
 | `db/NNN_*.sql` | Schema migrations, applied in order by `pnpm migrate` and recorded in `schema_migrations`. |
 | `scripts/` | `migrate`, `create-admin`, `engine-check`, `loadtest`, `install-piston-runtimes`. |
-| `deploy/` | Docker Compose: `nginx` (only published port), `app`, `worker`, `migrate`, `db`, `backup`, Judge0 (`judge0-server`, `judge0-workers`, `judge0-db`, `judge0-redis`), optional `piston`. |
+| `deploy/` | Docker Compose: `nginx` (only published port), `app`, `worker`, `migrate`, `db`, `backup`, optional `piston`. |
 
 ### Data model
 
@@ -208,14 +208,13 @@ from the test's.
 
 Requirements:
 - Docker with the Compose plugin;
-- **cgroup v1** for Judge0 1.13 (see below);
-- enough CPU: size the server by cores, because Judge0 runs one job per worker
-  (`COUNT`) at a time.
+- the AetherCode Execution Engine running on the host, listening on the docker0
+  address only (`AC_GATEWAY_ADDR=172.17.0.1:5100`);
+- enough CPU: size the server by cores.
 
 ```bash
 cd apps/exam-v1/deploy
 cp .env.example .env                    # set DB_PASSWORD
-cp judge0.conf.example judge0.conf      # set both passwords; COUNT = CPU cores
 docker compose up -d --build            # or `make exam-up` from the repo root
 docker compose exec app pnpm create-admin admin "Exam Admin"
 docker compose exec worker pnpm engine-check   # must print "Engine OK"
@@ -229,8 +228,7 @@ Students and faculty open `http://<server-ip>/` (nginx on `APP_PORT`, default 80
 | `APP_PORT` | `80` | Port nginx listens on. |
 | `COOKIE_SECURE` | `false` | Plain HTTP on the LAN needs `false`; set `true` behind HTTPS. |
 | `WORKER_CONCURRENCY` | `16` | See Configuration below. |
-| `ENGINE`, `ENGINE_URL` | `judge0`, `http://judge0-server:2358` | Switch to `piston`, `http://piston:2000` on cgroup v2 hosts. |
-| `JUDGE0_AUTH_TOKEN` | empty | Judge0 `X-Auth-Token`, if set in `judge0.conf`. |
+| `ENGINE`, `ENGINE_URL` | `aethercode`, `http://172.17.0.1:5100` | Switch to `piston`, `http://piston:2000` for local development. |
 | `BACKUP_INTERVAL_MINUTES`, `BACKUP_RETENTION_DAYS` | `15`, `7` | Backup schedule and retention. |
 
 ### Behind a host reverse proxy
@@ -248,30 +246,6 @@ COOKIE_SECURE=true
 Install `deploy/host-nginx-site.conf` as the host site and reload nginx. The
 client address then flows Cloudflare → host nginx → exam nginx → app, so the
 network allow-list sees each student's real address.
-
-### Judge0 needs cgroup v1
-
-Judge0 1.13's sandbox (isolate) only works with cgroup v1. Check with
-`stat -fc %T /sys/fs/cgroup`:
-- `tmpfs` means v1, which is what you want;
-- `cgroup2fs` means v2.
-
-**Ubuntu 22.04/24.04:** switch to v1 by adding
-`systemd.unified_cgroup_hierarchy=0` to `GRUB_CMDLINE_LINUX` in
-`/etc/default/grub`, then run `sudo update-grub && sudo reboot`.
-
-**systemd ≥ 256 (e.g. Debian 13):** these cannot boot cgroup v1. Run Piston
-instead, which requires cgroup v2:
-
-```bash
-# in deploy/.env: ENGINE=piston and ENGINE_URL=http://piston:2000
-docker compose --profile piston up -d --build
-docker compose exec app pnpm piston-runtimes   # downloads gcc, python, java once
-```
-
-If `engine-check` fails only in Judge0 batch mode (for example a compiler path
-differs in your Judge0 image), set `ENGINE_BATCH=false` for the `worker` and
-restart it. Grading then uses one Judge0 job per test.
 
 ### Before the first graded exam
 
@@ -306,7 +280,7 @@ removes everything it created.
 - **Backups are automatic:** the `backup` service writes `deploy/backups/exam-YYYYMMDD-HHMM.dump` every 15 minutes and keeps 7 days. Copy the folder off the server after every exam. Check it with `docker compose logs backup`.
 - **Restore** a dump: `docker compose exec -T db pg_restore -U exam -d exam --clean --if-exists < backups/exam-YYYYMMDD-HHMM.dump`.
 - **Health:** `GET /api/health` returns `200` when database, worker and engine are up and `503` otherwise, for external monitors. It reveals nothing else.
-- **Restart safely:** submissions a crashed worker was holding are reclaimed after 10 minutes (longer than the slowest Judge0 batch); failed engine calls are retried 3 times, then marked as a system error the student can resubmit.
+- **Restart safely:** submissions a crashed worker was holding are reclaimed after 10 minutes (longer than the slowest legitimate batch); failed engine calls are retried 3 times, then marked as a system error the student can resubmit.
 - **A student's machine failed:** sign them in on another machine (their old session ends), then grant extra time from their attempt page. Their autosaved code is waiting.
 
 ## Configuration (app and worker)
@@ -315,11 +289,9 @@ removes everything it created.
 |---|---|---|
 | `DATABASE_URL` | — | Postgres connection string. |
 | `DATABASE_POOL_SIZE` | `20` | Connections per process. |
-| `ENGINE` | `judge0` | `judge0` or `piston`. |
+| `ENGINE` | `aethercode` | `aethercode` or `piston`. |
 | `ENGINE_URL` | — | Engine base URL. |
-| `ENGINE_AUTH_TOKEN` | empty | Judge0 `X-Auth-Token`, if configured. |
-| `ENGINE_BATCH` | `true` | Judge0 only: compile once per submission and run all tests in one job. Set `false` to fall back to one Judge0 job per test. |
-| `WORKER_CONCURRENCY` | `8` | Parallel engine jobs from the worker. Judge0: about 2× `COUNT` (extra jobs wait in Judge0's queue). Piston: at most CPU cores − 2, because Piston times by wall clock and CPU contention causes false time-limit verdicts. |
+| `WORKER_CONCURRENCY` | `8` | Parallel engine jobs from the worker. AetherCode engine: about 2× its worker count (extra jobs wait in its queue). Piston: at most CPU cores − 2, because Piston times by wall clock and CPU contention causes false time-limit verdicts. |
 | `COOKIE_SECURE` | `true` | Set `false` only for plain HTTP on a trusted LAN. |
 
 ## Known limitations
@@ -328,9 +300,7 @@ removes everything it created.
   Backups are the recovery path.
 - **IPv4 only.** The network allow-list matches IPv4 addresses only. A client
   reaching the server over IPv6 is blocked whenever an allow-list is set.
-- **Untested outside Piston.** Judge0 batch mode and the Judge0 compiler paths
-  in `lib/batch.ts` could not be run on the development machine (it uses cgroup
-  v2). `engine-check` on the server is the verification.
+- **Engine verification.** `engine-check` on the server is the verification.
 - **Piston and Java.** Piston compiles Java inside the timed run; the adapter
   adds a 3 s allowance and maps `error: compilation failed` to a compile error.
 - **No email.** Passwords are distributed on slips or CSV, not by email.

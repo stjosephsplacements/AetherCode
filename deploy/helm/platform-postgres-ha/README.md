@@ -4,7 +4,7 @@ This is the production-only chart for the platform cluster. It creates exactly
 three CloudNativePG instances, requires one synchronous replica for commits,
 requires one instance per dedicated PostgreSQL node, uses TLS client-certificate
 authentication, and declares the nine platform databases and least-privilege
-roles. Judge control-plane and Judge0 engine databases are deliberately absent.
+roles. Judge control-plane and execution engine databases are deliberately absent.
 
 The chart has no usable default release: it refuses to render until all four
 certificate Secrets and all India-resident Barman object-store inputs are

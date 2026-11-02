@@ -23,9 +23,6 @@ type Runtime struct {
 	EngineCompatibilityApproved bool
 	SubmitRate                  int
 	SubmitBurst                 int
-	Judge0BaseURL               string
-	Judge0Timeout               time.Duration
-	Judge0AuthToken             string
 	AetherCodeBaseURL           string
 	AetherCodeTimeout           time.Duration
 }
@@ -49,13 +46,6 @@ func Load(environment string) (Runtime, error) {
 		PublisherID:                 strings.TrimSpace(value("JUDGE_PUBLISHER_ID", "judge-admission-publisher")),
 		EngineCompatibilityApproved: strings.TrimSpace(value("JUDGE_ENGINE_COMPATIBILITY_APPROVED", "false")) == "true",
 	}
-	runtime.Judge0BaseURL = strings.TrimSpace(value("JUDGE0_BASE_URL", ""))
-	judge0TimeoutSeconds := strings.TrimSpace(value("JUDGE0_TIMEOUT_SECONDS", "10"))
-	timeoutSeconds, timeoutErr := strconv.Atoi(judge0TimeoutSeconds)
-	if timeoutErr != nil || timeoutSeconds < 1 || timeoutSeconds > 120 {
-		return Runtime{}, fmt.Errorf("JUDGE0_TIMEOUT_SECONDS must be an integer between 1 and 120")
-	}
-	runtime.Judge0Timeout = time.Duration(timeoutSeconds) * time.Second
 	configuredFiles := 0
 	for _, file := range []string{runtime.CertificateFile, runtime.KeyFile, runtime.ClientCAFile} {
 		if file != "" {
@@ -105,7 +95,6 @@ func Load(environment string) (Runtime, error) {
 	}
 	runtime.SubmitRate = submitRate
 	runtime.SubmitBurst = submitBurst
-	runtime.Judge0AuthToken = strings.TrimSpace(value("JUDGE0_AUTH_TOKEN", ""))
 	runtime.AetherCodeBaseURL = strings.TrimSpace(value("AETHERCODE_ENGINE_URL", ""))
 	// One unit waits in the engine's queue, then compiles and runs; the engine
 	// itself gives up after five minutes with internal_error.

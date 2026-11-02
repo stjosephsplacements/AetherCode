@@ -82,8 +82,8 @@ func TestGradesOutputLocally(t *testing.T) {
 	if verdict.Status != "accepted" || verdict.TimeMS != 7 || verdict.MemoryKB != 4096 {
 		t.Fatalf("verdict = %+v, want accepted after normalizing whitespace", verdict)
 	}
-	if sent.Language != "python" || sent.Mode != "run" || sent.TimeLimitMS != 2000 || sent.MemoryLimitKB != minMemoryLimitKB {
-		t.Fatalf("request = %+v, want python run mode, doubled time, memory clamped to the engine minimum", sent)
+	if sent.Language != "python" || sent.TimeLimitMS != 2000 || sent.MemoryLimitKB != minMemoryLimitKB {
+		t.Fatalf("request = %+v, want python, doubled time, memory clamped to the engine minimum", sent)
 	}
 	if len(sent.Tests) != 1 || sent.Tests[0].Input != "21\n" || sent.Tests[0].ExpectedOutput != "" {
 		t.Fatalf("tests = %+v, want the input only: the expected output never leaves the judge", sent.Tests)
@@ -122,5 +122,26 @@ func TestRejectsUnknownLanguagesAndLostVerdicts(t *testing.T) {
 	verdict, err := client.Poll(context.Background(), "aethercode-unknown")
 	if err != nil || verdict.Status != "internal_error" {
 		t.Fatalf("lost verdict = %+v, %v; want internal_error so the unit is regraded", verdict, err)
+	}
+}
+
+func TestSendsTheUnitAsIdempotencyKeyAndAcceptsARepeatedJob(t *testing.T) {
+	var key string
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		switch request.URL.Path {
+		case "/api/v1/execute":
+			key = request.Header.Get("Idempotency-Key")
+			writer.WriteHeader(http.StatusOK) // the engine already had this key
+			_, _ = writer.Write([]byte(`{"job_id":"job-1"}`))
+		case "/api/v1/stream":
+			writer.Header().Set("Content-Type", "text/event-stream")
+			_, _ = fmt.Fprint(writer, "event: VERDICT\ndata: {\"type\":\"VERDICT\",\"data\":{\"verdict\":\"accepted\",\"results\":[{\"test_index\":0,\"verdict\":\"accepted\",\"stdout\":\"1\\n\"}]}}\n\n")
+		}
+	}))
+	defer server.Close()
+
+	verdict := run(t, server, dispatcher.UnitRequest{Language: "c", SourceCode: "x", ExpectedOutput: "1\n", IdempotencyKey: "unit-7"})
+	if key != "unit-7" || verdict.Status != "accepted" {
+		t.Fatalf("key = %q, verdict = %+v, want the unit id as the key and an accepted verdict from the repeated job", key, verdict)
 	}
 }

@@ -2,8 +2,8 @@ package aethercode
 
 import "fmt"
 
-// language maps one platform language key (the Judge0 adapter's
-// vocabulary) to the engine's language key.
+// language maps one platform language key (as stored in
+// qbank.question_versions.supported_languages) to the engine's language key.
 type language struct {
 	engineName string
 	// timeMultiplier scales the unit's limit for slower runtimes, as the

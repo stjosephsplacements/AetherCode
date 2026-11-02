@@ -15,8 +15,8 @@ immutable `databaseHA.externalHAEvidenceRef` for the independently provisioned
 three-node synchronous control database. The managed block is enabled only when
 CloudNativePG v1.29+ and the Barman Cloud plugin ObjectStore are already
 installed in India. When an engine endpoint is enabled, the values must also
-set `engine.compatibilityApproved: true` and carry the same reviewed evidence
-reference as the separately gated `judge0-engine` release.
+set `engine.compatibilityApproved: true` and carry the reviewed evidence
+reference for the execution engine.
 
 The wrappers expose only gRPC mTLS on port 8443. Their port-8080 health endpoint
 is pod-local and intentionally absent from the Service.

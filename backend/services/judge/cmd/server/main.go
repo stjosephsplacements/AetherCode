@@ -26,8 +26,8 @@ import (
 	aethercodeadapter "github.com/aethercode/aethercode/services/judge/internal/adapters/aethercode"
 	amqpadapter "github.com/aethercode/aethercode/services/judge/internal/adapters/amqp"
 	grpcadapter "github.com/aethercode/aethercode/services/judge/internal/adapters/grpc"
-	judge0adapter "github.com/aethercode/aethercode/services/judge/internal/adapters/judge0"
 	"github.com/aethercode/aethercode/services/judge/internal/adapters/repo"
+	stubengine "github.com/aethercode/aethercode/services/judge/internal/adapters/stub"
 	"github.com/aethercode/aethercode/services/judge/internal/app"
 	judgeconfig "github.com/aethercode/aethercode/services/judge/internal/config"
 	"github.com/aethercode/aethercode/services/judge/internal/dispatcher"
@@ -127,18 +127,6 @@ func run(contextValue context.Context) error {
 	}
 	if dispatcherRuntime.Enabled {
 		switch dispatcherRuntime.EngineType {
-		case "judge0":
-			if !runtime.EngineCompatibilityApproved {
-				logger.Warn("dispatcher: engine=judge0 requires JUDGE_ENGINE_COMPATIBILITY_APPROVED=true; dispatcher not started")
-				break
-			}
-			eng, engErr := judge0adapter.NewClient(runtime.Judge0BaseURL, runtime.Judge0Timeout, runtime.Judge0AuthToken)
-			if engErr != nil {
-				return fmt.Errorf("dispatcher: construct judge0 client: %w", engErr)
-			}
-			if err := startDispatchConsumer(pool, storageClient, kmsClient, eng, dispatcherRuntime, runtime.RabbitURL, contextValue, logger); err != nil {
-				return err
-			}
 		case "aethercode":
 			if !runtime.EngineCompatibilityApproved {
 				logger.Warn("dispatcher: engine=aethercode requires JUDGE_ENGINE_COMPATIBILITY_APPROVED=true; dispatcher not started")
@@ -152,7 +140,7 @@ func run(contextValue context.Context) error {
 				return err
 			}
 		case "stub":
-			eng := judge0adapter.NewStub()
+			eng := stubengine.NewStub()
 			if err := startDispatchConsumer(pool, storageClient, kmsClient, eng, dispatcherRuntime, runtime.RabbitURL, contextValue, logger); err != nil {
 				return err
 			}

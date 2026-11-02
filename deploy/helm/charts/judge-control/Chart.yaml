@@ -1,6 +1,6 @@
 apiVersion: v2
 name: judge-control
-description: Hardened AetherCode Judge wrapper control plane; it never deploys Judge0.
+description: Hardened AetherCode Judge wrapper control plane; it never deploys the execution engine.
 type: application
 version: 0.1.0
 appVersion: "1.0.0"

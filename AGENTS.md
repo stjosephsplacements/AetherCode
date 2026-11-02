@@ -12,14 +12,14 @@ A coding-exam platform for colleges, in two independent codebases (the platform
 has a Go backend and a Next.js frontend):
 
 - **`apps/exam-v1/` — the exam app in use.** Next.js 16 + PostgreSQL + a
-  grading worker over Judge0 (or Piston), deployed with Docker Compose behind
+  grading worker over a code execution engine, deployed with Docker Compose behind
   nginx on one campus server. It covers CSV student import, question and exam
   authoring with question pools, a HackerRank-style exam screen (Run/Submit,
   per-test results, auto-submit at time-up), lab lockdown, a live monitor,
   announcements, result release, a similarity report and CSV export. See
   `apps/exam-v1/README.md` and ADR-0016.
 - **`backend/services/`, `backend/libs/`, `deploy/` — the long-term platform.** Multi-tenant
-  Go microservices with PostgreSQL RLS, an isolated Judge0 wrapper,
+  Go microservices with PostgreSQL RLS, an isolated execution wrapper over the AetherCode Execution Engine,
   SEB-enforced exams, Docker Compose on one server or Kubernetes. Accounts,
   authoring, exams, grading, SEB lockdown, results, live operations, practice,
   community content and single sign-on work through the gateway, and
@@ -49,7 +49,7 @@ behavioural reference for the port in
 5. **Document as you go** — update the module `README.md` and add an ADR for any
    decision.
 6. **Never weaken security controls** — they are load-bearing. Platform: RLS
-   tenant isolation, SEB key validation, Judge0 sandboxing. Exam app:
+   tenant isolation, SEB key validation, execution sandboxing. Exam app:
    server-side role and attempt checks, hidden tests never shown or exposed to
    sample runs, server-owned deadlines, the nginx-overwritten client IP.
 

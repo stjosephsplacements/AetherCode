@@ -36,7 +36,6 @@ config:
   JUDGE_WORKER_CONCURRENCY: "32"
   JUDGE_ENGINE: "{{ .Values.engine }}"
   AETHERCODE_ENGINE_URL: "{{ .Values.global.engineUrl }}"
-  JUDGE0_BASE_URL: "{{ .Values.judge0BaseUrl }}"
 
 secretEnv:
   - name: JUDGE_DB_PASSWORD
@@ -44,8 +43,6 @@ secretEnv:
   - name: MINIO_ROOT_USER
   - name: MINIO_ROOT_PASSWORD
   - name: PLATFORM_KMS_LOCAL_KEY
-  - name: JUDGE0_AUTH_TOKEN
-    optional: true
 
 env:
   - name: JUDGE_DATABASE_URL
@@ -70,8 +67,6 @@ networkPolicy:
     - service: question-bank
       ports: [8443]
 
-# aethercode is the college's execution engine (ADR-0028), reached at global.engineUrl;
-# judge0 needs the gated judge0-engine chart (ADR-0009) and judge0BaseUrl.
+# aethercode is the college's execution engine (ADR-0028), reached at global.engineUrl.
 engine: aethercode
 engineApproved: "true"
-judge0BaseUrl: ""

@@ -2,7 +2,7 @@
 
 This documentation records both the delivered foundation and the evidence
 required before it may be promoted. Architecture and migration assets are not
-proof of a live HA deployment, safe Judge0 execution, or the required load
+proof of a live HA deployment, safe code execution, or the required load
 profile. The current status is maintained in [roadmap.md](roadmap.md).
 
 ## Start here
@@ -39,8 +39,6 @@ profile. The current status is maintained in [roadmap.md](roadmap.md).
   checks.
 - [Judge control-plane operations](runbooks/judge-control-operations.md) —
   private mTLS operation and durable completion handling.
-- [Judge0 gVisor compatibility gate](runbooks/judge0-compatibility-gate.md) —
-  the blocking evidence needed before enabling the engine.
 - [Single-server deployment](../deploy/single-server/README.md) — the Docker
   Compose stack the campus runs, including the release checklist, backups,
   single sign-on and branding.
@@ -71,7 +69,7 @@ while they are unavailable.
 
 The repository does not claim a live HA deployment, a real KMS/object-store
 integration, an external notification provider, encrypted analytics export
-storage, a platform-side Judge **admission** adapter, or a safe Judge0 engine
+storage, a platform-side Judge **admission** adapter, or a safe engine
 dispatcher. Submission does contain a receive-only completion bridge: it pulls
 leased wrapper results over mTLS, persists them idempotently with a dedicated
 database role, publishes `judge.completed.v1`, and ACKs only after commit.
@@ -79,7 +77,6 @@ Those boundaries are external integration or release-gate work, not
 placeholders that may be bypassed locally. The web UI lives in
 [`frontend/`](../frontend/README.md).
 
-Judge wrapper persistence is isolated from the upstream engine: it uses a
-separate PostgreSQL HA control plane and RabbitMQ quorum cluster. Judge0's
-upstream PostgreSQL and Redis are engine-internal, opaque to the wrapper, and
-remain disabled until the compatibility gate is approved.
+Judge wrapper persistence is isolated from the execution engine: it uses a
+separate PostgreSQL HA control plane and RabbitMQ quorum cluster. The engine
+keeps its own PostgreSQL and Redis, which the wrapper never reads.

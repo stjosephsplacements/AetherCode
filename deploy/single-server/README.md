@@ -3,8 +3,7 @@
 The whole platform on one machine with Docker Compose (decision D2): the 11
 services, PostgreSQL 18, NATS JetStream, MinIO, the judge control plane (its
 own PostgreSQL and RabbitMQ). Code runs on the AetherCode Execution Engine,
-which runs on the host as a systemd service, outside Compose (ADR-0028); Judge0
-is an alternative on cgroup v1 hosts. Only the gateway is published,
+which runs on the host as a systemd service, outside Compose (ADR-0028). Only the gateway is published,
 on loopback (`127.0.0.1:GATEWAY_PORT`, default 8080); the host nginx serves it
 publicly over TLS (see "Public address").
 
@@ -22,22 +21,19 @@ every production safety check applies.
   authentication, so it must not listen on a public interface. Check it with
   `curl http://172.17.0.1:5100/api/v1/health`. Judge reaches it at
   `host.docker.internal:5100` (`AETHERCODE_ENGINE_URL`).
-- **Judge0 needs cgroup v1** (`stat -fc %T /sys/fs/cgroup` prints `cgroup2fs`
-  on v2): only use it on such a host, with `JUDGE_ENGINE=judge0` in `.env` and
-  `--profile judge0`.
 
 ## First install
 
 ```sh
 cd deploy/single-server
-./setup.sh https://exam.example.edu          # .env, judge0.conf, certs/ (once)
+./setup.sh https://exam.example.edu          # .env and certs/ (once)
 docker compose build
 docker compose up -d
 docker compose ps                            # every service "running"/"healthy"
 ```
 
-`setup.sh` refuses to run when `.env`, `judge0.conf` or `certs/` exist, so
-secrets are never rotated by accident. All three are gitignored. Back them up
+`setup.sh` refuses to run when `.env` or `certs/` exist, so
+secrets are never rotated by accident. Both are gitignored. Back them up
 with the database volumes: losing `.env` makes the encrypted objects and the
 signed sessions unreadable.
 

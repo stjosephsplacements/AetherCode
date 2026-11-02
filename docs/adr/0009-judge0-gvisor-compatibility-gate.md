@@ -1,6 +1,6 @@
 # ADR-0009: Block Judge0 promotion until gVisor isolation is proven
 
-- Status: accepted
+- Status: superseded by ADR-0060 (Judge0 is no longer used)
 - Date: 2026-07-24
 
 ## Context
