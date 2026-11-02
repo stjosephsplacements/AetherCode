@@ -1,0 +1,21 @@
+backend/services/tenant/internal/adapters/http/handler.go
+  s_4a7f3c46d06453::t_894b8248e3c37d 93,405,428
+backend/services/tenant/internal/adapters/http/update_handler.go
+  s_4a7f3c46d06453::t_21af0aaa1bc3fd 28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7f71eb6b7a3f62b4343b7d8ca91e6445f09e025f",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
