@@ -1,0 +1,33 @@
+backend/services/seb/README.md
+  s_4a7f3c46d06453::t_eec14bfe41ee0d 34
+backend/services/seb/api/openapi.yaml
+  s_4a7f3c46d06453::t_ff920bc0e66f11 452
+backend/services/seb/internal/app/lockdown.go
+  s_4a7f3c46d06453::t_ebad04d39cf294 51-54,110-120,152-154,224,231-238
+backend/services/seb/internal/domain/launchfile/configkey.go
+  s_4a7f3c46d06453::t_9cb23cedbe6452 1-148
+backend/services/seb/internal/domain/launchfile/configkey_test.go
+  s_4a7f3c46d06453::t_53354d4035a52f 1-41
+backend/services/seb/internal/domain/launchfile/launchfile.go
+  s_4a7f3c46d06453::t_99b132fa51cd47 48-49,62-71
+docs/adr/0064-generated-seb-config-key.md
+  s_4a7f3c46d06453::t_b19485fcba1467 1-25
+frontend/src/app/staff/exams/[examId]/page.tsx
+  s_4a7f3c46d06453::t_4541e0a2bd13d6 427,438
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0cdf844b7c2027bbaac26b228df72bee6019bcfa",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
