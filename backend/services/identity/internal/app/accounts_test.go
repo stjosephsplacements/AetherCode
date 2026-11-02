@@ -87,3 +87,35 @@ func TestLoginAcceptsUsernameIdentifier(t *testing.T) {
 		t.Fatal("Login() accepted an identifier that is neither an email nor a username")
 	}
 }
+
+func TestUpdateAccountNormalisesAndValidates(t *testing.T) {
+	t.Parallel()
+	text := func(value string) *string { return &value }
+	store := &memoryStore{}
+	service := newTestService(t, store)
+	if err := service.UpdateAccount(context.Background(), testPrincipalID, AccountChanges{DisplayName: text("  Asha Raman "), Email: text(" "), Phone: text("+91 98765 43210")}, testAudit); err != nil {
+		t.Fatalf("UpdateAccount() error = %v", err)
+	}
+	if got := store.updated; got == nil || *got.DisplayName != "Asha Raman" || *got.Email != "" || *got.Phone != "+91 98765 43210" {
+		t.Fatalf("stored changes = %#v, want trimmed name, cleared email, phone kept", got)
+	}
+	for name, changes := range map[string]AccountChanges{
+		"nothing":       {},
+		"blank name":    {DisplayName: text("  ")},
+		"bad email":     {Email: text("not an email")},
+		"bad phone":     {Phone: text("call me")},
+		"too short":     {Phone: text("123")},
+		"name too long": {DisplayName: text(strings.Repeat("a", 201))},
+	} {
+		store.updated = nil
+		if err := service.UpdateAccount(context.Background(), testPrincipalID, changes, testAudit); err == nil || store.updated != nil {
+			t.Fatalf("%s: UpdateAccount() accepted invalid input", name)
+		}
+	}
+	if err := service.UpdateAccount(context.Background(), testPrincipalID, AccountChanges{Phone: text("123456")}, AccountAudit{}); err == nil {
+		t.Fatal("UpdateAccount() accepted a change without an actor")
+	}
+	if err := service.UpdateAccount(context.Background(), "not-a-uuid", AccountChanges{Phone: text("123456")}, testAudit); err == nil {
+		t.Fatal("UpdateAccount() accepted a bad principal id")
+	}
+}

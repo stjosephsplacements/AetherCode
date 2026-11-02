@@ -81,6 +81,14 @@ func (client *AccountsClient) SetAccountStatus(contextValue context.Context, pri
 	return client.post(contextValue, "/v1/internal/accounts/status", principalsRequest{AccountAudit: audit, PrincipalIDs: principalIDs, Status: status}, http.StatusNoContent, nil)
 }
 
+func (client *AccountsClient) UpdateAccount(contextValue context.Context, principalID string, changes app.AccountChanges, audit app.AccountAudit) error {
+	return client.post(contextValue, "/v1/internal/accounts/update", struct {
+		app.AccountAudit
+		PrincipalID string `json:"principal_id"`
+		app.AccountChanges
+	}{audit, principalID, changes}, http.StatusNoContent, nil)
+}
+
 func (client *AccountsClient) DiscardAccounts(contextValue context.Context, principalIDs []string, audit app.AccountAudit) error {
 	return client.post(contextValue, "/v1/internal/accounts/discard", principalsRequest{AccountAudit: audit, PrincipalIDs: principalIDs}, http.StatusNoContent, nil)
 }

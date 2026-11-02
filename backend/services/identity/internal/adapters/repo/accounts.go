@@ -118,6 +118,42 @@ func (repository *Postgres) SetAccountStatus(contextValue context.Context, ids [
 	})
 }
 
+// UpdateAccount changes an account's name, email or phone in one step. A new email is not
+// verified, so its verified mark is cleared with it.
+func (repository *Postgres) UpdateAccount(contextValue context.Context, id string, changes app.AccountChanges, audit app.AccountAudit) error {
+	return repository.accountTransaction(contextValue, "update account", func(transaction pgx.Tx) error {
+		if _, err := lockLivePrincipals(contextValue, transaction, []string{id}); err != nil {
+			return err
+		}
+		var email, phone string
+		if changes.Email != nil {
+			email = *changes.Email
+		}
+		if changes.Phone != nil {
+			phone = *changes.Phone
+		}
+		if _, err := transaction.Exec(contextValue, `
+			UPDATE identity.principals SET
+				display_name = COALESCE($2, display_name),
+				email = CASE WHEN $3::boolean THEN NULLIF($4, '') ELSE email END,
+				email_verified_at = CASE WHEN $3::boolean AND NULLIF($4, '') IS DISTINCT FROM email THEN NULL ELSE email_verified_at END,
+				phone = CASE WHEN $5::boolean THEN NULLIF($6, '') ELSE phone END,
+				version = version + 1
+			WHERE id = $1::uuid
+		`, id, changes.DisplayName, changes.Email != nil, email, changes.Phone != nil, phone); err != nil {
+			var postgresError *pgconn.PgError
+			if errors.As(err, &postgresError) && postgresError.Code == "23505" {
+				return apperrors.New(apperrors.CodeConflict, "that email is already used by another account")
+			}
+			if errors.As(err, &postgresError) && postgresError.Code == "23514" {
+				return apperrors.New(apperrors.CodeInvalidArgument, "an account needs an email or a username to sign in with")
+			}
+			return fmt.Errorf("update account: %w", err)
+		}
+		return recordAccountEvents(contextValue, transaction, []string{id}, "identity.account.updated.v1", audit)
+	})
+}
+
 // DiscardAccounts soft-deletes provisioned principals that have never signed
 // in, freeing their usernames after a failed import.
 func (repository *Postgres) DiscardAccounts(contextValue context.Context, ids []string, audit app.AccountAudit) error {
@@ -258,11 +294,16 @@ func recordAccountEvents(contextValue context.Context, transaction pgx.Tx, ids [
 	return nil
 }
 
-// DescribeAccounts reads the name and status of existing principals (ADR-0043).
+// DescribeAccounts reads the name, status, contact and password state of existing principals (ADR-0043, ADR-0057).
 func (repository *Postgres) DescribeAccounts(contextValue context.Context, ids []string) ([]app.AccountSummary, error) {
 	rows, err := repository.pool.Query(contextValue, `
-		SELECT id::text, COALESCE(username, ''), COALESCE(email, ''), display_name, status
-		FROM identity.principals WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL
+		SELECT principal.id::text, COALESCE(principal.username, ''), COALESCE(principal.email, ''), principal.display_name, principal.status,
+		       COALESCE(principal.phone, ''), principal.created_at, principal.last_authenticated_at,
+		       CASE WHEN credential.principal_id IS NULL THEN '' WHEN credential.must_change THEN 'temporary' ELSE 'set' END,
+		       credential.changed_at
+		FROM identity.principals AS principal
+		LEFT JOIN identity.password_credentials AS credential ON credential.principal_id = principal.id
+		WHERE principal.id = ANY($1::uuid[]) AND principal.deleted_at IS NULL
 	`, ids)
 	if err != nil {
 		return nil, fmt.Errorf("describe accounts: %w", err)
@@ -271,7 +312,10 @@ func (repository *Postgres) DescribeAccounts(contextValue context.Context, ids [
 	summaries := []app.AccountSummary{}
 	for rows.Next() {
 		var summary app.AccountSummary
-		if err := rows.Scan(&summary.PrincipalID, &summary.Username, &summary.Email, &summary.DisplayName, &summary.Status); err != nil {
+		if err := rows.Scan(
+			&summary.PrincipalID, &summary.Username, &summary.Email, &summary.DisplayName, &summary.Status,
+			&summary.Phone, &summary.CreatedAt, &summary.LastAuthenticatedAt, &summary.PasswordState, &summary.PasswordChangedAt,
+		); err != nil {
 			return nil, fmt.Errorf("scan account summary: %w", err)
 		}
 		summaries = append(summaries, summary)

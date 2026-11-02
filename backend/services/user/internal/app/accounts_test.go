@@ -62,6 +62,9 @@ func (unusedAccounts) ReissuePasswords(context.Context, []string, AccountAudit) 
 func (unusedAccounts) SetAccountStatus(context.Context, []string, string, AccountAudit) error {
 	return errors.New("identity called")
 }
+func (unusedAccounts) UpdateAccount(context.Context, string, AccountChanges, AccountAudit) error {
+	return errors.New("identity called")
+}
 func (unusedAccounts) DescribeAccounts(context.Context, []string) ([]AccountSummary, error) {
 	panic("unexpected identity call")
 }
@@ -124,5 +127,17 @@ func TestSetAccountStatusRejectsSelfAndUnknownStatus(t *testing.T) {
 	}
 	if err := service.SetAccountStatus(context.Background(), refuseAuthorize, accountActorID, accountTenantID, accountOtherID, "locked"); err == nil || errors.Is(err, errAuthorizeCalled) {
 		t.Fatalf("unknown status error = %v, want validation error", err)
+	}
+}
+
+func TestUpdateAccountNeedsAChangeBeforeAuthorizing(t *testing.T) {
+	t.Parallel()
+	service := newTestAccountService(t)
+	if err := service.UpdateAccount(context.Background(), refuseAuthorize, accountActorID, accountTenantID, accountOtherID, AccountChanges{}); err == nil || errors.Is(err, errAuthorizeCalled) {
+		t.Fatalf("empty update error = %v, want validation error before any authorization", err)
+	}
+	name := "Asha Raman"
+	if err := service.UpdateAccount(context.Background(), refuseAuthorize, accountActorID, accountTenantID, accountOtherID, AccountChanges{DisplayName: &name}); !errors.Is(err, errAuthorizeCalled) {
+		t.Fatalf("update error = %v, want the authorization to be asked and to refuse", err)
 	}
 }

@@ -106,6 +106,23 @@ func (handler *Handler) setAccountStatus(writer http.ResponseWriter, request *ht
 	writer.WriteHeader(http.StatusNoContent)
 }
 
+func (handler *Handler) updateAccount(writer http.ResponseWriter, request *http.Request) {
+	var body app.AccountChanges
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	tenantID, principalID, authorize, actorID, ok := handler.accountTarget(writer, request)
+	if !ok {
+		return
+	}
+	if err := handler.accounts.UpdateAccount(request.Context(), authorize, actorID, tenantID, principalID, body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.WriteHeader(http.StatusNoContent)
+}
+
 type createStaffRequest struct {
 	Username     string `json:"username"`
 	Email        string `json:"email"`
