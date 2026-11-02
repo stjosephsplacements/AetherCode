@@ -252,6 +252,8 @@ export type PracticeQuestion = {
   memory_limit_kib: number;
   tags: string[];
   samples: { input: string; expected_output: string }[];
+  /** Function-only problems: the stub students start from, by language. */
+  starters?: Record<string, string>;
 };
 
 export type PracticeUnit = {

@@ -25,6 +25,7 @@ import { ModelCheckPanel } from "./model-check";
 import { Organise } from "./organise";
 import { PublishPanel, publishBlocker } from "./publish-panel";
 import { TestsEditor } from "./tests-editor";
+import { TemplatesEditor } from "./templates-editor";
 
 export const metadata: Metadata = { title: "Question" };
 
@@ -62,8 +63,10 @@ export default async function QuestionPage({ params }: { params: Promise<{ versi
   const { versionId } = await params;
   let version: QuestionVersion;
   let checks: ModelCheck[];
+  let templates: Record<string, { starter: string; prefix: string; suffix: string }> = {};
   let requireReview: boolean;
   try {
+    templates = await gateway<{ templates: typeof templates }>(`/question-bank/v1/question-versions/${versionId}/templates`).then((result) => result.templates ?? {}, () => ({}));
     [version, checks, requireReview] = await Promise.all([
       gateway<QuestionVersion>(`/question-bank/v1/question-versions/${versionId}`),
       gateway<ModelCheck[]>(`/question-bank/v1/question-versions/${versionId}/model-checks`).catch(() => []),
@@ -204,6 +207,7 @@ export default async function QuestionPage({ params }: { params: Promise<{ versi
               ) : (
                 <div className="flex flex-wrap items-center gap-3">
                   <TestsEditor versionId={version.id} expectedVersion={version.version} existing={tests} />
+                  {version.status === "draft" && <TemplatesEditor versionId={version.id} languages={version.supported_languages} initial={templates} />}
                   <span className="text-[13px] text-ink-muted">Saved tests cannot be shown again. Replacing them asks for a new check.</span>
                 </div>
               )}

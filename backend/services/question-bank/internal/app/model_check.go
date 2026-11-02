@@ -95,8 +95,15 @@ func (service *Service) StartModelCheck(contextValue context.Context, capability
 	if err := json.Unmarshal(raw, &target); err != nil {
 		return "", fmt.Errorf("decode model check target: %w", err)
 	}
+	// A function-only question is checked with the model function inside its wrapper (ADR-0063).
+	runSource := source
+	if composed, wrapped, composeErr := service.composeFor(contextValue, command.QuestionVersionID, command.Language, command.Source); composeErr == nil && wrapped {
+		if sealed, sealErr := service.sealObject(contextValue, strings.TrimSuffix(objectKey, ".source")+".run", []byte(composed)); sealErr == nil {
+			runSource = sealed
+		}
+	}
 	job := ModelCheckJob{
-		ID: id, Language: command.Language, Source: source,
+		ID: id, Language: command.Language, Source: runSource,
 		Bundle:         BundleReference{ObjectKey: target.EvaluationBundleObjectKey, Checksum: target.EvaluationBundleChecksum, EncryptionKeyReference: target.EncryptionKeyReference},
 		TimeLimitMS:    target.TimeLimitMS,
 		MemoryLimitKiB: target.MemoryLimitKiB,

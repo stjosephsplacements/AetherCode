@@ -36,6 +36,8 @@ func NewHandler(serviceName string, service *app.Service, readiness httpx.Readin
 	mux.HandleFunc("GET /v1/question-versions/{question_version_id}", handler.getQuestionVersion)
 	mux.HandleFunc("GET /v1/question-versions/{question_version_id}/export", handler.exportQuestionVersion)
 	mux.HandleFunc("PUT /v1/question-versions/{question_version_id}/choices", handler.setQuestionVersionChoices)
+	mux.HandleFunc("GET /v1/question-versions/{question_version_id}/templates", handler.getTemplates)
+	mux.HandleFunc("PUT /v1/question-versions/{question_version_id}/templates", handler.setTemplates)
 	mux.HandleFunc("PATCH /v1/question-versions/{question_version_id}", handler.updateQuestionVersion)
 	mux.HandleFunc("POST /v1/question-versions/{question_version_id}/model-checks", handler.startModelCheck)
 	mux.HandleFunc("GET /v1/question-versions/{question_version_id}/model-checks", handler.listModelChecks)
