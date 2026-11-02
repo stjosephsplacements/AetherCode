@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, Moon, Sun } from "lucide-react";
+import { Lock, Menu, Moon, Sun } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Tooltip } from "radix-ui";
@@ -31,7 +31,22 @@ export function StaffNav({ groups, collapsed = false }: { groups: NavGroup[]; co
               {group.items.map((item) => {
                 const active = isActive(pathname, item.href);
                 const Icon = ICONS[item.icon];
-                const link = (
+                const link = item.locked ? (
+                  <span
+                    aria-disabled="true"
+                    title={item.locked}
+                    className={cn("flex h-8 cursor-not-allowed items-center gap-2.5 rounded-[var(--radius-control)] text-[13.5px] text-ink-subtle", collapsed ? "justify-center" : "px-2.5")}
+                  >
+                    <Icon className="size-4 shrink-0" strokeWidth={1.75} />
+                    {!collapsed && (
+                      <>
+                        {item.label}
+                        <Lock className="ml-auto size-3" strokeWidth={1.75} />
+                      </>
+                    )}
+                    {!collapsed && <span className="sr-only">{item.locked}</span>}
+                  </span>
+                ) : (
                   <Link
                     href={item.href}
                     aria-current={active ? "page" : undefined}
@@ -55,7 +70,7 @@ export function StaffNav({ groups, collapsed = false }: { groups: NavGroup[]; co
                         <Tooltip.Trigger asChild>{link}</Tooltip.Trigger>
                         <Tooltip.Portal>
                           <Tooltip.Content side="right" sideOffset={10} className="z-50 animate-fade rounded-md border border-line-strong bg-surface px-2 py-1 text-[12.5px] font-medium text-ink shadow-[var(--shadow-overlay)]">
-                            {item.label}
+                            {item.locked ? `${item.label}: ${item.locked}` : item.label}
                           </Tooltip.Content>
                         </Tooltip.Portal>
                       </Tooltip.Root>

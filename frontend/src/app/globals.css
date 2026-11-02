@@ -501,3 +501,17 @@ html:has(.ascii)::-webkit-scrollbar {
 .ascii .prose-doc ul > li { position: relative; padding-left: 1.4em; }
 .ascii .prose-doc ul > li::before { content: "-"; position: absolute; left: 0; font-family: var(--font-mono); color: var(--accent); }
 .ascii .prose-doc a { text-decoration-color: var(--accent); text-decoration-thickness: 1.5px; }
+
+@keyframes flow-fill {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+@keyframes flow-press {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-brand) 50%, transparent); }
+  50% { transform: scale(0.94); }
+  100% { transform: scale(1); box-shadow: 0 0 0 10px transparent; }
+}
+@keyframes flow-bar {
+  from { width: 0; }
+  to { width: 100%; }
+}

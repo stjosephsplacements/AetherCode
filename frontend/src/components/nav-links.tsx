@@ -1,13 +1,13 @@
 "use client";
 
-import { Activity, BookOpen, Briefcase, CalendarDays, FileText, GitFork, ListChecks, MessagesSquare, Newspaper, Rocket, Trophy, UserRound, ChartColumn, ScrollText, Building2, CodeXml, House, LifeBuoy, NotebookPen, TrendingUp, UserCog, Users } from "lucide-react";
+import { Activity, BookOpen, Briefcase, CalendarDays, FileText, GitFork, ListChecks, MessagesSquare, Newspaper, Rocket, Trophy, UserRound, ChartColumn, ScrollText, Building2, CircleHelp, CodeXml, House, LifeBuoy, NotebookPen, TrendingUp, UserCog, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-export const ICONS = { exams: NotebookPen, home: House, questions: BookOpen, students: Users, organisation: Building2, accounts: UserCog, status: Activity, help: LifeBuoy, practice: CodeXml, progress: TrendingUp, analytics: ChartColumn, audit: ScrollText, calendar: CalendarDays, contests: Trophy, hackathons: Rocket, opensource: GitFork, interviews: MessagesSquare, blogs: Newspaper, tasks: ListChecks, profile: UserRound, resume: FileText, community: MessagesSquare, placements: Briefcase };
+export const ICONS = { exams: NotebookPen, home: House, questions: BookOpen, students: Users, organisation: Building2, accounts: UserCog, status: Activity, help: LifeBuoy, practice: CodeXml, progress: TrendingUp, analytics: ChartColumn, audit: ScrollText, calendar: CalendarDays, contests: Trophy, hackathons: Rocket, opensource: GitFork, interviews: MessagesSquare, blogs: Newspaper, tasks: ListChecks, profile: UserRound, resume: FileText, community: MessagesSquare, placements: Briefcase, start: Rocket, faq: CircleHelp };
 
-export type NavItem = { href: string; label: string; icon: keyof typeof ICONS };
+export type NavItem = { href: string; label: string; icon: keyof typeof ICONS; /** Why the page cannot be used yet; shown instead of a link. */ locked?: string };
 
 export function NavLinks({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
