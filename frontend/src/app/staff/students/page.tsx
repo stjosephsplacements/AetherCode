@@ -40,7 +40,7 @@ async function StudentsContent({ staff, collegeParam }: { staff: Awaited<ReturnT
     const [perCollege, placement] = await Promise.all([
       inColleges(colleges, async (collegeId) => {
         const [batches, departments] = await Promise.all([listBatches(collegeId), listDepartments(collegeId)]);
-        const students = await listRoster(collegeId);
+        const students = await listRoster(collegeId, batches.map((batch) => batch.id));
         const people = await describeAccounts(collegeId, students.flatMap((student) => [student.principal_id, ...student.mentor_principal_ids])).catch(() => new Map());
         return { batches, departments, students, people };
       }),
