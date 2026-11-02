@@ -1,0 +1,31 @@
+frontend/src/app/staff/students/format.test.ts
+  s_4a7f3c46d06453::t_0676177e966a4e 1-45
+frontend/src/app/staff/students/format.ts
+  s_4a7f3c46d06453::t_d58a980cfde83b 1-69
+frontend/src/app/staff/students/loading.tsx
+  s_4a7f3c46d06453::t_e94223cf7f5984 1-11
+frontend/src/app/staff/students/page.tsx
+  s_4a7f3c46d06453::t_ea7b8a0dc03311 4,14,22-34,36,51,96-102,108-113,116
+frontend/src/app/staff/students/panels.tsx
+  s_4a7f3c46d06453::t_09c48d1c3491db 3,5,10,12,21,27-31,33-36,38-53,78-154,156-169,261
+frontend/src/app/staff/students/roster.tsx
+  s_4a7f3c46d06453::t_fc70785e2268e1 3,7,11,15,19,71-74,93,96-97,119-124,137-140,150-165,194-197,199-286,291-295,299-301,307-308,310,318,364-367,369,371-375,379-393,396-411,430-463
+frontend/src/app/staff/students/skeleton.tsx
+  s_4a7f3c46d06453::t_a4a937ad73cc3b 1-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "74b831523a34d6bc980e505c081a2d6362726637",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
