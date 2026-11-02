@@ -1,9 +1,10 @@
 "use client";
 
 import { Download, Search, UserCheck, Users, ShieldAlert, GraduationCap, Briefcase } from "lucide-react";
-import { useDeferredValue, useMemo, useState } from "react";
+import { type ReactNode, useDeferredValue, useMemo, useState } from "react";
 import { Badge, Panel } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/staff/form";
 import { EmptyState, Table } from "@/components/staff/page-header";
 import { Pager } from "@/components/staff/pager";
 import { paginate } from "@/lib/paginate";
@@ -119,49 +120,25 @@ export function StaffFilter({
     setStatusFilter("all");
   };
 
+  const kpi = (label: string, value: number | string, icon: ReactNode) => (
+    <div className="min-w-0 rounded-[var(--radius-surface)] border border-line bg-surface p-4 shadow-[var(--shadow-hairline)]">
+      <div className="flex items-center justify-between gap-2 text-ink-muted">
+        <span className="truncate font-mono text-[11px] uppercase tracking-[0.08em]">{label}</span>
+        <span aria-hidden className="shrink-0 text-brand">{icon}</span>
+      </div>
+      <p className="mt-2.5 font-mono text-[26px] font-semibold leading-none tabular-nums tracking-tight text-ink">{value}</p>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       {/* KPI Cards */}
-      <section aria-label="Staff Metrics" className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
-        <div className="rounded-[var(--radius-card)] border border-line bg-surface p-3.5 shadow-[var(--shadow-hairline)]">
-          <div className="flex items-center gap-2 text-ink-muted">
-            <Users className="size-4 text-brand" />
-            <span className="text-xs font-medium">Total Staff</span>
-          </div>
-          <p className="mt-1 font-mono text-2xl font-semibold tabular-nums text-ink">{totalCount}</p>
-        </div>
-
-        <div className="rounded-[var(--radius-card)] border border-line bg-surface p-3.5 shadow-[var(--shadow-hairline)]">
-          <div className="flex items-center gap-2 text-ink-muted">
-            <GraduationCap className="size-4 text-accent" />
-            <span className="text-xs font-medium">Faculty</span>
-          </div>
-          <p className="mt-1 font-mono text-2xl font-semibold tabular-nums text-ink">{facultyCount}</p>
-        </div>
-
-        <div className="rounded-[var(--radius-card)] border border-line bg-surface p-3.5 shadow-[var(--shadow-hairline)]">
-          <div className="flex items-center gap-2 text-ink-muted">
-            <UserCheck className="size-4 text-brand" />
-            <span className="text-xs font-medium">Mentors</span>
-          </div>
-          <p className="mt-1 font-mono text-2xl font-semibold tabular-nums text-ink">{mentorCount}</p>
-        </div>
-
-        <div className="rounded-[var(--radius-card)] border border-line bg-surface p-3.5 shadow-[var(--shadow-hairline)]">
-          <div className="flex items-center gap-2 text-ink-muted">
-            <Briefcase className="size-4 text-warning" />
-            <span className="text-xs font-medium">Placement</span>
-          </div>
-          <p className="mt-1 font-mono text-2xl font-semibold tabular-nums text-ink">{placementCount}</p>
-        </div>
-
-        <div className="col-span-2 rounded-[var(--radius-card)] border border-line bg-surface p-3.5 shadow-[var(--shadow-hairline)] sm:col-span-4 lg:col-span-1">
-          <div className="flex items-center gap-2 text-ink-muted">
-            <ShieldAlert className="size-4 text-ink-muted" />
-            <span className="text-xs font-medium">Admins</span>
-          </div>
-          <p className="mt-1 font-mono text-2xl font-semibold tabular-nums text-ink">{adminCount}</p>
-        </div>
+      <section aria-label="Staff Metrics" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        {kpi("Total Staff", totalCount, <Users className="size-4" />)}
+        {kpi("Faculty", facultyCount, <GraduationCap className="size-4" />)}
+        {kpi("Mentors", mentorCount, <UserCheck className="size-4" />)}
+        {kpi("Placement", placementCount, <Briefcase className="size-4" />)}
+        {kpi("Admins", adminCount, <ShieldAlert className="size-4" />)}
       </section>
 
       {/* Filter and Control Bar */}
@@ -174,39 +151,42 @@ export function StaffFilter({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search by name, username, or role..."
-              className="h-9 w-full rounded-[var(--radius-control)] border border-line bg-surface pl-9 pr-3 text-sm text-ink outline-none transition-colors placeholder:text-ink-subtle focus:border-brand focus:ring-2 focus:ring-brand/15"
+              className="h-8 w-full rounded-[var(--radius-control)] border border-line bg-surface pl-9 pr-3 text-sm text-ink outline-none transition-colors placeholder:text-ink-subtle focus:border-brand focus:ring-2 focus:ring-brand/15"
             />
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <select
+            <Select
+              aria-label="Filter by role"
+              size="sm"
+              className="w-44"
               value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-              className="h-9 rounded-[var(--radius-control)] border border-line bg-surface px-3 text-sm text-ink outline-none transition-colors hover:border-line-strong focus:border-brand focus:ring-2 focus:ring-brand/15"
+              onValueChange={setRoleFilter}
             >
               <option value="all">All Roles</option>
               <option value="department_user">Faculty</option>
               <option value="mentor">Mentor</option>
               <option value="placement_user">Placement Officer</option>
               <option value="college_admin">College Admin</option>
-            </select>
+            </Select>
 
-            <select
+            <Select
+              aria-label="Filter by status"
+              size="sm"
+              className="w-36"
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-9 rounded-[var(--radius-control)] border border-line bg-surface px-3 text-sm text-ink outline-none transition-colors hover:border-line-strong focus:border-brand focus:ring-2 focus:ring-brand/15"
+              onValueChange={setStatusFilter}
             >
               <option value="all">All Statuses</option>
               <option value="active">Active</option>
               <option value="disabled">Disabled</option>
-            </select>
+            </Select>
 
             <Button
               variant="secondary"
               size="sm"
               onClick={exportFiltered}
               disabled={filtered.length === 0}
-              className="h-9"
               title="Export visible staff to CSV"
             >
               <Download className="size-3.5" />
