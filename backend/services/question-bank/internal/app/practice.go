@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 
 	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
@@ -237,11 +238,24 @@ func (service *Service) StartPractice(contextValue context.Context, capability c
 	}
 	// A function-only problem runs the student's function inside its hidden wrapper (ADR-0063).
 	runSource := source
-	if versionID, versionErr := service.practiceVersionID(contextValue, capability, command.QuestionID); versionErr == nil {
-		if composed, wrapped, composeErr := service.composeFor(contextValue, versionID, command.Language, command.Source); composeErr == nil && wrapped {
+	versionID := versionIDFromKey(target.BundleObjectKey)
+	if versionID == "" {
+		if resolved, versionErr := service.practiceVersionID(contextValue, capability, command.QuestionID); versionErr == nil {
+			versionID = resolved
+		} else {
+			service.logger.Warn("resolve practice version for stubs", "error", versionErr)
+		}
+	}
+	if versionID != "" {
+		composed, wrapped, composeErr := service.composeFor(contextValue, versionID, command.Language, command.Source)
+		if composeErr != nil {
+			service.logger.Warn("compose practice stub", "version", versionID, "error", composeErr)
+		} else if wrapped {
 			if sealed, sealErr := service.sealObject(contextValue, prefix+".run", []byte(composed)); sealErr == nil {
 				runSource = sealed
 				stored = append(stored, sealed.ObjectKey)
+			} else {
+				service.logger.Warn("seal composed practice code", "error", sealErr)
 			}
 		}
 	}
@@ -250,6 +264,7 @@ func (service *Service) StartPractice(contextValue context.Context, capability c
 		TimeLimitMS: target.TimeLimitMS, MemoryLimitKiB: target.MemoryLimitKiB,
 	}
 	if err := service.modelChecks.Submit(contextValue, job); err != nil {
+		service.logger.Warn("submit practice run to Judge", "run_id", id, "error", err)
 		if failErr := service.modelChecks.Fail(context.WithoutCancel(contextValue), id); failErr != nil {
 			service.logger.Warn("mark practice run failed", "run_id", id, "error", failErr)
 		}
@@ -310,4 +325,14 @@ func (service *Service) practiceVersionID(contextValue context.Context, capabili
 		return "", err
 	}
 	return stored.QuestionVersionID, nil
+}
+
+var versionInKey = regexp.MustCompile(`question-versions/([0-9a-fA-F-]{36})/`)
+
+// versionIDFromKey reads the question version out of an evaluation bundle's object key, when it names one.
+func versionIDFromKey(key string) string {
+	if match := versionInKey.FindStringSubmatch(key); match != nil {
+		return strings.ToLower(match[1])
+	}
+	return ""
 }
