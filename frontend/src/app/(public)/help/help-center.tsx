@@ -32,11 +32,11 @@ export function HelpCenter() {
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search, for example “Safe Exam Browser” or “timer”"
-            className="h-12 w-full rounded-full border border-line-strong bg-surface pl-11 pr-4 text-[15px] text-ink outline-none transition-[border-color,box-shadow] placeholder:text-ink-subtle focus:border-ink focus:ring-4 focus:ring-ink/10"
+            placeholder="> search, for example “Safe Exam Browser” or “timer”"
+            className="h-12 w-full border border-ink bg-surface pl-11 pr-4 font-mono text-[14px] text-ink shadow-[3px_3px_0_var(--ink)] outline-none transition-shadow placeholder:text-ink-subtle focus:shadow-[3px_3px_0_var(--brand)]"
           />
         </label>
-        <div role="group" aria-label="Who is asking" className="flex rounded-full border border-line-strong p-1">
+        <div role="group" aria-label="Who is asking" className="flex border border-ink font-mono text-[13.5px]">
           {(["students", "staff"] as const).map((value) => (
             <button
               key={value}
@@ -44,11 +44,11 @@ export function HelpCenter() {
               aria-pressed={audience === value}
               onClick={() => setAudience(value)}
               className={cn(
-                "h-9 rounded-full px-4 text-[14px] capitalize transition-colors",
-                audience === value ? "bg-ink text-canvas" : "text-ink-muted hover:text-ink",
+                "h-11 border-l border-ink px-4 transition-colors first:border-l-0",
+                audience === value ? "bg-brand text-brand-ink" : "text-ink-muted hover:text-ink",
               )}
             >
-              {value}
+              [{value}]
             </button>
           ))}
         </div>
@@ -58,20 +58,20 @@ export function HelpCenter() {
       </p>
 
       {sections.length === 0 ? (
-        <div className="mt-8 rounded-[var(--radius-surface)] border border-dashed border-line-strong px-6 py-12 text-center">
-          <p className="text-[15px] text-ink">No answers match that.</p>
+        <div className="mt-8 border border-dashed border-ink px-6 py-12 text-center font-mono">
+          <p className="text-[15px] text-ink">(o_o)? no answers match that.</p>
           <p className="mt-1 text-sm text-ink-muted">Try a shorter word, or ask your invigilator or exam administrator.</p>
         </div>
       ) : (
         sections.map((section) => (
           <section key={section.title} className="mt-8">
-            <h2 className="mb-3 text-[13px] font-medium text-ink-muted">{section.title}</h2>
-            <div className="overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface">
+            <h2 className="mb-3 font-mono text-[12.5px] text-ink-subtle">[ {section.title.toLowerCase()} ]</h2>
+            <div className="overflow-hidden border border-ink bg-surface shadow-[4px_4px_0_var(--ink)]">
               {section.entries.map((entry, index) => (
                 <details key={entry.question} open={Boolean(deferred)} className={cn("group", index > 0 && "border-t border-line")}>
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-[15px] font-medium text-ink transition-colors hover:bg-hover [&::-webkit-details-marker]:hidden">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-[15px] font-medium text-ink transition-colors hover:text-brand [&::-webkit-details-marker]:hidden">
                     {entry.question}
-                    <span aria-hidden className="text-ink-subtle transition-transform duration-200 group-open:rotate-45">+</span>
+                    <span aria-hidden className="shrink-0 font-mono text-[13px] text-brand"><span className="group-open:hidden">[+]</span><span className="hidden group-open:inline">[-]</span></span>
                   </summary>
                   <div className="px-5 pb-5 text-[14.5px] leading-relaxed text-ink-muted">{entry.answer}</div>
                 </details>

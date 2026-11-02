@@ -3,7 +3,6 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ExamPreview } from "@/components/site/exam-preview";
-import { AsciiField } from "@/components/site/ascii-field";
 import { Engine } from "@/components/site/engine";
 import { Hero } from "@/components/site/hero";
 import { Meet } from "@/components/site/meet";
@@ -23,10 +22,8 @@ export default async function Landing() {
   if (jar.get(ACCESS_COOKIE) || jar.get(REFRESH_COOKIE)) redirect(homeFor(await requireViewer()));
 
   return (
-    // HackerRank-style frame: two hairlines down the content edges, and rules between sections that stop at them.
+    // Rules between sections stop at the page frame (drawn by the public layout).
     <div className="relative">
-      <AsciiField />
-      <div aria-hidden className="pointer-events-none absolute inset-y-0 left-1/2 -z-10 hidden w-full max-w-6xl -translate-x-1/2 border-x border-line lg:block" />
       <Hero />
       <Rule />
       <Statement />

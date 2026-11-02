@@ -44,23 +44,22 @@ export default async function StatusPage() {
       <div
         role="status"
         className={cn(
-          "mt-10 flex items-center gap-4 rounded-[var(--radius-surface)] border px-6 py-5",
-          healthy ? "border-success/30 bg-success-soft" : "border-danger/30 bg-danger-soft",
+          "mt-10 flex items-center gap-4 border px-6 py-5 font-mono shadow-[4px_4px_0_var(--ink)]",
+          healthy ? "border-success bg-success-soft" : "border-danger bg-danger-soft",
         )}
       >
-        <span aria-hidden className="relative flex size-3">
-          <span className={cn("absolute inline-flex size-full animate-ping rounded-full opacity-50", healthy ? "bg-success" : "bg-danger")} />
-          <span className={cn("relative inline-flex size-3 rounded-full", healthy ? "bg-success" : "bg-danger")} />
+        <span aria-hidden className={cn("text-[15px]", healthy ? "text-success" : "text-danger")}>
+          {healthy ? "\\o/" : "(x_x)"}
         </span>
         <div>
-          <p className={cn("text-[17px] font-semibold", healthy ? "text-success" : "text-danger")}>
-            {healthy ? "Everything is working" : "Some things aren't working"}
+          <p className={cn("text-[15px]", healthy ? "text-success" : "text-danger")}>
+            {healthy ? "[ok] everything is working" : "[x] some things aren't working"}
           </p>
-          <p className="mt-0.5 text-[13px] text-ink-muted">Checked at {timeFormat.format(new Date())}. Refresh to check again.</p>
+          <p className="mt-0.5 text-[12px] text-ink-muted">{"// "}checked at {timeFormat.format(new Date())}. Refresh to check again.</p>
         </div>
       </div>
 
-      <ul className="mt-6 divide-y divide-line overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface">
+      <ul className="mt-6 divide-y divide-line overflow-hidden border border-ink bg-surface shadow-[4px_4px_0_var(--ink)]">
         {checks.map((check) => (
           <li key={check.name} className="flex items-start justify-between gap-6 px-6 py-5">
             <div>
@@ -68,7 +67,7 @@ export default async function StatusPage() {
               <p className="mt-0.5 text-[13.5px] leading-relaxed text-ink-muted">{check.detail}</p>
             </div>
             <div className="shrink-0 text-right">
-              <p className={cn("text-[14px] font-medium", check.ok ? "text-success" : "text-danger")}>{check.ok ? "Operational" : "Down"}</p>
+              <p className={cn("font-mono text-[13px]", check.ok ? "text-success" : "text-danger")}>{check.ok ? "[ok] operational" : "[x] down"}</p>
               {check.ms !== null && <p className="mt-0.5 font-mono text-[12px] text-ink-subtle">{check.ms} ms</p>}
             </div>
           </li>
@@ -76,7 +75,10 @@ export default async function StatusPage() {
       </ul>
 
       <div className="prose-doc mt-12">
-        <h2 className="font-serif text-[1.5rem] text-ink">If something is down during your exam</h2>
+        <h2 className="heading text-[1.6rem] text-ink">
+          <span aria-hidden className="mr-2 font-mono text-[0.8em] text-brand">##</span>
+          If something is down during your exam
+        </h2>
         <p>
           Your code saves on your device while you&apos;re offline and syncs when the connection is back. The timer is kept by the
           server, so tell your invigilator if you lost time: staff can add it back.

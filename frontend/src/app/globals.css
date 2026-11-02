@@ -495,3 +495,9 @@ html:has(.ascii)::-webkit-scrollbar {
 .ascii textarea {
   cursor: text;
 }
+
+/* Long-form text on the public pages: dash bullets and orange underlines. */
+.ascii .prose-doc ul { list-style: none; padding-left: 0; }
+.ascii .prose-doc ul > li { position: relative; padding-left: 1.4em; }
+.ascii .prose-doc ul > li::before { content: "-"; position: absolute; left: 0; font-family: var(--font-mono); color: var(--accent); }
+.ascii .prose-doc a { text-decoration-color: var(--accent); text-decoration-thickness: 1.5px; }
