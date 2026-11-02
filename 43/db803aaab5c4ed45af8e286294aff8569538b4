@@ -1,0 +1,31 @@
+backend/services/judge/README.md
+  s_4a7f3c46d06453::t_8b8216bb5b5cf0 209-213
+backend/services/judge/internal/adapters/aethercode/client.go
+  s_4a7f3c46d06453::t_ca04fc199fbdaa 14,142,146-220,336-337,341-348
+backend/services/judge/internal/adapters/aethercode/client_test.go
+  s_4a7f3c46d06453::t_71960917903b77 148-260
+backend/services/judge/internal/dispatcher/batch_test.go
+  s_4a7f3c46d06453::t_bfa6a4d154c9f7 1-180
+backend/services/judge/internal/dispatcher/engine.go
+  s_4a7f3c46d06453::t_e2eed97dd56f02 14-28
+backend/services/judge/internal/dispatcher/worker.go
+  s_4a7f3c46d06453::t_549158cbfb8e6f 55-63,74-76,83-85,124-188
+docs/adr/0060-remove-judge0.md
+  s_4a7f3c46d06453::t_f172fa9094e809 31-36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "43db803aaab5c4ed45af8e286294aff8569538b4",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
