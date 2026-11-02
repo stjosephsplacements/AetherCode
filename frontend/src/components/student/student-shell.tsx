@@ -147,7 +147,7 @@ export function StudentShell({ viewer, brand, children }: { viewer: Viewer; bran
   return (
     <div className="min-h-dvh" style={brand?.color ? accentStyle(brand.color) : undefined}>
       <header className="sticky top-0 z-30 border-b border-line bg-canvas/85 backdrop-blur print:hidden">
-        <div className="mx-auto flex h-14 max-w-[1240px] items-center gap-3 px-4 sm:px-6">
+        <div className="mx-auto flex h-14 max-w-none items-center gap-3 px-4 sm:px-6">
           <Mobile />
           <Link href="/student" className="mr-2 shrink-0">
             <Brand brand={brand} />
@@ -159,7 +159,7 @@ export function StudentShell({ viewer, brand, children }: { viewer: Viewer; bran
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-[1240px] px-4 pb-24 pt-8 sm:px-6 lg:pt-10">{children}</main>
+      <main className="mx-auto w-full max-w-none px-5 pb-24 pt-8 sm:px-8 lg:pt-10">{children}</main>
     </div>
   );
 }
