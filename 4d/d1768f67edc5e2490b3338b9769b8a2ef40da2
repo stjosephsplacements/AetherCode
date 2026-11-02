@@ -1,0 +1,35 @@
+frontend/src/app/student/(shell)/completed/page.tsx
+  s_4a7f3c46d06453::t_dd9f36b8cfe408 34
+frontend/src/app/student/(shell)/exams/page.tsx
+  s_4a7f3c46d06453::t_a258381137cd61 66
+frontend/src/app/student/(shell)/page.tsx
+  s_4a7f3c46d06453::t_9348695cd616ca 1,4,15-20,22,44-46,50,54-59,61-62,65,68-69,76,78-81,83-86,88-90,94,97-99,101-105,108-120,123-125,132-182,185,187-213,215-218,221-226,228-229,231,233-244,246-255,257,265-269,274,276,281-284,286,290-291,305,307-308,314-316,318-323,328,333,344,346-356
+frontend/src/app/student/(shell)/performance/page.tsx
+  s_4a7f3c46d06453::t_fb8d4327fa39a7 21,78,100
+frontend/src/app/student/(shell)/profile/public-profile-form.tsx
+  s_4a7f3c46d06453::t_6b7374c8c7b30d 27
+frontend/src/app/student/(shell)/progress/solved-bars.tsx
+  s_4a7f3c46d06453::t_473f916e097524 13
+frontend/src/app/student/(shell)/scheduled/page.tsx
+  s_4a7f3c46d06453::t_f9d831e21b6fde 38
+frontend/src/components/student/ring.tsx
+  s_4a7f3c46d06453::t_b35379e261974a 1-17
+frontend/src/components/student/student-shell.tsx
+  s_4a7f3c46d06453::t_6dc87063ee0553 60-61,67-71,73-74,76,79,82,87-88,90-92,102-103,106-107,156-157,159,169
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4dd1768f67edc5e2490b3338b9769b8a2ef40da2",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
