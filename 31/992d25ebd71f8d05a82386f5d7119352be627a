@@ -1,0 +1,31 @@
+backend/services/assessment/internal/adapters/questionbank/client.go
+  s_4a7f3c46d06453::t_a29fe986c4ca22 129
+backend/services/assessment/internal/adapters/repo/mcq_integration_test.go
+  s_4a7f3c46d06453::t_458f8a035937c2 82,120
+backend/services/assessment/internal/adapters/repo/postgres.go
+  s_4a7f3c46d06453::t_573c4369752051 9,266-274,276,280
+backend/services/assessment/internal/app/service.go
+  s_4a7f3c46d06453::t_3c0da1de72f075 114-116,1187-1188
+backend/services/assessment/migrations/000036_mcq_choice_explanations.down.sql
+  s_4a7f3c46d06453::t_48b7e488a83f85 1-371
+backend/services/assessment/migrations/000036_mcq_choice_explanations.up.sql
+  s_4a7f3c46d06453::t_051f6a52836992 1-380
+backend/services/assessment/migrations/README.md
+  s_4a7f3c46d06453::t_1e703655689f2d 34-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "31992d25ebd71f8d05a82386f5d7119352be627a",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
