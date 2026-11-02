@@ -1,0 +1,39 @@
+backend/services/question-bank/internal/adapters/http/handler.go
+  s_4a7f3c46d06453::t_8e68feecab50b6 39-40
+backend/services/question-bank/internal/adapters/http/templates_handler.go
+  s_4a7f3c46d06453::t_753895ff5fba60 1-55
+backend/services/question-bank/internal/app/model_check.go
+  s_4a7f3c46d06453::t_3c348c58a63ab7 98-104,106
+backend/services/question-bank/internal/app/practice.go
+  s_4a7f3c46d06453::t_cda9f28c45f47b 62-63,138-140,238-247,249,299-313
+backend/services/question-bank/internal/app/templates.go
+  s_4a7f3c46d06453::t_97d584738f2e1a 1-139
+backend/services/question-bank/internal/app/templates_test.go
+  s_4a7f3c46d06453::t_1e3d9684a57260 1-42
+frontend/src/app/staff/questions/[versionId]/page.tsx
+  s_4a7f3c46d06453::t_704244ddbd938e 28,66,69,210
+frontend/src/app/staff/questions/[versionId]/templates-editor.tsx
+  s_4a7f3c46d06453::t_8bbc609570ef16 1-90
+frontend/src/app/staff/questions/actions.ts
+  s_4a7f3c46d06453::t_114741a5159f18 436-449
+frontend/src/components/practice/practice-workspace.tsx
+  s_4a7f3c46d06453::t_31276990ebdc92 83-86,98,100,269
+frontend/src/lib/api-types.ts
+  s_4a7f3c46d06453::t_ac6a0e4a8598cc 255-256
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d636b30bae730bc7588e077a5b3e71d1e5c2dd99",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
