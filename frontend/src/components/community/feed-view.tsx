@@ -1,6 +1,6 @@
 import { Bookmark, BookmarkCheck, ExternalLink } from "lucide-react";
 import Link from "next/link";
-import { EmptyState } from "@/components/staff/page-header";
+import { EmptyState, PageHeader } from "@/components/staff/page-header";
 import { Badge } from "@/components/ui/card";
 import type { FeedItem, FeedKind } from "@/lib/api-types";
 import { cn, formatWindow } from "@/lib/utils";
@@ -18,8 +18,7 @@ export function FeedView({ kind, items, path, saved }: { kind: FeedKind; items: 
   const { title, intro, empty } = FEED_TITLES[kind];
   return (
     <div className="animate-enter">
-      <h1 className="display text-[2.25rem] text-ink sm:text-[2.6rem]">{title}</h1>
-      <p className="mt-2 max-w-[60ch] text-[15px] text-ink-muted">{intro}</p>
+      <PageHeader title={title} description={intro} />
       <nav aria-label="Filter" className="mt-6 flex gap-1.5">
         {[
           { href: path, label: "Open", active: !saved },

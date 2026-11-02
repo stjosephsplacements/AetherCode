@@ -1,5 +1,6 @@
 "use client";
 
+import { Select } from "@/components/staff/form";
 import { Check, ChevronDown, Clock3, CloudOff, LoaderCircle, Maximize2, Megaphone, Minimize2, Play, RotateCcw, ShieldCheck, Upload, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
@@ -358,22 +359,13 @@ function ExamWorkspace({ attemptPath, attemptId, attempt, paper }: Loaded & { at
           className="flex min-h-[460px] flex-1 flex-col overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface shadow-[var(--shadow-panel)]"
         >
           <div className="flex h-12 shrink-0 items-center gap-1 border-b px-2.5">
-            <label className="relative">
-              <span className="sr-only">Language</span>
-              <select
-                value={draft.language}
-                onChange={(event) => answers.update(currentId, { language: event.target.value })}
-                disabled={readOnly}
-                className="h-8 appearance-none rounded-[var(--radius-control)] bg-transparent pl-2.5 pr-8 text-[13px] font-medium text-ink outline-none transition-colors hover:bg-hover focus-visible:ring-2 focus-visible:ring-brand"
-              >
-                {item.supported_languages.map((language) => (
-                  <option key={language} value={language}>
-                    {languageName(language)}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-ink-muted" strokeWidth={2} />
-            </label>
+            <Select aria-label="Language" size="sm" className="w-40" value={draft.language} onValueChange={(language) => answers.update(currentId, { language })} disabled={readOnly}>
+              {item.supported_languages.map((language) => (
+                <option key={language} value={language}>
+                  {languageName(language)}
+                </option>
+              ))}
+            </Select>
             <div className="ml-auto flex items-center gap-0.5">
               <ResetCode disabled={readOnly || !draft.source} onReset={resetCode} />
               <EditorSettingsMenu />
