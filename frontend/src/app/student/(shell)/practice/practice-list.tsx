@@ -16,7 +16,7 @@ const STATUSES = [
   { value: "solved", label: "Solved" },
 ] as const;
 
-export function PracticeList({ problems }: { problems: PracticeProblem[] }) {
+export function PracticeList({ problems, hideTopic = false }: { problems: PracticeProblem[]; hideTopic?: boolean }) {
   const [query, setQuery] = useState("");
   const [difficulty, setDifficulty] = useState<"all" | PracticeProblem["difficulty"]>("all");
   const [status, setStatus] = useState<(typeof STATUSES)[number]["value"]>("all");
@@ -36,7 +36,7 @@ export function PracticeList({ problems }: { problems: PracticeProblem[] }) {
 
   return (
     <>
-      <div className="mt-8 flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <label className="relative min-w-[220px] flex-1">
           <span className="sr-only">Search problems</span>
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-subtle" strokeWidth={1.75} />
@@ -49,7 +49,7 @@ export function PracticeList({ problems }: { problems: PracticeProblem[] }) {
         </label>
         <Select label="Difficulty" value={difficulty} onChange={(value) => setDifficulty(value as typeof difficulty)}
           options={[["all", "Any difficulty"], ["easy", "Easy"], ["medium", "Medium"], ["hard", "Hard"]]} />
-        {tags.length > 0 && <Select label="Topic" value={tag} onChange={setTag} options={[["", "Any topic"], ...tags.map((name) => [name, name] as [string, string])]} />}
+        {!hideTopic && tags.length > 0 && <Select label="Topic" value={tag} onChange={setTag} options={[["", "Any topic"], ...tags.map((name) => [name, name] as [string, string])]} />}
       </div>
       <nav aria-label="Status" className="mt-3 flex gap-1.5">
         {STATUSES.map((option) => (
@@ -66,11 +66,11 @@ export function PracticeList({ problems }: { problems: PracticeProblem[] }) {
       </nav>
 
       {shown.length === 0 ? (
-        <p className="mt-6 rounded-[var(--radius-surface)] border border-dashed border-line-strong px-6 py-12 text-center text-sm text-ink-muted">
+        <p className="mt-6 rounded-3xl border border-dashed border-line-strong px-6 py-12 text-center text-sm text-ink-muted">
           {problems.length === 0 ? "No practice problems yet. Your faculty adds them here." : "No problems match these filters."}
         </p>
       ) : (
-        <ul className="mt-4 overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface">
+        <ul className="mt-4 overflow-hidden rounded-3xl border border-line bg-surface shadow-[var(--shadow-panel)]">
           {shown.map((problem, index) => (
             <li key={problem.question_id} className={cn(index > 0 && "border-t border-line")}>
               <Link href={`/student/practice/${problem.question_id}`} className="flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-hover">

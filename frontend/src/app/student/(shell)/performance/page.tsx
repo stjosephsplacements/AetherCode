@@ -83,7 +83,7 @@ export default async function PerformancePage() {
               {grid.map((column) => (
                 <div key={column[0]!.day} className="flex flex-none flex-col gap-[3px]">
                   {column.map((cell) => (
-                    <span key={cell.day} title={cell.day} className={cn("size-3 rounded-[3px]", cell.future ? "bg-transparent" : cell.active ? "bg-brand" : "bg-hover")} />
+                    <span key={cell.day} title={cell.day} className={cn("size-3 rounded-[3px]", cell.future ? "bg-transparent" : cell.active ? "bg-brand" : "bg-line-strong")} />
                   ))}
                 </div>
               ))}
