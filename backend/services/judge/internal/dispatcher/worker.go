@@ -76,6 +76,7 @@ func (w *Worker) DispatchJob(ctx context.Context, jobID string) error {
 				TimeLimitMS:    unit.TimeLimitMS,
 				MemLimitKB:     unit.MemLimitKB,
 				ExpectedOutput: unit.ExpectedOutput,
+				IdempotencyKey: unit.ID,
 			})
 			if submitErr != nil {
 				return fmt.Errorf("submit unit %s: %w", unit.ID, submitErr)
@@ -110,8 +111,8 @@ func (w *Worker) DispatchJob(ctx context.Context, jobID string) error {
 // internal_error verdict so the job transitions to a terminal state rather
 // than stalling indefinitely. internal_error (not time_limit_exceeded) is
 // used deliberately: poll exhaustion means the engine never reported a
-// terminal state at all, which is an engine/infrastructure failure (e.g. a
-// Judge0 outage), not evidence that the candidate's code ran too long — a
+// terminal state at all, which is an engine/infrastructure failure (e.g. an
+// engine outage), not evidence that the candidate's code ran too long — a
 // real TLE is reported by the engine itself as a terminal verdict.
 func (w *Worker) pollUntilDone(ctx context.Context, token string) (*UnitVerdict, error) {
 	for attempt := 0; attempt < w.runtime.MaxPollAttempts; attempt++ {

@@ -54,7 +54,7 @@ from `$(…_DB_PASSWORD)` references at start.
 | `IDENTITY_*` | identity token signing, assertion verification, MFA, delivery tokens |
 | `AUTHZ_CAPABILITY_KEYS` | migrations (installs keys), user and identity |
 | `PLATFORM_KMS_LOCAL_KEY`, `SEB_LAUNCH_PASSWORD` | services that encrypt objects, SEB launch files |
-| `JUDGE0_AUTH_TOKEN`, `IDENTITY_SSO_CLIENT_SECRET` | optional; add to the Secret only when you use Judge0 or single sign-on |
+| `IDENTITY_SSO_CLIENT_SECRET` | optional; add to the Secret only when you use single sign-on |
 
 ## Upgrade and roll back
 

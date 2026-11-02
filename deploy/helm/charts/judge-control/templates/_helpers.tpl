@@ -43,10 +43,9 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- if not .Values.networkPolicy.apiServerCIDR }}{{ fail "networkPolicy.apiServerCIDR is required for RabbitMQ Kubernetes peer discovery" }}{{ end }}
 {{- end }}
 {{- if .Values.engine.enabled }}
-{{- if not .Values.engine.compatibilityApproved }}{{ fail "Judge0 cannot be enabled until the gVisor compatibility gate is approved" }}{{ end }}
-{{- if not .Values.engine.compatibilityEvidenceRef }}{{ fail "Judge0 cannot be enabled without signed gVisor compatibility evidence" }}{{ end }}
-{{- if not .Values.engine.endpoint }}{{ fail "engine.endpoint is required when Judge0 is enabled" }}{{ end }}
-{{- if not .Values.engine.authSecretName }}{{ fail "engine.authSecretName is required when Judge0 is enabled" }}{{ end }}
+{{- if not .Values.engine.compatibilityApproved }}{{ fail "The execution engine cannot be enabled until the gVisor compatibility gate is approved" }}{{ end }}
+{{- if not .Values.engine.compatibilityEvidenceRef }}{{ fail "The execution engine cannot be enabled without signed gVisor compatibility evidence" }}{{ end }}
+{{- if not .Values.engine.endpoint }}{{ fail "engine.endpoint is required when the execution engine is enabled" }}{{ end }}
 {{- end }}
 {{- if .Values.databaseHA.enabled }}
 {{- if not .Values.databaseHA.imageName }}{{ fail "databaseHA.imageName is required when provisioning the CNPG cluster" }}{{ end }}

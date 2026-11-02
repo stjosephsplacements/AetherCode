@@ -2,7 +2,7 @@
 
 > Multi-tenant, microservices coding-exam platform for colleges, with Safe Exam
 > Browser (SEB) enforced testing, a medallion role hierarchy, and a dedicated
-> Judge0 execution wrapper. Self-hosted on bare metal + Kubernetes.
+> execution wrapper over the AetherCode Execution Engine. Self-hosted on bare metal + Kubernetes.
 
 **Status:** Draft v1 · **Owner:** Platform Team · **Last updated:** 2026-07-24
 
@@ -22,7 +22,7 @@ reworking the core.
 - Exam authoring, scheduling, and assignment — including cross-college
   placement exams.
 - SEB-enforced exam sessions (normal browsing on the web app, exams only in SEB).
-- Code execution via an isolated Judge0 wrapper microservice.
+- Code execution via an isolated wrapper microservice over the AetherCode Execution Engine.
 - Mentor/student progress tracking.
 
 ### 1.2 Out of scope (v1, planned later)
@@ -56,8 +56,8 @@ reworking the core.
 | Judge queue/broker | RabbitMQ | `4.3.3` | **Isolated** to the Judge wrapper |
 | Primary DB | PostgreSQL | `18.4` | Three-node HA cluster; database per platform service |
 | Judge control DB | PostgreSQL | `18.4` | Separate HA deployment for the wrapper |
-| Judge0 engine DB | PostgreSQL | upstream-compatible `16.x` | Opaque upstream schema, never touched by wrapper migrations |
-| Cache/session | Redis | `8.8.0` | Isolated Judge Redis remains an engine concern |
+| Execution engine DB | PostgreSQL | `18.x` | The engine's own database, never touched by wrapper migrations |
+| Cache/session | Redis | `8.8.0` | The engine's Redis queues remain an engine concern |
 | Object storage | S3-compatible, India-resident | — | Encrypted question assets, SEB configs, reports, and backups |
 | Orchestration | Kubernetes + CloudNativePG | `1.30.x` | Self-hosted bare metal; quorum synchronous replication |
 | Packaging | Helm + Kustomize | — | `deploy/` |
@@ -81,11 +81,11 @@ first release. A single-node deployment is not an accepted production topology.
   database in that cluster. There are no cross-database foreign keys or direct
   service reads across ownership boundaries.
 - **Judge isolation:** the wrapper control plane has a separate PostgreSQL HA
-  deployment and a three-node RabbitMQ quorum cluster. Judge0's engine database
-  is a third, version-pinned deployment with its upstream schema left opaque.
+  deployment and a three-node RabbitMQ quorum cluster. The execution engine's
+  database is a third, separate deployment that the wrapper never reads.
 - **Compute:** reserve dedicated `role=judge` nodes for execution workers and
-  separate `role=postgres` nodes for data. A Judge runtime must pass the
-  gVisor/no-network/non-privileged gate before receiving production traffic.
+  separate `role=postgres` nodes for data. The execution engine must sit on a private address and pass its
+  load and node-loss exercises before receiving production traffic.
 - **Residency:** primary data, object storage, WAL archives, backups, and
   PII-bearing telemetry stay in India. A node, replica, or backup target outside
   India blocks promotion.
@@ -167,7 +167,7 @@ event-fed projections.
 | 5 | **question-bank** | Immutable question versions, tags, test manifests, encrypted asset references | `aether_qbank` |
 | 6 | **assessment** | Immutable exam versions, snapshots, assignments and proctor policy | `aether_assessment` |
 | 7 | **submission** | Attempts, append-only answer revisions, evaluation requests and scores | `aether_submission` |
-| 8 | **judge** (Judge0 wrapper) | Isolated execution gateway, reconciliation and terminal delivery leases | **separate** `aether_judge_wrapper` HA DB + RabbitMQ quorum + private engine |
+| 8 | **judge** (execution engine wrapper) | Isolated execution gateway, reconciliation and terminal delivery leases | **separate** `aether_judge_wrapper` HA DB + RabbitMQ quorum + private engine |
 | 9 | **seb** | Encrypted SEB configuration objects, sessions, validation/audit events | `aether_seb` |
 | 10 | **notification** | Notifications, preferences, provider idempotency and delivery attempts | `aether_notification` |
 | 11 | **analytics** | Event-fed progress, exam, batch, placement and export read models | `aether_analytics` |
@@ -175,20 +175,19 @@ event-fed projections.
 Shared cross-cutting concerns live in `backend/libs/` (config, logging, auth middleware,
 db, messaging, telemetry, errors) — **never** copy-pasted per service.
 
-### 6.1 Judge0 Wrapper (hard isolation requirement)
+### 6.1 Judge Wrapper (hard isolation requirement)
 - Runs in its own namespace/node pool (`role=judge`), own PostgreSQL and own
-  RabbitMQ — **no shared broker with the platform bus.** Judge0's Redis/Resque
-  queue is an internal engine detail, not a wrapper dependency.
+  RabbitMQ — **no shared broker with the platform bus.** The engine's own Redis
+  queues are an internal engine detail, not a wrapper dependency.
 - Flow: `submission` calls `SubmitExecution` over mTLS → wrapper persists an
   idempotent job → admission/retry workers use RabbitMQ quorum queues → workers
-  submit/poll private Judge0 → wrapper writes a terminal encrypted result
+  submit/poll the private execution engine → wrapper writes a terminal encrypted result
   reference → the submission adapter pulls a leased completion over mTLS,
   persists it idempotently, acknowledges it, then publishes `judge.completed.v1`
   to NATS. Judge never shares the platform broker.
-- Sandboxing must prove gVisor compatibility with no network, no privilege,
-  read-only rootfs, dropped capabilities, and CPU/memory/pids/wall-time limits.
-  The upstream privileged sample compose configuration is forbidden.
-- Wrapper exposes a stable internal API so the underlying engine (Judge0 today)
+- The engine's sandbox (go-judge) must run with no network, no privilege,
+  read-only rootfs, cgroups v2 limits, and CPU/memory/pids/wall-time limits.
+- Wrapper exposes a stable internal API so the underlying engine (the AetherCode Execution Engine today)
   can be swapped later without touching `submission`.
 
 ---
@@ -272,7 +271,7 @@ golang-migrate driver.
 Tenant retention settings and legal holds are authoritative in `aether_tenant`.
 Initial defaults are seven years for academic/source/result and audit records,
 one year for authentication logs, 90 days for notification deliveries, 30 days
-for wrapper execution records, and 24 hours for upstream Judge0 payloads after
+for wrapper execution records, and 24 hours for engine payloads after
 durable completion acknowledgement. A legal hold defeats scheduled deletion.
 
 ---
@@ -355,7 +354,7 @@ aethercode/
 0. **Foundations** — repo, workspace, CI, shared libs, local compose, ADRs.
 1. **Identity & Tenancy** — auth, RLS, tenants/departments, role assignments.
 2. **Question Bank** — global authoring, test-case storage, Golden-only writes.
-3. **Judge Wrapper** — isolated Judge0 wrapper, own DB/broker, hardened sandbox.
+3. **Judge Wrapper** — isolated execution wrapper, own DB/broker, hardened sandbox.
 4. **Assessment & Submission** — exam authoring, assignment, attempts, scoring.
 5. **SEB Enforcement** — config generation + server-side key validation + gateway.
 6. **Frontend** — Next.js app across all roles; SEB launch UX.
@@ -372,11 +371,11 @@ made, and a deployable increment.
 | Risk | Mitigation |
 |---|---|
 | SEB client-side checks bypassable | Enforce Config/Browser-Exam-Key hash **server-side** at gateway |
-| Judge0 sandbox escape | gVisor runtime, seccomp, no-net, cgroup limits, dedicated node pool |
+| Sandbox escape | seccomp, no-net, cgroups v2 limits, private engine address, dedicated node pool |
 | Cross-tenant data leak | Signed transaction context + `FORCE RLS` + exact local authz revision; projection lag fails closed |
 | Execution load spikes during exams | RabbitMQ quorum persistence, worker admission limits, per-tenant fair queuing, and a 10K/five-minute load gate |
 | Node or worker loss | Three-node PostgreSQL HA with one synchronous replica, RabbitMQ quorum queues, retry/reconciliation, and failure exercises |
-| Judge0 isolation incompatibility | Block release; never copy its privileged sample or weaken gVisor/no-network controls |
+| Engine isolation regression | Block release; never expose the engine publicly or weaken the no-network controls |
 | Backup/restore failure | Encrypted WAL archiving, India-only off-site storage, and required PITR restore drills |
 
 ---
@@ -393,8 +392,8 @@ are required evidence before production promotion:
    grading continuity. RabbitMQ replay and Judge token reconciliation also pass.
 3. A PITR restore drill reaches the configured recovery objectives and passes
    RLS/placement-isolation verification.
-4. The Judge0 v1.13.1 compatibility gate proves gVisor, no-network, and
-   non-privileged execution. A failed gate blocks the engine release.
+4. The engine compatibility check proves no-network, non-privileged execution
+   and the load profile. A failed check blocks the engine release.
 5. India-only residency is verified for primary storage, backup/WAL archive,
    object storage, and PII telemetry.
 

@@ -52,7 +52,7 @@ export default async function SystemPage() {
       </div>
       {backlog > 60 && (
         <p className="mt-6 rounded-xl bg-accent-soft px-4 py-3 text-sm text-accent">
-          Submissions are waiting over a minute. Grading is behind; scores will catch up, but consider adding Judge0 workers (COUNT) or CPU.
+          Submissions are waiting over a minute. Grading is behind; scores will catch up, but consider adding engine workers (COUNT) or CPU.
         </p>
       )}
     </AppShell>

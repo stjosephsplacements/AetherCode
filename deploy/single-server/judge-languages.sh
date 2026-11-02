@@ -6,12 +6,11 @@
 set -euo pipefail
 
 case "$JUDGE_ENGINE" in
-  judge0) version="1.13.1" ;;                       # the Judge0 release the stack runs
   aethercode) version="host-engine" ;;                # the AetherCode engine on the host (ADR-0028)
   *) echo "unsupported JUDGE_ENGINE: $JUDGE_ENGINE" >&2; exit 1 ;;
 esac
 
-# Judge0 language IDs (also used as stable IDs for other engines).
+# Stable numeric language IDs; the adapter maps each language key to the engine's own key.
 psql -v ON_ERROR_STOP=1 -h "${PGHOST:-judge-db}" -U aether_judge_app -d aether_judge_wrapper <<SQL
 INSERT INTO judge.language_mappings (language_key, engine_name, engine_language_id, engine_version, enabled, max_parallelism)
 VALUES

@@ -28,7 +28,7 @@ export const RELEASES: Release[] = [
     title: "Execution engine and editor fixes",
     tags: ["Compilers", "UI"],
     changes: [
-      "Judge now runs on the AetherCode Execution Engine alongside Judge0.",
+      "Judge now runs on the AetherCode Execution Engine.",
       "Fixed the code editor failing to load in some deployments.",
       "A round of security hardening across services.",
     ],

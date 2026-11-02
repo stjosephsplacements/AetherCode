@@ -1,5 +1,5 @@
 // Package judgecompletion pulls terminal results from the isolated Judge
-// wrapper. It intentionally contains no Judge0, object-storage, or KMS client.
+// wrapper. It intentionally contains no execution engine, object-storage, or KMS client.
 package judgecompletion
 
 import (

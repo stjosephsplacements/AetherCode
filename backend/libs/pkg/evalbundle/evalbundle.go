@@ -15,7 +15,7 @@ import (
 
 // MaxTestCases bounds resource use during fan-out — an author authoring a
 // pathologically large bundle should not be able to make one submission
-// dispatch thousands of Judge0 units.
+// dispatch thousands of engine units.
 //
 // Invariant: this must stay <= submission's per-completion unit-result bound
 // (services/submission/internal/adapters/judgecompletion/completion.go's

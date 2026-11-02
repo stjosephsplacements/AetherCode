@@ -17,7 +17,7 @@ import (
 )
 
 // Postgres is the Judge wrapper's sole persistence adapter. It never connects
-// to the upstream Judge0 database. storage/kms are nil-able: they are only
+// to the execution engine's database. storage/kms are nil-able: they are only
 // required for Submit's test-case fan-out (see fanOutTestCases in
 // fanout.go), so an instance built without them still serves Pull,
 // Acknowledge, and the delete paths, matching how

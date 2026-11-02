@@ -184,7 +184,7 @@ func TestWorkerMissingJob(t *testing.T) {
 
 func TestWorkerPollExhaustionProducesInternalError(t *testing.T) {
 	// verdict is left nil, so fakeEngine.Poll never reports a terminal state —
-	// this simulates a Judge0 outage where the engine never responds with a
+	// this simulates an engine outage where the engine never responds with a
 	// verdict at all, which must not be misattributed to the candidate as a
 	// time limit exceeded.
 	job := &DispatchJob{

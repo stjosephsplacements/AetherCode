@@ -28,11 +28,9 @@ tls:
 engine:
   enabled: false
   endpoint: ""
-  port: 2358
+  port: 5100
   compatibilityApproved: false
   compatibilityEvidenceRef: ""
-  authSecretName: ""
-  authTokenKey: token
 
 podAnnotations: {}
 podLabels: {}
