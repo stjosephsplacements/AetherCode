@@ -1,0 +1,19 @@
+docs/adr/0058-sub-categories-and-choice-explanations.md
+  s_4a7f3c46d06453::t_c175a93e841006 3,41,60-69,77-78,85-91
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "590e258f355aaa5e7bcc0188c85cf4151cf12875",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
