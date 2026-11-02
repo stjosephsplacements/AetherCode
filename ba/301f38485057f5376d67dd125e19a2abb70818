@@ -1,0 +1,21 @@
+frontend/src/app/staff/audit/audit-log.tsx
+  s_4a7f3c46d06453::t_e56949bfaa0d2c 1-100
+frontend/src/components/staff/live-services.tsx
+  s_4a7f3c46d06453::t_b19b30e0aa6080 27-28,31-44,46-51,53-61,63-64
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ba301f38485057f5376d67dd125e19a2abb70818",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
