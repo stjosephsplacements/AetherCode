@@ -66,3 +66,4 @@ Each decision is a numbered file; new ones start from [the template](0000-templa
 | [0060](0060-remove-judge0.md) | Remove Judge0; the AetherCode Execution Engine is the only engine (accepted) |
 | [0061](0061-root-and-delegated-super-admin.md) | Root and delegated super admins (accepted) |
 | [0062](0062-public-student-profile.md) | Opt-in public student profile (accepted) |
+| [0063](0063-function-only-questions.md) | Function-only questions: stubs and hidden wrappers (accepted) |
