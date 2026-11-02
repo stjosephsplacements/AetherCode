@@ -80,7 +80,10 @@ function readDraft(questionId: string, language: string): string {
 export function PracticeWorkspace({ tenantId, question }: { tenantId: string; question: PracticeQuestion }) {
   const base = `/question-bank/v1/tenants/${tenantId}/practice`;
   const settings = useEditorSettings();
-  const [language, setLanguage] = useState(question.languages[0] ?? "");
+  // A function-only problem offers the languages it has a stub for.
+  const stubbed = Object.keys(question.starters ?? {});
+  const languages = stubbed.length > 0 ? question.languages.filter((key) => stubbed.includes(key)) : question.languages;
+  const [language, setLanguage] = useState(languages[0] ?? "");
   const [source, setSource] = useState("");
   const [input, setInput] = useState(question.samples[0]?.input ?? "");
   const [useCustomInput, setUseCustomInput] = useState(false);
@@ -92,9 +95,9 @@ export function PracticeWorkspace({ tenantId, question }: { tenantId: string; qu
   // Code opened from a submission replaces the draft of its language once.
   const opened = useRef<string | null>(null);
   useEffect(() => {
-    setSource(opened.current ?? readDraft(question.question_id, language));
+    setSource(opened.current ?? (readDraft(question.question_id, language) || question.starters?.[language] || ""));
     opened.current = null;
-  }, [question.question_id, language]);
+  }, [question.question_id, language, question.starters]);
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
@@ -263,7 +266,7 @@ export function PracticeWorkspace({ tenantId, question }: { tenantId: string; qu
     <section aria-label="Your code" className="flex min-h-[520px] min-w-0 flex-1 flex-col overflow-hidden rounded-3xl border border-line bg-surface shadow-[var(--shadow-panel)] lg:min-h-0">
       <div className="flex h-12 shrink-0 items-center gap-1 border-b px-2.5">
         <Select aria-label="Language" size="sm" className="w-40" value={language} onValueChange={setLanguage}>
-          {question.languages.map((key) => (
+          {languages.map((key) => (
             <option key={key} value={key}>
               <LanguageLabel language={key} />
             </option>
