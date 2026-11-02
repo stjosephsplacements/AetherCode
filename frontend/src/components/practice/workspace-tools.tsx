@@ -124,9 +124,11 @@ export function WorkspaceTools({ storageKey }: { storageKey: string }) {
   const MIN_H = 240;
   /** Keeps the whole window inside the page, so its title bar can never be lost off an edge. */
   const fit = (g: { x: number; y: number; w: number; h: number }) => {
-    const w = Math.min(Math.max(g.w, MIN_W), window.innerWidth - 8);
-    const h = Math.min(Math.max(g.h, MIN_H), window.innerHeight - 8);
-    return { w, h, x: Math.min(Math.max(g.x, 4), window.innerWidth - w - 4), y: Math.min(Math.max(g.y, 4), window.innerHeight - h - 4) };
+    const width = document.documentElement.clientWidth;
+    const height = window.innerHeight;
+    const w = Math.min(Math.max(g.w, MIN_W), width - 8);
+    const h = Math.min(Math.max(g.h, MIN_H), height - 8);
+    return { w, h, x: Math.min(Math.max(g.x, 4), width - w - 4), y: Math.min(Math.max(g.y, 4), height - h - 4) };
   };
   const show = (next: typeof tab) => {
     setTab(next);
@@ -175,6 +177,9 @@ export function WorkspaceTools({ storageKey }: { storageKey: string }) {
               if (drag.current) setGeometry((g) => (g ? fit({ ...g, x: event.clientX - drag.current!.dx, y: event.clientY - drag.current!.dy }) : g));
             }}
             onPointerUp={() => (drag.current = null)}
+            onPointerCancel={() => (drag.current = null)}
+            onDoubleClick={() => setGeometry(fit({ w: 340, h: 420, x: window.innerWidth - 360, y: window.innerHeight - 440 }))}
+            title="Drag to move. Double-click to bring it back to the corner."
           >
             <GripHorizontal className="size-4 text-ink-subtle" />
             <div role="tablist" className="flex flex-1 gap-1" onPointerDown={(event) => event.stopPropagation()}>
