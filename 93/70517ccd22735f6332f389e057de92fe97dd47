@@ -1,0 +1,69 @@
+backend/libs/pkg/go.mod
+  s_4a7f3c46d06453::t_fc37dbf964107b 106,108-110
+backend/libs/pkg/go.sum
+  s_4a7f3c46d06453::t_0cd28ded1ac875 227,237,247,249,253
+backend/libs/proto/go.mod
+  s_4a7f3c46d06453::t_b5efd8713ab072 8,14-15
+backend/libs/proto/go.sum
+  s_4a7f3c46d06453::t_0afc1c5b972626 7-8,13
+backend/services/analytics/go.mod
+  s_4a7f3c46d06453::t_9d304ecf51ab22 63,92,94-96,99
+backend/services/analytics/go.sum
+  s_4a7f3c46d06453::t_17072edd4a9c78 119-120,194,199,205-206,208,216-217
+backend/services/assessment/go.mod
+  s_4a7f3c46d06453::t_4f3fa9edf159a5 61,90,92-94
+backend/services/assessment/go.sum
+  s_4a7f3c46d06453::t_7109e90e16df67 119-120,194,199,205-206,208
+backend/services/gateway/go.mod
+  s_4a7f3c46d06453::t_1995ac193872d4 40,42-43,46
+backend/services/gateway/go.sum
+  s_4a7f3c46d06453::t_4da792e5cc793a 74,77-78,85-86
+backend/services/identity/go.mod
+  s_4a7f3c46d06453::t_9ad799991ac61c 61,96
+backend/services/identity/go.sum
+  s_4a7f3c46d06453::t_dc15e8917f7fcf 119-120,221-222
+backend/services/judge/go.mod
+  s_4a7f3c46d06453::t_cdda069e03a9d0 98,100-102
+backend/services/judge/go.sum
+  s_4a7f3c46d06453::t_2622b0eed17691 133-134,227,232,238-239,241
+backend/services/notification/go.mod
+  s_4a7f3c46d06453::t_aeec84630f00bd 60,89,91-93,96
+backend/services/notification/go.sum
+  s_4a7f3c46d06453::t_7a80413f226e46 100,110,119-120,194,199,205-206,208,216-217
+backend/services/question-bank/go.mod
+  s_4a7f3c46d06453::t_c2342285dc8cd6 13,67,100,102-104
+backend/services/question-bank/go.sum
+  s_4a7f3c46d06453::t_15c7a11943663d 133-134,225,230,236-237,239,247-248
+backend/services/seb/go.mod
+  s_4a7f3c46d06453::t_26d12d85772a06 65,99,101-103,106
+backend/services/seb/go.sum
+  s_4a7f3c46d06453::t_e53b338198a702 133-134,225,230,236-237,239,247-248
+backend/services/submission/go.mod
+  s_4a7f3c46d06453::t_3cd5bad282d90f 67,100,102-104
+backend/services/submission/go.sum
+  s_4a7f3c46d06453::t_3ca2b1a4e95d25 133-134,225,230,236-237,239
+backend/services/tenant/go.mod
+  s_4a7f3c46d06453::t_3683a5f40fecbc 60,89,91-93,96
+backend/services/tenant/go.sum
+  s_4a7f3c46d06453::t_ca2cbda35e2607 100,110,119-120,194,199,205-206,208,216-217
+backend/services/user/go.mod
+  s_4a7f3c46d06453::t_e2c4a576b44606 13,62,91,93-95
+backend/services/user/go.sum
+  s_4a7f3c46d06453::t_53ee24f58243ee 100,110,119-120,194,199,205-206,208,216-217
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9370517ccd22735f6332f389e057de92fe97dd47",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
