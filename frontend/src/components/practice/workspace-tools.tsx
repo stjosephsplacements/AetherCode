@@ -113,12 +113,32 @@ export function WorkspaceTools({ storageKey }: { storageKey: string }) {
   const key = `aethercode.tools.${storageKey}`;
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<"timer" | "notes" | "scratch">("timer");
-  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [geometry, setGeometry] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const timer = useTimer(key);
   const [notesJson, setNotes] = useStored(`${key}.notes`, "[]");
   const notes = JSON.parse(notesJson) as Note[];
   const [scratch, setScratch] = useStored(`${key}.scratch`, "");
-  const drag = useRef<{ x: number; y: number } | null>(null);
+  const drag = useRef<{ dx: number; dy: number } | null>(null);
+  const resize = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
+  const MIN_W = 280;
+  const MIN_H = 240;
+  /** Keeps the whole window inside the page, so its title bar can never be lost off an edge. */
+  const fit = (g: { x: number; y: number; w: number; h: number }) => {
+    const w = Math.min(Math.max(g.w, MIN_W), window.innerWidth - 8);
+    const h = Math.min(Math.max(g.h, MIN_H), window.innerHeight - 8);
+    return { w, h, x: Math.min(Math.max(g.x, 4), window.innerWidth - w - 4), y: Math.min(Math.max(g.y, 4), window.innerHeight - h - 4) };
+  };
+  const show = (next: typeof tab) => {
+    setTab(next);
+    setGeometry((current) => fit(current ?? { w: 340, h: 420, x: window.innerWidth - 360, y: window.innerHeight - 440 }));
+    setOpen(true);
+  };
+  useEffect(() => {
+    if (!open) return;
+    const refit = () => setGeometry((current) => (current ? fit(current) : current));
+    window.addEventListener("resize", refit);
+    return () => window.removeEventListener("resize", refit);
+  }, [open]);
 
   const saveNotes = useCallback((next: Note[]) => setNotes(JSON.stringify(next)), [setNotes]);
 
@@ -127,34 +147,33 @@ export function WorkspaceTools({ storageKey }: { storageKey: string }) {
       <div className="flex items-center gap-1">
         <button
           type="button"
-          onClick={() => {
-            setTab("timer");
-            setOpen(true);
-          }}
+          onClick={() => show("timer")}
           aria-label="Open the timer"
           className={cn("inline-flex h-8 items-center gap-1.5 rounded-full px-3 font-mono text-[12.5px] tabular-nums transition-colors", timer.running ? "bg-brand-soft text-brand-soft-ink" : "bg-hover text-ink-muted hover:text-ink")}
         >
           <Timer className="size-3.5" />
           {clock(timer.seconds)}
         </button>
-        <button type="button" onClick={() => (setTab("notes"), setOpen(true))} aria-label="Sticky notes" className="relative grid size-8 place-items-center rounded-full text-ink-muted transition-colors hover:bg-hover hover:text-ink">
+        <button type="button" onClick={() => show("notes")} aria-label="Sticky notes" className="relative grid size-8 place-items-center rounded-full text-ink-muted transition-colors hover:bg-hover hover:text-ink">
           <StickyNote className="size-4" strokeWidth={1.75} />
           {notes.length > 0 && <span className="absolute -right-0.5 -top-0.5 grid size-4 place-items-center rounded-full bg-brand text-[10px] font-semibold text-brand-ink">{notes.length}</span>}
         </button>
-        <button type="button" onClick={() => (setTab("scratch"), setOpen(true))} aria-label="Scratch pad" className="grid size-8 place-items-center rounded-full text-ink-muted transition-colors hover:bg-hover hover:text-ink">
+        <button type="button" onClick={() => show("scratch")} aria-label="Scratch pad" className="grid size-8 place-items-center rounded-full text-ink-muted transition-colors hover:bg-hover hover:text-ink">
           <NotebookPen className="size-4" strokeWidth={1.75} />
         </button>
       </div>
 
-      {open && (
-        <div role="dialog" aria-label="Workspace tools" className="fixed bottom-5 right-5 z-40 w-[340px] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-3xl border border-line-strong bg-surface shadow-[var(--shadow-overlay)]" style={{ transform: `translate(${position.x}px, ${position.y}px)` }}>
+      {open && geometry && (
+        <div role="dialog" aria-label="Workspace tools" className="fixed z-40 flex flex-col overflow-hidden rounded-3xl border border-line-strong bg-surface shadow-[var(--shadow-overlay)]" style={{ left: geometry.x, top: geometry.y, width: geometry.w, height: geometry.h }}>
           <div
-            className="flex cursor-grab touch-none items-center gap-2 border-b border-line px-3 py-2 active:cursor-grabbing"
+            className="flex shrink-0 cursor-grab touch-none items-center gap-2 border-b border-line px-3 py-2 active:cursor-grabbing"
             onPointerDown={(event) => {
-              drag.current = { x: event.clientX - position.x, y: event.clientY - position.y };
+              drag.current = { dx: event.clientX - geometry.x, dy: event.clientY - geometry.y };
               event.currentTarget.setPointerCapture(event.pointerId);
             }}
-            onPointerMove={(event) => drag.current && setPosition({ x: event.clientX - drag.current.x, y: event.clientY - drag.current.y })}
+            onPointerMove={(event) => {
+              if (drag.current) setGeometry((g) => (g ? fit({ ...g, x: event.clientX - drag.current!.dx, y: event.clientY - drag.current!.dy }) : g));
+            }}
             onPointerUp={() => (drag.current = null)}
           >
             <GripHorizontal className="size-4 text-ink-subtle" />
@@ -177,7 +196,7 @@ export function WorkspaceTools({ storageKey }: { storageKey: string }) {
           </div>
 
           {tab === "timer" && (
-            <div className="p-4">
+            <div className="min-h-0 flex-1 overflow-y-auto p-4">
               <p className="text-center font-mono text-[44px] font-semibold tabular-nums leading-none text-ink">{clock(timer.seconds)}</p>
               {timer.goal > 0 && (
                 <p className={cn("mt-2 text-center text-[12.5px]", timer.seconds >= timer.goal ? "font-medium text-danger" : "text-ink-muted")}>{timer.seconds >= timer.goal ? "Your goal time is up" : `${clock(timer.goal - timer.seconds)} left of your ${Math.round(timer.goal / 60)} min goal`}</p>
@@ -205,7 +224,7 @@ export function WorkspaceTools({ storageKey }: { storageKey: string }) {
           )}
 
           {tab === "notes" && (
-            <div className="max-h-[360px] space-y-2.5 overflow-y-auto p-3">
+            <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto p-3">
               {notes.length === 0 && <p className="px-1 py-6 text-center text-[13px] text-ink-muted">No notes yet. Jot down an idea, an edge case or a thing to check.</p>}
               {notes.map((note) => {
                 const color = COLORS[note.color % COLORS.length]!;
@@ -241,8 +260,8 @@ export function WorkspaceTools({ storageKey }: { storageKey: string }) {
           )}
 
           {tab === "scratch" && (
-            <div className="p-3">
-              <textarea value={scratch} onChange={(event) => setScratch(event.target.value)} spellCheck={false} aria-label="Scratch pad" maxLength={20000} placeholder="Work things out here: pseudocode, small examples, arithmetic. It is never submitted." className="h-[280px] w-full resize-none rounded-2xl border border-line bg-canvas p-3 font-mono text-[12.5px] leading-relaxed text-ink outline-none placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15" />
+            <div className="flex min-h-0 flex-1 flex-col p-3">
+              <textarea value={scratch} onChange={(event) => setScratch(event.target.value)} spellCheck={false} aria-label="Scratch pad" maxLength={20000} placeholder="Work things out here: pseudocode, small examples, arithmetic. It is never submitted." className="min-h-0 w-full flex-1 resize-none rounded-2xl border border-line bg-canvas p-3 font-mono text-[12.5px] leading-relaxed text-ink outline-none placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15" />
               <div className="mt-2 flex items-center justify-between text-[12px] text-ink-subtle">
                 <span>{scratch.length} characters. Never submitted.</span>
                 <button type="button" onClick={() => setScratch("")} disabled={!scratch} className="inline-flex items-center gap-1 text-ink-muted hover:text-ink disabled:opacity-40">
@@ -252,6 +271,25 @@ export function WorkspaceTools({ storageKey }: { storageKey: string }) {
               </div>
             </div>
           )}
+
+          <div
+            role="separator"
+            aria-label="Resize the window"
+            className="absolute bottom-0 right-0 z-10 size-5 cursor-nwse-resize touch-none"
+            onPointerDown={(event) => {
+              resize.current = { x: event.clientX, y: event.clientY, w: geometry.w, h: geometry.h };
+              event.currentTarget.setPointerCapture(event.pointerId);
+            }}
+            onPointerMove={(event) => {
+              const start = resize.current;
+              if (start) setGeometry((g) => (g ? fit({ ...g, w: start.w + event.clientX - start.x, h: start.h + event.clientY - start.y }) : g));
+            }}
+            onPointerUp={() => (resize.current = null)}
+          >
+            <svg viewBox="0 0 20 20" className="size-5 text-ink-subtle" aria-hidden>
+              <path d="M6 18 18 6M11 18l7-7M16 18l2-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+            </svg>
+          </div>
         </div>
       )}
     </>
