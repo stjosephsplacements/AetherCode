@@ -1,0 +1,21 @@
+frontend/src/app/staff/get-started/page.tsx
+  s_4a7f3c46d06453::t_76fe08d443d5f5 1,16
+frontend/src/lib/server/setup.ts
+  s_4a7f3c46d06453::t_d6992329448a97 4,8,23,27,32,37,43,64
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4655d3f5862944d8e1ecaaf9f17e0523a9c7e256",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
