@@ -5,7 +5,7 @@ import type { ActionState } from "@/components/staff/form";
 import type { Batch, IssuedCredential, Page, StudentImportResult } from "@/lib/api-types";
 import { actionError } from "@/lib/server/actions";
 import { gateway } from "@/lib/server/gateway";
-import { requireCollege } from "@/lib/server/staff";
+import { collegeFor, requireStaff } from "@/lib/server/staff";
 
 export type ImportState = ActionState & { result?: StudentImportResult };
 export type CredentialsState = ActionState & { accounts?: IssuedCredential[] };
@@ -30,7 +30,9 @@ function parseRows(csv: string): StudentRow[] {
 }
 
 export async function importStudents(_previous: ImportState, form: FormData): Promise<ImportState> {
-  const { tenantId } = await requireCollege();
+  // The batch picker lists every college's batches as "<college>:<batch>", so students land in that batch's own college.
+  const pickedCollege = String(form.get("batch_id") ?? "").includes(":") ? String(form.get("batch_id")).split(":")[0] : String(form.get("college_id") ?? "");
+  const tenantId = collegeFor(await requireStaff(), pickedCollege);
   let rows: StudentRow[];
   try {
     rows = parseRows(String(form.get("csv") ?? ""));
@@ -39,7 +41,7 @@ export async function importStudents(_previous: ImportState, form: FormData): Pr
   }
   if (rows.length === 0) return { error: "Paste or upload at least one student." };
   if (rows.length > MAX_ROWS) return { error: `Import at most ${MAX_ROWS} students at a time.` };
-  const batchId = String(form.get("batch_id") ?? "");
+  const batchId = String(form.get("batch_id") ?? "").split(":").pop() ?? "";
   try {
     const batches = await gateway<Page<Batch>>(`/tenant/v1/tenants/${tenantId}/batches?limit=100`);
     const batch = batches.items.find((candidate) => candidate.id === batchId);
@@ -65,7 +67,7 @@ export async function importStudents(_previous: ImportState, form: FormData): Pr
 }
 
 export async function reissueBatchPasswords(_previous: CredentialsState, form: FormData): Promise<CredentialsState> {
-  const { tenantId } = await requireCollege();
+  const tenantId = collegeFor(await requireStaff(), String(form.get("college_id") ?? ""));
   try {
     const result = await gateway<{ accounts: IssuedCredential[] }>(
       `/user/v1/tenants/${tenantId}/batches/${String(form.get("batch_id"))}/passwords`,
@@ -78,7 +80,7 @@ export async function reissueBatchPasswords(_previous: CredentialsState, form: F
 }
 
 export async function resetPassword(_previous: CredentialsState, form: FormData): Promise<CredentialsState> {
-  const { tenantId } = await requireCollege();
+  const tenantId = collegeFor(await requireStaff(), String(form.get("college_id") ?? ""));
   const principalId = String(form.get("principal_id"));
   try {
     const result = await gateway<{ password: string }>(`/user/v1/tenants/${tenantId}/accounts/${principalId}/password`, { method: "POST" });
@@ -92,7 +94,7 @@ export async function resetPassword(_previous: CredentialsState, form: FormData)
 }
 
 export async function setAccountStatus(_previous: ActionState, form: FormData): Promise<ActionState> {
-  const { tenantId } = await requireCollege();
+  const tenantId = collegeFor(await requireStaff(), String(form.get("college_id") ?? ""));
   const status = String(form.get("status"));
   try {
     await gateway(`/user/v1/tenants/${tenantId}/accounts/${String(form.get("principal_id"))}/status`, {
@@ -105,8 +107,8 @@ export async function setAccountStatus(_previous: ActionState, form: FormData): 
   }
 }
 
-export async function updateStudent(studentId: string, changes: Record<string, string>): Promise<ActionState> {
-  const { tenantId } = await requireCollege();
+export async function updateStudent(collegeId: string, studentId: string, changes: Record<string, string>): Promise<ActionState> {
+  const tenantId = collegeFor(await requireStaff(), collegeId);
   const body: Record<string, string> = {};
   if ("enrollment_number" in changes) body.enrollment_number = changes.enrollment_number!.trim();
   if ("admitted_at" in changes) body.admitted_at = changes.admitted_at!.trim();
@@ -120,12 +122,13 @@ export async function updateStudent(studentId: string, changes: Record<string, s
 }
 
 /** Removes a student record. Their sign-in can be turned off instead, which is easy to undo. */
-export async function deleteStudent(studentId: string, reason: string): Promise<ActionState> {
-  const staff = await requireCollege();
+export async function deleteStudent(collegeId: string, studentId: string, reason: string): Promise<ActionState> {
+  const staff = await requireStaff();
   if (!staff.canManageAccounts) return { error: "Only administrators delete students." };
+  const tenantId = collegeFor(staff, collegeId);
   if (!reason.trim()) return { error: "A reason is needed to delete anything." };
   try {
-    await gateway(`/user/v1/tenants/${staff.tenantId}/students/${studentId}`, { method: "DELETE", body: { reason: reason.trim() } });
+    await gateway(`/user/v1/tenants/${tenantId}/students/${studentId}`, { method: "DELETE", body: { reason: reason.trim() } });
   } catch (error) {
     return { error: actionError(error) };
   }

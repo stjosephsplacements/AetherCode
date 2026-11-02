@@ -1,7 +1,8 @@
+import { redirectTo } from "@/lib/redirect";
 import { cookies } from "next/headers";
-import { NextResponse, type NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 import { secureCookies } from "@/lib/server/config";
-import { TENANT_COOKIE, requireStaff } from "@/lib/server/staff";
+import { ALL_COLLEGES, TENANT_COOKIE, requireStaff } from "@/lib/server/staff";
 
 /**
  * Opens a page that belongs to one college from a list that spans them all. A root
@@ -14,8 +15,8 @@ export async function GET(request: NextRequest) {
   const next = request.nextUrl.searchParams.get("next") ?? "/staff";
   // Only a path inside the staff console, never another site.
   const target = next.startsWith("/staff") && !next.startsWith("//") ? next : "/staff";
-  if (staff.isPlatformAdmin && staff.tenants.some((tenant) => tenant.id === college)) {
+  if (staff.isPlatformAdmin && (college === ALL_COLLEGES || staff.tenants.some((tenant) => tenant.id === college))) {
     (await cookies()).set({ name: TENANT_COOKIE, value: college, httpOnly: true, secure: secureCookies(), sameSite: "strict", path: "/" });
   }
-  return NextResponse.redirect(new URL(target, request.nextUrl.origin));
+  return redirectTo(target, 303);
 }

@@ -1,3 +1,4 @@
+import { redirectTo } from "@/lib/redirect";
 import { type NextRequest, NextResponse } from "next/server";
 import { gateway } from "@/lib/server/gateway";
 import { safeNext } from "@/lib/viewer";
@@ -11,7 +12,7 @@ export async function GET(request: NextRequest) {
   try {
     start = await gateway<Start>("/identity/v1/auth/sso/start", { method: "POST", anonymous: true });
   } catch {
-    return NextResponse.redirect(new URL("/login?sso=unavailable", request.url));
+    return redirectTo("/login?sso=unavailable");
   }
   const next = safeNext(request.nextUrl.searchParams.get("next") ?? "") ?? "";
   const response = NextResponse.redirect(start.authorization_url);

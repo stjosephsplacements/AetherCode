@@ -19,6 +19,7 @@ export function ConfirmDelete({
   title,
   description,
   confirmText,
+  askReason = true,
   onConfirm,
   redirectTo,
   size = "sm",
@@ -28,6 +29,8 @@ export function ConfirmDelete({
   title: string;
   description: React.ReactNode;
   confirmText?: string;
+  /** False where the service keeps no reason, so the dialog does not ask for one it would throw away. */
+  askReason?: boolean;
   onConfirm: (reason: string) => Promise<ActionState>;
   /** Where to go after it is gone, when this page is about the deleted thing. Otherwise the page refreshes. */
   redirectTo?: string;
@@ -41,7 +44,7 @@ export function ConfirmDelete({
   const [typed, setTyped] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const ready = reason.trim().length > 0 && (!confirmText || typed.trim() === confirmText);
+  const ready = (!askReason || reason.trim().length > 0) && (!confirmText || typed.trim() === confirmText);
 
   function remove() {
     startTransition(async () => {
@@ -81,9 +84,11 @@ export function ConfirmDelete({
             if (ready && !pending) remove();
           }}
         >
-          <Field label="Why are you deleting it?" htmlFor="delete-reason" hint="Kept with the record and shown in the audit log.">
-            <TextArea id="delete-reason" value={reason} onChange={(event) => { setReason(event.target.value); setError(null); }} maxLength={REASON_MAX} className="min-h-24" autoFocus />
-          </Field>
+          {askReason && (
+            <Field label="Why are you deleting it?" htmlFor="delete-reason" hint="Kept with the record and shown in the audit log.">
+              <TextArea id="delete-reason" value={reason} onChange={(event) => { setReason(event.target.value); setError(null); }} maxLength={REASON_MAX} className="min-h-24" autoFocus />
+            </Field>
+          )}
           {confirmText && (
             <Field label={`Type ${confirmText} to confirm`} htmlFor="delete-confirm">
               <TextInput id="delete-confirm" value={typed} onChange={(event) => setTyped(event.target.value)} autoComplete="off" spellCheck={false} />

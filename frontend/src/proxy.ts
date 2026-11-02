@@ -1,3 +1,4 @@
+import { siteRedirect } from "@/lib/redirect";
 import { NextResponse, type NextRequest } from "next/server";
 import { clientIP } from "@/lib/server/request";
 import { PUBLIC_PATHS } from "@/lib/site";
@@ -49,13 +50,11 @@ export async function proxy(request: NextRequest) {
 
   // A staff-issued password is replaced before anything else (ADR-0036).
   if (request.cookies.get(PASSWORD_COOKIE) && !isAPI && !isLogin && pathname !== "/account/password") {
-    return NextResponse.redirect(new URL("/account/password", request.url));
+    return siteRedirect(request, "/account/password");
   }
 
   if (!access && !refresh && !isLogin && !isAPI) {
-    const login = new URL("/login", request.url);
-    if (pathname !== "/") login.searchParams.set("next", pathname + search);
-    return NextResponse.redirect(login);
+    return siteRedirect(request, pathname === "/" ? "/login" : `/login?next=${encodeURIComponent(pathname + search)}`);
   }
   return NextResponse.next();
 }
@@ -71,7 +70,7 @@ function isPublic(pathname: string): boolean {
 function endSession(request: NextRequest, passThrough: boolean) {
   const response = passThrough
     ? NextResponse.next()
-    : NextResponse.redirect(new URL("/login", request.url));
+    : siteRedirect(request, "/login");
   for (const name of [ACCESS_COOKIE, REFRESH_COOKIE, VIEWER_COOKIE, PASSWORD_COOKIE]) response.cookies.delete(name);
   return response;
 }

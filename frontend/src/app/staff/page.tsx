@@ -3,12 +3,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { JudgeMetrics } from "@/components/staff/judge-metrics";
 import { Button } from "@/components/ui/button";
-import type { AuditEntry, ExamMonitor, ExamResult, GradingQueue, Page, QuestionDetail } from "@/lib/api-types";
+import type { AuditEntry, ExamMonitor, ExamResult, GradingQueue, Page, QuestionDetail, QueueStats } from "@/lib/api-types";
 import { brandFor } from "@/lib/server/branding";
-import { listExams, mapLimit } from "@/lib/server/exams";
+import { listAllExams, listExams, mapLimit } from "@/lib/server/exams";
 import { gateway } from "@/lib/server/gateway";
 import { describeAccounts } from "@/lib/server/people";
-import { requireStaff } from "@/lib/server/staff";
+import { inColleges } from "@/lib/server/colleges";
+import { collegesFor, requireStaff } from "@/lib/server/staff";
 import { serviceHealth } from "@/lib/server/status";
 import { LiveRefresh } from "@/lib/client/realtime";
 import { ServicesTile } from "./_dashboard/services-tile";
@@ -39,6 +40,28 @@ async function settle<T>(promise: Promise<T>): Promise<T | null> {
   }
 }
 
+const mostOf = (values: (number | null)[]) => values.reduce<number | null>((worst, value) => (value === null ? worst : worst === null || value > worst ? value : worst), null);
+
+/** One summary for all the colleges: counts add up, the oldest wait is the oldest anywhere, and slow times show the slowest college. */
+function mergeStats(all: QueueStats[]): QueueStats {
+  const waiting = all.flatMap((stats) => (stats.oldest_waiting_at ? [stats.oldest_waiting_at] : [])).sort();
+  return {
+    queued: all.reduce((sum, stats) => sum + stats.queued, 0),
+    dispatched: all.reduce((sum, stats) => sum + stats.dispatched, 0),
+    oldest_waiting_at: waiting[0] ?? null,
+    completed_last_hour: all.reduce((sum, stats) => sum + stats.completed_last_hour, 0),
+    failed_last_hour: all.reduce((sum, stats) => sum + stats.failed_last_hour, 0),
+    median_seconds_last_hour: mostOf(all.map((stats) => stats.median_seconds_last_hour)),
+    p95_seconds_last_hour: mostOf(all.map((stats) => stats.p95_seconds_last_hour)),
+  };
+}
+
+function sumQueues(perCollege: { value: GradingQueue | null }[]): GradingQueue | null {
+  const answered = perCollege.flatMap(({ value }) => (value ? [value] : []));
+  if (answered.length === 0) return null;
+  return { checked_at: answered[0]!.checked_at, evaluations: mergeStats(answered.map((queue) => queue.evaluations)), runs: mergeStats(answered.map((queue) => queue.runs)) };
+}
+
 const zoned = new Intl.DateTimeFormat("en-US", { timeZone: TIME_ZONE, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
 /** The wall clock in the college's time zone, and midnight at the start of its day as epoch ms. */
@@ -59,14 +82,26 @@ export default async function Dashboard() {
   const end = start + DAYS * DAY;
   const firstName = staff.viewer.displayName.split(" ")[0] || staff.viewer.username;
 
-  const [exams, questions, queue, health, audit, brand] = await Promise.all([
-    tenantId ? settle(listExams(tenantId)) : Promise.resolve(null),
+  // A root administrator sees every college together; anyone else sees their own.
+  const colleges = collegesFor(staff, undefined);
+  const [exams, questions, queue, health, auditEntries, brand] = await Promise.all([
+    tenantId ? settle(staff.isPlatformAdmin ? listAllExams(staff.tenants) : listExams(tenantId)) : Promise.resolve(null),
     settle(gateway<Page<QuestionDetail>>("/question-bank/v1/questions?limit=100")),
-    tenantId && admin ? settle(gateway<GradingQueue>(`/submission/v1/tenants/${tenantId}/grading-queue`)) : Promise.resolve(null),
+    admin ? settle(inColleges(colleges, (collegeId) => gateway<GradingQueue>(`/submission/v1/tenants/${collegeId}/grading-queue`)).then(sumQueues)) : Promise.resolve(null),
     tenantId && admin ? settle(serviceHealth(tenantId)) : Promise.resolve(null),
-    tenantId && admin ? settle(gateway<AuditEntry[]>(`/user/v1/tenants/${tenantId}/staff-audit`)) : Promise.resolve(null),
+    admin
+      ? settle(
+          inColleges(colleges, async (collegeId) => {
+            const found = await gateway<AuditEntry[]>(`/user/v1/tenants/${collegeId}/staff-audit`);
+            const people = found.length ? await describeAccounts(collegeId, found.map((entry) => entry.principal_id)).catch(() => new Map()) : new Map();
+            return { found, people };
+          }),
+        )
+      : Promise.resolve(null),
     brandFor(tenantId),
   ]);
+  const audit = (auditEntries ?? []).flatMap(({ value }) => value?.found ?? []).sort((a, b) => Date.parse(b.occurred_at) - Date.parse(a.occurred_at));
+  const knownNames = new Map((auditEntries ?? []).flatMap(({ value }) => [...(value?.people ?? [])]));
 
   const published = (exams ?? []).filter((entry): entry is Scheduled => entry.version?.status === "published");
   const opens = (entry: Scheduled) => Date.parse(entry.version.opens_at);
@@ -82,7 +117,7 @@ export default async function Dashboard() {
   const [floors, outcomes, names] = tenantId
     ? await Promise.all([
         mapLimit(live, 4, async (entry): Promise<Floor | null> => {
-          const monitor = await settle(gateway<ExamMonitor>(`/submission/v1/tenants/${tenantId}/exam-versions/${entry.version.id}/monitor`));
+          const monitor = await settle(gateway<ExamMonitor>(`/submission/v1/tenants/${entry.college?.id ?? tenantId}/exam-versions/${entry.version.id}/monitor`));
           if (!monitor) return null;
           const candidates = monitor.candidates;
           return {
@@ -94,12 +129,12 @@ export default async function Dashboard() {
           };
         }),
         mapLimit(recent, 6, async (entry): Promise<Outcome | null> => {
-          const rows = (await settle(gateway<ExamResult[]>(`/analytics/v1/tenants/${tenantId}/exam-results?exam_version_id=${entry.version.id}&limit=5000`))) ?? [];
+          const rows = (await settle(gateway<ExamResult[]>(`/analytics/v1/tenants/${entry.college?.id ?? tenantId}/exam-results?exam_version_id=${entry.version.id}&limit=5000`))) ?? [];
           const shares = rows.filter((row) => Number(row.maximum_score) > 0).map((row) => Number(row.score) / Number(row.maximum_score));
           if (shares.length === 0) return null;
           return { exam: entry, attempts: shares.length, average: shares.reduce((sum, share) => sum + share, 0) / shares.length, pass: shares.filter((share) => share >= PASS_SHARE).length / shares.length };
         }),
-        activity.length ? describeAccounts(tenantId, activity.map((entry) => entry.principal_id)).catch(() => new Map()) : Promise.resolve(new Map()),
+        Promise.resolve(knownNames),
       ])
     : [[], [], new Map()];
 
@@ -135,7 +170,7 @@ export default async function Dashboard() {
               </Button>
             )}
             <Button asChild>
-              <Link href="/staff/exams/new">
+              <Link href={staff.isPlatformAdmin ? "/staff/exams" : "/staff/exams/new"}>
                 <Plus />
                 New exam
               </Link>

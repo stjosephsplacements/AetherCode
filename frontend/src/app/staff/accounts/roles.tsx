@@ -18,12 +18,14 @@ const ROLE_LABELS = {
 
 /** A staff member's roles, each removable, and a form to give another (ADR-0043 audits both). */
 export function RoleEditor({
+  collegeId,
   principalId,
   roles,
   departments,
   batches,
   placements = [],
 }: {
+  collegeId: string;
   principalId: string;
   roles: RoleChip[];
   departments: Option[];
@@ -41,6 +43,7 @@ export function RoleEditor({
           <form key={chip.id} action={revokeAction} className="inline-flex items-center gap-1 rounded-full bg-hover py-0.5 pl-2.5 pr-1 text-xs text-ink">
             {chip.label}
             <input type="hidden" name="role_assignment_id" value={chip.id} />
+            <input type="hidden" name="college_id" value={collegeId} />
             <button type="submit" aria-label={`Remove ${chip.label}`} className="grid size-5 place-items-center rounded-full text-ink-muted hover:bg-surface hover:text-danger">
               <X className="size-3" />
             </button>
@@ -54,6 +57,7 @@ export function RoleEditor({
       {open && (
         <form action={grantAction} className="space-y-2 rounded-[var(--radius-control)] border border-line bg-canvas/40 p-3">
           <input type="hidden" name="principal_id" value={principalId} />
+          <input type="hidden" name="college_id" value={collegeId} />
           <Select name="role" aria-label="Role" size="sm" className="w-full" value={role} onValueChange={(value) => setRole(value as keyof typeof ROLE_LABELS)}>
             {Object.entries(ROLE_LABELS)
               // Placement scopes are visible only to platform administrators.

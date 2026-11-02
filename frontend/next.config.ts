@@ -2,6 +2,17 @@ import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV !== "production";
 
+// The live-update socket is same-origin in production, which 'self' covers. For local
+// development it is served from the gateway's own address, so that origin is allowed too.
+const realtimeSource = (() => {
+  try {
+    const url = new URL(process.env.NEXT_PUBLIC_REALTIME_URL ?? "");
+    return ` ${url.protocol}//${url.host}`;
+  } catch {
+    return "";
+  }
+})();
+
 // Everything is served from our own origin: the gateway is reached through
 // /api, fonts are self-hosted by next/font, Monaco by public/monaco. Monaco
 // runs its tokenizer in a blob: worker.
@@ -12,7 +23,7 @@ const contentSecurityPolicy = [
   "img-src 'self' data: blob: https://www.google-analytics.com https://*.google-analytics.com https://www.googletagmanager.com https://*.googletagmanager.com",
   "font-src 'self' data:",
   "worker-src 'self' blob:",
-  "connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://*.analytics.google.com https://www.googletagmanager.com https://*.googletagmanager.com https://stats.g.doubleclick.net https://cloudflareinsights.com https://analytics-aethercode.stjosephsplacements.in",
+  `connect-src 'self'${realtimeSource} https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://*.analytics.google.com https://www.googletagmanager.com https://*.googletagmanager.com https://stats.g.doubleclick.net https://cloudflareinsights.com https://analytics-aethercode.stjosephsplacements.in`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",

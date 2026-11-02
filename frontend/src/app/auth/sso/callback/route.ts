@@ -1,5 +1,6 @@
+import { redirectTo } from "@/lib/redirect";
 import { timingSafeEqual } from "node:crypto";
-import { type NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { GatewayError, gateway } from "@/lib/server/gateway";
 import { secureCookies } from "@/lib/server/config";
 import { fetchViewer } from "@/lib/server/session";
@@ -17,7 +18,7 @@ function sameState(a: string, b: string) {
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const fail = (reason: string) => {
-    const response = NextResponse.redirect(new URL(`/login?sso=${reason}`, request.url));
+    const response = redirectTo(`/login?sso=${reason}`);
     response.cookies.delete({ name: SSO_FLOW_COOKIE, path: "/auth/sso" });
     return response;
   };
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest) {
   } catch {
     return fail("failed");
   }
-  const response = NextResponse.redirect(new URL(flow.next || homeFor(viewer), request.url));
+  const response = redirectTo(flow.next || homeFor(viewer));
   for (const cookie of sessionCookies(pair)) response.cookies.set(cookie);
   response.cookies.delete({ name: SSO_FLOW_COOKIE, path: "/auth/sso" });
   // Set on the redirect itself, like the viewer cookie storeViewer writes.

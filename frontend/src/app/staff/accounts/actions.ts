@@ -4,12 +4,15 @@ import { revalidatePath } from "next/cache";
 import type { ActionState } from "@/components/staff/form";
 import { actionError } from "@/lib/server/actions";
 import { gateway } from "@/lib/server/gateway";
-import { requireCollege } from "@/lib/server/staff";
+import { collegeFor, requireStaff } from "@/lib/server/staff";
 
 export type StaffState = ActionState & { created?: { username: string; name: string; password: string } };
 
 export async function createStaff(_previous: StaffState, form: FormData): Promise<StaffState> {
-  const { tenantId } = await requireCollege();
+  // A faculty member's department is listed as "<college>:<department>", so the account is created in the department's own college.
+  const pickedDepartment = String(form.get("department_id") ?? "");
+  const [pickedCollege, departmentId] = pickedDepartment.includes(":") ? pickedDepartment.split(":") : ["", pickedDepartment];
+  const tenantId = collegeFor(await requireStaff(), pickedCollege || String(form.get("college_id") ?? ""));
   const role = String(form.get("role"));
   const username = String(form.get("username") ?? "").trim().toLowerCase();
   const name = String(form.get("display_name") ?? "").trim();
@@ -22,7 +25,7 @@ export async function createStaff(_previous: StaffState, form: FormData): Promis
         display_name: name,
         role,
         ...(email ? { email } : {}),
-        ...(role === "department_user" ? { department_id: String(form.get("department_id")) } : {}),
+        ...(role === "department_user" ? { department_id: departmentId } : {}),
       },
     });
     return { error: null, message: `${name} can now sign in as ${username}.`, created: { username, name, password: result.password } };
@@ -36,7 +39,7 @@ export async function createStaff(_previous: StaffState, form: FormData): Promis
  * department, or mentor of one or more batches at once.
  */
 export async function grantRole(_previous: ActionState, form: FormData): Promise<ActionState> {
-  const { tenantId } = await requireCollege();
+  const tenantId = collegeFor(await requireStaff(), String(form.get("college_id") ?? ""));
   const principalId = String(form.get("principal_id") ?? "");
   const role = String(form.get("role") ?? "");
   const scopes =
@@ -77,7 +80,7 @@ export async function grantRole(_previous: ActionState, form: FormData): Promise
 }
 
 export async function revokeRole(_previous: ActionState, form: FormData): Promise<ActionState> {
-  const { tenantId } = await requireCollege();
+  const tenantId = collegeFor(await requireStaff(), String(form.get("college_id") ?? ""));
   try {
     await gateway(`/user/v1/role-assignments/${String(form.get("role_assignment_id"))}/revoke`, { method: "POST", body: { tenant_id: tenantId } });
   } catch (error) {

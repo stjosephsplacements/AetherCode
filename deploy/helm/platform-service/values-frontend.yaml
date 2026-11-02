@@ -22,6 +22,12 @@ config:
   # College names, colours and logos (ADR-0045); a missing file means the default look.
   BRANDING_FILE: /branding/branding.json
   NODE_ENV: production
+  # Where the Platform analytics page reads live metrics (Prometheus, read only, server side).
+  PROMETHEUS_URL: "http://kube-prometheus-kube-prome-prometheus.monitoring.svc.cluster.local:9090"
+
+# The web UI has no /metrics of its own.
+metrics:
+  enabled: false
 
 # Next.js writes its cache under .next/cache; the image runs as uid 1001.
 podSecurityContext:

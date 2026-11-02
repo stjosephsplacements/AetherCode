@@ -166,6 +166,7 @@ export type PlacementOrganization = { id: string; code: string; legal_name: stri
 export type Student = {
   id: string;
   principal_id: string;
+  tenant_id: string;
   enrollment_number: string;
   status: string;
   college_department_id?: string;

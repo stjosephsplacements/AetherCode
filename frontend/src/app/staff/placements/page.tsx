@@ -1,43 +1,55 @@
 import { Briefcase, Building2, CheckCircle2, GraduationCap, Users } from "lucide-react";
 import type { Metadata } from "next";
 import { EmptyState, LoadError, PageHeader, Section } from "@/components/staff/page-header";
+import { CollegeFilter } from "@/components/staff/college-filter";
 import { Badge, Panel } from "@/components/ui/card";
 import { listBatches, listDepartments, listPlacement } from "@/lib/server/directory";
 import { listAllStudents } from "@/lib/server/students";
-import { requireCollege } from "@/lib/server/staff";
+import { inColleges } from "@/lib/server/colleges";
+import { collegesFor, requireStaff } from "@/lib/server/staff";
 import { PlacementsFilter } from "./placements-filter";
 
 export const metadata: Metadata = { title: "Placements" };
 
-export default async function PlacementsPage() {
-  const staff = await requireCollege();
+export default async function PlacementsPage({ searchParams }: { searchParams: Promise<{ college?: string }> }) {
+  const staff = await requireStaff();
   let data;
   try {
-    const [placement, departments, batches, students] = await Promise.all([
+    const [placement, perCollege] = await Promise.all([
       listPlacement(),
-      listDepartments(staff.tenantId),
-      listBatches(staff.tenantId),
-      listAllStudents(staff.tenantId),
+      inColleges(collegesFor(staff, (await searchParams).college), async (collegeId) => ({
+        departments: await listDepartments(collegeId),
+        batches: await listBatches(collegeId),
+        students: await listAllStudents(collegeId),
+      })),
     ]);
-    data = { placement, departments, batches, students };
+    const several = staff.isPlatformAdmin;
+    // The same department name appears in several colleges, so a root admin's list says which college each is in.
+    const departments = perCollege.flatMap(({ college, value }) => (value?.departments ?? []).map((department) => (several ? { ...department, name: `${department.name} (${college.name})` } : department)));
+    const batches = perCollege.flatMap(({ value }) => value?.batches ?? []);
+    const students = perCollege.flatMap(({ value }) => value?.students ?? []);
+    data = { placement, departments, batches, students, unreachable: perCollege.filter((entry) => entry.failed).map((entry) => entry.college.name) };
   } catch (error) {
     return (
       <>
-        <PageHeader title="Placements & Campus Drives" />
+      <PageHeader title="Placements & Campus Drives" />
         <LoadError error={error} />
       </>
     );
   }
 
-  const { placement, departments, batches, students } = data;
+  const { placement, departments, batches, students, unreachable } = data;
   const collegeDepts = departments.filter((d) => d.department_type === "college");
 
   return (
     <div className="space-y-6">
       <PageHeader
+        actions={staff.isPlatformAdmin ? <CollegeFilter colleges={staff.tenants.map((tenant) => ({ id: tenant.id, name: tenant.display_name }))} /> : undefined}
         title="Placements & Campus Drives"
         description="Oversee corporate placement organizations, training cohorts (HOPE, PEP, Elite), and track student recruitment eligibility across engineering departments."
       />
+
+      {unreachable.length > 0 && <p role="alert" className="text-sm text-warning">Could not load: {unreachable.join(", ")}.</p>}
 
       {/* Metrics overview */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

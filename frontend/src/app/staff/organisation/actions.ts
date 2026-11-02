@@ -5,12 +5,12 @@ import type { ActionState } from "@/components/staff/form";
 import type { Page, Student } from "@/lib/api-types";
 import { actionError } from "@/lib/server/actions";
 import { gateway } from "@/lib/server/gateway";
-import { requireCollege } from "@/lib/server/staff";
+import { collegeFor, requireCollege, requireStaff } from "@/lib/server/staff";
 
 const text = (form: FormData, name: string) => String(form.get(name) ?? "").trim();
 
 export async function createDepartment(_previous: ActionState, form: FormData): Promise<ActionState> {
-  const { tenantId } = await requireCollege();
+  const tenantId = collegeFor(await requireStaff(), String(form.get("college_id") ?? ""));
   try {
     await gateway(`/tenant/v1/tenants/${tenantId}/departments`, {
       method: "POST",
@@ -24,12 +24,14 @@ export async function createDepartment(_previous: ActionState, form: FormData): 
 }
 
 export async function createBatch(_previous: ActionState, form: FormData): Promise<ActionState> {
-  const { tenantId } = await requireCollege();
+  // The department picker lists every college's departments as "<college>:<department>", so the batch lands in the department's own college.
+  const [college = "", department = ""] = text(form, "department_id").includes(":") ? text(form, "department_id").split(":") : ["", text(form, "department_id")];
+  const tenantId = collegeFor(await requireStaff(), college || String(form.get("college_id") ?? ""));
   try {
     await gateway(`/tenant/v1/tenants/${tenantId}/batches`, {
       method: "POST",
       body: {
-        department_id: text(form, "department_id"),
+        department_id: department,
         code: text(form, "code").toUpperCase(),
         name: text(form, "name"),
         academic_year: text(form, "academic_year"),
@@ -71,8 +73,8 @@ export async function createPlacementDepartment(_previous: ActionState, form: Fo
 }
 
 /** Deletes a department with no live batch; the database refuses one that still has some (ADR-0053). */
-export async function deleteDepartment(id: string, reason: string): Promise<ActionState> {
-  const { tenantId } = await requireCollege();
+export async function deleteDepartment(collegeId: string, id: string, reason: string): Promise<ActionState> {
+  const tenantId = collegeFor(await requireStaff(), collegeId);
   if (!reason.trim()) return { error: "A reason is needed to delete anything." };
   try {
     await gateway(`/tenant/v1/tenants/${tenantId}/departments/${id}`, { method: "DELETE", body: { reason: reason.trim() } });
@@ -83,8 +85,8 @@ export async function deleteDepartment(id: string, reason: string): Promise<Acti
   return { error: null, message: "Deleted." };
 }
 
-export async function deleteBatch(id: string, reason: string): Promise<ActionState> {
-  const { tenantId } = await requireCollege();
+export async function deleteBatch(collegeId: string, id: string, reason: string): Promise<ActionState> {
+  const tenantId = collegeFor(await requireStaff(), collegeId);
   if (!reason.trim()) return { error: "A reason is needed to delete anything." };
   try {
     // Students live in another service's database, so the tenant service cannot see them; this guard is ours.
@@ -101,8 +103,8 @@ export async function deleteBatch(id: string, reason: string): Promise<ActionSta
 const REASON = "A reason is needed to delete anything.";
 
 /** Renames or recodes a department. Only what changed is sent (ADR-0054). */
-export async function updateDepartment(departmentId: string, changes: Record<string, string>): Promise<ActionState> {
-  const { tenantId } = await requireCollege();
+export async function updateDepartment(collegeId: string, departmentId: string, changes: Record<string, string>): Promise<ActionState> {
+  const tenantId = collegeFor(await requireStaff(), collegeId);
   const body: Record<string, string> = {};
   if ("name" in changes) body.name = changes.name!.trim();
   if ("code" in changes) body.code = changes.code!.trim().toUpperCase();
@@ -115,8 +117,8 @@ export async function updateDepartment(departmentId: string, changes: Record<str
   return { error: null, message: "Saved." };
 }
 
-export async function updateBatch(batchId: string, changes: Record<string, string>): Promise<ActionState> {
-  const { tenantId } = await requireCollege();
+export async function updateBatch(collegeId: string, batchId: string, changes: Record<string, string>): Promise<ActionState> {
+  const tenantId = collegeFor(await requireStaff(), collegeId);
   const body: Record<string, string> = {};
   if ("name" in changes) body.name = changes.name!.trim();
   if ("code" in changes) body.code = changes.code!.trim().toUpperCase();
