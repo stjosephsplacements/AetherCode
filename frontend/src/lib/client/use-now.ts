@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useSyncExternalStore } from "react";
+import { serverNow } from "./api";
 
 /**
- * The current time, advancing every `intervalMs`. Null during server
+ * The current time on the server's clock (not the laptop's), advancing every `intervalMs`. Null during server
  * rendering and hydration, so server and browser render the same markup.
  */
 export function useNow(intervalMs = 1000): number | null {
@@ -15,7 +16,7 @@ export function useNow(intervalMs = 1000): number | null {
     [intervalMs],
   );
   // Rounded to the interval so the snapshot is stable between ticks.
-  const snapshot = useCallback(() => Math.floor(Date.now() / intervalMs) * intervalMs, [intervalMs]);
+  const snapshot = useCallback(() => Math.floor(serverNow() / intervalMs) * intervalMs, [intervalMs]);
   return useSyncExternalStore(subscribe, snapshot, () => null);
 }
 
