@@ -85,6 +85,8 @@ type RoleAssignment struct {
 	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
 	Version     int        `json:"version"`
 	CreatedAt   time.Time  `json:"created_at"`
+	// Root marks the platform's first super admin, which granted itself. Its access is fixed.
+	Root bool `json:"root,omitempty"`
 }
 
 type PlacementStaffMembership struct {

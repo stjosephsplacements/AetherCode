@@ -31,3 +31,33 @@ export async function listRoleAssignments(tenantId: string): Promise<RoleAssignm
   }
   return assignments;
 }
+
+export type SuperAdmin = { assignmentId: string; principalId: string; root: boolean; name: string; username: string };
+
+/**
+ * Every active platform administrator. They belong to no college, so each is named from
+ * the first college that knows them, or from the signed-in account itself.
+ */
+export async function listSuperAdmins(colleges: { id: string }[], me: { principalId: string; displayName: string; username: string }): Promise<SuperAdmin[]> {
+  const result = await gateway<Page<RoleAssignment>>("/user/v1/role-assignments?limit=100&role_name=super_admin&scope_kind=platform");
+  const active = result.items.filter((assignment) => assignment.status === "active");
+  const named = new Map<string, AccountSummary>();
+  for (const college of colleges) {
+    const missing = active.map((assignment) => assignment.principal_id).filter((id) => !named.has(id));
+    if (missing.length === 0) break;
+    for (const [id, summary] of await describeAccounts(college.id, missing).catch(() => new Map<string, AccountSummary>())) named.set(id, summary);
+  }
+  return active
+    .map((assignment) => {
+      const summary = named.get(assignment.principal_id);
+      const self = assignment.principal_id === me.principalId;
+      return {
+        assignmentId: assignment.id,
+        principalId: assignment.principal_id,
+        root: assignment.root === true,
+        name: summary?.display_name ?? (self ? me.displayName : "Platform administrator"),
+        username: summary?.username ?? (self ? me.username : ""),
+      };
+    })
+    .sort((a, b) => Number(b.root) - Number(a.root) || a.name.localeCompare(b.name));
+}

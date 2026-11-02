@@ -493,6 +493,8 @@ export type RoleAssignment = {
   scope_id?: string;
   status: string;
   created_at: string;
+  /** The platform's first super admin: its access is fixed. */
+  root?: boolean;
 };
 
 /** POST /user/v1/tenants/{t}/accounts/describe (ADR-0043). */

@@ -121,3 +121,33 @@ export async function importStaff(_previous: StaffImportState, form: FormData): 
   if (created.length === 0) return { error: "Nobody was added.", failed };
   return { error: null, message: `${created.length} added${failed.length ? `, ${failed.length} failed` : ""}.`, created, failed };
 }
+
+/** Root only. Makes an existing staff member a delegated super admin, holding every permission until the root narrows them. */
+export async function makeSuperAdmin(_previous: ActionState, form: FormData): Promise<ActionState> {
+  const staff = await requireStaff();
+  if (!staff.isPlatformAdmin) return { error: "Only platform administrators add super admins." };
+  const principalId = String(form.get("principal_id") ?? "");
+  if (!principalId) return { error: "Choose a person." };
+  try {
+    await gateway("/user/v1/role-assignments", { method: "POST", body: { principal_id: principalId, role_name: "super_admin", scope_kind: "platform" } });
+    const catalogue = await gateway<{ permissions: { key: string }[] }>("/user/v1/permission-catalogue");
+    await gateway(`/user/v1/staff/${principalId}/permissions`, { method: "PUT", body: { permissions: catalogue.permissions.map((permission) => permission.key) } });
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+  revalidatePath("/staff", "layout");
+  return { error: null, message: "Super admin added. Narrow their permissions on the Permissions page." };
+}
+
+/** Root only. The root administrator itself cannot be removed (the database refuses). */
+export async function removeSuperAdmin(_previous: ActionState, form: FormData): Promise<ActionState> {
+  const staff = await requireStaff();
+  if (!staff.isPlatformAdmin) return { error: "Only platform administrators remove super admins." };
+  try {
+    await gateway(`/user/v1/role-assignments/${String(form.get("role_assignment_id"))}/revoke`, { method: "POST", body: {} });
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+  revalidatePath("/staff", "layout");
+  return { error: null, message: "Super admin removed." };
+}

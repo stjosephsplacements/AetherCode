@@ -94,7 +94,8 @@ func (repository *Postgres) Snapshot(contextValue context.Context, query app.Sna
 	}
 
 	assignments, err := transaction.Query(contextValue, `
-		SELECT role_name, scope_kind, COALESCE(tenant_id::text, ''), COALESCE(scope_id::text, '')
+		SELECT role_name, scope_kind, COALESCE(tenant_id::text, ''), COALESCE(scope_id::text, ''),
+		       role_name = 'super_admin' AND scope_kind = 'platform' AND granted_by_principal_id <> principal_id
 		FROM users.active_role_assignments
 		WHERE principal_id = $1
 		ORDER BY role_name, scope_kind, tenant_id NULLS FIRST, scope_id NULLS FIRST
@@ -104,7 +105,7 @@ func (repository *Postgres) Snapshot(contextValue context.Context, query app.Sna
 	}
 	for assignments.Next() {
 		var assignment app.Assignment
-		if err := assignments.Scan(&assignment.Role, &assignment.ScopeKind, &assignment.TenantID, &assignment.ScopeID); err != nil {
+		if err := assignments.Scan(&assignment.Role, &assignment.ScopeKind, &assignment.TenantID, &assignment.ScopeID, &assignment.Delegated); err != nil {
 			assignments.Close()
 			return app.Snapshot{}, fmt.Errorf("scan active role assignment: %w", err)
 		}
@@ -1097,7 +1098,8 @@ func (repository *Postgres) ListRoleAssignments(contextValue context.Context, tr
 	rows, err := transaction.Query(contextValue, `
 		SELECT id::text, principal_id::text, role_name, scope_kind,
 		       COALESCE(tenant_id::text, ''), COALESCE(scope_id::text, ''),
-		       status, expires_at, version, created_at
+		       status, expires_at, version, created_at,
+		       role_name = 'super_admin' AND scope_kind = 'platform' AND granted_by_principal_id = principal_id
 		FROM users.role_assignments
 		WHERE deleted_at IS NULL
 		  AND ($1::uuid IS NULL OR tenant_id = $1::uuid)
@@ -1124,7 +1126,7 @@ func (repository *Postgres) ListRoleAssignments(contextValue context.Context, tr
 		if err := rows.Scan(
 			&assignment.ID, &assignment.PrincipalID, &assignment.RoleName, &assignment.ScopeKind,
 			&assignment.TenantID, &assignment.ScopeID, &assignment.Status, &assignment.ExpiresAt,
-			&assignment.Version, &assignment.CreatedAt,
+			&assignment.Version, &assignment.CreatedAt, &assignment.Root,
 		); err != nil {
 			return nil, fmt.Errorf("scan role assignment row: %w", err)
 		}
