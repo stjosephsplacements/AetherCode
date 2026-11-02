@@ -4,6 +4,7 @@ import { Eraser, GripHorizontal, NotebookPen, Pause, Play, Plus, RotateCcw, Stic
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { uuid } from "@/lib/client/uuid";
 
 /* ---------- storage: this browser only, kept when functional cookies are allowed ---------- */
 
@@ -108,10 +109,10 @@ function useTimer(key: string) {
  * A timer, sticky notes and a scratch pad in one small window you can drag anywhere. Everything stays in
  * this browser and is kept per problem. `storageKey` names the problem, so each has its own notes.
  */
-export function WorkspaceTools({ storageKey }: { storageKey: string }) {
+export function WorkspaceTools({ storageKey, timer: withTimer = true }: { storageKey: string; /** An exam has its own clock; there the tools are notes and a scratch pad only. */ timer?: boolean }) {
   const key = `aethercode.tools.${storageKey}`;
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<"timer" | "notes" | "scratch">("timer");
+  const [tab, setTab] = useState<"timer" | "notes" | "scratch">(withTimer ? "timer" : "notes");
   const [geometry, setGeometry] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const timer = useTimer(key);
   const [notesJson, setNotes] = useStored(`${key}.notes`, "[]");
@@ -123,9 +124,11 @@ export function WorkspaceTools({ storageKey }: { storageKey: string }) {
   const MIN_H = 240;
   /** Keeps the whole window inside the page, so its title bar can never be lost off an edge. */
   const fit = (g: { x: number; y: number; w: number; h: number }) => {
-    const w = Math.min(Math.max(g.w, MIN_W), window.innerWidth - 8);
-    const h = Math.min(Math.max(g.h, MIN_H), window.innerHeight - 8);
-    return { w, h, x: Math.min(Math.max(g.x, 4), window.innerWidth - w - 4), y: Math.min(Math.max(g.y, 4), window.innerHeight - h - 4) };
+    const width = document.documentElement.clientWidth;
+    const height = window.innerHeight;
+    const w = Math.min(Math.max(g.w, MIN_W), width - 8);
+    const h = Math.min(Math.max(g.h, MIN_H), height - 8);
+    return { w, h, x: Math.min(Math.max(g.x, 4), width - w - 4), y: Math.min(Math.max(g.y, 4), height - h - 4) };
   };
   const show = (next: typeof tab) => {
     setTab(next);
@@ -144,6 +147,7 @@ export function WorkspaceTools({ storageKey }: { storageKey: string }) {
   return (
     <>
       <div className="flex items-center gap-1">
+        {withTimer && (
         <button
           type="button"
           onClick={() => show("timer")}
@@ -153,6 +157,7 @@ export function WorkspaceTools({ storageKey }: { storageKey: string }) {
           <Timer className="size-3.5" />
           {clock(timer.seconds)}
         </button>
+        )}
         <button type="button" onClick={() => show("notes")} aria-label="Sticky notes" className="relative grid size-8 place-items-center rounded-full text-ink-muted transition-colors hover:bg-hover hover:text-ink">
           <StickyNote className="size-4" strokeWidth={1.75} />
           {notes.length > 0 && <span className="absolute -right-0.5 -top-0.5 grid size-4 place-items-center rounded-full bg-brand text-[10px] font-semibold text-brand-ink">{notes.length}</span>}
@@ -174,12 +179,15 @@ export function WorkspaceTools({ storageKey }: { storageKey: string }) {
               if (drag.current) setGeometry((g) => (g ? fit({ ...g, x: event.clientX - drag.current!.dx, y: event.clientY - drag.current!.dy }) : g));
             }}
             onPointerUp={() => (drag.current = null)}
+            onPointerCancel={() => (drag.current = null)}
+            onDoubleClick={() => setGeometry(fit({ w: 340, h: 420, x: window.innerWidth - 360, y: window.innerHeight - 440 }))}
+            title="Drag to move. Double-click to bring it back to the corner."
           >
             <GripHorizontal className="size-4 text-ink-subtle" />
             <div role="tablist" className="flex flex-1 gap-1" onPointerDown={(event) => event.stopPropagation()}>
               {(
                 [
-                  ["timer", "Timer"],
+                  ...(withTimer ? ([["timer", "Timer"]] as const) : []),
                   ["notes", "Notes"],
                   ["scratch", "Scratch"],
                 ] as const
@@ -251,7 +259,7 @@ export function WorkspaceTools({ storageKey }: { storageKey: string }) {
                   </div>
                 );
               })}
-              <button type="button" disabled={notes.length >= 12} onClick={() => saveNotes([...notes, { id: crypto.randomUUID(), color: notes.length % COLORS.length, text: "" }])} className="flex w-full items-center justify-center gap-1.5 rounded-2xl border border-dashed border-line-strong py-2.5 text-[13px] font-medium text-ink-muted transition-colors hover:border-brand hover:text-brand disabled:opacity-50">
+              <button type="button" disabled={notes.length >= 12} onClick={() => saveNotes([...notes, { id: uuid(), color: notes.length % COLORS.length, text: "" }])} className="flex w-full items-center justify-center gap-1.5 rounded-2xl border border-dashed border-line-strong py-2.5 text-[13px] font-medium text-ink-muted transition-colors hover:border-brand hover:text-brand disabled:opacity-50">
                 <Plus className="size-4" />
                 Add a note
               </button>
