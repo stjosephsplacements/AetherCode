@@ -1,0 +1,33 @@
+backend/libs/proto/gen/go/aethercode/questionbank/v1/questionbank.pb.go
+  s_4a7f3c46d06453::t_c9dbb58613de70 162-166,297-303,316,333-334
+backend/libs/proto/proto/aethercode/questionbank/v1/questionbank.proto
+  s_4a7f3c46d06453::t_2cf0438e820860 54-56
+backend/services/question-bank/internal/adapters/grpc/server.go
+  s_4a7f3c46d06453::t_c703223b9616c2 49
+backend/services/question-bank/internal/adapters/repo/choice_explanations_integration_test.go
+  s_4a7f3c46d06453::t_2aa612d1ad2f9b 20,98,103,110-115
+backend/services/question-bank/internal/adapters/repo/resolve.go
+  s_4a7f3c46d06453::t_a30eaff901d32e 18,28,36,52-64
+backend/services/question-bank/internal/app/resolve.go
+  s_4a7f3c46d06453::t_79024253746b18 37-38
+backend/services/question-bank/migrations/000027_resolve_choice_explanations.down.sql
+  s_4a7f3c46d06453::t_6577291d26a678 1-55
+backend/services/question-bank/migrations/000027_resolve_choice_explanations.up.sql
+  s_4a7f3c46d06453::t_adbf9d5d23d7b2 1-59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f0ec1ecda3dc056bc6583a3b4b57c0d263c7e715",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
