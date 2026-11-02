@@ -98,7 +98,7 @@ export default async function StaffAccountsPage({ searchParams }: { searchParams
                 <tr key={`${entry.college.id}-${principalId}`} className="border-t border-line align-top">
                   <td className="px-4 py-3">
                     <span className="font-medium text-ink">{person?.display_name ?? "Unknown account"}</span>
-                    {person && person.status !== "active" && <Badge tone="danger" className="ml-2">{person.status}</Badge>}
+                    {person && <Badge tone={person.status === "active" ? "success" : "danger"} className="ml-2">{person.status === "active" ? "Can sign in" : "Sign-in disabled"}</Badge>}
                   </td>
                   {several && <td className="px-4 py-3 text-ink-muted">{entry.college.name}</td>}
                   <td className="px-4 py-3 font-mono text-[13px] text-ink-muted">{person?.username ?? person?.email ?? principalId.slice(0, 8)}</td>
@@ -109,7 +109,7 @@ export default async function StaffAccountsPage({ searchParams }: { searchParams
                       placements={placementList} />
                   </td>
                   <td className="px-4 py-3">
-                    <StudentActions principalId={principalId} username={person?.username ?? ""} collegeId={entry.college.id} />
+                    <StudentActions principalId={principalId} username={person?.username ?? ""} collegeId={entry.college.id} status={person?.status ?? "active"} />
                   </td>
                 </tr>
               );
