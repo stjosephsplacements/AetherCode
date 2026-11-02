@@ -34,6 +34,8 @@ type ResolvedQuestionVersion struct {
 	Choices        []string
 	CorrectChoices []int
 	MultipleChoice bool
+	// ChoiceExplanations has one entry per option, empty for none (ADR-0058).
+	ChoiceExplanations []string
 }
 
 type ResolvedBundle struct {

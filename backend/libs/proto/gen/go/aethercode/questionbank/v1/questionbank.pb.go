@@ -159,8 +159,11 @@ type ResolvePublishedQuestionVersionResponse struct {
 	CorrectChoices []uint32 `protobuf:"varint,13,rep,packed,name=correct_choices,json=correctChoices,proto3" json:"correct_choices,omitempty"`
 	// Whether a student may select more than one option.
 	MultipleChoice bool `protobuf:"varint,14,opt,name=multiple_choice,json=multipleChoice,proto3" json:"multiple_choice,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Why each option is right or wrong, one entry per option, empty for none
+	// (ADR-0058). For Assessment to pin; a candidate sees it only once results are released.
+	ChoiceExplanations []string `protobuf:"bytes,15,rep,name=choice_explanations,json=choiceExplanations,proto3" json:"choice_explanations,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ResolvePublishedQuestionVersionResponse) Reset() {
@@ -291,6 +294,13 @@ func (x *ResolvePublishedQuestionVersionResponse) GetMultipleChoice() bool {
 	return false
 }
 
+func (x *ResolvePublishedQuestionVersionResponse) GetChoiceExplanations() []string {
+	if x != nil {
+		return x.ChoiceExplanations
+	}
+	return nil
+}
+
 var File_aethercode_questionbank_v1_questionbank_proto protoreflect.FileDescriptor
 
 const file_aethercode_questionbank_v1_questionbank_proto_rawDesc = "" +
@@ -303,7 +313,7 @@ const file_aethercode_questionbank_v1_questionbank_proto_rawDesc = "" +
 	"object_key\x18\x01 \x01(\tR\tobjectKey\x12\x16\n" +
 	"\x06sha256\x18\x02 \x01(\tR\x06sha256\x12#\n" +
 	"\rkey_reference\x18\x03 \x01(\tR\fkeyReference\x12&\n" +
-	"\x0ftest_case_count\x18\x04 \x01(\rR\rtestCaseCount\"\x8b\x05\n" +
+	"\x0ftest_case_count\x18\x04 \x01(\rR\rtestCaseCount\"\xbc\x05\n" +
 	"'ResolvePublishedQuestionVersionResponse\x12\x1f\n" +
 	"\vquestion_id\x18\x01 \x01(\tR\n" +
 	"questionId\x12.\n" +
@@ -320,7 +330,8 @@ const file_aethercode_questionbank_v1_questionbank_proto_rawDesc = "" +
 	"\x04kind\x18\v \x01(\tR\x04kind\x12\x18\n" +
 	"\achoices\x18\f \x03(\tR\achoices\x12'\n" +
 	"\x0fcorrect_choices\x18\r \x03(\rR\x0ecorrectChoices\x12'\n" +
-	"\x0fmultiple_choice\x18\x0e \x01(\bR\x0emultipleChoice2\xca\x01\n" +
+	"\x0fmultiple_choice\x18\x0e \x01(\bR\x0emultipleChoice\x12/\n" +
+	"\x13choice_explanations\x18\x0f \x03(\tR\x12choiceExplanations2\xca\x01\n" +
 	"\x1bQuestionBankInternalService\x12\xaa\x01\n" +
 	"\x1fResolvePublishedQuestionVersion\x12B.aethercode.questionbank.v1.ResolvePublishedQuestionVersionRequest\x1aC.aethercode.questionbank.v1.ResolvePublishedQuestionVersionResponseB^Z\\github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/questionbank/v1;questionbankv1b\x06proto3"
 

@@ -44,3 +44,7 @@ characters or null, enforced by a check. `set_question_version_choices` gains
 an optional sixth argument; omitting it clears the explanations. The resolve
 function is untouched, so the exam runner never receives them. Rollback drops
 the column and restores the five-argument function.
+
+`000027_resolve_choice_explanations` adds `out_choice_explanations` to
+`resolve_published_question_version` so Assessment can pin the explanations
+(ADR-0058). Rollback restores the previous result shape.

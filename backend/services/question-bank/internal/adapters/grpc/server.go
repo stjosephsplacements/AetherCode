@@ -46,6 +46,7 @@ func (server *Server) ResolvePublishedQuestionVersion(contextValue context.Conte
 		Choices:            resolved.Choices,
 		CorrectChoices:     correctChoices(resolved.CorrectChoices),
 		MultipleChoice:     resolved.MultipleChoice,
+		ChoiceExplanations: resolved.ChoiceExplanations,
 	}, nil
 }
 

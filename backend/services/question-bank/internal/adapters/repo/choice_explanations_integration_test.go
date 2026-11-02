@@ -17,7 +17,7 @@ import (
 )
 
 // Explanations are stored beside the options, checked against them, frozen on publish,
-// and absent from what the exam runner resolves (ADR-0058).
+// and resolved for Assessment to pin (ADR-0058).
 func TestChoiceExplanations(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -95,28 +95,24 @@ func TestChoiceExplanations(t *testing.T) {
 	_, err = set(5, `["x","y","z"]`)
 	requirePgCode(t, err, "55000") // a published version is immutable
 
-	// What the exam runner resolves carries no explanation text.
+	// Assessment resolves them to pin; the exam paper is built from that pin without them.
 	store, err := repo.NewPostgres(pool)
 	require.NoError(t, err)
 	resolved, err := store.ResolvePublishedQuestionVersion(ctx, versionID.String())
 	require.NoError(t, err)
-	encoded, err := json.Marshal(resolved)
-	require.NoError(t, err)
-	require.NotContains(t, strings.ToLower(string(encoded)), "explanation")
-	var resolveColumns int
-	require.NoError(t, pool.QueryRow(ctx, `
-		SELECT count(*) FROM pg_proc WHERE proname = 'resolve_published_version' AND pg_get_functiondef(oid) ILIKE '%explanation%'`).Scan(&resolveColumns))
-	require.Zero(t, resolveColumns)
+	require.Equal(t, []string{"a", "b", "c"}, resolved.ChoiceExplanations)
 }
 
 func TestChoiceExplanationsDownMigration(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	pool := newMigratedPool(ctx, t)
-	down, err := os.ReadFile(filepath.Join(migrationsDirectory(t), "000026_choice_explanations.down.sql"))
-	require.NoError(t, err)
-	_, err = pool.Exec(ctx, string(down))
-	require.NoError(t, err)
+	for _, name := range []string{"000027_resolve_choice_explanations", "000026_choice_explanations"} {
+		down, err := os.ReadFile(filepath.Join(migrationsDirectory(t), name+".down.sql"))
+		require.NoError(t, err)
+		_, err = pool.Exec(ctx, string(down))
+		require.NoError(t, err, name)
+	}
 	var columns int
 	require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM information_schema.columns WHERE table_schema = 'qbank' AND column_name = 'choice_explanations'`).Scan(&columns))
 	require.Zero(t, columns)
