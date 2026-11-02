@@ -1,10 +1,12 @@
 "use client";
 
-import { KeyRound, MoreHorizontal, Upload } from "lucide-react";
+import { KeyRound, MoreHorizontal, Upload, UserPlus } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
 import { useActionState, useRef } from "react";
 import { CredentialsTable } from "@/components/staff/credentials";
-import { Field, FormMessage, Select, SubmitButton, TextArea, initialActionState } from "@/components/staff/form";
+import { Field, FormMessage, Select, SubmitButton, TextArea, TextInput, initialActionState } from "@/components/staff/form";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import type { Batch, Department } from "@/lib/api-types";
 import {
   type CredentialsState,
@@ -150,5 +152,84 @@ export function StudentActions({ principalId, username, collegeId }: { principal
         </DropdownMenu.Portal>
       </DropdownMenu.Root>
     </div>
+  );
+}
+
+export function ImportDialog(props: { batches: Batch[]; placements: PlacementOption[]; departments: Department[]; disabledReason?: string }) {
+  const { disabledReason, ...panel } = props;
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button disabled={Boolean(disabledReason)} title={disabledReason}>
+          <Upload />
+          Bulk import
+        </Button>
+      </DialogTrigger>
+      <DialogContent title="Import students" description="Each student gets a username (their roll number in lowercase) and a one-time password.">
+        <div className="min-h-0 overflow-y-auto p-6">
+          <ImportPanel {...panel} />
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Enrol one student. It goes through the same import route, with a single line. */
+export function EnrolDialog({ batches, placements, departments, disabledReason }: { batches: Batch[]; placements: PlacementOption[]; departments: Department[]; disabledReason?: string }) {
+  const code = new Map(departments.map((department) => [department.id, department.code]));
+  const [state, action] = useActionState<ImportState, FormData>(async (previous, form) => {
+    const cell = (name: string) => String(form.get(name) ?? "").replace(/[,\n\r]/g, " ").trim();
+    form.set("csv", [cell("roll"), cell("name"), cell("email")].join(","));
+    return importStudents(previous, form);
+  }, initialActionState);
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button disabled={Boolean(disabledReason)} title={disabledReason}>
+          <UserPlus />
+          Enrol student
+        </Button>
+      </DialogTrigger>
+      <DialogContent title="Enrol a student" description="They get a username (their roll number in lowercase) and a one-time password.">
+        <form action={action} className="min-h-0 space-y-4 overflow-y-auto p-6">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Roll number" htmlFor="enrol-roll">
+              <TextInput id="enrol-roll" name="roll" required placeholder="21CS001" />
+            </Field>
+            <Field label="Full name" htmlFor="enrol-name">
+              <TextInput id="enrol-name" name="name" required placeholder="Asha Raman" />
+            </Field>
+          </div>
+          <Field label="Email" htmlFor="enrol-email" hint="Optional.">
+            <TextInput id="enrol-email" name="email" type="email" placeholder="asha@example.edu" />
+          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Batch" htmlFor="enrol-batch">
+              <Select id="enrol-batch" name="batch_id" required>
+                {batches.map((batch) => (
+                  <option key={batch.id} value={`${batch.tenant_id}:${batch.id}`}>
+                    {batch.name} ({code.get(batch.department_id) ?? "?"}, {batch.academic_year})
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Placement department" htmlFor="enrol-placement">
+              <Select id="enrol-placement" name="placement_department_id" required>
+                {placements.map((placement) => (
+                  <option key={placement.id} value={placement.id}>
+                    {placement.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+          <FormMessage state={state} />
+          <SubmitButton>Enrol</SubmitButton>
+          {state.result && state.result.imported.length > 0 && (
+            <CredentialsTable filename="student-password.csv" rows={state.result.imported.map((student) => ({ username: student.username, name: student.name, password: student.password }))} />
+          )}
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

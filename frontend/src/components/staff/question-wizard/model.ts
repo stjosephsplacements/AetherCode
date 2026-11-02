@@ -111,3 +111,32 @@ export const marksShare = (test: TestDraft, tests: TestDraft[]): number => {
   const total = summarizeTests(tests).weight;
   return total === 0 ? 0 : Math.round((test.weight / total) * 100);
 };
+
+export const MAX_UPLOADED_TESTS = 200;
+
+/**
+ * Reads a test file: a JSON array. Takes this editor's keys (`expected_output`, `sample`) and
+ * the exam-app ones (`output`, `isHidden`), so a file from either works.
+ */
+export function parseTestFile(text: string): { tests: TestDraft[]; error?: undefined } | { tests?: undefined; error: string } {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return { error: "That file is not valid JSON." };
+  }
+  if (!Array.isArray(parsed) || parsed.length === 0) return { error: "Expected a JSON list with at least one test." };
+  if (parsed.length > MAX_UPLOADED_TESTS) return { error: `At most ${MAX_UPLOADED_TESTS} tests can be uploaded at once.` };
+  const tests: TestDraft[] = [];
+  for (const [position, entry] of parsed.entries()) {
+    const item = (entry ?? {}) as Record<string, unknown>;
+    const input = item.input;
+    const output = item.expected_output ?? item.output;
+    if (typeof input !== "string" || typeof output !== "string") return { error: `Test ${position + 1} needs "input" and "expected_output" as text.` };
+    const hidden = typeof item.isHidden === "boolean" ? item.isHidden : typeof item.hidden === "boolean" ? item.hidden : undefined;
+    const sample = typeof item.sample === "boolean" ? item.sample : hidden === undefined ? false : !hidden;
+    const weight = item.weight === undefined ? 1 : Number(item.weight);
+    tests.push({ input, expected_output: output, sample, weight });
+  }
+  return { tests: prepareTests(tests) };
+}

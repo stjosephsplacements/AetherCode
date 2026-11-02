@@ -89,3 +89,56 @@ describe("tags", () => {
     expect(cleanTags(["Arrays", "arrays", " ", "Sorting", "ARRAYS"])).toEqual(["arrays", "sorting"]);
   });
 });
+
+import { parseTestFile } from "./model";
+
+describe("parseTestFile", () => {
+  it("reads this editor's own keys", () => {
+    const result = parseTestFile(JSON.stringify([{ input: "1", expected_output: "2", sample: true, weight: 3 }]));
+    expect(result.tests).toEqual([{ input: "1\n", expected_output: "2\n", sample: true, weight: 3 }]);
+  });
+  it("reads the exam-app keys, where isHidden is the opposite of sample", () => {
+    const result = parseTestFile(JSON.stringify([{ input: "1", output: "2", isHidden: false }, { input: "3", output: "4", isHidden: true }]));
+    expect(result.tests?.map((test) => test.sample)).toEqual([true, false]);
+    expect(result.tests?.[0]?.weight).toBe(1);
+  });
+  it("says what is wrong", () => {
+    expect(parseTestFile("nope").error).toMatch(/JSON/);
+    expect(parseTestFile("{}").error).toMatch(/list/);
+    expect(parseTestFile("[]").error).toMatch(/at least one/);
+    expect(parseTestFile(JSON.stringify([{ input: "1" }])).error).toMatch(/Test 1/);
+  });
+});
+
+import { strToU8, zipSync } from "fflate";
+import { parseTestZip, testZipTemplate } from "./test-zip";
+
+describe("parseTestZip", () => {
+  const zip = (files: Record<string, string>) => parseTestZip(zipSync(Object.fromEntries(Object.entries(files).map(([name, text]) => [name, strToU8(text)]))));
+
+  it("pairs 1.in with 1.out in natural order and marks sample files", () => {
+    const result = zip({ "10.in": "x", "10.out": "y", "2.in": "a", "2.out": "b", "sample-1.in": "s", "sample-1.out": "t" });
+    expect(result.tests?.map((test) => [test.input, test.sample])).toEqual([["s\n", true], ["a\n", false], ["x\n", false]]);
+  });
+  it("pairs input/ and output/ folders by file name", () => {
+    const result = zip({ "input/01.txt": "1", "output/01.txt": "2", "input/02.txt": "3", "output/02.txt": "4" });
+    expect(result.tests?.map((test) => test.expected_output)).toEqual(["2\n", "4\n"]);
+  });
+  it("prefers a tests.json inside the zip", () => {
+    const result = zip({ "tests.json": JSON.stringify([{ input: "1", expected_output: "2", sample: true }]), "1.in": "z", "1.out": "z" });
+    expect(result.tests).toHaveLength(1);
+    expect(result.tests?.[0]?.sample).toBe(true);
+  });
+  it("says which file is unpaired", () => {
+    expect(zip({ "1.in": "a" }).error).toMatch(/1\.in has no matching output/);
+    expect(zip({ "1.out": "a", "2.in": "b", "2.out": "c" }).error).toMatch(/1\.out has no matching input/);
+  });
+  it("ignores mac metadata and rejects non-zips and empty zips", () => {
+    expect(zip({ "__MACOSX/._1.in": "junk", "1.in": "a", "1.out": "b" }).tests).toHaveLength(1);
+    expect(parseTestZip(strToU8("not a zip")).error).toMatch(/zip/);
+    expect(zip({ "readme.md": "hi" }).error).toMatch(/No input files/);
+  });
+  it("reads its own template", () => {
+    expect(parseTestZip(testZipTemplate()).tests?.map((test) => test.sample)).toEqual([true, false]);
+  });
+});

@@ -8,11 +8,13 @@ import { Badge, Panel } from "@/components/ui/card";
 import type { Page, Tenant } from "@/lib/api-types";
 import { gateway } from "@/lib/server/gateway";
 import { requireStaff } from "@/lib/server/staff";
+import { Pager } from "@/components/staff/pager";
+import { paginate } from "@/lib/paginate";
 import { createCollege, deleteCollege, updateCollege } from "./actions";
 
 export const metadata: Metadata = { title: "Colleges" };
 
-export default async function CollegesPage() {
+export default async function CollegesPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const staff = await requireStaff();
   if (!staff.isPlatformAdmin) redirect("/staff");
   let tenants: Tenant[];
@@ -26,6 +28,7 @@ export default async function CollegesPage() {
       </>
     );
   }
+  const paged = paginate(tenants, (await searchParams).page);
   return (
     <>
       <PageHeader title="Colleges" description="Every college on this platform. Each has its own students, staff, exams and results. The ID is what the branding file uses." />
@@ -33,7 +36,7 @@ export default async function CollegesPage() {
         <EmptyState>No colleges yet.</EmptyState>
       ) : (
         <Table head={["College", "Short name", "ID", "Status", ""]}>
-          {tenants.map((tenant) => (
+          {paged.rows.map((tenant) => (
             <tr key={tenant.id}>
               <td className="px-4 py-3">
                 <p className="font-medium text-ink">{tenant.display_name}</p>
@@ -72,6 +75,7 @@ export default async function CollegesPage() {
           ))}
         </Table>
       )}
+      <Pager meta={paged} noun="colleges" />
       <Section title="Add a college">
         <Panel className="p-5">
           <ActionForm action={createCollege} submitLabel="Add college">

@@ -7,6 +7,8 @@ import { listBatches, listDepartments, listPlacement, departmentLabel } from "@/
 import { describeAccounts, listRoleAssignments } from "@/lib/server/people";
 import { inColleges } from "@/lib/server/colleges";
 import { collegesFor, requireStaff } from "@/lib/server/staff";
+import { Pager } from "@/components/staff/pager";
+import { paginate } from "@/lib/paginate";
 import { StudentActions } from "../students/panels";
 import { CreateStaffForm } from "./create-staff-form";
 import { type RoleChip, RoleEditor } from "./roles";
@@ -15,12 +17,13 @@ export const metadata: Metadata = { title: "Staff accounts" };
 
 const STAFF_ROLES = new Set(["college_admin", "department_user", "mentor", "placement_user"]);
 
-export default async function StaffAccountsPage({ searchParams }: { searchParams: Promise<{ college?: string }> }) {
+export default async function StaffAccountsPage({ searchParams }: { searchParams: Promise<{ college?: string; page?: string }> }) {
   const staff = await requireStaff();
   if (!staff.canManageAccounts) redirect("/staff");
   let data;
   try {
-    const colleges = collegesFor(staff, (await searchParams).college);
+    const query = await searchParams;
+    const colleges = collegesFor(staff, query.college);
     const [perCollege, placement] = await Promise.all([
       inColleges(colleges, async (collegeId) => {
         const [allDepartments, batches, assignments] = await Promise.all([listDepartments(collegeId), listBatches(collegeId), listRoleAssignments(collegeId)]);
@@ -30,7 +33,7 @@ export default async function StaffAccountsPage({ searchParams }: { searchParams
       }),
       listPlacement(),
     ]);
-    data = { perCollege, placement };
+    data = { perCollege, placement, page: query.page };
   } catch (error) {
     return (
       <>
@@ -39,7 +42,7 @@ export default async function StaffAccountsPage({ searchParams }: { searchParams
       </>
     );
   }
-  const { perCollege, placement } = data;
+  const { perCollege, placement, page } = data;
   const several = staff.isPlatformAdmin;
   const placementList = placement.organizations.flatMap((org) =>
     org.departments.map((dep) => ({ id: dep.id, name: `${departmentLabel(dep)}, ${org.legal_name}` }))
@@ -67,6 +70,7 @@ export default async function StaffAccountsPage({ searchParams }: { searchParams
     return [...people].map(([principalId, roles]) => ({ entry, principalId, roles }));
   });
   rows.sort((a, b) => (a.entry.names.get(a.principalId)?.display_name ?? a.principalId).localeCompare(b.entry.names.get(b.principalId)?.display_name ?? b.principalId));
+  const paged = paginate(rows, page);
 
   return (
     <>
@@ -84,7 +88,7 @@ export default async function StaffAccountsPage({ searchParams }: { searchParams
           <EmptyState>No staff yet.</EmptyState>
         ) : (
           <Table head={several ? ["Name", "College", "Username", "Roles", ""] : ["Name", "Username", "Roles", ""]}>
-            {rows.map(({ entry, principalId, roles }) => {
+            {paged.rows.map(({ entry, principalId, roles }) => {
               const person = entry.names.get(principalId);
               return (
                 <tr key={`${entry.college.id}-${principalId}`} className="border-t border-line align-top">
@@ -108,6 +112,7 @@ export default async function StaffAccountsPage({ searchParams }: { searchParams
             })}
           </Table>
         )}
+        <Pager meta={paged} noun="staff" />
       </Section>
     </>
   );
