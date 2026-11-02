@@ -1,0 +1,21 @@
+docs/adr/0063-function-only-questions.md
+  s_4a7f3c46d06453::t_fa0a19f9afcc65 1-28
+docs/adr/README.md
+  s_4a7f3c46d06453::t_9c8cfe6b482f07 69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f4f8bd12050a0d6cf8d15d146c6733f7d1d53ad2",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
