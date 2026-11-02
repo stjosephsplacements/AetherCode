@@ -7,7 +7,7 @@ export type RosterStudent = Student & { batch_id?: string; profile_name?: string
 
 /**
  * Every student of a college through the roster read, following the cursor (up to 5000). A user service from
- * before the roster route answers 404; the students are then read batch by batch, without mentors.
+ * before the roster route answers 404 or 400; the students are then read batch by batch, without mentors.
  */
 export async function listRoster(tenantId: string, batchIds: string[]): Promise<RosterStudent[]> {
   const students: RosterStudent[] = [];
@@ -21,7 +21,8 @@ export async function listRoster(tenantId: string, batchIds: string[]): Promise<
     }
     return students;
   } catch (error) {
-    if (!(error instanceof GatewayError && error.status === 404)) throw error;
+    // The old service reads "roster" as a student id and answers 400, not 404.
+    if (!(error instanceof GatewayError && (error.status === 404 || error.status === 400))) throw error;
   }
   const perBatch = await Promise.all(batchIds.map(async (batchId) => (await listAllStudents(tenantId, batchId)).map((student) => ({ ...student, batch_id: batchId, mentor_principal_ids: [] }))));
   return perBatch.flat();

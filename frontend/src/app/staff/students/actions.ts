@@ -165,8 +165,8 @@ function byCollege(targets: Target[], staff: Awaited<ReturnType<typeof requireSt
   return groups;
 }
 
-/** A user service from before the one-call routes answers 404; the same work is then done one account at a time. */
-const missingRoute = (error: unknown) => error instanceof GatewayError && error.status === 404;
+/** A user service from before the one-call routes answers 404 (or 400, reading the path as an id); the same work is then done one account at a time. */
+const missingRoute = (error: unknown) => error instanceof GatewayError && (error.status === 404 || error.status === 400);
 
 export async function bulkSetStatus(targets: Target[], status: "active" | "disabled"): Promise<ActionState> {
   const staff = await requireStaff();
