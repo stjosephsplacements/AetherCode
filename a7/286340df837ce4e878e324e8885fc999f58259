@@ -1,0 +1,19 @@
+frontend/src/app/staff/accounts/staff-filter.tsx
+  s_4a7f3c46d06453::t_50926839b1451b 4,7,123-132,136-141,154,159-162,164,171,173-176,178,183
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a7286340df837ce4e878e324e8885fc999f58259",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
