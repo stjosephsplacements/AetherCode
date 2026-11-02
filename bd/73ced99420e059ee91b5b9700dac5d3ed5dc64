@@ -1,0 +1,27 @@
+frontend/src/app/staff/questions/actions.ts
+  s_4a7f3c46d06453::t_b1d31cc79d28b6 6,329-330,333,335,347-348,351-353,355,360
+frontend/src/components/staff/category-picker.tsx
+  s_4a7f3c46d06453::t_0280e4f0d74b4a 10-12,34,40,52,54,64,86-97
+frontend/src/lib/api-types.ts
+  s_4a7f3c46d06453::t_d95670bc229f07 217,219-223
+frontend/src/lib/categories.test.ts
+  s_4a7f3c46d06453::t_a2c31582ad82eb 1-26
+frontend/src/lib/categories.ts
+  s_4a7f3c46d06453::t_09d9f77e5d0586 1-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bd73ced99420e059ee91b5b9700dac5d3ed5dc64",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
