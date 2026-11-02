@@ -1,0 +1,14 @@
+frontend/src/app/staff/accounts/import-staff-dialog.tsx
+  h_8540f154048b04 3-4,8,11-12,15-20,32-39,42-71,80-84,116-169,174,177-236,238,240-244,252
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fe61bb95fb6ac7798afbecdd55b9c790be43b85a",
+  "prompts": {},
+  "humans": {
+    "h_8540f154048b04": {
+      "author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
