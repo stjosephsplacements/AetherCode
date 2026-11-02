@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { ActionState } from "@/components/staff/form";
 import type { Batch, IssuedCredential, Page, StudentImportResult } from "@/lib/api-types";
 import { actionError } from "@/lib/server/actions";
-import { gateway } from "@/lib/server/gateway";
+import { GatewayError, gateway } from "@/lib/server/gateway";
 import { collegeFor, requireStaff } from "@/lib/server/staff";
 
 export type ImportState = ActionState & { result?: StudentImportResult };
@@ -165,6 +165,9 @@ function byCollege(targets: Target[], staff: Awaited<ReturnType<typeof requireSt
   return groups;
 }
 
+/** A user service from before the one-call routes answers 404 (or 400, reading the path as an id); the same work is then done one account at a time. */
+const missingRoute = (error: unknown) => error instanceof GatewayError && (error.status === 404 || error.status === 400);
+
 export async function bulkSetStatus(targets: Target[], status: "active" | "disabled"): Promise<ActionState> {
   const staff = await requireStaff();
   if (!staff.canManageAccounts) return { error: "Only administrators change accounts." };
@@ -174,7 +177,12 @@ export async function bulkSetStatus(targets: Target[], status: "active" | "disab
   let firstError: string | null = null;
   for (const [tenantId, group] of byCollege(targets, staff)) {
     try {
-      await gateway(`/user/v1/tenants/${tenantId}/accounts/bulk-status`, { method: "POST", body: { principal_ids: group.map((target) => target.principalId), status } });
+      try {
+        await gateway(`/user/v1/tenants/${tenantId}/accounts/bulk-status`, { method: "POST", body: { principal_ids: group.map((target) => target.principalId), status } });
+      } catch (error) {
+        if (!missingRoute(error)) throw error;
+        for (const target of group) await gateway(`/user/v1/tenants/${tenantId}/accounts/${target.principalId}/status`, { method: "PUT", body: { status } });
+      }
       done += group.length;
     } catch (error) {
       failed += group.length;
@@ -196,8 +204,16 @@ export async function bulkResetPasswords(targets: Target[]): Promise<Credentials
   let firstError: string | null = null;
   for (const [tenantId, group] of byCollege(targets, staff)) {
     try {
-      const result = await gateway<{ accounts: IssuedCredential[] }>(`/user/v1/tenants/${tenantId}/accounts/bulk-password`, { method: "POST", body: { principal_ids: group.map((target) => target.principalId) } });
-      accounts.push(...result.accounts);
+      try {
+        const result = await gateway<{ accounts: IssuedCredential[] }>(`/user/v1/tenants/${tenantId}/accounts/bulk-password`, { method: "POST", body: { principal_ids: group.map((target) => target.principalId) } });
+        accounts.push(...result.accounts);
+      } catch (error) {
+        if (!missingRoute(error)) throw error;
+        for (const target of group) {
+          const result = await gateway<{ password: string }>(`/user/v1/tenants/${tenantId}/accounts/${target.principalId}/password`, { method: "POST" });
+          accounts.push({ principal_id: target.principalId, username: target.username, display_name: "", password: result.password });
+        }
+      }
     } catch (error) {
       failed += group.length;
       firstError ??= actionError(error);

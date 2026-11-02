@@ -31,6 +31,9 @@ export function parseMessage(data: unknown): RealtimeMessage | null {
 export function realtimeURL(location: { protocol: string; host: string }, tenantId: string, configured?: string): string {
   const base = configured || `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}/api/realtime`;
   const url = new URL(base);
+  // A localhost address in the build is the developer's machine; opened from another one, the page's own host serves it.
+  const pageHost = location.host.replace(/:\d+$/, "");
+  if (configured && /^(localhost|127\.0\.0\.1)$/.test(url.hostname) && pageHost !== url.hostname) url.hostname = pageHost;
   url.searchParams.set("tenant", tenantId);
   return url.toString();
 }

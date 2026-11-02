@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { CollegeFilter } from "@/components/staff/college-filter";
 import { EmptyState, LoadError, PageHeader } from "@/components/staff/page-header";
 import { departmentLabel, listBatches, listDepartments, listPlacement } from "@/lib/server/directory";
@@ -10,6 +11,7 @@ import { collegesFor, requireStaff } from "@/lib/server/staff";
 import { listRoster } from "@/lib/server/students";
 import { EnrolDialog, ImportDialog } from "./panels";
 import { Roster, type StudentRow } from "./roster";
+import { RosterSkeleton } from "./skeleton";
 
 export const metadata: Metadata = { title: "Students" };
 
@@ -17,14 +19,28 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
   const staff = await requireStaff();
   if (!staff.canManageAccounts) redirect("/staff");
   const { college: collegeParam } = await searchParams;
+  return (
+    <>
+      <PageHeader
+        title="Students"
+        description="Enrol students one at a time or from a spreadsheet, hand out passwords, and reset, disable or remove accounts."
+        actions={staff.isPlatformAdmin && <CollegeFilter colleges={staff.tenants.map((tenant) => ({ id: tenant.id, name: tenant.display_name }))} />}
+      />
+      <Suspense key={collegeParam ?? ""} fallback={<RosterSkeleton />}>
+        <StudentsContent staff={staff} collegeParam={collegeParam} />
+      </Suspense>
+    </>
+  );
+}
 
+async function StudentsContent({ staff, collegeParam }: { staff: Awaited<ReturnType<typeof requireStaff>>; collegeParam: string | undefined }) {
   let data;
   try {
     const colleges = collegesFor(staff, collegeParam);
     const [perCollege, placement] = await Promise.all([
       inColleges(colleges, async (collegeId) => {
         const [batches, departments] = await Promise.all([listBatches(collegeId), listDepartments(collegeId)]);
-        const students = await listRoster(collegeId);
+        const students = await listRoster(collegeId, batches.map((batch) => batch.id));
         const people = await describeAccounts(collegeId, students.flatMap((student) => [student.principal_id, ...student.mentor_principal_ids])).catch(() => new Map());
         return { batches, departments, students, people };
       }),
@@ -32,12 +48,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
     ]);
     data = { perCollege, placement };
   } catch (error) {
-    return (
-      <>
-      <PageHeader title="Students" />
-        <LoadError error={error} />
-      </>
-    );
+    return <LoadError error={error} />;
   }
   const { perCollege, placement } = data;
   const placements = placement.organizations.flatMap((organization) =>
@@ -82,26 +93,27 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
 
   const why = placements.length === 0 ? (placement.readable ? "Create a placement department first" : "Ask a platform administrator to create a placement department") : undefined;
 
+  const dialogs = batches.length > 0 && (
+    <>
+      <ImportDialog batches={batches} placements={placements} departments={departments} disabledReason={why} />
+      <EnrolDialog batches={batches} placements={placements} departments={departments} disabledReason={why} />
+    </>
+  );
+
   return (
     <>
-      <PageHeader
-        title="Students"
-        description="Enrol students one at a time or from a spreadsheet, hand out passwords, and reset, disable or remove accounts."
-        actions={
-          <>
-            {staff.isPlatformAdmin && <CollegeFilter colleges={staff.tenants.map((tenant) => ({ id: tenant.id, name: tenant.display_name }))} />}
-            {batches.length > 0 && <ImportDialog batches={batches} placements={placements} departments={departments} disabledReason={why} />}
-            {batches.length > 0 && <EnrolDialog batches={batches} placements={placements} departments={departments} disabledReason={why} />}
-          </>
-        }
-      />
       {unreachable.length > 0 && <p role="alert" className="mb-4 text-sm text-warning">Could not load: {unreachable.join(", ")}.</p>}
       {batches.length === 0 ? (
         <EmptyState>
-          Create a batch first, in <Link href="/staff/organisation" className="text-brand hover:underline">Departments</Link>.
+          <p className="mb-3 text-[15px] font-medium text-ink">No batches yet</p>
+          Students belong to a batch. Create one in{" "}
+          <Link href="/staff/organisation" className="text-brand hover:underline">
+            Departments
+          </Link>{" "}
+          first, then come back to import them.
         </EmptyState>
       ) : (
-        <Roster rows={rows} several={staff.isPlatformAdmin} />
+        <Roster rows={rows} several={staff.isPlatformAdmin} actions={dialogs} />
       )}
     </>
   );

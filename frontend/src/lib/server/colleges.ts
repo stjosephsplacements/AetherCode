@@ -12,7 +12,8 @@ export async function inColleges<T>(colleges: CollegeRef[], load: (collegeId: st
   return mapLimit(colleges, 4, async (college) => {
     try {
       return { college, value: await load(college.id), failed: false };
-    } catch {
+    } catch (error) {
+      console.error(`could not load ${college.name}:`, error);
       return { college, value: null, failed: true };
     }
   });

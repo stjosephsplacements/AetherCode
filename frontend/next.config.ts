@@ -4,10 +4,15 @@ const isDev = process.env.NODE_ENV !== "production";
 
 // The live-update socket is same-origin in production, which 'self' covers. For local
 // development it is served from the gateway's own address, so that origin is allowed too.
+// Other machines on the network (DEV_ORIGINS) reach that gateway at their own address for it.
+const developmentHosts = isDev
+  ? (process.env.DEV_ORIGINS ?? "").split(",").map((origin) => origin.trim()).filter(Boolean).map((origin) => new URL(origin).hostname)
+  : [];
 const realtimeSource = (() => {
   try {
     const url = new URL(process.env.NEXT_PUBLIC_REALTIME_URL ?? "");
-    return ` ${url.protocol}//${url.host}`;
+    const hosts = [url.host, ...developmentHosts.map((hostname) => `${hostname}${url.port ? `:${url.port}` : ""}`)];
+    return hosts.map((host) => ` ${url.protocol}//${host}`).join("");
   } catch {
     return "";
   }
@@ -31,6 +36,8 @@ const contentSecurityPolicy = [
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // Dev assets and the hot-reload socket are refused to other origins unless listed.
+  allowedDevOrigins: developmentHosts,
   poweredByHeader: false,
   // Tests and imported questions arrive through server actions; nginx accepts
   // 2 MB and the gateway 1 MiB of JSON, so a larger body could not get through.
