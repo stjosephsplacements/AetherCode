@@ -155,39 +155,54 @@ export async function deleteStudent(collegeId: string, studentId: string, reason
 
 export type Target = { principalId: string; collegeId: string; username: string };
 
-/** Runs `work` over targets a few at a time; one failure does not stop the rest. */
-async function eachTarget<T>(targets: Target[], work: (target: Target, tenantId: string) => Promise<T>): Promise<{ done: T[]; failed: number }> {
-  const staff = await requireStaff();
-  if (!staff.canManageAccounts) return { done: [], failed: targets.length };
-  const done: T[] = [];
-  let failed = 0;
-  for (let start = 0; start < targets.length; start += 8) {
-    const settled = await Promise.allSettled(targets.slice(start, start + 8).map((target) => work(target, collegeFor(staff, target.collegeId))));
-    for (const result of settled) {
-      if (result.status === "fulfilled") done.push(result.value);
-      else failed++;
-    }
+/** Groups a selection by college, since the bulk routes act inside one college. */
+function byCollege(targets: Target[], staff: Awaited<ReturnType<typeof requireStaff>>): Map<string, Target[]> {
+  const groups = new Map<string, Target[]>();
+  for (const target of targets) {
+    const tenantId = collegeFor(staff, target.collegeId);
+    groups.set(tenantId, [...(groups.get(tenantId) ?? []), target]);
   }
-  return { done, failed };
+  return groups;
 }
 
 export async function bulkSetStatus(targets: Target[], status: "active" | "disabled"): Promise<ActionState> {
+  const staff = await requireStaff();
+  if (!staff.canManageAccounts) return { error: "Only administrators change accounts." };
   if (targets.length === 0 || targets.length > 500) return { error: "Select between 1 and 500 students." };
-  const { done, failed } = await eachTarget(targets, (target, tenantId) =>
-    gateway(`/user/v1/tenants/${tenantId}/accounts/${target.principalId}/status`, { method: "PUT", body: { status } }),
-  );
+  let done = 0;
+  let failed = 0;
+  let firstError: string | null = null;
+  for (const [tenantId, group] of byCollege(targets, staff)) {
+    try {
+      await gateway(`/user/v1/tenants/${tenantId}/accounts/bulk-status`, { method: "POST", body: { principal_ids: group.map((target) => target.principalId), status } });
+      done += group.length;
+    } catch (error) {
+      failed += group.length;
+      firstError ??= actionError(error);
+    }
+  }
   revalidatePath("/staff/students");
-  if (done.length === 0) return { error: "Could not change any of them." };
+  if (done === 0) return { error: firstError ?? "Could not change any of them." };
   const verb = status === "disabled" ? "disabled" : "enabled";
-  return { error: null, message: `Sign-in ${verb} for ${done.length}${failed ? `, ${failed} failed` : ""}.` };
+  return { error: null, message: `Sign-in ${verb} for ${done}${failed ? `, ${failed} failed (${firstError})` : ""}.` };
 }
 
 export async function bulkResetPasswords(targets: Target[]): Promise<CredentialsState> {
+  const staff = await requireStaff();
+  if (!staff.canManageAccounts) return { error: "Only administrators change accounts." };
   if (targets.length === 0 || targets.length > 500) return { error: "Select between 1 and 500 students." };
-  const { done, failed } = await eachTarget(targets, async (target, tenantId) => {
-    const result = await gateway<{ password: string }>(`/user/v1/tenants/${tenantId}/accounts/${target.principalId}/password`, { method: "POST" });
-    return { principal_id: target.principalId, username: target.username, display_name: "", password: result.password } satisfies IssuedCredential;
-  });
-  if (done.length === 0) return { error: "Could not reset any of them." };
-  return { error: null, message: failed ? `${failed} could not be reset.` : undefined, accounts: done };
+  const accounts: IssuedCredential[] = [];
+  let failed = 0;
+  let firstError: string | null = null;
+  for (const [tenantId, group] of byCollege(targets, staff)) {
+    try {
+      const result = await gateway<{ accounts: IssuedCredential[] }>(`/user/v1/tenants/${tenantId}/accounts/bulk-password`, { method: "POST", body: { principal_ids: group.map((target) => target.principalId) } });
+      accounts.push(...result.accounts);
+    } catch (error) {
+      failed += group.length;
+      firstError ??= actionError(error);
+    }
+  }
+  if (accounts.length === 0) return { error: firstError ?? "Could not reset any of them." };
+  return { error: null, message: failed ? `${failed} could not be reset (${firstError}).` : undefined, accounts };
 }
