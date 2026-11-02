@@ -3,6 +3,7 @@ import Link from "next/link";
 import { AsciiField } from "@/components/site/ascii-field";
 import { AsciiWordmark } from "@/components/site/ascii-wordmark";
 import { LoginForm } from "./login-form";
+import { TestRunner } from "./test-runner";
 
 // Why a single sign-on did not finish (ADR-0042).
 const SSO_ERRORS: Record<string, string> = {
