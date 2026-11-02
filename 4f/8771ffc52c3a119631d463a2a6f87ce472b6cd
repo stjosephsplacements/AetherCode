@@ -1,0 +1,21 @@
+backend/services/question-bank/internal/app/practice.go
+  s_4a7f3c46d06453::t_1066dfc9cab1fa 11,241-253,257-258,329-338
+backend/services/question-bank/internal/app/templates_test.go
+  s_4a7f3c46d06453::t_bfbd485321898b 43-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4f8771ffc52c3a119631d463a2a6f87ce472b6cd",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
