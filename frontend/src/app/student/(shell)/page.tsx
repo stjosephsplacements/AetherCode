@@ -55,7 +55,7 @@ export default async function StudentDashboard() {
         <div aria-hidden className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_62%_46%_at_50%_42%,var(--canvas)_40%,transparent)]" />
         <p className="font-mono text-[12px] uppercase tracking-[0.14em] text-ink-subtle">{dateLine}</p>
         <div className="mt-5" aria-hidden>
-          <AsciiWordmark style={{ "--columns": WORDMARK_COLUMNS + 30 } as React.CSSProperties} />
+          <AsciiWordmark style={{ "--columns": WORDMARK_COLUMNS + 80 } as React.CSSProperties} />
         </div>
         <h1 className="heading mt-8 text-[1.7rem] leading-[1.3] text-ink sm:text-[2.4rem]">
           <span className="marker">
