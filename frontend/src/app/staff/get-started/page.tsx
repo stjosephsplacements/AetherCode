@@ -1,4 +1,4 @@
-import { ArrowRight, BookOpen, Building2, Check, CircleHelp, Layers, Lock, NotebookPen, PartyPopper, Users, type LucideIcon } from "lucide-react";
+import { ArrowRight, BookOpen, Briefcase, Building2, Check, CircleHelp, Layers, Lock, NotebookPen, PartyPopper, Users, type LucideIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -13,6 +13,7 @@ const META: Record<SetupKey, { icon: LucideIcon; minutes: string; cta: string }>
   college: { icon: Building2, minutes: "1 min", cta: "Create college" },
   department: { icon: Layers, minutes: "2 min", cta: "Add department" },
   batch: { icon: Layers, minutes: "1 min", cta: "Add batch" },
+  placement: { icon: Briefcase, minutes: "2 min", cta: "Add placement department" },
   students: { icon: Users, minutes: "5 min", cta: "Enrol students" },
   questions: { icon: BookOpen, minutes: "10 min", cta: "Write questions" },
   exam: { icon: NotebookPen, minutes: "3 min", cta: "Schedule exam" },
