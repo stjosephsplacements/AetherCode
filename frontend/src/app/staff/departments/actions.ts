@@ -19,7 +19,7 @@ export async function createDepartment(_previous: ActionState, form: FormData): 
   } catch (error) {
     return { error: actionError(error) };
   }
-  revalidatePath("/staff/organisation");
+  revalidatePath("/staff/departments");
   return { error: null, message: "Department created." };
 }
 
@@ -40,7 +40,7 @@ export async function createBatch(_previous: ActionState, form: FormData): Promi
   } catch (error) {
     return { error: actionError(error) };
   }
-  revalidatePath("/staff/organisation");
+  revalidatePath("/staff/departments");
   return { error: null, message: "Batch created." };
 }
 
@@ -54,7 +54,7 @@ export async function createPlacementOrganization(_previous: ActionState, form: 
   } catch (error) {
     return { error: actionError(error) };
   }
-  revalidatePath("/staff/organisation");
+  revalidatePath("/staff/departments");
   return { error: null, message: "Placement organization created." };
 }
 
@@ -68,7 +68,7 @@ export async function createPlacementDepartment(_previous: ActionState, form: Fo
   } catch (error) {
     return { error: actionError(error) };
   }
-  revalidatePath("/staff/organisation");
+  revalidatePath("/staff/departments");
   return { error: null, message: "Placement department created." };
 }
 
@@ -81,7 +81,7 @@ export async function deleteDepartment(collegeId: string, id: string, reason: st
   } catch (error) {
     return { error: actionError(error) };
   }
-  revalidatePath("/staff/organisation");
+  revalidatePath("/staff/departments");
   return { error: null, message: "Deleted." };
 }
 
@@ -96,7 +96,7 @@ export async function deleteBatch(collegeId: string, id: string, reason: string)
   } catch (error) {
     return { error: actionError(error) };
   }
-  revalidatePath("/staff/organisation");
+  revalidatePath("/staff/departments");
   return { error: null, message: "Deleted." };
 }
 
@@ -113,7 +113,7 @@ export async function updateDepartment(collegeId: string, departmentId: string, 
   } catch (error) {
     return { error: actionError(error) };
   }
-  revalidatePath("/staff/organisation");
+  revalidatePath("/staff/departments");
   return { error: null, message: "Saved." };
 }
 
@@ -128,7 +128,7 @@ export async function updateBatch(collegeId: string, batchId: string, changes: R
   } catch (error) {
     return { error: actionError(error) };
   }
-  revalidatePath("/staff/organisation");
+  revalidatePath("/staff/departments");
   revalidatePath("/staff/students");
   return { error: null, message: "Saved." };
 }
@@ -141,7 +141,7 @@ export async function updatePlacementOrganization(organizationId: string, change
   } catch (error) {
     return { error: actionError(error) };
   }
-  revalidatePath("/staff/organisation");
+  revalidatePath("/staff/departments");
   return { error: null, message: "Saved." };
 }
 
@@ -155,6 +155,6 @@ export async function deletePlacementOrganization(organizationId: string, reason
   } catch (error) {
     return { error: actionError(error) };
   }
-  revalidatePath("/staff/organisation");
+  revalidatePath("/staff/departments");
   return { error: null, message: "Deleted." };
 }

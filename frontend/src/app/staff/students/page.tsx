@@ -107,7 +107,7 @@ async function StudentsContent({ staff, collegeParam }: { staff: Awaited<ReturnT
         <EmptyState>
           <p className="mb-3 text-[15px] font-medium text-ink">No batches yet</p>
           Students belong to a batch. Create one in{" "}
-          <Link href="/staff/organisation" className="text-brand hover:underline">
+          <Link href="/staff/departments" className="text-brand hover:underline">
             Departments
           </Link>{" "}
           first, then come back to import them.
