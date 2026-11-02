@@ -1,0 +1,35 @@
+frontend/src/app/globals.css
+  s_4a7f3c46d06453::t_c7113f4393a375 559-576
+frontend/src/app/student/(shell)/exams/page.tsx
+  s_4a7f3c46d06453::t_a257b8912b9e9a 40,47,49-50
+frontend/src/app/student/(shell)/page.tsx
+  s_4a7f3c46d06453::t_b0b47ad97cd9af 1-2,12-13,15,47,49-102,105,107-118,121-135,140,142,174,176
+frontend/src/app/student/(shell)/performance/page.tsx
+  s_4a7f3c46d06453::t_f41c5cda1958c9 76,96
+frontend/src/app/student/(shell)/practice/practice-list.tsx
+  s_4a7f3c46d06453::t_e786972a1c5488 3,98-104
+frontend/src/app/student/(shell)/term.tsx
+  s_4a7f3c46d06453::t_cf8a43bfca5f35 1-30
+frontend/src/components/exam/exam-screen.tsx
+  s_4a7f3c46d06453::t_69010310044d26 3,362-368
+frontend/src/components/practice/practice-workspace.tsx
+  s_4a7f3c46d06453::t_bc5354397a575c 3-4,220-226
+frontend/src/components/student/student-shell.tsx
+  s_4a7f3c46d06453::t_0cd15d52a49444 10,190-205,209-210,224
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1dc117bfea912d300944a2d2b94617f68f79aa5a",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
