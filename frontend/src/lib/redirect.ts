@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { devOrigins } from "@/lib/dev-origins";
 
 /**
  * A redirect to a path on this site from a route handler. The Location is relative, so
@@ -16,11 +17,13 @@ export function redirectTo(path: string, status: 307 | 303 = 307): NextResponse 
  * the address the server bound to.
  */
 export function siteOrigin(request: { headers: Headers; url: string }): string {
+  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+  const protocol = request.headers.get("x-forwarded-proto") ?? new URL(request.url).protocol.replace(":", "");
+  // In development the site may be opened from another machine; send it back to the address it used.
+  if (host && devOrigins().includes(`${protocol}://${host}`)) return `${protocol}://${host}`;
   const configured = process.env.PUBLIC_ORIGIN?.trim().replace(/\/+$/, "");
   if (configured) return configured;
-  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
   if (!host) return new URL(request.url).origin;
-  const protocol = request.headers.get("x-forwarded-proto") ?? new URL(request.url).protocol.replace(":", "");
   return `${protocol}://${host}`;
 }
 

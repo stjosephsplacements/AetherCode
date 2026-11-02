@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Download, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Table } from "@/components/staff/page-header";
+import { LocalPager } from "@/components/staff/pager";
+import { paginate } from "@/lib/paginate";
 import type { Department, Student } from "@/lib/api-types";
 
 export function PlacementsFilter({
@@ -17,6 +19,7 @@ export function PlacementsFilter({
 }) {
   const [selectedDept, setSelectedDept] = useState<string>("all");
   const [search, setSearch] = useState<string>("");
+  const [page, setPage] = useState(1);
 
   const deptMap = new Map(departments.map((d) => [d.id, d.name]));
 
@@ -28,6 +31,8 @@ export function PlacementsFilter({
       student.principal_id.toLowerCase().includes(search.toLowerCase());
     return matchesDept && matchesSearch;
   });
+
+  const paged = paginate(filtered, page);
 
   function exportList() {
     const csv = ["Roll Number,Department,Status"]
@@ -56,13 +61,13 @@ export function PlacementsFilter({
               type="text"
               placeholder="Search by roll number or ID..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               className="h-9 w-full rounded-[var(--radius-control)] border border-line bg-surface pl-9 pr-3 text-xs text-ink placeholder:text-ink-muted focus:outline-none focus:ring-1 focus:ring-brand"
             />
           </div>
           <select
             value={selectedDept}
-            onChange={(e) => setSelectedDept(e.target.value)}
+            onChange={(e) => { setSelectedDept(e.target.value); setPage(1); }}
             className="h-9 rounded-[var(--radius-control)] border border-line bg-surface px-3 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-brand"
           >
             <option value="all">All Departments ({departments.length})</option>
@@ -80,7 +85,7 @@ export function PlacementsFilter({
       </div>
 
       <Table head={["Roll Number", "Department", "Placement Status"]}>
-        {filtered.slice(0, 25).map((student) => (
+        {paged.rows.map((student) => (
           <tr key={student.id} className="border-t border-line text-xs">
             <td className="px-4 py-2.5 font-mono font-medium text-ink">{student.enrollment_number}</td>
             <td className="px-4 py-2.5 text-ink-muted">{deptMap.get(student.college_department_id || "") || "General Engineering"}</td>
@@ -92,9 +97,7 @@ export function PlacementsFilter({
           </tr>
         ))}
       </Table>
-      {filtered.length > 25 && (
-        <p className="text-center text-xs text-ink-muted">Showing first 25 of {filtered.length} matching candidates. Use Export for the full list.</p>
-      )}
+      <LocalPager meta={paged} onPage={setPage} noun="candidates" />
       {truncated && (
         <p className="text-center text-xs text-warning">Only the first 5,000 students were loaded, so this list and its export are incomplete.</p>
       )}

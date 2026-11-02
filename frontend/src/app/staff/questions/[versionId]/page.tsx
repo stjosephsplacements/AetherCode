@@ -200,7 +200,7 @@ export default async function QuestionPage({ params }: { params: Promise<{ versi
               note={choice ? undefined : ready ? `${version.sample_test_case_count} sample, ${version.hidden_test_case_count} hidden, saved encrypted` : "None saved yet"}
             >
               {choice ? (
-                <ChoicesEditor versionId={version.id} expectedVersion={version.version} initial={{ choices: version.choices ?? [], correct: version.correct_choices ?? [], multiple: version.multiple_choice }} />
+                <ChoicesEditor versionId={version.id} expectedVersion={version.version} initial={{ choices: version.choices ?? [], correct: version.correct_choices ?? [], multiple: version.multiple_choice, explanations: version.choice_explanations ?? [] }} />
               ) : (
                 <div className="flex flex-wrap items-center gap-3">
                   <TestsEditor versionId={version.id} expectedVersion={version.version} existing={tests} />
@@ -240,6 +240,7 @@ export default async function QuestionPage({ params }: { params: Promise<{ versi
                   <li key={index} className={version.correct_choices?.includes(index) ? "font-medium text-success" : "text-ink"}>
                     {String.fromCharCode(65 + index)}. {option}
                     {version.correct_choices?.includes(index) && " (correct)"}
+                    {version.choice_explanations?.[index] && <span className="block text-[12.5px] font-normal text-ink-muted">{version.choice_explanations[index]}</span>}
                   </li>
                 ))}
               </ol>

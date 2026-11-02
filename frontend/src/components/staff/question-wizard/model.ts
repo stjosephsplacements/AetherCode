@@ -23,7 +23,16 @@ export type Details = {
 };
 
 export type TestDraft = { input: string; expected_output: string; sample: boolean; weight: number };
-export type Choices = { options: string[]; correct: number[]; multiple: boolean };
+/** `explanations` runs alongside `options`: one entry each, blank for none (ADR-0058). */
+export type Choices = { options: string[]; correct: number[]; multiple: boolean; explanations: string[] };
+
+export const MAX_EXPLANATION = 1000;
+
+/** What goes to the server: one entry per option, null for a blank one, or nothing when none was written. */
+export function explanationsBody(choices: Choices): (string | null)[] | undefined {
+  const written = choices.options.map((_, index) => choices.explanations[index]?.trim() || null);
+  return written.some(Boolean) ? written : undefined;
+}
 
 export const LIMITS = { timeSeconds: { min: 0.1, max: 60 }, memoryMb: { min: 16, max: 2048 }, weight: { min: 1, max: 100 } } as const;
 
@@ -93,6 +102,7 @@ export function choicesProblem(choices: Choices): string | null {
   if (choices.correct.length === 0) return "Mark the correct answer.";
   if (!choices.multiple && choices.correct.length > 1) return "A single-answer question has one correct option.";
   if (choices.correct.some((index) => index < 0 || index >= options.length)) return "The correct answer must be one of the options.";
+  if (choices.explanations.some((text) => text.trim().length > MAX_EXPLANATION)) return `An explanation has up to ${MAX_EXPLANATION} characters.`;
   return null;
 }
 
@@ -111,3 +121,32 @@ export const marksShare = (test: TestDraft, tests: TestDraft[]): number => {
   const total = summarizeTests(tests).weight;
   return total === 0 ? 0 : Math.round((test.weight / total) * 100);
 };
+
+export const MAX_UPLOADED_TESTS = 200;
+
+/**
+ * Reads a test file: a JSON array. Takes this editor's keys (`expected_output`, `sample`) and
+ * the exam-app ones (`output`, `isHidden`), so a file from either works.
+ */
+export function parseTestFile(text: string): { tests: TestDraft[]; error?: undefined } | { tests?: undefined; error: string } {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return { error: "That file is not valid JSON." };
+  }
+  if (!Array.isArray(parsed) || parsed.length === 0) return { error: "Expected a JSON list with at least one test." };
+  if (parsed.length > MAX_UPLOADED_TESTS) return { error: `At most ${MAX_UPLOADED_TESTS} tests can be uploaded at once.` };
+  const tests: TestDraft[] = [];
+  for (const [position, entry] of parsed.entries()) {
+    const item = (entry ?? {}) as Record<string, unknown>;
+    const input = item.input;
+    const output = item.expected_output ?? item.output;
+    if (typeof input !== "string" || typeof output !== "string") return { error: `Test ${position + 1} needs "input" and "expected_output" as text.` };
+    const hidden = typeof item.isHidden === "boolean" ? item.isHidden : typeof item.hidden === "boolean" ? item.hidden : undefined;
+    const sample = typeof item.sample === "boolean" ? item.sample : hidden === undefined ? false : !hidden;
+    const weight = item.weight === undefined ? 1 : Number(item.weight);
+    tests.push({ input, expected_output: output, sample, weight });
+  }
+  return { tests: prepareTests(tests) };
+}

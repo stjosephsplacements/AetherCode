@@ -78,6 +78,8 @@ type assignmentItem struct {
 	Choices        []string `json:"choices"`
 	CorrectChoices []int    `json:"correct_choices"`
 	MultipleChoice *bool    `json:"multiple_choice"`
+	// ChoiceExplanations is why each option is right or wrong, one entry per option, null for none (ADR-0058).
+	ChoiceExplanations []*string `json:"choice_explanations"`
 }
 
 type assignmentSnapshot struct {
@@ -375,6 +377,9 @@ func projectionError(err error, operation string) error {
 
 // validChoices mirrors the projection's bounds on a multiple-choice item.
 func validChoices(item assignmentItem) bool {
+	if item.ChoiceExplanations != nil && len(item.ChoiceExplanations) != len(item.Choices) {
+		return false
+	}
 	if len(item.Choices) < 2 || len(item.Choices) > 10 || len(item.CorrectChoices) < 1 || item.MultipleChoice == nil ||
 		(!*item.MultipleChoice && len(item.CorrectChoices) != 1) || item.Title == nil {
 		return false

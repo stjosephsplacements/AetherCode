@@ -51,4 +51,7 @@ message ResolvePublishedQuestionVersionResponse {
   repeated uint32 correct_choices = 13;
   // Whether a student may select more than one option.
   bool multiple_choice = 14;
+  // Why each option is right or wrong, one entry per option, empty for none
+  // (ADR-0058). For Assessment to pin; a candidate sees it only once results are released.
+  repeated string choice_explanations = 15;
 }

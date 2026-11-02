@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -262,12 +263,21 @@ func (repository *Postgres) AddExamItem(ctx context.Context, transaction pgx.Tx,
 		if err != nil {
 			return app.ExamItem{}, err
 		}
+		// No explanations is SQL NULL; the question bank sends an empty entry for an option with none.
+		var explanations any
+		if slices.ContainsFunc(command.Resolved.ChoiceExplanations, func(text string) bool { return text != "" }) {
+			encoded, err := json.Marshal(command.Resolved.ChoiceExplanations)
+			if err != nil {
+				return app.ExamItem{}, err
+			}
+			explanations = string(encoded)
+		}
 		if _, err := transaction.Exec(ctx, `
-			SELECT assessment.add_exam_mcq_item($1, $2, $3, $4, $5, $6, $7, $8, $9::numeric, $10, $11, $12::jsonb, $13, $14)
+			SELECT assessment.add_exam_mcq_item($1, $2, $3, $4, $5, $6, $7, $8, $9::numeric, $10, $11, $12::jsonb, $13, $14, $15::jsonb)
 		`, command.ID, command.TenantID, command.ExamVersionID, command.SectionID, command.ExpectedContentVersion,
 			command.Position, command.Resolved.QuestionID, command.QuestionVersionID, command.MaximumScore,
 			command.Resolved.Title, command.Resolved.PromptMarkdown, string(choices), command.Resolved.CorrectChoices,
-			command.Resolved.MultipleChoice); err != nil {
+			command.Resolved.MultipleChoice, explanations); err != nil {
 			return app.ExamItem{}, mapWriteError(err, "exam item could not be added")
 		}
 		return repository.itemAdded(ctx, transaction, command)

@@ -12,6 +12,9 @@ type mockStore struct {
 	softDeletePrincipalFunc func(context.Context, DeletePrincipal) error
 }
 
+func (m *mockStore) UpdateAccount(context.Context, string, AccountChanges, AccountAudit) error {
+	return nil
+}
 func (m *mockStore) Register(context.Context, Registration) error         { return nil }
 func (m *mockStore) VerifyEmail(context.Context, []byte) (string, error)  { return "", nil }
 func (m *mockStore) Authenticate(context.Context, Login) (Session, error) { return Session{}, nil }

@@ -30,3 +30,21 @@ refuses while mcq versions or language-less versions exist.
 history, one run, progress), plus `finish_practice_submission` for the
 Judge completion worker. Rollback drops them and restores the earlier
 functions.
+
+`000025_category_parent` adds one level of sub-categories (ADR-0058):
+`categories.parent_id`, a depth trigger, name uniqueness among siblings,
+`move_category`, a three-argument `create_category`, and a `list_categories`
+that returns `parent_id` and `question_count_total`. `delete_category` is
+refused while a category has sub-categories. Rollback refuses while two
+categories share a name under different parents.
+
+`000026_choice_explanations` adds `question_versions.choice_explanations`
+(ADR-0058): null, or an array as long as `choices` of text up to 1,000
+characters or null, enforced by a check. `set_question_version_choices` gains
+an optional sixth argument; omitting it clears the explanations. The resolve
+function is untouched, so the exam runner never receives them. Rollback drops
+the column and restores the five-argument function.
+
+`000027_resolve_choice_explanations` adds `out_choice_explanations` to
+`resolve_published_question_version` so Assessment can pin the explanations
+(ADR-0058). Rollback restores the previous result shape.

@@ -991,6 +991,65 @@ func (repository *Postgres) ListStudents(contextValue context.Context, transacti
 	return students, nil
 }
 
+// likePattern turns a search word into a contains pattern, with LIKE's own characters escaped.
+func likePattern(word string) any {
+	word = strings.TrimSpace(word)
+	if word == "" {
+		return nil
+	}
+	return "%" + strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(word) + "%"
+}
+
+// ListStudentRoster returns up to command.Limit students with their batch, college and placement
+// department, profile name and batch mentors, plus how many students match the filters in all
+// (ADR-0057). The sort is keyset-paged on (sort value, id) so deep pages cost the same as the first.
+func (repository *Postgres) ListStudentRoster(contextValue context.Context, transaction pgx.Tx, command app.ListRoster) ([]app.RosterStudent, int, error) {
+	rows, err := transaction.Query(contextValue, `
+		SELECT id::text, principal_id::text, tenant_id::text, enrollment_number, status, version, created_at,
+		       COALESCE(batch_id::text, ''), COALESCE(profile_name, ''),
+		       COALESCE(college_department_id::text, ''), COALESCE(placement_department_id::text, ''),
+		       mentor_principal_ids::text[], total
+		FROM users.student_roster($1::uuid, $2::text, $3::uuid, $4::uuid, $5::uuid, $6::text, $7::text, $8::boolean, $9::text, $10::uuid, $11::integer)
+	`,
+		command.TenantID, nullableText(command.Status), nullableText(command.BatchID),
+		nullableText(command.DepartmentID), nullableText(command.PlacementDepartmentID),
+		likePattern(command.Query), command.Sort, command.Descending,
+		cursorText(command), nullableText(command.CursorID), command.Limit,
+	)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list student roster: %w", err)
+	}
+	defer rows.Close()
+
+	students := make([]app.RosterStudent, 0, command.Limit)
+	total := 0
+	for rows.Next() {
+		var student app.RosterStudent
+		if err := rows.Scan(
+			&student.ID, &student.PrincipalID, &student.TenantID, &student.EnrollmentNumber,
+			&student.Status, &student.Version, &student.CreatedAt, &student.BatchID,
+			&student.ProfileName, &student.CollegeDepartmentID, &student.PlacementDepartmentID,
+			&student.MentorPrincipalIDs, &total,
+		); err != nil {
+			return nil, 0, fmt.Errorf("scan roster row: %w", err)
+		}
+		students = append(students, student)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("read roster rows: %w", err)
+	}
+	return students, total, nil
+}
+
+// cursorText is the sort value to continue after, or nil on the first page. An empty value is
+// real (a student with no profile name sorts first), so presence follows the cursor id.
+func cursorText(command app.ListRoster) any {
+	if command.CursorID == "" {
+		return nil
+	}
+	return command.CursorSort
+}
+
 // ListMentorBatchAssignments returns up to command.Limit active mentor
 // assignments for one batch, sorted by (created_at DESC, id DESC).
 func (repository *Postgres) ListMentorBatchAssignments(contextValue context.Context, transaction pgx.Tx, command app.ListMentorBatchAssignments) ([]app.MentorBatchAssignment, error) {

@@ -46,6 +46,7 @@ type ManagementStore interface {
 	CallerHasPlatformAccess(context.Context, pgx.Tx) (bool, error)
 	HardDeleteStudent(context.Context, pgx.Tx, DeleteStudent) error
 	ListStudents(context.Context, pgx.Tx, ListStudents) ([]Student, error)
+	ListStudentRoster(context.Context, pgx.Tx, ListRoster) ([]RosterStudent, int, error)
 	ListMentorBatchAssignments(context.Context, pgx.Tx, ListMentorBatchAssignments) ([]MentorBatchAssignment, error)
 	ListRoleAssignments(context.Context, pgx.Tx, ListRoleAssignments) ([]RoleAssignment, error)
 	Ping(context.Context) error
@@ -206,6 +207,38 @@ type ListStudents struct {
 	BatchID                string
 	DepartmentID           string
 	EnrollmentNumberPrefix string
+}
+
+// RosterStudent is a student as the staff console lists them: the student, the batch and
+// departments they belong to, their profile name and their batch's mentors (ADR-0057).
+type RosterStudent struct {
+	Student
+	BatchID            string   `json:"batch_id,omitempty"`
+	ProfileName        string   `json:"profile_name,omitempty"`
+	MentorPrincipalIDs []string `json:"mentor_principal_ids"`
+}
+
+// ListRoster filters, sorts and pages a college's students. Sort is "enrollment_number" or
+// "name"; the cursor carries the last row's sort value and id.
+type ListRoster struct {
+	TenantID              string
+	Limit                 int
+	Status                string
+	BatchID               string
+	DepartmentID          string
+	PlacementDepartmentID string
+	Query                 string
+	Sort                  string
+	Descending            bool
+	CursorSort            string
+	CursorID              string
+}
+
+// RosterPage is one page of the roster with the size of the filtered whole.
+type RosterPage struct {
+	Items      []RosterStudent `json:"items"`
+	NextCursor string          `json:"next_cursor,omitempty"`
+	Total      int             `json:"total"`
 }
 
 type ListMentorBatchAssignments struct {
@@ -474,6 +507,58 @@ func (service *ManagementService) ListStudents(contextValue context.Context, cap
 	})
 	if err != nil {
 		return Page[Student]{}, err
+	}
+	return page, nil
+}
+
+const (
+	rosterMaxLimit = 200
+	// rosterCursorMark keeps a cursor's sort value non-empty, which the token format requires,
+	// even when the value is an empty name.
+	rosterCursorMark = "k:"
+)
+
+// ListStudentRoster returns a page of a college's students with their batch, departments,
+// profile name and mentors, filtered and sorted in the database (ADR-0057).
+func (service *ManagementService) ListStudentRoster(contextValue context.Context, capability centralauthz.Capability, command ListRoster) (RosterPage, error) {
+	if command.Limit < 1 || command.Limit > rosterMaxLimit {
+		return RosterPage{}, apperrors.New(apperrors.CodeInvalidArgument, fmt.Sprintf("roster limit must be between 1 and %d", rosterMaxLimit))
+	}
+	if command.Sort != "enrollment_number" && command.Sort != "name" {
+		return RosterPage{}, apperrors.New(apperrors.CodeInvalidArgument, "sort must be enrollment_number or name")
+	}
+	if len(command.Query) > 100 {
+		return RosterPage{}, apperrors.New(apperrors.CodeInvalidArgument, "q is at most 100 characters")
+	}
+	if command.CursorSort != "" {
+		if !strings.HasPrefix(command.CursorSort, rosterCursorMark) {
+			return RosterPage{}, apperrors.New(apperrors.CodeInvalidArgument, "cursor is not a roster cursor")
+		}
+		command.CursorSort = strings.TrimPrefix(command.CursorSort, rosterCursorMark)
+	}
+	var page RosterPage
+	err := database.WithTenantTx(contextValue, service.pool, capability, func(transaction pgx.Tx) error {
+		probe := command
+		probe.Limit = command.Limit + 1
+		students, total, err := service.store.ListStudentRoster(contextValue, transaction, probe)
+		if err != nil {
+			return err
+		}
+		page = RosterPage{Items: []RosterStudent{}, Total: total}
+		if len(students) > command.Limit {
+			students = students[:command.Limit]
+			last := students[len(students)-1]
+			sortValue := last.EnrollmentNumber
+			if command.Sort == "name" {
+				sortValue = strings.ToLower(last.ProfileName)
+			}
+			page.NextCursor = pagination.Encode(rosterCursorMark+sortValue, last.ID)
+		}
+		page.Items = append(page.Items, students...)
+		return nil
+	})
+	if err != nil {
+		return RosterPage{}, err
 	}
 	return page, nil
 }

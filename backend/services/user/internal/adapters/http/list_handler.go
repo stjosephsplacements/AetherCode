@@ -64,6 +64,78 @@ func (handler *Handler) listStudents(writer http.ResponseWriter, request *http.R
 	httpx.WriteJSON(writer, http.StatusOK, page)
 }
 
+// listStudentRoster is the staff console's student table: one page of students with batch,
+// departments, profile name and mentors, filtered, searched and sorted in the database (ADR-0057).
+func (handler *Handler) listStudentRoster(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	limit, err := pagination.ParseLimit(request.URL.Query().Get("limit"), 50, 200)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	cursor, _, err := pagination.Parse(request.URL.Query().Get("cursor"))
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	status, err := httpx.ParseEnumQuery(request, "status", "pending", "active", "inactive", "withdrawn")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	sortBy, err := httpx.ParseEnumQuery(request, "sort", "enrollment_number", "name")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	if sortBy == "" {
+		sortBy = "enrollment_number"
+	}
+	order, err := httpx.ParseEnumQuery(request, "order", "asc", "desc")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	ids := map[string]string{}
+	for _, name := range []string{"batch_id", "department_id", "placement_department_id"} {
+		value := strings.TrimSpace(request.URL.Query().Get(name))
+		if value != "" {
+			if value, err = httpx.ParseUUIDValue(value, name); err != nil {
+				httpx.WriteError(writer, err)
+				return
+			}
+		}
+		ids[name] = value
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "students", tenantID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	page, err := handler.service.ListStudentRoster(request.Context(), decision.Capability, app.ListRoster{
+		TenantID:              tenantID,
+		Limit:                 limit,
+		Status:                status,
+		BatchID:               ids["batch_id"],
+		DepartmentID:          ids["department_id"],
+		PlacementDepartmentID: ids["placement_department_id"],
+		Query:                 request.URL.Query().Get("q"),
+		Sort:                  sortBy,
+		Descending:            order == "desc",
+		CursorSort:            cursor.SortValue,
+		CursorID:              cursor.ID,
+	})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, page)
+}
+
 func (handler *Handler) listMentorBatchAssignments(writer http.ResponseWriter, request *http.Request) {
 	tenantID, limit, cursor, err := listRequestParts(request)
 	if err != nil {

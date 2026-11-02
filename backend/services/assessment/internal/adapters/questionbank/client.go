@@ -126,6 +126,7 @@ func (client *Client) ResolvePublishedQuestionVersion(ctx context.Context, quest
 		Kind:               kindOf(response.GetKind()),
 		Choices:            response.GetChoices(),
 		CorrectChoices:     correctChoices(response.GetCorrectChoices()),
+		ChoiceExplanations: response.GetChoiceExplanations(),
 		MultipleChoice:     response.GetMultipleChoice(),
 	}, nil
 }

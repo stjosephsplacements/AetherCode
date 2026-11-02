@@ -819,10 +819,11 @@ func (handler *Handler) listModelChecks(writer http.ResponseWriter, request *htt
 }
 
 type choicesRequest struct {
-	ExpectedQuestionVersion int64    `json:"expected_question_version"`
-	Choices                 []string `json:"choices"`
-	CorrectChoices          []int    `json:"correct_choices"`
-	MultipleChoice          bool     `json:"multiple_choice"`
+	ExpectedQuestionVersion int64     `json:"expected_question_version"`
+	Choices                 []string  `json:"choices"`
+	CorrectChoices          []int     `json:"correct_choices"`
+	MultipleChoice          bool      `json:"multiple_choice"`
+	Explanations            []*string `json:"explanations"`
 }
 
 // setQuestionVersionChoices makes a draft multiple-choice (ADR-0035).
@@ -844,7 +845,7 @@ func (handler *Handler) setQuestionVersionChoices(writer http.ResponseWriter, re
 	}
 	version, err := handler.service.SetQuestionVersionChoices(request.Context(), decision.Capability, app.SetQuestionVersionChoices{
 		QuestionVersionID: questionVersionID, ExpectedQuestionVersion: body.ExpectedQuestionVersion,
-		Choices: body.Choices, CorrectChoices: body.CorrectChoices, MultipleChoice: body.MultipleChoice,
+		Choices: body.Choices, CorrectChoices: body.CorrectChoices, MultipleChoice: body.MultipleChoice, Explanations: body.Explanations,
 	})
 	if err != nil {
 		httpx.WriteError(writer, err)

@@ -1,130 +1,119 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { EmptyState, LoadError, PageHeader, Section, Table } from "@/components/staff/page-header";
+import { Suspense } from "react";
 import { CollegeFilter } from "@/components/staff/college-filter";
-import { Badge, Panel } from "@/components/ui/card";
-import type { Page, Student } from "@/lib/api-types";
+import { EmptyState, LoadError, PageHeader } from "@/components/staff/page-header";
 import { departmentLabel, listBatches, listDepartments, listPlacement } from "@/lib/server/directory";
-import { gateway } from "@/lib/server/gateway";
 import { inColleges } from "@/lib/server/colleges";
+import { describeAccounts } from "@/lib/server/people";
 import { collegesFor, requireStaff } from "@/lib/server/staff";
-import { cn } from "@/lib/utils";
-import { ImportPanel, ReissuePanel, StudentActions } from "./panels";
+import { listRoster } from "@/lib/server/students";
+import { EnrolDialog, ImportDialog } from "./panels";
+import { Roster, type StudentRow } from "./roster";
+import { RosterSkeleton } from "./skeleton";
 
 export const metadata: Metadata = { title: "Students" };
 
-export default async function StudentsPage({ searchParams }: { searchParams: Promise<{ batch?: string; college?: string }> }) {
+export default async function StudentsPage({ searchParams }: { searchParams: Promise<{ college?: string }> }) {
   const staff = await requireStaff();
   if (!staff.canManageAccounts) redirect("/staff");
-  const { batch: batchParam, college: collegeParam } = await searchParams;
-
-  let data;
-  try {
-    const colleges = collegesFor(staff, collegeParam);
-    const [perCollege, placement] = await Promise.all([
-      inColleges(colleges, async (collegeId) => ({ batches: await listBatches(collegeId), departments: await listDepartments(collegeId) })),
-      listPlacement(),
-    ]);
-    const batches = perCollege.flatMap(({ college, value }) => (value?.batches ?? []).map((candidate) => ({ ...candidate, collegeName: college.name })));
-    const departments = perCollege.flatMap(({ value }) => value?.departments ?? []);
-    const batch = batches.find((candidate) => candidate.id === batchParam) ?? batches[0];
-    const students = batch ? (await gateway<Page<Student>>(`/user/v1/tenants/${batch.tenant_id}/students?batch_id=${batch.id}&limit=100`)).items : [];
-    data = { batches, departments, placement, batch, students, unreachable: perCollege.filter((entry) => entry.failed).map((entry) => entry.college.name) };
-  } catch (error) {
-    return (
-      <>
-      <PageHeader title="Students" />
-        <LoadError error={error} />
-      </>
-    );
-  }
-  const { batches, departments, placement, batch, students, unreachable } = data;
-  const several = staff.isPlatformAdmin;
-  const placements = placement.organizations.flatMap((organization) =>
-    organization.departments.map((department) => ({ id: department.id, label: `${departmentLabel(department)}, ${organization.legal_name}` })),
-  );
-  const placementName = new Map(placements.map((option) => [option.id, option.label]));
-
+  const { college: collegeParam } = await searchParams;
   return (
     <>
       <PageHeader
         title="Students"
-        description="Import a batch from a spreadsheet, hand out passwords, and reset or disable accounts."
-        actions={staff.isPlatformAdmin ? <CollegeFilter colleges={staff.tenants.map((tenant) => ({ id: tenant.id, name: tenant.display_name }))} /> : undefined}
+        description="Enrol students one at a time or from a spreadsheet, hand out passwords, and reset, disable or remove accounts."
+        actions={staff.isPlatformAdmin && <CollegeFilter colleges={staff.tenants.map((tenant) => ({ id: tenant.id, name: tenant.display_name }))} />}
       />
-      {unreachable.length > 0 && <p role="alert" className="mb-4 text-sm text-warning">Could not load: {unreachable.join(", ")}.</p>}
+      <Suspense key={collegeParam ?? ""} fallback={<RosterSkeleton />}>
+        <StudentsContent staff={staff} collegeParam={collegeParam} />
+      </Suspense>
+    </>
+  );
+}
 
+async function StudentsContent({ staff, collegeParam }: { staff: Awaited<ReturnType<typeof requireStaff>>; collegeParam: string | undefined }) {
+  let data;
+  try {
+    const colleges = collegesFor(staff, collegeParam);
+    const [perCollege, placement] = await Promise.all([
+      inColleges(colleges, async (collegeId) => {
+        const [batches, departments] = await Promise.all([listBatches(collegeId), listDepartments(collegeId)]);
+        const students = await listRoster(collegeId, batches.map((batch) => batch.id));
+        const people = await describeAccounts(collegeId, students.flatMap((student) => [student.principal_id, ...student.mentor_principal_ids])).catch(() => new Map());
+        return { batches, departments, students, people };
+      }),
+      listPlacement(),
+    ]);
+    data = { perCollege, placement };
+  } catch (error) {
+    return <LoadError error={error} />;
+  }
+  const { perCollege, placement } = data;
+  const placements = placement.organizations.flatMap((organization) =>
+    organization.departments.map((department) => ({ id: department.id, label: `${departmentLabel(department)}, ${organization.legal_name}` })),
+  );
+  const placementName = new Map(placements.map((option) => [option.id, option.label]));
+  const batches = perCollege.flatMap(({ college, value }) => (value?.batches ?? []).map((batch) => ({ ...batch, collegeName: college.name })));
+  const departments = perCollege.flatMap(({ value }) => value?.departments ?? []);
+  const unreachable = perCollege.filter((entry) => entry.failed).map((entry) => entry.college.name);
+
+  const rows: StudentRow[] = perCollege.flatMap(({ college, value }) => {
+    if (!value) return [];
+    const departmentOf = new Map(value.departments.map((department) => [department.id, departmentLabel(department)]));
+    const batchOf = new Map(value.batches.map((batch) => [batch.id, batch]));
+    return value.students.map((student) => {
+      const person = value.people.get(student.principal_id);
+      const batch = batchOf.get(student.batch_id ?? "");
+      const mentors = student.mentor_principal_ids.map((id) => value.people.get(id)?.display_name).filter((name): name is string => Boolean(name));
+      return {
+        id: student.id,
+        principalId: student.principal_id,
+        tenantId: student.tenant_id,
+        college: college.name,
+        roll: student.enrollment_number,
+        name: person?.display_name ?? student.profile_name ?? "",
+        email: person?.email ?? "",
+        phone: person?.phone ?? "",
+        joinedAt: person?.created_at ?? "",
+        lastSignIn: person?.last_authenticated_at ?? "",
+        passwordState: person?.password_state ?? "",
+        username: person?.username ?? student.enrollment_number.toLowerCase(),
+        status: student.status,
+        batchId: student.batch_id ?? "",
+        batch: batch ? `${batch.name} (${batch.academic_year})` : "No batch",
+        department: departmentOf.get(student.college_department_id ?? batch?.department_id ?? "") ?? "",
+        mentors: mentors.join(", "),
+        placementId: student.placement_department_id ?? "",
+        placement: placementName.get(student.placement_department_id ?? "") ?? "Not visible to your role",
+      };
+    });
+  });
+
+  const why = placements.length === 0 ? (placement.readable ? "Create a placement department first" : "Ask a platform administrator to create a placement department") : undefined;
+
+  const dialogs = batches.length > 0 && (
+    <>
+      <ImportDialog batches={batches} placements={placements} departments={departments} disabledReason={why} />
+      <EnrolDialog batches={batches} placements={placements} departments={departments} disabledReason={why} />
+    </>
+  );
+
+  return (
+    <>
+      {unreachable.length > 0 && <p role="alert" className="mb-4 text-sm text-warning">Could not load: {unreachable.join(", ")}.</p>}
       {batches.length === 0 ? (
         <EmptyState>
-          Create a batch first, in <Link href="/staff/organisation" className="text-brand hover:underline">Departments</Link>.
+          <p className="mb-3 text-[15px] font-medium text-ink">No batches yet</p>
+          Students belong to a batch. Create one in{" "}
+          <Link href="/staff/organisation" className="text-brand hover:underline">
+            Departments
+          </Link>{" "}
+          first, then come back to import them.
         </EmptyState>
       ) : (
-        <>
-          <nav aria-label="Batches" className="flex flex-wrap gap-1.5">
-            {batches.map((candidate) => (
-              <Link
-                key={candidate.id}
-                href={`/staff/students?batch=${candidate.id}${collegeParam ? `&college=${collegeParam}` : ""}`}
-                className={cn(
-                  "rounded-full px-3 py-1 text-[13px] transition-colors",
-                  candidate.id === batch?.id ? "bg-ink text-canvas" : "bg-hover text-ink-muted hover:text-ink",
-                )}
-              >
-                {candidate.name}
-                {several && candidate.collegeName && <span className="ml-1.5 opacity-60">{candidate.collegeName}</span>}
-              </Link>
-            ))}
-          </nav>
-
-          {batch && (
-            <Section
-              title={`${batch.name}, ${students.length} student${students.length === 1 ? "" : "s"}`}
-              description={`Academic year ${batch.academic_year}`}
-            >
-              {students.length === 0 ? (
-                <EmptyState>No students in this batch yet. Import them below.</EmptyState>
-              ) : (
-                <Table head={["Roll number", "Placement department", "Status", ""]}>
-                  {students.map((student) => (
-                    <tr key={student.id}>
-                      <td className="px-4 py-2.5 font-mono text-[13px]">
-                        <Link href={`/staff/students/${student.id}?college=${batch?.tenant_id ?? ""}`} className="font-medium text-brand hover:underline">
-                          {student.enrollment_number}
-                        </Link>
-                      </td>
-                      <td className="px-4 py-2.5 text-ink-muted">{placementName.get(student.placement_department_id ?? "") ?? "Not visible to your role"}</td>
-                      <td className="px-4 py-2.5">
-                        <Badge tone={student.status === "active" ? "success" : "neutral"}>{student.status}</Badge>
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <StudentActions principalId={student.principal_id} username={student.enrollment_number.toLowerCase()} collegeId={student.tenant_id} />
-                      </td>
-                    </tr>
-                  ))}
-                </Table>
-              )}
-              {students.length > 0 && (
-                <div className="mt-4">
-                  <ReissuePanel batch={batch} />
-                </div>
-              )}
-            </Section>
-          )}
-
-          <Section title="Import students" description="Each student gets a username (their roll number in lowercase) and a one-time password.">
-            <Panel className="p-5">
-              {placements.length === 0 ? (
-                <p className="text-sm text-ink-muted">
-                  Every student needs a placement department.{" "}
-                  {placement.readable ? "Create one in Departments first." : "Ask a platform administrator to create one."}
-                </p>
-              ) : (
-                <ImportPanel batches={batches} placements={placements} departments={departments} />
-              )}
-            </Panel>
-          </Section>
-        </>
+        <Roster rows={rows} several={staff.isPlatformAdmin} actions={dialogs} />
       )}
     </>
   );

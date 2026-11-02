@@ -30,7 +30,7 @@ export function StaffSidebar({ viewer, groups, brand, college, initiallyCollapse
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key.toLowerCase() !== "b" || !(event.metaKey || event.ctrlKey)) return;
+      if (event.key?.toLowerCase() !== "b" || !(event.metaKey || event.ctrlKey)) return;
       const target = event.target as HTMLElement;
       if (target.closest("input, textarea, [contenteditable], .monaco-editor")) return;
       event.preventDefault();

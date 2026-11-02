@@ -36,8 +36,13 @@ func TestSingleSignOn(t *testing.T) {
 
 	summaries, err := repository.DescribeAccounts(ctx, []string{student.PrincipalID, uuid.NewString()})
 	require.NoError(t, err)
-	require.Equal(t, []app.AccountSummary{{PrincipalID: student.PrincipalID, Username: "23ec014", DisplayName: "Meera Nair", Status: "active"}}, summaries,
-		"existing accounts are described by name and status only (ADR-0043)")
+	require.Len(t, summaries, 1, "only existing accounts are described (ADR-0043)")
+	require.Equal(t, app.AccountSummary{PrincipalID: student.PrincipalID, Username: "23ec014", DisplayName: "Meera Nair", Status: "active", PasswordState: "temporary"},
+		app.AccountSummary{PrincipalID: summaries[0].PrincipalID, Username: summaries[0].Username, DisplayName: summaries[0].DisplayName, Status: summaries[0].Status, PasswordState: summaries[0].PasswordState},
+		"a provisioned account still carries its issued password, so its state is temporary (ADR-0057)")
+	require.False(t, summaries[0].CreatedAt.IsZero())
+	require.Nil(t, summaries[0].LastAuthenticatedAt, "never signed in")
+	require.NotNil(t, summaries[0].PasswordChangedAt)
 
 	due, err := repository.DueDirectorySync(ctx, 10)
 	require.NoError(t, err)

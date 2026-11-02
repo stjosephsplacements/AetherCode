@@ -256,7 +256,7 @@ export function QuestionWizard({ languages, categories: initialCategories, tagSu
   );
 }
 
-function Review({ details, tests, choices, languages, categories }: { details: Details; tests: TestDraft[]; choices: { options: string[]; correct: number[] }; languages: Language[]; categories: CategoryRef[] }) {
+function Review({ details, tests, choices, languages, categories }: { details: Details; tests: TestDraft[]; choices: { options: string[]; correct: number[]; explanations: string[] }; languages: Language[]; categories: CategoryRef[] }) {
   const mcq = details.kind === "mcq";
   const summary = summarizeTests(tests);
   return (
@@ -298,6 +298,7 @@ function Review({ details, tests, choices, languages, categories }: { details: D
                 <li key={index} className={choices.correct.includes(index) ? "font-medium text-success" : "text-ink"}>
                   {String.fromCharCode(65 + index)}. {option}
                   {choices.correct.includes(index) && " (correct)"}
+                  {choices.explanations[index]?.trim() && <span className="block text-[12.5px] font-normal text-ink-muted">{choices.explanations[index]}</span>}
                 </li>
               ))}
             </ol>

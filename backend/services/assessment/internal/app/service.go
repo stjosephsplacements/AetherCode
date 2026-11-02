@@ -111,7 +111,9 @@ type ResolvedQuestionVersion struct {
 	Kind           string
 	Choices        []string
 	CorrectChoices []int
-	MultipleChoice bool
+	// ChoiceExplanations has one entry per option, empty for none (ADR-0058); pinned, and shown only after release.
+	ChoiceExplanations []string
+	MultipleChoice     bool
 }
 
 // Page is one keyset page. NextCursor is empty on the final page.
@@ -1182,7 +1184,8 @@ func invalid(message string) error { return apperrors.New(apperrors.CodeInvalidA
 // validChoices mirrors exam_items' bounds on a multiple-choice item (ADR-0035).
 func validChoices(resolved ResolvedQuestionVersion) bool {
 	if len(resolved.Choices) < 2 || len(resolved.Choices) > 10 || len(resolved.CorrectChoices) < 1 ||
-		(!resolved.MultipleChoice && len(resolved.CorrectChoices) != 1) {
+		(!resolved.MultipleChoice && len(resolved.CorrectChoices) != 1) ||
+		(len(resolved.ChoiceExplanations) != 0 && len(resolved.ChoiceExplanations) != len(resolved.Choices)) {
 		return false
 	}
 	for _, index := range resolved.CorrectChoices {

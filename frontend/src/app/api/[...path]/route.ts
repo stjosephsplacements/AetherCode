@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { gatewayURL, publicOrigin } from "@/lib/server/config";
+import { gatewayURL, isOwnOrigin } from "@/lib/server/config";
 import { clientIP } from "@/lib/server/request";
 import { ACCESS_COOKIE } from "@/lib/server/tokens";
 
@@ -26,7 +26,7 @@ async function forward(request: NextRequest): Promise<Response> {
     return problem(404, "not_found", "Not found.");
   }
   // Cookies authenticate these requests, so refuse other sites' forms and scripts.
-  if (request.method !== "GET" && request.headers.get("origin") !== publicOrigin()) {
+  if (request.method !== "GET" && !isOwnOrigin(request.headers.get("origin"))) {
     return problem(403, "forbidden", "Cross-site request refused.");
   }
   const token = request.cookies.get(ACCESS_COOKIE)?.value;

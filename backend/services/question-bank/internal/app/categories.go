@@ -39,14 +39,20 @@ func NormalizeCategoryName(name string) (string, error) {
 	return cleaned, nil
 }
 
+// CreateCategory adds a category; ParentID files it as a sub-category (ADR-0058).
 type CreateCategory struct {
-	ID   string
-	Name string
+	ID       string
+	Name     string
+	ParentID string
 }
 
-type RenameCategory struct {
-	ID   string
-	Name string
+// UpdateCategory renames a category, moves it, or both in one transaction. A nil Name keeps the name;
+// MoveTo false keeps the parent, and an empty ParentID then means top level (ADR-0058).
+type UpdateCategory struct {
+	ID       string
+	Name     *string
+	MoveTo   bool
+	ParentID string
 }
 
 // DeleteCategory removes a category. Its questions move to MoveTo, or to Uncategorised.
@@ -89,24 +95,37 @@ func (service *Service) CreateCategory(contextValue context.Context, capability 
 	if err != nil {
 		return nil, err
 	}
-	if !isUUID(command.ID) {
+	if !isUUID(command.ID) || (command.ParentID != "" && !isUUID(command.ParentID)) {
 		return nil, apperrors.New(apperrors.CodeInvalidArgument, "category identifier is invalid")
 	}
 	return service.inTransaction(contextValue, capability, func(transaction pgx.Tx) (json.RawMessage, error) {
-		return service.store.CreateCategory(contextValue, transaction, command.ID, name)
+		return service.store.CreateCategory(contextValue, transaction, command.ID, name, command.ParentID)
 	})
 }
 
-func (service *Service) RenameCategory(contextValue context.Context, capability centralauthz.Capability, command RenameCategory) (json.RawMessage, error) {
-	name, err := NormalizeCategoryName(command.Name)
-	if err != nil {
-		return nil, err
-	}
-	if !isUUID(command.ID) {
+func (service *Service) UpdateCategory(contextValue context.Context, capability centralauthz.Capability, command UpdateCategory) (json.RawMessage, error) {
+	if !isUUID(command.ID) || (command.ParentID != "" && !isUUID(command.ParentID)) {
 		return nil, apperrors.New(apperrors.CodeInvalidArgument, "category identifier is invalid")
 	}
+	name := ""
+	if command.Name != nil {
+		var err error
+		if name, err = NormalizeCategoryName(*command.Name); err != nil {
+			return nil, err
+		}
+	}
 	return service.inTransaction(contextValue, capability, func(transaction pgx.Tx) (json.RawMessage, error) {
-		return service.store.RenameCategory(contextValue, transaction, command.ID, name)
+		var raw json.RawMessage
+		var err error
+		if command.Name != nil {
+			if raw, err = service.store.RenameCategory(contextValue, transaction, command.ID, name); err != nil {
+				return nil, err
+			}
+		}
+		if command.MoveTo {
+			return service.store.MoveCategory(contextValue, transaction, command.ID, command.ParentID)
+		}
+		return raw, nil
 	})
 }
 

@@ -116,6 +116,7 @@ func TestResolvedBundlesAreSnapshotted(t *testing.T) {
 		"kind":                            "coding",
 		"choices":                         nil,
 		"correct_choices":                 nil,
+		"choice_explanations":             nil,
 		"multiple_choice":                 false,
 	}
 

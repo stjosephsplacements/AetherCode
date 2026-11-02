@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -156,6 +157,10 @@ func (uncalledManagementStore) ListStudents(context.Context, pgx.Tx, ListStudent
 	panic("unexpected persistence call")
 }
 
+func (uncalledManagementStore) ListStudentRoster(context.Context, pgx.Tx, ListRoster) ([]RosterStudent, int, error) {
+	panic("unexpected persistence call")
+}
+
 func (uncalledManagementStore) ListMentorBatchAssignments(context.Context, pgx.Tx, ListMentorBatchAssignments) ([]MentorBatchAssignment, error) {
 	panic("unexpected persistence call")
 }
@@ -230,5 +235,24 @@ func TestUpdateStudent_RequiresValidInputs(t *testing.T) {
 			t.Fatalf("%s: want an invalid-argument error", name)
 		}
 		assertManagementErrorCode(t, err, apperrors.CodeInvalidArgument)
+	}
+}
+
+func TestListStudentRosterRejectsBadRequestsBeforeTheDatabase(t *testing.T) {
+	t.Parallel()
+	service := &ManagementService{pool: &pgxpool.Pool{}, store: uncalledManagementStore{}}
+	valid := ListRoster{TenantID: "018f4b0d-08f8-7c09-9ba7-efdf9c220001", Limit: 50, Sort: "name"}
+	for name, mutate := range map[string]func(*ListRoster){
+		"zero limit":      func(c *ListRoster) { c.Limit = 0 },
+		"limit too large": func(c *ListRoster) { c.Limit = 201 },
+		"unknown sort":    func(c *ListRoster) { c.Sort = "created_at" },
+		"long query":      func(c *ListRoster) { c.Query = strings.Repeat("a", 101) },
+		"foreign cursor":  func(c *ListRoster) { c.CursorSort = "2026-01-01T00:00:00Z"; c.CursorID = "x" },
+	} {
+		command := valid
+		mutate(&command)
+		if _, err := service.ListStudentRoster(context.Background(), centralauthz.Capability{}, command); err == nil {
+			t.Fatalf("%s: ListStudentRoster() accepted the request", name)
+		}
 	}
 }

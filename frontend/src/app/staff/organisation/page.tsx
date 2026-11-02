@@ -5,6 +5,8 @@ import { EmptyState, LoadError, PageHeader, Section, Table } from "@/components/
 import { ConfirmDelete } from "@/components/staff/confirm-delete";
 import { EditDialog } from "@/components/staff/edit-dialog";
 import { Panel } from "@/components/ui/card";
+import { Pager } from "@/components/staff/pager";
+import { paginate } from "@/lib/paginate";
 import { departmentLabel, listBatches, listDepartments, listPlacement } from "@/lib/server/directory";
 import { CollegeFilter } from "@/components/staff/college-filter";
 import { inColleges } from "@/lib/server/colleges";
@@ -13,12 +15,13 @@ import { createBatch, createDepartment, createPlacementDepartment, createPlaceme
 
 export const metadata: Metadata = { title: "Departments" };
 
-export default async function OrganisationPage({ searchParams }: { searchParams: Promise<{ college?: string }> }) {
+export default async function OrganisationPage({ searchParams }: { searchParams: Promise<{ college?: string; dp?: string; bp?: string; op?: string; pp?: string }> }) {
   const staff = await requireStaff();
   if (!staff.canManageAccounts) redirect("/staff");
   let data;
   try {
-    const colleges = collegesFor(staff, (await searchParams).college);
+    const query = await searchParams;
+    const colleges = collegesFor(staff, query.college);
     const [perCollege, placement] = await Promise.all([
       inColleges(colleges, async (collegeId) => ({ departments: await listDepartments(collegeId), batches: await listBatches(collegeId) })),
       listPlacement(),
@@ -28,6 +31,7 @@ export default async function OrganisationPage({ searchParams }: { searchParams:
       batches: perCollege.flatMap(({ college, value }) => (value?.batches ?? []).map((batch) => ({ ...batch, collegeId: college.id, collegeName: college.name }))),
       unreachable: perCollege.filter((entry) => entry.failed).map((entry) => entry.college.name),
       placement,
+      query,
     };
   } catch (error) {
     return (
@@ -37,8 +41,13 @@ export default async function OrganisationPage({ searchParams }: { searchParams:
       </>
     );
   }
-  const { departments, batches, placement, unreachable } = data;
+  const { departments, batches, placement, unreachable, query } = data;
   const several = staff.isPlatformAdmin;
+  const pagedDepartments = paginate(departments, query.dp);
+  const pagedBatches = paginate(batches, query.bp);
+  const pagedOrganizations = paginate(placement.organizations, query.op);
+  const placementDepartments = placement.organizations.flatMap((organization) => organization.departments.map((department) => ({ department, organization })));
+  const pagedPlacementDepartments = paginate(placementDepartments, query.pp);
   const departmentName = new Map(departments.map((department) => [department.id, departmentLabel(department)]));
 
   return (
@@ -54,7 +63,7 @@ export default async function OrganisationPage({ searchParams }: { searchParams:
         {departments.length > 0 && (
           <div className="mb-4">
             <Table head={several ? ["Department", "College", "Code", "Batches", ""] : ["Department", "Code", "Batches", ""]}>
-              {departments.map((department) => {
+              {pagedDepartments.rows.map((department) => {
                 const inside = batches.filter((batch) => batch.department_id === department.id).length;
                 return (
                   <tr key={department.id}>
@@ -93,13 +102,14 @@ export default async function OrganisationPage({ searchParams }: { searchParams:
                 );
               })}
             </Table>
+            <Pager meta={pagedDepartments} param="dp" noun="departments" />
           </div>
         )}
         {batches.length === 0 ? (
           <EmptyState>No batches yet. Create a department, then a batch in it.</EmptyState>
         ) : (
           <Table head={several ? ["Batch", "College", "Code", "Department", "Academic year", ""] : ["Batch", "Code", "Department", "Academic year", ""]}>
-            {batches.map((batch) => (
+            {pagedBatches.rows.map((batch) => (
               <tr key={batch.id}>
                 <td className="px-4 py-3 font-medium text-ink">{batch.name}</td>
                 {several && <td className="px-4 py-3 text-ink-muted">{batch.collegeName}</td>}
@@ -134,6 +144,7 @@ export default async function OrganisationPage({ searchParams }: { searchParams:
             ))}
           </Table>
         )}
+        {batches.length > 0 && <Pager meta={pagedBatches} param="bp" noun="batches" />}
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <Panel className="p-5">
             <h3 className="mb-4 text-sm font-semibold text-ink">New department</h3>
@@ -201,7 +212,7 @@ export default async function OrganisationPage({ searchParams }: { searchParams:
           <>
           <div className="mb-4">
             <Table head={["Placement organization", "Code", ""]}>
-              {placement.organizations.map((organization) => (
+              {pagedOrganizations.rows.map((organization) => (
                 <tr key={organization.id}>
                   <td className="px-4 py-3 font-medium text-ink">{organization.legal_name}</td>
                   <td className="px-4 py-3 font-mono text-xs text-ink-muted">{organization.code}</td>
@@ -229,18 +240,18 @@ export default async function OrganisationPage({ searchParams }: { searchParams:
                 </tr>
               ))}
             </Table>
+            <Pager meta={pagedOrganizations} param="op" noun="organizations" />
           </div>
           <Table head={["Placement department", "Code", "Organization"]}>
-            {placement.organizations.flatMap((organization) =>
-              organization.departments.map((department) => (
-                <tr key={department.id}>
-                  <td className="px-4 py-3 font-medium text-ink">{department.name}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-ink-muted">{department.code}</td>
-                  <td className="px-4 py-3 text-ink-muted">{organization.legal_name}</td>
-                </tr>
-              )),
-            )}
+            {pagedPlacementDepartments.rows.map(({ department, organization }) => (
+              <tr key={department.id}>
+                <td className="px-4 py-3 font-medium text-ink">{department.name}</td>
+                <td className="px-4 py-3 font-mono text-xs text-ink-muted">{department.code}</td>
+                <td className="px-4 py-3 text-ink-muted">{organization.legal_name}</td>
+              </tr>
+            ))}
           </Table>
+          <Pager meta={pagedPlacementDepartments} param="pp" noun="departments" />
           </>
         )}
         {placement.readable && (

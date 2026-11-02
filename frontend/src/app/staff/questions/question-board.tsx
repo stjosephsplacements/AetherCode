@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ChevronRight, Search, X } from "lucide-react";
+import { ChevronRight, Search, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Select } from "@/components/staff/form";
@@ -73,13 +73,19 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
       (!needle || row.title.toLowerCase().includes(needle) || row.slug.includes(needle) || row.tags.some((entry) => entry.includes(needle))),
   );
   // An older question bank has no categories; its questions sit in one "Uncategorised" folder, as the backfill files them.
-  const folders = (categories.length > 0 ? categories : [{ id: "", name: "Uncategorised", question_count: 0 }]).map((entry) => {
-    const inside = rows.filter((row) => row.categoryId === entry.id);
-    return { id: entry.id, name: entry.name, rows: inside, levels: { easy: inside.filter((row) => row.difficulty === "easy").length, medium: inside.filter((row) => row.difficulty === "medium").length, hard: inside.filter((row) => row.difficulty === "hard").length } };
+  // A folder's card counts its sub-folders' questions too; `rows` are the ones filed directly in it (ADR-0058).
+  const known = new Set(categories.map((entry) => entry.id));
+  const flat = (categories.length > 0 ? categories : [{ id: "", name: "Uncategorised", question_count: 0 }]).map((entry) => ({ ...entry, parent_id: entry.parent_id && known.has(entry.parent_id) ? entry.parent_id : null, rows: rows.filter((row) => row.categoryId === entry.id) }));
+  const folders = flat.map((entry) => {
+    const deep = [...entry.rows, ...flat.filter((child) => child.parent_id === entry.id).flatMap((child) => child.rows)];
+    return { ...entry, deep, children: flat.filter((child) => child.parent_id === entry.id), levels: { easy: deep.filter((row) => row.difficulty === "easy").length, medium: deep.filter((row) => row.difficulty === "medium").length, hard: deep.filter((row) => row.difficulty === "hard").length } };
   });
   const filtering = Boolean(needle) || difficulty !== "all" || tag !== "all";
   const open = folders.find((entry) => (entry.id || UNCATEGORISED) === folder) ?? null;
-  const shown = filtering ? folders.filter((entry) => entry.rows.length > 0) : folders;
+  const parentOfOpen = open?.parent_id ? folders.find((entry) => entry.id === open.parent_id) : undefined;
+  const topFolders = folders.filter((entry) => !entry.parent_id);
+  const shown = filtering ? topFolders.filter((entry) => entry.deep.length > 0) : topFolders;
+  const subFolders = open ? folders.filter((entry) => entry.parent_id === open.id && (!filtering || entry.deep.length > 0)) : [];
   const empty = TABS.find((entry) => entry.key === tab)!.empty;
 
   return (
@@ -151,15 +157,28 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
         <div className="min-w-0 xl:col-span-9">
           {open ? (
             <>
-              <div className="mb-4 flex items-center gap-3">
-                <button type="button" onClick={() => openFolder(null)} className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-control)] pr-2 text-sm text-ink-muted transition-colors hover:text-ink">
-                  <ArrowLeft className="size-4" strokeWidth={1.75} />
-                  Folders
-                </button>
+              <nav aria-label="Folder path" className="mb-4 flex flex-wrap items-center gap-1.5">
+                {[{ id: null, name: "Folders" }, ...(parentOfOpen ? [parentOfOpen] : [])].map((crumb) => (
+                  <span key={crumb.id ?? "root"} className="inline-flex items-center gap-1.5">
+                    <button type="button" onClick={() => openFolder(crumb.id)} className="inline-flex h-8 items-center rounded-[var(--radius-control)] text-sm text-ink-muted transition-colors hover:text-ink">
+                      {crumb.name}
+                    </button>
+                    <ChevronRight aria-hidden className="size-3.5 text-ink-subtle" strokeWidth={1.75} />
+                  </span>
+                ))}
                 <h2 className="text-[17px] font-semibold tracking-[-0.01em] text-ink">{open.name}</h2>
-                <span className="font-mono text-[12px] tabular-nums text-ink-subtle">{open.rows.length}</span>
-              </div>
-              {open.rows.length === 0 ? (
+                <span className="ml-1.5 font-mono text-[12px] tabular-nums text-ink-subtle">{open.deep.length}</span>
+              </nav>
+              {subFolders.length > 0 && (
+                <ul className="mb-6 grid gap-x-5 gap-y-6 sm:grid-cols-2 2xl:grid-cols-3" aria-label="Sub-categories">
+                  {subFolders.map((entry) => (
+                    <li key={entry.id}>
+                      <FolderCard name={entry.name} total={entry.deep.length} levels={entry.levels} onOpen={() => openFolder(entry.id)} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {open.rows.length === 0 && subFolders.length === 0 ? (
                 <div className="rounded-[var(--radius-surface)] border border-dashed border-line-strong px-6 py-14 text-center text-sm text-ink-muted">
                   {lists[tab].length === 0 ? empty : filtering ? "Nothing in this folder matches those filters." : "This folder is empty in this list."}
                 </div>
@@ -214,7 +233,7 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
             <ul className="grid gap-x-5 gap-y-6 sm:grid-cols-2 2xl:grid-cols-3" aria-label="Categories">
               {shown.map((entry) => (
                 <li key={entry.id}>
-                  <FolderCard name={entry.name} total={entry.rows.length} levels={entry.levels} onOpen={() => openFolder(entry.id || UNCATEGORISED)} />
+                  <FolderCard name={entry.name} total={entry.deep.length} levels={entry.levels} onOpen={() => openFolder(entry.id || UNCATEGORISED)} />
                 </li>
               ))}
             </ul>
@@ -222,7 +241,7 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
         </div>
 
         <div className="space-y-3 xl:col-span-3">
-          <Mix label={open ? open.name : TABS.find((entry) => entry.key === tab)!.label} rows={open ? open.rows : lists[tab]} languages={languages} />
+          <Mix label={open ? open.name : TABS.find((entry) => entry.key === tab)!.label} rows={open ? open.deep : lists[tab]} languages={languages} />
           <Attention lists={lists} languages={languages} onOpen={setTab} />
         </div>
       </div>

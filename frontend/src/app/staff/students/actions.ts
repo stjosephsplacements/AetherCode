@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { ActionState } from "@/components/staff/form";
 import type { Batch, IssuedCredential, Page, StudentImportResult } from "@/lib/api-types";
 import { actionError } from "@/lib/server/actions";
-import { gateway } from "@/lib/server/gateway";
+import { GatewayError, gateway } from "@/lib/server/gateway";
 import { collegeFor, requireStaff } from "@/lib/server/staff";
 
 export type ImportState = ActionState & { result?: StudentImportResult };
@@ -121,6 +121,23 @@ export async function updateStudent(collegeId: string, studentId: string, change
   return { error: null, message: "Saved." };
 }
 
+/** Changes an account's name, email or phone (ADR-0057). Only the fields sent change; empty clears an email or phone. */
+export async function updateAccount(collegeId: string, principalId: string, changes: Record<string, string>): Promise<ActionState> {
+  const staff = await requireStaff();
+  if (!staff.canManageAccounts) return { error: "Only administrators edit accounts." };
+  const tenantId = collegeFor(staff, collegeId);
+  const body: Record<string, string> = {};
+  for (const key of ["display_name", "email", "phone"]) if (key in changes) body[key] = changes[key]!.trim();
+  if (Object.keys(body).length === 0) return { error: "Nothing to change." };
+  try {
+    await gateway(`/user/v1/tenants/${tenantId}/accounts/${principalId}`, { method: "PATCH", body });
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+  revalidatePath("/staff/students");
+  return { error: null, message: "Saved." };
+}
+
 /** Removes a student record. Their sign-in can be turned off instead, which is easy to undo. */
 export async function deleteStudent(collegeId: string, studentId: string, reason: string): Promise<ActionState> {
   const staff = await requireStaff();
@@ -134,4 +151,74 @@ export async function deleteStudent(collegeId: string, studentId: string, reason
   }
   revalidatePath("/staff/students");
   return { error: null, message: "Deleted." };
+}
+
+export type Target = { principalId: string; collegeId: string; username: string };
+
+/** Groups a selection by college, since the bulk routes act inside one college. */
+function byCollege(targets: Target[], staff: Awaited<ReturnType<typeof requireStaff>>): Map<string, Target[]> {
+  const groups = new Map<string, Target[]>();
+  for (const target of targets) {
+    const tenantId = collegeFor(staff, target.collegeId);
+    groups.set(tenantId, [...(groups.get(tenantId) ?? []), target]);
+  }
+  return groups;
+}
+
+/** A user service from before the one-call routes answers 404 (or 400, reading the path as an id); the same work is then done one account at a time. */
+const missingRoute = (error: unknown) => error instanceof GatewayError && (error.status === 404 || error.status === 400);
+
+export async function bulkSetStatus(targets: Target[], status: "active" | "disabled"): Promise<ActionState> {
+  const staff = await requireStaff();
+  if (!staff.canManageAccounts) return { error: "Only administrators change accounts." };
+  if (targets.length === 0 || targets.length > 500) return { error: "Select between 1 and 500 students." };
+  let done = 0;
+  let failed = 0;
+  let firstError: string | null = null;
+  for (const [tenantId, group] of byCollege(targets, staff)) {
+    try {
+      try {
+        await gateway(`/user/v1/tenants/${tenantId}/accounts/bulk-status`, { method: "POST", body: { principal_ids: group.map((target) => target.principalId), status } });
+      } catch (error) {
+        if (!missingRoute(error)) throw error;
+        for (const target of group) await gateway(`/user/v1/tenants/${tenantId}/accounts/${target.principalId}/status`, { method: "PUT", body: { status } });
+      }
+      done += group.length;
+    } catch (error) {
+      failed += group.length;
+      firstError ??= actionError(error);
+    }
+  }
+  revalidatePath("/staff/students");
+  if (done === 0) return { error: firstError ?? "Could not change any of them." };
+  const verb = status === "disabled" ? "disabled" : "enabled";
+  return { error: null, message: `Sign-in ${verb} for ${done}${failed ? `, ${failed} failed (${firstError})` : ""}.` };
+}
+
+export async function bulkResetPasswords(targets: Target[]): Promise<CredentialsState> {
+  const staff = await requireStaff();
+  if (!staff.canManageAccounts) return { error: "Only administrators change accounts." };
+  if (targets.length === 0 || targets.length > 500) return { error: "Select between 1 and 500 students." };
+  const accounts: IssuedCredential[] = [];
+  let failed = 0;
+  let firstError: string | null = null;
+  for (const [tenantId, group] of byCollege(targets, staff)) {
+    try {
+      try {
+        const result = await gateway<{ accounts: IssuedCredential[] }>(`/user/v1/tenants/${tenantId}/accounts/bulk-password`, { method: "POST", body: { principal_ids: group.map((target) => target.principalId) } });
+        accounts.push(...result.accounts);
+      } catch (error) {
+        if (!missingRoute(error)) throw error;
+        for (const target of group) {
+          const result = await gateway<{ password: string }>(`/user/v1/tenants/${tenantId}/accounts/${target.principalId}/password`, { method: "POST" });
+          accounts.push({ principal_id: target.principalId, username: target.username, display_name: "", password: result.password });
+        }
+      }
+    } catch (error) {
+      failed += group.length;
+      firstError ??= actionError(error);
+    }
+  }
+  if (accounts.length === 0) return { error: firstError ?? "Could not reset any of them." };
+  return { error: null, message: failed ? `${failed} could not be reset (${firstError}).` : undefined, accounts };
 }
