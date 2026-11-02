@@ -84,6 +84,19 @@ function ReleasedResult({ result }: { result: Extract<AttemptResult, { released:
                 {formatScoreText(Number(item.score))} / {formatScoreText(Number(item.maximum_score))}
               </span>
             </div>
+            {item.options && item.options.length > 0 && (
+              <ul className="mt-2 space-y-1.5 pl-10 text-[13px]" aria-label="Options">
+                {item.options.map((option, position) => (
+                  <li key={position} className={option.correct ? "text-success" : "text-ink-muted"}>
+                    <span className="font-medium">
+                      {String.fromCharCode(65 + position)}. {option.text}
+                      {option.correct && " (correct)"}
+                    </span>
+                    {option.explanation && <span className="block text-ink-muted">{option.explanation}</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
             {item.tests && item.tests.length > 0 && (
               <ol className="mt-2 flex flex-wrap gap-1.5 pl-10" aria-label="Tests">
                 {item.tests.map((test) => (

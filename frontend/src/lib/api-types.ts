@@ -400,6 +400,8 @@ export type AttemptResult =
         kind?: "coding" | "mcq";
         /** The best evaluation's verdict per test, by number only (ADR-0038). */
         tests?: { number: number; verdict: string }[];
+        /** A multiple-choice question's options once results are released: which were correct and why (ADR-0058). */
+        options?: { text: string; correct: boolean; explanation: string | null }[];
       }[];
     };
 
