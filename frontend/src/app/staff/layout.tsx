@@ -24,7 +24,7 @@ export default async function StaffLayout({ children }: { children: React.ReactN
       items: [
         { href: "/staff/students", label: "Students", icon: "students" },
         { href: "/staff/placements", label: "Placements", icon: "placements" },
-        { href: "/staff/organisation", label: "Departments", icon: "organisation" },
+        { href: "/staff/departments", label: "Departments", icon: "organisation" },
         { href: "/staff/accounts", label: "Staff accounts", icon: "accounts" },
         { href: "/staff/permissions", label: "Permissions", icon: "accounts" },
       ],
