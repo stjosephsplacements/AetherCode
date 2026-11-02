@@ -1,6 +1,7 @@
 "use client";
 
 import type { Problem } from "@/lib/api-types";
+import { uuid } from "./uuid";
 
 export class APIError extends Error {
   constructor(
@@ -28,7 +29,7 @@ export async function api<T>(path: string, options: Options = {}): Promise<T> {
   const method = options.method ?? "GET";
   const headers: Record<string, string> = { Accept: "application/json" };
   if (options.body !== undefined) headers["Content-Type"] = "application/json";
-  if (method !== "GET") headers["Idempotency-Key"] = options.idempotencyKey ?? crypto.randomUUID();
+  if (method !== "GET") headers["Idempotency-Key"] = options.idempotencyKey ?? uuid();
 
   for (let attempt = 0; ; attempt++) {
     const response = await fetch(`/api${path}`, {

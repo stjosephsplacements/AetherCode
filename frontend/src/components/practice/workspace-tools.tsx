@@ -4,6 +4,7 @@ import { Eraser, GripHorizontal, NotebookPen, Pause, Play, Plus, RotateCcw, Stic
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { uuid } from "@/lib/client/uuid";
 
 /* ---------- storage: this browser only, kept when functional cookies are allowed ---------- */
 
@@ -232,7 +233,7 @@ export function WorkspaceTools({ storageKey }: { storageKey: string }) {
                   </div>
                 );
               })}
-              <button type="button" disabled={notes.length >= 12} onClick={() => saveNotes([...notes, { id: crypto.randomUUID(), color: notes.length % COLORS.length, text: "" }])} className="flex w-full items-center justify-center gap-1.5 rounded-2xl border border-dashed border-line-strong py-2.5 text-[13px] font-medium text-ink-muted transition-colors hover:border-brand hover:text-brand disabled:opacity-50">
+              <button type="button" disabled={notes.length >= 12} onClick={() => saveNotes([...notes, { id: uuid(), color: notes.length % COLORS.length, text: "" }])} className="flex w-full items-center justify-center gap-1.5 rounded-2xl border border-dashed border-line-strong py-2.5 text-[13px] font-medium text-ink-muted transition-colors hover:border-brand hover:text-brand disabled:opacity-50">
                 <Plus className="size-4" />
                 Add a note
               </button>
