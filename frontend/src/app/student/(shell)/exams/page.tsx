@@ -63,7 +63,7 @@ export default async function MyExams({ searchParams }: { searchParams: Promise<
             const attempt = attemptOf.get(assignment.id);
             const unfinished = attempt && (attempt.lifecycle_state === "created" || attempt.lifecycle_state === "active");
             return (
-              <li key={assignment.id} className={cn("flex flex-col rounded-[var(--radius-surface)] border bg-surface p-5", tab === "live" ? "border-brand/40" : "border-line")}>
+              <li key={assignment.id} className={cn("flex flex-col rounded-3xl border bg-surface shadow-[var(--shadow-panel)] p-5", tab === "live" ? "border-brand/40" : "border-line")}>
                 <div className="flex items-center justify-between gap-2">
                   {tab === "live" ? <Badge tone="brand">Open now</Badge> : tab === "upcoming" ? <Badge tone="neutral">Upcoming</Badge> : <Badge tone="neutral">{assignment.lifecycle_state === "expired" ? "Missed" : "Ended"}</Badge>}
                   <span className="inline-flex items-center gap-1.5 font-mono text-xs text-ink-subtle">

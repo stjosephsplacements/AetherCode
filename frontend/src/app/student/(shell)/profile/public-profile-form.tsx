@@ -24,7 +24,7 @@ export function PublicProfileForm({ profile, origin, suggestion }: { profile: Pu
   const savedUrl = `${origin}/u/${encodeURIComponent(profile.slug)}`;
   const content = profile.content;
   return (
-    <div className="rounded-[var(--radius-surface)] border border-line bg-surface p-5">
+    <div className="rounded-3xl border border-line bg-surface shadow-[var(--shadow-panel)] p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Public profile</h2>
         <span className={`text-[12.5px] font-medium ${profile.enabled ? "text-success" : "text-ink-subtle"}`}>{profile.enabled ? "Public" : "Hidden"}</span>

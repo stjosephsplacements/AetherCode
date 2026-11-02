@@ -10,7 +10,7 @@ const LEVELS = [
 /** Practice problems solved, overall and by difficulty. */
 export function SolvedBars({ progress, className }: { progress: PracticeProgress; className?: string }) {
   return (
-    <div className={cn("grid gap-6 rounded-[var(--radius-surface)] border border-line bg-surface p-5 sm:grid-cols-[auto_1fr] sm:items-center", className)}>
+    <div className={cn("grid gap-6 rounded-3xl border border-line bg-surface shadow-[var(--shadow-panel)] p-5 sm:grid-cols-[auto_1fr] sm:items-center", className)}>
       <div>
         <p className="font-mono text-[2rem] font-medium leading-none tabular-nums text-ink">
           {progress.solved}
