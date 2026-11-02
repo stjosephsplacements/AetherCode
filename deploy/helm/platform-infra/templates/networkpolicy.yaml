@@ -46,3 +46,47 @@ spec:
         {{- end }}
 ---
 {{- end }}
+{{- if .Values.engineInNamespace.enabled }}
+{{- /* The execution engine and its go-judge sandbox run in this namespace: only the judge reaches the engine, only the engine reaches the sandbox. */}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: aethercode-exec-from-judge
+  labels:
+    {{- include "infra.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: aethercode-exec
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: judge
+      ports:
+        - protocol: TCP
+          port: 5100
+        - protocol: TCP
+          port: 6060
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: go-judge-from-engine
+  labels:
+    {{- include "infra.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: go-judge
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: aethercode-exec
+      ports:
+        - protocol: TCP
+          port: 5050
+{{- end }}
