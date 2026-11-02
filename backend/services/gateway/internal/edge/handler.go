@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -186,7 +187,8 @@ func (handler *Handler) ServeHTTP(writer http.ResponseWriter, request *http.Requ
 		return
 	}
 
-	public := route.service == "identity" && isPublicIdentityRoute(request.Method, route.forwardedPath)
+	public := (route.service == "identity" && isPublicIdentityRoute(request.Method, route.forwardedPath)) ||
+		(route.service == "user" && isPublicProfileRoute(request.Method, route.forwardedPath))
 	assertion := ""
 	principalID := ""
 	if !public {
@@ -283,6 +285,13 @@ func (handler *Handler) route(request *http.Request) (route, error) {
 		return route{}, errors.New("operational route")
 	}
 	return route{service: parts[0], forwardedPath: forwarded, externalPath: pathValue, upstream: upstream}, nil
+}
+
+// publicProfilePattern is the one anonymous read outside identity: a student's opt-in public profile (ADR-0062).
+var publicProfilePattern = regexp.MustCompile(`^/v1/public/profiles/[a-z0-9][a-z0-9-]{2,30}$`)
+
+func isPublicProfileRoute(method, forwardedPath string) bool {
+	return method == http.MethodGet && publicProfilePattern.MatchString(forwardedPath)
 }
 
 func isPublicIdentityRoute(method, forwardedPath string) bool {
