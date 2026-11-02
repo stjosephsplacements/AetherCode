@@ -1,23 +1,36 @@
-import { ArrowRight } from "lucide-react";
-
+import { ArrowRight, BookOpenCheck, CalendarClock, Code2, Flame, Trophy } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/card";
 import type { Attempt, Page, PracticeProgress } from "@/lib/api-types";
 import { groupByPhase, listAssignments } from "@/lib/server/assignments";
 import { gateway } from "@/lib/server/gateway";
 import { requireViewer } from "@/lib/server/session";
 import { currentStreak, weekGrid } from "@/lib/streak";
 import { TIME_ZONE, cn, formatDateTime, formatDuration, formatWindow } from "@/lib/utils";
-import { AsciiWordmark } from "@/components/site/ascii-wordmark";
-import { WORDMARK_COLUMNS } from "@/components/site/wordmark";
 import { Countdown } from "./countdown";
-import { Eyebrow, TermLink } from "./term";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
 const DIFFICULTIES = ["easy", "medium", "hard"] as const;
 const DAY = new Intl.DateTimeFormat("en-CA", { timeZone: TIME_ZONE }); // YYYY-MM-DD
+
+function Tile({ icon, label, value, note, tone }: { icon: ReactNode; label: string; value: ReactNode; note: string; tone?: "brand" }) {
+  return (
+    <div className="rounded-[var(--radius-surface)] border border-line bg-surface p-5">
+      <div className="flex items-center justify-between">
+        <span className="font-[family-name:var(--font-eyebrow)] text-[10.5px] uppercase tracking-[0.14em] text-ink-subtle">{label}</span>
+        <span aria-hidden className={cn("grid size-8 place-items-center rounded-[var(--radius-control)]", tone === "brand" ? "bg-brand-soft text-brand" : "bg-hover text-ink-muted")}>
+          {icon}
+        </span>
+      </div>
+      <p className="mt-3 font-mono text-[28px] font-semibold leading-none tracking-tight text-ink">{value}</p>
+      <p className="mt-1.5 text-[12.5px] text-ink-muted">{note}</p>
+    </div>
+  );
+}
 
 export default async function StudentDashboard() {
   const viewer = await requireViewer();
@@ -44,102 +57,90 @@ export default async function StudentDashboard() {
   const resume = live[0] && attemptOf.get(live[0].id)?.lifecycle_state === "active";
   const solvedShare = progress && progress.available > 0 ? Math.round((progress.solved / progress.available) * 100) : 0;
 
-  const statLabel = "mt-1 text-[14px] text-ink-muted";
   return (
-    <div className="animate-enter">
-      <section className="relative isolate flex flex-col items-center overflow-hidden px-2 pb-12 pt-8 text-center sm:pt-12">
-        <div aria-hidden className="pointer-events-none absolute inset-0 -z-20 hidden overflow-hidden md:block">
-          <div className="aurora absolute -left-[10%] top-[8%] h-[70%] w-[55%] bg-[radial-gradient(closest-side,var(--brand-soft),transparent)]" />
-          <div className="aurora absolute -right-[8%] top-[20%] h-[70%] w-[50%] bg-[radial-gradient(closest-side,var(--glow-2),transparent)] [animation-delay:-9s]" />
-        </div>
-        <div aria-hidden className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_62%_46%_at_50%_42%,var(--canvas)_40%,transparent)]" />
-        <p className="font-mono text-[12px] uppercase tracking-[0.14em] text-ink-subtle">{dateLine}</p>
-        <div className="mt-5" aria-hidden>
-          <AsciiWordmark style={{ "--columns": WORDMARK_COLUMNS + 80 } as React.CSSProperties} />
-        </div>
-        <h1 className="heading mt-8 text-[1.7rem] leading-[1.3] text-ink sm:text-[2.4rem]">
-          <span className="marker">
-            {greeting}, {firstName}.
-          </span>
-        </h1>
-        <p className="mt-5 max-w-[60ch] font-mono text-[13.5px] text-ink-muted">
-          <span className="bg-canvas px-1">
-            {"// "}
-            {live.length > 0
-              ? live.length === 1
-                ? "you have an exam open right now."
-                : `you have ${live.length} exams open right now.`
-              : upcoming[0]
-                ? `next up: ${upcoming[0].title.toLowerCase()}, ${formatDateTime(upcoming[0].available_from)}.`
-                : streak > 0
-                  ? `${streak}-day practice streak. keep it going.`
-                  : "nothing scheduled. a good day to practice."}
-          </span>
-        </p>
-        <div className="mt-8 flex flex-wrap justify-center gap-3">
-          {live[0] ? (
-            <TermLink primary href={`/student/exams/${live[0].id}`}>
-              {resume ? "resume exam ->" : "start exam ->"}
-            </TermLink>
-          ) : (
-            <TermLink primary href="/student/practice">
-              practice now -&gt;
-            </TermLink>
-          )}
-          <TermLink href="/student/exams">my exams</TermLink>
-        </div>
-
-        {next && (
-          <div className="mt-10 w-full max-w-[460px] border border-ink bg-canvas p-5 text-left shadow-[4px_4px_0_var(--ink)]">
-            <div className="flex items-center justify-between font-mono text-[12px]">
-              <span className="text-brand">[ {live[0] ? "open now" : "next exam"} ]</span>
-              <span className="text-ink-subtle">{formatDuration(next.duration_seconds)} limit</span>
-            </div>
-            <h2 className="mt-3 line-clamp-2 text-[17px] font-semibold text-ink">{next.title}</h2>
-            <p className="mt-1 text-[12.5px] text-ink-muted">{formatWindow(next.available_from, next.available_until)}</p>
-            <div className="mt-4 flex items-end justify-between border-t border-line pt-3">
-              <span className="font-mono text-[12px] text-ink-subtle">{live[0] ? "closes in" : "opens in"}</span>
-              <Countdown to={live[0] ? next.available_until : next.available_from} className="font-mono text-[26px] font-semibold tabular-nums leading-none text-ink" />
+    <div className="animate-enter space-y-6">
+      <section className="relative overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface p-6 sm:p-8">
+        <div aria-hidden className="pointer-events-none absolute -right-20 -top-24 size-72 rounded-full bg-brand/10 blur-3xl" />
+        <div className="relative grid gap-6 lg:grid-cols-[1fr_minmax(0,380px)] lg:items-center">
+          <div>
+            <p className="font-[family-name:var(--font-eyebrow)] text-[10.5px] uppercase tracking-[0.14em] text-ink-subtle">{dateLine}</p>
+            <h1 className="mt-2 text-[28px] font-semibold leading-tight tracking-[-0.025em] text-ink sm:text-[34px]">
+              {greeting}, {firstName}
+            </h1>
+            <p className="mt-2 max-w-[52ch] text-[15px] leading-relaxed text-ink-muted">
+              {live.length > 0
+                ? live.length === 1
+                  ? "You have an exam open right now."
+                  : `You have ${live.length} exams open right now.`
+                : upcoming[0]
+                  ? `Your next exam is ${upcoming[0].title}, on ${formatDateTime(upcoming[0].available_from)}.`
+                  : streak > 0
+                    ? `You are on a ${streak}-day practice streak. Keep it going.`
+                    : "Nothing is scheduled. A good day to practice."}
+            </p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              {live[0] ? (
+                <Button asChild size="lg">
+                  <Link href={`/student/exams/${live[0].id}`}>
+                    {resume ? "Resume exam" : "Start exam"}
+                    <ArrowRight />
+                  </Link>
+                </Button>
+              ) : (
+                <Button asChild size="lg">
+                  <Link href="/student/practice">
+                    <Code2 />
+                    Practice now
+                  </Link>
+                </Button>
+              )}
+              <Button asChild size="lg" variant="secondary">
+                <Link href="/student/exams">All my exams</Link>
+              </Button>
             </div>
           </div>
-        )}
 
-        <nav aria-label="Shortcuts" className="mt-10 flex flex-wrap justify-center gap-x-6 gap-y-2 font-mono text-[13px]">
-          {[
-            ["/student/practice", "[_]", "practice"],
-            ["/student/interviews", "[?]", "interviews"],
-            ["/student/resume", "[#]", "resume"],
-            ["/student/help", "[~]", "help"],
-          ].map(([href, glyph, label]) => (
-            <Link key={href} href={href!} className="bg-canvas px-1 text-ink-muted transition-colors hover:text-ink">
-              <span className="text-brand">{glyph}</span> {label}
-            </Link>
-          ))}
-        </nav>
+          <div className="rounded-[var(--radius-surface)] border border-line bg-canvas p-5">
+            {next ? (
+              <>
+                <div className="flex items-center justify-between gap-2">
+                  <Badge tone={live[0] ? "brand" : "neutral"}>{live[0] ? "Open now" : "Next exam"}</Badge>
+                  <span className="text-[12px] text-ink-subtle">{formatDuration(next.duration_seconds)} limit</span>
+                </div>
+                <h2 className="mt-3 line-clamp-2 text-[17px] font-semibold tracking-[-0.01em] text-ink">{next.title}</h2>
+                <p className="mt-1 text-[12.5px] text-ink-muted">{formatWindow(next.available_from, next.available_until)}</p>
+                <div className="mt-4 flex items-end justify-between border-t border-line pt-3">
+                  <span className="text-[12px] text-ink-subtle">{live[0] ? "Closes in" : "Opens in"}</span>
+                  <Countdown to={live[0] ? next.available_until : next.available_from} className="font-mono text-[26px] font-semibold tabular-nums leading-none text-ink" />
+                </div>
+              </>
+            ) : (
+              <div className="py-6 text-center">
+                <CalendarClock className="mx-auto size-6 text-ink-subtle" strokeWidth={1.5} />
+                <p className="mt-2 text-sm font-medium text-ink">No exams scheduled</p>
+                <p className="mt-0.5 text-[12.5px] text-ink-muted">New ones appear here as soon as faculty assign them.</p>
+              </div>
+            )}
+          </div>
+        </div>
       </section>
 
-      <dl className="mb-10 grid divide-line border-y border-line bg-canvas sm:grid-cols-4 sm:divide-x">
-        {[
-          ["exams ahead", String(live.length + upcoming.length), live.length ? `${live.length} open now` : "assigned by faculty"],
-          ["completed", String(past.length), past.length === 1 ? "exam taken" : "exams taken"],
-          ["practice solved", progress ? `${progress.solved}/${progress.available}` : "-", progress ? `${solvedShare}% of the set` : "unavailable"],
-          ["day streak", String(streak), streak > 0 ? "days in a row" : "practice today to start"],
-        ].map(([label, value, note]) => (
-          <div key={label} className="flex flex-col-reverse px-6 py-7">
-            <dt className={statLabel}>
-              {label} <span className="text-ink-subtle">· {note}</span>
-            </dt>
-            <dd className="text-[2.2rem] font-bold leading-none tracking-[-0.04em] text-ink">{value}</dd>
-          </div>
-        ))}
-      </dl>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Tile icon={<CalendarClock className="size-4" />} label="Exams ahead" value={live.length + upcoming.length} note={live.length ? `${live.length} open now` : "assigned by faculty"} tone="brand" />
+        <Tile icon={<BookOpenCheck className="size-4" />} label="Completed" value={past.length} note={past.length === 1 ? "exam taken" : "exams taken"} />
+        <Tile icon={<Trophy className="size-4" />} label="Practice solved" value={progress ? `${progress.solved}/${progress.available}` : "-"} note={progress ? `${solvedShare}% of the set` : "progress unavailable"} />
+        <Tile icon={<Flame className="size-4" />} label="Day streak" value={streak} note={streak > 0 ? "days in a row" : "practice today to start"} />
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-6">
           <section aria-label="Coming up">
-            <Eyebrow action={<Link href="/student/scheduled" className="text-[13px] text-brand hover:underline">
+            <div className="mb-2.5 flex items-end justify-between">
+              <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Coming up</h2>
+              <Link href="/student/scheduled" className="text-[13px] text-brand hover:underline">
                 Schedule
-              </Link>}>coming up</Eyebrow>
+              </Link>
+            </div>
             {live.length + upcoming.length === 0 ? (
               <p className="rounded-[var(--radius-surface)] border border-dashed border-line-strong px-5 py-8 text-center text-sm text-ink-muted">Nothing coming up.</p>
             ) : (
@@ -171,9 +172,12 @@ export default async function StudentDashboard() {
           </section>
 
           <section aria-label="Recent results">
-            <Eyebrow action={<Link href="/student/completed" className="text-[13px] text-brand hover:underline">
+            <div className="mb-2.5 flex items-end justify-between">
+              <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Recent exams</h2>
+              <Link href="/student/completed" className="text-[13px] text-brand hover:underline">
                 All completed
-              </Link>}>recent exams</Eyebrow>
+              </Link>
+            </div>
             {past.length === 0 ? (
               <p className="rounded-[var(--radius-surface)] border border-dashed border-line-strong px-5 py-8 text-center text-sm text-ink-muted">Finished exams appear here with their results.</p>
             ) : (
