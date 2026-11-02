@@ -1,0 +1,21 @@
+deploy/helm/platform-infra/templates/networkpolicy.yaml
+  s_4a7f3c46d06453::t_9920dd5e615fbf 49-92
+deploy/helm/platform-infra/values.yaml
+  s_4a7f3c46d06453::t_c2f85474d01852 68-71
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b0a754cd645b00a12b61d9c9ce658e309bcfac0e",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
