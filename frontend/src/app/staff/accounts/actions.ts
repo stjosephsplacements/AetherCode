@@ -5,6 +5,7 @@ import type { ActionState } from "@/components/staff/form";
 import { actionError } from "@/lib/server/actions";
 import { gateway } from "@/lib/server/gateway";
 import { collegeFor, requireStaff } from "@/lib/server/staff";
+import { parseStaffLines } from "@/lib/staff-csv";
 
 export type StaffState = ActionState & { created?: { username: string; name: string; password: string } };
 
@@ -88,4 +89,35 @@ export async function revokeRole(_previous: ActionState, form: FormData): Promis
   }
   revalidatePath("/staff/accounts");
   return { error: null, message: "Role removed." };
+}
+
+export type StaffImportState = ActionState & { created?: { username: string; name: string; password: string }[]; failed?: string[] };
+
+/** Adds many staff at once, one account per line. A line that fails does not stop the others. */
+export async function importStaff(_previous: StaffImportState, form: FormData): Promise<StaffImportState> {
+  const pickedDepartment = String(form.get("department_id") ?? "");
+  const [pickedCollege, departmentId] = pickedDepartment.includes(":") ? pickedDepartment.split(":") : ["", pickedDepartment];
+  const staff = await requireStaff();
+  if (!staff.canManageAccounts) return { error: "Only administrators add staff." };
+  const tenantId = collegeFor(staff, pickedCollege || String(form.get("college_id") ?? ""));
+  const role = String(form.get("role"));
+  const { rows, problems } = parseStaffLines(String(form.get("csv") ?? ""));
+  if (problems.length > 0) return { error: problems.slice(0, 5).join(" ") + (problems.length > 5 ? ` (and ${problems.length - 5} more)` : "") };
+  if (rows.length === 0) return { error: "Paste or upload at least one person." };
+  const created: { username: string; name: string; password: string }[] = [];
+  const failed: string[] = [];
+  for (const row of rows) {
+    try {
+      const result = await gateway<{ password: string }>(`/user/v1/tenants/${tenantId}/staff`, {
+        method: "POST",
+        body: { username: row.username, display_name: row.name, role, ...(row.email ? { email: row.email } : {}), ...(role === "department_user" ? { department_id: departmentId } : {}) },
+      });
+      created.push({ username: row.username, name: row.name, password: result.password });
+    } catch (error) {
+      failed.push(`${row.username}: ${actionError(error)}`);
+    }
+  }
+  revalidatePath("/staff/accounts");
+  if (created.length === 0) return { error: "Nobody was added.", failed };
+  return { error: null, message: `${created.length} added${failed.length ? `, ${failed.length} failed` : ""}.`, created, failed };
 }
