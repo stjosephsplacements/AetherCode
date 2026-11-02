@@ -15,7 +15,7 @@ import (
 // installed by migration 000012, outside any request capability.
 func (repository *Postgres) ResolvePublishedQuestionVersion(contextValue context.Context, questionVersionID string) (app.ResolvedQuestionVersion, error) {
 	resolved := app.ResolvedQuestionVersion{QuestionVersionID: questionVersionID}
-	var languages, choices []byte
+	var languages, choices, explanations []byte
 	var evaluationKey, evaluationSHA, evaluationKeyReference, sampleKey, sampleSHA, sampleKeyReference *string
 	var sampleCount, hiddenCount *int
 	var correct []int32
@@ -25,7 +25,7 @@ func (repository *Postgres) ResolvePublishedQuestionVersion(contextValue context
 		       out_evaluation_object_key, out_evaluation_checksum, out_evaluation_key_reference,
 		       out_sample_object_key, out_sample_checksum, out_sample_key_reference,
 		       out_sample_count, out_hidden_count, out_prompt_markdown,
-		       out_kind, out_choices, out_correct_choices, out_multiple_choice
+		       out_kind, out_choices, out_correct_choices, out_multiple_choice, out_choice_explanations
 		FROM qbank.resolve_published_question_version($1)
 	`, questionVersionID).Scan(
 		&resolved.QuestionID, &resolved.VersionNumber, &resolved.Title, &languages,
@@ -33,7 +33,7 @@ func (repository *Postgres) ResolvePublishedQuestionVersion(contextValue context
 		&evaluationKey, &evaluationSHA, &evaluationKeyReference,
 		&sampleKey, &sampleSHA, &sampleKeyReference,
 		&sampleCount, &hiddenCount, &resolved.PromptMarkdown,
-		&resolved.Kind, &choices, &correct, &resolved.MultipleChoice,
+		&resolved.Kind, &choices, &correct, &resolved.MultipleChoice, &explanations,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return app.ResolvedQuestionVersion{}, apperrors.New(apperrors.CodeNotFound, "published question version not found")
@@ -47,6 +47,19 @@ func (repository *Postgres) ResolvePublishedQuestionVersion(contextValue context
 	if choices != nil {
 		if err := json.Unmarshal(choices, &resolved.Choices); err != nil {
 			return app.ResolvedQuestionVersion{}, fmt.Errorf("decode choices: %w", err)
+		}
+	}
+	if explanations != nil {
+		var written []*string
+		if err := json.Unmarshal(explanations, &written); err != nil {
+			return app.ResolvedQuestionVersion{}, fmt.Errorf("decode choice explanations: %w", err)
+		}
+		for _, entry := range written {
+			if entry == nil {
+				resolved.ChoiceExplanations = append(resolved.ChoiceExplanations, "")
+			} else {
+				resolved.ChoiceExplanations = append(resolved.ChoiceExplanations, *entry)
+			}
 		}
 	}
 	for _, index := range correct {

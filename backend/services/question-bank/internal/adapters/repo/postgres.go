@@ -523,9 +523,18 @@ func (repository *Postgres) SetQuestionVersionChoices(contextValue context.Conte
 	if err != nil {
 		return app.QuestionVersion{}, err
 	}
+	// No explanations is SQL NULL; a nil slice would marshal to the JSON value null instead.
+	var explanations any
+	if command.Explanations != nil {
+		encoded, err := json.Marshal(command.Explanations)
+		if err != nil {
+			return app.QuestionVersion{}, err
+		}
+		explanations = string(encoded)
+	}
 	var raw json.RawMessage
-	if err := transaction.QueryRow(contextValue, `SELECT qbank.set_question_version_choices($1, $2, $3::jsonb, $4, $5)`,
-		command.QuestionVersionID, command.ExpectedQuestionVersion, string(choices), command.CorrectChoices, command.MultipleChoice).Scan(&raw); err != nil {
+	if err := transaction.QueryRow(contextValue, `SELECT qbank.set_question_version_choices($1, $2, $3::jsonb, $4, $5, $6::jsonb)`,
+		command.QuestionVersionID, command.ExpectedQuestionVersion, string(choices), command.CorrectChoices, command.MultipleChoice, explanations).Scan(&raw); err != nil {
 		return app.QuestionVersion{}, mapCommandError(err, "set question version choices")
 	}
 	return decodeQuestionVersion(raw)

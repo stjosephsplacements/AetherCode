@@ -120,6 +120,29 @@ func TestRequestQuestionReviewRejectsInvalidFieldsBeforeTheStore(t *testing.T) {
 	}
 }
 
+func TestSetQuestionVersionChoicesRejectsBadExplanationsBeforeTheStore(t *testing.T) {
+	t.Parallel()
+	text := "why"
+	long := strings.Repeat("x", 1001)
+	for name, explanations := range map[string][]*string{
+		"fewer than options": {&text},
+		"more than options":  {&text, nil, nil, nil},
+		"over 1000 letters":  {&long, nil, nil},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			service := &Service{store: &panicStore{}}
+			_, err := service.SetQuestionVersionChoices(context.TODO(), centralauthz.Capability{}, SetQuestionVersionChoices{
+				QuestionVersionID: "01920a4d-1234-7abc-9876-543210fedcba", ExpectedQuestionVersion: 1,
+				Choices: []string{"a", "b", "c"}, CorrectChoices: []int{0}, Explanations: explanations,
+			})
+			if err == nil {
+				t.Fatal("SetQuestionVersionChoices() expected invalid argument error, got nil")
+			}
+		})
+	}
+}
+
 func TestPublishQuestionVersionRequiresValidQuestionAndVersionIDs(t *testing.T) {
 	t.Parallel()
 	for _, testCase := range []struct {
@@ -389,11 +412,15 @@ func (s *panicStore) ListCategories(context.Context, pgx.Tx) (json.RawMessage, e
 	panic("unexpected store call")
 }
 
-func (s *panicStore) CreateCategory(context.Context, pgx.Tx, string, string) (json.RawMessage, error) {
+func (s *panicStore) CreateCategory(context.Context, pgx.Tx, string, string, string) (json.RawMessage, error) {
 	panic("unexpected store call")
 }
 
 func (s *panicStore) RenameCategory(context.Context, pgx.Tx, string, string) (json.RawMessage, error) {
+	panic("unexpected store call")
+}
+
+func (s *panicStore) MoveCategory(context.Context, pgx.Tx, string, string) (json.RawMessage, error) {
 	panic("unexpected store call")
 }
 

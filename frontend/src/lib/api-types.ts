@@ -204,6 +204,8 @@ export type QuestionVersion = {
   choices: string[] | null;
   correct_choices: number[] | null;
   multiple_choice: boolean;
+  /** Why each option is right or wrong, one entry per option, null where none was written (ADR-0058). */
+  choice_explanations?: (string | null)[] | null;
   /** The question's: test questions never reach practice (ADR-0041). */
   audience?: Audience;
   /** The question's, not the version's: where it is filed, and how it is described (ADR-0052). */
@@ -215,10 +217,13 @@ export type QuestionVersion = {
 export type Audience = "test" | "practice";
 
 /** A category as a question refers to it. */
-export type CategoryRef = { id: string; name: string };
+export type CategoryRef = { id: string; name: string; parent_id?: string | null };
 
-/** GET /question-bank/v1/categories */
-export type Category = CategoryRef & { question_count: number };
+/**
+ * GET /question-bank/v1/categories. `question_count` is the category's own; top-level
+ * items add `question_count_total`, their own plus their sub-categories' (ADR-0058).
+ */
+export type Category = CategoryRef & { question_count: number; question_count_total?: number };
 
 export type QuestionDetail = {
   question: { id: string; slug: string; lifecycle_state: string; version: number; audience?: Audience; category_id?: string; category?: CategoryRef };
@@ -396,6 +401,8 @@ export type AttemptResult =
         kind?: "coding" | "mcq";
         /** The best evaluation's verdict per test, by number only (ADR-0038). */
         tests?: { number: number; verdict: string }[];
+        /** A multiple-choice question's options once results are released: which were correct and why (ADR-0058). */
+        options?: { text: string; correct: boolean; explanation: string | null }[];
       }[];
     };
 

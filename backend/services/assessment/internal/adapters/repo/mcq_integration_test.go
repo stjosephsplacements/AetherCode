@@ -79,7 +79,7 @@ func TestMultipleChoiceItems(t *testing.T) {
 	useContext("assessment.exam_items")
 	must(`SET LOCAL ROLE aether_assessment_app`)
 	must(`SELECT assessment.add_exam_mcq_item($1, $2, $3, $4, $5, 1, $6, $7, 5::numeric, 'Big O', 'Binary search runs in?',
-	      '["O(n)","O(log n)","O(1)"]'::jsonb, ARRAY[1], false)`, mcqID, tenant, versionID, poolSection, contentVersion, uuid.New(), uuid.New())
+	      '["O(n)","O(log n)","O(1)"]'::jsonb, ARRAY[1], false, '[null,"It halves the range.",null]'::jsonb)`, mcqID, tenant, versionID, poolSection, contentVersion, uuid.New(), uuid.New())
 	must(`RESET ROLE`)
 	contentVersion++
 	publish := func() error {
@@ -117,6 +117,7 @@ func TestMultipleChoiceItems(t *testing.T) {
 	require.Equal(t, "mcq", mcq["kind"])
 	require.Equal(t, []any{"O(n)", "O(log n)", "O(1)"}, mcq["choices"])
 	require.Equal(t, []any{float64(1)}, mcq["correct_choices"])
+	require.Equal(t, []any{nil, "It halves the range.", nil}, mcq["choice_explanations"], "the snapshot carries them for Submission to reveal after release")
 	require.Nil(t, mcq["evaluation_bundle_object_key"])
 	require.Equal(t, "coding", snapshot.Items[0]["kind"])
 }

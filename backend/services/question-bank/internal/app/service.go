@@ -56,8 +56,9 @@ type Store interface {
 	ListModelChecks(context.Context, pgx.Tx, string) (json.RawMessage, error)
 	SetQuestionAudience(context.Context, pgx.Tx, string, string) error
 	ListCategories(context.Context, pgx.Tx) (json.RawMessage, error)
-	CreateCategory(context.Context, pgx.Tx, string, string) (json.RawMessage, error)
+	CreateCategory(context.Context, pgx.Tx, string, string, string) (json.RawMessage, error)
 	RenameCategory(context.Context, pgx.Tx, string, string) (json.RawMessage, error)
+	MoveCategory(context.Context, pgx.Tx, string, string) (json.RawMessage, error)
 	DeleteCategory(context.Context, pgx.Tx, string, string) (json.RawMessage, error)
 	SetQuestionCategory(context.Context, pgx.Tx, string, string) (json.RawMessage, error)
 	SetQuestionTags(context.Context, pgx.Tx, string, []Tag) (json.RawMessage, error)
@@ -177,6 +178,9 @@ type QuestionVersion struct {
 	Choices        []string `json:"choices"`
 	CorrectChoices []int    `json:"correct_choices"`
 	MultipleChoice bool     `json:"multiple_choice"`
+	// ChoiceExplanations is why each option is right or wrong, one entry per option, null where the author wrote none (ADR-0058).
+	// Like the answer key, authors see it; the exam runner never receives it.
+	ChoiceExplanations []*string `json:"choice_explanations"`
 	// Audience is the question's: "test" or "practice" (ADR-0041).
 	Audience string `json:"audience,omitempty"`
 	// CategoryID and Category are the question's too (ADR-0052).
@@ -1129,13 +1133,15 @@ func (service *Service) UpdateQuestionVersion(contextValue context.Context, capa
 
 // SetQuestionVersionChoices makes a draft multiple-choice (ADR-0035): 2 to 10
 // options, the indexes of the correct ones, and whether more than one may be
-// chosen. The database validates them again.
+// chosen. Explanations, when given, has one entry per option, nil for none, up
+// to 1000 characters each (ADR-0058). The database validates them again.
 type SetQuestionVersionChoices struct {
 	QuestionVersionID       string
 	ExpectedQuestionVersion int64
 	Choices                 []string
 	CorrectChoices          []int
 	MultipleChoice          bool
+	Explanations            []*string
 }
 
 func (service *Service) SetQuestionVersionChoices(contextValue context.Context, capability centralauthz.Capability, command SetQuestionVersionChoices) (QuestionVersion, error) {
@@ -1150,6 +1156,22 @@ func (service *Service) SetQuestionVersionChoices(contextValue context.Context, 
 	}
 	if len(command.Choices) < 2 || len(command.Choices) > 10 || len(command.CorrectChoices) < 1 || (!command.MultipleChoice && len(command.CorrectChoices) != 1) {
 		return QuestionVersion{}, apperrors.New(apperrors.CodeInvalidArgument, "a multiple-choice question needs 2 to 10 options and its correct answer")
+	}
+	if command.Explanations != nil && len(command.Explanations) != len(command.Choices) {
+		return QuestionVersion{}, apperrors.New(apperrors.CodeInvalidArgument, "give one explanation or none for each option")
+	}
+	for index, explanation := range command.Explanations {
+		if explanation == nil {
+			continue
+		}
+		trimmed := strings.TrimSpace(*explanation)
+		if trimmed == "" {
+			command.Explanations[index] = nil
+		} else if runeCount(trimmed) > 1000 {
+			return QuestionVersion{}, apperrors.New(apperrors.CodeInvalidArgument, "an explanation has up to 1000 characters")
+		} else {
+			command.Explanations[index] = &trimmed
+		}
 	}
 	command.QuestionVersionID = strings.ToLower(strings.TrimSpace(command.QuestionVersionID))
 	var result QuestionVersion

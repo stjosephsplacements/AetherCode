@@ -40,7 +40,8 @@ func (handler *Handler) listCategories(writer http.ResponseWriter, request *http
 }
 
 type categoryNameRequest struct {
-	Name string `json:"name"`
+	Name     string `json:"name"`
+	ParentID string `json:"parent_id"`
 }
 
 func (handler *Handler) createCategory(writer http.ResponseWriter, request *http.Request) {
@@ -59,7 +60,7 @@ func (handler *Handler) createCategory(writer http.ResponseWriter, request *http
 		httpx.WriteError(writer, err)
 		return
 	}
-	raw, err := handler.service.CreateCategory(request.Context(), decision.Capability, app.CreateCategory{ID: id, Name: body.Name})
+	raw, err := handler.service.CreateCategory(request.Context(), decision.Capability, app.CreateCategory{ID: id, Name: body.Name, ParentID: body.ParentID})
 	if err != nil {
 		httpx.WriteError(writer, err)
 		return
@@ -67,15 +68,28 @@ func (handler *Handler) createCategory(writer http.ResponseWriter, request *http
 	httpx.WriteJSON(writer, http.StatusOK, raw)
 }
 
+// renameCategory renames a category, moves it (parent_id, null for top level), or both.
 func (handler *Handler) renameCategory(writer http.ResponseWriter, request *http.Request) {
 	id, err := httpx.ParseUUIDPathValue(request, "category_id")
 	if err != nil {
 		httpx.WriteError(writer, err)
 		return
 	}
-	var body categoryNameRequest
+	var body struct {
+		Name     *string         `json:"name"`
+		ParentID json.RawMessage `json:"parent_id"`
+	}
 	if err := httpx.DecodeJSON(request, &body); err != nil {
 		httpx.WriteError(writer, err)
+		return
+	}
+	var parentID string
+	if body.ParentID != nil && json.Unmarshal(body.ParentID, &parentID) != nil {
+		httpx.WriteError(writer, apperrors.New(apperrors.CodeInvalidArgument, "parent_id must be a category identifier or null"))
+		return
+	}
+	if body.Name == nil && body.ParentID == nil {
+		httpx.WriteError(writer, apperrors.New(apperrors.CodeInvalidArgument, "name or parent_id is required"))
 		return
 	}
 	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "category_management", id, "")
@@ -83,7 +97,7 @@ func (handler *Handler) renameCategory(writer http.ResponseWriter, request *http
 		httpx.WriteError(writer, err)
 		return
 	}
-	raw, err := handler.service.RenameCategory(request.Context(), decision.Capability, app.RenameCategory{ID: id, Name: body.Name})
+	raw, err := handler.service.UpdateCategory(request.Context(), decision.Capability, app.UpdateCategory{ID: id, Name: body.Name, MoveTo: body.ParentID != nil, ParentID: parentID})
 	if err != nil {
 		httpx.WriteError(writer, err)
 		return
