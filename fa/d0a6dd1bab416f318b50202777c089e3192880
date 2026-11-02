@@ -1,0 +1,31 @@
+frontend/next.config.ts
+  s_4a7f3c46d06453::t_7f71fb46bb4ada 7-10,14-15,39-40
+frontend/src/app/api/[...path]/route.ts
+  s_4a7f3c46d06453::t_a9c407d7c5e2ed 2,29
+frontend/src/lib/client/realtime-protocol.test.ts
+  s_4a7f3c46d06453::t_2116509cdec66a 26-30
+frontend/src/lib/client/realtime-protocol.ts
+  s_4a7f3c46d06453::t_08db9e28a72b58 34-36
+frontend/src/lib/dev-origins.ts
+  s_4a7f3c46d06453::t_a30c00c35d98db 1-12
+frontend/src/lib/redirect.ts
+  s_4a7f3c46d06453::t_47000630577180 2,20-23
+frontend/src/lib/server/config.ts
+  s_4a7f3c46d06453::t_9d622b0a073d62 2,24-28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fad0a6dd1bab416f318b50202777c089e3192880",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
