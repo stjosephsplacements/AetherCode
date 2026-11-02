@@ -23,7 +23,16 @@ export type Details = {
 };
 
 export type TestDraft = { input: string; expected_output: string; sample: boolean; weight: number };
-export type Choices = { options: string[]; correct: number[]; multiple: boolean };
+/** `explanations` runs alongside `options`: one entry each, blank for none (ADR-0058). */
+export type Choices = { options: string[]; correct: number[]; multiple: boolean; explanations: string[] };
+
+export const MAX_EXPLANATION = 1000;
+
+/** What goes to the server: one entry per option, null for a blank one, or nothing when none was written. */
+export function explanationsBody(choices: Choices): (string | null)[] | undefined {
+  const written = choices.options.map((_, index) => choices.explanations[index]?.trim() || null);
+  return written.some(Boolean) ? written : undefined;
+}
 
 export const LIMITS = { timeSeconds: { min: 0.1, max: 60 }, memoryMb: { min: 16, max: 2048 }, weight: { min: 1, max: 100 } } as const;
 
@@ -93,6 +102,7 @@ export function choicesProblem(choices: Choices): string | null {
   if (choices.correct.length === 0) return "Mark the correct answer.";
   if (!choices.multiple && choices.correct.length > 1) return "A single-answer question has one correct option.";
   if (choices.correct.some((index) => index < 0 || index >= options.length)) return "The correct answer must be one of the options.";
+  if (choices.explanations.some((text) => text.trim().length > MAX_EXPLANATION)) return `An explanation has up to ${MAX_EXPLANATION} characters.`;
   return null;
 }
 

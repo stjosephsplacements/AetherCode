@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type Details, blankDetails, blankTest, choicesProblem, cleanTags, detailsProblem, marksShare, normalizeTag, prepareTests, slugOf, slugify, summarizeTests, testsProblem, withNewline } from "./model";
+import { type Details, blankDetails, blankTest, choicesProblem, cleanTags, detailsProblem, explanationsBody, marksShare, normalizeTag, prepareTests, slugOf, slugify, summarizeTests, testsProblem, withNewline } from "./model";
 
 const valid: Details = { ...blankDetails(["python3"], "018f4b0d-08f8-7c09-9ba7-efdf9c220c01"), title: "Sum of two numbers", prompt: "Print a + b." };
 
@@ -68,11 +68,24 @@ describe("tests", () => {
 
 describe("options", () => {
   it("needs two filled options and a correct answer", () => {
-    expect(choicesProblem({ options: ["a", ""], correct: [0], multiple: false })).toMatch(/two options/i);
-    expect(choicesProblem({ options: ["a", "b"], correct: [], multiple: false })).toMatch(/correct/i);
-    expect(choicesProblem({ options: ["a", "b"], correct: [0, 1], multiple: false })).toMatch(/one correct/i);
-    expect(choicesProblem({ options: ["a", "b"], correct: [0, 1], multiple: true })).toBeNull();
-    expect(choicesProblem({ options: ["a", "b"], correct: [2], multiple: false })).toMatch(/one of the options/i);
+    expect(choicesProblem({ options: ["a", ""], correct: [0], multiple: false, explanations: [] })).toMatch(/two options/i);
+    expect(choicesProblem({ options: ["a", "b"], correct: [], multiple: false, explanations: [] })).toMatch(/correct/i);
+    expect(choicesProblem({ options: ["a", "b"], correct: [0, 1], multiple: false, explanations: [] })).toMatch(/one correct/i);
+    expect(choicesProblem({ options: ["a", "b"], correct: [0, 1], multiple: true, explanations: [] })).toBeNull();
+    expect(choicesProblem({ options: ["a", "b"], correct: [2], multiple: false, explanations: [] })).toMatch(/one of the options/i);
+  });
+
+  it("limits an explanation to 1000 characters", () => {
+    const base = { options: ["a", "b"], correct: [0], multiple: false };
+    expect(choicesProblem({ ...base, explanations: ["x".repeat(1000), ""] })).toBeNull();
+    expect(choicesProblem({ ...base, explanations: ["", "x".repeat(1001)] })).toMatch(/1000/);
+  });
+
+  it("sends one trimmed entry per option, null for a blank one, or nothing when none was written", () => {
+    const base = { options: ["a", "b", "c"], correct: [0], multiple: false };
+    expect(explanationsBody({ ...base, explanations: ["", "  because  "] })).toEqual([null, "because", null]);
+    expect(explanationsBody({ ...base, explanations: ["", " ", ""] })).toBeUndefined();
+    expect(explanationsBody({ ...base, explanations: [] })).toBeUndefined();
   });
 });
 

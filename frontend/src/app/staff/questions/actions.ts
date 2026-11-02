@@ -8,7 +8,7 @@ import { listCategories } from "@/lib/server/categories";
 import { actionError } from "@/lib/server/actions";
 import { gateway } from "@/lib/server/gateway";
 import { requireStaff } from "@/lib/server/staff";
-import { type Choices, type Details, type TestDraft, choicesProblem, cleanTags, detailsProblem, prepareTests, slugOf, testsProblem } from "@/components/staff/question-wizard/model";
+import { type Choices, type Details, type TestDraft, choicesProblem, cleanTags, detailsProblem, explanationsBody, prepareTests, slugOf, testsProblem } from "@/components/staff/question-wizard/model";
 
 /** What a new question needs: its details, plus its tests (coding) or its options (multiple choice). */
 export type NewQuestion = { details: Details; tests?: TestDraft[]; choices?: Choices };
@@ -25,7 +25,7 @@ export async function createDraft(input: NewQuestion): Promise<CreatedDraft> {
   const mcq = details.kind === "mcq";
   // A question bank from before categories has none to choose, and rejects the field.
   const categorised = (await listCategories()).length > 0;
-  const problem = detailsProblem(details, { categories: categorised }) ?? (mcq ? choicesProblem(input.choices ?? { options: [], correct: [], multiple: false }) : testsProblem(input.tests ?? []));
+  const problem = detailsProblem(details, { categories: categorised }) ?? (mcq ? choicesProblem(input.choices ?? { options: [], correct: [], multiple: false, explanations: [] }) : testsProblem(input.tests ?? []));
   if (problem) return { error: problem };
 
   let created: QuestionDetail;
@@ -55,7 +55,7 @@ export async function createDraft(input: NewQuestion): Promise<CreatedDraft> {
       const choices = input.choices!;
       await gateway<QuestionVersion>(`/question-bank/v1/question-versions/${version.id}/choices`, {
         method: "PUT",
-        body: { expected_question_version: version.version, choices: choices.options.map((option) => option.trim()), correct_choices: choices.correct, multiple_choice: choices.multiple },
+        body: { expected_question_version: version.version, choices: choices.options.map((option) => option.trim()), correct_choices: choices.correct, multiple_choice: choices.multiple, explanations: explanationsBody(choices) },
       });
     } else {
       await gateway<QuestionVersion>(`/question-bank/v1/question-versions/${version.id}/tests`, {
@@ -226,7 +226,7 @@ export async function runModelCheck(versionId: string, language: string, source:
 }
 
 /** Options and answer of a multiple-choice draft (ADR-0035). */
-export async function saveChoices(versionId: string, expectedVersion: number, choices: string[], correct: number[], multiple: boolean): Promise<ActionState> {
+export async function saveChoices(versionId: string, expectedVersion: number, choices: string[], correct: number[], multiple: boolean, explanations?: (string | null)[]): Promise<ActionState> {
   await requireStaff();
   const options = choices.map((choice) => choice.trim());
   if (options.length < 2 || options.some((option) => !option)) return { error: "Give at least two options, none empty." };
@@ -235,7 +235,7 @@ export async function saveChoices(versionId: string, expectedVersion: number, ch
   try {
     await gateway<QuestionVersion>(`/question-bank/v1/question-versions/${versionId}/choices`, {
       method: "PUT",
-      body: { expected_question_version: expectedVersion, choices: options, correct_choices: correct, multiple_choice: multiple },
+      body: { expected_question_version: expectedVersion, choices: options, correct_choices: correct, multiple_choice: multiple, explanations },
     });
   } catch (error) {
     return { error: actionError(error) };

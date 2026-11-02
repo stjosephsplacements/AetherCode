@@ -203,6 +203,8 @@ export type QuestionVersion = {
   choices: string[] | null;
   correct_choices: number[] | null;
   multiple_choice: boolean;
+  /** Why each option is right or wrong, one entry per option, null where none was written (ADR-0058). */
+  choice_explanations?: (string | null)[] | null;
   /** The question's: test questions never reach practice (ADR-0041). */
   audience?: Audience;
   /** The question's, not the version's: where it is filed, and how it is described (ADR-0052). */
