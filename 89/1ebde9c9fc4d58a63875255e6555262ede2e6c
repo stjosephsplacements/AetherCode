@@ -1,0 +1,83 @@
+apps/question-intake/.env.example
+  s_4a7f3c46d06453::t_66da95033208d7 1-10
+apps/question-intake/.gitignore
+  s_4a7f3c46d06453::t_9c700665231c80 1-6
+apps/question-intake/app/api/verify/route.ts
+  s_4a7f3c46d06453::t_44be75ec6105a9 1-26
+apps/question-intake/app/globals.css
+  s_4a7f3c46d06453::t_967737e430f2fa 1-546
+apps/question-intake/app/layout.tsx
+  s_4a7f3c46d06453::t_965f21983ca7d9 1-20
+apps/question-intake/app/login/actions.ts
+  s_4a7f3c46d06453::t_9078ba6b6f7555 1-20
+apps/question-intake/app/login/form.tsx
+  s_4a7f3c46d06453::t_c2bc309f6d2dc3 1-29
+apps/question-intake/app/login/page.tsx
+  s_4a7f3c46d06453::t_92e5f84f71d0f6 1-21
+apps/question-intake/app/page.tsx
+  s_4a7f3c46d06453::t_a3de34d473b019 1-82
+apps/question-intake/app/questions/[id]/page.tsx
+  s_4a7f3c46d06453::t_04dd54f14aaf54 1-41
+apps/question-intake/app/questions/actions.ts
+  s_4a7f3c46d06453::t_6e61c67d1f75d2 1-69
+apps/question-intake/app/questions/new/page.tsx
+  s_4a7f3c46d06453::t_4c48251cb943c9 1-17
+apps/question-intake/components/editor.tsx
+  s_4a7f3c46d06453::t_d371ac40ac94d6 1-290
+apps/question-intake/components/shell.tsx
+  s_4a7f3c46d06453::t_92aa07fb87bbba 1-30
+apps/question-intake/components/ui.tsx
+  s_4a7f3c46d06453::t_f439b3a69eacea 1-34
+apps/question-intake/db/001_init.sql
+  s_4a7f3c46d06453::t_0e03da5935e599 1-57
+apps/question-intake/lib/compare.ts
+  s_4a7f3c46d06453::t_9f6fb7a7ce8139 1-14
+apps/question-intake/lib/db.ts
+  s_4a7f3c46d06453::t_b4a575c66f0647 1-8
+apps/question-intake/lib/draft.ts
+  s_4a7f3c46d06453::t_3bf9c6e07a2b03 1-32
+apps/question-intake/lib/env.ts
+  s_4a7f3c46d06453::t_facbfc31310e15 1-10
+apps/question-intake/lib/languages.ts
+  s_4a7f3c46d06453::t_c182976577b32a 1-17
+apps/question-intake/lib/question.test.ts
+  s_4a7f3c46d06453::t_985b3afd551bd4 1-52
+apps/question-intake/lib/question.ts
+  s_4a7f3c46d06453::t_cee0b4e0148aba 1-74
+apps/question-intake/lib/session.ts
+  s_4a7f3c46d06453::t_955a6b0bacd7c4 1-88
+apps/question-intake/lib/verify.ts
+  s_4a7f3c46d06453::t_4d99193af01029 1-44
+apps/question-intake/next.config.ts
+  s_4a7f3c46d06453::t_69bf68e91bf22d 1-9
+apps/question-intake/package.json
+  s_4a7f3c46d06453::t_135a1f0565b507 1-36
+apps/question-intake/pnpm-lock.yaml
+  s_4a7f3c46d06453::t_2b3a2c4aca935b 1-2272
+apps/question-intake/pnpm-workspace.yaml
+  s_4a7f3c46d06453::t_042ddf645b17d5 1-6
+apps/question-intake/postcss.config.mjs
+  s_4a7f3c46d06453::t_4234c1800aa104 1-5
+apps/question-intake/proxy.ts
+  s_4a7f3c46d06453::t_5aef7bae7a3157 1-59
+apps/question-intake/scripts/migrate.ts
+  s_4a7f3c46d06453::t_842ec69e632e6a 1-19
+apps/question-intake/tsconfig.json
+  s_4a7f3c46d06453::t_7247b7f6945c5a 1-23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "891ebde9c9fc4d58a63875255e6555262ede2e6c",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
