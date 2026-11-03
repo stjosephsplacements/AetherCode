@@ -1,0 +1,62 @@
+backend/libs/pkg/rbac/hierarchy.go
+  h_8540f154048b04 1-67
+backend/libs/pkg/rbac/model.go
+  h_8540f154048b04 1-99
+backend/libs/pkg/rbac/perms.go
+  h_8540f154048b04 1-123
+backend/libs/pkg/rbac/rbac_test.go
+  h_8540f154048b04 1-195
+backend/libs/pkg/rbac/resolve.go
+  h_8540f154048b04 1-85
+backend/services/seb/README.md
+  h_8540f154048b04 34
+backend/services/seb/api/openapi.yaml
+  h_8540f154048b04 452
+backend/services/seb/internal/app/lockdown.go
+  h_8540f154048b04 51-54,110-120,152-154,224,231-238
+backend/services/seb/internal/domain/launchfile/configkey.go
+  h_8540f154048b04 1-148
+backend/services/seb/internal/domain/launchfile/configkey_test.go
+  h_8540f154048b04 1-41
+backend/services/seb/internal/domain/launchfile/launchfile.go
+  h_8540f154048b04 48-49,62-71
+backend/services/user/README.md
+  h_8540f154048b04 162-180
+backend/services/user/cmd/server/main.go
+  h_8540f154048b04 102
+backend/services/user/internal/adapters/projection/assessment.go
+  h_8540f154048b04 76-84
+backend/services/user/internal/adapters/projection/assessment_test.go
+  h_8540f154048b04 49-50
+backend/services/user/internal/adapters/repo/postgres.go
+  h_8540f154048b04 11,18,28-30,100,102-103,106-115,121-122,126-133,1190-1236
+backend/services/user/internal/app/authorization.go
+  h_8540f154048b04 15,68-71,88-89,120-121,223,227-232,274,329-337
+backend/services/user/internal/app/flag_registry_test.go
+  h_8540f154048b04 1-49
+backend/services/user/internal/app/rbac_engine.go
+  h_8540f154048b04 1-74
+backend/services/user/internal/app/rbac_engine_test.go
+  h_8540f154048b04 1-113
+backend/services/user/internal/config/runtime.go
+  h_8540f154048b04 17,33-34,112-116
+backend/services/user/migrations/000039_rbac_expand.down.sql
+  h_8540f154048b04 1-15
+backend/services/user/migrations/000039_rbac_expand.up.sql
+  h_8540f154048b04 1-383
+docs/adr/0064-generated-seb-config-key.md
+  h_8540f154048b04 1-25
+frontend/src/app/staff/exams/[examId]/page.tsx
+  h_8540f154048b04 427,438
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a722acad90c29d89e23764ccb3ad4e0e0831097c",
+  "prompts": {},
+  "humans": {
+    "h_8540f154048b04": {
+      "author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
