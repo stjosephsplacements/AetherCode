@@ -22,3 +22,11 @@ and are served again at `/admin/*` with the cross-college view.
 - Navigation and routes change only; every API still authorises server-side.
 - Super administrators keep the college switcher inside `/staff` for now. Removing it, and the
   further admin features (emergency controls, version-skew view, access reviews), are follow-ups.
+
+## Incident board
+
+`/admin/incidents` lists what needs attention across every college: services not ready, pods
+below their desired replicas or restarting (from Prometheus), judge queue waits and failures, and
+exams open now. Per open exam an administrator can add time to everyone in progress or announce to
+everyone, using the same submission endpoints as the college monitor. Freezing an exam or pausing
+the judge queue needs new backend endpoints and is not part of this.
