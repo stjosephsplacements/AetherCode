@@ -1,0 +1,27 @@
+backend/libs/pkg/rbac/hierarchy.go
+  s_4a7f3c46d06453::t_dbe7c0f7cfd860 1-67
+backend/libs/pkg/rbac/model.go
+  s_4a7f3c46d06453::t_d537ffbd48d4d2 1-99
+backend/libs/pkg/rbac/perms.go
+  s_4a7f3c46d06453::t_22fa67ae16ad15 1-123
+backend/libs/pkg/rbac/rbac_test.go
+  s_4a7f3c46d06453::t_a3146f9d353ed7 1-195
+backend/libs/pkg/rbac/resolve.go
+  s_4a7f3c46d06453::t_1aea8d4b006625 1-85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "69600cf6fe24d7c5e7b5a830a23cb92777021a5c",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
