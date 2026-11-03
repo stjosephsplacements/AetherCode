@@ -45,8 +45,8 @@ type Settings struct {
 	Password string
 }
 
-// Build returns the .seb file for settings.
-func Build(settings Settings) ([]byte, error) {
+// render fills the settings template and returns the plist.
+func render(settings Settings) ([]byte, error) {
 	if settings.StartURL == "" || settings.QuitURL == "" || settings.Password == "" {
 		return nil, errors.New("launch file needs a start URL, a quit URL and a password")
 	}
@@ -59,7 +59,16 @@ func Build(settings Settings) ([]byte, error) {
 	}{settings.StartURL, settings.QuitURL, hex.EncodeToString(quitPassword[:])}); err != nil {
 		return nil, fmt.Errorf("render SEB settings: %w", err)
 	}
-	inner, err := gzipBytes(plist.Bytes())
+	return plist.Bytes(), nil
+}
+
+// Build returns the .seb file for settings.
+func Build(settings Settings) ([]byte, error) {
+	plist, err := render(settings)
+	if err != nil {
+		return nil, err
+	}
+	inner, err := gzipBytes(plist)
 	if err != nil {
 		return nil, err
 	}
