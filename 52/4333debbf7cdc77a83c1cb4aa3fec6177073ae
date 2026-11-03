@@ -1,0 +1,39 @@
+backend/libs/pkg/authz/casbin.go
+  s_4a7f3c46d06453::t_37f0e859e8f12f 22-23
+backend/services/user/cmd/server/main.go
+  s_4a7f3c46d06453::t_17cf0ab32f48f4 142-145,356
+backend/services/user/internal/adapters/http/handler.go
+  s_4a7f3c46d06453::t_2b40c7e85c68a8 27-28,36,41-43,82-84
+backend/services/user/internal/adapters/http/roles_handler.go
+  s_4a7f3c46d06453::t_30ed0649866917 1-234
+backend/services/user/internal/adapters/repo/postgres.go
+  s_4a7f3c46d06453::t_b981818a4e7758 1198,1200
+backend/services/user/internal/adapters/repo/roles.go
+  s_4a7f3c46d06453::t_cc9da0f898256b 1-219
+backend/services/user/internal/app/authorization.go
+  s_4a7f3c46d06453::t_1a5d06a4ce9b93 179,481-486
+backend/services/user/internal/app/roles.go
+  s_4a7f3c46d06453::t_3ff122d30d4910 1-195
+backend/services/user/internal/app/roles_test.go
+  s_4a7f3c46d06453::t_88a38607cbafbc 1-67
+backend/services/user/migrations/000040_rbac_roles_api.down.sql
+  s_4a7f3c46d06453::t_23933d185e5117 1-37
+backend/services/user/migrations/000040_rbac_roles_api.up.sql
+  s_4a7f3c46d06453::t_bac9ef01a4afe9 1-200
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "524333debbf7cdc77a83c1cb4aa3fec6177073ae",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
