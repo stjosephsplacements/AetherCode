@@ -1,0 +1,25 @@
+docs/adr/0065-admin-console-route.md
+  s_4a7f3c46d06453::t_2881c726b6e90f 23-25
+frontend/src/app/admin/page.tsx
+  s_4a7f3c46d06453::t_e91eaea6bc0c49 6,39-51
+frontend/src/app/login/actions.ts
+  s_4a7f3c46d06453::t_93e193ba7beceb 9,49-50
+frontend/src/app/staff/layout.tsx
+  s_4a7f3c46d06453::t_f12c78e23d45e4 1,11-13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "03407b03f83ba90f757f026a0bead753a244b180",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
