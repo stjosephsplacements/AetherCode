@@ -1,0 +1,31 @@
+backend/services/user/README.md
+  s_4a7f3c46d06453::t_60e41d81d1654e 172-180
+backend/services/user/cmd/server/main.go
+  s_4a7f3c46d06453::t_438e9645b87832 102
+backend/services/user/internal/adapters/repo/postgres.go
+  s_4a7f3c46d06453::t_0695b250439459 11,18,28-30,100,102-103,106-115,121-122,126-133,1190-1236
+backend/services/user/internal/app/authorization.go
+  s_4a7f3c46d06453::t_c0db569ebf60c9 15,68-71,88-89,120-121,223,227-232,274,329-337
+backend/services/user/internal/app/rbac_engine.go
+  s_4a7f3c46d06453::t_a2f0c38cad0c3b 1-74
+backend/services/user/internal/app/rbac_engine_test.go
+  s_4a7f3c46d06453::t_b9d78e2b12ce98 1-113
+backend/services/user/internal/config/runtime.go
+  s_4a7f3c46d06453::t_f44cb26f00cbcf 17,33-34,112-116
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b1f2592a06ce849281947bf5799e7fc1af9d3773",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
