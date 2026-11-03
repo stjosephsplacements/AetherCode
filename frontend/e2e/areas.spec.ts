@@ -17,7 +17,7 @@ test("areas are separate", async ({ page }) => {
   await expect(page).toHaveURL(/\/admin$/);
   await page.goto("/staff/placements");
   await expect(page).toHaveURL(/\/placement$/);
-  await expect(page.getByRole("heading", { name: "Placements" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Placements", level: 1 })).toBeVisible();
 
   await page.goto("/admin");
   await page.getByRole("link", { name: /Open workspace/ }).first().click();
