@@ -24,6 +24,8 @@ type Handler struct {
 	authorizer *httpauth.Authorizer
 	// publicProfiles is optional: without it the public profile routes are not served.
 	publicProfiles *app.PublicProfiles
+	// roles is optional: without it the role and overwrite routes are not served.
+	roles *app.RolesService
 }
 
 // SelfReader returns the verified caller's own access (app.Service.Self).
@@ -31,11 +33,14 @@ type SelfReader interface {
 	Self(context.Context, string) (app.Self, error)
 }
 
-func NewHandler(serviceName string, service *app.ManagementService, accounts *app.AccountService, self SelfReader, readiness httpx.ReadinessFunc, authorizer *httpauth.Authorizer, publicProfiles *app.PublicProfiles) (http.Handler, error) {
+func NewHandler(serviceName string, service *app.ManagementService, accounts *app.AccountService, self SelfReader, readiness httpx.ReadinessFunc, authorizer *httpauth.Authorizer, publicProfiles *app.PublicProfiles, options ...Option) (http.Handler, error) {
 	if service == nil || accounts == nil || self == nil || authorizer == nil {
 		return nil, fmt.Errorf("user management service, account service, self reader, and authorizer are required")
 	}
 	handler := &Handler{service: service, accounts: accounts, self: self, authorizer: authorizer, publicProfiles: publicProfiles}
+	for _, option := range options {
+		option(handler)
+	}
 	mux := httpx.NewOperationalMux(serviceName, readiness)
 	mux.HandleFunc("GET /v1/me", handler.getSelf)
 	mux.HandleFunc("PUT /v1/profiles/{principal_id}", handler.upsertProfile)
@@ -74,6 +79,9 @@ func NewHandler(serviceName string, service *app.ManagementService, accounts *ap
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/students/{student_id}/batch-affiliation", handler.getStudentBatchAffiliation)
 	mux.HandleFunc("PUT /v1/tenants/{tenant_id}/students/{student_id}/batch-affiliation", handler.setStudentBatchAffiliation)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/students/{student_id}/batch-affiliation/revoke", handler.endStudentBatchAffiliation)
+	if handler.roles != nil {
+		handler.registerRoles(mux)
+	}
 	return mux, nil
 }
 

@@ -176,7 +176,7 @@ var routes = map[string]route{
 	"user": {
 		Audience: "aether_users", ActionPrefix: "user", ResourcePrefix: "users",
 		OptionalTenantResources: resourceSet("role_assignments", "placement_department_memberships", "permission_grants"),
-		Resources:               resourceSet("staff_audit", "permission_grants", "accounts", "profiles", "students", "student_department_memberships", "current_student_affiliations", "student_batch_affiliations", "mentor_batch_assignments", "role_assignments", "placement_department_memberships"),
+		Resources:               resourceSet("staff_audit", "roles", "role_overwrites", "permission_grants", "accounts", "profiles", "students", "student_department_memberships", "current_student_affiliations", "student_batch_affiliations", "mentor_batch_assignments", "role_assignments", "placement_department_memberships"),
 	},
 	"question-bank": {
 		Audience: "aether_qbank", ActionPrefix: "qbank", ResourcePrefix: "qbank", Global: true, StaffAuthoring: true,
@@ -476,6 +476,12 @@ func assignmentApplies(
 		// The audit log of staff actions is for college administrators only
 		// (ADR-0043), however broad a department's policy is.
 		if request.ResourceType == "staff_audit" && assignment.Role != centralauthz.RoleCollegeAdmin {
+			return false
+		}
+		// Roles and overwrites belong to college administrators, and to custom roles that hold the
+		// permission (the role bits decide; Casbin has no rule for a custom role).
+		if (request.ResourceType == "roles" || request.ResourceType == "role_overwrites") &&
+			assignment.Role != centralauthz.RoleCollegeAdmin && assignment.Role != centralauthz.RoleCustom {
 			return false
 		}
 		return request.TenantID != "" && assignment.TenantID == request.TenantID

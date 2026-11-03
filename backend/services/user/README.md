@@ -169,6 +169,16 @@ sets `users.allow_managed_change`. `users.permission_overwrites` holds allow/den
 a role or member. `users.ensure_guild_roles` seeds the managed roles of a guild; run it for every new
 college. `users.role_assignments.role_id` is filled by the backfill. The Go side is `libs/pkg/rbac`.
 
+### Roles and overwrites API (migration 000040)
+
+`GET /v1/permission-flags`; `GET|POST /v1/tenants/{t}/roles`, `PATCH|DELETE .../roles/{id}`;
+`GET|PUT /v1/tenants/{t}/role-overwrites`, `DELETE .../role-overwrites/{id}`. Resources `roles` and
+`role_overwrites` belong to college administrators and to custom roles that hold the flag. The database
+enforces the hierarchy (a role must rank below the acting member's highest role), the grant ceiling (no
+permissions the actor lacks, unless administrator) and managed-role immutability in triggers that apply to
+the application role. A custom role is assigned with `role_name: custom` and a `role_id`. Elevated flags
+will additionally need recent MFA once identity carries `mfa_verified_at`.
+
 ### Engine switch (`AUTHZ_ENGINE`)
 
 `casbin` (default) decides from the Casbin policy as before. `shadow` still decides with Casbin and logs

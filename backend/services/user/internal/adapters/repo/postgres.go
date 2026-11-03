@@ -1195,15 +1195,9 @@ func nullableTimestamp(value string) any {
 const roleBitsAssignmentQuery = `
 	SELECT a.role_name, a.scope_kind, COALESCE(a.tenant_id::text, ''), COALESCE(a.scope_id::text, ''),
 	       a.role_name = 'super_admin' AND a.scope_kind = 'platform' AND a.granted_by_principal_id <> a.principal_id,
-	       COALESCE(r.permissions::text, '')
+	       COALESCE(ar.permissions::text, '')
 	FROM users.active_role_assignments AS a
-	LEFT JOIN users.roles AS r
-	  ON r.guild_kind = CASE a.role_name WHEN 'super_admin' THEN 'platform' WHEN 'placement_user' THEN 'placement' ELSE 'college' END
-	 AND r.tenant_id IS NOT DISTINCT FROM CASE WHEN a.role_name IN ('super_admin', 'placement_user') THEN NULL ELSE a.tenant_id END
-	 AND r.system_key = CASE
-	       WHEN a.role_name = 'super_admin' AND a.granted_by_principal_id = a.principal_id THEN 'owner'
-	       WHEN a.role_name = 'placement_user' THEN 'placement_officer'
-	       ELSE a.role_name END
+	LEFT JOIN users.assignment_roles AS ar ON ar.assignment_id = a.id
 	WHERE a.principal_id = $1
 	ORDER BY a.role_name, a.scope_kind, a.tenant_id NULLS FIRST, a.scope_id NULLS FIRST`
 
