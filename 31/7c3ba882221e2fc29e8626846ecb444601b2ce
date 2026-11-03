@@ -1,0 +1,21 @@
+apps/question-intake/README.md
+  s_4a7f3c46d06453::t_4129ef064642d9 35,37-49
+apps/question-intake/deploy/question-intake.yaml
+  s_4a7f3c46d06453::t_80f238ca086bab 34-36,71,99-100,114-123
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "317c3ba882221e2fc29e8626846ecb444601b2ce",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
