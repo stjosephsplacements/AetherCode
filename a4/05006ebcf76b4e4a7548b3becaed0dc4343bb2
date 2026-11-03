@@ -1,0 +1,25 @@
+backend/services/user/README.md
+  s_4a7f3c46d06453::t_ba348c84050840 162-171
+backend/services/user/internal/app/flag_registry_test.go
+  s_4a7f3c46d06453::t_55b2ec493b0e77 1-49
+backend/services/user/migrations/000039_rbac_expand.down.sql
+  s_4a7f3c46d06453::t_d08037d5e6231e 1-15
+backend/services/user/migrations/000039_rbac_expand.up.sql
+  s_4a7f3c46d06453::t_8f9f2c9efa18e5 1-383
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a405006ebcf76b4e4a7548b3becaed0dc4343bb2",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
