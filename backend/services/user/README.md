@@ -159,6 +159,16 @@ Required groups are `aether_user_owner`, `aether_user_migrator`,
 `aether_user_projection_worker`. The reader is a separate, read-only
 authorization-process credential, not a request API credential.
 
+## Roles, flags and overwrites (ADR-0066, migration 000039)
+
+Expand step of the Discord-style model; no authorization decision reads it yet. `users.permission_flags`
+is the append-only registry (bit index per flag: meta flags 0-11, then `service.resource.read|write|delete`
+from 16; a test fails when a route has no flag). `users.roles` holds guild roles (platform, college,
+placement) with a tier, position and `bit(256)` permissions; managed roles change only in a migration that
+sets `users.allow_managed_change`. `users.permission_overwrites` holds allow/deny sets per scope node for
+a role or member. `users.ensure_guild_roles` seeds the managed roles of a guild; run it for every new
+college. `users.role_assignments.role_id` is filled by the backfill. The Go side is `libs/pkg/rbac`.
+
 ## Soft Delete Behavior
 
 All user entities support soft delete (archival without physical removal):
