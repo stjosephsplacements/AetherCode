@@ -1,4 +1,4 @@
-import { ArrowRight, CircleCheck } from "lucide-react";
+import { ArrowRight, CheckCircle } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -27,7 +27,7 @@ export default async function CompletedPage() {
       <PageHeader title="Completed" description="Every exam you have finished, newest first, with its result once it is released." />
       {finished.length === 0 ? (
         <EmptyState>
-          <CircleCheck className="mx-auto mb-3 size-6 text-ink-subtle" strokeWidth={1.5} />
+          <CheckCircle className="mx-auto mb-3 size-6 text-ink-subtle" />
           Exams you finish appear here.
         </EmptyState>
       ) : (

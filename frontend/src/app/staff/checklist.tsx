@@ -1,4 +1,4 @@
-import { Check, Lock } from "lucide-react";
+import { Check, Lock } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -19,7 +19,7 @@ export function Checklist({ steps, onNavigate }: { steps: ChecklistStep[]; onNav
                 step.done ? "border-transparent bg-brand text-brand-ink" : now ? "border-brand text-brand" : "border-line-strong text-ink-subtle",
               )}
             >
-              {step.done ? <Check className="size-3.5" strokeWidth={2.5} /> : step.blocked ? <Lock className="size-3" /> : index + 1}
+              {step.done ? <Check className="size-3.5" /> : step.blocked ? <Lock className="size-3" /> : index + 1}
             </span>
             <span className="min-w-0 flex-1">
               <span className={cn("block text-sm font-medium", step.blocked ? "text-ink-subtle" : "text-ink")}>{step.title}</span>

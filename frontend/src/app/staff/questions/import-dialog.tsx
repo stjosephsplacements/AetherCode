@@ -1,6 +1,6 @@
 "use client";
 
-import { Upload } from "lucide-react";
+import { UploadSimple } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { ImportQuestionForm } from "./import-form";
@@ -11,7 +11,7 @@ export function ImportDialog() {
     <Dialog>
       <DialogTrigger asChild>
         <Button variant="secondary">
-          <Upload />
+          <UploadSimple />
           Import
         </Button>
       </DialogTrigger>

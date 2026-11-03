@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { Plus } from "@phosphor-icons/react/ssr";
 import { type ReactNode, useState } from "react";
 import { ActionForm, type ActionState } from "@/components/staff/form";
 import { Button } from "@/components/ui/button";

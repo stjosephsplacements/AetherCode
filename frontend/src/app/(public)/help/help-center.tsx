@@ -1,6 +1,6 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { MagnifyingGlass } from "@phosphor-icons/react/ssr";
 import { useDeferredValue, useState } from "react";
 import { type HelpSection, MORE_HELP, STUDENT_HELP } from "@/content/help";
 import { cn } from "@/lib/utils";
@@ -27,7 +27,7 @@ export function HelpCenter() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <label className="relative flex-1">
           <span className="sr-only">Search help</span>
-          <Search aria-hidden className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-ink-subtle" />
+          <MagnifyingGlass aria-hidden className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-ink-subtle" />
           <input
             type="search"
             value={query}

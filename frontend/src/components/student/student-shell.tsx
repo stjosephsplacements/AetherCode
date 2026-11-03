@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Menu } from "lucide-react";
+import { CaretDown, List } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { DropdownMenu } from "radix-ui";
@@ -71,9 +71,9 @@ function Desktop() {
         return isGroup(entry) ? (
           <DropdownMenu.Root key={entry.label}>
             <DropdownMenu.Trigger className={cn(linkClass(on), "data-[state=open]:bg-hover data-[state=open]:text-ink")}>
-              <Lead className="size-4" strokeWidth={1.75} />
+              <Lead className="size-4" />
               {entry.label}
-              <ChevronDown className="size-3.5 opacity-70" strokeWidth={1.75} />
+              <CaretDown className="size-3.5 opacity-70" />
             </DropdownMenu.Trigger>
             <DropdownMenu.Portal>
               <DropdownMenu.Content align="start" sideOffset={10} className="z-50 min-w-[220px] animate-fade rounded-2xl border border-line bg-surface p-1.5 shadow-[var(--shadow-overlay)]">
@@ -88,7 +88,7 @@ function Desktop() {
                         className={cn("flex items-center gap-3 rounded-xl px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-hover", here ? "font-medium text-ink" : "text-ink-muted data-[highlighted]:text-ink")}
                       >
                         <span className={cn("grid size-8 place-items-center rounded-lg", here ? "bg-brand-soft text-brand-soft-ink" : "bg-hover text-ink-muted")}>
-                          <Icon className="size-4" strokeWidth={1.75} />
+                          <Icon className="size-4" />
                         </span>
                         {item.label}
                       </Link>
@@ -100,7 +100,7 @@ function Desktop() {
           </DropdownMenu.Root>
         ) : (
           <Link key={entry.href} href={entry.href} aria-current={on ? "page" : undefined} className={linkClass(on)}>
-            <Lead className="size-4" strokeWidth={1.75} />
+            <Lead className="size-4" />
             {entry.label}
           </Link>
         );
@@ -115,7 +115,7 @@ function Mobile() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger aria-label="Open menu" className="-ml-1.5 grid size-9 place-items-center rounded-[var(--radius-control)] text-ink-muted transition-colors hover:bg-hover hover:text-ink lg:hidden">
-        <Menu className="size-[18px]" strokeWidth={1.75} />
+        <List className="size-[18px]" />
       </DialogTrigger>
       <SheetContent title="Menu" className="w-[min(88vw,320px)]">
         <nav aria-label="Main" className="space-y-5 px-3 py-4" onClick={(event) => (event.target as Element).closest("a") && setOpen(false)}>
@@ -134,7 +134,7 @@ function Mobile() {
                           aria-current={active(pathname, item.href) ? "page" : undefined}
                           className={cn("flex h-9 items-center gap-2.5 rounded-[var(--radius-control)] px-2.5 text-[14px]", active(pathname, item.href) ? "bg-hover font-medium text-ink" : "text-ink-muted hover:bg-hover hover:text-ink")}
                         >
-                          <Icon className="size-4" strokeWidth={1.75} />
+                          <Icon className="size-4" />
                           {item.label}
                         </Link>
                       </li>

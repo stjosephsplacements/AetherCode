@@ -1,4 +1,4 @@
-import { Activity, ArrowLeft, BarChart3, Download, Eye } from "lucide-react";
+import { ArrowLeft, ChartBar, DownloadSimple, Eye, Pulse } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ActionForm, Checkbox, Field, Select, TextArea, TextInput } from "@/components/staff/form";
@@ -96,7 +96,7 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
   return (
     <>
       <Link href="/staff/exams" className="mb-6 inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink">
-        <ArrowLeft className="size-4" strokeWidth={1.75} />
+        <ArrowLeft className="size-4" />
         Exams
       </Link>
       <PageHeader
@@ -146,7 +146,7 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
             {!draft && (
               <Button asChild variant="secondary" size="sm">
                 <Link href={`/staff/exams/${examId}/monitor`}>
-                  <Activity />
+                  <Pulse />
                   Live monitor
                 </Link>
               </Button>
@@ -154,7 +154,7 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
             {!draft && (
               <Button asChild variant="secondary" size="sm">
                 <Link href={`/staff/exams/${examId}/results`}>
-                  <BarChart3 />
+                  <ChartBar />
                   Results
                 </Link>
               </Button>
@@ -434,7 +434,7 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
           {seb?.enabled && (
             <Button asChild variant="secondary" size="sm" className="mt-4">
               <a href={`/api/seb/v1/tenants/${staff.tenantId}/exams/${examId}/seb-policy/launch-file`} download>
-                <Download />
+                <DownloadSimple />
                 Download launch file
               </a>
             </Button>

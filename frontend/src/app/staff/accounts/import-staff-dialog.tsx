@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, FileText, Upload, X } from "lucide-react";
+import { DownloadSimple, FileText, UploadSimple, X } from "@phosphor-icons/react/ssr";
 import { useActionState, useMemo, useRef, useState } from "react";
 import { CredentialsTable } from "@/components/staff/credentials";
 import { Field, FormMessage, Select, SubmitButton, TextArea, initialActionState } from "@/components/staff/form";
@@ -73,7 +73,7 @@ export function ImportStaffDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="secondary" size="sm">
-          <Upload />
+          <UploadSimple />
           Bulk import
         </Button>
       </DialogTrigger>
@@ -126,7 +126,7 @@ export function ImportStaffDialog({
                 onClick={downloadTemplate}
                 className="inline-flex items-center gap-1.5 font-medium text-brand hover:underline"
               >
-                <Download className="size-3.5" />
+                <DownloadSimple className="size-3.5" />
                 Download template
               </button>
             </div>
@@ -150,7 +150,7 @@ export function ImportStaffDialog({
               )}
             >
               <div className="grid size-10 place-items-center rounded-full bg-surface shadow-[var(--shadow-hairline)] border border-line">
-                <Upload className="size-5 text-brand" strokeWidth={2} />
+                <UploadSimple className="size-5 text-brand" />
               </div>
               <div className="space-y-1">
                 <p className="text-sm font-semibold text-ink">

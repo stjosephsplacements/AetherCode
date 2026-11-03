@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftRight, Focus, LayoutPanelLeft, PanelBottom, PanelRight, RotateCcw } from "lucide-react";
+import { ArrowCounterClockwise, ArrowsLeftRight, Columns, FrameCorners, Rows, SidebarSimple } from "@phosphor-icons/react/ssr";
 import { Popover } from "radix-ui";
 import { cn } from "@/lib/utils";
 import { DEFAULT_LAYOUT, updateLayout, useLayout } from "./layout-settings";
@@ -13,7 +13,7 @@ export function LayoutMenu() {
   return (
     <Popover.Root>
       <Popover.Trigger aria-label="Layout" className="grid size-8 place-items-center rounded-[var(--radius-control)] text-ink-muted outline-none transition-colors hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-brand data-[state=open]:bg-hover">
-        <LayoutPanelLeft className="size-4" strokeWidth={1.75} />
+        <SidebarSimple className="size-4" />
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content align="end" sideOffset={6} className="z-50 w-[300px] animate-fade space-y-4 rounded-2xl border border-line bg-surface p-4 shadow-[var(--shadow-overlay)]">
@@ -22,15 +22,15 @@ export function LayoutMenu() {
             <p className="text-xs text-ink-muted">Problem</p>
             <div className="flex gap-2">
               <button type="button" onClick={() => updateLayout({ swap: false, focus: false })} className={choice(!layout.swap && !layout.focus)}>
-                <LayoutPanelLeft className="size-4" />
+                <SidebarSimple className="size-4" />
                 Left
               </button>
               <button type="button" onClick={() => updateLayout({ swap: true, focus: false })} className={choice(layout.swap && !layout.focus)}>
-                <ArrowLeftRight className="size-4" />
+                <ArrowsLeftRight className="size-4" />
                 Right
               </button>
               <button type="button" onClick={() => updateLayout({ focus: true })} className={choice(layout.focus)}>
-                <Focus className="size-4" />
+                <FrameCorners className="size-4" />
                 Hidden
               </button>
             </div>
@@ -39,17 +39,17 @@ export function LayoutMenu() {
             <p className="text-xs text-ink-muted">Console</p>
             <div className="flex gap-2">
               <button type="button" onClick={() => updateLayout({ console: "bottom" })} className={choice(layout.console === "bottom")}>
-                <PanelBottom className="size-4" />
+                <Rows className="size-4" />
                 Below
               </button>
               <button type="button" onClick={() => updateLayout({ console: "right" })} className={choice(layout.console === "right")}>
-                <PanelRight className="size-4" />
+                <Columns className="size-4" />
                 Beside
               </button>
             </div>
           </div>
           <button type="button" onClick={() => updateLayout(DEFAULT_LAYOUT)} className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-muted hover:text-ink">
-            <RotateCcw className="size-3.5" />
+            <ArrowCounterClockwise className="size-3.5" />
             Reset layout
           </button>
           <p className="border-t border-line pt-3 text-xs leading-relaxed text-ink-muted">Drag the bars between panes to resize them. Double-click a bar to reset it; arrow keys nudge it.</p>

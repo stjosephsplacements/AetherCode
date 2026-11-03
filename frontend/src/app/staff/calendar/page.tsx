@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, TriangleAlert } from "lucide-react";
+import { CaretLeft, CaretRight, Warning } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ExamPeek, examState } from "@/components/staff/exam-peek";
@@ -130,7 +130,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
         <div className="flex shrink-0 items-center gap-2">
           <Button asChild variant="secondary" size="icon" aria-label="Previous month">
             <Link href={`/staff/calendar?month=${shiftMonth(month, -1)}`}>
-              <ChevronLeft />
+              <CaretLeft />
             </Link>
           </Button>
           <Button asChild variant="secondary">
@@ -138,7 +138,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
           </Button>
           <Button asChild variant="secondary" size="icon" aria-label="Next month">
             <Link href={`/staff/calendar?month=${shiftMonth(month, 1)}`}>
-              <ChevronRight />
+              <CaretRight />
             </Link>
           </Button>
           <NewExamDialog colleges={staff.viewAll ? staff.tenants.map((tenant) => ({ id: tenant.id, name: tenant.display_name })) : undefined} />
@@ -177,7 +177,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
                           </span>
                           {clashDays.has(day.key) && (
                             <span className="text-warning">
-                              <TriangleAlert className="size-3.5" strokeWidth={1.75} aria-hidden />
+                              <Warning className="size-3.5" aria-hidden />
                               <span className="sr-only">Overlapping exam windows on this day</span>
                             </span>
                           )}

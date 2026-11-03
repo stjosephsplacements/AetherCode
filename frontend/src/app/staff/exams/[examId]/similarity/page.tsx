@@ -1,4 +1,4 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { EmptyState, LoadError, PageHeader, Section, Table } from "@/components/staff/page-header";
@@ -42,7 +42,7 @@ export default async function SimilarityPage({ params }: { params: Promise<{ exa
   return (
     <>
       <Link href={`/staff/exams/${examId}/results`} className="mb-6 inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink">
-        <ArrowLeft className="size-4" strokeWidth={1.75} />
+        <ArrowLeft className="size-4" />
         {version.title} results
       </Link>
       <PageHeader

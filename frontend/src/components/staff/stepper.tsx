@@ -1,4 +1,4 @@
-import { Check, Lock } from "lucide-react";
+import { Check, Lock } from "@phosphor-icons/react/ssr";
 import { cn } from "@/lib/utils";
 
 export type Step = {
@@ -28,7 +28,7 @@ export function Stepper({ steps, onSelect, label = "Progress" }: { steps: Step[]
                 (step.state === "todo" || step.state === "locked") && "border border-line-strong text-ink-subtle",
               )}
             >
-              {step.state === "done" ? <Check className="size-3.5" strokeWidth={3} /> : step.state === "locked" ? <Lock className="size-3" strokeWidth={2} /> : index + 1}
+              {step.state === "done" ? <Check className="size-3.5" /> : step.state === "locked" ? <Lock className="size-3" /> : index + 1}
             </span>
             <span className="min-w-0">
               <span className={cn("block truncate text-[13.5px] font-medium", step.state === "current" ? "text-ink" : step.state === "done" ? "text-ink" : "text-ink-muted")}>{step.label}</span>

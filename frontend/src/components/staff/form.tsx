@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, LoaderCircle, Paperclip } from "lucide-react";
+import { CalendarBlank, CaretDown, CaretLeft, CaretRight, CaretUp, Check, CircleNotch, Paperclip } from "@phosphor-icons/react/ssr";
 import { Checkbox as CheckboxPrimitive, Popover, RadioGroup as RadioGroupPrimitive, Select as SelectPrimitive } from "radix-ui";
 import { Children, type ComponentProps, isValidElement, type ReactElement, type ReactNode, useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
@@ -145,7 +145,7 @@ export function Select({
             <SelectPrimitive.Value placeholder="Choose" />
           </span>
           <SelectPrimitive.Icon>
-            <ChevronDown className="size-4 shrink-0 text-ink-subtle transition-transform duration-200 group-data-[state=open]:rotate-180" strokeWidth={1.75} />
+            <CaretDown className="size-4 shrink-0 text-ink-subtle transition-transform duration-200 group-data-[state=open]:rotate-180" />
           </SelectPrimitive.Icon>
         </SelectPrimitive.Trigger>
         <SelectPrimitive.Portal>
@@ -155,7 +155,7 @@ export function Select({
             className="z-50 max-h-[min(var(--radix-select-content-available-height),320px)] min-w-[var(--radix-select-trigger-width)] max-w-[min(92vw,440px)] origin-[var(--radix-select-content-transform-origin)] animate-pop overflow-hidden rounded-[var(--radius-control)] border border-line-strong bg-surface shadow-[var(--shadow-overlay)]"
           >
             <SelectPrimitive.ScrollUpButton className="flex h-6 items-center justify-center text-ink-subtle">
-              <ChevronUp className="size-4" strokeWidth={1.75} />
+              <CaretUp className="size-4" />
             </SelectPrimitive.ScrollUpButton>
             <SelectPrimitive.Viewport className="p-1">
               {options.length === 0 && <p className="px-2.5 py-2 text-[13px] text-ink-muted">Nothing to choose yet.</p>}
@@ -167,14 +167,14 @@ export function Select({
                   className="relative flex min-h-8 cursor-default select-none items-center rounded-md py-1.5 pl-7 pr-2.5 text-[13.5px] text-ink outline-none data-[disabled]:opacity-45 data-[highlighted]:bg-hover data-[state=checked]:font-medium"
                 >
                   <SelectPrimitive.ItemIndicator className="absolute left-2 inline-flex">
-                    <Check className="size-3.5 text-brand" strokeWidth={2.5} />
+                    <Check className="size-3.5 text-brand" />
                   </SelectPrimitive.ItemIndicator>
                   <SelectPrimitive.ItemText>{option.label}</SelectPrimitive.ItemText>
                 </SelectPrimitive.Item>
               ))}
             </SelectPrimitive.Viewport>
             <SelectPrimitive.ScrollDownButton className="flex h-6 items-center justify-center text-ink-subtle">
-              <ChevronDown className="size-4" strokeWidth={1.75} />
+              <CaretDown className="size-4" />
             </SelectPrimitive.ScrollDownButton>
           </SelectPrimitive.Content>
         </SelectPrimitive.Portal>
@@ -195,7 +195,7 @@ export function Checkbox({ className, ...props }: ComponentProps<typeof Checkbox
       )}
     >
       <CheckboxPrimitive.Indicator className="animate-pop">
-        <Check className="size-3.5" strokeWidth={3} />
+        <Check className="size-3.5" />
       </CheckboxPrimitive.Indicator>
     </CheckboxPrimitive.Root>
   );
@@ -246,7 +246,7 @@ function NumberInput({ className, ...props }: ComponentProps<"input">) {
             onClick={() => step(direction)}
             className={cn("grid flex-1 place-items-center text-ink-subtle transition-colors hover:bg-hover hover:text-ink active:bg-line", direction === -1 && "border-t border-line")}
           >
-            {direction === 1 ? <ChevronUp className="size-3" strokeWidth={2} /> : <ChevronDown className="size-3" strokeWidth={2} />}
+            {direction === 1 ? <CaretUp className="size-3" /> : <CaretDown className="size-3" />}
           </button>
         ))}
       </div>
@@ -304,7 +304,7 @@ function DateTimeInput({ id, name, defaultValue, value: controlled, required, di
           disabled={disabled}
           className={cn(control, "flex h-10 items-center gap-2.5 text-left data-[state=open]:border-brand data-[state=open]:ring-4 data-[state=open]:ring-brand/15")}
         >
-          <CalendarDays className="size-4 shrink-0 text-ink-subtle" strokeWidth={1.75} />
+          <CalendarBlank className="size-4 shrink-0 text-ink-subtle" />
           <span className={cn("min-w-0 truncate tabular-nums", !parts && "text-ink-subtle")}>
             {parts ? SHOWN.format(new Date(Date.UTC(parts.year, parts.month, parts.day, parts.hour, parts.minute))) : "Pick a date and time"}
           </span>
@@ -318,13 +318,13 @@ function DateTimeInput({ id, name, defaultValue, value: controlled, required, di
           >
             <div className="mb-2 flex items-center justify-between">
               <button type="button" aria-label="Previous month" onClick={() => shift(-1)} className="grid size-8 place-items-center rounded-[var(--radius-control)] text-ink-muted transition-colors hover:bg-hover hover:text-ink">
-                <ChevronLeft className="size-4" strokeWidth={1.75} />
+                <CaretLeft className="size-4" />
               </button>
               <p className="text-sm font-semibold text-ink" aria-live="polite">
                 {MONTH.format(first)}
               </p>
               <button type="button" aria-label="Next month" onClick={() => shift(1)} className="grid size-8 place-items-center rounded-[var(--radius-control)] text-ink-muted transition-colors hover:bg-hover hover:text-ink">
-                <ChevronRight className="size-4" strokeWidth={1.75} />
+                <CaretRight className="size-4" />
               </button>
             </div>
             <div className="grid grid-cols-7 text-center font-mono text-[10.5px] uppercase text-ink-subtle">
@@ -440,7 +440,7 @@ export function FileInput({ className, ...props }: Omit<ComponentProps<"input">,
         className="peer pointer-events-none absolute inset-x-0 bottom-0 h-px w-full opacity-0"
       />
       <span className="inline-flex h-9 shrink-0 items-center gap-2 rounded-full border border-line-strong bg-surface px-4 font-medium text-ink transition-colors hover:bg-hover peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand">
-        <Paperclip className="size-4" strokeWidth={1.75} />
+        <Paperclip className="size-4" />
         Choose file
       </span>
       <span className={cn("min-w-0 truncate", file ? "font-mono text-[12.5px] text-ink" : "text-ink-muted")}>{file ?? "No file chosen"}</span>
@@ -452,7 +452,7 @@ export function SubmitButton({ children, variant = "primary", className }: { chi
   const { pending } = useFormStatus();
   return (
     <Button type="submit" variant={variant} disabled={pending} className={className}>
-      {pending && <LoaderCircle className="animate-spin" />}
+      {pending && <CircleNotch className="animate-spin" />}
       {children}
     </Button>
   );

@@ -1,6 +1,6 @@
+import { ArrowSquareOut, CaretRight, Checks, Trash } from "@phosphor-icons/react/ssr";
 import { Pager } from "@/components/staff/pager";
 import { paginate } from "@/lib/paginate";
-import { CheckCheck, ChevronRight, ExternalLink, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { ConfirmDelete } from "@/components/staff/confirm-delete";
 import { CollegeFilter } from "@/components/staff/college-filter";
@@ -125,7 +125,7 @@ export function CommunityView({ tab, kind, collegeParam, page, several, all, fix
       {tab === "interviews" &&
         (queue.length === 0 ? (
           <div className="grid place-items-center gap-2 rounded-[var(--radius-surface)] border border-dashed border-line-strong px-6 py-16 text-center">
-            <CheckCheck aria-hidden className="size-6 text-success" strokeWidth={1.75} />
+            <Checks aria-hidden className="size-6 text-success" />
             <p className="text-[15px] font-medium text-ink">Nothing is waiting for approval</p>
             <p className="text-sm text-ink-muted">New interview experiences from students show up here to approve or send back.</p>
           </div>
@@ -148,7 +148,7 @@ export function CommunityView({ tab, kind, collegeParam, page, several, all, fix
                       </span>
                       <Badge tone={tone}>{verdict}</Badge>
                       <span className="hidden text-[12.5px] text-ink-subtle sm:block">{experience.rounds.length} round{experience.rounds.length === 1 ? "" : "s"}</span>
-                      <ChevronRight aria-hidden className="size-4 shrink-0 text-ink-subtle transition-transform group-hover:translate-x-0.5" strokeWidth={1.75} />
+                      <CaretRight aria-hidden className="size-4 shrink-0 text-ink-subtle transition-transform group-hover:translate-x-0.5" />
                     </DialogTrigger>
                     <DialogContent title={`${experience.company}, ${experience.role}`} description={meta || "Interview experience"} className="w-[min(94vw,760px)]">
                       <div className="min-h-0 space-y-5 overflow-y-auto p-6">
@@ -203,7 +203,7 @@ export function CommunityView({ tab, kind, collegeParam, page, several, all, fix
                     askReason={false}
                     trigger={
                       <Button type="button" variant="ghost" size="sm" aria-label={`Delete ${post.title}`} className="text-ink-subtle hover:bg-danger-soft hover:text-danger">
-                        <Trash2 />
+                        <Trash />
                       </Button>
                     }
                     title={`Delete ${post.title}?`}
@@ -261,7 +261,7 @@ export function CommunityView({ tab, kind, collegeParam, page, several, all, fix
                     <div className="min-w-0 flex-1">
                       <a href={item.url} target="_blank" rel="noopener noreferrer" className="inline-flex max-w-full items-center gap-1.5 text-[14.5px] font-medium text-ink transition-colors hover:text-brand">
                         <span className="truncate">{item.title}</span>
-                        <ExternalLink aria-hidden className="size-3.5 shrink-0 text-ink-subtle" strokeWidth={1.75} />
+                        <ArrowSquareOut aria-hidden className="size-3.5 shrink-0 text-ink-subtle" />
                       </a>
                       <p className="mt-0.5 truncate text-[12.5px] text-ink-muted">
                         {[several ? college.name : "", item.platform, item.starts_at && formatDateTime(item.starts_at)].filter(Boolean).join(" · ")}
@@ -275,7 +275,7 @@ export function CommunityView({ tab, kind, collegeParam, page, several, all, fix
                         askReason={false}
                         trigger={
                           <Button type="button" variant="ghost" size="sm" aria-label={`Delete ${item.title}`} className="text-ink-subtle hover:bg-danger-soft hover:text-danger">
-                            <Trash2 />
+                            <Trash />
                           </Button>
                         }
                         title={`Delete ${item.title}?`}

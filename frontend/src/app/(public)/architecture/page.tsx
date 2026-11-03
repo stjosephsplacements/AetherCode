@@ -1,6 +1,7 @@
+import type { Icon } from "@phosphor-icons/react";
+import { Broadcast, Cube, Door, Lock, Package, Rocket, ShieldCheck } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Boxes, DoorOpen, Lock, Rocket, Radio, ShieldCheck, Container, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 export const metadata: Metadata = {
@@ -64,9 +65,9 @@ const FACTS = [
   ["0", "network access for submitted code"],
 ];
 
-const PRINCIPLES: { icon: LucideIcon; title: string; body: string }[] = [
+const PRINCIPLES: { icon: Icon; title: string; body: string }[] = [
   {
-    icon: DoorOpen,
+    icon: Door,
     title: "One door in",
     body: "Browsers only ever talk to the web app, and the web app only talks to the gateway. The gateway checks sessions, rate limits and Safe Exam Browser keys before anything reaches a service.",
   },
@@ -76,7 +77,7 @@ const PRINCIPLES: { icon: LucideIcon; title: string; body: string }[] = [
     body: "Every row carries its college, and PostgreSQL row-level security enforces it inside the database. Each service has its own database and least-privilege role.",
   },
   {
-    icon: Container,
+    icon: Package,
     title: "Code runs in a box",
     body: "Submissions are queued to the judge, which runs them in the execution engine with no network, fresh workspaces and hard CPU, memory and time limits. Hidden tests never leave it.",
   },
@@ -86,7 +87,7 @@ const PRINCIPLES: { icon: LucideIcon; title: string; body: string }[] = [
     body: "Every service has its own certificate and identity, and every call between them is mutual TLS.",
   },
   {
-    icon: Radio,
+    icon: Broadcast,
     title: "Events, not shared tables",
     body: "Services publish changes on NATS JetStream through an outbox, so a slow consumer never blocks a student's submit.",
   },
@@ -102,7 +103,7 @@ export default function ArchitecturePage() {
     <div className="mx-auto max-w-6xl px-6 pb-24 pt-12 sm:pt-16">
       <header className="mx-auto max-w-[46rem] text-center">
         <p className="mx-auto inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1 font-mono text-[12px] text-ink-muted">
-          <Boxes className="size-3.5 text-brand" /> Architecture
+          <Cube className="size-3.5 text-brand" /> Architecture
         </p>
         <h1 className="display mt-5 text-[2.6rem] text-ink sm:text-[3.4rem]">How AetherCode is built</h1>
         <p className="mt-5 text-[16px] leading-[1.7] text-ink-muted">
@@ -165,7 +166,7 @@ export default function ArchitecturePage() {
         {PRINCIPLES.map(({ icon: Icon, title, body }, index) => (
           <section key={title} data-reveal className="rounded-[var(--radius-surface)] border border-line bg-surface p-6 shadow-[var(--shadow-hairline)] transition-shadow hover:shadow-[var(--shadow-panel)]">
             <div className="flex items-center justify-between">
-              <span className="grid size-10 place-items-center rounded-full bg-brand-soft text-brand"><Icon className="size-[18px]" strokeWidth={1.75} /></span>
+              <span className="grid size-10 place-items-center rounded-full bg-brand-soft text-brand"><Icon className="size-[18px]" /></span>
               <span aria-hidden className="font-mono text-[12px] text-ink-subtle">{String(index + 1).padStart(2, "0")}</span>
             </div>
             <h2 className="mt-5 text-[1.15rem] font-semibold leading-snug text-ink">{title}</h2>

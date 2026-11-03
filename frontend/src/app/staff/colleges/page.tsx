@@ -1,4 +1,4 @@
-import { Building2, CircleCheck, GraduationCap, Layers } from "lucide-react";
+import { Buildings, CheckCircle, GraduationCap, Stack } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -73,9 +73,9 @@ export default async function CollegesPage({ searchParams }: { searchParams: Pro
     <>
       <PageHeader title="Colleges" description="Every college on this platform. Each has its own departments, students, staff, exams and results." actions={addCollege} />
       <ul className="mb-5 flex flex-wrap gap-2" aria-label="Summary">
-        {chip(<Building2 className="size-3.5" />, "Colleges", tenants.length)}
-        {chip(<CircleCheck className="size-3.5" />, "Active", tenants.filter((tenant) => tenant.status === "active").length)}
-        {chip(<Layers className="size-3.5" />, "Departments", totals.departments)}
+        {chip(<Buildings className="size-3.5" />, "Colleges", tenants.length)}
+        {chip(<CheckCircle className="size-3.5" />, "Active", tenants.filter((tenant) => tenant.status === "active").length)}
+        {chip(<Stack className="size-3.5" />, "Departments", totals.departments)}
         {chip(<GraduationCap className="size-3.5" />, "Batches", totals.batches)}
       </ul>
       {tenants.length === 0 ? (

@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronsUpDown, KeyRound, LogOut, Moon, Sun } from "lucide-react";
+import { CaretUpDown, Key, Moon, SignOut, Sun } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { DropdownMenu } from "radix-ui";
 import { useTransition } from "react";
@@ -30,7 +30,7 @@ export function AccountMenu({ viewer, compact = false }: { viewer: Viewer; compa
               <span className="block truncate text-sm font-medium text-ink">{name}</span>
               <span className="block truncate text-xs text-ink-muted">{viewer.username}</span>
             </span>
-            <ChevronsUpDown className="size-4 text-ink-subtle" strokeWidth={1.75} />
+            <CaretUpDown className="size-4 text-ink-subtle" />
           </>
         )}
       </DropdownMenu.Trigger>
@@ -55,15 +55,15 @@ export function AccountMenu({ viewer, compact = false }: { viewer: Viewer; compa
             className="flex w-full cursor-default items-center gap-2 rounded-md px-2.5 py-2 text-sm text-ink outline-none data-[highlighted]:bg-hover"
           >
             {theme === "dark" ? (
-              <Sun className="size-4 text-ink-muted" strokeWidth={1.75} />
+              <Sun className="size-4 text-ink-muted" />
             ) : (
-              <Moon className="size-4 text-ink-muted" strokeWidth={1.75} />
+              <Moon className="size-4 text-ink-muted" />
             )}
             {theme === "dark" ? "Light theme" : "Dark theme"}
           </DropdownMenu.Item>
           <DropdownMenu.Item asChild>
             <Link href="/account/password" className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm text-ink outline-none data-[highlighted]:bg-hover">
-              <KeyRound className="size-4 text-ink-muted" strokeWidth={1.75} />
+              <Key className="size-4 text-ink-muted" />
               Change password
             </Link>
           </DropdownMenu.Item>
@@ -73,7 +73,7 @@ export function AccountMenu({ viewer, compact = false }: { viewer: Viewer; compa
             onSelect={() => startSignOut(() => logout())}
             className="flex w-full cursor-default items-center gap-2 rounded-md px-2.5 py-2 text-sm text-ink outline-none data-[disabled]:opacity-60 data-[highlighted]:bg-hover"
           >
-            <LogOut className="size-4 text-ink-muted" strokeWidth={1.75} />
+            <SignOut className="size-4 text-ink-muted" />
             {signingOut ? "Signing out" : "Sign out"}
           </DropdownMenu.Item>
         </DropdownMenu.Content>

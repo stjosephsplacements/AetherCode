@@ -1,12 +1,12 @@
 "use client";
 
+import { ArrowCounterClockwise, ArrowsIn, ArrowsOut, CaretDown, Check, CircleNotch, Clock, CloudSlash, Eye, EyeSlash, Megaphone, Play, ShieldCheck, UploadSimple, X } from "@phosphor-icons/react/ssr";
 import { Select } from "@/components/staff/form";
 import { LanguageLabel } from "@/components/language-icon";
 import { WorkspaceTools } from "@/components/practice/workspace-tools";
 import { LayoutMenu } from "@/components/practice/layout-menu";
 import { Splitter } from "@/components/practice/splitter";
 import { DEFAULT_LAYOUT, updateLayout, useLayout } from "@/components/practice/layout-settings";
-import { Check, ChevronDown, Clock3, Eye, EyeOff, CloudOff, LoaderCircle, Maximize2, Megaphone, Minimize2, Play, RotateCcw, ShieldCheck, Upload, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -65,7 +65,7 @@ export function ExamScreen({ tenantId, attemptId }: { tenantId: string; attemptI
     return (
       <main className="grid min-h-dvh place-items-center px-6 text-center">
         <div className="max-w-sm animate-enter">
-          {seb && <ShieldCheck className="mx-auto size-7 text-brand" strokeWidth={1.5} />}
+          {seb && <ShieldCheck className="mx-auto size-7 text-brand" />}
           <h1 className="display mt-4 text-[1.9rem] text-ink">{seb ? "Open this exam in Safe Exam Browser" : "The exam could not load"}</h1>
           <p className="mt-2 text-sm leading-relaxed text-ink-muted">{failure.message}</p>
           {!seb && (
@@ -274,7 +274,7 @@ function ExamWorkspace({ attemptPath, attemptId, attempt, paper }: Loaded & { at
         <ExamGuides />
         {layout.hideClock ? (
           <button type="button" onClick={() => updateLayout({ hideClock: false })} aria-label="Show the exam clock" className="flex items-center gap-1.5 rounded-full bg-hover px-3 py-1 text-[13px] font-medium text-ink-muted transition-colors hover:text-ink">
-            <EyeOff className="size-3.5" strokeWidth={2} />
+            <EyeSlash className="size-3.5" />
             Clock hidden
           </button>
         ) : (
@@ -286,10 +286,10 @@ function ExamWorkspace({ attemptPath, attemptId, attempt, paper }: Loaded & { at
               minutesLeft !== null && minutesLeft <= 5 ? "bg-danger-soft text-danger" : minutesLeft !== null && minutesLeft <= 10 ? "bg-warning-soft text-warning" : "bg-hover text-ink",
             )}
           >
-            <Clock3 className="size-3.5" strokeWidth={2} />
+            <Clock className="size-3.5" />
             {remaining === null ? "--:--" : formatCountdown(remaining)}
             <button type="button" onClick={() => updateLayout({ hideClock: true })} aria-label="Hide the exam clock" title="Hide the clock. The exam still ends on time and you are warned as it nears." className="grid size-5 place-items-center rounded-full opacity-70 hover:bg-black/10 hover:opacity-100">
-              <Eye className="size-3.5" strokeWidth={2} />
+              <Eye className="size-3.5" />
             </button>
           </span>
         )}
@@ -307,7 +307,7 @@ function ExamWorkspace({ attemptPath, attemptId, attempt, paper }: Loaded & { at
               <strong className="font-mono text-ink">{remaining === null ? "--:--" : formatCountdown(remaining)}</strong> left.
             </p>
             <Button className="mt-8" size="lg" onClick={integrity.enterFullscreen}>
-              <Maximize2 />
+              <ArrowsOut />
               Enter fullscreen
             </Button>
           </div>
@@ -316,13 +316,13 @@ function ExamWorkspace({ attemptPath, attemptId, attempt, paper }: Loaded & { at
 
       {latestNote && latestNote.id !== dismissed && (
         <div role="status" className="flex items-start gap-3 border-b bg-brand-soft px-4 py-2 text-sm text-brand-soft-ink">
-          <Megaphone className="mt-0.5 size-4 shrink-0" strokeWidth={1.75} />
+          <Megaphone className="mt-0.5 size-4 shrink-0" />
           <p className="min-w-0 flex-1 whitespace-pre-wrap">
             <span className="font-medium">Announcement, {formatTime(latestNote.created_at)}: </span>
             {latestNote.body}
           </p>
           <button type="button" onClick={() => setDismissed(latestNote.id)} aria-label="Dismiss announcement" className="shrink-0 rounded p-0.5 hover:bg-brand/10">
-            <X className="size-4" strokeWidth={1.75} />
+            <X className="size-4" />
           </button>
         </div>
       )}
@@ -395,7 +395,7 @@ function ExamWorkspace({ attemptPath, attemptId, attempt, paper }: Loaded & { at
                 onClick={() => setStatementOpen((open) => !open)}
                 className="hidden lg:grid"
               >
-                {statementOpen ? <Maximize2 className="size-4" strokeWidth={1.75} /> : <Minimize2 className="size-4" strokeWidth={1.75} />}
+                {statementOpen ? <ArrowsOut className="size-4" /> : <ArrowsIn className="size-4" />}
               </IconButton>
             </div>
           </div>
@@ -447,7 +447,7 @@ function ExamWorkspace({ attemptPath, attemptId, attempt, paper }: Loaded & { at
                 <span className={cn("ml-2 hidden truncate text-[13px] sm:inline", summary.tone)}>{summary.text}</span>
               )}
               <IconButton label={consoleOpen ? "Hide console" : "Show console"} onClick={() => setConsoleOpen((open) => !open)} className="ml-auto">
-                <ChevronDown className={cn("size-4 transition-transform", consoleOpen && "rotate-180")} strokeWidth={1.75} />
+                <CaretDown className={cn("size-4 transition-transform", consoleOpen && "rotate-180")} />
               </IconButton>
             </div>
             {consoleOpen && (
@@ -493,18 +493,18 @@ function ExamWorkspace({ attemptPath, attemptId, attempt, paper }: Loaded & { at
                 className="grid size-4 place-items-center rounded-[4px] border border-line-strong bg-surface outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand data-[state=checked]:border-brand data-[state=checked]:bg-brand"
               >
                 <Checkbox.Indicator>
-                  <Check className="size-3 text-brand-ink" strokeWidth={3} />
+                  <Check className="size-3 text-brand-ink" />
                 </Checkbox.Indicator>
               </Checkbox.Root>
               Test against custom input
             </label>
             <div className="ml-auto flex items-center gap-2">
               <Button variant="secondary" onClick={runCode} disabled={activeRun.kind === "running" || readOnly} title="Ctrl + Enter">
-                {activeRun.kind === "running" ? <LoaderCircle className="animate-spin" /> : <Play />}
+                {activeRun.kind === "running" ? <CircleNotch className="animate-spin" /> : <Play />}
                 Run code
               </Button>
               <Button onClick={submitCode} disabled={submitting !== null || readOnly} title="Ctrl + Shift + Enter">
-                {submitting === currentId ? <LoaderCircle className="animate-spin" /> : <Upload />}
+                {submitting === currentId ? <CircleNotch className="animate-spin" /> : <UploadSimple />}
                 Submit code
               </Button>
             </div>
@@ -566,7 +566,7 @@ function ResetCode({ disabled, onReset }: { disabled: boolean; onReset: () => vo
         title="Reset code"
         className="grid size-8 place-items-center rounded-[var(--radius-control)] text-ink-muted outline-none transition-colors hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-40"
       >
-        <RotateCcw className="size-4" strokeWidth={1.75} />
+        <ArrowCounterClockwise className="size-4" />
       </AlertDialog.Trigger>
       <AlertDialog.Portal>
         <AlertDialog.Overlay className="fixed inset-0 z-50 animate-fade bg-[rgb(20_20_19/0.45)]" />
@@ -591,11 +591,11 @@ function ResetCode({ disabled, onReset }: { disabled: boolean; onReset: () => vo
 
 function SaveIndicator({ state, error }: { state: SaveState; error: string | null }) {
   const view = {
-    saved: { icon: <Check className="size-3.5" strokeWidth={2} />, label: "Saved", className: "text-ink-subtle" },
-    saving: { icon: <LoaderCircle className="size-3.5 animate-spin" />, label: "Saving", className: "text-ink-subtle" },
+    saved: { icon: <Check className="size-3.5" />, label: "Saved", className: "text-ink-subtle" },
+    saving: { icon: <CircleNotch className="size-3.5 animate-spin" />, label: "Saving", className: "text-ink-subtle" },
     unsaved: { icon: null, label: "Editing", className: "text-ink-subtle" },
-    error: { icon: <CloudOff className="size-3.5" strokeWidth={1.75} />, label: "Not saved", className: "text-danger" },
-    closed: { icon: <CloudOff className="size-3.5" strokeWidth={1.75} />, label: "Ended", className: "text-warning" },
+    error: { icon: <CloudSlash className="size-3.5" />, label: "Not saved", className: "text-danger" },
+    closed: { icon: <CloudSlash className="size-3.5" />, label: "Ended", className: "text-warning" },
   }[state];
   return (
     <span className={cn("hidden items-center gap-1.5 text-[13px] sm:flex", view.className)} title={error ?? undefined} aria-live="polite">

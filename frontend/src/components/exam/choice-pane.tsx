@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, LoaderCircle } from "lucide-react";
+import { Check, CircleNotch } from "@phosphor-icons/react/ssr";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Markdown } from "@/components/markdown";
@@ -59,12 +59,12 @@ export function ChoicePane({
         <span className="ml-auto flex items-center gap-1.5 text-ink-muted">
           {saving ? (
             <>
-              <LoaderCircle className="size-3.5 animate-spin" />
+              <CircleNotch className="size-3.5 animate-spin" />
               Saving
             </>
           ) : selected.length > 0 ? (
             <>
-              <Check className="size-3.5 text-success" strokeWidth={2.25} />
+              <Check className="size-3.5 text-success" />
               Saved
             </>
           ) : (
@@ -96,7 +96,7 @@ export function ChoicePane({
                     checked ? "border-brand bg-brand text-brand-ink" : "border-line-strong text-ink-muted",
                   )}
                 >
-                  {checked ? <Check className="size-3" strokeWidth={3} /> : String.fromCharCode(65 + position)}
+                  {checked ? <Check className="size-3" /> : String.fromCharCode(65 + position)}
                 </span>
                 <Markdown className="min-w-0 flex-1 [&>*:first-child]:mt-0">{choice.text}</Markdown>
               </button>

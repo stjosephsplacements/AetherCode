@@ -1,6 +1,6 @@
 "use client";
 
-import { Cookie } from "lucide-react";
+import { Cookie } from "@phosphor-icons/react/ssr";
 import { usePathname } from "next/navigation";
 import Script from "next/script";
 import { useEffect, useState, useSyncExternalStore } from "react";
@@ -147,7 +147,7 @@ export function ConsentManager() {
           <div className="rounded-[22px] border border-line bg-surface/95 p-5 shadow-[var(--shadow-panel)] backdrop-blur-md">
             <div className="flex items-start gap-3.5">
               <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-full bg-brand-soft text-brand">
-                <Cookie className="size-[18px]" strokeWidth={1.75} />
+                <Cookie className="size-[18px]" />
               </span>
               <div>
                 <p className="text-[15px] font-semibold text-ink">Cookies on AetherCode</p>

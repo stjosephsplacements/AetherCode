@@ -1,6 +1,6 @@
 "use client";
 
-import { Pause, Play } from "lucide-react";
+import { Pause, Play } from "@phosphor-icons/react/ssr";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 

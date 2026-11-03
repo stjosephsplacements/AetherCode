@@ -1,4 +1,4 @@
-import { ArrowUpRight, BarChart3, Eye, MonitorPlay } from "lucide-react";
+import { ArrowUpRight, ChartBar, Eye, MonitorPlay } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { ConfirmDelete } from "@/components/staff/confirm-delete";
 import { deleteExam } from "@/app/staff/exams/actions";
@@ -57,7 +57,7 @@ export function ExamPeek({ exam, now, className, children, label }: { exam: { ex
             {state === "closed" && (
               <Button asChild variant="secondary">
                 <Link href={collegeHref(`/staff/exams/${id}/results`, exam.college?.id)}>
-                  <BarChart3 />
+                  <ChartBar />
                   Results
                 </Link>
               </Button>

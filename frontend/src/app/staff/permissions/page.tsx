@@ -1,5 +1,5 @@
+import { Key, Lock, ShieldCheck, Users } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
-import { KeyRound, Lock, ShieldCheck, Users } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
@@ -81,7 +81,7 @@ export default async function PermissionsPage({ searchParams }: { searchParams: 
       <ul className="mb-5 flex flex-wrap gap-2" aria-label="Summary">
         {chip(<Users className="size-3.5" />, "Staff", people.length)}
         {chip(<ShieldCheck className="size-3.5" />, "Permissions in the catalogue", groups.reduce((sum, group) => sum + group.resources.reduce((inner, resource) => inner + resource.verbs.length, 0), 0))}
-        {chosen && chip(<KeyRound className="size-3.5" />, `Extra for ${chosen.name.split(" ")[0]}`, held.length)}
+        {chosen && chip(<Key className="size-3.5" />, `Extra for ${chosen.name.split(" ")[0]}`, held.length)}
       </ul>
       {people.length === 0 ? (
         <EmptyState>
@@ -127,7 +127,7 @@ export default async function PermissionsPage({ searchParams }: { searchParams: 
                 {chosen.root ? (
                   <div className="rounded-[var(--radius-surface)] border border-line bg-surface p-6 text-sm text-ink-muted">
                     <p className="mb-1 flex items-center gap-2 font-medium text-ink">
-                      <Lock className="size-4" strokeWidth={1.75} />
+                      <Lock className="size-4" />
                       Every permission, fixed
                     </p>
                     The root administrator holds every permission across every college. It cannot be edited or removed, so there is nothing to change here.

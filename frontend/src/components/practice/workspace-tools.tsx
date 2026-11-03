@@ -1,6 +1,6 @@
 "use client";
 
-import { Eraser, GripHorizontal, NotebookPen, Pause, Play, Plus, RotateCcw, StickyNote, Timer, Trash2, X } from "lucide-react";
+import { ArrowCounterClockwise, DotsSix, Eraser, Note, NotePencil, Pause, Play, Plus, Timer, Trash, X } from "@phosphor-icons/react/ssr";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -159,11 +159,11 @@ export function WorkspaceTools({ storageKey, timer: withTimer = true }: { storag
         </button>
         )}
         <button type="button" onClick={() => show("notes")} aria-label="Sticky notes" className="relative grid size-8 place-items-center rounded-full text-ink-muted transition-colors hover:bg-hover hover:text-ink">
-          <StickyNote className="size-4" strokeWidth={1.75} />
+          <Note className="size-4" />
           {notes.length > 0 && <span className="absolute -right-0.5 -top-0.5 grid size-4 place-items-center rounded-full bg-brand text-[10px] font-semibold text-brand-ink">{notes.length}</span>}
         </button>
         <button type="button" onClick={() => show("scratch")} aria-label="Scratch pad" className="grid size-8 place-items-center rounded-full text-ink-muted transition-colors hover:bg-hover hover:text-ink">
-          <NotebookPen className="size-4" strokeWidth={1.75} />
+          <NotePencil className="size-4" />
         </button>
       </div>
 
@@ -183,7 +183,7 @@ export function WorkspaceTools({ storageKey, timer: withTimer = true }: { storag
             onDoubleClick={() => setGeometry(fit({ w: 340, h: 420, x: window.innerWidth - 360, y: window.innerHeight - 440 }))}
             title="Drag to move. Double-click to bring it back to the corner."
           >
-            <GripHorizontal className="size-4 text-ink-subtle" />
+            <DotsSix className="size-4 text-ink-subtle" />
             <div role="tablist" className="flex flex-1 gap-1" onPointerDown={(event) => event.stopPropagation()}>
               {(
                 [
@@ -214,7 +214,7 @@ export function WorkspaceTools({ storageKey, timer: withTimer = true }: { storag
                   {timer.running ? "Pause" : timer.seconds > 0 ? "Resume" : "Start"}
                 </button>
                 <button type="button" onClick={timer.reset} aria-label="Reset the timer" className="grid size-10 place-items-center rounded-full border border-line text-ink-muted hover:bg-hover hover:text-ink">
-                  <RotateCcw className="size-4" />
+                  <ArrowCounterClockwise className="size-4" />
                 </button>
               </div>
               <div className="mt-4 border-t border-line pt-3">
@@ -253,7 +253,7 @@ export function WorkspaceTools({ storageKey, timer: withTimer = true }: { storag
                         ))}
                       </div>
                       <button type="button" aria-label="Delete the note" onClick={() => saveNotes(notes.filter((entry) => entry.id !== note.id))} className={cn("rounded-full p-1 opacity-70 hover:opacity-100", color.ink)}>
-                        <Trash2 className="size-3.5" />
+                        <Trash className="size-3.5" />
                       </button>
                     </div>
                   </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Keyboard, Scale } from "lucide-react";
+import { Keyboard, Scales } from "@phosphor-icons/react/ssr";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Dialog, DialogContent, SheetContent } from "@/components/ui/dialog";
 import { SITE } from "@/lib/site";
@@ -67,10 +67,10 @@ export function ExamGuides() {
   return (
     <>
       <button type="button" aria-label="How scoring works" title="How scoring works" onClick={() => setScoringOpen(true)} className={button}>
-        <Scale className="size-4" strokeWidth={1.75} />
+        <Scales className="size-4" />
       </button>
       <button type="button" aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)" onClick={() => setKeysOpen(true)} className={button}>
-        <Keyboard className="size-4" strokeWidth={1.75} />
+        <Keyboard className="size-4" />
       </button>
 
       <Dialog open={keysOpen} onOpenChange={setKeysOpen}>

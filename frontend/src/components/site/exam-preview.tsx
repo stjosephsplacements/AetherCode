@@ -1,8 +1,8 @@
 "use client";
 
+import { Check, CircleNotch, Clock } from "@phosphor-icons/react/ssr";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
-import { Check, Clock3, Loader2 } from "lucide-react";
 import { useRef } from "react";
 
 // The solution as lines of [tone, text] pairs; an empty tone is plain text.
@@ -64,7 +64,7 @@ export function ExamPreview() {
         <span className="text-ink-subtle">/</span>
         <span className="truncate text-ink-muted">Placement drive, round 1</span>
         <span className="ml-auto inline-flex items-center gap-1.5 font-mono tabular-nums">
-          <Clock3 className="size-3.5 text-ink-subtle" />
+          <Clock className="size-3.5 text-ink-subtle" />
           42:17
         </span>
         <span className="rounded-[7px] border border-line-strong px-2.5 py-1 text-[12.5px]">End test</span>
@@ -119,9 +119,9 @@ export function ExamPreview() {
                 {SAMPLES.map((sample, index) => (
                   <div key={sample.name} data-row={index} className="relative flex items-center gap-2.5">
                     <span className="relative grid size-5 place-items-center">
-                      <Loader2 data-state="running" className="absolute size-4 animate-spin text-ink-subtle" />
+                      <CircleNotch data-state="running" className="absolute size-4 animate-spin text-ink-subtle" />
                       <span data-state="passed" className="absolute grid size-5 place-items-center rounded-full bg-success-soft text-success">
-                        <Check className="size-3" strokeWidth={3} />
+                        <Check className="size-3" />
                       </span>
                     </span>
                     <span>{sample.name}</span>

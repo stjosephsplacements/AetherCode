@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Search } from "lucide-react";
+import { Check, MagnifyingGlass } from "@phosphor-icons/react/ssr";
 import { useState } from "react";
 import { ActionForm, Field, Select, TextInput } from "@/components/staff/form";
 import { cn } from "@/lib/utils";
@@ -86,7 +86,7 @@ export function AssignForm({
           <div className="flex items-center gap-2">
             <label className="relative">
               <span className="sr-only">Search</span>
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-ink-subtle" strokeWidth={1.75} />
+              <MagnifyingGlass className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-ink-subtle" />
               <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search" className="h-8 w-40 rounded-full border border-line bg-surface pl-8 pr-3 text-[13px] text-ink outline-none placeholder:text-ink-subtle focus:border-brand" />
             </label>
             <button
@@ -121,7 +121,7 @@ export function AssignForm({
                     onClick={() => toggle(option.id)}
                     className={cn("flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left text-[13.5px] transition-colors", on ? "border-brand bg-brand-soft text-brand-soft-ink" : "border-line text-ink hover:border-line-strong hover:bg-hover")}
                   >
-                    <span className={cn("grid size-4 shrink-0 place-items-center rounded border", on ? "border-brand bg-brand text-brand-ink" : "border-line-strong")}>{on && <Check className="size-3" strokeWidth={3} />}</span>
+                    <span className={cn("grid size-4 shrink-0 place-items-center rounded border", on ? "border-brand bg-brand text-brand-ink" : "border-line-strong")}>{on && <Check className="size-3" />}</span>
                     <span className="min-w-0 truncate">{option.label}</span>
                   </button>
                 </li>

@@ -1,4 +1,4 @@
-import { Lock } from "lucide-react";
+import { Lock } from "@phosphor-icons/react/ssr";
 import { ActionForm, Field, Select } from "@/components/staff/form";
 import { Button } from "@/components/ui/button";
 import type { QuestionVersion } from "@/lib/api-types";

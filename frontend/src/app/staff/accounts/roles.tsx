@@ -1,6 +1,6 @@
 "use client";
 
-import { X } from "lucide-react";
+import { X } from "@phosphor-icons/react/ssr";
 import { useActionState, useState } from "react";
 import { Checkbox, FormMessage, Select, initialActionState } from "@/components/staff/form";
 import { Button } from "@/components/ui/button";

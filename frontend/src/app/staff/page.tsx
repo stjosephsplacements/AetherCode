@@ -1,4 +1,4 @@
-import { Plus, Upload } from "lucide-react";
+import { Plus, UploadSimple } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { JudgeMetrics } from "@/components/staff/judge-metrics";
@@ -164,7 +164,7 @@ export default async function Dashboard() {
             {admin && (
               <Button asChild variant="secondary">
                 <Link href="/staff/students">
-                  <Upload />
+                  <UploadSimple />
                   Import students
                 </Link>
               </Button>

@@ -1,6 +1,6 @@
 "use client";
 
-import { LoaderCircle, X } from "lucide-react";
+import { CircleNotch, X } from "@phosphor-icons/react/ssr";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import type { ActionState } from "@/components/staff/form";
@@ -29,7 +29,7 @@ export function RemoveFromExam({ label, remove }: { label: string; remove: () =>
         }
         className="grid size-7 place-items-center rounded-[var(--radius-control)] text-ink-subtle transition-colors hover:bg-danger-soft hover:text-danger disabled:opacity-50"
       >
-        {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <X className="size-4" strokeWidth={1.75} />}
+        {pending ? <CircleNotch className="size-3.5 animate-spin" /> : <X className="size-4" />}
       </button>
     </span>
   );

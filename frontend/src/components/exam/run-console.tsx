@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleCheck, CircleX, LoaderCircle } from "lucide-react";
+import { CheckCircle, CircleNotch, XCircle } from "@phosphor-icons/react/ssr";
 import { useState } from "react";
 import type { CodeRun, RunUnit } from "@/lib/api-types";
 import { cn } from "@/lib/utils";
@@ -61,7 +61,7 @@ export function RunConsole({ state, idleText }: { state: RunState; idleText?: st
   if (state.kind === "running") {
     return (
       <Empty>
-        <LoaderCircle className="size-4 animate-spin" />
+        <CircleNotch className="size-4 animate-spin" />
         {state.custom ? "Running with your input" : "Running your code"}
       </Empty>
     );
@@ -103,9 +103,9 @@ export function RunConsole({ state, idleText }: { state: RunState; idleText?: st
               )}
             >
               {passed ? (
-                <CircleCheck className="size-3.5 text-success" strokeWidth={2} />
+                <CheckCircle className="size-3.5 text-success" />
               ) : (
-                <CircleX className="size-3.5 text-danger" strokeWidth={2} />
+                <XCircle className="size-3.5 text-danger" />
               )}
               Test {index + 1}
             </button>

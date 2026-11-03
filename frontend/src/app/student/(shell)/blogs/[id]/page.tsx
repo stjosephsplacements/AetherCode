@@ -1,4 +1,4 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -25,7 +25,7 @@ export default async function BlogPage({ params }: { params: Promise<{ id: strin
   return (
     <article className="mx-auto max-w-[720px] animate-enter">
       <Link href="/student/blogs" className="inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink">
-        <ArrowLeft className="size-4" strokeWidth={1.75} />
+        <ArrowLeft className="size-4" />
         Blogs
       </Link>
       <h1 className="display mt-6 text-[2.1rem] text-ink sm:text-[2.4rem]">{post.title}</h1>

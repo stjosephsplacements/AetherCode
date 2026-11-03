@@ -1,4 +1,4 @@
-import { ArrowRight, BookOpenCheck, CalendarClock, Code2, FileText, Flame, MessagesSquare, Trophy, ListChecks } from "lucide-react";
+import { ArrowRight, BookOpenText, CalendarDots, Chats, CodeBlock, FileText, Fire, ListChecks, Trophy } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Ring } from "@/components/student/ring";
@@ -81,7 +81,7 @@ export default async function StudentDashboard() {
                 </Link>
               ) : (
                 <Link href="/student/practice" className="inline-flex h-11 items-center gap-2 rounded-full bg-white px-6 text-[15px] font-semibold text-[#1b1640] shadow-lg transition-transform hover:-translate-y-0.5">
-                  <Code2 className="size-4" />
+                  <CodeBlock className="size-4" />
                   Practice now
                 </Link>
               )}
@@ -120,7 +120,7 @@ export default async function StudentDashboard() {
               </div>
             ) : (
               <div className="py-6 text-center">
-                <CalendarClock className="mx-auto size-7" strokeWidth={1.5} />
+                <CalendarDots className="mx-auto size-7" />
                 <p className="mt-2 font-semibold">No exams scheduled</p>
                 <p className="mt-0.5 text-[13px] text-white/85">New ones appear here as soon as faculty assign them.</p>
               </div>
@@ -133,7 +133,7 @@ export default async function StudentDashboard() {
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <div className={cn(card, "p-5")}>
           <span className="grid size-11 place-items-center rounded-2xl bg-brand-soft text-brand">
-            <CalendarClock className="size-5" />
+            <CalendarDots className="size-5" />
           </span>
           <p className="mt-4 text-[13px] text-ink-muted">Exams ahead</p>
           <p className="mt-0.5 font-mono text-[32px] font-semibold leading-none tracking-tight text-ink">{ahead.length}</p>
@@ -141,7 +141,7 @@ export default async function StudentDashboard() {
         </div>
         <div className={cn(card, "p-5")}>
           <span className="grid size-11 place-items-center rounded-2xl bg-success-soft text-success">
-            <BookOpenCheck className="size-5" />
+            <BookOpenText className="size-5" />
           </span>
           <p className="mt-4 text-[13px] text-ink-muted">Completed</p>
           <p className="mt-0.5 font-mono text-[32px] font-semibold leading-none tracking-tight text-ink">{past.length}</p>
@@ -165,7 +165,7 @@ export default async function StudentDashboard() {
         <div className={cn(card, "p-5")}>
           <div className="flex items-start justify-between">
             <span className="grid size-11 place-items-center rounded-2xl bg-danger-soft text-danger">
-              <Flame className="size-5" />
+              <Fire className="size-5" />
             </span>
             <div className="flex gap-1.5" aria-label="This week">
               {week.map((cell, index) => (
@@ -220,7 +220,7 @@ export default async function StudentDashboard() {
             </div>
             {ahead.length === 0 ? (
               <div className={cn(card, "px-6 py-10 text-center")}>
-                <CalendarClock className="mx-auto size-7 text-ink-subtle" strokeWidth={1.5} />
+                <CalendarDots className="mx-auto size-7 text-ink-subtle" />
                 <p className="mt-2 text-[15px] font-medium text-ink">Nothing coming up</p>
                 <p className="mt-0.5 text-[13px] text-ink-muted">Exams your faculty assign show up here.</p>
               </div>
@@ -280,7 +280,7 @@ export default async function StudentDashboard() {
                   return (
                     <li key={assignment.id} className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-hover/60">
                       <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-success-soft text-success">
-                        <BookOpenCheck className="size-4" />
+                        <BookOpenText className="size-4" />
                       </span>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-[14.5px] font-medium text-ink">{assignment.title}</p>
@@ -343,8 +343,8 @@ export default async function StudentDashboard() {
 
           <section aria-label="Shortcuts" className="grid grid-cols-2 gap-3">
             {[
-              { href: "/student/practice", label: "Practice", note: "Solve problems", icon: Code2, tone: "bg-brand-soft text-brand" },
-              { href: "/student/interviews", label: "Interviews", note: "Real experiences", icon: MessagesSquare, tone: "bg-success-soft text-success" },
+              { href: "/student/practice", label: "Practice", note: "Solve problems", icon: CodeBlock, tone: "bg-brand-soft text-brand" },
+              { href: "/student/interviews", label: "Interviews", note: "Real experiences", icon: Chats, tone: "bg-success-soft text-success" },
               { href: "/student/resume", label: "Resume", note: "Build and print", icon: FileText, tone: "bg-warning-soft text-warning" },
               { href: "/student/tasks", label: "My tasks", note: "Your to-do list", icon: ListChecks, tone: "bg-danger-soft text-danger" },
             ].map(({ href, label, note, icon: Icon, tone }) => (

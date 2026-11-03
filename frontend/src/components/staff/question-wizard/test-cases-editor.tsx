@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, Download, Plus, Trash2, Upload } from "lucide-react";
+import { Copy, DownloadSimple, Plus, Trash, UploadSimple } from "@phosphor-icons/react/ssr";
 import { useRef, useState } from "react";
 import { Checkbox, TextArea, TextInput } from "@/components/staff/form";
 import { Button } from "@/components/ui/button";
@@ -92,11 +92,11 @@ export function TestCasesEditor({ tests, onChange }: { tests: TestDraft[]; onCha
           <div className="flex items-center gap-1 border-t border-line px-3 py-2">
             <input ref={fileInput} type="file" accept=".zip,.json,application/zip,application/json" className="sr-only" aria-label="Upload tests from a zip or JSON file" onChange={(event) => upload(event.target.files?.[0])} />
             <Button type="button" variant="ghost" size="sm" onClick={() => fileInput.current?.click()}>
-              <Upload />
+              <UploadSimple />
               Upload zip
             </Button>
             <Button type="button" variant="ghost" size="sm" onClick={downloadTemplate}>
-              <Download />
+              <DownloadSimple />
               Template
             </Button>
           </div>
@@ -130,7 +130,7 @@ export function TestCasesEditor({ tests, onChange }: { tests: TestDraft[]; onCha
                   onClick={() => add({ ...current })}
                   className="grid size-8 place-items-center rounded-[var(--radius-control)] text-ink-muted transition-colors hover:bg-hover hover:text-ink"
                 >
-                  <Copy className="size-4" strokeWidth={1.75} />
+                  <Copy className="size-4" />
                 </button>
                 <button
                   type="button"
@@ -139,7 +139,7 @@ export function TestCasesEditor({ tests, onChange }: { tests: TestDraft[]; onCha
                   disabled={tests.length <= 1}
                   className="grid size-8 place-items-center rounded-[var(--radius-control)] text-ink-muted transition-colors hover:bg-danger-soft hover:text-danger disabled:pointer-events-none disabled:opacity-30"
                 >
-                  <Trash2 className="size-4" strokeWidth={1.75} />
+                  <Trash className="size-4" />
                 </button>
               </div>
             </div>

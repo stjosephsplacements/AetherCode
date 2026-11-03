@@ -1,4 +1,4 @@
-import { ExternalLink } from "lucide-react";
+import { ArrowSquareOut } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { ActionForm, Field, TextInput } from "@/components/staff/form";
@@ -47,7 +47,7 @@ export default async function ProfilePage() {
           <Panel key={stat.platform} className="p-5">
             <a href={stat.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-[15px] font-semibold text-ink hover:text-brand">
               {PLATFORMS.find((platform) => platform.name === stat.platform)?.label}
-              <ExternalLink className="size-3.5" strokeWidth={1.75} />
+              <ArrowSquareOut className="size-3.5" />
             </a>
             <p className="text-[13px] text-ink-muted">{stat.handle}</p>
             {stat.lines ? (

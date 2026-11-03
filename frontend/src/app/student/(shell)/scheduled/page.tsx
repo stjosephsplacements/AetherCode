@@ -1,4 +1,4 @@
-import { CalendarClock } from "lucide-react";
+import { CalendarDots } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -26,7 +26,7 @@ export default async function ScheduledPage() {
       <PageHeader title="Scheduled" description="Exams open now and the ones coming up, soonest first." />
       {rows.length === 0 ? (
         <EmptyState>
-          <CalendarClock className="mx-auto mb-3 size-6 text-ink-subtle" strokeWidth={1.5} />
+          <CalendarDots className="mx-auto mb-3 size-6 text-ink-subtle" />
           Nothing is scheduled. New exams show up here as soon as faculty assign them.
         </EmptyState>
       ) : (

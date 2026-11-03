@@ -1,6 +1,6 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { MagnifyingGlass } from "@phosphor-icons/react/ssr";
 import { useDeferredValue, useMemo, useState } from "react";
 import { EmptyState } from "@/components/staff/page-header";
 import { Badge } from "@/components/ui/card";
@@ -36,7 +36,7 @@ export function AuditLog({ rows, several }: { rows: AuditRow[]; several: boolean
     <>
       <div className="mb-5 flex flex-wrap items-center gap-3 rounded-[var(--radius-surface)] border border-line bg-surface p-2.5">
         <div className="relative min-w-[16rem] flex-1">
-          <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-subtle" strokeWidth={1.75} />
+          <MagnifyingGlass aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-subtle" />
           <input
             type="search"
             value={query}

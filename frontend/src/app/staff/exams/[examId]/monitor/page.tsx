@@ -1,4 +1,4 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LoadError, PageHeader } from "@/components/staff/page-header";
@@ -38,7 +38,7 @@ export default async function MonitorPage({ params }: { params: Promise<{ examId
   return (
     <>
       <Link href={`/staff/exams/${examId}`} className="mb-6 inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink">
-        <ArrowLeft className="size-4" strokeWidth={1.75} />
+        <ArrowLeft className="size-4" />
         {version.title}
       </Link>
       <PageHeader title="Live monitor" description={`${formatWindow(version.opens_at, version.closes_at)}. Refreshes every 15 seconds.`} />

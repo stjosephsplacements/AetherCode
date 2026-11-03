@@ -1,4 +1,4 @@
-import { Star } from "lucide-react";
+import { Star } from "@phosphor-icons/react/ssr";
 import Image from "next/image";
 import Link from "next/link";
 import { SITE } from "@/lib/site";

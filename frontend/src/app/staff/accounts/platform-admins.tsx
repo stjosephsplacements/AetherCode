@@ -1,4 +1,4 @@
-import { Crown, Lock, ShieldCheck } from "lucide-react";
+import { Crown, Lock, ShieldCheck } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { ConfirmDelete } from "@/components/staff/confirm-delete";
 import { Field, Select } from "@/components/staff/form";
@@ -71,7 +71,7 @@ export function PlatformAdmins({ admins, candidates, viewerIsRoot }: { admins: S
               </p>
             </div>
             {admin.root ? (
-              <Lock aria-label="Fixed" className="size-4 text-ink-subtle" strokeWidth={1.75} />
+              <Lock aria-label="Fixed" className="size-4 text-ink-subtle" />
             ) : (
               viewerIsRoot && (
                 <div className="flex items-center gap-1">

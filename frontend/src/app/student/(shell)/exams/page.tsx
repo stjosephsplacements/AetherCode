@@ -1,4 +1,4 @@
-import { Clock3 } from "lucide-react";
+import { Clock } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { EmptyState, PageHeader } from "@/components/staff/page-header";
@@ -67,7 +67,7 @@ export default async function MyExams({ searchParams }: { searchParams: Promise<
                 <div className="flex items-center justify-between gap-2">
                   {tab === "live" ? <Badge tone="brand">Open now</Badge> : tab === "upcoming" ? <Badge tone="neutral">Upcoming</Badge> : <Badge tone="neutral">{assignment.lifecycle_state === "expired" ? "Missed" : "Ended"}</Badge>}
                   <span className="inline-flex items-center gap-1.5 font-mono text-xs text-ink-subtle">
-                    <Clock3 className="size-3.5" />
+                    <Clock className="size-3.5" />
                     {formatDuration(assignment.duration_seconds)}
                   </span>
                 </div>

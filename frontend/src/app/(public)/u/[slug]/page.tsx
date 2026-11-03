@@ -1,4 +1,4 @@
-import { ExternalLink } from "lucide-react";
+import { ArrowSquareOut } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { publicProfile } from "@/lib/server/public-profile";
@@ -72,7 +72,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
                         <span className="block text-[14px] font-medium">{link.platform}</span>
                         <span className="block font-mono text-[12px] opacity-70">{link.handle}</span>
                       </span>
-                      <ExternalLink className="size-4" strokeWidth={1.75} />
+                      <ArrowSquareOut className="size-4" />
                     </a>
                   ) : (
                     <div className="rounded-full border border-line-strong bg-canvas px-4 py-3">

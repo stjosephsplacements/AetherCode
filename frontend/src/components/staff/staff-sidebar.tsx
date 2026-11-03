@@ -1,6 +1,6 @@
 "use client";
 
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Sidebar, SidebarSimple } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AccountMenu } from "@/components/account-menu";
@@ -43,7 +43,7 @@ export function StaffSidebar({ viewer, groups, brand, college, initiallyCollapse
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const Toggle = collapsed ? PanelLeftOpen : PanelLeftClose;
+  const Toggle = collapsed ? Sidebar : SidebarSimple;
   return (
     <aside
       data-collapsed={collapsed || undefined}
@@ -66,7 +66,7 @@ export function StaffSidebar({ viewer, groups, brand, college, initiallyCollapse
           title={`${collapsed ? "Expand" : "Collapse"} sidebar (Ctrl+B)`}
           className="grid size-8 place-items-center rounded-[var(--radius-control)] text-ink-subtle transition-colors hover:bg-hover hover:text-ink"
         >
-          <Toggle className="size-4" strokeWidth={1.75} />
+          <Toggle className="size-4" />
         </button>
       </div>
       {college && !collapsed && <div className="border-b border-line px-3 py-3">{college}</div>}

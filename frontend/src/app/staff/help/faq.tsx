@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
+import { CaretDown } from "@phosphor-icons/react/ssr";
 import { Accordion } from "radix-ui";
 
 export const FAQ = [
@@ -22,7 +22,7 @@ export function FaqList() {
           <Accordion.Header>
             <Accordion.Trigger className="group flex w-full items-center justify-between gap-4 px-5 py-3.5 text-left text-sm font-medium text-ink hover:bg-hover">
               {item.q}
-              <ChevronDown className="size-4 shrink-0 text-ink-muted transition-transform group-data-[state=open]:rotate-180" />
+              <CaretDown className="size-4 shrink-0 text-ink-muted transition-transform group-data-[state=open]:rotate-180" />
             </Accordion.Trigger>
           </Accordion.Header>
           <Accordion.Content className="px-5 pb-4 text-sm leading-relaxed text-ink-muted">{item.a}</Accordion.Content>

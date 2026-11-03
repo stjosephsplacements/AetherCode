@@ -1,6 +1,6 @@
 "use client";
 
-import { Moon, Sun } from "lucide-react";
+import { Moon, Sun } from "@phosphor-icons/react/ssr";
 import { setTheme, useTheme } from "@/lib/theme";
 import { openCookieSettings } from "./consent";
 

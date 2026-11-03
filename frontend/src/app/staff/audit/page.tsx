@@ -1,5 +1,5 @@
+import { Scroll, ShieldCheck, ShieldWarning, Users } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
-import { ScrollText, ShieldAlert, ShieldCheck, Users } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
@@ -78,9 +78,9 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
       />
       {unreachable.length > 0 && <p role="alert" className="mb-4 text-sm text-warning">Could not load: {unreachable.join(", ")}.</p>}
       <ul className="mb-5 flex flex-wrap gap-2" aria-label="Summary">
-        {chip(<ScrollText className="size-3.5" />, "Entries loaded", entries.length)}
+        {chip(<Scroll className="size-3.5" />, "Entries loaded", entries.length)}
         {chip(<ShieldCheck className="size-3.5" />, "Allowed", entries.filter((entry) => entry.allowed).length)}
-        {chip(<ShieldAlert className="size-3.5" />, "Refused", entries.filter((entry) => !entry.allowed).length)}
+        {chip(<ShieldWarning className="size-3.5" />, "Refused", entries.filter((entry) => !entry.allowed).length)}
         {chip(<Users className="size-3.5" />, "People", new Set(entries.map((entry) => entry.principal_id)).size)}
       </ul>
       {entries.length === 0 ? (

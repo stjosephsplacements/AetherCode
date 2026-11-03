@@ -1,6 +1,6 @@
 "use client";
 
-import { X } from "lucide-react";
+import { X } from "@phosphor-icons/react/ssr";
 import { useId, useRef, useState } from "react";
 import { MAX_TAGS, normalizeTag } from "@/components/staff/question-wizard/model";
 import { cn } from "@/lib/utils";
@@ -71,7 +71,7 @@ export function TagInput({ value, onChange, suggestions, id, disabled }: { value
               }}
               className="grid size-5 place-items-center rounded-full text-ink-muted transition-colors hover:bg-line hover:text-ink"
             >
-              <X className="size-3" strokeWidth={2} />
+              <X className="size-3" />
             </button>
           </span>
         ))}
