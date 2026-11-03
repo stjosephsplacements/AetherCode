@@ -31,7 +31,7 @@ export const setupSteps = cache(async (staff: StaffContext): Promise<SetupStep[]
       ])
     : [false, false, false, false, false, false];
   const steps: SetupStep[] = [
-    { key: "college", title: "Create a college", text: "Every department, student and exam belongs to a college.", href: "/staff/colleges", done: college },
+    { key: "college", title: "Create a college", text: "Every department, student and exam belongs to a college.", href: "/admin/colleges", done: college },
     { key: "department", title: "Add a department", text: "Departments group the batches and staff of a college.", href: "/staff/departments", done: departments },
     { key: "batch", title: "Add a batch", text: "A batch is a year of a department. Students are enrolled into one.", href: "/staff/departments", done: batches },
     { key: "placement", title: "Add a placement department", text: "Every student is enrolled under one. Add the hiring organisation, then its department.", href: "/staff/placements", done: placement },

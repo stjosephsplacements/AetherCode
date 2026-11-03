@@ -31,11 +31,12 @@ export function isStaff(viewer: Viewer): boolean {
 
 /**
  * Where a viewer lands after signing in, and when they open "/". Staff land
- * on /staff; a student who also holds a staff role can still open /student.
+ * on /staff, platform administrators on /admin; a student who also holds a staff role can still open /student.
  * An account whose roles have not arrived yet is treated as a student: that
  * area shows only what the services allow, which is nothing until they do.
  */
-export function homeFor(viewer: Viewer): "/student" | "/staff" {
+export function homeFor(viewer: Viewer): "/student" | "/staff" | "/admin" {
+  if (viewer.roles.includes("super_admin")) return "/admin";
   return isStaff(viewer) ? "/staff" : "/student";
 }
 

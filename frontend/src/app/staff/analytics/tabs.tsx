@@ -6,7 +6,7 @@ export function AnalyticsTabs({ active, platform }: { active: "exams" | "platfor
   if (!platform) return null;
   const tabs = [
     { key: "exams", label: "Exams", href: "/staff/analytics" },
-    { key: "platform", label: "Platform", href: "/staff/analytics/platform" },
+    { key: "platform", label: "Platform", href: "/admin/analytics" },
   ] as const;
   return (
     <nav aria-label="Analytics views" className="mb-5 inline-flex rounded-[var(--radius-control)] border border-line p-0.5 text-[13.5px]">

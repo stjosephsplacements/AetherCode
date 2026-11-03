@@ -12,8 +12,8 @@ import { cn } from "@/lib/utils";
 
 export type NavGroup = { label: string; items: NavItem[] };
 
-// "/staff" is every page's parent, so it is active only on its own page.
-const isActive = (pathname: string, href: string) => pathname === href || (href !== "/staff" && pathname.startsWith(`${href}/`));
+// "/staff" and "/admin" are every page's parent, so it is active only on its own page.
+const isActive = (pathname: string, href: string) => pathname === href || (href !== "/staff" && href !== "/admin" && pathname.startsWith(`${href}/`));
 
 export function StaffNav({ groups, collapsed = false }: { groups: NavGroup[]; collapsed?: boolean }) {
   const pathname = usePathname();

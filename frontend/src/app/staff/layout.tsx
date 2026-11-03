@@ -17,6 +17,7 @@ export default async function StaffLayout({ children }: { children: React.ReactN
       items: [
         { href: "/staff", label: "Dashboard", icon: "home" },
         ...(staff.canManageAccounts ? [{ href: "/staff/get-started", label: "Get started", icon: "start" } as const] : []),
+        ...(staff.isPlatformAdmin ? [{ href: "/admin", label: "Admin console", icon: "accounts" } as const] : []),
       ],
     },
   ];
@@ -24,7 +25,6 @@ export default async function StaffLayout({ children }: { children: React.ReactN
     groups.push({
       label: "Set up",
       items: [
-        ...(staff.isPlatformAdmin ? [{ href: "/staff/colleges", label: "Colleges", icon: "organisation" } as const] : []),
         item({ href: "/staff/departments", label: "Departments", icon: "organisation" } as const),
         item({ href: "/staff/accounts", label: "Staff accounts", icon: "accounts" } as const),
         item({ href: "/staff/placements", label: "Placements", icon: "placements" } as const),

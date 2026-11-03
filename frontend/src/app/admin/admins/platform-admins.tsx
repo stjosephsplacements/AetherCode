@@ -4,9 +4,9 @@ import { ConfirmDelete } from "@/components/staff/confirm-delete";
 import { Field, Select } from "@/components/staff/form";
 import { Badge } from "@/components/ui/card";
 import type { SuperAdmin } from "@/lib/server/people";
-import { AddDialog } from "../departments/add-dialog";
-import { lettermark } from "../placements/stats";
-import { makeSuperAdmin, removeSuperAdmin } from "./actions";
+import { AddDialog } from "../../staff/departments/add-dialog";
+import { lettermark } from "../../staff/placements/stats";
+import { makeSuperAdmin, removeSuperAdmin } from "../../staff/accounts/actions";
 
 /**
  * Platform administrators. The root administrator holds everything and is fixed.

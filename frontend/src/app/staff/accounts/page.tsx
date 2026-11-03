@@ -3,13 +3,12 @@ import { redirect } from "next/navigation";
 import { LoadError, PageHeader } from "@/components/staff/page-header";
 import { CollegeFilter } from "@/components/staff/college-filter";
 import { listBatches, listDepartments, listPlacement, departmentLabel } from "@/lib/server/directory";
-import { describeAccounts, listRoleAssignments, listSuperAdmins } from "@/lib/server/people";
+import { describeAccounts, listRoleAssignments } from "@/lib/server/people";
 import { inColleges } from "@/lib/server/colleges";
 import { collegesFor, requireStaff } from "@/lib/server/staff";
 import { CreateStaffDialog } from "./create-staff-form";
 import { ImportStaffDialog } from "./import-staff-dialog";
 import { StaffFilter, type StaffRow } from "./staff-filter";
-import { PlatformAdmins } from "./platform-admins";
 import type { RoleChip } from "./roles";
 
 export const metadata: Metadata = { title: "Staff accounts" };
@@ -47,8 +46,7 @@ export default async function StaffAccountsPage({
       }),
       listPlacement(),
     ]);
-    const superAdmins = staff.isPlatformAdmin ? await listSuperAdmins(staff.tenants, staff.viewer).catch(() => []) : [];
-    data = { perCollege, placement, page: query.page, superAdmins };
+    data = { perCollege, placement, page: query.page };
   } catch (error) {
     return (
       <>
@@ -58,7 +56,7 @@ export default async function StaffAccountsPage({
     );
   }
 
-  const { perCollege, placement, page, superAdmins } = data;
+  const { perCollege, placement, page } = data;
   const several = staff.isPlatformAdmin;
 
   const placementList = placement.organizations.flatMap((org) =>
@@ -138,13 +136,6 @@ export default async function StaffAccountsPage({
         <p role="alert" className="mb-4 text-sm text-warning">
           Could not load: {unreachable.join(", ")}.
         </p>
-      )}
-      {staff.isPlatformAdmin && (
-        <PlatformAdmins
-          admins={superAdmins}
-          viewerIsRoot={superAdmins.some((admin) => admin.root && admin.principalId === staff.viewer.principalId)}
-          candidates={staffRows.map((row) => ({ id: row.principalId, label: `${row.displayName} (${row.collegeName})` }))}
-        />
       )}
 
       <StaffFilter

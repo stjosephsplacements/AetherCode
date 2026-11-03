@@ -15,8 +15,8 @@ import { inColleges } from "@/lib/server/colleges";
 import { listBatches, listDepartments } from "@/lib/server/directory";
 import { gateway } from "@/lib/server/gateway";
 import { requireStaff } from "@/lib/server/staff";
-import { AddDialog } from "../departments/add-dialog";
-import { lettermark } from "../placements/stats";
+import { AddDialog } from "../../staff/departments/add-dialog";
+import { lettermark } from "../../staff/placements/stats";
 import { createCollege, deleteCollege, updateCollege } from "./actions";
 
 export const metadata: Metadata = { title: "Colleges" };

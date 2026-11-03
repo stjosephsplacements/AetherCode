@@ -18,6 +18,7 @@ export async function createCollege(_previous: ActionState, form: FormData): Pro
   } catch (error) {
     return { error: actionError(error) };
   }
+  revalidatePath("/admin", "layout");
   revalidatePath("/staff", "layout");
   return { error: null, message: "College added. Next, add its departments." };
 }
@@ -33,6 +34,7 @@ export async function updateCollege(tenantId: string, changes: Record<string, st
   } catch (error) {
     return { error: actionError(error) };
   }
+  revalidatePath("/admin", "layout");
   revalidatePath("/staff", "layout");
   return { error: null, message: "Saved." };
 }
@@ -47,6 +49,7 @@ export async function deleteCollege(tenantId: string, reason: string): Promise<A
   } catch (error) {
     return { error: actionError(error) };
   }
+  revalidatePath("/admin", "layout");
   revalidatePath("/staff", "layout");
   return { error: null, message: "Deleted." };
 }

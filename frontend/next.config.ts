@@ -43,6 +43,13 @@ const nextConfig: NextConfig = {
   // 2 MB and the gateway 1 MiB of JSON, so a larger body could not get through.
   // cpus caps build workers so the Docker build fits in builder memory.
   experimental: { serverActions: { bodySizeLimit: "2mb" }, cpus: 4 },
+  // The platform pages moved out of the college workspace into /admin.
+  async redirects() {
+    return [
+      { source: "/staff/colleges", destination: "/admin/colleges", permanent: false },
+      { source: "/staff/analytics/platform", destination: "/admin/analytics", permanent: false },
+    ];
+  },
   async headers() {
     return [
       {

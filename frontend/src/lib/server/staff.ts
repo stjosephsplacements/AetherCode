@@ -39,6 +39,13 @@ export async function requireStaff(): Promise<StaffContext> {
   return { viewer, tenantId, tenants: page.items, viewAll, isPlatformAdmin, canManageAccounts };
 }
 
+/** The admin console: platform administrators only. Everyone else goes back to their own area. */
+export async function requireAdmin(): Promise<StaffContext> {
+  const staff = await requireStaff();
+  if (!staff.isPlatformAdmin) redirect("/staff");
+  return staff;
+}
+
 /** requireStaff, for pages that need a college. */
 export async function requireCollege(): Promise<StaffContext & { tenantId: string }> {
   const staff = await requireStaff();

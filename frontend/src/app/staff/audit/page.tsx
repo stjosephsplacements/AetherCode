@@ -89,7 +89,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
         <>
           <AuditLog rows={rows} several={several} />
           {last && entries.length >= 100 && (
-            <Link href={`/staff/audit?before=${encodeURIComponent(last.occurred_at)}${collegeParam ? `&college=${collegeParam}` : ""}`} className="mt-4 inline-block text-sm text-brand hover:underline">
+            <Link href={`?before=${encodeURIComponent(last.occurred_at)}${collegeParam ? `&college=${collegeParam}` : ""}`} className="mt-4 inline-block text-sm text-brand hover:underline">
               Older entries
             </Link>
           )}

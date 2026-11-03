@@ -135,6 +135,7 @@ export async function makeSuperAdmin(_previous: ActionState, form: FormData): Pr
   } catch (error) {
     return { error: actionError(error) };
   }
+  revalidatePath("/admin", "layout");
   revalidatePath("/staff", "layout");
   return { error: null, message: "Super admin added. Narrow their permissions on the Permissions page." };
 }
@@ -148,6 +149,7 @@ export async function removeSuperAdmin(_previous: ActionState, form: FormData): 
   } catch (error) {
     return { error: actionError(error) };
   }
+  revalidatePath("/admin", "layout");
   revalidatePath("/staff", "layout");
   return { error: null, message: "Super admin removed." };
 }

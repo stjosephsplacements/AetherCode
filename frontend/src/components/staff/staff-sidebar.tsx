@@ -20,7 +20,7 @@ function remember(collapsed: boolean) {
 }
 
 /** The console sidebar, folding to an icon rail. Ctrl or Cmd + B toggles it. */
-export function StaffSidebar({ viewer, groups, brand, college, initiallyCollapsed }: { viewer: Viewer; groups: NavGroup[]; brand: React.ReactNode; college?: React.ReactNode; initiallyCollapsed: boolean }) {
+export function StaffSidebar({ viewer, groups, brand, college, initiallyCollapsed, home = "/staff" }: { home?: string; viewer: Viewer; groups: NavGroup[]; brand: React.ReactNode; college?: React.ReactNode; initiallyCollapsed: boolean }) {
   const [collapsed, setCollapsed] = useState(initiallyCollapsed);
   const toggle = () =>
     setCollapsed((current) => {
@@ -54,7 +54,7 @@ export function StaffSidebar({ viewer, groups, brand, college, initiallyCollapse
     >
       <div className={cn("flex h-12 shrink-0 items-center border-b border-line", collapsed ? "justify-center" : "justify-between pl-4 pr-2")}>
         {!collapsed && (
-          <Link href="/staff" className="min-w-0 truncate">
+          <Link href={home} className="min-w-0 truncate">
             {brand}
           </Link>
         )}
