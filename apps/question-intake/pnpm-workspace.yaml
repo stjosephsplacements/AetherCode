@@ -1,0 +1,6 @@
+allowBuilds:
+  sharp: true
+  unrs-resolver: false
+overrides:
+  dompurify: '>=3.4.16'
+  katex: '>=0.18.2'
