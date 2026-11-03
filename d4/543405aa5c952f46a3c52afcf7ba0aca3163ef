@@ -1,0 +1,21 @@
+backend/services/user/internal/adapters/projection/assessment.go
+  s_4a7f3c46d06453::t_a5472fde9ec16a 76-84
+backend/services/user/internal/adapters/projection/assessment_test.go
+  s_4a7f3c46d06453::t_88066f09ac2a5c 49-50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d4543405aa5c952f46a3c52afcf7ba0aca3163ef",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
