@@ -169,6 +169,15 @@ sets `users.allow_managed_change`. `users.permission_overwrites` holds allow/den
 a role or member. `users.ensure_guild_roles` seeds the managed roles of a guild; run it for every new
 college. `users.role_assignments.role_id` is filled by the backfill. The Go side is `libs/pkg/rbac`.
 
+### Engine switch (`AUTHZ_ENGINE`)
+
+`casbin` (default) decides from the Casbin policy as before. `shadow` still decides with Casbin and logs
+`authz shadow difference` (principal, role, service, resource, action, both answers) wherever the role
+bit sets would have decided differently; it needs migration 000039. `bitset` decides from the role bits.
+Run `shadow` against real traffic until the log is quiet, then switch. A delegated super admin keeps
+its grants-only behaviour in every mode. Placement users with platform scope and no placement-department
+membership are expected to differ: the new model requires the membership.
+
 ## Soft Delete Behavior
 
 All user entities support soft delete (archival without physical removal):
