@@ -73,6 +73,15 @@ type assignmentSnapshotItem struct {
 	TimeLimitMS        *int     `json:"time_limit_ms"`
 	MemoryLimitKiB     *int     `json:"memory_limit_kib"`
 	SupportedLanguages []string `json:"supported_languages"`
+	// Question content pinned on the item (assessment migration 000036);
+	// decoded only because the decoder is strict.
+	Title              *string         `json:"title"`
+	PromptMarkdown     *string         `json:"prompt_markdown"`
+	Kind               *string         `json:"kind"`
+	Choices            json.RawMessage `json:"choices"`
+	CorrectChoices     json.RawMessage `json:"correct_choices"`
+	MultipleChoice     *bool           `json:"multiple_choice"`
+	ChoiceExplanations json.RawMessage `json:"choice_explanations"`
 }
 
 // Apply atomically claims, validates, and materializes a version-one snapshot.
