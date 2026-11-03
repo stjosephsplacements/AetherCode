@@ -16,7 +16,6 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
       <div className="ascii relative flex min-h-dvh flex-col">
         {/* Every public page sits in the same frame over the same ASCII field. */}
         <AsciiField />
-        <div aria-hidden className="pointer-events-none absolute inset-y-0 left-1/2 -z-10 hidden w-full max-w-6xl -translate-x-1/2 border-x border-line lg:block" />
         <a
           href="#content"
           className="fixed left-4 top-4 z-50 -translate-y-24 rounded-full bg-brand px-4 py-2 text-[14px] font-medium text-brand-ink transition-transform focus:translate-y-0"

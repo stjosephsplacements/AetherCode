@@ -25,12 +25,12 @@ export function OpenSource() {
           <div data-reveal className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-3">
             <a
               href={SITE.repo}
-              className="bg-brand px-4 py-2.5 font-mono text-[14px] text-brand-ink shadow-[3px_3px_0_var(--ink)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"
+              className="rounded-full bg-brand px-5 py-2.5 text-[14px] text-brand-ink shadow-[var(--shadow-panel)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"
             >
-              [ view on github -&gt; ]
+              View on GitHub
             </a>
             <a href="/architecture" className="font-mono text-[14px] text-ink-muted transition-colors hover:text-brand">
-              [ how it&apos;s built ]
+              How it&apos;s built
             </a>
           </div>
         </div>

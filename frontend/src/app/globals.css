@@ -423,11 +423,6 @@
     --font-mono: "Departure Mono", ui-monospace, monospace;
     font-family: var(--font-sans);
   }
-  /* ASCII has no curves: every corner in the scope is square, utilities included. */
-  .ascii,
-  .ascii * {
-    border-radius: 0 !important;
-  }
   .ascii .heading,
   .ascii .display,
   .ascii [data-statement] {
@@ -438,7 +433,8 @@
   .marker {
     background: var(--brand);
     color: var(--brand-ink);
-    padding: 0.04em 0.22em;
+    border-radius: 0.2em;
+    padding: 0.04em 0.28em;
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
   }

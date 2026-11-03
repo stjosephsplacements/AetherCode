@@ -108,7 +108,7 @@ export function ExamPreview() {
 
           <div className="border-t border-line bg-surface">
             <div className="flex gap-4 border-b border-line px-4 text-[12.5px]">
-              <span className="border-b-2 border-ink py-2 font-medium">Test results</span>
+              <span className="border-b-2 border-line-strong py-2 font-medium">Test results</span>
               <span className="py-2 text-ink-subtle">Custom input</span>
             </div>
             <div className="relative px-4 py-3 text-[13px]">

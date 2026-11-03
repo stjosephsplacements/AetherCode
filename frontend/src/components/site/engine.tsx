@@ -68,9 +68,9 @@ export function Engine() {
         code inside Linux kernel sandboxes and streams each step back as it happens.
       </p>
 
-      <div className="mt-12 border border-ink bg-surface shadow-[6px_6px_0_var(--ink)]">
-        <div className="flex border-b border-ink font-mono text-[13px]">
-          <p className="px-4 py-2.5 text-ink">[ aethercode-execution-engine ]</p>
+      <div className="mt-12 rounded-[var(--radius-surface)] overflow-hidden border border-line-strong bg-surface shadow-[var(--shadow-panel)]">
+        <div className="flex border-b border-line-strong font-mono text-[13px]">
+          <p className="px-4 py-2.5 text-ink">aethercode-execution-engine</p>
           <p className="ml-auto hidden px-4 py-2.5 text-ink-subtle sm:block">Go · AGPL-3.0</p>
         </div>
 
@@ -87,13 +87,13 @@ export function Engine() {
             </ul>
             <a
               href={SITE.engineRepo}
-              className="mt-10 w-fit border border-ink px-4 py-2.5 font-mono text-[13.5px] text-ink shadow-[3px_3px_0_var(--ink)] transition-colors hover:border-brand hover:bg-brand hover:text-brand-ink"
+              className="mt-10 w-fit rounded-full border border-line-strong px-5 py-2.5 text-[14px] font-medium text-ink shadow-[var(--shadow-panel)] transition-colors hover:border-brand hover:bg-brand hover:text-brand-ink"
             >
-              [ view the engine on github -&gt; ]
+              View the engine on GitHub
             </a>
           </div>
 
-          <div className="border-t border-ink bg-canvas p-6 text-ink sm:p-10 lg:border-l lg:border-t-0">
+          <div className="border-t border-line-strong bg-canvas p-6 text-ink sm:p-10 lg:border-l lg:border-t-0">
             <p className="font-mono text-[12.5px] text-ink-subtle">GET /api/v1/stream  (server-sent events)</p>
             <ol aria-label="Events for one submission" className="mt-5 space-y-2 font-mono text-[12.5px] sm:text-[13px]">
               {EVENTS.map(([time, event, detail], index) => (
@@ -107,7 +107,7 @@ export function Engine() {
           </div>
         </div>
 
-        <dl className="grid grid-cols-2 gap-px border-t border-ink bg-ink font-mono sm:grid-cols-4">
+        <dl className="grid grid-cols-2 gap-px border-t border-line-strong bg-ink font-mono sm:grid-cols-4">
           {LOAD.map(([value, label]) => (
             <div key={label} className="flex flex-col-reverse bg-surface px-6 py-5">
               <dt className="mt-1 text-[12px] text-ink-muted">{label}</dt>
@@ -115,7 +115,7 @@ export function Engine() {
             </div>
           ))}
         </dl>
-        <p className="border-t border-ink px-6 py-3 font-mono text-[11.5px] text-ink-subtle">
+        <p className="border-t border-line-strong px-6 py-3 font-mono text-[11.5px] text-ink-subtle">
           {"// published load test on a 256-thread host, 64 sandbox workers. your numbers depend on your hardware."}
         </p>
       </div>

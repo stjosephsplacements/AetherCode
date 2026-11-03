@@ -73,13 +73,13 @@ export function Footer({ compact = false }: { compact?: boolean }) {
           <div className="bg-canvas p-6">
             <p className="font-semibold text-ink">AetherCode</p>
             <p className="mt-2 text-ink-muted">{"// let your code"}<br />{"// do the talking."}</p>
-            <a href={SITE.repo} className="mt-6 inline-block whitespace-nowrap border border-ink px-3 py-1.5 text-ink transition-colors hover:border-brand hover:bg-brand hover:text-brand-ink">
-              [ star on github -&gt; ]
+            <a href={SITE.repo} className="mt-6 inline-block whitespace-nowrap rounded-full border border-line-strong px-4 py-1.5 text-ink transition-colors hover:border-brand hover:bg-brand hover:text-brand-ink">
+              Star on GitHub
             </a>
           </div>
           {columns.map((column) => (
             <nav key={column.title} aria-label={column.title} className="bg-canvas p-6">
-              <p className="text-ink-subtle">[ {column.title.toLowerCase()} ]</p>
+              <p className="text-ink-subtle">{column.title}</p>
               <ul className="mt-4 space-y-2.5">
                 {column.links.map((link) => (
                   <li key={link.href}>

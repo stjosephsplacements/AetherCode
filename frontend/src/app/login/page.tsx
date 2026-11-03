@@ -23,11 +23,11 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   return (
     <main className="ascii relative grid min-h-dvh place-items-center px-4 py-10">
       <AsciiField />
-      <div className="w-full max-w-[480px] border border-ink bg-surface shadow-[6px_6px_0_var(--ink)]">
-        <div className="flex items-center justify-between border-b border-ink font-mono text-[13px]">
-          <h1 className="px-4 py-2.5 text-ink">[ sign in ]</h1>
-          <Link href="/" className="border-l border-ink px-4 py-2.5 text-ink-muted transition-colors hover:bg-brand hover:text-brand-ink">
-            [&lt;- home]
+      <div className="w-full max-w-[480px] rounded-[var(--radius-surface)] overflow-hidden border border-line-strong bg-surface shadow-[var(--shadow-panel)]">
+        <div className="flex items-center justify-between border-b border-line-strong font-mono text-[13px]">
+          <h1 className="px-4 py-2.5 text-ink">Sign in</h1>
+          <Link href="/" className="m-1.5 rounded-full px-3 py-1 text-ink-muted transition-colors hover:bg-hover hover:text-ink">
+            &larr; Home
           </Link>
         </div>
 
@@ -50,12 +50,12 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
               <>
                 <a
                   href={`/auth/sso${next ? `?next=${encodeURIComponent(next)}` : ""}`}
-                  className="block w-full border border-ink bg-surface py-3 text-center font-mono text-[14px] text-ink shadow-[4px_4px_0_var(--ink)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"
+                  className="block w-full rounded-full border border-line-strong bg-surface py-3 text-center text-[14px] font-medium text-ink transition-colors hover:bg-hover"
                 >
-                  [ sign in with your college account ]
+                  Sign in with your college account
                 </a>
                 <p className="my-6 text-center font-mono text-[12px] text-ink-subtle" aria-hidden>
-                  ---- or use your AetherCode password ----
+                  or use your AetherCode password
                 </p>
               </>
             )}
@@ -63,7 +63,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           </div>
         </div>
 
-        <p className="border-t border-ink px-6 py-3 font-mono text-[12px] text-ink-subtle sm:px-8">
+        <p className="border-t border-line-strong px-6 py-3 font-mono text-[12px] text-ink-subtle sm:px-8">
           [?] can&apos;t sign in? your exam administrator can reset your password.
         </p>
       </div>

@@ -143,8 +143,8 @@ export function ConsentManager() {
           aria-label="Cookie choices"
           className="fixed inset-x-3 bottom-3 z-40 animate-pop sm:inset-x-auto sm:right-5 sm:bottom-5 sm:w-[400px]"
         >
-          <div className="border border-ink bg-surface p-5 font-mono shadow-[4px_4px_0_var(--ink)]">
-            <p className="text-[14px] text-ink">[ cookies on AetherCode ]</p>
+          <div className="rounded-[var(--radius-surface)] overflow-hidden border border-line-strong bg-surface p-5 font-mono shadow-[var(--shadow-panel)]">
+            <p className="text-[14px] text-ink">Cookies on AetherCode</p>
             <p className="mt-1.5 text-[13.5px] leading-relaxed text-ink-muted">
               We use essential cookies to keep you signed in. With your OK we also remember your preferences and count visits.{" "}
               <a href="/privacy#cookies" className="text-ink underline underline-offset-2">
