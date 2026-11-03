@@ -31,6 +31,9 @@ spec:
           image: question-intake:IMAGE_TAG
           imagePullPolicy: IfNotPresent
           command: ["node", "scripts/migrate.mjs"]
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
           envFrom:
             - secretRef:
                 name: question-intake-env
@@ -65,6 +68,7 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false
             runAsNonRoot: true
+            runAsUser: 1001
             capabilities: {drop: ["ALL"]}
 ---
 apiVersion: v1
@@ -92,10 +96,22 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+# questions-aethercode.* is covered by Cloudflare Universal SSL (*.stjosephsplacements.in), like api-aethercode.* and
+# analytics-aethercode.*. questions.aethercode.* is two levels deep and needs an Advanced Certificate Manager certificate.
 spec:
   ingressClassName: nginx
   rules:
     - host: questions.aethercode.stjosephsplacements.in
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: question-intake
+                port:
+                  name: http
+    - host: questions-aethercode.stjosephsplacements.in
       http:
         paths:
           - path: /
