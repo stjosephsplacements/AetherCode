@@ -10,7 +10,7 @@ export function LoginForm({ expired }: { expired: boolean }) {
     <form action={action} className="space-y-4">
       <div>
         <Label htmlFor="identifier">Username</Label>
-        <input id="identifier" name="identifier" defaultValue={state.identifier} autoComplete="username" autoCapitalize="none" spellCheck={false} autoFocus required className={field} />
+        <input id="identifier" name="identifier" defaultValue={state.identifier} autoComplete="username" autoCapitalize="none" spellCheck={false} autoFocus required placeholder="hope1@stjosephs" className={field} />
       </div>
       <div>
         <Label htmlFor="password">Password</Label>

@@ -2,6 +2,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { gatewayUrl, secureCookies } from "./env.ts";
+import { loginName } from "./login-name.ts";
 
 const ACCESS = "qi_access";
 const REFRESH = "qi_refresh";
@@ -68,7 +69,7 @@ export async function clearSession() {
 
 /** Signs in through the platform's identity service. Returns an error message, or null when signed in. */
 export async function signIn(identifier: string, password: string): Promise<string | null> {
-  const login = await call<TokenPair>("/identity/v1/auth/login", { method: "POST", body: { identifier, password } });
+  const login = await call<TokenPair>("/identity/v1/auth/login", { method: "POST", body: { identifier: loginName(identifier), password } });
   if (login.status === 401) return "That username or password is wrong.";
   if (login.status === 429) return "Too many sign-in attempts. Wait a minute and try again.";
   if (login.status !== 200 || !login.data?.access_token) return "The platform could not sign you in. Try again in a moment.";
