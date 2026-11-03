@@ -1,0 +1,109 @@
+docs/adr/0066-discord-style-rbac.md
+  s_4a7f3c46d06453::t_1037efea535b66 1-42
+docs/adr/0067-medallion-analytics-layers.md
+  s_4a7f3c46d06453::t_b689b13ef73426 1-30
+docs/adr/0068-admin-staff-placement-areas.md
+  s_4a7f3c46d06453::t_e1ffeccf6cef82 1-29
+frontend/e2e/areas.spec.ts
+  s_4a7f3c46d06453::t_3756f241c462d8 1-28
+frontend/next.config.ts
+  s_4a7f3c46d06453::t_c9337e996d2a0a 51
+frontend/src/app/(public)/u/[slug]/page.tsx
+  s_4a7f3c46d06453::t_0fbe5dbdcc83d0 5
+frontend/src/app/admin/admins/page.tsx
+  s_4a7f3c46d06453::t_72e3896a64378b 5,39
+frontend/src/app/admin/admins/platform-admins.tsx
+  s_4a7f3c46d06453::t_1b0a1449a2c2d9 1,9,17,79
+frontend/src/app/admin/colleges/page.tsx
+  s_4a7f3c46d06453::t_35c824061b0432 1,20,112
+frontend/src/app/admin/incidents/page.tsx
+  s_4a7f3c46d06453::t_df3a5fa0eefe67 79
+frontend/src/app/admin/open/route.ts
+  s_4a7f3c46d06453::t_ea3112babe8846 3,5,8-9,12,15,17-18
+frontend/src/app/placement/layout.tsx
+  s_4a7f3c46d06453::t_cf90ef4cfd44bf 1,3-5,7-10,12-27
+frontend/src/app/placement/page.tsx
+  s_4a7f3c46d06453::t_7b1a589b9077ff 6,13-14,21-22,28,33,44-45
+frontend/src/app/placement/stats.ts
+  s_4a7f3c46d06453::t_7c7a6df7090c06 58
+frontend/src/app/staff/accounts/actions.ts
+  s_4a7f3c46d06453::t_b74e8e356293ae 15-16,43,84,99,102
+frontend/src/app/staff/accounts/page.tsx
+  s_4a7f3c46d06453::t_e331ec843dd16a 7,27,120-121
+frontend/src/app/staff/accounts/staff-filter.tsx
+  s_4a7f3c46d06453::t_a27e101beb368d 12
+frontend/src/app/staff/analytics/page.tsx
+  s_4a7f3c46d06453::t_6567269cfb7aac 19,23,39,57,106,118
+frontend/src/app/staff/audit/audit-log.tsx
+  s_4a7f3c46d06453::t_f5633aa21035ef 8
+frontend/src/app/staff/audit/page.tsx
+  s_4a7f3c46d06453::t_21bb2ae3c86f29 26
+frontend/src/app/staff/calendar/page.tsx
+  s_4a7f3c46d06453::t_41886f5da42b5f 11,78,142
+frontend/src/app/staff/community/actions.ts
+  s_4a7f3c46d06453::t_3d12a5e4aad29a 11,26-28,32,42,60,70,96,104-106,113
+frontend/src/app/staff/community/page.tsx
+  s_4a7f3c46d06453::t_c915c0d0182b71 6,13,15,18,36
+frontend/src/app/staff/community/view.tsx
+  s_4a7f3c46d06453::t_6f6274a27b8682 54,57,76-77,224,226
+frontend/src/app/staff/departments/actions.ts
+  s_4a7f3c46d06453::t_da73c44c370d7b 13,28-29,77,89,107,121
+frontend/src/app/staff/departments/page.tsx
+  s_4a7f3c46d06453::t_9e6e3a63191b75 17,72
+frontend/src/app/staff/exams/actions.ts
+  s_4a7f3c46d06453::t_414c4407b3ce5b 39
+frontend/src/app/staff/exams/page.tsx
+  s_4a7f3c46d06453::t_aa6a28b6a863c9 4,16,31
+frontend/src/app/staff/layout.tsx
+  s_4a7f3c46d06453::t_78be1393a9b6fa 1-2,14-15,61-74
+frontend/src/app/staff/page.tsx
+  s_4a7f3c46d06453::t_7f2b8d3f687a9e 1,9,78,80
+frontend/src/app/staff/permissions/actions.ts
+  s_4a7f3c46d06453::t_0024b355633bae 13,15
+frontend/src/app/staff/permissions/page.tsx
+  s_4a7f3c46d06453::t_d7803c74745c7d 1-2,17,32,38,145
+frontend/src/app/staff/permissions/people-list.tsx
+  s_4a7f3c46d06453::t_27ff4a528d518e 8
+frontend/src/app/staff/students/[studentId]/page.tsx
+  s_4a7f3c46d06453::t_c10bee4506809b 22,24
+frontend/src/app/staff/students/actions.ts
+  s_4a7f3c46d06453::t_81955ff8cad14c 33,82,95,110,125,142,159,176
+frontend/src/app/staff/students/page.tsx
+  s_4a7f3c46d06453::t_7f1cdabf8aef40 17,26-27,33,36
+frontend/src/components/staff/staff-nav.tsx
+  s_4a7f3c46d06453::t_17ba074850be10 15-16
+frontend/src/lib/lettermark.ts
+  s_4a7f3c46d06453::t_d41b7614f14b50 1-5
+frontend/src/lib/links.test.ts
+  s_4a7f3c46d06453::t_f2afa7f560f4b4 10
+frontend/src/lib/links.ts
+  s_4a7f3c46d06453::t_723c341069a030 7
+frontend/src/lib/rbac.ts
+  s_4a7f3c46d06453::t_790d66a1857d0f 1-36
+frontend/src/lib/server/placement.ts
+  s_4a7f3c46d06453::t_8edb25069775c8 1-27
+frontend/src/lib/server/setup.ts
+  s_4a7f3c46d06453::t_927f983e2baea0 37
+frontend/src/lib/server/staff.ts
+  s_4a7f3c46d06453::t_6bf5c3f744c04c 5,13,15,17,24-28,32-33,36-37,40,42-45,51,57-59,62-64
+frontend/src/lib/viewer.test.ts
+  s_4a7f3c46d06453::t_e9830ac6f21a88 1-23
+frontend/src/lib/viewer.ts
+  s_4a7f3c46d06453::t_4dac1f3cb31147 24-28,39,43,45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6446a03f5a5ea7953273b76de976761bcde56dc6",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
