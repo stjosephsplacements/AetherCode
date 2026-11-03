@@ -1,0 +1,21 @@
+apps/question-intake/.dockerignore
+  s_4a7f3c46d06453::t_96a0582679de89 5
+apps/question-intake/scripts/migrate.mjs
+  s_4a7f3c46d06453::t_b0e582ebc255cd 14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1f7e98957445ef533ad511c478ba8b3f2cce3cf3",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
