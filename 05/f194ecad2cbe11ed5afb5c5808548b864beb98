@@ -1,0 +1,245 @@
+frontend/package.json
+  s_4a7f3c46d06453::t_e1e5abb2755cb8 24
+frontend/pnpm-lock.yaml
+  s_4a7f3c46d06453::t_c95d8092f00688 179-181,714-720,4266-4270
+frontend/src/app/(public)/architecture/page.tsx
+  s_4a7f3c46d06453::t_999519dcfe2608 1-2,68,70,80,90,106,169
+frontend/src/app/(public)/help/help-center.tsx
+  s_4a7f3c46d06453::t_28ec8556103dbf 3,30
+frontend/src/app/(public)/system-check/system-check.tsx
+  s_4a7f3c46d06453::t_2425ab37833e5e 3,123-126,184
+frontend/src/app/(public)/u/[slug]/page.tsx
+  s_4a7f3c46d06453::t_5293b4a65425d8 1,75
+frontend/src/app/staff/_dashboard/blocks.tsx
+  s_4a7f3c46d06453::t_4bda875830fbb0 1,88
+frontend/src/app/staff/accounts/create-staff-form.tsx
+  s_4a7f3c46d06453::t_5049500a2a6cce 3
+frontend/src/app/staff/accounts/import-staff-dialog.tsx
+  s_4a7f3c46d06453::t_178df3d99af2c4 3,76,129,153
+frontend/src/app/staff/accounts/platform-admins.tsx
+  s_4a7f3c46d06453::t_6effa004d88549 1,74
+frontend/src/app/staff/accounts/roles.tsx
+  s_4a7f3c46d06453::t_eedfab6e2257b7 3
+frontend/src/app/staff/accounts/staff-filter.tsx
+  s_4a7f3c46d06453::t_680d4ad7fbd524 3,141,148,192
+frontend/src/app/staff/analytics/student-list.tsx
+  s_4a7f3c46d06453::t_dd13baa622792b 3,23
+frontend/src/app/staff/audit/audit-log.tsx
+  s_4a7f3c46d06453::t_2c845c091497bd 3,39
+frontend/src/app/staff/audit/page.tsx
+  s_4a7f3c46d06453::t_77a7d9d8222e17 1,81,83
+frontend/src/app/staff/calendar/page.tsx
+  s_4a7f3c46d06453::t_53cfa4af7ef969 1,133,141,180
+frontend/src/app/staff/checklist.tsx
+  s_4a7f3c46d06453::t_42da6203034ff8 1,22
+frontend/src/app/staff/colleges/page.tsx
+  s_4a7f3c46d06453::t_3d6cf4e840aad1 1,76-78
+frontend/src/app/staff/community/editors.tsx
+  s_4a7f3c46d06453::t_f0648d1b746168 3,34
+frontend/src/app/staff/community/view.tsx
+  s_4a7f3c46d06453::t_55ff0ac82d5d4a 1,128,151,206,264,278
+frontend/src/app/staff/departments/add-dialog.tsx
+  s_4a7f3c46d06453::t_c78c0b5f7bda88 3
+frontend/src/app/staff/departments/page.tsx
+  s_4a7f3c46d06453::t_887a8e47f01d23 1,142,145
+frontend/src/app/staff/exams/[examId]/assign-form.tsx
+  s_4a7f3c46d06453::t_ac59d1cf4d21e3 3,89,124
+frontend/src/app/staff/exams/[examId]/attempts/[attemptId]/page.tsx
+  s_4a7f3c46d06453::t_350643916e4dd9 1,61
+frontend/src/app/staff/exams/[examId]/monitor/monitor-board.tsx
+  s_4a7f3c46d06453::t_b5ba8bb0d78bef 3,101,114
+frontend/src/app/staff/exams/[examId]/monitor/page.tsx
+  s_4a7f3c46d06453::t_d05f7f2a08e721 1,41
+frontend/src/app/staff/exams/[examId]/page.tsx
+  s_4a7f3c46d06453::t_28a10078ece4e5 1,99,149,157,437
+frontend/src/app/staff/exams/[examId]/preview/page.tsx
+  s_4a7f3c46d06453::t_0175f4e57856e2 1,43,51,55
+frontend/src/app/staff/exams/[examId]/remove-button.tsx
+  s_4a7f3c46d06453::t_1d0d4fca71efdf 3,32
+frontend/src/app/staff/exams/[examId]/results/export-button.tsx
+  s_4a7f3c46d06453::t_19f03fe8e6b713 3,19
+frontend/src/app/staff/exams/[examId]/results/page.tsx
+  s_4a7f3c46d06453::t_0050e0ece011d0 1,60,71
+frontend/src/app/staff/exams/[examId]/similarity/page.tsx
+  s_4a7f3c46d06453::t_60591879937cd9 1,45
+frontend/src/app/staff/exams/[examId]/try/[assignmentId]/page.tsx
+  s_4a7f3c46d06453::t_bb4711b6f3e562 1,34,47,51
+frontend/src/app/staff/exams/exam-board.tsx
+  s_4a7f3c46d06453::t_a56b0d52224fa3 3,94,105,172
+frontend/src/app/staff/exams/new-exam-dialog.tsx
+  s_4a7f3c46d06453::t_0e9a96ed08b40d 3
+frontend/src/app/staff/get-started/page.tsx
+  s_4a7f3c46d06453::t_fde4b48b2e439b 1-2,13-16,20,65,89,117
+frontend/src/app/staff/help/faq.tsx
+  s_4a7f3c46d06453::t_b0fb70b9ac7a80 3,25
+frontend/src/app/staff/help/flows.tsx
+  s_4a7f3c46d06453::t_c01dfa42154160 3
+frontend/src/app/staff/page.tsx
+  s_4a7f3c46d06453::t_e4e81bb8e81672 1,167
+frontend/src/app/staff/permissions/editor.tsx
+  s_4a7f3c46d06453::t_316276604bff8c 3,67,91,112,160,163,182
+frontend/src/app/staff/permissions/page.tsx
+  s_4a7f3c46d06453::t_4de9a76fdf6a84 1,84,130
+frontend/src/app/staff/permissions/people-list.tsx
+  s_4a7f3c46d06453::t_ccc485ad9f5cf9 3,20
+frontend/src/app/staff/placements/placements-filter.tsx
+  s_4a7f3c46d06453::t_035df161081f8e 3,97,100,115,264,288
+frontend/src/app/staff/questions/[versionId]/model-check.tsx
+  s_4a7f3c46d06453::t_93cf383a02a511 3,33-38,118,158
+frontend/src/app/staff/questions/[versionId]/organise.tsx
+  s_4a7f3c46d06453::t_56a3a654fb7726 3,53
+frontend/src/app/staff/questions/[versionId]/page.tsx
+  s_4a7f3c46d06453::t_0aaa0ea06cbced 1,121,178
+frontend/src/app/staff/questions/[versionId]/publish-panel.tsx
+  s_4a7f3c46d06453::t_e327884bc14692 1
+frontend/src/app/staff/questions/[versionId]/templates-editor.tsx
+  s_4a7f3c46d06453::t_016de80c00ea83 3,47,82
+frontend/src/app/staff/questions/[versionId]/tests-editor.tsx
+  s_4a7f3c46d06453::t_787c0e4058d9d4 3,49,70
+frontend/src/app/staff/questions/import-dialog.tsx
+  s_4a7f3c46d06453::t_5ab6feadf7087c 3,14
+frontend/src/app/staff/questions/import-form.tsx
+  s_4a7f3c46d06453::t_2508740c5ae0b2 3,15
+frontend/src/app/staff/questions/manage-categories.tsx
+  s_4a7f3c46d06453::t_b27045cafd4d55 3,51,84,103,106,131
+frontend/src/app/staff/questions/page.tsx
+  s_4a7f3c46d06453::t_23c8aeeff55589 1
+frontend/src/app/staff/questions/question-board.tsx
+  s_4a7f3c46d06453::t_cc7cafcd24acc8 3,120,131,166,218
+frontend/src/app/staff/questions/question-peek.tsx
+  s_4a7f3c46d06453::t_9560632dd066c9 3
+frontend/src/app/staff/students/[studentId]/page.tsx
+  s_4a7f3c46d06453::t_9ef6132055b6f7 1,150
+frontend/src/app/staff/students/panels.tsx
+  s_4a7f3c46d06453::t_9f684cb61b1e89 3,116,144,154,210,252,293
+frontend/src/app/staff/students/roster.tsx
+  s_4a7f3c46d06453::t_cb4af7bb43a008 3,303,317,355,361,375,431,448
+frontend/src/app/student/(shell)/blogs/[id]/page.tsx
+  s_4a7f3c46d06453::t_09f0b0c80b2715 1,28
+frontend/src/app/student/(shell)/completed/page.tsx
+  s_4a7f3c46d06453::t_f55ba1be73fa0e 1,30
+frontend/src/app/student/(shell)/exams/[assignmentId]/page.tsx
+  s_4a7f3c46d06453::t_2693785052d699 1,15-16,30,37,41,55
+frontend/src/app/student/(shell)/exams/[assignmentId]/start-exam.tsx
+  s_4a7f3c46d06453::t_7341e5fc9cfbc2 3,62,71,106
+frontend/src/app/student/(shell)/exams/page.tsx
+  s_4a7f3c46d06453::t_26866f41f83c10 1,70
+frontend/src/app/student/(shell)/interviews/experience-card.tsx
+  s_4a7f3c46d06453::t_4ce96555ee4b34 1,52
+frontend/src/app/student/(shell)/page.tsx
+  s_4a7f3c46d06453::t_1dcf1f6256a702 1,84,123,136,144,168,223,283,346-347
+frontend/src/app/student/(shell)/performance/page.tsx
+  s_4a7f3c46d06453::t_c5e3660a1fdd99 1,63,71
+frontend/src/app/student/(shell)/practice/page.tsx
+  s_4a7f3c46d06453::t_4b821323f3faa0 1,59
+frontend/src/app/student/(shell)/practice/practice-list.tsx
+  s_4a7f3c46d06453::t_2108afd21a7512 3,42,78,80
+frontend/src/app/student/(shell)/practice/topic-grid.tsx
+  s_4a7f3c46d06453::t_351f9b1a307c1b 3,28
+frontend/src/app/student/(shell)/practice/topics/[topic]/page.tsx
+  s_4a7f3c46d06453::t_b8bf69310f0e65 1
+frontend/src/app/student/(shell)/profile/page.tsx
+  s_4a7f3c46d06453::t_6f447f3ce4575e 1,50
+frontend/src/app/student/(shell)/profile/public-profile-form.tsx
+  s_4a7f3c46d06453::t_9bc422a869b040 3,54
+frontend/src/app/student/(shell)/results/[attemptId]/attempt-status.tsx
+  s_4a7f3c46d06453::t_f41b99f949ab01 3,47
+frontend/src/app/student/(shell)/resume/page.tsx
+  s_4a7f3c46d06453::t_bb38c78dac183f 1,88
+frontend/src/app/student/(shell)/resume/print-button.tsx
+  s_4a7f3c46d06453::t_65eefb88a7260f 3,9
+frontend/src/app/student/(shell)/scheduled/page.tsx
+  s_4a7f3c46d06453::t_f5dfb5061886b2 1,29
+frontend/src/app/student/(shell)/tasks/page.tsx
+  s_4a7f3c46d06453::t_ec77ef82eca5b7 1,47,57
+frontend/src/components/account-menu.tsx
+  s_4a7f3c46d06453::t_f3720c8a19e67c 3,33,58,60,66,76
+frontend/src/components/community/feed-view.tsx
+  s_4a7f3c46d06453::t_80e9f4870df6e4 1,43,57
+frontend/src/components/community/rounds-editor.tsx
+  s_4a7f3c46d06453::t_1693b7a6b49366 3,20
+frontend/src/components/exam/choice-pane.tsx
+  s_4a7f3c46d06453::t_069734f0ea3540 3,62,67,99
+frontend/src/components/exam/connection-banner.tsx
+  s_4a7f3c46d06453::t_a4f6d1b7e2791d 3,34,43
+frontend/src/components/exam/editor-settings-menu.tsx
+  s_4a7f3c46d06453::t_664d304b30a0db 3,18
+frontend/src/components/exam/end-test-dialog.tsx
+  s_4a7f3c46d06453::t_089af3eae7ad3a 3,33,69,71,73
+frontend/src/components/exam/exam-guides.tsx
+  s_4a7f3c46d06453::t_391c5338a99958 3,70,73
+frontend/src/components/exam/exam-screen.tsx
+  s_4a7f3c46d06453::t_0afd2394f2d33a 3,68,277,289,292,310,319,325,398,450,496,503,507,569,594-595,597-598
+frontend/src/components/exam/honor-code.tsx
+  s_4a7f3c46d06453::t_aeebf65b3cb690 3
+frontend/src/components/exam/run-console.tsx
+  s_4a7f3c46d06453::t_f6430a7a93d873 3,64,106,108
+frontend/src/components/exam/submissions-panel.tsx
+  s_4a7f3c46d06453::t_9cb4117c5040d8 3,32,43,66,68,70
+frontend/src/components/nav-links.tsx
+  s_4a7f3c46d06453::t_7418511765eb7e 3,8,30
+frontend/src/components/practice/layout-menu.tsx
+  s_4a7f3c46d06453::t_cd281ef5f467e1 3,16,25,29,33,42,46,52
+frontend/src/components/practice/practice-workspace.tsx
+  s_4a7f3c46d06453::t_fecf5a96963e40 3,305,312,316,328,380,412,427,437,439,441
+frontend/src/components/practice/workspace-tools.tsx
+  s_4a7f3c46d06453::t_7d5ff8fc946177 3,162,166,186,217,256
+frontend/src/components/site/consent.tsx
+  s_4a7f3c46d06453::t_663d2fccf665e0 3,150
+frontend/src/components/site/exam-preview.tsx
+  s_4a7f3c46d06453::t_b004209597ddd3 3,67,122,124
+frontend/src/components/site/footer-controls.tsx
+  s_4a7f3c46d06453::t_a155638a38e5f8 3
+frontend/src/components/site/footer.tsx
+  s_4a7f3c46d06453::t_2f7a5941b183e8 1
+frontend/src/components/staff/category-picker.tsx
+  s_4a7f3c46d06453::t_8fc25a4aa6bbfb 3,106
+frontend/src/components/staff/confirm-delete.tsx
+  s_4a7f3c46d06453::t_e8de4381dedf07 3,74,105
+frontend/src/components/staff/credentials.tsx
+  s_4a7f3c46d06453::t_c98b86c99813a8 3,36
+frontend/src/components/staff/edit-dialog.tsx
+  s_4a7f3c46d06453::t_3d270544898a1d 3,69,128
+frontend/src/components/staff/exam-peek.tsx
+  s_4a7f3c46d06453::t_a7f17e9484c905 1,60
+frontend/src/components/staff/form.tsx
+  s_4a7f3c46d06453::t_c7455b91f36a8a 3,148,158,170,177,198,249,307,321,327,443,455
+frontend/src/components/staff/page-header.tsx
+  s_4a7f3c46d06453::t_998fdf0ef2795e 1,48
+frontend/src/components/staff/question-wizard/choices-fields.tsx
+  s_4a7f3c46d06453::t_877fa117780ac2 3,62
+frontend/src/components/staff/question-wizard/question-wizard.tsx
+  s_4a7f3c46d06453::t_b10ae732476740 3,197,245
+frontend/src/components/staff/question-wizard/test-cases-editor.tsx
+  s_4a7f3c46d06453::t_dc86f9a3c9a456 3,95,99,133,142
+frontend/src/components/staff/staff-nav.tsx
+  s_4a7f3c46d06453::t_4035a9ec35a8ac 3,40,44,62,127,151
+frontend/src/components/staff/staff-sidebar.tsx
+  s_4a7f3c46d06453::t_b8bbee6e0a1f81 3,46,69
+frontend/src/components/staff/stepper.tsx
+  s_4a7f3c46d06453::t_5cf8849bb90069 1,31
+frontend/src/components/staff/tag-input.tsx
+  s_4a7f3c46d06453::t_9bc714b2ae4cc3 3,74
+frontend/src/components/staff/tile.tsx
+  s_4a7f3c46d06453::t_173db3e126ec5c 1,32
+frontend/src/components/student/student-shell.tsx
+  s_4a7f3c46d06453::t_b663afdc31dfb3 3,74,76,91,103,118,137
+frontend/src/components/ui/dialog.tsx
+  s_4a7f3c46d06453::t_ef7c0f85ded92c 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "05f194ecad2cbe11ed5afb5c5808548b864beb98",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
