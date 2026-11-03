@@ -1,0 +1,29 @@
+apps/question-intake/README.md
+  s_4a7f3c46d06453::t_5f933f9c6e0324 38
+apps/question-intake/deploy/question-intake.yaml
+  s_4a7f3c46d06453::t_0f80b851a432c9 1-154
+apps/question-intake/lib/db.ts
+  s_4a7f3c46d06453::t_cef72213c42d72 7-15
+apps/question-intake/package.json
+  s_4a7f3c46d06453::t_87280edf608a97 10
+apps/question-intake/pnpm-workspace.yaml
+  s_4a7f3c46d06453::t_b410c591791ca4 2
+apps/question-intake/scripts/migrate.mjs
+  s_4a7f3c46d06453::t_67841e144fac19 1,11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7f8a81377a7becd1fc05e5e42d4157449b34f6cb",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
