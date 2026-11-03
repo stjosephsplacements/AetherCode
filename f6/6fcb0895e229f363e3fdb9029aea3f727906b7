@@ -1,0 +1,31 @@
+docs/adr/0065-admin-console-route.md
+  s_4a7f3c46d06453::t_3a6f09e46dafe6 25-32
+frontend/src/app/admin/incidents/actions.ts
+  s_4a7f3c46d06453::t_f6800d7acda0d1 1-46
+frontend/src/app/admin/incidents/controls.tsx
+  s_4a7f3c46d06453::t_29c380cb8a0fa6 1-50
+frontend/src/app/admin/incidents/page.tsx
+  s_4a7f3c46d06453::t_7079112cfe449a 1-123
+frontend/src/app/admin/layout.tsx
+  s_4a7f3c46d06453::t_f9cca5a980f59c 13
+frontend/src/app/admin/page.tsx
+  s_4a7f3c46d06453::t_d1f8d5a16b93b0 12
+frontend/src/lib/server/incidents.ts
+  s_4a7f3c46d06453::t_49d957f1d02c14 1-129
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f66fcb0895e229f363e3fdb9029aea3f727906b7",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
