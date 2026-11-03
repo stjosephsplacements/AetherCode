@@ -19,6 +19,8 @@ const (
 	RoleDepartmentUser Role = "department_user"
 	RoleMentor         Role = "mentor"
 	RoleStudent        Role = "student"
+	// RoleCustom is a college-made role, assigned by role_id; its permissions are its role bits.
+	RoleCustom Role = "custom"
 )
 
 const policyModel = `

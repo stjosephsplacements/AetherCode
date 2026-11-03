@@ -139,6 +139,10 @@ func run(contextValue context.Context) error {
 		grpcServer.Stop()
 		return err
 	}
+	rolesService, err := app.NewRolesService(userPool, managementStore)
+	if err != nil {
+		return err
+	}
 	managementService, err := app.NewManagementService(userPool, managementStore)
 	if err != nil {
 		grpcServer.Stop()
@@ -349,7 +353,7 @@ func run(contextValue context.Context) error {
 		grpcServer.Stop()
 		return err
 	}
-	handler, err := httpadapter.NewHandler(serviceConfig.Name, managementService, accountService, authorizationService, readiness, authorizer, publicProfiles)
+	handler, err := httpadapter.NewHandler(serviceConfig.Name, managementService, accountService, authorizationService, readiness, authorizer, publicProfiles, httpadapter.WithRoles(rolesService))
 	if err != nil {
 		grpcServer.Stop()
 		return err
