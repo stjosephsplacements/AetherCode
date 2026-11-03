@@ -9,7 +9,7 @@ import { EmptyState, Table } from "@/components/staff/page-header";
 import { Pager } from "@/components/staff/pager";
 import { paginate } from "@/lib/paginate";
 import { StudentActions } from "../students/panels";
-import { lettermark } from "../placements/stats";
+import { lettermark } from "@/lib/lettermark";
 import { RoleEditor, type RoleChip } from "./roles";
 
 export type StaffRow = {

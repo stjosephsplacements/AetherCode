@@ -2,7 +2,7 @@ import { ArrowSquareOut } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { publicProfile } from "@/lib/server/public-profile";
-import { lettermark } from "@/app/staff/placements/stats";
+import { lettermark } from "@/lib/lettermark";
 
 // Always live: hiding a profile must take effect at once.
 export const dynamic = "force-dynamic";

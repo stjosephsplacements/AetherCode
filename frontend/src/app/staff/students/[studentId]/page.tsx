@@ -19,9 +19,9 @@ import { StudentActions } from "../panels";
 
 export const metadata: Metadata = { title: "Student profile" };
 
-export default async function StudentDetailPage({ params, searchParams }: { params: Promise<{ studentId: string }>; searchParams: Promise<{ college?: string }> }) {
+export default async function StudentDetailPage({ params }: { params: Promise<{ studentId: string }> }) {
   const staff = await requireStaff();
-  const collegeId = collegeFor(staff, (await searchParams).college);
+  const collegeId = collegeFor(staff);
   if (!staff.canManageAccounts) redirect("/staff");
   const { studentId } = await params;
 

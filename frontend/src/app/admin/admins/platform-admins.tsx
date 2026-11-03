@@ -1,3 +1,4 @@
+import { collegeHref } from "@/lib/links";
 import { Crown, Lock, ShieldCheck } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { ConfirmDelete } from "@/components/staff/confirm-delete";
@@ -5,7 +6,7 @@ import { Field, Select } from "@/components/staff/form";
 import { Badge } from "@/components/ui/card";
 import type { SuperAdmin } from "@/lib/server/people";
 import { AddDialog } from "../../staff/departments/add-dialog";
-import { lettermark } from "../../staff/placements/stats";
+import { lettermark } from "@/lib/lettermark";
 import { makeSuperAdmin, removeSuperAdmin } from "../../staff/accounts/actions";
 
 /**
@@ -13,7 +14,7 @@ import { makeSuperAdmin, removeSuperAdmin } from "../../staff/accounts/actions";
  * A super admin the root adds holds every permission to begin with, and only the
  * root can narrow or remove them.
  */
-export function PlatformAdmins({ admins, candidates, viewerIsRoot }: { admins: SuperAdmin[]; candidates: { id: string; label: string }[]; viewerIsRoot: boolean }) {
+export function PlatformAdmins({ admins, candidates, viewerIsRoot, workspace }: { admins: SuperAdmin[]; candidates: { id: string; label: string }[]; viewerIsRoot: boolean; /** A college to open the permissions editor in until it moves into /admin. */ workspace?: string }) {
   const pickable = candidates.filter((candidate) => !admins.some((admin) => admin.principalId === candidate.id));
   return (
     <section aria-label="Platform administrators" className="mb-6">
@@ -75,7 +76,7 @@ export function PlatformAdmins({ admins, candidates, viewerIsRoot }: { admins: S
             ) : (
               viewerIsRoot && (
                 <div className="flex items-center gap-1">
-                  <Link href={`/staff/permissions?person=${admin.principalId}&scope=platform`} className="rounded-full px-3 py-1.5 text-[13px] text-brand transition-colors hover:bg-hover">
+                  <Link href={collegeHref(`/staff/permissions?person=${admin.principalId}&scope=platform`, workspace)} className="rounded-full px-3 py-1.5 text-[13px] text-brand transition-colors hover:bg-hover">
                     Permissions
                   </Link>
                   <ConfirmDelete

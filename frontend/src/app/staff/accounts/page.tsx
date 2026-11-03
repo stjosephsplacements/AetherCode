@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { LoadError, PageHeader } from "@/components/staff/page-header";
-import { CollegeFilter } from "@/components/staff/college-filter";
 import { listBatches, listDepartments, listPlacement, departmentLabel } from "@/lib/server/directory";
 import { describeAccounts, listRoleAssignments } from "@/lib/server/people";
 import { inColleges } from "@/lib/server/colleges";
+import { STAFF_ROLES } from "@/lib/rbac";
 import { collegesFor, requireStaff } from "@/lib/server/staff";
 import { CreateStaffDialog } from "./create-staff-form";
 import { ImportStaffDialog } from "./import-staff-dialog";
@@ -12,8 +12,6 @@ import { StaffFilter, type StaffRow } from "./staff-filter";
 import type { RoleChip } from "./roles";
 
 export const metadata: Metadata = { title: "Staff accounts" };
-
-const STAFF_ROLES = new Set(["college_admin", "department_user", "mentor", "placement_user"]);
 
 export default async function StaffAccountsPage({
   searchParams,
@@ -26,7 +24,7 @@ export default async function StaffAccountsPage({
   let data;
   try {
     const query = await searchParams;
-    const colleges = collegesFor(staff, query.college);
+    const colleges = collegesFor(staff);
     const [perCollege, placement] = await Promise.all([
       inColleges(colleges, async (collegeId) => {
         const [allDepartments, batches, assignments] = await Promise.all([
@@ -112,10 +110,6 @@ export default async function StaffAccountsPage({
 
   staffRows.sort((a, b) => a.displayName.localeCompare(b.displayName));
 
-  const collegeOptions = staff.isPlatformAdmin
-    ? staff.tenants.map((tenant) => ({ id: tenant.id, name: tenant.display_name }))
-    : undefined;
-
   return (
     <>
       <PageHeader
@@ -123,11 +117,8 @@ export default async function StaffAccountsPage({
         description="Faculty author questions and run exams for their department. Mentors follow batches. Placement officers oversee cohorts. College administrators manage overall college settings."
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            {staff.isPlatformAdmin && (
-              <CollegeFilter colleges={staff.tenants.map((tenant) => ({ id: tenant.id, name: tenant.display_name }))} />
-            )}
-            <ImportStaffDialog departments={departments} colleges={collegeOptions} />
-            <CreateStaffDialog departments={departments} colleges={collegeOptions} />
+            <ImportStaffDialog departments={departments} />
+            <CreateStaffDialog departments={departments} />
           </div>
         }
       />

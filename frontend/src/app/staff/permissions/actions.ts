@@ -10,9 +10,9 @@ import { collegeFor, requireStaff } from "@/lib/server/staff";
  * Replaces the extra permissions one person holds, in this college or, for a root
  * administrator, across the platform (ADR-0055). The backend checks the ceiling again.
  */
-export async function savePermissions(principalId: string, scope: "college" | "platform", permissions: string[], collegeId: string): Promise<ActionState> {
+export async function savePermissions(principalId: string, scope: "college" | "platform", permissions: string[]): Promise<ActionState> {
   const staff = await requireStaff();
-  const tenantId = collegeFor(staff, collegeId);
+  const tenantId = collegeFor(staff);
   if (!staff.canManageAccounts) return { error: "Only administrators change permissions." };
   if (scope === "platform" && !staff.isPlatformAdmin) return { error: "Only a root administrator grants platform-wide permissions." };
   const path = scope === "platform" ? `/user/v1/staff/${principalId}/permissions` : `/user/v1/tenants/${tenantId}/staff/${principalId}/permissions`;

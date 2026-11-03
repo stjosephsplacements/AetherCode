@@ -2,12 +2,11 @@ import type { Metadata } from "next";
 import { LoadError, PageHeader } from "@/components/staff/page-header";
 import { inColleges } from "@/lib/server/colleges";
 import { describeAccounts, listRoleAssignments, listSuperAdmins } from "@/lib/server/people";
+import { STAFF_ROLES } from "@/lib/rbac";
 import { requireAdmin } from "@/lib/server/staff";
 import { PlatformAdmins } from "./platform-admins";
 
 export const metadata: Metadata = { title: "Administrators" };
-
-const STAFF_ROLES = new Set(["college_admin", "department_user", "mentor", "placement_user"]);
 
 export default async function AdminsPage() {
   const staff = await requireAdmin();
@@ -37,7 +36,7 @@ export default async function AdminsPage() {
   return (
     <>
       <PageHeader title="Administrators" description="People with platform-wide access. Narrow what each may do on the Permissions page." />
-      <PlatformAdmins admins={superAdmins} candidates={candidates} viewerIsRoot={superAdmins.some((admin) => admin.root && admin.principalId === staff.viewer.principalId)} />
+      <PlatformAdmins admins={superAdmins} candidates={candidates} viewerIsRoot={superAdmins.some((admin) => admin.root && admin.principalId === staff.viewer.principalId)} workspace={staff.tenants[0]?.id} />
     </>
   );
 }

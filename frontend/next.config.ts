@@ -48,6 +48,7 @@ const nextConfig: NextConfig = {
     return [
       { source: "/staff/colleges", destination: "/admin/colleges", permanent: false },
       { source: "/staff/analytics/platform", destination: "/admin/analytics", permanent: false },
+      { source: "/staff/placements", destination: "/placement", permanent: false },
     ];
   },
   async headers() {

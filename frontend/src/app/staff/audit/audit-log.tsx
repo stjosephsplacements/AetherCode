@@ -5,7 +5,7 @@ import { useDeferredValue, useMemo, useState } from "react";
 import { EmptyState } from "@/components/staff/page-header";
 import { Badge } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { lettermark } from "../placements/stats";
+import { lettermark } from "@/lib/lettermark";
 
 export type AuditRow = { key: string; at: string; day: string; time: string; college: string; who: string; username: string; what: string; on: string; resource: string; allowed: boolean };
 

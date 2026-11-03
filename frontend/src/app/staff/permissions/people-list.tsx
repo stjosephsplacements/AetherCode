@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useDeferredValue, useState } from "react";
 import { Badge } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { lettermark } from "../placements/stats";
+import { lettermark } from "@/lib/lettermark";
 
 export type Person = { principalId: string; collegeId: string; collegeName: string; name: string; labels: string[]; href: string };
 

@@ -12,8 +12,8 @@ export type StaffState = ActionState & { created?: { username: string; name: str
 export async function createStaff(_previous: StaffState, form: FormData): Promise<StaffState> {
   // A faculty member's department is listed as "<college>:<department>", so the account is created in the department's own college.
   const pickedDepartment = String(form.get("department_id") ?? "");
-  const [pickedCollege, departmentId] = pickedDepartment.includes(":") ? pickedDepartment.split(":") : ["", pickedDepartment];
-  const tenantId = collegeFor(await requireStaff(), pickedCollege || String(form.get("college_id") ?? ""));
+  const [, departmentId] = pickedDepartment.includes(":") ? pickedDepartment.split(":") : ["", pickedDepartment];
+  const tenantId = collegeFor(await requireStaff());
   const role = String(form.get("role"));
   const username = String(form.get("username") ?? "").trim().toLowerCase();
   const name = String(form.get("display_name") ?? "").trim();
@@ -40,7 +40,7 @@ export async function createStaff(_previous: StaffState, form: FormData): Promis
  * department, or mentor of one or more batches at once.
  */
 export async function grantRole(_previous: ActionState, form: FormData): Promise<ActionState> {
-  const tenantId = collegeFor(await requireStaff(), String(form.get("college_id") ?? ""));
+  const tenantId = collegeFor(await requireStaff());
   const principalId = String(form.get("principal_id") ?? "");
   const role = String(form.get("role") ?? "");
   const scopes =
@@ -81,7 +81,7 @@ export async function grantRole(_previous: ActionState, form: FormData): Promise
 }
 
 export async function revokeRole(_previous: ActionState, form: FormData): Promise<ActionState> {
-  const tenantId = collegeFor(await requireStaff(), String(form.get("college_id") ?? ""));
+  const tenantId = collegeFor(await requireStaff());
   try {
     await gateway(`/user/v1/role-assignments/${String(form.get("role_assignment_id"))}/revoke`, { method: "POST", body: { tenant_id: tenantId } });
   } catch (error) {
@@ -96,10 +96,10 @@ export type StaffImportState = ActionState & { created?: { username: string; nam
 /** Adds many staff at once, one account per line. A line that fails does not stop the others. */
 export async function importStaff(_previous: StaffImportState, form: FormData): Promise<StaffImportState> {
   const pickedDepartment = String(form.get("department_id") ?? "");
-  const [pickedCollege, departmentId] = pickedDepartment.includes(":") ? pickedDepartment.split(":") : ["", pickedDepartment];
+  const [, departmentId] = pickedDepartment.includes(":") ? pickedDepartment.split(":") : ["", pickedDepartment];
   const staff = await requireStaff();
   if (!staff.canManageAccounts) return { error: "Only administrators add staff." };
-  const tenantId = collegeFor(staff, pickedCollege || String(form.get("college_id") ?? ""));
+  const tenantId = collegeFor(staff);
   const role = String(form.get("role"));
   const { rows, problems } = parseStaffLines(String(form.get("csv") ?? ""));
   if (problems.length > 0) return { error: problems.slice(0, 5).join(" ") + (problems.length > 5 ? ` (and ${problems.length - 5} more)` : "") };

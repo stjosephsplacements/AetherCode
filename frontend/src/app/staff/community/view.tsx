@@ -3,7 +3,6 @@ import { Pager } from "@/components/staff/pager";
 import { paginate } from "@/lib/paginate";
 import Link from "next/link";
 import { ConfirmDelete } from "@/components/staff/confirm-delete";
-import { CollegeFilter } from "@/components/staff/college-filter";
 import { ActionForm, TextInput } from "@/components/staff/form";
 import { EmptyState, PageHeader } from "@/components/staff/page-header";
 import { Tile } from "@/components/staff/tile";
@@ -11,7 +10,6 @@ import { Badge } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import type { CommunityPost, FeedItem, FeedKind, InterviewExperience } from "@/lib/api-types";
-import { ALL_COLLEGES } from "@/lib/server/staff";
 import { cn, formatDateTime } from "@/lib/utils";
 import { ExperienceCard } from "@/app/student/(shell)/interviews/experience-card";
 import { importContests, importIssues, removeListing, removePost, reviewExperience } from "./actions";
@@ -42,13 +40,10 @@ type Tagged<T> = { row: T; college: College };
 export type CommunityViewProps = {
   tab: (typeof TABS)[number]["id"];
   kind?: FeedKind;
-  collegeParam?: string;
   page?: string;
   several: boolean;
   /** Every college, for a root administrator: the filter and the pickers in the forms. */
-  all?: College[];
   /** The one college being looked at, when a root administrator has narrowed to one. */
-  fixed?: string;
   queue: Tagged<InterviewExperience>[];
   posts: Tagged<CommunityPost>[];
   items: Tagged<FeedItem>[];
@@ -56,11 +51,10 @@ export type CommunityViewProps = {
 };
 
 /** Everything the Community page shows, from rows already loaded; no loading happens here. */
-export function CommunityView({ tab, kind, collegeParam, page, several, all, fixed, queue, posts, items, unreachable }: CommunityViewProps) {
-  const importCollege = several ? (fixed ?? ALL_COLLEGES) : "";
+export function CommunityView({ tab, kind, page, several, queue, posts, items, unreachable }: CommunityViewProps) {
   const href = (next: Record<string, string | undefined>) => {
     const query = new URLSearchParams();
-    for (const [key, value] of Object.entries({ tab, college: collegeParam, ...next })) if (value) query.set(key, value);
+    for (const [key, value] of Object.entries({ tab, ...next })) if (value) query.set(key, value);
     return `/staff/community?${query.toString()}`;
   };
 
@@ -79,9 +73,8 @@ export function CommunityView({ tab, kind, collegeParam, page, several, all, fix
         description="What students read beyond exams: approve interview experiences, write blogs and keep the contest, hackathon and open-source lists current."
         actions={
           <>
-            {several && <CollegeFilter colleges={all ?? []} />}
-            {tab === "blogs" && <PostDialog colleges={all} college={fixed} />}
-            {tab === "listings" && <ListingDialog colleges={all} college={fixed} />}
+            {tab === "blogs" && <PostDialog />}
+            {tab === "listings" && <ListingDialog />}
           </>
         }
       />
@@ -228,9 +221,9 @@ export function CommunityView({ tab, kind, collegeParam, page, several, all, fix
               { action: importIssues, title: "GitHub “good first issue”s", button: "Import issues", note: "Adds recently updated beginner issues as open-source listings." },
             ].map((source) => (
               <Tile key={source.title} label={source.title}>
-                <p className="mb-3 text-[13px] text-ink-muted">{source.note} Run again any time; listings update, they do not duplicate.{importCollege === ALL_COLLEGES ? " Goes to every college." : ""}</p>
+                <p className="mb-3 text-[13px] text-ink-muted">{source.note} Run again any time; listings update, they do not duplicate.</p>
                 <ActionForm action={source.action} submitLabel={source.button} submitVariant="secondary" className="mt-auto">
-                  <input type="hidden" name="college_id" value={importCollege} />
+                {null}
                 </ActionForm>
               </Tile>
             ))}

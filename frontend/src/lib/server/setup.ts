@@ -34,7 +34,7 @@ export const setupSteps = cache(async (staff: StaffContext): Promise<SetupStep[]
     { key: "college", title: "Create a college", text: "Every department, student and exam belongs to a college.", href: "/admin/colleges", done: college },
     { key: "department", title: "Add a department", text: "Departments group the batches and staff of a college.", href: "/staff/departments", done: departments },
     { key: "batch", title: "Add a batch", text: "A batch is a year of a department. Students are enrolled into one.", href: "/staff/departments", done: batches },
-    { key: "placement", title: "Add a placement department", text: "Every student is enrolled under one. Add the hiring organisation, then its department.", href: "/staff/placements", done: placement },
+    { key: "placement", title: "Add a placement department", text: "Every student is enrolled under one. Add the hiring organisation, then its department.", href: "/staff/departments", done: placement },
     { key: "students", title: "Enrol students", text: "Add them one by one or import a spreadsheet.", href: "/staff/students", done: students },
     { key: "questions", title: "Write questions", text: "Build the question bank that exams draw from.", href: "/staff/questions", done: questions },
     { key: "exam", title: "Schedule an exam", text: "Pick questions, a batch and a time window.", href: "/staff/exams", done: exams },
@@ -61,7 +61,6 @@ export function lockedPages(steps: SetupStep[]): Record<string, string> {
   lock("/staff/departments", "department");
   lock("/staff/accounts", "department");
   lock("/staff/students", "students");
-  lock("/staff/placements", "placement");
   lock("/staff/questions", "questions");
   lock("/staff/exams", "exam");
   return locks;

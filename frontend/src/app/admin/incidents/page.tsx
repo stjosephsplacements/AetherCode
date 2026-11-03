@@ -76,7 +76,7 @@ export default async function IncidentsPage() {
             {board.liveExams.map((exam) => (
               <tr key={exam.versionId} className="align-middle">
                 <td className="px-4 py-3 font-medium text-ink">
-                  <Link href={`/staff/switch?college=${exam.collegeId}&next=${encodeURIComponent(`/staff/exams/${exam.examId}/monitor`)}`} className="hover:text-brand">
+                  <Link href={`/admin/open?college=${exam.collegeId}&next=${encodeURIComponent(`/staff/exams/${exam.examId}/monitor`)}`} className="hover:text-brand">
                     {exam.title}
                   </Link>
                 </td>

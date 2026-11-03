@@ -1,39 +1,36 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { CollegeFilter } from "@/components/staff/college-filter";
 import { LoadError, PageHeader } from "@/components/staff/page-header";
 import { departmentLabel, listBatches, listDepartments, listPlacement } from "@/lib/server/directory";
 import { inColleges } from "@/lib/server/colleges";
-import { collegesFor, requireStaff } from "@/lib/server/staff";
+import { type PlacementContext, requirePlacement } from "@/lib/server/placement";
 import { listRoster } from "@/lib/server/students";
 import { PlacementsBoard } from "./placements-filter";
 import type { CandidateRow, OrgRow } from "./stats";
 
 export const metadata: Metadata = { title: "Placements" };
 
-export default async function PlacementsPage({ searchParams }: { searchParams: Promise<{ college?: string }> }) {
-  const staff = await requireStaff();
-  const { college } = await searchParams;
+export default async function PlacementsPage() {
+  const placement = await requirePlacement();
   return (
     <div className="space-y-6">
       <PageHeader
         title="Placements"
         description="Placement organisations and their departments, and how many students each college department has assigned to them."
-        actions={staff.isPlatformAdmin ? <CollegeFilter colleges={staff.tenants.map((tenant) => ({ id: tenant.id, name: tenant.display_name }))} /> : undefined}
       />
-      <Suspense key={college ?? ""} fallback={<PlacementsSkeleton />}>
-        <PlacementsContent staff={staff} college={college} />
+      <Suspense fallback={<PlacementsSkeleton />}>
+        <PlacementsContent placement={placement} />
       </Suspense>
     </div>
   );
 }
 
-async function PlacementsContent({ staff, college }: { staff: Awaited<ReturnType<typeof requireStaff>>; college: string | undefined }) {
+async function PlacementsContent({ placement: access }: { placement: PlacementContext }) {
   let data;
   try {
     const [placement, perCollege] = await Promise.all([
       listPlacement(),
-      inColleges(collegesFor(staff, college), async (collegeId) => {
+      inColleges(access.colleges, async (collegeId) => {
         const [departments, batches] = await Promise.all([listDepartments(collegeId), listBatches(collegeId)]);
         const students = await listRoster(collegeId, batches.map((batch) => batch.id));
         return { departments, batches, students };
@@ -44,8 +41,8 @@ async function PlacementsContent({ staff, college }: { staff: Awaited<ReturnType
     return <LoadError error={error} />;
   }
   const { placement, perCollege } = data;
-  const several = staff.isPlatformAdmin;
-  // The same department name appears in several colleges, so a root admin's lists say which college each is in.
+  const several = access.colleges.length > 1;
+  // The same department name appears in several colleges, so the lists say which college each is in.
   const suffix = (collegeName: string) => (several ? `, ${collegeName}` : "");
 
   const rows: CandidateRow[] = perCollege.flatMap(({ college: entry, value }) => {
