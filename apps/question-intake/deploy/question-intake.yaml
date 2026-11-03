@@ -1,0 +1,170 @@
+# Question intake on the production k3s server (ADR-0069).
+# Secret `question-intake-env` (DATABASE_URL, VERIFY_SECRET) is created out of band and never committed.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: question-intake
+  labels:
+    app.kubernetes.io/part-of: question-intake
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: question-intake
+  namespace: question-intake
+  labels:
+    app: question-intake
+    app.kubernetes.io/part-of: question-intake
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: question-intake
+  template:
+    metadata:
+      labels:
+        app: question-intake
+        app.kubernetes.io/part-of: question-intake
+    spec:
+      initContainers:
+        - name: migrate
+          image: question-intake:IMAGE_TAG
+          imagePullPolicy: IfNotPresent
+          command: ["node", "scripts/migrate.mjs"]
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+          envFrom:
+            - secretRef:
+                name: question-intake-env
+          resources:
+            limits: {cpu: 500m, memory: 256Mi}
+            requests: {cpu: 50m, memory: 64Mi}
+      containers:
+        - name: web
+          image: question-intake:IMAGE_TAG
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3300
+          env:
+            # The platform gateway and the hosted execution engine, inside the cluster.
+            - {name: GATEWAY_URL, value: "http://gateway.aethercode.svc.cluster.local:8080/api"}
+            - {name: ENGINE_URL, value: "http://aethercode-exec-svc.aethercode.svc.cluster.local:5100"}
+            - {name: SECURE_COOKIES, value: "true"}
+          envFrom:
+            - secretRef:
+                name: question-intake-env
+          readinessProbe:
+            httpGet: {path: /login, port: http}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /login, port: http}
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            limits: {cpu: "1", memory: 512Mi}
+            requests: {cpu: 100m, memory: 192Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1001
+            capabilities: {drop: ["ALL"]}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: question-intake
+  namespace: question-intake
+  labels:
+    app: question-intake
+spec:
+  selector:
+    app: question-intake
+  ports:
+    - name: http
+      port: 3300
+      targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: question-intake
+  namespace: question-intake
+  labels:
+    app: question-intake
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+# questions-aethercode.* is covered by Cloudflare Universal SSL (*.stjosephsplacements.in), like api-aethercode.* and
+# analytics-aethercode.*. questions.aethercode.* is two levels deep and needs an Advanced Certificate Manager certificate.
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: questions.aethercode.stjosephsplacements.in
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: question-intake
+                port:
+                  name: http
+    - host: questions-aethercode.stjosephsplacements.in
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: question-intake
+                port:
+                  name: http
+---
+# The aethercode namespace denies ingress by default; let the intake app reach the gateway (sign-in) and the engine (verification).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: gateway-from-question-intake
+  namespace: aethercode
+  labels:
+    app.kubernetes.io/part-of: question-intake
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: gateway
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: question-intake
+          podSelector:
+            matchLabels:
+              app: question-intake
+      ports:
+        - {port: 8080, protocol: TCP}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: engine-from-question-intake
+  namespace: aethercode
+  labels:
+    app.kubernetes.io/part-of: question-intake
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: aethercode-exec
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: question-intake
+          podSelector:
+            matchLabels:
+              app: question-intake
+      ports:
+        - {port: 5100, protocol: TCP}

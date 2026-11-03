@@ -32,8 +32,18 @@ pnpm test && pnpm typecheck
 reached however the host reaches them; on the dev cluster, through an SSH tunnel to the Postgres pod and to the
 `aethercode-exec-svc` service (port 5100).
 
-## Deploy
+## Deploy (production k3s server)
 
-`docker build -t question-intake apps/question-intake`, run with the four environment variables, and run
-`node_modules/.bin/tsx scripts/migrate.ts` (or `pnpm migrate` in a build stage) once against the database.
-Serve it over HTTPS and set `SECURE_COOKIES=true`.
+Live at `https://questions-aethercode.stjosephsplacements.in` (Cloudflare tunnel to the nginx ingress, like
+`api-aethercode.*`). `questions.aethercode.stjosephsplacements.in` is also routed, but it is two levels deep and
+Cloudflare's Universal certificate (`*.stjosephsplacements.in`) does not cover it: it works once an Advanced
+Certificate Manager certificate for that host is ordered in the Cloudflare dashboard.
+
+- Namespace `question-intake`, `deploy/question-intake.yaml` (2 replicas, init container runs `scripts/migrate.mjs`).
+- Database `question_intake` in the production CloudNativePG cluster (`postgres-cluster-rw.production.svc`), role
+  `question_intake`. Secret `question-intake-env` holds `DATABASE_URL` and `VERIFY_SECRET` (created on the server,
+  never committed).
+- The app reaches the platform gateway and the engine in the `aethercode` namespace through two NetworkPolicies in
+  `deploy/question-intake.yaml` (that namespace denies ingress by default).
+- Build on the server: `COPYFILE_DISABLE=1 tar` the app directory over, `buildah bud -t question-intake:<sha>`, push to a
+  docker archive and `ctr -n k8s.io images import`, then `sed s/IMAGE_TAG/<sha>/ deploy/question-intake.yaml | kubectl apply -f -`.

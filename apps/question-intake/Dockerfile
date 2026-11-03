@@ -16,6 +16,8 @@ RUN npm install -g pnpm@12.6.0 && useradd --system --uid 1001 intake
 COPY --from=build --chown=intake /app/.next/standalone ./
 COPY --from=build --chown=intake /app/.next/static ./.next/static
 COPY --from=build --chown=intake /app/public ./public
+# The migration script needs the Postgres client, which the standalone trace bundles into the server chunks.
+COPY --from=build --chown=intake /app/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres ./node_modules/postgres
 COPY --from=build --chown=intake /app/db ./db
 COPY --from=build --chown=intake /app/scripts ./scripts
 USER intake
