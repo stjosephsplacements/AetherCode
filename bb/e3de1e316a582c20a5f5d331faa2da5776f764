@@ -1,0 +1,19 @@
+frontend/src/app/(public)/architecture/page.tsx
+  s_4a7f3c46d06453::t_52d68243aae4f5 3,24,28,30,32-35,40-41,43-45,50-67,69,74,79,84,89,94,102-107,112-121,123,129-156,158-159,164-172,177
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bbe3de1e316a582c20a5f5d331faa2da5776f764",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
