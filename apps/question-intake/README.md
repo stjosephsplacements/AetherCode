@@ -35,5 +35,5 @@ reached however the host reaches them; on the dev cluster, through an SSH tunnel
 ## Deploy
 
 `docker build -t question-intake apps/question-intake`, run with the four environment variables, and run
-`node_modules/.bin/tsx scripts/migrate.ts` (or `pnpm migrate` in a build stage) once against the database.
+`node scripts/migrate.mjs` once against the database (the Kubernetes deployment does this in an init container).
 Serve it over HTTPS and set `SECURE_COOKIES=true`.

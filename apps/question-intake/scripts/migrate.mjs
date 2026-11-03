@@ -1,3 +1,4 @@
+// Applies db/*.sql in order, once each. Plain Node so the production image can run it without a build step.
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import postgres from "postgres";
@@ -7,7 +8,7 @@ if (!url) throw new Error("DATABASE_URL is required");
 const sql = postgres(url, { max: 1, onnotice: () => {} });
 
 await sql`CREATE TABLE IF NOT EXISTS schema_migrations (name text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())`;
-const applied = new Set((await sql`SELECT name FROM schema_migrations`).map((row) => row.name as string));
+const applied = new Set((await sql`SELECT name FROM schema_migrations`).map((row) => row.name));
 for (const file of readdirSync("db").filter((name) => name.endsWith(".sql")).sort()) {
   if (applied.has(file)) continue;
   await sql.begin(async (tx) => {
