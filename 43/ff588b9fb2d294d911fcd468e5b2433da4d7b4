@@ -1,0 +1,23 @@
+apps/question-intake/instrumentation.ts
+  s_4a7f3c46d06453::t_a5bad804ea9fff 1-17
+apps/question-intake/lib/db.ts
+  s_4a7f3c46d06453::t_3a562809522b8d 9
+apps/question-intake/scripts/migrate.mjs
+  s_4a7f3c46d06453::t_1a1dcff34c6ed7 9-36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "43ff588b9fb2d294d911fcd468e5b2433da4d7b4",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
