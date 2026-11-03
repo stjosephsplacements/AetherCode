@@ -1,6 +1,6 @@
 "use client";
 
-import { LoaderCircle, Pencil } from "lucide-react";
+import { CircleNotch, PencilSimple } from "@phosphor-icons/react/ssr";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { FormMessage } from "@/components/staff/form";
@@ -46,7 +46,7 @@ export function TestsEditor({ versionId, expectedVersion, existing }: { versionI
     >
       <DialogTrigger asChild>
         <Button type="button" variant={existing > 0 ? "secondary" : "primary"} size="sm">
-          <Pencil />
+          <PencilSimple />
           {existing > 0 ? "Replace tests" : "Add tests"}
         </Button>
       </DialogTrigger>
@@ -67,7 +67,7 @@ export function TestsEditor({ versionId, expectedVersion, existing }: { versionI
             </Button>
           </DialogClose>
           <Button type="button" onClick={save} disabled={pending || testsProblem(tests) !== null}>
-            {pending && <LoaderCircle className="animate-spin" />}
+            {pending && <CircleNotch className="animate-spin" />}
             Save tests
           </Button>
         </footer>

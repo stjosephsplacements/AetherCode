@@ -1,4 +1,4 @@
-import { Maximize2 } from "lucide-react";
+import { ArrowsOut } from "@phosphor-icons/react/ssr";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
@@ -29,7 +29,7 @@ export function Tile({ label, expand, live = false, className, children }: { lab
               aria-label={`Expand ${label.toLowerCase()}`}
               className="-mr-1.5 grid size-7 place-items-center rounded-[var(--radius-control)] text-ink-subtle transition-[color,background-color,transform] hover:bg-hover hover:text-ink active:scale-[0.97]"
             >
-              <Maximize2 className="size-3.5" strokeWidth={1.75} />
+              <ArrowsOut className="size-3.5" />
             </DialogTrigger>
             <DialogContent title={expand.title} description={expand.description} className="w-[min(94vw,880px)]">
               <div className="min-h-0 overflow-y-auto p-6">{expand.content}</div>

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { LoadError, PageHeader } from "@/components/staff/page-header";
-import { CollegeFilter } from "@/components/staff/college-filter";
 import type { ExamResult, Page, Student } from "@/lib/api-types";
 import { listBatches, listDepartments } from "@/lib/server/directory";
 import { listExams, mapLimit } from "@/lib/server/exams";
@@ -10,7 +9,6 @@ import { collegesFor, requireStaff } from "@/lib/server/staff";
 import { listAllStudents } from "@/lib/server/students";
 import { type Attempt, type ExamPoint, latestChange, mean, passes, shareOf, summarize } from "@/lib/analytics";
 import { type StudentRow } from "./student-list";
-import { AnalyticsTabs } from "./tabs";
 import { AnalyticsView } from "./view";
 
 export const metadata: Metadata = { title: "Analytics" };
@@ -18,11 +16,11 @@ export const metadata: Metadata = { title: "Analytics" };
 
 
 /** Exam results across the college, by exam, department, batch and student. */
-export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<{ college?: string }> }) {
+export default async function AnalyticsPage() {
   const staff = await requireStaff();
   let data;
   try {
-    const perCollege = await inColleges(collegesFor(staff, (await searchParams).college), async (collegeId) => {
+    const perCollege = await inColleges(collegesFor(staff), async (collegeId) => {
       const [exams, students, departments, batches] = await Promise.all([listExams(collegeId), listAllStudents(collegeId), listDepartments(collegeId), listBatches(collegeId)]);
       const published = exams.filter((entry) => entry.version && entry.version.status !== "draft");
       const results = await mapLimit(published, 6, async (entry) => ({
@@ -38,7 +36,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
       return { results, students, departments, batches, batchOf };
     });
     // Every id is a UUID, so the colleges' data can be pooled and the same tables work across them.
-    const several = staff.isPlatformAdmin;
+    const several = false;
     data = {
       results: perCollege.flatMap(({ college, value }) => (value?.results ?? []).map((entry) => ({ ...entry, college }))),
       students: perCollege.flatMap(({ value }) => value?.students ?? []),
@@ -56,8 +54,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
     );
   }
   const { results, students, departments, batches, batchOf, unreachable } = data;
-  const several = staff.isPlatformAdmin;
-  const collegeName = new Map(staff.tenants.map((tenant) => [tenant.id, tenant.display_name]));
+  const several = false;
   const studentBy = new Map(students.map((student) => [student.principal_id, student]));
 
   const held = results.filter((entry) => entry.results.some((row) => shareOf(row.score, row.maximum_score) !== null));
@@ -106,7 +103,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
       roll: studentBy.get(candidate)?.enrollment_number ?? candidate.slice(0, 8),
       exams: rows.length,
       average: mean(rows.map((row) => row.share)),
-      college: collegeName.get(studentBy.get(candidate)?.tenant_id ?? ""),
+      college: undefined,
     }))
     .sort((a, b) => b.average - a.average || b.exams - a.exams);
   const needAttention = students_.filter((row) => !passes(row.average)).reverse();
@@ -118,9 +115,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   return (
     <AnalyticsView
       several={several}
-      tabs={<AnalyticsTabs active="exams" platform={staff.isPlatformAdmin} />}
-      scope={staff.isPlatformAdmin ? "the colleges" : "the college"}
-      actions={staff.isPlatformAdmin ? <CollegeFilter colleges={staff.tenants.map((tenant) => ({ id: tenant.id, name: tenant.display_name }))} /> : undefined}
+      scope="the college"
       notice={unreachable.length > 0 ? <p role="alert" className="mb-4 text-sm text-warning">Could not load: {unreachable.join(", ")}.</p> : undefined}
       data={{ attempts, points, recent, overall, change, departmentRows, batchRows, students: students_, needAttention }}
     />

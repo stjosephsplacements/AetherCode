@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash } from "@phosphor-icons/react/ssr";
 import { useState } from "react";
 import { Field, TextArea, TextInput } from "@/components/staff/form";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ export function RoundsEditor() {
             <span className="text-[13px] font-medium text-ink">Round {position + 1}</span>
             {keys.length > 1 && (
               <Button type="button" variant="ghost" size="icon" aria-label={`Remove round ${position + 1}`} onClick={() => setKeys(keys.filter((other) => other !== key))}>
-                <Trash2 />
+                <Trash />
               </Button>
             )}
           </div>

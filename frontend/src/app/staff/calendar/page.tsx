@@ -1,15 +1,14 @@
-import { ChevronLeft, ChevronRight, TriangleAlert } from "lucide-react";
+import { CaretLeft, CaretRight, Warning } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ExamPeek, examState } from "@/components/staff/exam-peek";
-import { CollegeBar } from "@/components/staff/college-bar";
 import { LoadError } from "@/components/staff/page-header";
 import { Tile } from "@/components/staff/tile";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import type { ExamVersion } from "@/lib/api-types";
 import { daysOfWindow, monthGrid, monthOf, overlappingPairs, parseMonth, shiftMonth, sharedWindow } from "@/lib/calendar";
-import { type ExamWithVersion, listAllExams, listExams } from "@/lib/server/exams";
+import { type ExamWithVersion, listExams } from "@/lib/server/exams";
 import { requireCollege } from "@/lib/server/staff";
 import { TIME_ZONE, cn, formatDateTime, formatTime } from "@/lib/utils";
 import { NewExamDialog } from "../exams/new-exam-dialog";
@@ -76,7 +75,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const month = parseMonth((await searchParams).month) ?? monthOf(new Date(now));
   let exams: (ExamWithVersion & { college?: { id: string; name: string } })[];
   try {
-    exams = staff.viewAll ? await listAllExams(staff.tenants) : await listExams(staff.tenantId);
+    exams = await listExams(staff.tenantId);
   } catch (error) {
     return <LoadError error={error} />;
   }
@@ -121,7 +120,6 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
 
   return (
     <div className="animate-enter">
-      <CollegeBar staff={staff} allowAll />
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <p className="font-mono text-[12px] text-ink-subtle">Calendar / college time, {TIME_ZONE}</p>
@@ -130,7 +128,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
         <div className="flex shrink-0 items-center gap-2">
           <Button asChild variant="secondary" size="icon" aria-label="Previous month">
             <Link href={`/staff/calendar?month=${shiftMonth(month, -1)}`}>
-              <ChevronLeft />
+              <CaretLeft />
             </Link>
           </Button>
           <Button asChild variant="secondary">
@@ -138,10 +136,10 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
           </Button>
           <Button asChild variant="secondary" size="icon" aria-label="Next month">
             <Link href={`/staff/calendar?month=${shiftMonth(month, 1)}`}>
-              <ChevronRight />
+              <CaretRight />
             </Link>
           </Button>
-          <NewExamDialog colleges={staff.viewAll ? staff.tenants.map((tenant) => ({ id: tenant.id, name: tenant.display_name })) : undefined} />
+          <NewExamDialog />
         </div>
       </header>
 
@@ -177,7 +175,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
                           </span>
                           {clashDays.has(day.key) && (
                             <span className="text-warning">
-                              <TriangleAlert className="size-3.5" strokeWidth={1.75} aria-hidden />
+                              <Warning className="size-3.5" aria-hidden />
                               <span className="sr-only">Overlapping exam windows on this day</span>
                             </span>
                           )}

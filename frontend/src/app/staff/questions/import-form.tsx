@@ -1,6 +1,6 @@
 "use client";
 
-import { Upload } from "lucide-react";
+import { UploadSimple } from "@phosphor-icons/react/ssr";
 import { useActionState } from "react";
 import { FileInput, FormMessage, SubmitButton, initialActionState } from "@/components/staff/form";
 import { importQuestion } from "./actions";
@@ -12,7 +12,7 @@ export function ImportQuestionForm() {
     <form action={action} className="flex flex-wrap items-center gap-3">
       <FileInput name="file" accept=".json,application/json" required aria-label="Exported question file" />
       <SubmitButton variant="secondary">
-        <Upload />
+        <UploadSimple />
         Import as draft
       </SubmitButton>
       <FormMessage state={state} />

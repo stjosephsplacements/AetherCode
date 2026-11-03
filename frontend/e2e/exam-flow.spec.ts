@@ -123,8 +123,8 @@ async function signIn(browser: Browser, identifier: string, password: string): P
   const page = await newPage(browser);
   await page.goto("/login");
   await page.getByLabel("Roll number or username").fill(identifier);
-  await page.getByLabel("Password", { exact: true }).fill(password);
-  await page.getByRole("button", { name: "Continue" }).click();
+  await page.locator("#password").fill(password);
+  await page.getByRole("button", { name: /sign in/i }).click();
   await page.waitForURL((url) => !url.pathname.startsWith("/login"));
   return page;
 }
@@ -151,16 +151,26 @@ test("password change → start → run/submit → end test → release → scor
 
   // Student: open the exam once it opens and start it.
   await student.goto("/student");
-  await expect(student.getByText(setup.title)).toBeVisible();
+  await expect(student.getByText(setup.title).first()).toBeVisible();
   // Listed under Upcoming until it opens; its link leads to the same exam page.
-  await student.getByRole("link", { name: new RegExp(setup.title) }).first().click();
+  const startLink = student.getByRole("link", { name: /Start exam/ }).first();
+  await expect(async () => {
+    await student.goto("/student");
+    await expect(startLink).toBeVisible({ timeout: 3_000 });
+  }).toPass({ timeout: 90_000 });
+  await startLink.click();
   const start = student.getByRole("button", { name: /Start exam/ });
   await expect(start).toBeEnabled({ timeout: 60_000 });
   await start.click();
+  const honor = student.getByRole("dialog");
+  for (const box of await honor.getByRole("checkbox").all()) await box.check();
+  await honor.getByRole("textbox").fill(setup.roll);
+  await honor.getByRole("button", { name: /I agree, start the exam/ }).click();
   await student.waitForURL("**/student/attempts/**");
 
   // A wrong Run fails both samples; a correct Submit passes every test.
-  await student.getByLabel("Language").selectOption("python3");
+  await student.getByRole("combobox", { name: "Language" }).click();
+  await student.getByRole("option", { name: "Python 3" }).click();
   await writeCode(student, WRONG);
   await student.getByRole("button", { name: "Run code" }).click();
   await expect(student.getByText("0 of 2 sample tests passed").first()).toBeVisible();
@@ -178,9 +188,16 @@ test("password change → start → run/submit → end test → release → scor
   // Teacher: release the results from the live monitor.
   const teacher = await signIn(browser, adminEmail!, adminPassword!);
   teacher.on("dialog", (dialog) => void dialog.accept());
-  await teacher.goto(`/staff/exams/${setup.examId}/monitor`);
-  await teacher.getByRole("button", { name: "Release results" }).click();
-  await expect(teacher.getByRole("button", { name: "Hide results" })).toBeVisible();
+  const release = teacher.getByRole("button", { name: "Release results" });
+  await expect(async () => {
+    await teacher.goto(`/staff/exams/${setup.examId}/monitor`);
+    await expect(release).toBeVisible({ timeout: 5_000 });
+  }).toPass({ timeout: 90_000 });
+  await release.click();
+  await expect(async () => {
+    await teacher.reload();
+    await expect(teacher.getByRole("button", { name: "Hide results" })).toBeVisible({ timeout: 5_000 });
+  }).toPass({ timeout: 60_000 });
 
   // Student: the released score is full marks.
   await expect

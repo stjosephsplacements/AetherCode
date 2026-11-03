@@ -1,9 +1,8 @@
-import { Briefcase, Building2, GraduationCap, Layers } from "lucide-react";
+import { Briefcase, Buildings, GraduationCap, Stack } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
-import { CollegeFilter } from "@/components/staff/college-filter";
 import { ConfirmDelete } from "@/components/staff/confirm-delete";
 import { EditDialog } from "@/components/staff/edit-dialog";
 import { Field, Select, TextInput } from "@/components/staff/form";
@@ -15,7 +14,7 @@ import { inColleges } from "@/lib/server/colleges";
 import { departmentLabel, listBatches, listDepartments, listPlacement } from "@/lib/server/directory";
 import { collegesFor, requireStaff } from "@/lib/server/staff";
 import { cn } from "@/lib/utils";
-import { lettermark } from "../placements/stats";
+import { lettermark } from "@/lib/lettermark";
 import { AddDialog } from "./add-dialog";
 import { createBatch, createDepartment, createPlacementDepartment, createPlacementOrganization, deleteBatch, deleteDepartment, deletePlacementOrganization, updateBatch, updateDepartment, updatePlacementOrganization } from "./actions";
 
@@ -70,7 +69,7 @@ export default async function OrganisationPage({ searchParams }: { searchParams:
   let data;
   try {
     const query = await searchParams;
-    const colleges = collegesFor(staff, query.college);
+    const colleges = collegesFor(staff);
     const [perCollege, placement] = await Promise.all([
       inColleges(colleges, async (collegeId) => ({ departments: await listDepartments(collegeId), batches: await listBatches(collegeId) })),
       listPlacement(),
@@ -134,15 +133,14 @@ export default async function OrganisationPage({ searchParams }: { searchParams:
       <PageHeader
         title="Departments"
         description="Every student belongs to one college department, through a batch, and one placement department."
-        actions={staff.isPlatformAdmin ? <CollegeFilter colleges={staff.tenants.map((tenant) => ({ id: tenant.id, name: tenant.display_name }))} /> : undefined}
       />
       {unreachable.length > 0 && <p role="alert" className="mb-4 text-sm text-warning">Could not load: {unreachable.join(", ")}.</p>}
 
       <ul className="mb-5 flex flex-wrap gap-2" aria-label="Summary">
-        {chip(<Building2 className="size-3.5" />, "Departments", departments.length)}
+        {chip(<Buildings className="size-3.5" />, "Departments", departments.length)}
         {chip(<GraduationCap className="size-3.5" />, "Batches", batches.length)}
         {chip(<Briefcase className="size-3.5" />, "Organisations", placement.organizations.length)}
-        {chip(<Layers className="size-3.5" />, "Placement departments", placementDepartments.length)}
+        {chip(<Stack className="size-3.5" />, "Placement departments", placementDepartments.length)}
       </ul>
 
       <nav aria-label="Sections" className="mb-5 inline-flex max-w-full gap-1 overflow-x-auto rounded-[var(--radius-control)] border border-line bg-sidebar p-1">

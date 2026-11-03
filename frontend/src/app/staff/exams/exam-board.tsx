@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, Search, X } from "lucide-react";
+import { CaretRight, MagnifyingGlass, X } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { useState } from "react";
 import { ExamPeek, examState } from "@/components/staff/exam-peek";
@@ -91,7 +91,7 @@ export function ExamBoard({ exams, renderedAt }: { exams: BoardExam[]; renderedA
 
       <div className="mt-6 flex items-center gap-3">
         <div className="relative w-full max-w-md">
-          <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-subtle" strokeWidth={1.75} />
+          <MagnifyingGlass aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-subtle" />
           <input
             type="search"
             value={query}
@@ -102,7 +102,7 @@ export function ExamBoard({ exams, renderedAt }: { exams: BoardExam[]; renderedA
           />
           {query && (
             <button type="button" aria-label="Clear search" onClick={() => setQuery("")} className="absolute right-2 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-md text-ink-subtle transition-colors hover:bg-hover hover:text-ink">
-              <X className="size-3.5" strokeWidth={2} />
+              <X className="size-3.5" />
             </button>
           )}
         </div>
@@ -169,7 +169,7 @@ function Row({ entry, state, now }: { entry: BoardExam; state: State; now: numbe
       <span className="hidden md:block">
         <When version={version} state={state} now={now} createdAt={entry.exam.created_at} />
       </span>
-      <ChevronRight aria-hidden className="size-4 text-ink-subtle transition-transform group-hover:translate-x-0.5" strokeWidth={1.75} />
+      <CaretRight aria-hidden className="size-4 text-ink-subtle transition-transform group-hover:translate-x-0.5" />
     </>
   );
   const layout = "group relative grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 py-3.5 pl-5 pr-4 text-left transition-colors hover:bg-hover md:grid-cols-[minmax(0,1.4fr)_minmax(0,1.3fr)_180px_auto]";

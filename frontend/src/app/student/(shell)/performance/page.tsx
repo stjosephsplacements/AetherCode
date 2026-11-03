@@ -1,4 +1,4 @@
-import { Award, Flame, Percent, Trophy } from "lucide-react";
+import { Fire, Medal, Percent, Trophy } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -60,7 +60,7 @@ export default async function PerformancePage() {
       <PageHeader title="Performance" description="Your exam scores and practice, with how consistent you have been." />
 
       <section aria-label="Summary" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Tile icon={<Award className="size-4" />} label="Exams taken" value={String(finished.length)} note={finished.length === 1 ? "exam finished" : "exams finished"} />
+        <Tile icon={<Medal className="size-4" />} label="Exams taken" value={String(finished.length)} note={finished.length === 1 ? "exam finished" : "exams finished"} />
         <Tile icon={<Percent className="size-4" />} label="Average score" value={average === null ? "-" : `${Math.round(average * 100)}%`} note={average === null ? "once results are released" : `over ${released.length} released`} />
         <Tile
           icon={<Trophy className="size-4" />}
@@ -68,7 +68,7 @@ export default async function PerformancePage() {
           value={practice && practice.submissions > 0 ? `${Math.round((practice.accepted / practice.submissions) * 100)}%` : "-"}
           note={practice ? `${practice.accepted} of ${practice.submissions} submissions` : undefined}
         />
-        <Tile icon={<Flame className="size-4" />} label="Day streak" value={String(streak)} note={streak > 0 ? "days in a row" : "practice today to start"} />
+        <Tile icon={<Fire className="size-4" />} label="Day streak" value={String(streak)} note={streak > 0 ? "days in a row" : "practice today to start"} />
       </section>
 
       {practice && (

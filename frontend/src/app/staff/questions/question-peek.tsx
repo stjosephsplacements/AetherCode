@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { Markdown } from "@/components/markdown";
 import { ConfirmDelete } from "@/components/staff/confirm-delete";

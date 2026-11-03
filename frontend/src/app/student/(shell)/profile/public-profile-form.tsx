@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Copy, ExternalLink } from "lucide-react";
+import { ArrowSquareOut, Check, Copy } from "@phosphor-icons/react/ssr";
 import { useState } from "react";
 import { ActionForm, Field, TextArea, TextInput } from "@/components/staff/form";
 import type { PublicProfile } from "@/lib/server/public-profile";
@@ -51,7 +51,7 @@ export function PublicProfileForm({ profile, origin, suggestion }: { profile: Pu
           </button>
           {profile.enabled && (
             <a href={savedUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-ink hover:text-brand">
-              <ExternalLink className="size-3.5" />
+              <ArrowSquareOut className="size-3.5" />
               open
             </a>
           )}

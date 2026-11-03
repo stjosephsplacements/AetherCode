@@ -1,5 +1,7 @@
+import type { RoleName } from "@/lib/api-types";
+import { ROLE_SHORT, STAFF_ROLES } from "@/lib/rbac";
+import { Key, Lock, ShieldCheck, Users } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
-import { KeyRound, Lock, ShieldCheck, Users } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
@@ -12,14 +14,12 @@ import { inColleges } from "@/lib/server/colleges";
 import { collegesFor, requireStaff } from "@/lib/server/staff";
 import { cn } from "@/lib/utils";
 import { savePermissions } from "./actions";
-import { lettermark } from "../placements/stats";
+import { lettermark } from "@/lib/lettermark";
 import { PermissionEditor } from "./editor";
 import { PeopleList } from "./people-list";
 
 export const metadata: Metadata = { title: "Permissions" };
 
-const STAFF_ROLES = new Set(["college_admin", "department_user", "mentor", "placement_user"]);
-const ROLE_LABEL: Record<string, string> = { college_admin: "College admin", department_user: "Department", mentor: "Mentor", placement_user: "Placement" };
 
 export default async function PermissionsPage({ searchParams }: { searchParams: Promise<{ person?: string; scope?: string; college?: string }> }) {
   const staff = await requireStaff();
@@ -29,13 +29,13 @@ export default async function PermissionsPage({ searchParams }: { searchParams: 
 
   let data;
   try {
-    const colleges = collegesFor(staff, undefined);
+    const colleges = collegesFor(staff);
     const [catalogue, perCollege] = await Promise.all([
       gateway<{ permissions: CataloguePermission[] }>("/user/v1/permission-catalogue"),
       inColleges(colleges, async (collegeId) => {
         const active = (await listRoleAssignments(collegeId)).filter((assignment) => assignment.status === "active" && STAFF_ROLES.has(assignment.role_name));
         const roles = new Map<string, string[]>();
-        for (const assignment of active) roles.set(assignment.principal_id, [...(roles.get(assignment.principal_id) ?? []), ROLE_LABEL[assignment.role_name] ?? assignment.role_name]);
+        for (const assignment of active) roles.set(assignment.principal_id, [...(roles.get(assignment.principal_id) ?? []), ROLE_SHORT[assignment.role_name as RoleName] ?? assignment.role_name]);
         const names = roles.size ? await describeAccounts(collegeId, [...roles.keys()]) : new Map();
         return [...roles.entries()].map(([principalId, labels]) => ({ principalId, labels: [...new Set(labels)], name: names.get(principalId)?.display_name ?? names.get(principalId)?.username ?? principalId.slice(0, 8) }));
       }),
@@ -81,7 +81,7 @@ export default async function PermissionsPage({ searchParams }: { searchParams: 
       <ul className="mb-5 flex flex-wrap gap-2" aria-label="Summary">
         {chip(<Users className="size-3.5" />, "Staff", people.length)}
         {chip(<ShieldCheck className="size-3.5" />, "Permissions in the catalogue", groups.reduce((sum, group) => sum + group.resources.reduce((inner, resource) => inner + resource.verbs.length, 0), 0))}
-        {chosen && chip(<KeyRound className="size-3.5" />, `Extra for ${chosen.name.split(" ")[0]}`, held.length)}
+        {chosen && chip(<Key className="size-3.5" />, `Extra for ${chosen.name.split(" ")[0]}`, held.length)}
       </ul>
       {people.length === 0 ? (
         <EmptyState>
@@ -127,7 +127,7 @@ export default async function PermissionsPage({ searchParams }: { searchParams: 
                 {chosen.root ? (
                   <div className="rounded-[var(--radius-surface)] border border-line bg-surface p-6 text-sm text-ink-muted">
                     <p className="mb-1 flex items-center gap-2 font-medium text-ink">
-                      <Lock className="size-4" strokeWidth={1.75} />
+                      <Lock className="size-4" />
                       Every permission, fixed
                     </p>
                     The root administrator holds every permission across every college. It cannot be edited or removed, so there is nothing to change here.
@@ -142,7 +142,7 @@ export default async function PermissionsPage({ searchParams }: { searchParams: 
                   canGrantPlatformOnly={staff.isPlatformAdmin}
                   onSave={async (permissions) => {
                     "use server";
-                    return savePermissions(chosen.principalId, scope, permissions, chosen.collegeId);
+                    return savePermissions(chosen.principalId, scope, permissions);
                   }}
                 />
                 )}

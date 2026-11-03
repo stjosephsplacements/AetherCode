@@ -1,6 +1,6 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { MagnifyingGlass } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { useState } from "react";
 import { Ring } from "@/components/student/ring";
@@ -25,7 +25,7 @@ export function TopicGrid({ topics }: { topics: Topic[] }) {
           </Link>
           <label className="relative">
             <span className="sr-only">Search topics</span>
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-subtle" strokeWidth={1.75} />
+            <MagnifyingGlass className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-subtle" />
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search topics" className="h-10 w-56 rounded-xl border border-line bg-surface pl-9 pr-3 text-sm text-ink outline-none placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15" />
           </label>
         </div>

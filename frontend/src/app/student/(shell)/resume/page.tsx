@@ -1,4 +1,4 @@
-import { GraduationCap, User, ExternalLink, Code } from "lucide-react";
+import { ArrowSquareOut, Code, GraduationCap, User } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Panel } from "@/components/ui/card";
@@ -85,7 +85,7 @@ export default async function ResumePage() {
                     <span className="font-semibold text-sm capitalize text-ink">{stat.platform}</span>
                     <a href={stat.url} target="_blank" rel="noopener noreferrer" className="text-xs text-brand hover:underline inline-flex items-center gap-1">
                       {stat.handle}
-                      <ExternalLink className="size-3" />
+                      <ArrowSquareOut className="size-3" />
                     </a>
                   </div>
                   {stat.lines && stat.lines.length > 0 ? (

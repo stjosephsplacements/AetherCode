@@ -6,6 +6,7 @@ import { clearSession, fetchViewer, storeViewer } from "@/lib/server/session";
 import { secureCookies } from "@/lib/server/config";
 import { PASSWORD_COOKIE, REFRESH_COOKIE, type TokenPair, sessionCookies } from "@/lib/server/tokens";
 import { cookies } from "next/headers";
+import { TENANT_COOKIE } from "@/lib/server/staff";
 import { homeFor, safeNext } from "@/lib/viewer";
 
 export type LoginState = { error: string | null; identifier: string };
@@ -45,6 +46,8 @@ export async function login(_previous: LoginState, form: FormData): Promise<Logi
     return { error: "Signed in, but your account details could not be loaded. Try again in a moment.", identifier };
   }
   await storeViewer(viewer, new Date(pair.refresh_token_expires_at));
+  // Each sign-in starts in the admin console, not in the college last opened.
+  if (viewer.roles.includes("super_admin")) jar.delete(TENANT_COOKIE);
   const next = safeNext(String(form.get("next") ?? "")) ?? homeFor(viewer);
   if (pair.password_change_required) {
     // A password staff issued must be replaced before anything else (ADR-0036).

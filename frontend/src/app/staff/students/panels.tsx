@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Download, KeyRound, MoreHorizontal, TriangleAlert, Upload, UserPlus } from "lucide-react";
+import { ArrowLeft, DotsThree, DownloadSimple, Key, UploadSimple, UserPlus, Warning } from "@phosphor-icons/react/ssr";
 import { DropdownMenu } from "radix-ui";
 import { useActionState, useMemo, useState, useTransition } from "react";
 import { CredentialsTable } from "@/components/staff/credentials";
@@ -113,7 +113,7 @@ export function ImportPanel({ batches, placements, departments }: { batches: Bat
                       {entry.name || "-"}
                       {entry.problem && (
                         <span role="alert" className="mt-0.5 flex items-center gap-1 text-[12px] text-danger">
-                          <TriangleAlert className="size-3.5 shrink-0" />
+                          <Warning className="size-3.5 shrink-0" />
                           {entry.problem}
                         </span>
                       )}
@@ -141,7 +141,7 @@ export function ImportPanel({ batches, placements, departments }: { batches: Bat
               dragging ? "border-brand bg-brand-soft/40" : "border-line-strong hover:bg-hover",
             )}
           >
-            <Upload aria-hidden className="size-5 text-ink-subtle" strokeWidth={1.75} />
+            <UploadSimple aria-hidden className="size-5 text-ink-subtle" />
             <span className="text-sm font-medium text-ink">{fileName || "Drop a CSV here, or choose one"}</span>
             <span className="text-[12.5px] text-ink-muted">roll number, name, and optionally email. Up to {MAX_IMPORT_ROWS} students.</span>
             <input type="file" accept=".csv,text/csv,text/plain" className="sr-only" onChange={(event) => void load(event.target.files?.[0])} />
@@ -151,7 +151,7 @@ export function ImportPanel({ batches, placements, departments }: { batches: Bat
             <div className="mb-2 flex items-center justify-between gap-3">
               <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">File format</span>
               <button type="button" onClick={downloadTemplate} className="inline-flex items-center gap-1.5 font-medium text-brand hover:underline">
-                <Download className="size-3.5" />
+                <DownloadSimple className="size-3.5" />
                 Download template
               </button>
             </div>
@@ -207,7 +207,7 @@ export function ReissuePanel({ batch }: { batch: Batch }) {
       <input type="hidden" name="college_id" value={batch.tenant_id} />
       <FormMessage state={state} />
       <SubmitButton variant="secondary">
-        <KeyRound />
+        <Key />
         Reissue all passwords
       </SubmitButton>
       {state.accounts && (
@@ -249,7 +249,7 @@ export function StudentActions({ principalId, username, collegeId, status }: { p
     <>
       <DropdownMenu.Root>
         <DropdownMenu.Trigger disabled={pending} aria-label={`Actions for ${username}`} className="grid size-8 place-items-center rounded-[var(--radius-control)] text-ink-muted hover:bg-hover hover:text-ink disabled:opacity-50">
-          <MoreHorizontal className="size-4" />
+          <DotsThree className="size-4" />
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
           <DropdownMenu.Content align="end" sideOffset={4} className="z-50 min-w-[190px] animate-fade rounded-[var(--radius-control)] border border-line bg-surface p-1 shadow-[var(--shadow-overlay)]">
@@ -290,7 +290,7 @@ export function ImportDialog(props: { batches: Batch[]; placements: PlacementOpt
     <Dialog>
       <DialogTrigger asChild>
         <Button disabled={Boolean(disabledReason)} title={disabledReason}>
-          <Upload />
+          <UploadSimple />
           Bulk import
         </Button>
       </DialogTrigger>

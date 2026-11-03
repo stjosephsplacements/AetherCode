@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, LoaderCircle, RotateCw, TriangleAlert, X } from "lucide-react";
+import { ArrowClockwise, Check, CircleNotch, Warning, X } from "@phosphor-icons/react/ssr";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -120,10 +120,10 @@ async function runCheck(id: CheckId): Promise<Result> {
 }
 
 const ICONS = {
-  running: <LoaderCircle className="size-4 animate-spin text-ink-subtle" />,
-  pass: <Check className="size-4 text-success" strokeWidth={2.5} />,
-  warn: <TriangleAlert className="size-4 text-warning" />,
-  fail: <X className="size-4 text-danger" strokeWidth={2.5} />,
+  running: <CircleNotch className="size-4 animate-spin text-ink-subtle" />,
+  pass: <Check className="size-4 text-success" />,
+  warn: <Warning className="size-4 text-warning" />,
+  fail: <X className="size-4 text-danger" />,
 };
 
 export function SystemCheck() {
@@ -181,7 +181,7 @@ export function SystemCheck() {
                 : "You're ready for your exam"}
         </p>
         <Button variant="secondary" size="sm" onClick={rerun} disabled={!done}>
-          <RotateCw />
+          <ArrowClockwise />
           Check again
         </Button>
       </div>

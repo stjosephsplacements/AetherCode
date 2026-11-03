@@ -1,7 +1,7 @@
 "use client";
 
+import { CheckCircle, CircleDashed, MagnifyingGlass } from "@phosphor-icons/react/ssr";
 import { Select as FormSelect } from "@/components/staff/form";
-import { CircleCheck, CircleDashed, Search } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/card";
@@ -39,7 +39,7 @@ export function PracticeList({ problems, hideTopic = false }: { problems: Practi
       <div className="flex flex-wrap items-center gap-2">
         <label className="relative min-w-[220px] flex-1">
           <span className="sr-only">Search problems</span>
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-subtle" strokeWidth={1.75} />
+          <MagnifyingGlass className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-subtle" />
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -75,9 +75,9 @@ export function PracticeList({ problems, hideTopic = false }: { problems: Practi
             <li key={problem.question_id} className={cn(index > 0 && "border-t border-line")}>
               <Link href={`/student/practice/${problem.question_id}`} className="flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-hover">
                 {problem.solved ? (
-                  <CircleCheck className="size-[18px] shrink-0 text-success" strokeWidth={2} aria-label="Solved" />
+                  <CheckCircle className="size-[18px] shrink-0 text-success" aria-label="Solved" />
                 ) : (
-                  <CircleDashed className={cn("size-[18px] shrink-0", problem.attempted ? "text-warning" : "text-ink-subtle")} strokeWidth={1.75} aria-label={problem.attempted ? "Attempted" : "Not attempted"} />
+                  <CircleDashed className={cn("size-[18px] shrink-0", problem.attempted ? "text-warning" : "text-ink-subtle")} aria-label={problem.attempted ? "Attempted" : "Not attempted"} />
                 )}
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[15px] font-medium text-ink">{problem.title}</p>

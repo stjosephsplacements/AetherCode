@@ -1,6 +1,6 @@
 "use client";
 
-import { Megaphone, Timer } from "lucide-react";
+import { Megaphone, Timer } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect } from "react";
@@ -98,7 +98,7 @@ export function MonitorBoard({
       <div className="grid gap-4 lg:grid-cols-3">
         <Panel className="p-5">
           <h2 className="mb-3 flex items-center gap-2 text-[15px] font-semibold text-ink">
-            <Timer className="size-4 text-brand" strokeWidth={1.75} />
+            <Timer className="size-4 text-brand" />
             Extra time for everyone
           </h2>
           <ActionForm action={extendTime} submitLabel="Add time">
@@ -111,7 +111,7 @@ export function MonitorBoard({
 
         <Panel className="p-5">
           <h2 className="mb-3 flex items-center gap-2 text-[15px] font-semibold text-ink">
-            <Megaphone className="size-4 text-brand" strokeWidth={1.75} />
+            <Megaphone className="size-4 text-brand" />
             Announcement
           </h2>
           <ActionForm action={postAnnouncement} submitLabel="Send to everyone">

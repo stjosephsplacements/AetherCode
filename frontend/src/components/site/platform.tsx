@@ -14,15 +14,15 @@ export function Platform() {
   return (
     <section className="mx-auto max-w-6xl px-6 py-24">
       <h2 className="heading text-center text-[2.4rem] text-ink sm:text-[3.4rem]">Powered by the AetherCode platform</h2>
-      <div data-reveal className="mt-12 border border-ink bg-surface shadow-[6px_6px_0_var(--ink)]">
-        <div className="flex items-center justify-between border-b border-ink px-5 py-2.5 font-mono text-[13px] text-ink-muted">
-          <span>[ platform ]</span>
+      <div data-reveal className="mt-12 rounded-[var(--radius-surface)] overflow-hidden border border-line-strong bg-surface shadow-[var(--shadow-panel)]">
+        <div className="flex items-center justify-between border-b border-line-strong px-5 py-2.5 font-mono text-[13px] text-ink-muted">
+          <span>Platform</span>
           <span>{PARTS.length} parts</span>
         </div>
         <div className="grid gap-px bg-ink sm:grid-cols-2 lg:grid-cols-4">
           {PARTS.map((part) => (
             <article key={part.label} className="flex flex-col bg-surface p-6">
-              <p className="font-mono text-[12.5px] text-ink-subtle">[ {part.label} ]</p>
+              <p className="font-mono text-[12.5px] text-ink-subtle">{part.label}</p>
               <h3 className="heading mt-3 text-[1.7rem] leading-[1.15] text-ink">{part.title}</h3>
               <div aria-hidden className="flex flex-1 items-center justify-center py-8">
                 <pre className="font-mono text-[12px] leading-[1.4] text-ink">

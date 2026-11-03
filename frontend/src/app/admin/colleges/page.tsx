@@ -1,4 +1,5 @@
-import { Building2, CircleCheck, GraduationCap, Layers } from "lucide-react";
+import { collegeHref } from "@/lib/links";
+import { Buildings, CheckCircle, GraduationCap, Stack } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -15,8 +16,8 @@ import { inColleges } from "@/lib/server/colleges";
 import { listBatches, listDepartments } from "@/lib/server/directory";
 import { gateway } from "@/lib/server/gateway";
 import { requireStaff } from "@/lib/server/staff";
-import { AddDialog } from "../departments/add-dialog";
-import { lettermark } from "../placements/stats";
+import { AddDialog } from "../../staff/departments/add-dialog";
+import { lettermark } from "@/lib/lettermark";
 import { createCollege, deleteCollege, updateCollege } from "./actions";
 
 export const metadata: Metadata = { title: "Colleges" };
@@ -73,9 +74,9 @@ export default async function CollegesPage({ searchParams }: { searchParams: Pro
     <>
       <PageHeader title="Colleges" description="Every college on this platform. Each has its own departments, students, staff, exams and results." actions={addCollege} />
       <ul className="mb-5 flex flex-wrap gap-2" aria-label="Summary">
-        {chip(<Building2 className="size-3.5" />, "Colleges", tenants.length)}
-        {chip(<CircleCheck className="size-3.5" />, "Active", tenants.filter((tenant) => tenant.status === "active").length)}
-        {chip(<Layers className="size-3.5" />, "Departments", totals.departments)}
+        {chip(<Buildings className="size-3.5" />, "Colleges", tenants.length)}
+        {chip(<CheckCircle className="size-3.5" />, "Active", tenants.filter((tenant) => tenant.status === "active").length)}
+        {chip(<Stack className="size-3.5" />, "Departments", totals.departments)}
         {chip(<GraduationCap className="size-3.5" />, "Batches", totals.batches)}
       </ul>
       {tenants.length === 0 ? (
@@ -108,7 +109,7 @@ export default async function CollegesPage({ searchParams }: { searchParams: Pro
                 </td>
                 <td className="px-4 py-2">
                   <div className="flex items-center justify-end gap-1">
-                    <Link href={`/staff/departments?college=${tenant.id}`} className="rounded-full px-3 py-1.5 text-[13px] text-brand transition-colors hover:bg-hover">
+                    <Link href={collegeHref("/staff/departments", tenant.id)} className="rounded-full px-3 py-1.5 text-[13px] text-brand transition-colors hover:bg-hover">
                       Departments
                     </Link>
                     <EditDialog

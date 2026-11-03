@@ -1,8 +1,8 @@
 "use client";
 
+import { ArrowLeft, Check, CheckCircle, CircleNotch, Lock, Play, UploadSimple, XCircle } from "@phosphor-icons/react/ssr";
 import { Select } from "@/components/staff/form";
 import { LanguageLabel } from "@/components/language-icon";
-import { ArrowLeft, Check, CircleCheck, CircleX, LoaderCircle, Lock, Play, Upload } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Checkbox, Tabs } from "radix-ui";
@@ -302,18 +302,18 @@ export function PracticeWorkspace({ tenantId, question }: { tenantId: string; qu
                 className="grid size-4 place-items-center rounded-[4px] border border-line-strong bg-surface outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand data-[state=checked]:border-brand data-[state=checked]:bg-brand"
               >
                 <Checkbox.Indicator>
-                  <Check className="size-3 text-brand-ink" strokeWidth={3} />
+                  <Check className="size-3 text-brand-ink" />
                 </Checkbox.Indicator>
               </Checkbox.Root>
               Test against custom input
             </label>
             <div className="ml-auto flex items-center gap-2">
               <Button variant="secondary" onClick={runCode} disabled={run.kind === "running"} title="Ctrl + Enter">
-                {run.kind === "running" ? <LoaderCircle className="animate-spin" /> : <Play />}
+                {run.kind === "running" ? <CircleNotch className="animate-spin" /> : <Play />}
                 Run code
               </Button>
               <Button onClick={submitCode} disabled={submit.kind === "judging"} title="Ctrl + Shift + Enter">
-                {submit.kind === "judging" ? <LoaderCircle className="animate-spin" /> : <Upload />}
+                {submit.kind === "judging" ? <CircleNotch className="animate-spin" /> : <UploadSimple />}
                 Submit
               </Button>
             </div>
@@ -325,7 +325,7 @@ export function PracticeWorkspace({ tenantId, question }: { tenantId: string; qu
     <div className="flex h-dvh flex-col bg-canvas">
       <header className="flex h-14 shrink-0 items-center gap-3 border-b px-4">
         <Link href="/student/practice" className="flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink">
-          <ArrowLeft className="size-4" strokeWidth={1.75} />
+          <ArrowLeft className="size-4" />
           Practice
         </Link>
         <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{question.title}</h1>
@@ -377,7 +377,7 @@ function SubmitResult({ state }: { state: SubmitState }) {
   if (state.kind === "judging") {
     return (
       <p className="flex items-center gap-2 py-3 text-[13px] text-ink-muted">
-        <LoaderCircle className="size-4 animate-spin" />
+        <CircleNotch className="size-4 animate-spin" />
         Judging your submission against every test
       </p>
     );
@@ -409,7 +409,7 @@ function SubmitResult({ state }: { state: SubmitState }) {
                 unit.verdict === "accepted" ? "bg-success-soft text-success" : "bg-danger-soft text-danger",
               )}
             >
-              {unit.verdict === "accepted" ? <CircleCheck className="size-3" strokeWidth={2} /> : <CircleX className="size-3" strokeWidth={2} />}
+              {unit.verdict === "accepted" ? <CheckCircle className="size-3" /> : <XCircle className="size-3" />}
               Test {index + 1}
               {unit.time_ms !== undefined && <span className="opacity-70">{unit.time_ms} ms</span>}
             </span>
@@ -424,7 +424,7 @@ function History({ runs, onOpen }: { runs: PracticeRun[] | undefined; onOpen: (i
   if (runs.length === 0) {
     return (
       <p className="flex items-center gap-1.5 py-3 text-[13px] text-ink-muted">
-        <Lock className="size-3.5" strokeWidth={2} />
+        <Lock className="size-3.5" />
         Submit to check your code against every test, hidden ones included.
       </p>
     );
@@ -434,11 +434,11 @@ function History({ runs, onOpen }: { runs: PracticeRun[] | undefined; onOpen: (i
       {runs.map((entry) => (
         <li key={entry.id} className="flex items-center gap-3 px-3.5 py-2.5 text-[13px]">
           {entry.lifecycle_state === "queued" ? (
-            <LoaderCircle className="size-4 animate-spin text-ink-muted" />
+            <CircleNotch className="size-4 animate-spin text-ink-muted" />
           ) : entry.verdict === "accepted" ? (
-            <CircleCheck className="size-4 text-success" strokeWidth={2} />
+            <CheckCircle className="size-4 text-success" />
           ) : (
-            <CircleX className="size-4 text-danger" strokeWidth={2} />
+            <XCircle className="size-4 text-danger" />
           )}
           <span className={cn("font-medium", entry.verdict === "accepted" ? "text-success" : "text-ink")}>
             {entry.lifecycle_state === "queued" ? "Judging" : (VERDICTS[entry.verdict ?? ""] ?? entry.verdict)}

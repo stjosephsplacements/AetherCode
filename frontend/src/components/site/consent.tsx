@@ -1,5 +1,6 @@
 "use client";
 
+import { Cookie } from "@phosphor-icons/react/ssr";
 import { usePathname } from "next/navigation";
 import Script from "next/script";
 import { useEffect, useState, useSyncExternalStore } from "react";
@@ -141,47 +142,53 @@ export function ConsentManager() {
         <div
           role="region"
           aria-label="Cookie choices"
-          className="fixed inset-x-3 bottom-3 z-40 animate-pop sm:inset-x-auto sm:right-5 sm:bottom-5 sm:w-[400px]"
+          className="fixed inset-x-3 bottom-3 z-40 animate-pop sm:inset-x-auto sm:bottom-5 sm:left-5 sm:w-[420px]"
         >
-          <div className="border border-ink bg-surface p-5 font-mono shadow-[4px_4px_0_var(--ink)]">
-            <p className="text-[14px] text-ink">[ cookies on AetherCode ]</p>
-            <p className="mt-1.5 text-[13.5px] leading-relaxed text-ink-muted">
-              We use essential cookies to keep you signed in. With your OK we also remember your preferences and count visits.{" "}
-              <a href="/privacy#cookies" className="text-ink underline underline-offset-2">
-                Read more
-              </a>
-            </p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Button size="sm" className="rounded-none font-mono" onClick={() => saveConsent({ functional: true, analytics: true })}>
-                [accept all]
+          <div className="rounded-[22px] border border-line bg-surface/95 p-5 shadow-[var(--shadow-panel)] backdrop-blur-md">
+            <div className="flex items-start gap-3.5">
+              <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-full bg-brand-soft text-brand">
+                <Cookie className="size-[18px]" />
+              </span>
+              <div>
+                <p className="text-[15px] font-semibold text-ink">Cookies on AetherCode</p>
+                <p className="mt-1 text-[13.5px] leading-relaxed text-ink-muted">
+                  Essential cookies keep you signed in. With your OK we also remember your preferences and count visits.{" "}
+                  <a href="/privacy#cookies" className="text-ink underline underline-offset-2">
+                    Read more
+                  </a>
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <Button size="sm" className="rounded-full" onClick={() => saveConsent({ functional: true, analytics: true })}>
+                Accept all
               </Button>
-              <Button size="sm" variant="secondary" className="rounded-none font-mono" onClick={() => saveConsent({ functional: false, analytics: false })}>
-                [essential only]
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="rounded-none font-mono"
-                onClick={() => {
-                  setDraft({ functional: false, analytics: false });
-                  setOpen(true);
-                }}
-              >
-                [choose]
+              <Button size="sm" variant="secondary" className="rounded-full" onClick={() => saveConsent({ functional: false, analytics: false })}>
+                Essential only
               </Button>
             </div>
+            <button
+              type="button"
+              className="mt-2 w-full rounded-full py-1.5 text-[13px] text-ink-muted transition-colors hover:bg-hover hover:text-ink"
+              onClick={() => {
+                setDraft({ functional: false, analytics: false });
+                setOpen(true);
+              }}
+            >
+              Choose what to allow
+            </button>
           </div>
         </div>
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent title="Cookie settings" description="Choose what AetherCode may store on this device. You can change this any time from the footer.">
-          <div className="divide-y divide-line overflow-y-auto px-6">
+          <div className="space-y-2 overflow-y-auto px-6 py-1">
             {CATEGORIES.map((category) => {
               const essential = category.key === "essential";
               const checked = essential ? true : draft[category.key];
               return (
-                <div key={category.key} className="flex items-start justify-between gap-6 py-4">
+                <div key={category.key} className="flex items-start justify-between gap-6 rounded-[var(--radius-surface)] border border-line bg-surface-2 p-4">
                   <div>
                     <p className="text-sm font-medium text-ink">{category.title}</p>
                     <p className="mt-0.5 text-[13px] leading-relaxed text-ink-muted">{category.body}</p>
@@ -199,6 +206,7 @@ export function ConsentManager() {
           <footer className="flex justify-end gap-2 border-t border-line px-6 py-3.5">
             <Button
               variant="secondary"
+              className="rounded-full"
               onClick={() => {
                 saveConsent({ functional: true, analytics: true });
                 setOpen(false);
@@ -207,6 +215,7 @@ export function ConsentManager() {
               Accept all
             </Button>
             <Button
+              className="rounded-full"
               onClick={() => {
                 saveConsent(draft);
                 setOpen(false);

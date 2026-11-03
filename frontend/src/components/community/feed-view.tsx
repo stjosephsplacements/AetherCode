@@ -1,4 +1,4 @@
-import { Bookmark, BookmarkCheck, ExternalLink } from "lucide-react";
+import { ArrowSquareOut, BookmarkSimple } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { EmptyState, PageHeader } from "@/components/staff/page-header";
 import { Badge } from "@/components/ui/card";
@@ -40,7 +40,7 @@ export function FeedView({ kind, items, path, saved }: { kind: FeedKind; items: 
                   <div className="flex flex-wrap items-center gap-2">
                     <a href={item.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-[15px] font-medium text-ink hover:text-brand">
                       {item.title}
-                      <ExternalLink className="size-3.5" strokeWidth={1.75} />
+                      <ArrowSquareOut className="size-3.5" />
                     </a>
                     <Badge tone={PHASE_TONE[item.phase]}>{item.phase}</Badge>
                     {item.platform && <Badge>{item.platform}</Badge>}
@@ -54,7 +54,7 @@ export function FeedView({ kind, items, path, saved }: { kind: FeedKind; items: 
                   <input type="hidden" name="id" value={item.id} />
                   <input type="hidden" name="on" value={String(!item.bookmarked)} />
                   <button type="submit" aria-label={item.bookmarked ? "Remove from saved" : "Save"} className="rounded p-1.5 text-ink-muted transition-colors hover:bg-hover hover:text-ink">
-                    {item.bookmarked ? <BookmarkCheck className="size-[18px] text-brand" strokeWidth={1.75} /> : <Bookmark className="size-[18px]" strokeWidth={1.75} />}
+                    {item.bookmarked ? <BookmarkSimple className="size-[18px] text-brand" /> : <BookmarkSimple className="size-[18px]" />}
                   </button>
                 </form>
               </li>

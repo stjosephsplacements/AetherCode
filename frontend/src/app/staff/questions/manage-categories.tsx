@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, FolderCog, LoaderCircle, Pencil, Trash2, X } from "lucide-react";
+import { Check, CircleNotch, FolderSimple, PencilSimple, Trash, X } from "@phosphor-icons/react/ssr";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Field, FormMessage, Select, TextInput } from "@/components/staff/form";
@@ -48,7 +48,7 @@ export function ManageCategories({ categories }: { categories: Category[] }) {
     <Dialog onOpenChange={() => { setEditing(null); setRemoving(null); setMessage({ error: null }); }}>
       <DialogTrigger asChild>
         <Button variant="secondary">
-          <FolderCog />
+          <FolderSimple />
           Manage categories
         </Button>
       </DialogTrigger>
@@ -81,7 +81,7 @@ export function ManageCategories({ categories }: { categories: Category[] }) {
                         </Select>
                       )}
                       <Button type="submit" size="sm" disabled={pending || name.trim() === ""}>
-                        {pending ? <LoaderCircle className="animate-spin" /> : <Check />}
+                        {pending ? <CircleNotch className="animate-spin" /> : <Check />}
                         Save
                       </Button>
                       <Button type="button" size="icon" variant="ghost" aria-label="Cancel" onClick={() => setEditing(null)}>
@@ -100,10 +100,10 @@ export function ManageCategories({ categories }: { categories: Category[] }) {
                       {!builtIn && (
                         <>
                           <Button type="button" size="icon" variant="ghost" aria-label={`Rename ${category.name}`} onClick={() => { setEditing(category.id); setName(category.name); setParent(category.parent_id ?? ""); setRemoving(null); }}>
-                            <Pencil />
+                            <PencilSimple />
                           </Button>
                           <Button type="button" size="icon" variant="ghost" aria-label={`Delete ${category.name}`} className="hover:text-danger" onClick={() => { setRemoving(category.id); setTarget(UNCATEGORISED); setEditing(null); }}>
-                            <Trash2 />
+                            <Trash />
                           </Button>
                         </>
                       )}
@@ -128,7 +128,7 @@ export function ManageCategories({ categories }: { categories: Category[] }) {
                       <div className="flex gap-2">
                         {children === 0 && (
                           <Button type="button" size="sm" disabled={pending} className="bg-danger text-canvas hover:bg-danger/90" onClick={() => run(() => deleteCategory(category.id, target), () => setRemoving(null))}>
-                            {pending && <LoaderCircle className="animate-spin" />}
+                            {pending && <CircleNotch className="animate-spin" />}
                             Delete category
                           </Button>
                         )}

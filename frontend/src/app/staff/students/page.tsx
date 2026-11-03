@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { CollegeFilter } from "@/components/staff/college-filter";
 import { EmptyState, LoadError, PageHeader } from "@/components/staff/page-header";
 import { departmentLabel, listBatches, listDepartments, listPlacement } from "@/lib/server/directory";
 import { inColleges } from "@/lib/server/colleges";
@@ -15,28 +14,26 @@ import { RosterSkeleton } from "./skeleton";
 
 export const metadata: Metadata = { title: "Students" };
 
-export default async function StudentsPage({ searchParams }: { searchParams: Promise<{ college?: string }> }) {
+export default async function StudentsPage() {
   const staff = await requireStaff();
   if (!staff.canManageAccounts) redirect("/staff");
-  const { college: collegeParam } = await searchParams;
   return (
     <>
       <PageHeader
         title="Students"
         description="Enrol students one at a time or from a spreadsheet, hand out passwords, and reset, disable or remove accounts."
-        actions={staff.isPlatformAdmin && <CollegeFilter colleges={staff.tenants.map((tenant) => ({ id: tenant.id, name: tenant.display_name }))} />}
       />
-      <Suspense key={collegeParam ?? ""} fallback={<RosterSkeleton />}>
-        <StudentsContent staff={staff} collegeParam={collegeParam} />
+      <Suspense fallback={<RosterSkeleton />}>
+        <StudentsContent staff={staff} />
       </Suspense>
     </>
   );
 }
 
-async function StudentsContent({ staff, collegeParam }: { staff: Awaited<ReturnType<typeof requireStaff>>; collegeParam: string | undefined }) {
+async function StudentsContent({ staff }: { staff: Awaited<ReturnType<typeof requireStaff>> }) {
   let data;
   try {
-    const colleges = collegesFor(staff, collegeParam);
+    const colleges = collegesFor(staff);
     const [perCollege, placement] = await Promise.all([
       inColleges(colleges, async (collegeId) => {
         const [batches, departments] = await Promise.all([listBatches(collegeId), listDepartments(collegeId)]);

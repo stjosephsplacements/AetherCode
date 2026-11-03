@@ -1,11 +1,11 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { MagnifyingGlass } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { useDeferredValue, useState } from "react";
 import { Badge } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { lettermark } from "../placements/stats";
+import { lettermark } from "@/lib/lettermark";
 
 export type Person = { principalId: string; collegeId: string; collegeName: string; name: string; labels: string[]; href: string };
 
@@ -17,7 +17,7 @@ export function PeopleList({ people, chosen, showCollege }: { people: Person[]; 
   return (
     <div className="overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface xl:sticky xl:top-16">
       <div className="relative border-b border-line p-2.5">
-        <Search aria-hidden className="pointer-events-none absolute left-5 top-1/2 size-4 -translate-y-1/2 text-ink-subtle" strokeWidth={1.75} />
+        <MagnifyingGlass aria-hidden className="pointer-events-none absolute left-5 top-1/2 size-4 -translate-y-1/2 text-ink-subtle" />
         <input
           type="search"
           value={query}

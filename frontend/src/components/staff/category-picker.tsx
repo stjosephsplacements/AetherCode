@@ -1,6 +1,6 @@
 "use client";
 
-import { LoaderCircle, Plus } from "lucide-react";
+import { CircleNotch, Plus } from "@phosphor-icons/react/ssr";
 import { useState, useTransition } from "react";
 import { createCategory } from "@/app/staff/questions/actions";
 import { Field, FormMessage, Select, TextInput } from "@/components/staff/form";
@@ -103,7 +103,7 @@ export function CategoryPicker({
                 </Button>
               </DialogClose>
               <Button type="submit" disabled={pending || name.trim() === ""}>
-                {pending && <LoaderCircle className="animate-spin" />}
+                {pending && <CircleNotch className="animate-spin" />}
                 Add category
               </Button>
             </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, CircleAlert, CircleCheck, LoaderCircle, Play, TriangleAlert } from "lucide-react";
+import { CaretRight, CheckCircle, CircleNotch, Play, Warning, WarningCircle } from "@phosphor-icons/react/ssr";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { CodeEditor } from "@/components/exam/code-editor";
@@ -30,12 +30,12 @@ const BANNER: Record<CheckStatus, { tone: string; title: (checks: ModelCheck[], 
 };
 
 const ICON: Record<CheckStatus, React.ReactNode> = {
-  idle: <CircleAlert className="size-5 text-ink-subtle" strokeWidth={1.75} />,
-  running: <LoaderCircle className="size-5 animate-spin text-brand" strokeWidth={1.75} />,
-  verified: <CircleCheck className="size-5 text-success" strokeWidth={1.75} />,
-  failing: <CircleAlert className="size-5 text-danger" strokeWidth={1.75} />,
-  stale: <TriangleAlert className="size-5 text-warning" strokeWidth={1.75} />,
-  unrunnable: <TriangleAlert className="size-5 text-warning" strokeWidth={1.75} />,
+  idle: <WarningCircle className="size-5 text-ink-subtle" />,
+  running: <CircleNotch className="size-5 animate-spin text-brand" />,
+  verified: <CheckCircle className="size-5 text-success" />,
+  failing: <WarningCircle className="size-5 text-danger" />,
+  stale: <Warning className="size-5 text-warning" />,
+  unrunnable: <Warning className="size-5 text-warning" />,
 };
 
 const UNIT_TONE: Record<string, string> = {
@@ -115,7 +115,7 @@ export function ModelCheckPanel({ versionId, languages, supported, checks, tests
           <div className="ml-auto flex items-center gap-2">
             <EditorSettingsMenu />
             <Button type="button" onClick={run} disabled={starting || running || source.trim() === ""}>
-              {starting || running ? <LoaderCircle className="animate-spin" /> : <Play />}
+              {starting || running ? <CircleNotch className="animate-spin" /> : <Play />}
               Run on all {tests} tests
             </Button>
           </div>
@@ -155,7 +155,7 @@ export function ModelCheckPanel({ versionId, languages, supported, checks, tests
       {sorted.length > 1 && (
         <div>
           <button type="button" aria-expanded={earlier} onClick={() => setEarlier((open) => !open)} className="flex items-center gap-1.5 text-[13px] text-ink-muted transition-colors hover:text-ink">
-            <ChevronRight className={cn("size-4 transition-transform duration-200", earlier && "rotate-90")} strokeWidth={1.75} />
+            <CaretRight className={cn("size-4 transition-transform duration-200", earlier && "rotate-90")} />
             Earlier checks ({sorted.length - 1})
           </button>
           {earlier && (

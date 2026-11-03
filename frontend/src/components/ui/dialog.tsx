@@ -1,6 +1,6 @@
 "use client";
 
-import { X } from "lucide-react";
+import { X } from "@phosphor-icons/react/ssr";
 import { Dialog as Primitive } from "radix-ui";
 import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/lib/utils";

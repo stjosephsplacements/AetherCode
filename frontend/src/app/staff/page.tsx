@@ -1,11 +1,12 @@
-import { Plus, Upload } from "lucide-react";
+import { ROLE_NAMES } from "@/lib/rbac";
+import { Plus, UploadSimple } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { JudgeMetrics } from "@/components/staff/judge-metrics";
 import { Button } from "@/components/ui/button";
 import type { AuditEntry, ExamMonitor, ExamResult, GradingQueue, Page, QuestionDetail, QueueStats } from "@/lib/api-types";
 import { brandFor } from "@/lib/server/branding";
-import { listAllExams, listExams, mapLimit } from "@/lib/server/exams";
+import { listExams, mapLimit } from "@/lib/server/exams";
 import { gateway } from "@/lib/server/gateway";
 import { describeAccounts } from "@/lib/server/people";
 import { inColleges } from "@/lib/server/colleges";
@@ -19,15 +20,6 @@ import { Clock } from "./_dashboard/live";
 import { ActivityTile, DAY, DAYS, FigureTile, type Floor, LiveTile, type Outcome, ResultsTile, type Scheduled, TimelineTile, UpcomingTile, WeekDetail } from "./_dashboard/blocks";
 
 export const metadata: Metadata = { title: "Dashboard" };
-
-const ROLE_NAMES: Record<string, string> = {
-  super_admin: "Platform administrator",
-  college_admin: "College administrator",
-  department_user: "Faculty",
-  mentor: "Mentor",
-  placement_user: "Placement staff",
-  student: "Student",
-};
 
 /** Closed exams whose results the dashboard charts. */
 const RECENT = 6;
@@ -83,9 +75,9 @@ export default async function Dashboard() {
   const firstName = staff.viewer.displayName.split(" ")[0] || staff.viewer.username;
 
   // A root administrator sees every college together; anyone else sees their own.
-  const colleges = collegesFor(staff, undefined);
+  const colleges = collegesFor(staff);
   const [exams, questions, queue, health, auditEntries, brand] = await Promise.all([
-    tenantId ? settle(staff.isPlatformAdmin ? listAllExams(staff.tenants) : listExams(tenantId)) : Promise.resolve(null),
+    tenantId ? settle(listExams(tenantId)) : Promise.resolve(null),
     settle(gateway<Page<QuestionDetail>>("/question-bank/v1/questions?limit=100")),
     admin ? settle(inColleges(colleges, (collegeId) => gateway<GradingQueue>(`/submission/v1/tenants/${collegeId}/grading-queue`)).then(sumQueues)) : Promise.resolve(null),
     tenantId && admin ? settle(serviceHealth(tenantId)) : Promise.resolve(null),
@@ -164,7 +156,7 @@ export default async function Dashboard() {
             {admin && (
               <Button asChild variant="secondary">
                 <Link href="/staff/students">
-                  <Upload />
+                  <UploadSimple />
                   Import students
                 </Link>
               </Button>

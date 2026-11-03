@@ -1,4 +1,4 @@
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ArrowLeft, ArrowSquareOut } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -19,9 +19,9 @@ import { StudentActions } from "../panels";
 
 export const metadata: Metadata = { title: "Student profile" };
 
-export default async function StudentDetailPage({ params, searchParams }: { params: Promise<{ studentId: string }>; searchParams: Promise<{ college?: string }> }) {
+export default async function StudentDetailPage({ params }: { params: Promise<{ studentId: string }> }) {
   const staff = await requireStaff();
-  const collegeId = collegeFor(staff, (await searchParams).college);
+  const collegeId = collegeFor(staff);
   if (!staff.canManageAccounts) redirect("/staff");
   const { studentId } = await params;
 
@@ -147,7 +147,7 @@ export default async function StudentDetailPage({ params, searchParams }: { para
                   <span className="font-semibold text-sm capitalize text-ink">{stat.platform}</span>
                   <a href={stat.url} target="_blank" rel="noopener noreferrer" className="text-xs text-brand hover:underline inline-flex items-center gap-1">
                     {stat.handle}
-                    <ExternalLink className="size-3" />
+                    <ArrowSquareOut className="size-3" />
                   </a>
                 </div>
                 {stat.lines && stat.lines.length > 0 ? (

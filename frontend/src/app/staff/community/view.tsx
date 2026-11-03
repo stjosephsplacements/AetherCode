@@ -1,9 +1,8 @@
+import { ArrowSquareOut, CaretRight, Checks, Trash } from "@phosphor-icons/react/ssr";
 import { Pager } from "@/components/staff/pager";
 import { paginate } from "@/lib/paginate";
-import { CheckCheck, ChevronRight, ExternalLink, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { ConfirmDelete } from "@/components/staff/confirm-delete";
-import { CollegeFilter } from "@/components/staff/college-filter";
 import { ActionForm, TextInput } from "@/components/staff/form";
 import { EmptyState, PageHeader } from "@/components/staff/page-header";
 import { Tile } from "@/components/staff/tile";
@@ -11,7 +10,6 @@ import { Badge } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import type { CommunityPost, FeedItem, FeedKind, InterviewExperience } from "@/lib/api-types";
-import { ALL_COLLEGES } from "@/lib/server/staff";
 import { cn, formatDateTime } from "@/lib/utils";
 import { ExperienceCard } from "@/app/student/(shell)/interviews/experience-card";
 import { importContests, importIssues, removeListing, removePost, reviewExperience } from "./actions";
@@ -42,13 +40,10 @@ type Tagged<T> = { row: T; college: College };
 export type CommunityViewProps = {
   tab: (typeof TABS)[number]["id"];
   kind?: FeedKind;
-  collegeParam?: string;
   page?: string;
   several: boolean;
   /** Every college, for a root administrator: the filter and the pickers in the forms. */
-  all?: College[];
   /** The one college being looked at, when a root administrator has narrowed to one. */
-  fixed?: string;
   queue: Tagged<InterviewExperience>[];
   posts: Tagged<CommunityPost>[];
   items: Tagged<FeedItem>[];
@@ -56,11 +51,10 @@ export type CommunityViewProps = {
 };
 
 /** Everything the Community page shows, from rows already loaded; no loading happens here. */
-export function CommunityView({ tab, kind, collegeParam, page, several, all, fixed, queue, posts, items, unreachable }: CommunityViewProps) {
-  const importCollege = several ? (fixed ?? ALL_COLLEGES) : "";
+export function CommunityView({ tab, kind, page, several, queue, posts, items, unreachable }: CommunityViewProps) {
   const href = (next: Record<string, string | undefined>) => {
     const query = new URLSearchParams();
-    for (const [key, value] of Object.entries({ tab, college: collegeParam, ...next })) if (value) query.set(key, value);
+    for (const [key, value] of Object.entries({ tab, ...next })) if (value) query.set(key, value);
     return `/staff/community?${query.toString()}`;
   };
 
@@ -79,9 +73,8 @@ export function CommunityView({ tab, kind, collegeParam, page, several, all, fix
         description="What students read beyond exams: approve interview experiences, write blogs and keep the contest, hackathon and open-source lists current."
         actions={
           <>
-            {several && <CollegeFilter colleges={all ?? []} />}
-            {tab === "blogs" && <PostDialog colleges={all} college={fixed} />}
-            {tab === "listings" && <ListingDialog colleges={all} college={fixed} />}
+            {tab === "blogs" && <PostDialog />}
+            {tab === "listings" && <ListingDialog />}
           </>
         }
       />
@@ -125,7 +118,7 @@ export function CommunityView({ tab, kind, collegeParam, page, several, all, fix
       {tab === "interviews" &&
         (queue.length === 0 ? (
           <div className="grid place-items-center gap-2 rounded-[var(--radius-surface)] border border-dashed border-line-strong px-6 py-16 text-center">
-            <CheckCheck aria-hidden className="size-6 text-success" strokeWidth={1.75} />
+            <Checks aria-hidden className="size-6 text-success" />
             <p className="text-[15px] font-medium text-ink">Nothing is waiting for approval</p>
             <p className="text-sm text-ink-muted">New interview experiences from students show up here to approve or send back.</p>
           </div>
@@ -148,7 +141,7 @@ export function CommunityView({ tab, kind, collegeParam, page, several, all, fix
                       </span>
                       <Badge tone={tone}>{verdict}</Badge>
                       <span className="hidden text-[12.5px] text-ink-subtle sm:block">{experience.rounds.length} round{experience.rounds.length === 1 ? "" : "s"}</span>
-                      <ChevronRight aria-hidden className="size-4 shrink-0 text-ink-subtle transition-transform group-hover:translate-x-0.5" strokeWidth={1.75} />
+                      <CaretRight aria-hidden className="size-4 shrink-0 text-ink-subtle transition-transform group-hover:translate-x-0.5" />
                     </DialogTrigger>
                     <DialogContent title={`${experience.company}, ${experience.role}`} description={meta || "Interview experience"} className="w-[min(94vw,760px)]">
                       <div className="min-h-0 space-y-5 overflow-y-auto p-6">
@@ -203,7 +196,7 @@ export function CommunityView({ tab, kind, collegeParam, page, several, all, fix
                     askReason={false}
                     trigger={
                       <Button type="button" variant="ghost" size="sm" aria-label={`Delete ${post.title}`} className="text-ink-subtle hover:bg-danger-soft hover:text-danger">
-                        <Trash2 />
+                        <Trash />
                       </Button>
                     }
                     title={`Delete ${post.title}?`}
@@ -228,9 +221,9 @@ export function CommunityView({ tab, kind, collegeParam, page, several, all, fix
               { action: importIssues, title: "GitHub “good first issue”s", button: "Import issues", note: "Adds recently updated beginner issues as open-source listings." },
             ].map((source) => (
               <Tile key={source.title} label={source.title}>
-                <p className="mb-3 text-[13px] text-ink-muted">{source.note} Run again any time; listings update, they do not duplicate.{importCollege === ALL_COLLEGES ? " Goes to every college." : ""}</p>
+                <p className="mb-3 text-[13px] text-ink-muted">{source.note} Run again any time; listings update, they do not duplicate.</p>
                 <ActionForm action={source.action} submitLabel={source.button} submitVariant="secondary" className="mt-auto">
-                  <input type="hidden" name="college_id" value={importCollege} />
+                {null}
                 </ActionForm>
               </Tile>
             ))}
@@ -261,7 +254,7 @@ export function CommunityView({ tab, kind, collegeParam, page, several, all, fix
                     <div className="min-w-0 flex-1">
                       <a href={item.url} target="_blank" rel="noopener noreferrer" className="inline-flex max-w-full items-center gap-1.5 text-[14.5px] font-medium text-ink transition-colors hover:text-brand">
                         <span className="truncate">{item.title}</span>
-                        <ExternalLink aria-hidden className="size-3.5 shrink-0 text-ink-subtle" strokeWidth={1.75} />
+                        <ArrowSquareOut aria-hidden className="size-3.5 shrink-0 text-ink-subtle" />
                       </a>
                       <p className="mt-0.5 truncate text-[12.5px] text-ink-muted">
                         {[several ? college.name : "", item.platform, item.starts_at && formatDateTime(item.starts_at)].filter(Boolean).join(" · ")}
@@ -275,7 +268,7 @@ export function CommunityView({ tab, kind, collegeParam, page, several, all, fix
                         askReason={false}
                         trigger={
                           <Button type="button" variant="ghost" size="sm" aria-label={`Delete ${item.title}`} className="text-ink-subtle hover:bg-danger-soft hover:text-danger">
-                            <Trash2 />
+                            <Trash />
                           </Button>
                         }
                         title={`Delete ${item.title}?`}

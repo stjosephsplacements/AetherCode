@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, LoaderCircle } from "lucide-react";
+import { Check, CircleNotch } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -44,7 +44,7 @@ export function AttemptStatus({ tenantId, attemptId }: { tenantId: string; attem
   return (
     <div className="mx-auto max-w-md animate-enter pt-6 text-center">
       <div className="mx-auto grid size-12 place-items-center rounded-full bg-success-soft text-success">
-        {pending ? <LoaderCircle className="size-5 animate-spin" /> : <Check className="size-5" strokeWidth={2.25} />}
+        {pending ? <CircleNotch className="size-5 animate-spin" /> : <Check className="size-5" />}
       </div>
       <h1 className="display mt-6 text-[2.2rem] text-ink">{pending ? "Handing in your work" : "Exam submitted"}</h1>
       {error ? (

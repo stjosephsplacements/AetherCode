@@ -1,10 +1,9 @@
+import { Scroll, ShieldCheck, ShieldWarning, Users } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
-import { ScrollText, ShieldAlert, ShieldCheck, Users } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { EmptyState, LoadError, PageHeader } from "@/components/staff/page-header";
-import { CollegeFilter } from "@/components/staff/college-filter";
 import type { AuditEntry } from "@/lib/api-types";
 import { gateway } from "@/lib/server/gateway";
 import { describeAccounts } from "@/lib/server/people";
@@ -24,7 +23,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
   let data;
   try {
     // Each college returns its newest 100; together the newest 100 overall are the first 100 of the merged list.
-    const perCollege = await inColleges(collegesFor(staff, collegeParam), async (collegeId) => {
+    const perCollege = await inColleges(collegesFor(staff), async (collegeId) => {
       const found = await gateway<AuditEntry[]>(`/user/v1/tenants/${collegeId}/staff-audit${before ? `?before=${encodeURIComponent(before)}` : ""}`);
       const people = found.length ? await describeAccounts(collegeId, found.map((entry) => entry.principal_id)).catch(() => new Map()) : new Map();
       return { found, people };
@@ -74,13 +73,12 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
       <PageHeader
         title="Audit log"
         description={`Every change staff made in ${several ? "each college" : "this college"}, newest first, including attempts the platform refused. Kept for 400 days.`}
-        actions={staff.isPlatformAdmin ? <CollegeFilter colleges={staff.tenants.map((tenant) => ({ id: tenant.id, name: tenant.display_name }))} /> : undefined}
       />
       {unreachable.length > 0 && <p role="alert" className="mb-4 text-sm text-warning">Could not load: {unreachable.join(", ")}.</p>}
       <ul className="mb-5 flex flex-wrap gap-2" aria-label="Summary">
-        {chip(<ScrollText className="size-3.5" />, "Entries loaded", entries.length)}
+        {chip(<Scroll className="size-3.5" />, "Entries loaded", entries.length)}
         {chip(<ShieldCheck className="size-3.5" />, "Allowed", entries.filter((entry) => entry.allowed).length)}
-        {chip(<ShieldAlert className="size-3.5" />, "Refused", entries.filter((entry) => !entry.allowed).length)}
+        {chip(<ShieldWarning className="size-3.5" />, "Refused", entries.filter((entry) => !entry.allowed).length)}
         {chip(<Users className="size-3.5" />, "People", new Set(entries.map((entry) => entry.principal_id)).size)}
       </ul>
       {entries.length === 0 ? (
@@ -89,7 +87,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
         <>
           <AuditLog rows={rows} several={several} />
           {last && entries.length >= 100 && (
-            <Link href={`/staff/audit?before=${encodeURIComponent(last.occurred_at)}${collegeParam ? `&college=${collegeParam}` : ""}`} className="mt-4 inline-block text-sm text-brand hover:underline">
+            <Link href={`?before=${encodeURIComponent(last.occurred_at)}${collegeParam ? `&college=${collegeParam}` : ""}`} className="mt-4 inline-block text-sm text-brand hover:underline">
               Older entries
             </Link>
           )}

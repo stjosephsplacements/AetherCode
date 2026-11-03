@@ -1,4 +1,4 @@
-import { ArrowRight, Code2 } from "lucide-react";
+import { ArrowRight, CodeBlock } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -56,7 +56,7 @@ export default async function PracticePage() {
           </div>
           {next && (
             <Link href={`/student/practice/${next.question_id}`} className="mt-5 inline-flex h-11 w-fit items-center gap-2 rounded-full bg-white px-6 text-[15px] font-semibold text-[#1b1640] shadow-lg transition-transform hover:-translate-y-0.5">
-              <Code2 className="size-4" />
+              <CodeBlock className="size-4" />
               Solve it
               <ArrowRight className="size-4" />
             </Link>

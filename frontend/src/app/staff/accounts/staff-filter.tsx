@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, Search, UserCheck, Users, ShieldAlert, GraduationCap, Briefcase } from "lucide-react";
+import { Briefcase, DownloadSimple, GraduationCap, MagnifyingGlass, ShieldWarning, UserCheck, Users } from "@phosphor-icons/react/ssr";
 import { type ReactNode, useDeferredValue, useMemo, useState } from "react";
 import { Badge, Panel } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { EmptyState, Table } from "@/components/staff/page-header";
 import { Pager } from "@/components/staff/pager";
 import { paginate } from "@/lib/paginate";
 import { StudentActions } from "../students/panels";
-import { lettermark } from "../placements/stats";
+import { lettermark } from "@/lib/lettermark";
 import { RoleEditor, type RoleChip } from "./roles";
 
 export type StaffRow = {
@@ -138,14 +138,14 @@ export function StaffFilter({
         {kpi("Faculty", facultyCount, <GraduationCap className="size-4" />)}
         {kpi("Mentors", mentorCount, <UserCheck className="size-4" />)}
         {kpi("Placement", placementCount, <Briefcase className="size-4" />)}
-        {kpi("Admins", adminCount, <ShieldAlert className="size-4" />)}
+        {kpi("Admins", adminCount, <ShieldWarning className="size-4" />)}
       </section>
 
       {/* Filter and Control Bar */}
       <Panel className="p-3">
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative min-w-[200px] flex-1 sm:min-w-[260px]">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted" />
+            <MagnifyingGlass className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted" />
             <input
               type="search"
               value={query}
@@ -189,7 +189,7 @@ export function StaffFilter({
               disabled={filtered.length === 0}
               title="Export visible staff to CSV"
             >
-              <Download className="size-3.5" />
+              <DownloadSimple className="size-3.5" />
               Export
             </Button>
 

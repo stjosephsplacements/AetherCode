@@ -4,5 +4,5 @@
  * there first; elsewhere it is the plain path.
  */
 export function collegeHref(path: string, collegeId?: string): string {
-  return collegeId ? `/staff/switch?college=${encodeURIComponent(collegeId)}&next=${encodeURIComponent(path)}` : path;
+  return collegeId ? `/admin/open?college=${encodeURIComponent(collegeId)}&next=${encodeURIComponent(path)}` : path;
 }

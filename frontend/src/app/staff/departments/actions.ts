@@ -10,7 +10,7 @@ import { collegeFor, requireCollege, requireStaff } from "@/lib/server/staff";
 const text = (form: FormData, name: string) => String(form.get(name) ?? "").trim();
 
 export async function createDepartment(_previous: ActionState, form: FormData): Promise<ActionState> {
-  const tenantId = collegeFor(await requireStaff(), String(form.get("college_id") ?? ""));
+  const tenantId = collegeFor(await requireStaff());
   try {
     await gateway(`/tenant/v1/tenants/${tenantId}/departments`, {
       method: "POST",
@@ -25,8 +25,8 @@ export async function createDepartment(_previous: ActionState, form: FormData): 
 
 export async function createBatch(_previous: ActionState, form: FormData): Promise<ActionState> {
   // The department picker lists every college's departments as "<college>:<department>", so the batch lands in the department's own college.
-  const [college = "", department = ""] = text(form, "department_id").includes(":") ? text(form, "department_id").split(":") : ["", text(form, "department_id")];
-  const tenantId = collegeFor(await requireStaff(), college || String(form.get("college_id") ?? ""));
+  const [, department = ""] = text(form, "department_id").includes(":") ? text(form, "department_id").split(":") : ["", text(form, "department_id")];
+  const tenantId = collegeFor(await requireStaff());
   try {
     await gateway(`/tenant/v1/tenants/${tenantId}/batches`, {
       method: "POST",
@@ -74,7 +74,7 @@ export async function createPlacementDepartment(_previous: ActionState, form: Fo
 
 /** Deletes a department with no live batch; the database refuses one that still has some (ADR-0053). */
 export async function deleteDepartment(collegeId: string, id: string, reason: string): Promise<ActionState> {
-  const tenantId = collegeFor(await requireStaff(), collegeId);
+  const tenantId = collegeFor(await requireStaff());
   if (!reason.trim()) return { error: "A reason is needed to delete anything." };
   try {
     await gateway(`/tenant/v1/tenants/${tenantId}/departments/${id}`, { method: "DELETE", body: { reason: reason.trim() } });
@@ -86,7 +86,7 @@ export async function deleteDepartment(collegeId: string, id: string, reason: st
 }
 
 export async function deleteBatch(collegeId: string, id: string, reason: string): Promise<ActionState> {
-  const tenantId = collegeFor(await requireStaff(), collegeId);
+  const tenantId = collegeFor(await requireStaff());
   if (!reason.trim()) return { error: "A reason is needed to delete anything." };
   try {
     // Students live in another service's database, so the tenant service cannot see them; this guard is ours.
@@ -104,7 +104,7 @@ const REASON = "A reason is needed to delete anything.";
 
 /** Renames or recodes a department. Only what changed is sent (ADR-0054). */
 export async function updateDepartment(collegeId: string, departmentId: string, changes: Record<string, string>): Promise<ActionState> {
-  const tenantId = collegeFor(await requireStaff(), collegeId);
+  const tenantId = collegeFor(await requireStaff());
   const body: Record<string, string> = {};
   if ("name" in changes) body.name = changes.name!.trim();
   if ("code" in changes) body.code = changes.code!.trim().toUpperCase();
@@ -118,7 +118,7 @@ export async function updateDepartment(collegeId: string, departmentId: string, 
 }
 
 export async function updateBatch(collegeId: string, batchId: string, changes: Record<string, string>): Promise<ActionState> {
-  const tenantId = collegeFor(await requireStaff(), collegeId);
+  const tenantId = collegeFor(await requireStaff());
   const body: Record<string, string> = {};
   if ("name" in changes) body.name = changes.name!.trim();
   if ("code" in changes) body.code = changes.code!.trim().toUpperCase();

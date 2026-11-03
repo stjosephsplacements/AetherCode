@@ -1,4 +1,4 @@
-import { Check, Circle, Trash2 } from "lucide-react";
+import { Check, Circle, Trash } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { ActionForm, Field, TextInput } from "@/components/staff/form";
@@ -44,7 +44,7 @@ export default async function TasksPage() {
                     <input type="hidden" name="id" value={task.id} />
                     <input type="hidden" name="done" value={String(!task.done)} />
                     <button type="submit" aria-label={task.done ? "Mark as not done" : "Mark as done"} className="text-ink-muted hover:text-ink">
-                      {task.done ? <Check className="size-5 text-success" strokeWidth={2} /> : <Circle className="size-5" strokeWidth={1.75} />}
+                      {task.done ? <Check className="size-5 text-success" /> : <Circle className="size-5" />}
                     </button>
                   </form>
                   <div className="min-w-0 flex-1">
@@ -54,7 +54,7 @@ export default async function TasksPage() {
                   <form action={deleteTask}>
                     <input type="hidden" name="id" value={task.id} />
                     <button type="submit" aria-label="Delete task" className="text-ink-subtle hover:text-danger">
-                      <Trash2 className="size-4" strokeWidth={1.75} />
+                      <Trash className="size-4" />
                     </button>
                   </form>
                 </li>

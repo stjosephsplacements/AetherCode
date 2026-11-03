@@ -1,6 +1,6 @@
 "use client";
 
-import { Settings2 } from "lucide-react";
+import { SlidersHorizontal } from "@phosphor-icons/react/ssr";
 import { Popover, Switch } from "radix-ui";
 import { cn } from "@/lib/utils";
 import { EDITOR_THEMES, type EditorSettings, updateEditorSettings, useEditorSettings } from "./editor-settings";
@@ -15,7 +15,7 @@ export function EditorSettingsMenu() {
         aria-label="Editor settings"
         className="grid size-8 place-items-center rounded-[var(--radius-control)] text-ink-muted outline-none transition-colors hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-brand data-[state=open]:bg-hover"
       >
-        <Settings2 className="size-4" strokeWidth={1.75} />
+        <SlidersHorizontal className="size-4" />
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content

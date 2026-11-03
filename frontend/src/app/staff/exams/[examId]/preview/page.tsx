@@ -1,4 +1,4 @@
-import { ArrowLeft, CalendarClock, Clock3 } from "lucide-react";
+import { ArrowLeft, CalendarDots, Clock } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Markdown } from "@/components/markdown";
@@ -40,7 +40,7 @@ export default async function PreviewPage({ params }: { params: Promise<{ examId
   return (
     <div className="mx-auto max-w-[760px]">
       <Link href={`/staff/exams/${examId}`} className="mb-6 inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink">
-        <ArrowLeft className="size-4" strokeWidth={1.75} />
+        <ArrowLeft className="size-4" />
         Back to the exam
       </Link>
       <p className="rounded-[var(--radius-control)] bg-brand-soft px-4 py-2 text-sm text-brand-soft-ink">Preview: this is what students read. Nothing here is saved.</p>
@@ -48,11 +48,11 @@ export default async function PreviewPage({ params }: { params: Promise<{ examId
       <h1 className="display mt-8 text-[2.1rem] text-ink">{version.title}</h1>
       <div className="mt-4 flex flex-wrap gap-2 text-[13px] text-ink-muted">
         <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1">
-          <CalendarClock className="size-3.5" strokeWidth={1.75} />
+          <CalendarDots className="size-3.5" />
           {formatWindow(version.opens_at, version.closes_at)}
         </span>
         <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1">
-          <Clock3 className="size-3.5" strokeWidth={1.75} />
+          <Clock className="size-3.5" />
           {formatDuration(version.duration_seconds)}
         </span>
       </div>

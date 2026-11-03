@@ -94,8 +94,8 @@ export function Meet() {
       </div>
 
       <div className="pt-10">
-      <div className="border border-ink bg-surface shadow-[6px_6px_0_var(--ink)]">
-        <div className="flex border-b border-ink font-mono text-[13px]">
+      <div className="rounded-[var(--radius-surface)] overflow-hidden border border-line-strong bg-surface shadow-[var(--shadow-panel)]">
+        <div className="flex border-b border-line-strong font-mono text-[13px]">
         <div role="tablist" aria-label="Parts of an exam day" className="flex flex-wrap">
           {TABS.map((item, index) => (
             <button
@@ -114,7 +114,7 @@ export function Meet() {
               }}
               tabIndex={active === index ? 0 : -1}
               className={cn(
-                "relative border-r border-ink px-4 py-2.5 transition-colors",
+                "relative border-r border-line-strong px-4 py-2.5 transition-colors",
                 active === index ? "bg-brand text-brand-ink" : "text-ink-muted hover:bg-brand hover:text-brand-ink",
               )}
             >
@@ -139,7 +139,7 @@ export function Meet() {
             <h3 className="heading text-[1.9rem] leading-[1.1] text-ink sm:text-[2.4rem]">{tab.title}</h3>
             <p className="mt-4 max-w-[30rem] text-[15px] leading-relaxed text-ink-muted">{tab.body}</p>
           </div>
-          <div className="flex items-center justify-center border-t border-ink bg-canvas p-6 text-ink sm:p-10 lg:border-l lg:border-t-0">
+          <div className="flex items-center justify-center border-t border-line-strong bg-canvas p-6 text-ink sm:p-10 lg:border-l lg:border-t-0">
             <pre key={`${tab.key}-screen`} aria-hidden className="animate-enter overflow-x-auto font-mono text-[clamp(10.5px,1.2vw,15px)] leading-[1.55]">
               {SCREENS[tab.key].map((text, index) => (
                 <span key={index} className="block">

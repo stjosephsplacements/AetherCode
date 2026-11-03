@@ -1,4 +1,4 @@
-import { ArrowLeft, CalendarClock, Clock3, FlaskConical, Save, Timer } from "lucide-react";
+import { ArrowLeft, CalendarDots, Clock, Flask, FloppyDisk, Timer } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -12,8 +12,8 @@ export const metadata: Metadata = { title: "Exam" };
 
 const FACTS = [
   { icon: Timer, text: "Your timer starts when you press Start and keeps running if you close the page." },
-  { icon: Save, text: "Your code saves as you type. If your browser closes, sign in again to continue." },
-  { icon: FlaskConical, text: "Run checks your code on the sample tests. Hidden tests decide your marks." },
+  { icon: FloppyDisk, text: "Your code saves as you type. If your browser closes, sign in again to continue." },
+  { icon: Flask, text: "Run checks your code on the sample tests. Hidden tests decide your marks." },
 ];
 
 export default async function ExamLobby({ params }: { params: Promise<{ assignmentId: string }> }) {
@@ -27,18 +27,18 @@ export default async function ExamLobby({ params }: { params: Promise<{ assignme
   return (
     <div className="mx-auto max-w-[680px] animate-enter">
       <Link href="/student" className="inline-flex items-center gap-1.5 text-sm text-ink-muted transition-colors hover:text-ink">
-        <ArrowLeft className="size-4" strokeWidth={1.75} />
+        <ArrowLeft className="size-4" />
         My exams
       </Link>
 
       <h1 className="display mt-8 text-[2.1rem] text-ink sm:text-[2.4rem]">{assignment.title}</h1>
       <div className="mt-4 flex flex-wrap gap-2">
         <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1 text-[13px] text-ink-muted">
-          <CalendarClock className="size-3.5" strokeWidth={1.75} />
+          <CalendarDots className="size-3.5" />
           {formatWindow(assignment.available_from, assignment.available_until)}
         </span>
         <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1 text-[13px] text-ink-muted">
-          <Clock3 className="size-3.5" strokeWidth={1.75} />
+          <Clock className="size-3.5" />
           {formatDuration(assignment.duration_seconds)}
         </span>
       </div>
@@ -52,7 +52,7 @@ export default async function ExamLobby({ params }: { params: Promise<{ assignme
         <ul className="space-y-3.5">
           {FACTS.map(({ icon: Icon, text }) => (
             <li key={text} className="flex gap-3 text-sm leading-relaxed text-ink">
-              <Icon className="mt-0.5 size-4 shrink-0 text-brand" strokeWidth={1.75} />
+              <Icon className="mt-0.5 size-4 shrink-0 text-brand" />
               {text}
             </li>
           ))}

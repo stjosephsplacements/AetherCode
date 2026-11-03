@@ -1,6 +1,6 @@
 "use client";
 
-import { Code2, LoaderCircle } from "lucide-react";
+import { CircleNotch, CodeBlock } from "@phosphor-icons/react/ssr";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { FormMessage } from "@/components/staff/form";
@@ -44,7 +44,7 @@ export function TemplatesEditor({ versionId, languages, initial }: { versionId: 
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="secondary" size="sm">
-          <Code2 />
+          <CodeBlock />
           {configured ? `Function stubs (${configured})` : "Function stubs"}
         </Button>
       </DialogTrigger>
@@ -79,7 +79,7 @@ export function TemplatesEditor({ versionId, languages, initial }: { versionId: 
           <div className="flex items-center justify-between gap-3">
             <FormMessage state={state} />
             <Button onClick={save} disabled={pending} className="ml-auto">
-              {pending && <LoaderCircle className="animate-spin" />}
+              {pending && <CircleNotch className="animate-spin" />}
               Save stubs
             </Button>
           </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Building2, Download, Search, UserCheck, UserRoundSearch, Users, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Buildings, DownloadSimple, MagnifyingGlass, UserCheck, UserFocus, Users, X } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { Popover } from "radix-ui";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
@@ -94,10 +94,10 @@ export function PlacementsBoard({
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4" role="group" aria-label="Summary">
-        {kpi("Organisations", orgs.length, `${orgs.reduce((sum, org) => sum + org.tracks.length, 0)} placement departments`, <Building2 className="size-4" />)}
+        {kpi("Organisations", orgs.length, `${orgs.reduce((sum, org) => sum + org.tracks.length, 0)} placement departments`, <Buildings className="size-4" />)}
         {kpi("Students", shown.length, shown.length === rows.length ? "in the colleges you can see" : `of ${rows.length} in view`, <Users className="size-4" />)}
         {kpi("Assigned", `${assigned}`, `${percent(assigned, shown.length)}% of the students shown`, <UserCheck className="size-4" />)}
-        {kpi("Not yet assigned", shown.length - assigned, "waiting for a placement department", <UserRoundSearch className="size-4" />)}
+        {kpi("Not yet assigned", shown.length - assigned, "waiting for a placement department", <UserFocus className="size-4" />)}
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
@@ -112,7 +112,7 @@ export function PlacementsBoard({
               )}
             </div>
             <div className="relative">
-              <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-subtle" strokeWidth={1.75} />
+              <MagnifyingGlass aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-subtle" />
               <input
                 type="search"
                 value={query}
@@ -261,7 +261,7 @@ export function PlacementsBoard({
                             download(`${org.code || "organisation"}-students-${today()}.csv`, [["Roll number", "Name", ...(several ? ["College"] : []), "Department", "Batch", "Placement department"], ...shown.filter((row) => own.has(row.placementId)).map((row) => [row.roll, row.name, ...(several ? [row.college] : []), row.department, row.batch, trackName.get(row.placementId) ?? ""])]);
                           }}
                         >
-                          <Download />
+                          <DownloadSimple />
                           Export
                         </Button>
                         <Button asChild variant="ghost" size="sm">
@@ -285,7 +285,7 @@ export function PlacementsBoard({
                 disabled={shown.length === 0}
                 onClick={() => download(`placement-candidates-${today()}.csv`, [["Roll number", "Name", ...(several ? ["College"] : []), "Department", "Batch", "Placement department", "Sign-in"], ...shown.map((row) => [row.roll, row.name, ...(several ? [row.college] : []), row.department, row.batch, trackName.get(row.placementId) ?? "", row.status])])}
               >
-                <Download />
+                <DownloadSimple />
                 Export {shown.length}
               </Button>
             }

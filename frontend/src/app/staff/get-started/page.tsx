@@ -1,4 +1,5 @@
-import { ArrowRight, BookOpen, Briefcase, Building2, Check, CircleHelp, Layers, Lock, NotebookPen, PartyPopper, Users, type LucideIcon } from "lucide-react";
+import type { Icon } from "@phosphor-icons/react";
+import { ArrowRight, BookOpen, Briefcase, Buildings, Check, Confetti, Lock, NotePencil, Question, Stack, Users } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -9,14 +10,14 @@ import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Get started" };
 
-const META: Record<SetupKey, { icon: LucideIcon; minutes: string; cta: string }> = {
-  college: { icon: Building2, minutes: "1 min", cta: "Create college" },
-  department: { icon: Layers, minutes: "2 min", cta: "Add department" },
-  batch: { icon: Layers, minutes: "1 min", cta: "Add batch" },
+const META: Record<SetupKey, { icon: Icon; minutes: string; cta: string }> = {
+  college: { icon: Buildings, minutes: "1 min", cta: "Create college" },
+  department: { icon: Stack, minutes: "2 min", cta: "Add department" },
+  batch: { icon: Stack, minutes: "1 min", cta: "Add batch" },
   placement: { icon: Briefcase, minutes: "2 min", cta: "Add placement department" },
   students: { icon: Users, minutes: "5 min", cta: "Enrol students" },
   questions: { icon: BookOpen, minutes: "10 min", cta: "Write questions" },
-  exam: { icon: NotebookPen, minutes: "3 min", cta: "Schedule exam" },
+  exam: { icon: NotePencil, minutes: "3 min", cta: "Schedule exam" },
 };
 
 const RING = 2 * Math.PI * 34;
@@ -61,7 +62,7 @@ export default async function GetStartedPage() {
               )}
               <Button asChild variant="secondary">
                 <Link href="/staff/help">
-                  <CircleHelp />
+                  <Question />
                   Watch how it works
                 </Link>
               </Button>
@@ -85,7 +86,7 @@ export default async function GetStartedPage() {
                   !step.done && !now && "border-line text-ink-subtle",
                 )}
               >
-                {step.done ? <Check className="size-5" strokeWidth={2.5} /> : step.blocked ? <Lock className="size-4" /> : <Icon className="size-5" strokeWidth={1.75} />}
+                {step.done ? <Check className="size-5" /> : step.blocked ? <Lock className="size-4" /> : <Icon className="size-5" />}
               </span>
               <div className={cn("flex min-w-0 flex-1 flex-col gap-3 rounded-[var(--radius-surface)] border p-4 sm:flex-row sm:items-center", now ? "border-brand/50 bg-surface" : "border-line", step.blocked && "opacity-60")}>
                 <div className="min-w-0 flex-1">
@@ -113,7 +114,7 @@ export default async function GetStartedPage() {
 
       {complete && (
         <p className="mt-8 flex items-center gap-2 text-sm text-ink-muted">
-          <PartyPopper className="size-4 text-brand" />
+          <Confetti className="size-4 text-brand" />
           Next: invite staff from Staff accounts, or open the Dashboard to watch exams live.
         </p>
       )}

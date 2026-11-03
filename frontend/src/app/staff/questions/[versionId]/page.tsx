@@ -1,4 +1,4 @@
-import { ArrowLeft, Download } from "lucide-react";
+import { ArrowLeft, DownloadSimple } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ConfirmDelete } from "@/components/staff/confirm-delete";
@@ -118,7 +118,7 @@ export default async function QuestionPage({ params }: { params: Promise<{ versi
   return (
     <>
       <Link href="/staff/questions" className="mb-6 inline-flex items-center gap-1.5 text-sm text-ink-muted transition-colors hover:text-ink">
-        <ArrowLeft className="size-4" strokeWidth={1.75} />
+        <ArrowLeft className="size-4" />
         Questions
       </Link>
       <PageHeader
@@ -175,7 +175,7 @@ export default async function QuestionPage({ params }: { params: Promise<{ versi
             {staff.canManageAccounts && !mcq && version.hidden_test_case_count > 0 && (
               <Button asChild variant="secondary" size="sm">
                 <a href={`/api/question-bank/v1/question-versions/${version.id}/export`} download={`${version.title.replace(/[^A-Za-z0-9]+/g, "-")}.json`}>
-                  <Download />
+                  <DownloadSimple />
                   Export
                 </a>
               </Button>

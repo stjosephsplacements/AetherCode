@@ -1,4 +1,4 @@
-import { Flag } from "lucide-react";
+import { Flag } from "@phosphor-icons/react/ssr";
 import { ExamPeek, examState } from "@/components/staff/exam-peek";
 import { Table } from "@/components/staff/page-header";
 import { Badge } from "@/components/ui/card";
@@ -85,7 +85,7 @@ function FloorBar({ floor }: { floor: Floor }) {
           </li>
         ))}
         <li className={cn("ml-auto flex items-center gap-1", floor.flags > 0 ? "text-warning" : "text-ink-subtle")}>
-          <Flag className="size-3.5" strokeWidth={1.75} />
+          <Flag className="size-3.5" />
           <span className="font-mono tabular-nums">{floor.flags}</span>
           <span className="sr-only">integrity flags</span>
         </li>
