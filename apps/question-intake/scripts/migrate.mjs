@@ -11,7 +11,7 @@ async function migrate() {
   try {
     await sql`CREATE TABLE IF NOT EXISTS schema_migrations (name text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())`;
     const applied = new Set((await sql`SELECT name FROM schema_migrations`).map((row) => row.name));
-    for (const file of readdirSync("db").filter((name) => name.endsWith(".sql")).sort()) {
+    for (const file of readdirSync("db").filter((name) => /^\d+_.*\.sql$/.test(name)).sort()) {
       if (applied.has(file)) continue;
       await sql.begin(async (tx) => {
         await tx.unsafe(readFileSync(join("db", file), "utf8"));
