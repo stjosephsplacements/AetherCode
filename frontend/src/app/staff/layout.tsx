@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { type NavGroup } from "@/components/staff/staff-nav";
 import { StaffShell } from "@/components/staff/staff-shell";
 import { brandFor } from "@/lib/server/branding";
@@ -7,6 +8,9 @@ import { GetStarted } from "./get-started";
 
 export default async function StaffLayout({ children }: { children: React.ReactNode }) {
   const staff = await requireStaff();
+  // A platform administrator works across colleges in /admin; /staff is one college's workspace,
+  // opened on purpose from there (/staff/switch).
+  if (staff.isPlatformAdmin && staff.viewAll) redirect("/admin");
   const steps = staff.canManageAccounts ? await setupSteps(staff) : [];
   const locks = lockedPages(steps);
   const item = <T extends { href: string }>(entry: T) => ({ ...entry, locked: locks[entry.href] });

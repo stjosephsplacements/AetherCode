@@ -20,8 +20,9 @@ and are served again at `/admin/*` with the cross-college view.
 ## Consequences
 
 - Navigation and routes change only; every API still authorises server-side.
-- Super administrators keep the college switcher inside `/staff` for now. Removing it, and the
-  further admin features (emergency controls, version-skew view, access reviews), are follow-ups.
+- `/staff` now redirects a super administrator to `/admin` unless they opened one college on purpose
+  (an "Open workspace" link on the admin overview, via `/staff/switch`). Each sign-in clears that choice.
+  The further admin features (emergency controls, version-skew view, access reviews), are follow-ups.
 
 ## Incident board
 
