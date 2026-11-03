@@ -1,0 +1,19 @@
+frontend/src/components/site/consent.tsx
+  s_4a7f3c46d06453::t_531ff1373b5f0c 3,145,147-164,166-167,170-179,186,191,209,218
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9ca969962b6cace308ac938da597b02b6b767e2e",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
