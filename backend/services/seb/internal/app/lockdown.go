@@ -48,6 +48,10 @@ type ExamPolicy struct {
 	UpdatedBy       string    `json:"updated_by"`
 	UpdatedAt       time.Time `json:"updated_at"`
 	Version         int       `json:"version"`
+	// ConfigKey is the Config Key of the exam's generated launch file, set
+	// when launch files are configured. Staff accept it instead of copying a
+	// key out of SEB's config tool.
+	ConfigKey string `json:"config_key,omitempty"`
 }
 
 type PutExamPolicy struct {
@@ -103,6 +107,17 @@ func (service *Service) PutExamPolicy(ctx context.Context, capability centralaut
 			keys = append(keys, key)
 		}
 	}
+	if command.Enabled && service.launch.BaseURL != "" && service.launch.Password != "" {
+		// The exam's own launch file is always accepted, so staff need not
+		// copy a key out of SEB's config tool.
+		generated, err := launchfile.ConfigKey(service.launchSettings(command.ExamID))
+		if err != nil {
+			return ExamPolicy{}, err
+		}
+		if !slices.Contains(keys, generated) {
+			keys = append(keys, generated)
+		}
+	}
 	if len(keys) > maxAcceptedKeys {
 		return ExamPolicy{}, invalid("an exam accepts at most 16 keys")
 	}
@@ -134,6 +149,9 @@ func (service *Service) GetExamPolicy(ctx context.Context, capability centralaut
 		policy, err = service.lockdown.GetExamPolicy(ctx, transaction, tenantID, examID)
 		return err
 	})
+	if err == nil && service.launch.BaseURL != "" && service.launch.Password != "" {
+		policy.ConfigKey, err = launchfile.ConfigKey(service.launchSettings(examID))
+	}
 	return policy, err
 }
 
@@ -203,15 +221,19 @@ func (service *Service) launchFile(examID, title string) (LaunchFile, error) {
 	if service.launch.BaseURL == "" || service.launch.Password == "" {
 		return LaunchFile{}, apperrors.New(apperrors.CodeUnavailable, "SEB launch files are not configured")
 	}
-	content, err := launchfile.Build(launchfile.Settings{
-		StartURL: service.launch.BaseURL + "/exam/" + strings.ToLower(examID),
-		QuitURL:  service.launch.BaseURL + "/student",
-		Password: service.launch.Password,
-	})
+	content, err := launchfile.Build(service.launchSettings(examID))
 	if err != nil {
 		return LaunchFile{}, err
 	}
 	return LaunchFile{Filename: launchfile.Filename(title), Content: content}, nil
+}
+
+func (service *Service) launchSettings(examID string) launchfile.Settings {
+	return launchfile.Settings{
+		StartURL: service.launch.BaseURL + "/exam/" + strings.ToLower(examID),
+		QuitURL:  service.launch.BaseURL + "/student",
+		Password: service.launch.Password,
+	}
 }
 
 // normalizeNetworks accepts addresses ("10.20.3.4") and CIDR ranges

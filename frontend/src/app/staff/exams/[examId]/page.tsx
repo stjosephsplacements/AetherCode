@@ -424,7 +424,7 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
               <Checkbox name="enabled" defaultChecked={seb?.enabled ?? false} />
               Require Safe Exam Browser
             </label>
-            <Field label="Browser Exam Keys or Config Keys" htmlFor="seb-keys" hint="From Safe Exam Browser on a lab machine. One per line.">
+            <Field label="Extra keys (optional)" htmlFor="seb-keys" hint="The launch file below is accepted automatically. Add a Browser Exam Key or Config Key from a lab machine only if you use your own SEB setup. One per line.">
               <TextArea id="seb-keys" name="accepted_keys" defaultValue={(seb?.accepted_keys ?? []).join("\n")} className="font-mono text-xs" spellCheck={false} />
             </Field>
             <Field label="Lab networks" htmlFor="seb-networks" hint="The lab's public address or range (what a lab machine sees at whatismyip), one per line. Leave empty to allow any network.">
@@ -435,7 +435,7 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
             <Button asChild variant="secondary" size="sm" className="mt-4">
               <a href={`/api/seb/v1/tenants/${staff.tenantId}/exams/${examId}/seb-policy/launch-file`} download>
                 <DownloadSimple />
-                Download launch file
+                Download SEB launch file
               </a>
             </Button>
           )}

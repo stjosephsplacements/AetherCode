@@ -99,6 +99,7 @@ func run(contextValue context.Context) error {
 	if err != nil {
 		return err
 	}
+	authorizationService.WithEngine(runtime.Engine)
 	listener, err := net.Listen("tcp", runtime.GRPCAddress)
 	if err != nil {
 		return fmt.Errorf("listen for authorization gRPC: %w", err)

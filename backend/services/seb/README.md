@@ -31,7 +31,7 @@ snapshot before a signed RLS transaction begins.
   a required, already-hashed non-secret request fingerprint.
 
 - Exam lockdown (ADR-0022): staff lock an exam with the Browser Exam Keys and
-  Config Keys SEB reports (`PUT/GET /v1/tenants/{tenant_id}/exams/{exam_id}/seb-policy`);
+  Config Keys SEB reports, plus the Config Key of the exam's generated launch file, added automatically when locked (ADR-0064) (`PUT/GET /v1/tenants/{tenant_id}/exams/{exam_id}/seb-policy`);
   Gateway posts every protected request's URL and SEB headers to
   `POST /v1/tenants/{tenant_id}/request-checks`, which answers `matched` only
   when a header equals sha256(URL + an accepted key) for an exam the bearer is
