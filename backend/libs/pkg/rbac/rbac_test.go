@@ -91,7 +91,7 @@ func TestOverwriteOrder(t *testing.T) {
 		{"member overwrite wins over roles", []Overwrite{
 			{At: college, TargetKind: TargetRole, TargetID: "b", Allow: Of(fRead)},
 			{At: college, TargetKind: TargetMember, TargetID: "m", Deny: Of(fRead)},
-		}, Of(fView, fWrite, fSecret)},
+		}, Of(fView, fSecret)}, // write is cleared along with its read
 		{"a lower node overwrite applies after a higher one", []Overwrite{
 			{At: college, TargetKind: TargetRole, TargetID: "e", Deny: Of(fWrite)},
 			{At: batch, TargetKind: TargetRole, TargetID: "e", Allow: Of(fWrite)},
