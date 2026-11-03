@@ -1,0 +1,61 @@
+docs/adr/0065-admin-console-route.md
+  s_4a7f3c46d06453::t_9194e41783ab0e 1-24
+frontend/next.config.ts
+  s_4a7f3c46d06453::t_c6d338d8080ab7 46-52
+frontend/src/app/admin/admins/page.tsx
+  s_4a7f3c46d06453::t_5c051100593118 1-43
+frontend/src/app/admin/admins/platform-admins.tsx
+  s_4a7f3c46d06453::t_ad7da0cfa158ea 7-9
+frontend/src/app/admin/analytics/page.tsx
+  s_4a7f3c46d06453::t_f021cc486979eb 14
+frontend/src/app/admin/audit/page.tsx
+  s_4a7f3c46d06453::t_4e3e1325772600 1
+frontend/src/app/admin/colleges/actions.ts
+  s_4a7f3c46d06453::t_04c2ae5bc21d6a 21,37,52
+frontend/src/app/admin/colleges/page.tsx
+  s_4a7f3c46d06453::t_62b5c884e32c5b 18-19
+frontend/src/app/admin/layout.tsx
+  s_4a7f3c46d06453::t_aa5d77444d5ebe 1-27
+frontend/src/app/admin/page.tsx
+  s_4a7f3c46d06453::t_3f56a6688f0b82 1-40
+frontend/src/app/admin/status/page.tsx
+  s_4a7f3c46d06453::t_f66406fd43c5a4 1
+frontend/src/app/staff/accounts/actions.ts
+  s_4a7f3c46d06453::t_8093959bb90909 138,152
+frontend/src/app/staff/accounts/page.tsx
+  s_4a7f3c46d06453::t_b327976b1734a0 6,49,59
+frontend/src/app/staff/analytics/tabs.tsx
+  s_4a7f3c46d06453::t_b7aa90c8ca6cee 9
+frontend/src/app/staff/audit/page.tsx
+  s_4a7f3c46d06453::t_fe8bb2237f54c1 92
+frontend/src/app/staff/layout.tsx
+  s_4a7f3c46d06453::t_1e41b117e550b5 20
+frontend/src/components/staff/staff-nav.tsx
+  s_4a7f3c46d06453::t_dbcc17bb8120e3 15-16
+frontend/src/components/staff/staff-shell.tsx
+  s_4a7f3c46d06453::t_1632efec4678b3 13,17
+frontend/src/components/staff/staff-sidebar.tsx
+  s_4a7f3c46d06453::t_7e5e06bfbeda6e 23,57
+frontend/src/lib/server/setup.ts
+  s_4a7f3c46d06453::t_be9e93ff5804ca 34
+frontend/src/lib/server/staff.ts
+  s_4a7f3c46d06453::t_736f533787b69a 42-48
+frontend/src/lib/viewer.ts
+  s_4a7f3c46d06453::t_9902e692f80b87 34,38-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f5d070b72c22419e712f65d8db2f8015ee23ed1d",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
