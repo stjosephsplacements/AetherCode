@@ -1,0 +1,25 @@
+apps/question-intake/app/login/form.tsx
+  s_4a7f3c46d06453::t_af83e0fabf802c 13
+apps/question-intake/lib/login-name.test.ts
+  s_4a7f3c46d06453::t_ef882e1b33a238 1-11
+apps/question-intake/lib/login-name.ts
+  s_4a7f3c46d06453::t_35be2cdf7235c9 1-4
+apps/question-intake/lib/session.ts
+  s_4a7f3c46d06453::t_1829edc2d9573f 5,72
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "333a76718bf62df4f2bc7027b6c7538467f37c57",
+  "prompts": {},
+  "sessions": {
+    "s_4a7f3c46d06453": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e050dd1c-fd2c-4b8e-b89d-901bec370568",
+        "model": "unknown"
+      },
+      "human_author": "Shreesh-Sree <192179721+Shreesh-Sree@users.noreply.github.com>"
+    }
+  }
+}
