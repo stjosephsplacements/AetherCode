@@ -597,5 +597,9 @@ func writeError(writer http.ResponseWriter, status int, message string) {
 	writer.Header().Set("Content-Type", "application/json")
 	writer.Header().Set("Cache-Control", "no-store")
 	writer.WriteHeader(status)
-	_, _ = io.WriteString(writer, `{"error":"`+message+`"}`+"\n")
+	payload, _ := json.Marshal(struct {
+		Error string `json:"error"`
+	}{Error: message})
+	_, _ = writer.Write(payload)
+	_, _ = io.WriteString(writer, "\n")
 }

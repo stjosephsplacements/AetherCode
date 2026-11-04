@@ -75,7 +75,11 @@ export async function signIn(identifier: string, password: string): Promise<stri
   return null;
 }
 
-/** The signed-in staff member. The proxy has already rotated an expiring token. */
+/**
+ * The signed-in staff member. The proxy has already rotated an expiring token.
+ * INVARIANT: viewer is always loaded live via loadViewer(access) — the qi_viewer
+ * cookie is a navigation hint only and MUST NOT be trusted for authorization.
+ */
 export async function requireViewer(): Promise<{ viewer: Viewer; token: string }> {
   const jar = await cookies();
   const access = jar.get(ACCESS)?.value;
