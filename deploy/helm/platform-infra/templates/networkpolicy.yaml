@@ -80,7 +80,7 @@ spec:
   podSelector:
     matchLabels:
       app.kubernetes.io/name: go-judge
-  policyTypes: ["Ingress"]
+  policyTypes: ["Ingress", "Egress"]
   ingress:
     - from:
         - podSelector:

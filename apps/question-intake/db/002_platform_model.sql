@@ -18,7 +18,7 @@ CREATE INDEX categories_parent_idx ON categories (parent_id) WHERE parent_id IS 
 -- One row per question with its current version's fields (the platform keeps a row per version).
 CREATE TABLE questions (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    slug text NOT NULL UNIQUE CHECK (slug ~ '^[a-z0-9-]{3,80}$'),
+    slug text NOT NULL UNIQUE CHECK (slug ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$' AND char_length(slug) BETWEEN 3 AND 80),
     category_id uuid NOT NULL REFERENCES categories (id) ON DELETE RESTRICT,
     kind text NOT NULL DEFAULT 'coding' CHECK (kind IN ('coding', 'mcq')),
     -- "test" questions never reach practice (ADR-0041).

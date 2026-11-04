@@ -48,11 +48,11 @@ func bitsAllow(flags map[string]int, assignment Assignment, request Request) boo
 		index, ok := flags[key]
 		return ok && assignment.Perms.Has(index)
 	}
-	if !has(flagViewScope) {
-		return false
-	}
 	if has(flagAdministrator) {
 		return true
+	}
+	if !has(flagViewScope) {
+		return false
 	}
 	base := request.TargetService + "." + request.ResourceType + "."
 	switch request.Action {

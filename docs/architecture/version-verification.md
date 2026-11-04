@@ -19,7 +19,7 @@ on 2026-07-24; renew the check before upgrading any dependency.
 | Buf CLI | `v1.72.0` |
 | gRPC Go | `v1.82.1` |
 | protobuf Go | `v1.36.11` |
-| AetherCode Execution Engine | `AetherCode-Execution-Engine` (go-judge `v1.13.0`) |
+| AetherCode Execution Engine | `AetherCode-Execution-Engine` (go-judge version unverified; confirm against the deployed engine) |
 
 The execution engine must listen on a private address only: it has no
 authentication of its own (ADR-0028).

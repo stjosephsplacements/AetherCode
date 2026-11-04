@@ -12,7 +12,7 @@ RUN pnpm build
 FROM node:24-bookworm-slim
 WORKDIR /app
 ENV NODE_ENV=production PORT=3300 HOSTNAME=0.0.0.0
-RUN npm install -g pnpm@12.6.0 && useradd --system --uid 1001 intake
+RUN useradd --system --uid 1001 intake
 COPY --from=build --chown=intake /app/.next/standalone ./
 COPY --from=build --chown=intake /app/.next/static ./.next/static
 COPY --from=build --chown=intake /app/public ./public

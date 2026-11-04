@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 import { GatewayError, gateway } from "@/lib/server/gateway";
 import { secureCookies } from "@/lib/server/config";
 import { fetchViewer } from "@/lib/server/session";
+import { TENANT_COOKIE } from "@/lib/server/staff";
 import { type TokenPair, VIEWER_COOKIE, sessionCookies } from "@/lib/server/tokens";
 import { homeFor } from "@/lib/viewer";
 import { SSO_FLOW_COOKIE, readFlow } from "../flow";
@@ -49,6 +50,7 @@ export async function GET(request: NextRequest) {
   }
   const response = redirectTo(flow.next || homeFor(viewer));
   for (const cookie of sessionCookies(pair)) response.cookies.set(cookie);
+  if (viewer.roles.includes("super_admin")) response.cookies.delete(TENANT_COOKIE);
   response.cookies.delete({ name: SSO_FLOW_COOKIE, path: "/auth/sso" });
   // Set on the redirect itself, like the viewer cookie storeViewer writes.
   response.cookies.set({
