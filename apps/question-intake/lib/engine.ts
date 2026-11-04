@@ -54,7 +54,7 @@ function engineUrl(): string {
 export async function runBatch(input: { language: LanguageId; source: string; inputs: string[]; timeLimitMs: number; memoryLimitKb: number }): Promise<BatchResult> {
   const timeLimitMs = Math.min(20_000, Math.max(100, Math.round(input.timeLimitMs * LANGUAGES[input.language].timeMultiplier)));
   const body = JSON.stringify({
-    language: input.language,
+    language: LANGUAGES[input.language].engine,
     source_code: input.source,
     mode: "run",
     tests: input.inputs.map((stdin) => ({ input: stdin, expected_output: "" })),
