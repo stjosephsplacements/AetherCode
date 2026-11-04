@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 
 	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
@@ -59,6 +60,8 @@ type PracticeQuestion struct {
 	MemoryLimitKiB    int              `json:"memory_limit_kib"`
 	Tags              []string         `json:"tags"`
 	Samples           []PracticeSample `json:"samples"`
+	// Starters are the stubs students start from, by language (ADR-0063).
+	Starters map[string]string `json:"starters,omitempty"`
 }
 
 type storedPracticeQuestion struct {
@@ -133,6 +136,9 @@ func (service *Service) GetPracticeQuestion(contextValue context.Context, capabi
 		return PracticeQuestion{}, fmt.Errorf("decode practice question: %w", err)
 	}
 	question := stored.PracticeQuestion
+	if templates, err := service.loadTemplates(contextValue, question.QuestionVersionID); err == nil {
+		question.Starters = templates.starters()
+	}
 	question.Samples = []PracticeSample{}
 	if stored.Sample != nil {
 		bundle, err := service.readBundle(contextValue, *stored.Sample)
@@ -230,11 +236,36 @@ func (service *Service) StartPractice(contextValue context.Context, capability c
 	if command.Input != nil {
 		bundle = custom
 	}
+	// A function-only problem runs the student's function inside its hidden wrapper (ADR-0063).
+	runSource := source
+	versionID := versionIDFromKey(target.BundleObjectKey)
+	if versionID == "" {
+		if resolved, versionErr := service.practiceVersionID(contextValue, capability, command.QuestionID); versionErr == nil {
+			versionID = resolved
+		} else {
+			service.logger.Warn("resolve practice version for stubs", "error", versionErr)
+		}
+	}
+	if versionID != "" {
+		composed, wrapped, composeErr := service.composeFor(contextValue, versionID, command.Language, command.Source)
+		if composeErr != nil {
+			service.logger.Warn("compose practice stub", "version", versionID, "error", composeErr)
+		} else if wrapped {
+			if sealed, sealErr := service.sealObject(contextValue, prefix+".run", []byte(composed)); sealErr == nil {
+				runSource = sealed
+				stored = append(stored, sealed.ObjectKey)
+			} else {
+				service.logger.Warn("seal composed practice code", "error", sealErr)
+			}
+		}
+	}
 	job := ModelCheckJob{
-		ID: id, Language: command.Language, Bundle: bundle, Source: source, FairnessKey: practiceFairnessKey,
+		ID: id, Language: command.Language, Bundle: bundle, Source: runSource, FairnessKey: practiceFairnessKey,
 		TimeLimitMS: target.TimeLimitMS, MemoryLimitKiB: target.MemoryLimitKiB,
 	}
 	if err := service.modelChecks.Submit(contextValue, job); err != nil {
+		service.deleteObjects(contextValue, stored)
+		service.logger.Warn("submit practice run to Judge", "run_id", id, "error", err)
 		if failErr := service.modelChecks.Fail(context.WithoutCancel(contextValue), id); failErr != nil {
 			service.logger.Warn("mark practice run failed", "run_id", id, "error", failErr)
 		}
@@ -280,4 +311,29 @@ func (service *Service) readSealed(contextValue context.Context, reference Bundl
 		return nil, fmt.Errorf("decrypt %s: %w", reference.ObjectKey, err)
 	}
 	return plaintext, nil
+}
+
+// practiceVersionID is the published version a practice problem currently resolves to.
+func (service *Service) practiceVersionID(contextValue context.Context, capability centralauthz.Capability, questionID string) (string, error) {
+	raw, err := service.practiceJSON(contextValue, capability, func(transaction pgx.Tx) (json.RawMessage, error) {
+		return service.store.GetPracticeQuestion(contextValue, transaction, questionID)
+	})
+	if err != nil {
+		return "", err
+	}
+	var stored storedPracticeQuestion
+	if err := json.Unmarshal(raw, &stored); err != nil {
+		return "", err
+	}
+	return stored.QuestionVersionID, nil
+}
+
+var versionInKey = regexp.MustCompile(`question-versions/([0-9a-fA-F-]{36})/`)
+
+// versionIDFromKey reads the question version out of an evaluation bundle's object key, when it names one.
+func versionIDFromKey(key string) string {
+	if match := versionInKey.FindStringSubmatch(key); match != nil {
+		return strings.ToLower(match[1])
+	}
+	return ""
 }

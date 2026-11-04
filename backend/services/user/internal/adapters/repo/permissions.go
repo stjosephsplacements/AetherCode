@@ -44,6 +44,13 @@ func scopeOf(tenantID string) string {
 // list given: it adds the missing ones and removes the rest. The person has to hold a
 // staff role there, because a grant never makes a student into staff.
 func (repository *Postgres) ReplacePermissionGrants(contextValue context.Context, transaction pgx.Tx, command app.SetPermissionGrants) ([]string, error) {
+	var root bool
+	if err := transaction.QueryRow(contextValue, `SELECT users.is_root_administrator($1::uuid)`, command.PrincipalID).Scan(&root); err != nil {
+		return nil, fmt.Errorf("check root administrator: %w", err)
+	}
+	if root {
+		return nil, apperrors.New(apperrors.CodeForbidden, "the root administrator's access is fixed and cannot be edited")
+	}
 	var staff bool
 	if err := transaction.QueryRow(contextValue, `
 		SELECT users.permission_target_is_staff($1::uuid, NULLIF($2, '')::uuid)

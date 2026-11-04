@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { EmptyState } from "@/components/staff/page-header";
+import { EmptyState, PageHeader } from "@/components/staff/page-header";
 import { Badge } from "@/components/ui/card";
 import type { CommunityPost } from "@/lib/api-types";
 import { communityList } from "@/lib/server/community";
@@ -17,8 +17,7 @@ export default async function BlogsPage({ searchParams }: { searchParams: Promis
   const posts = await communityList<CommunityPost>(viewer.tenantId, "posts", { tag });
   return (
     <div className="animate-enter">
-      <h1 className="display text-[2.25rem] text-ink sm:text-[2.6rem]">Blogs</h1>
-      <p className="mt-2 max-w-[60ch] text-[15px] text-ink-muted">Preparation guides and announcements from your placement team.</p>
+      <PageHeader title={"Blogs"} description={"Preparation guides and announcements from your placement team."} />
       {tag && (
         <p className="mt-4 text-sm text-ink-muted">
           Tagged <Badge tone="brand">{tag}</Badge>{" "}

@@ -52,7 +52,7 @@ const clip = (value: string) => (value.length > OUTPUT_LIMIT ? value.slice(0, OU
 
 async function claim(count: number): Promise<Claimed[]> {
   // A crashed worker leaves rows in "running"; reclaim them after 10 minutes,
-  // longer than the slowest legitimate Judge0 batch (~5.5 minutes).
+  // longer than the slowest legitimate batch (~5.5 minutes).
   // Runs go first: they are small (sample tests only) and a student is waiting on
   // them, while a submit is already saved and only its score is pending.
   return sql<Claimed[]>`
@@ -181,7 +181,7 @@ async function finalizeEndedAttempts(): Promise<number> {
 }
 
 const WORKER_ID = `${hostname()}:${process.pid}`;
-const ENGINE_LABEL = `${process.env.ENGINE ?? "judge0"}${engine.executeBatch ? " (batched)" : ""}`;
+const ENGINE_LABEL = `${process.env.ENGINE ?? "aethercode"}${engine.executeBatch ? " (batched)" : ""}`;
 
 async function heartbeatLoop(): Promise<void> {
   while (!stopping) {
@@ -208,7 +208,7 @@ async function finalizeLoop(): Promise<void> {
 }
 
 async function loop(): Promise<void> {
-  console.log(`worker started: engine=${process.env.ENGINE ?? "judge0"} concurrency=${CONCURRENCY}`);
+  console.log(`worker started: engine=${process.env.ENGINE ?? "aethercode"} concurrency=${CONCURRENCY}`);
   sql.listen("submission_queued", wake).catch((error) => console.error("LISTEN failed, using fallback poll:", error));
   while (!stopping) {
     const free = MAX_IN_FLIGHT - inFlight;

@@ -19,11 +19,10 @@ on 2026-07-24; renew the check before upgrading any dependency.
 | Buf CLI | `v1.72.0` |
 | gRPC Go | `v1.82.1` |
 | protobuf Go | `v1.36.11` |
-| Judge0 CE | `v1.13.1` compatibility spike only |
+| AetherCode Execution Engine | `AetherCode-Execution-Engine` (go-judge version unverified; confirm against the deployed engine) |
 
-Judge0 is not approved for production until the gVisor, no-network, and
-non-privileged compatibility gate passes. The upstream sample deployment is
-reference-only because it requests privileged containers.
+The execution engine must listen on a private address only: it has no
+authentication of its own (ADR-0028).
 
 CloudNativePG `1.30.x` is selected because it supports PostgreSQL 18.4,
 quorum synchronous replication, declarative database roles, and safe primary

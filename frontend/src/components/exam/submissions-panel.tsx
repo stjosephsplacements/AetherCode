@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleCheck, CircleX, LoaderCircle, Lock } from "lucide-react";
+import { CheckCircle, CircleNotch, Lock, XCircle } from "@phosphor-icons/react/ssr";
 import type { ItemSubmission } from "@/lib/api-types";
 import { cn, formatTime, languageName } from "@/lib/utils";
 import { formatScore } from "./question-rail";
@@ -29,7 +29,7 @@ export function SubmissionsPanel({ items }: { items: ItemSubmission[] | undefine
   if (!items) {
     return (
       <Empty>
-        <LoaderCircle className="size-4 animate-spin" />
+        <CircleNotch className="size-4 animate-spin" />
         Loading submissions
       </Empty>
     );
@@ -40,7 +40,7 @@ export function SubmissionsPanel({ items }: { items: ItemSubmission[] | undefine
   return (
     <div className="h-full space-y-2 overflow-y-auto px-3 pb-3">
       <p className="flex items-center gap-1.5 px-1 text-xs text-ink-muted">
-        <Lock className="size-3" strokeWidth={2} />
+        <Lock className="size-3" />
         Hidden test cases show pass counts only. Your best submission counts.
       </p>
       {items.map((item) => (
@@ -63,11 +63,11 @@ function Submission({ item }: { item: ItemSubmission }) {
     <div className="rounded-[var(--radius-control)] border border-line bg-surface px-3.5 py-3">
       <div className="flex items-center gap-2.5">
         {judging ? (
-          <LoaderCircle className="size-4 animate-spin text-ink-muted" />
+          <CircleNotch className="size-4 animate-spin text-ink-muted" />
         ) : allPassed ? (
-          <CircleCheck className="size-4 text-success" strokeWidth={2} />
+          <CheckCircle className="size-4 text-success" />
         ) : (
-          <CircleX className="size-4 text-danger" strokeWidth={2} />
+          <XCircle className="size-4 text-danger" />
         )}
         <p className={cn("text-[13px] font-medium", judging ? "text-ink" : allPassed ? "text-success" : "text-danger")}>
           {judging

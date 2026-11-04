@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleCheck, CircleDashed, Code2, LoaderCircle } from "lucide-react";
+import { CheckCircle, CircleDashed, CircleNotch, CodeBlock } from "@phosphor-icons/react/ssr";
 import { AlertDialog } from "radix-ui";
 import { Button } from "@/components/ui/button";
 import type { PaperItem } from "@/lib/api-types";
@@ -30,7 +30,7 @@ export function EndTestDialog({
     <AlertDialog.Root>
       <AlertDialog.Trigger asChild>
         <Button size="sm" variant="secondary" disabled={ending} className="border-danger/40 text-danger hover:bg-danger-soft">
-          {ending && <LoaderCircle className="animate-spin" />}
+          {ending && <CircleNotch className="animate-spin" />}
           End test
         </Button>
       </AlertDialog.Trigger>
@@ -66,11 +66,11 @@ export function EndTestDialog({
                     </span>
                   </span>
                   {status.kind === "submitted" || (status.kind === "judging" && status.best !== null) ? (
-                    <CircleCheck className="size-4 text-success" strokeWidth={2} />
+                    <CheckCircle className="size-4 text-success" />
                   ) : status.kind === "empty" ? (
-                    <CircleDashed className="size-4 text-ink-subtle" strokeWidth={1.75} />
+                    <CircleDashed className="size-4 text-ink-subtle" />
                   ) : (
-                    <Code2 className="size-4 text-ink-muted" strokeWidth={1.75} />
+                    <CodeBlock className="size-4 text-ink-muted" />
                   )}
                 </li>
               );

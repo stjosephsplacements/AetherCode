@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Plus } from "lucide-react";
+import { PencilSimple, Plus } from "@phosphor-icons/react/ssr";
 import { useState } from "react";
 import { ActionForm, Checkbox, Field, Select, TextArea, TextInput } from "@/components/staff/form";
 import { Button } from "@/components/ui/button";
@@ -31,7 +31,7 @@ function CollegeField({ colleges, college, id }: { colleges?: College[]; college
 const trigger = (editing: boolean, label: string) =>
   editing ? (
     <Button type="button" variant="ghost" size="sm">
-      <Pencil />
+      <PencilSimple />
       Edit
     </Button>
   ) : (

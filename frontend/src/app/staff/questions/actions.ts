@@ -433,3 +433,17 @@ export async function updateQuestionDetails(versionId: string, expectedVersion: 
   revalidatePath(`/staff/questions/${versionId}`);
   return { error: null, message: "Saved." };
 }
+
+export type CodeTemplates = Record<string, { starter: string; prefix: string; suffix: string }>;
+
+/** Stubs and wrappers of a draft (ADR-0063): students write the function, the wrapper runs it. */
+export async function saveTemplates(versionId: string, templates: CodeTemplates): Promise<ActionState> {
+  await requireStaff();
+  try {
+    await gateway(`/question-bank/v1/question-versions/${versionId}/templates`, { method: "PUT", body: { templates } });
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+  revalidatePath(`/staff/questions/${versionId}`);
+  return { error: null, message: "Stubs saved. Run your solution again, as the function only, to verify them." };
+}

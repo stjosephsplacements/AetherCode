@@ -20,6 +20,7 @@ export const SITE = {
 /** Public pages, for the sitemap and the proxy's allowlist. */
 export const PUBLIC_PATHS = [
   "/about",
+  "/u",
   "/architecture",
   "/changelog",
   "/help",

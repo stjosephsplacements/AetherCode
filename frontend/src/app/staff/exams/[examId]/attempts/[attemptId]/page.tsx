@@ -1,4 +1,4 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LoadError, PageHeader, Section } from "@/components/staff/page-header";
@@ -58,7 +58,7 @@ export default async function AttemptPage({ params }: { params: Promise<{ examId
   return (
     <>
       <Link href={`/staff/exams/${examId}/monitor`} className="mb-6 inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink">
-        <ArrowLeft className="size-4" strokeWidth={1.75} />
+        <ArrowLeft className="size-4" />
         Live monitor
       </Link>
       <PageHeader

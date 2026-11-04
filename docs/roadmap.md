@@ -25,7 +25,7 @@ the platform (≈10–12 focused days). Until M8, exams run on `apps/exam-v1`.
 | M0 | Platform runs on one server | `deploy/single-server` brings up all 11 services, the judge stack and the engine healthy. An admin bootstraps and signs in through the gateway. | done (2026-10-03, campus server; engine was Piston, ADR-0018; now the AetherCode Execution Engine, ADR-0028) |
 | M1 | Accounts | An admin creates a college and batch, bulk-imports students from CSV with generated passwords, creates staff, and anyone signs in by username or roll number. | done (2026-10-04, ADR-0019; `deploy/single-server/smoke.py`) |
 | M2 | Authoring | Staff write a question with plaintext tests (bundles built and encrypted server-side), build an exam from it, and assign it to a batch. | done (2026-10-04, ADR-0020; `smoke.py`) |
-| M3 | Take and grade | A student starts, saves code, runs samples and submits. Dispatch → judge (decrypt) → Judge0 → score. Time-up submits latest answers. | done (2026-10-05, ADR-0021; `smoke.py`) |
+| M3 | Take and grade | A student starts, saves code, runs samples and submits. Dispatch → judge (decrypt) → execution engine → score. Time-up submits latest answers. | done (2026-10-05, ADR-0021; `smoke.py`) |
 | M4 | SEB | Per-request SEB key validation that works with a real SEB browser, plus `.seb` launch-file download (ADR-0022). | Done 2026-10-05 |
 | M5 | Frontend | `frontend/` ports the exam-app screens (login, admin, authoring, exam screen, results) onto the gateway. | done in code (2026-10-19, ADR-0023 to 0026); needs `smoke.py` on the campus stack |
 | M6 | Results and operations | Faculty results/CSV, result release, live monitor, extend time, announcements, backups and system status. | done in code: results, CSV, release, monitor, extra time, announcements (ADR-0027) and a staff system status page; backups run every 15 minutes |
@@ -164,7 +164,7 @@ RabbitMQ). The campus server needs one machine.
 1. `deploy/single-server/`: a Docker Compose stack with:
    - all 11 services;
    - Postgres (one instance, every service database), NATS, MinIO;
-   - the judge control plane (its own Postgres + RabbitMQ) and Judge0.
+   - the judge control plane (its own Postgres + RabbitMQ) and the execution engine.
 
    A script generates a local CA and the mTLS certificates for each service.
    A one-shot provisioner creates roles and runs every migration with its
@@ -173,7 +173,7 @@ RabbitMQ). The campus server needs one machine.
    - `extensions.uuid_generate_v7()` is called but never defined (assessment
      000010/000011);
    - judge-control Helm/env names don't match the Go config
-     (`JUDGE0_BASE_URL`, `JUDGE0_AUTH_TOKEN`, `JUDGE_ENGINE`);
+     (`AETHERCODE_ENGINE_URL`, `JUDGE_ENGINE`);
    - analytics' `judge.completed.v1` decoder lacks `completed_at`, so every
      event is rejected;
    - `hardDeleteAttempt` authorizes the action `delete`, which the authz
@@ -204,7 +204,7 @@ RabbitMQ). The campus server needs one machine.
    worker, integration test.
 7. **Time-up.** The expiry worker submits the latest answer per item.
 8. **Acceptance.** An integration test runs submit → judge → completion →
-   score, with real Judge0 locally (`make dev-judge-up`).
+   score, with the real engine locally (`make dev-judge-up`).
 
 ## Phase 2: Accounts and organisation (≈2 days)
 
@@ -264,7 +264,7 @@ policy, contract, events and service README:
 - **D3, SEB:** **required** for exams. The platform's SEB enforcement
   (gateway + `seb` service) must work end to end, and lab PCs need SEB
   installed with the exam's configuration. It moves into Phase 1 scope.
-- **D4, Judge0 gate:** approved for the campus server with `engine-check`
+- **D4, engine gate:** approved for the campus server with `engine-check`
   evidence recorded per the compatibility-gate runbook.
 
 ## Timeline risk
@@ -288,11 +288,10 @@ the backend stays fail-closed until each has evidence.
 - **Notification provider:** approve a provider, India-resident recipient-data
   path, encrypted address resolver, provider credentials, retention terms, and
   delivery observability before email or SMS is enabled.
-- **Judge0 security gate:** prove the pinned upstream image under gVisor with
-  non-root/read-only execution, no privilege escalation, no host mounts or
-  Docker socket, and deny-by-default/no user-controlled networking. The result
-  must be recorded by the compatibility-gate runbook before an engine
-  dispatcher or submission-admission adapter is enabled.
+- **Execution engine security gate:** prove the engine listens on a private
+  address only, runs submissions with no network, no privilege escalation and
+  read-only roots, and records the result before an engine dispatcher or
+  submission-admission adapter is enabled.
 - **Production performance and continuity evidence:** execute the 10,000
   candidates/five-minute load profile against the approved engine and real
   question suite; demonstrate submission P95 ≤2 seconds and final-verdict P95

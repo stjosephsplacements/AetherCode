@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/staff/page-header";
 import type { Metadata } from "next";
 import { STUDENT_HELP } from "@/content/help";
 
@@ -6,8 +7,7 @@ export const metadata: Metadata = { title: "Help" };
 export default function HelpPage() {
   return (
     <div className="mx-auto max-w-[720px] animate-enter">
-      <h1 className="display text-[2.25rem] text-ink">Help</h1>
-      <p className="mt-2 text-[15px] text-ink-muted">Answers to what students ask most during exams. For anything else, ask your invigilator.</p>
+      <PageHeader title={"Help"} description={"Answers to what students ask most during exams. For anything else, ask your invigilator."} />
       {STUDENT_HELP.map((section) => (
         <section key={section.title} className="mt-10">
           <h2 className="mb-3 text-sm font-medium text-ink-muted">{section.title}</h2>

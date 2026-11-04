@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, LoaderCircle } from "lucide-react";
+import { Check, CircleNotch } from "@phosphor-icons/react/ssr";
 import { useState, useTransition } from "react";
 import { CategoryPicker } from "@/components/staff/category-picker";
 import { Field, FormMessage, type ActionState } from "@/components/staff/form";
@@ -50,7 +50,7 @@ export function Organise({
       </Field>
       <div className="flex items-center gap-3 lg:pt-[26px]">
         <Button type="button" disabled={saving || !changed || !categoryId} onClick={() => startSaving(async () => setState(await saveOrganisation(questionId, versionId, categoryId, tags)))}>
-          {saving ? <LoaderCircle className="animate-spin" /> : <Check />}
+          {saving ? <CircleNotch className="animate-spin" /> : <Check />}
           Save
         </Button>
       </div>

@@ -1,0 +1,546 @@
+@import "tailwindcss";
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════
+ * AetherCode Design System
+ * "Dusk": violet-navy night, amber actions, coral and lavender glow, on a
+ * Sarvam-style system of hairline cards, pill actions and a serif display.
+ * Dark is the default; the warm "Day" light theme is opt-in via data-theme.
+ *
+ * Typography:
+ *   --font-sans: Satoshi (Primary Body / UI)
+ *   --font-mono: JetBrains Mono / Geist Mono (Code & Tables)
+ *   --font-display: Departure Mono (Accents, Eyebrows & Terminal Callouts)
+ *
+ * Color tokens live in @layer base below; components only use the semantic
+ * names (canvas, surface, ink, line, brand, success, danger, warning).
+ * ═══════════════════════════════════════════════════════════════════════
+ */
+
+@font-face {
+  font-family: 'Satoshi';
+  src: url('/fonts/satoshi/Satoshi-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Satoshi';
+  src: url('/fonts/satoshi/Satoshi-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-display: swap;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Satoshi';
+  src: url('/fonts/satoshi/Satoshi-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Departure Mono';
+  src: url('/fonts/DepartureMono-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+  font-style: normal;
+}
+
+/* dark: follows the in-app theme (data-theme on <html>), not the OS setting. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme {
+  --font-sans: 'Satoshi', var(--font-geist), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', var(--font-geist-mono), ui-monospace, Menlo, Consolas, monospace;
+  --font-eyebrow: 'Departure Mono', ui-monospace, monospace;
+  /* Two faces only: Satoshi for text (the old serif token now points at it) and Departure Mono for ASCII. */
+  --font-serif: var(--font-sans);
+
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-sidebar: var(--sidebar);
+  --color-hover: var(--hover);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-subtle: var(--ink-subtle);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-soft-ink: var(--brand-soft-ink);
+  --color-accent: var(--accent);
+  --color-coral: var(--coral);
+  --color-lavender: var(--lavender);
+
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+
+  --radius-control: 8px;
+  --radius-surface: 14px;
+
+  --shadow-hairline: var(--shadow-hairline-v);
+  --shadow-panel: var(--shadow-panel-v);
+  --shadow-overlay: var(--shadow-overlay-v);
+
+  --animate-enter: enter 360ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-fade: fade 200ms ease-out both;
+  --animate-pop: pop 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+
+  @keyframes enter {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes sheet-in {
+    from { transform: translateX(24px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  @keyframes pop {
+    from { opacity: 0; transform: translateY(4px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+}
+
+@layer base {
+  /* Dusk is the default (no attribute, or data-theme="dark"); Day is the
+     light twin. Violet-navy night with amber actions and a coral/lavender
+     glow; Day is warm paper with indigo ink and tangerine accents.
+     Every text/background pair below meets WCAG AA (4.5:1). */
+  :root, [data-theme="dark"] {
+    color-scheme: dark;
+    --canvas: #050505;
+    --surface: #0f0f0f;
+    --surface-2: #171717;
+    /* Chart series, one per busy service. Validated with the dataviz checks against this theme. */
+    --series-1: #3d94d6;
+    --series-2: #c47a00;
+    --series-3: #c06aa9;
+    --series-4: #1aa57d;
+    --series-5: #8f7cf0;
+    --series-6: #e0662a;
+    --series-7: #2f9fc9;
+    --series-8: #b08a2e;
+    --sidebar: #0a0a0a;
+    --hover: #1c1c1c;
+    --ink: #f2f2f2;
+    --ink-muted: #a3a3a3;
+    --ink-subtle: #8a8a8a;
+    --line: rgb(255 255 255 / 0.08);
+    --line-strong: rgb(255 255 255 / 0.15);
+
+    --brand: #ff5a1f;
+    --brand-hover: #ff7440;
+    --brand-ink: #050505;
+    --brand-soft: rgb(255 90 31 / 0.14);
+    --brand-soft-ink: #ff9a70;
+    --accent: #ff6a33;
+    --coral: #ff4f79;
+    --lavender: #b9b2ff;
+    --glow: rgb(255 255 255 / 0.06);
+    --glow-2: rgb(255 90 31 / 0.08);
+    --poster-sky: linear-gradient(to bottom, #050505 0%, #1a0d08 45%, #ff5a1f 100%);
+    --poster-ink: #f2f2f2;
+    --poster-on-ink: #050505;
+    --horizon: linear-gradient(to top, rgb(255 90 31 / 0.16), rgb(255 255 255 / 0.03) 45%, transparent);
+
+    --success: #34d399;
+    --success-soft: rgb(52 211 153 / 0.12);
+    --danger: #ff6b7f;
+    --danger-soft: rgb(255 107 127 / 0.12);
+    --warning: #ffc24b;
+    --warning-soft: rgb(255 194 75 / 0.12);
+
+    --shadow-hairline-v: 0 1px 0 rgb(255 255 255 / 0.03) inset;
+    --shadow-panel-v: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 12px 32px -12px rgb(0 0 0 / 0.55);
+    --shadow-overlay-v: 0 1px 0 rgb(255 255 255 / 0.06) inset, 0 32px 80px -16px rgb(0 0 0 / 0.7);
+  }
+
+  /* Day: warm paper, indigo ink, tangerine as the accent. */
+  [data-theme="light"] {
+    color-scheme: light;
+    --canvas: #fbf8f4;
+    --surface: #ffffff;
+    --surface-2: #f4efe9;
+    /* Chart series, one per busy service. Validated with the dataviz checks against this theme. */
+    --series-1: #0072B2;
+    --series-2: #D98200;
+    --series-3: #B34F9B;
+    --series-4: #009E73;
+    --series-5: #6C5CE7;
+    --series-6: #D55E00;
+    --series-7: #3FA7D6;
+    --series-8: #8C6D1F;
+    --sidebar: #f8f4ef;
+    --hover: #f4efe9;
+    --ink: #1b1640;
+    --ink-muted: #5d5878;
+    --ink-subtle: #6c6788;
+    --line: #ece5dc;
+    --line-strong: #e0d7cc;
+
+    --brand: #c84a0c;
+    --brand-hover: #b54208;
+    --brand-ink: #ffffff;
+    --brand-soft: #fdeadf;
+    --brand-soft-ink: #b34700;
+    --accent: #b34700;
+    --coral: #d6295a;
+    --lavender: #4b3fd1;
+    --glow: rgb(255 122 0 / 0.14);
+    --glow-2: rgb(75 63 209 / 0.10);
+    --poster-sky: linear-gradient(to bottom, #fbf8f4 0%, #f4e4ec 30%, #eab3bf 58%, #ff9a62 84%, #ffc27a 100%);
+    --poster-ink: #1b1640;
+    --poster-on-ink: #ffffff;
+    --horizon: linear-gradient(to top, rgb(255 122 0 / 0.22), rgb(255 176 102 / 0.16) 34%, rgb(75 63 209 / 0.05) 66%, transparent);
+
+    --success: #0f7a4d;
+    --success-soft: #e6f6ee;
+    --danger: #c42b4a;
+    --danger-soft: #fdebef;
+    --warning: #8a4b08;
+    --warning-soft: #fdf3e1;
+
+    --shadow-hairline-v: 0 1px 2px rgb(27 22 64 / 0.04);
+    --shadow-panel-v: 0 1px 2px rgb(27 22 64 / 0.04), 0 8px 24px -12px rgb(27 22 64 / 0.10);
+    --shadow-overlay-v: 0 24px 64px -16px rgb(27 22 64 / 0.24);
+  }
+
+  .logo-light { display: none !important; }
+  .logo-dark { display: block !important; }
+  [data-theme="light"] .logo-light { display: block !important; }
+  [data-theme="light"] .logo-dark { display: none !important; }
+
+  * {
+    border-color: var(--line);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    min-height: 100dvh;
+    background:
+      radial-gradient(900px 420px at 35% -160px, var(--glow), transparent 70%) no-repeat,
+      radial-gradient(900px 420px at 70% -200px, var(--glow-2), transparent 70%) no-repeat,
+      var(--canvas);
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  code, pre, kbd, samp {
+    font-family: var(--font-mono);
+  }
+
+  /* Cinematic HackerRank Eyebrow styling */
+  .eyebrow {
+    font-family: var(--font-eyebrow);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 0.75rem;
+  }
+
+
+  :focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--brand) 30%, transparent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Display headings */
+  /* Editorial display voice: a serif at regular weight, tightly tracked. */
+  .display {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    letter-spacing: -0.035em;
+    line-height: 1.08;
+  }
+
+  /* Staff-written Markdown */
+  .prose-exam {
+    font-size: 0.9375rem;
+    line-height: 1.7;
+    color: var(--ink);
+    max-width: 68ch;
+  }
+  /* Long-form documents: serif headings come from DocumentPage; body stays sans. */
+  .prose-doc { color: var(--ink-muted); font-size: 15.5px; line-height: 1.75; }
+  .prose-doc > * + * { margin-top: 1em; }
+  .prose-doc strong { color: var(--ink); font-weight: 600; }
+  .prose-doc a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line-strong); }
+  .prose-doc a:hover { text-decoration-color: var(--ink); }
+  .prose-doc ul { list-style: disc; padding-left: 1.2em; }
+  .prose-doc ol { list-style: decimal; padding-left: 1.2em; }
+  .prose-doc li + li { margin-top: 0.4em; }
+  .prose-doc li::marker { color: var(--ink-subtle); }
+  .prose-doc h3 { margin-top: 1.6em; color: var(--ink); font-weight: 600; font-size: 15.5px; }
+  .prose-doc code { font-family: var(--font-mono); font-size: 0.88em; background: var(--hover); border-radius: 5px; padding: 0.1em 0.35em; color: var(--ink); }
+  .prose-doc table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .prose-doc th, .prose-doc td { border-bottom: 1px solid var(--line); padding: 0.6rem 0.75rem 0.6rem 0; text-align: left; vertical-align: top; }
+  .prose-doc th { color: var(--ink); font-weight: 600; }
+
+  .prose-exam > * + * { margin-top: 0.9em; }
+  .prose-exam h1, .prose-exam h2, .prose-exam h3, .prose-exam h4 {
+    margin-top: 1.6em;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    color: var(--ink);
+  }
+  .prose-exam strong { font-weight: 700; }
+  .prose-exam ul { list-style: disc; padding-left: 1.25em; }
+  .prose-exam ol { list-style: decimal; padding-left: 1.25em; }
+  .prose-exam li + li { margin-top: 0.35em; }
+  .prose-exam li::marker { color: var(--ink-subtle); }
+  .prose-exam a { color: var(--brand); text-decoration: underline; text-underline-offset: 3px; }
+  .prose-exam code {
+    font-size: 0.85em;
+    padding: 0.12em 0.4em;
+    border-radius: 6px;
+    background: var(--hover);
+  }
+  .prose-exam pre {
+    padding: 0.9rem 1rem;
+    border-radius: var(--radius-control);
+    background: var(--sidebar);
+    border: 1px solid var(--line);
+    overflow-x: auto;
+    font-size: 0.8125rem;
+    line-height: 1.6;
+  }
+  .prose-exam pre code { padding: 0; background: none; font-size: inherit; }
+  .prose-exam table { border-collapse: collapse; font-size: 0.875rem; }
+  .prose-exam th, .prose-exam td { border: 1px solid var(--line); padding: 0.4rem 0.7rem; text-align: left; }
+  .prose-exam th { background: var(--sidebar); font-weight: 600; }
+}
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════
+ * Logo Loader: Glossy Reflection Animation
+ * Sweeps diagonally (120deg) across the mark, strictly masked to its shape.
+ * ═══════════════════════════════════════════════════════════════════════
+ */
+
+@keyframes logoSheen {
+  0% {
+    transform: translateX(-150%) translateY(-150%);
+  }
+  50%, 100% {
+    transform: translateX(150%) translateY(150%);
+  }
+}
+
+.logo-sheen-slide-light {
+  width: 250%;
+  height: 250%;
+  top: -75%;
+  left: -75%;
+  background: linear-gradient(
+    135deg,
+    transparent 42%,
+    rgba(255, 255, 255, 0.6) 48%,
+    rgba(255, 255, 255, 0.95) 50%,
+    rgba(255, 255, 255, 0.6) 52%,
+    transparent 58%
+  );
+  animation: logoSheen 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.logo-sheen-slide-dark {
+  width: 250%;
+  height: 250%;
+  top: -75%;
+  left: -75%;
+  background: linear-gradient(
+    135deg,
+    transparent 42%,
+    rgba(5, 199, 112, 0.5) 47%,
+    rgba(255, 255, 255, 1) 50%,
+    rgba(174, 249, 108, 0.5) 53%,
+    transparent 58%
+  );
+  animation: logoSheen 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo-sheen-slide-light,
+  .logo-sheen-slide-dark {
+    animation: none !important;
+    display: none !important;
+  }
+}
+
+
+
+
+
+
+
+
+/* Section headings: one voice everywhere below the hero. */
+@layer components {
+  .heading {
+    font-family: var(--font-sans);
+    font-weight: 500;
+    letter-spacing: -0.04em;
+    line-height: 1.05;
+    text-wrap: balance;
+  }
+}
+
+/* ASCII style for the landing page: monospace everywhere, headings
+   included, copy set on marker highlights, and text-drawn art sized so its
+   columns fill the width. */
+@layer components {
+  /* Chakra Petch for headings, Satoshi for reading, Departure Mono as the one ASCII face. */
+  .ascii {
+    --font-mono: "Departure Mono", ui-monospace, monospace;
+    font-family: var(--font-sans);
+  }
+  .ascii .heading,
+  .ascii .display,
+  .ascii [data-statement] {
+    font-family: var(--font-chakra), var(--font-sans);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+  .marker {
+    background: var(--brand);
+    color: var(--brand-ink);
+    border-radius: 0.2em;
+    padding: 0.04em 0.28em;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+  .aurora {
+    filter: blur(40px);
+    will-change: transform;
+    animation: aurora-drift 18s ease-in-out infinite alternate;
+  }
+  @keyframes aurora-drift {
+    from { transform: translate3d(0, 0, 0) scale(1); }
+    to { transform: translate3d(8%, 6%, 0) scale(1.15); }
+  }
+  .ascii-art {
+    font-family: var(--font-mono);
+    font-size: calc(min(100vw, 1100px) / var(--columns, 140) / 0.6);
+    line-height: 1;
+    letter-spacing: 0;
+    white-space: pre;
+  }
+}
+
+@keyframes line-in {
+  from { opacity: 0; transform: translateX(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora { animation: none; }
+}
+
+/* The public and sign-in pages scroll without a visible scrollbar; the app keeps its scrollbars. */
+html:has(.ascii) {
+  scrollbar-width: none;
+}
+html:has(.ascii)::-webkit-scrollbar {
+  display: none;
+}
+
+/* An ASCII cursor on the public and sign-in pages: an orange + everywhere,
+   [>] over anything clickable, and the normal text cursor in fields. */
+.ascii,
+.ascii * {
+  cursor: url("data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2724%27%20height=%2724%27%3E%3Ctext%20x=%275%27%20y=%2718%27%20font-family=%27ui-monospace,Menlo,monospace%27%20font-size=%2722%27%20font-weight=%27700%27%20fill=%27%23ff5a1f%27%20stroke=%27%23050505%27%20stroke-width=%270.75%27%20paint-order=%27stroke%27%3E+%3C/text%3E%3C/svg%3E") 11 11, crosshair;
+}
+.ascii a,
+.ascii a *,
+.ascii button,
+.ascii button *,
+.ascii summary,
+.ascii [role="tab"] {
+  cursor: url("data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2740%27%20height=%2724%27%3E%3Ctext%20x=%272%27%20y=%2717%27%20font-family=%27ui-monospace,Menlo,monospace%27%20font-size=%2715%27%20font-weight=%27700%27%20fill=%27%23ff5a1f%27%20stroke=%27%23050505%27%20stroke-width=%270.75%27%20paint-order=%27stroke%27%3E[&gt;]%3C/text%3E%3C/svg%3E") 2 12, pointer;
+}
+.ascii input,
+.ascii textarea {
+  cursor: text;
+}
+
+/* Long-form text on the public pages: dash bullets and orange underlines. */
+.ascii .prose-doc ul { list-style: none; padding-left: 0; }
+.ascii .prose-doc ul > li { position: relative; padding-left: 1.4em; }
+.ascii .prose-doc ul > li::before { content: "-"; position: absolute; left: 0; font-family: var(--font-mono); color: var(--accent); }
+.ascii .prose-doc a { text-decoration-color: var(--accent); text-decoration-thickness: 1.5px; }
+
+@keyframes flow-fill {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+@keyframes flow-press {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-brand) 50%, transparent); }
+  50% { transform: scale(0.94); }
+  100% { transform: scale(1); box-shadow: 0 0 0 10px transparent; }
+}
+@keyframes flow-bar {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+/* Scrollbars in the app: square, thin, hairline track and an ink thumb that turns orange on hover.
+   The public pages keep theirs hidden (html:has(.ascii) above). */
+html:not(:has(.ascii)),
+html:not(:has(.ascii)) * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ink-subtle) transparent;
+}
+html:not(:has(.ascii))::-webkit-scrollbar,
+html:not(:has(.ascii)) *::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+  background: transparent;
+}
+html:not(:has(.ascii))::-webkit-scrollbar-track,
+html:not(:has(.ascii)) *::-webkit-scrollbar-track {
+  background: transparent;
+  border-left: 1px solid var(--line);
+}
+html:not(:has(.ascii))::-webkit-scrollbar-thumb,
+html:not(:has(.ascii)) *::-webkit-scrollbar-thumb {
+  background: var(--ink-subtle);
+  border: 2px solid var(--canvas);
+  border-radius: 0;
+}
+html:not(:has(.ascii))::-webkit-scrollbar-thumb:hover,
+html:not(:has(.ascii)) *::-webkit-scrollbar-thumb:hover {
+  background: var(--brand);
+}
+html:not(:has(.ascii))::-webkit-scrollbar-corner,
+html:not(:has(.ascii)) *::-webkit-scrollbar-corner {
+  background: transparent;
+}

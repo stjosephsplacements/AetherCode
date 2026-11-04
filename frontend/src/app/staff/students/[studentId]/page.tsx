@@ -1,4 +1,4 @@
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ArrowLeft, ArrowSquareOut } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -19,9 +19,9 @@ import { StudentActions } from "../panels";
 
 export const metadata: Metadata = { title: "Student profile" };
 
-export default async function StudentDetailPage({ params, searchParams }: { params: Promise<{ studentId: string }>; searchParams: Promise<{ college?: string }> }) {
+export default async function StudentDetailPage({ params }: { params: Promise<{ studentId: string }> }) {
   const staff = await requireStaff();
-  const collegeId = collegeFor(staff, (await searchParams).college);
+  const collegeId = collegeFor(staff);
   if (!staff.canManageAccounts) redirect("/staff");
   const { studentId } = await params;
 
@@ -130,7 +130,7 @@ export default async function StudentDetailPage({ params, searchParams }: { para
         <Panel className="p-6 space-y-4">
           <h3 className="text-xs font-bold uppercase tracking-wider text-ink-muted">Account Administration</h3>
           <p className="text-xs text-ink-muted">Reset passwords or enable/disable account sign-in access.</p>
-          <StudentActions principalId={student.principal_id} username={account?.username || student.enrollment_number} collegeId={collegeId} />
+          <StudentActions principalId={student.principal_id} username={account?.username || student.enrollment_number} collegeId={collegeId} status={account?.status ?? student.status} />
         </Panel>
       </div>
 
@@ -147,7 +147,7 @@ export default async function StudentDetailPage({ params, searchParams }: { para
                   <span className="font-semibold text-sm capitalize text-ink">{stat.platform}</span>
                   <a href={stat.url} target="_blank" rel="noopener noreferrer" className="text-xs text-brand hover:underline inline-flex items-center gap-1">
                     {stat.handle}
-                    <ExternalLink className="size-3" />
+                    <ArrowSquareOut className="size-3" />
                   </a>
                 </div>
                 {stat.lines && stat.lines.length > 0 ? (

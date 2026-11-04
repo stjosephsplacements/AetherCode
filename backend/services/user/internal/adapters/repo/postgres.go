@@ -8,12 +8,14 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
 	"github.com/aethercode/aethercode/libs/pkg/database"
 	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
 	"github.com/aethercode/aethercode/libs/pkg/messaging"
+	"github.com/aethercode/aethercode/libs/pkg/rbac"
 	"github.com/aethercode/aethercode/services/user/internal/app"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -23,7 +25,9 @@ import (
 // Postgres queries the canonical User authorization tables through the
 // dedicated aether_user_authz_reader database principal.
 type Postgres struct {
-	pool *pgxpool.Pool
+	pool    *pgxpool.Pool
+	flagsMu sync.Mutex
+	flags   map[string]int
 }
 
 func NewPostgres(pool *pgxpool.Pool) *Postgres {
@@ -93,20 +97,39 @@ func (repository *Postgres) Snapshot(contextValue context.Context, query app.Sna
 		return app.Snapshot{}, fmt.Errorf("read authorization revision: %w", err)
 	}
 
-	assignments, err := transaction.Query(contextValue, `
-		SELECT role_name, scope_kind, COALESCE(tenant_id::text, ''), COALESCE(scope_id::text, '')
+	assignmentQuery := `
+		SELECT role_name, scope_kind, COALESCE(tenant_id::text, ''), COALESCE(scope_id::text, ''),
+		       role_name = 'super_admin' AND scope_kind = 'platform' AND granted_by_principal_id <> principal_id,
+		       ''
 		FROM users.active_role_assignments
 		WHERE principal_id = $1
-		ORDER BY role_name, scope_kind, tenant_id NULLS FIRST, scope_id NULLS FIRST
-	`, query.PrincipalID)
+		ORDER BY role_name, scope_kind, tenant_id NULLS FIRST, scope_id NULLS FIRST`
+	if query.RoleBits {
+		flags, flagErr := repository.flagIndexes(contextValue)
+		if flagErr != nil {
+			return app.Snapshot{}, flagErr
+		}
+		snapshot.Flags = flags
+		assignmentQuery = roleBitsAssignmentQuery
+	}
+	assignments, err := transaction.Query(contextValue, assignmentQuery, query.PrincipalID)
 	if err != nil {
 		return app.Snapshot{}, fmt.Errorf("read active role assignments: %w", err)
 	}
 	for assignments.Next() {
 		var assignment app.Assignment
-		if err := assignments.Scan(&assignment.Role, &assignment.ScopeKind, &assignment.TenantID, &assignment.ScopeID); err != nil {
+		var bits string
+		if err := assignments.Scan(&assignment.Role, &assignment.ScopeKind, &assignment.TenantID, &assignment.ScopeID, &assignment.Delegated, &bits); err != nil {
 			assignments.Close()
 			return app.Snapshot{}, fmt.Errorf("scan active role assignment: %w", err)
+		}
+		if bits != "" {
+			perms, parseErr := rbac.ParseBitString(bits)
+			if parseErr != nil {
+				assignments.Close()
+				return app.Snapshot{}, fmt.Errorf("read role permission bits: %w", parseErr)
+			}
+			assignment.Perms, assignment.HasPerms = perms, true
 		}
 		snapshot.Assignments = append(snapshot.Assignments, assignment)
 	}
@@ -920,6 +943,10 @@ func mapWriteError(err error, message string) error {
 			return apperrors.New(apperrors.CodeNotFound, message)
 		case "42501":
 			return apperrors.New(apperrors.CodeForbidden, "authorization denied")
+		case "55000":
+			if strings.Contains(postgresError.Message, "root administrator") {
+				return apperrors.New(apperrors.CodeForbidden, "the root administrator cannot be revoked or changed")
+			}
 		}
 	}
 	return fmt.Errorf("write User record: %w", err)
@@ -1097,7 +1124,8 @@ func (repository *Postgres) ListRoleAssignments(contextValue context.Context, tr
 	rows, err := transaction.Query(contextValue, `
 		SELECT id::text, principal_id::text, role_name, scope_kind,
 		       COALESCE(tenant_id::text, ''), COALESCE(scope_id::text, ''),
-		       status, expires_at, version, created_at
+		       status, expires_at, version, created_at,
+		       role_name = 'super_admin' AND scope_kind = 'platform' AND granted_by_principal_id = principal_id
 		FROM users.role_assignments
 		WHERE deleted_at IS NULL
 		  AND ($1::uuid IS NULL OR tenant_id = $1::uuid)
@@ -1124,7 +1152,7 @@ func (repository *Postgres) ListRoleAssignments(contextValue context.Context, tr
 		if err := rows.Scan(
 			&assignment.ID, &assignment.PrincipalID, &assignment.RoleName, &assignment.ScopeKind,
 			&assignment.TenantID, &assignment.ScopeID, &assignment.Status, &assignment.ExpiresAt,
-			&assignment.Version, &assignment.CreatedAt,
+			&assignment.Version, &assignment.CreatedAt, &assignment.Root,
 		); err != nil {
 			return nil, fmt.Errorf("scan role assignment row: %w", err)
 		}
@@ -1158,4 +1186,45 @@ func nullableTimestamp(value string) any {
 		return nil
 	}
 	return parsed.UTC()
+}
+
+// roleBitsAssignmentQuery joins each assignment to its managed role (migration 000039): the root
+// administrator is the platform Owner, a delegated super admin the platform Super admin, placement
+// staff the Placement officer of the placement guild, and a college role the college guild's role
+// of the same name. An assignment with no matching role carries no bits.
+const roleBitsAssignmentQuery = `
+	SELECT a.role_name, a.scope_kind, COALESCE(a.tenant_id::text, ''), COALESCE(a.scope_id::text, ''),
+	       a.role_name = 'super_admin' AND a.scope_kind = 'platform' AND a.granted_by_principal_id <> a.principal_id,
+	       COALESCE(ar.permissions::text, '')
+	FROM users.active_role_assignments AS a
+	LEFT JOIN users.assignment_roles AS ar ON ar.assignment_id = a.id
+	WHERE a.principal_id = $1
+	ORDER BY a.role_name, a.scope_kind, a.tenant_id NULLS FIRST, a.scope_id NULLS FIRST`
+
+// flagIndexes returns the flag registry. It is append-only, so it is read once and kept.
+func (repository *Postgres) flagIndexes(contextValue context.Context) (map[string]int, error) {
+	repository.flagsMu.Lock()
+	defer repository.flagsMu.Unlock()
+	if repository.flags != nil {
+		return repository.flags, nil
+	}
+	rows, err := repository.pool.Query(contextValue, `SELECT key, bit_index FROM users.permission_flags`)
+	if err != nil {
+		return nil, fmt.Errorf("read permission flag registry: %w", err)
+	}
+	defer rows.Close()
+	flags := make(map[string]int)
+	for rows.Next() {
+		var key string
+		var index int
+		if err := rows.Scan(&key, &index); err != nil {
+			return nil, fmt.Errorf("scan permission flag: %w", err)
+		}
+		flags[key] = index
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate permission flags: %w", err)
+	}
+	repository.flags = flags
+	return flags, nil
 }

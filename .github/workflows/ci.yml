@@ -24,6 +24,15 @@ jobs:
           cache-dependency-path: |
             backend/libs/pkg/go.sum
             backend/services/*/go.sum
+      # Docker builds each service on its own, without go.work: a module whose
+      # go.mod or go.sum drifted builds in the workspace and breaks the image.
+      - name: Modules are tidy and build standalone
+        run: |
+          set -euo pipefail
+          for dir in backend/libs/pkg backend/libs/proto backend/services/*/; do
+            (cd "$dir" && GOWORK=off go mod tidy && GOWORK=off go build ./...)
+          done
+          git diff --exit-code -- '*.mod' '*.sum'
       - run: (cd backend && go work sync)
       - run: make build
       - run: make test

@@ -3,7 +3,6 @@ export type LanguageId = "c" | "cpp" | "java" | "python";
 export interface Language {
   id: LanguageId;
   label: string;
-  judge0Id: number;
   pistonName: string;
   fileName: string;
   timeMultiplier: number;
@@ -14,7 +13,6 @@ export const LANGUAGES: Record<LanguageId, Language> = {
   c: {
     id: "c",
     label: "C (GCC)",
-    judge0Id: 50,
     pistonName: "c",
     fileName: "main.c",
     timeMultiplier: 1,
@@ -23,7 +21,6 @@ export const LANGUAGES: Record<LanguageId, Language> = {
   cpp: {
     id: "cpp",
     label: "C++ (G++)",
-    judge0Id: 54,
     pistonName: "c++",
     fileName: "main.cpp",
     timeMultiplier: 1,
@@ -33,7 +30,6 @@ export const LANGUAGES: Record<LanguageId, Language> = {
   java: {
     id: "java",
     label: "Java",
-    judge0Id: 62,
     pistonName: "java",
     fileName: "Main.java",
     timeMultiplier: 2,
@@ -43,7 +39,6 @@ export const LANGUAGES: Record<LanguageId, Language> = {
   python: {
     id: "python",
     label: "Python 3",
-    judge0Id: 71,
     pistonName: "python",
     fileName: "main.py",
     timeMultiplier: 2,

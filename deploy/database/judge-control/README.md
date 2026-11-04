@@ -1,8 +1,7 @@
 # Judge control-plane database provisioning
 
-This directory provisions only the wrapper's PostgreSQL database. It is not a
-Judge0 engine migration directory and must never be mounted into the upstream
-Judge0 container.
+This directory provisions only the wrapper's PostgreSQL database. It is not an
+execution engine migration directory and must never be mounted into the engine.
 
 Run `roles.sql` once on the Judge control-plane PostgreSQL cluster as a cluster
 administrator:

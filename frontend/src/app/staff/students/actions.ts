@@ -30,9 +30,7 @@ function parseRows(csv: string): StudentRow[] {
 }
 
 export async function importStudents(_previous: ImportState, form: FormData): Promise<ImportState> {
-  // The batch picker lists every college's batches as "<college>:<batch>", so students land in that batch's own college.
-  const pickedCollege = String(form.get("batch_id") ?? "").includes(":") ? String(form.get("batch_id")).split(":")[0] : String(form.get("college_id") ?? "");
-  const tenantId = collegeFor(await requireStaff(), pickedCollege);
+  const tenantId = collegeFor(await requireStaff());
   let rows: StudentRow[];
   try {
     rows = parseRows(String(form.get("csv") ?? ""));
@@ -46,15 +44,29 @@ export async function importStudents(_previous: ImportState, form: FormData): Pr
     const batches = await gateway<Page<Batch>>(`/tenant/v1/tenants/${tenantId}/batches?limit=100`);
     const batch = batches.items.find((candidate) => candidate.id === batchId);
     if (!batch) return { error: "Choose a batch." };
-    const result = await gateway<StudentImportResult>(`/user/v1/tenants/${tenantId}/students/import`, {
-      method: "POST",
-      body: {
-        batch_id: batch.id,
-        college_department_id: batch.department_id,
-        placement_department_id: String(form.get("placement_department_id") ?? ""),
-        students: rows,
-      },
-    });
+    // A placement department created seconds ago reaches the user service a moment later; until then
+    // the import names a target it cannot see yet, so wait for it rather than fail.
+    const send = () =>
+      gateway<StudentImportResult>(`/user/v1/tenants/${tenantId}/students/import`, {
+        method: "POST",
+        body: {
+          batch_id: batch.id,
+          college_department_id: batch.department_id,
+          placement_department_id: String(form.get("placement_department_id") ?? ""),
+          students: rows,
+        },
+      });
+    let result: StudentImportResult | undefined;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        result = await send();
+        break;
+      } catch (error) {
+        const notYet = error instanceof GatewayError && error.status === 400 && /import targets are invalid/.test(error.message);
+        if (!notYet || attempt >= 4) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 2500));
+      }
+    }
     revalidatePath("/staff/students");
     return {
       error: null,
@@ -67,7 +79,7 @@ export async function importStudents(_previous: ImportState, form: FormData): Pr
 }
 
 export async function reissueBatchPasswords(_previous: CredentialsState, form: FormData): Promise<CredentialsState> {
-  const tenantId = collegeFor(await requireStaff(), String(form.get("college_id") ?? ""));
+  const tenantId = collegeFor(await requireStaff());
   try {
     const result = await gateway<{ accounts: IssuedCredential[] }>(
       `/user/v1/tenants/${tenantId}/batches/${String(form.get("batch_id"))}/passwords`,
@@ -80,10 +92,11 @@ export async function reissueBatchPasswords(_previous: CredentialsState, form: F
 }
 
 export async function resetPassword(_previous: CredentialsState, form: FormData): Promise<CredentialsState> {
-  const tenantId = collegeFor(await requireStaff(), String(form.get("college_id") ?? ""));
+  const tenantId = collegeFor(await requireStaff());
   const principalId = String(form.get("principal_id"));
   try {
     const result = await gateway<{ password: string }>(`/user/v1/tenants/${tenantId}/accounts/${principalId}/password`, { method: "POST" });
+    revalidatePath("/staff", "layout");
     return {
       error: null,
       accounts: [{ principal_id: principalId, username: String(form.get("username") ?? ""), display_name: "", password: result.password }],
@@ -94,13 +107,14 @@ export async function resetPassword(_previous: CredentialsState, form: FormData)
 }
 
 export async function setAccountStatus(_previous: ActionState, form: FormData): Promise<ActionState> {
-  const tenantId = collegeFor(await requireStaff(), String(form.get("college_id") ?? ""));
+  const tenantId = collegeFor(await requireStaff());
   const status = String(form.get("status"));
   try {
     await gateway(`/user/v1/tenants/${tenantId}/accounts/${String(form.get("principal_id"))}/status`, {
       method: "PUT",
       body: { status },
     });
+    revalidatePath("/staff", "layout");
     return { error: null, message: status === "disabled" ? "Sign-in disabled." : "Sign-in enabled." };
   } catch (error) {
     return { error: actionError(error) };
@@ -108,7 +122,7 @@ export async function setAccountStatus(_previous: ActionState, form: FormData): 
 }
 
 export async function updateStudent(collegeId: string, studentId: string, changes: Record<string, string>): Promise<ActionState> {
-  const tenantId = collegeFor(await requireStaff(), collegeId);
+  const tenantId = collegeFor(await requireStaff());
   const body: Record<string, string> = {};
   if ("enrollment_number" in changes) body.enrollment_number = changes.enrollment_number!.trim();
   if ("admitted_at" in changes) body.admitted_at = changes.admitted_at!.trim();
@@ -125,7 +139,7 @@ export async function updateStudent(collegeId: string, studentId: string, change
 export async function updateAccount(collegeId: string, principalId: string, changes: Record<string, string>): Promise<ActionState> {
   const staff = await requireStaff();
   if (!staff.canManageAccounts) return { error: "Only administrators edit accounts." };
-  const tenantId = collegeFor(staff, collegeId);
+  const tenantId = collegeFor(staff);
   const body: Record<string, string> = {};
   for (const key of ["display_name", "email", "phone"]) if (key in changes) body[key] = changes[key]!.trim();
   if (Object.keys(body).length === 0) return { error: "Nothing to change." };
@@ -142,7 +156,7 @@ export async function updateAccount(collegeId: string, principalId: string, chan
 export async function deleteStudent(collegeId: string, studentId: string, reason: string): Promise<ActionState> {
   const staff = await requireStaff();
   if (!staff.canManageAccounts) return { error: "Only administrators delete students." };
-  const tenantId = collegeFor(staff, collegeId);
+  const tenantId = collegeFor(staff);
   if (!reason.trim()) return { error: "A reason is needed to delete anything." };
   try {
     await gateway(`/user/v1/tenants/${tenantId}/students/${studentId}`, { method: "DELETE", body: { reason: reason.trim() } });
@@ -159,7 +173,7 @@ export type Target = { principalId: string; collegeId: string; username: string 
 function byCollege(targets: Target[], staff: Awaited<ReturnType<typeof requireStaff>>): Map<string, Target[]> {
   const groups = new Map<string, Target[]>();
   for (const target of targets) {
-    const tenantId = collegeFor(staff, target.collegeId);
+    const tenantId = collegeFor(staff);
     groups.set(tenantId, [...(groups.get(tenantId) ?? []), target]);
   }
   return groups;

@@ -1,6 +1,6 @@
 "use client";
 
-import { GripVertical, Lock, LoaderCircle, Search, X } from "lucide-react";
+import { CircleNotch, DotsSixVertical, Lock, MagnifyingGlass, X } from "@phosphor-icons/react/ssr";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { FormMessage, type ActionState } from "@/components/staff/form";
@@ -64,7 +64,7 @@ export function PermissionEditor({
     <div className="grid gap-6 lg:grid-cols-2">
       <section aria-label="Everything that can be granted">
         <div className="relative mb-3">
-          <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-subtle" strokeWidth={1.75} />
+          <MagnifyingGlass aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-subtle" />
           <input
             type="search"
             value={query}
@@ -88,7 +88,7 @@ export function PermissionEditor({
                       <li key={resource.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
                         <span className="flex items-center gap-2 text-[14px] text-ink">
                           {resource.label}
-                          {locked && <Lock aria-label="Root administrators only" className="size-3.5 text-ink-subtle" strokeWidth={1.75} />}
+                          {locked && <Lock aria-label="Root administrators only" className="size-3.5 text-ink-subtle" />}
                         </span>
                         <span className="flex gap-1.5">
                           {resource.verbs.map((verb) => {
@@ -109,7 +109,7 @@ export function PermissionEditor({
                                   locked && "cursor-not-allowed opacity-45",
                                 )}
                               >
-                                {!on && !locked && <GripVertical aria-hidden className="size-3 text-ink-subtle" strokeWidth={1.75} />}
+                                {!on && !locked && <DotsSixVertical aria-hidden className="size-3 text-ink-subtle" />}
                                 {VERB_LABEL[verb]}
                               </button>
                             );
@@ -157,10 +157,10 @@ export function PermissionEditor({
                         <span key={verb} className="inline-flex h-7 items-center gap-1 rounded-full bg-brand/10 pl-2.5 pr-1 text-[12.5px] text-brand">
                           {VERB_LABEL[verb]}
                           {locked ? (
-                            <Lock aria-label="Needed by the permissions above" className="mr-1.5 size-3" strokeWidth={1.75} />
+                            <Lock aria-label="Needed by the permissions above" className="mr-1.5 size-3" />
                           ) : (
                             <button type="button" onClick={() => remove(permission)} aria-label={`Remove ${VERB_LABEL[verb].toLowerCase()} ${resource.label.toLowerCase()}`} className="grid size-5 place-items-center rounded-full hover:bg-brand/15">
-                              <X className="size-3" strokeWidth={2} />
+                              <X className="size-3" />
                             </button>
                           )}
                         </span>
@@ -179,7 +179,7 @@ export function PermissionEditor({
               Undo
             </Button>
             <Button type="button" disabled={!dirty || pending} onClick={save}>
-              {pending && <LoaderCircle className="animate-spin" />}
+              {pending && <CircleNotch className="animate-spin" />}
               Save permissions
             </Button>
           </div>

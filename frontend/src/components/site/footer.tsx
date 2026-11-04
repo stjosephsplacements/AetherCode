@@ -1,6 +1,8 @@
+import { Star } from "@phosphor-icons/react/ssr";
+import Image from "next/image";
 import Link from "next/link";
 import { SITE } from "@/lib/site";
-import { CookieSettingsLink, ThemeIcon, ThemeSwitch } from "./footer-controls";
+import { CookieSettingsLink, ThemeSwitch } from "./footer-controls";
 
 const COLUMNS = [
   {
@@ -67,29 +69,38 @@ export function Footer({ compact = false }: { compact?: boolean }) {
     },
   ];
   return (
-    <footer className="relative bg-canvas font-mono text-[13px]">
-      <div className="mx-auto max-w-6xl border-t border-line lg:border-x">
-        <div className="grid gap-px bg-line sm:grid-cols-2 lg:grid-cols-[1.5fr_repeat(4,1fr)]">
-          <div className="bg-canvas p-6">
-            <p className="font-semibold text-ink">AetherCode</p>
-            <p className="mt-2 text-ink-muted">{"// let your code"}<br />{"// do the talking."}</p>
-            <a href={SITE.repo} className="mt-6 inline-block whitespace-nowrap border border-ink px-3 py-1.5 text-ink transition-colors hover:border-brand hover:bg-brand hover:text-brand-ink">
-              [ star on github -&gt; ]
-            </a>
+    <footer className="relative px-3 pb-3 pt-16 sm:px-4">
+      <div className="mx-auto max-w-6xl overflow-hidden rounded-[28px] border border-line bg-surface shadow-[var(--shadow-panel)]">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-10 p-7 sm:p-10 md:grid-cols-4 lg:grid-cols-[1.4fr_repeat(4,1fr)]">
+          <div className="col-span-2 md:col-span-4 lg:col-span-1">
+            <Link href="/" className="inline-flex items-center gap-2.5">
+              <Image src="/4.png" alt="" width={22} height={22} className="logo-light object-contain" />
+              <Image src="/3.png" alt="" width={22} height={22} className="logo-dark object-contain" />
+              <span className="font-mono text-[16px] font-semibold tracking-tight text-ink">AetherCode</span>
+            </Link>
+            <p className="mt-4 max-w-[26ch] text-[15px] leading-relaxed text-ink-muted">Let your code do the talking. Open-source exams and practice for colleges.</p>
+            <div className="mt-6 flex flex-wrap gap-2">
+              <a href={SITE.repo} className="inline-flex items-center gap-2 rounded-full bg-brand px-4 py-2 text-[13.5px] font-medium text-brand-ink transition-opacity hover:opacity-90">
+                <Star className="size-3.5" /> Star on GitHub
+              </a>
+              <Link href="/login" className="inline-flex items-center rounded-full border border-line-strong px-4 py-2 text-[13.5px] font-medium text-ink transition-colors hover:bg-hover">
+                Sign in
+              </Link>
+            </div>
           </div>
           {columns.map((column) => (
-            <nav key={column.title} aria-label={column.title} className="bg-canvas p-6">
-              <p className="text-ink-subtle">[ {column.title.toLowerCase()} ]</p>
-              <ul className="mt-4 space-y-2.5">
+            <nav key={column.title} aria-label={column.title}>
+              <p className="font-mono text-[11.5px] uppercase tracking-[0.08em] text-ink-subtle">{column.title}</p>
+              <ul className="mt-4 space-y-2.5 text-[14px]">
                 {column.links.map((link) => (
                   <li key={link.href}>
-                    <Link href={link.href} className="text-ink-muted transition-colors hover:text-brand">
-                      {link.label.toLowerCase()}
+                    <Link href={link.href} className="text-ink-muted transition-colors hover:text-ink">
+                      {link.label}
                     </Link>
                   </li>
                 ))}
                 {column.title === "Legal" && (
-                  <li className="[&_button]:font-mono [&_button]:lowercase">
+                  <li>
                     <CookieSettingsLink />
                   </li>
                 )}
@@ -97,11 +108,16 @@ export function Footer({ compact = false }: { compact?: boolean }) {
             </nav>
           ))}
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-t border-line bg-canvas px-6 py-4 text-[12px] text-ink-subtle">
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-line bg-surface-2 px-7 py-4 text-[12.5px] text-ink-subtle sm:px-10">
           <p>
-            (c) {year} {SITE.operatorShort}. {SITE.license}.
+            © {year} {SITE.operatorShort}. {SITE.license}.
           </p>
-          <ThemeIcon />
+          <div className="flex items-center gap-3">
+            <Link href="/status" className="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1 text-ink-muted transition-colors hover:text-ink">
+              <span aria-hidden className="size-1.5 rounded-full bg-success" /> Status
+            </Link>
+            <ThemeSwitch />
+          </div>
         </div>
       </div>
     </footer>

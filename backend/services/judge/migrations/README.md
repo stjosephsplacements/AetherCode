@@ -1,7 +1,7 @@
 # Judge control-plane migrations
 
 These migrations apply only to the wrapper-owned `aether_judge_wrapper` database.
-They never target the upstream Judge0 engine database.
+They never target the execution engine's database.
 
 The migration connection must authenticate as a principal that can `SET ROLE`
 to `aether_judge_migrator`; the runtime service must authenticate separately as
@@ -26,7 +26,7 @@ it never contains source, test cases, encrypted request material, or results.
 The publisher leases rows, records a broker-confirmed publication, and requeues
 stale `published` pointers idempotently after a node failure. The current
 foundation release intentionally has no engine dispatcher; in the separately
-approved Judge0 phase, its worker must durably record an event ID before it
+approved engine phase, its worker must durably record an event ID before it
 ACKs RabbitMQ.
 
 Each Pull creates an immutable `completion_deliveries` record with a `delivery_id` and `lease_id`.
@@ -84,7 +84,7 @@ via `pg_has_role` check and logs all physical deletions to
 `000008_fix_execution_units_normalized_verdict_check` corrects
 `execution_units.normalized_verdict`'s CHECK constraint, which spelled the
 compile-error member `'compilation_error'` since `000001` while every actual
-writer/reader (the Judge0 client, the outbox completion contract in `000003`,
+writer/reader (the engine client, the outbox completion contract in `000003`,
 and the wrapper's own verdict vocabulary) uses `'compile_error'`. Before this
 fix, a real compile-error verdict from the engine could never be recorded on a
 unit: `DispatchStoreAdapter.RecordVerdict`'s `UPDATE` would violate the

@@ -1,6 +1,6 @@
+import { ArrowLeft, Scan } from "@phosphor-icons/react/ssr";
 import { Pager } from "@/components/staff/pager";
 import { paginate } from "@/lib/paginate";
-import { ArrowLeft, ScanSearch } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { EmptyState, LoadError, PageHeader, Table } from "@/components/staff/page-header";
@@ -57,7 +57,7 @@ export default async function ResultsPage({ params, searchParams }: { params: Pr
   return (
     <>
       <Link href={`/staff/exams/${examId}`} className="mb-6 inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink">
-        <ArrowLeft className="size-4" strokeWidth={1.75} />
+        <ArrowLeft className="size-4" />
         {version.title}
       </Link>
       <PageHeader
@@ -68,7 +68,7 @@ export default async function ResultsPage({ params, searchParams }: { params: Pr
             <>
               <Button asChild variant="secondary" size="sm">
                 <Link href={`/staff/exams/${examId}/similarity`}>
-                  <ScanSearch />
+                  <Scan />
                   Similarity
                 </Link>
               </Button>

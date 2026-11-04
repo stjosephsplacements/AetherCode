@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, X } from "lucide-react";
+import { Plus, X } from "@phosphor-icons/react/ssr";
 import { Checkbox, TextInput } from "@/components/staff/form";
 import { Button } from "@/components/ui/button";
 import { type Choices, MAX_EXPLANATION, choicesProblem } from "./model";
@@ -59,7 +59,7 @@ export function ChoicesFields({ value, onChange }: { value: Choices; onChange: (
                   aria-label={`Remove option ${index + 1}`}
                   className="grid size-8 place-items-center rounded-[var(--radius-control)] text-ink-muted transition-colors hover:bg-hover hover:text-ink"
                 >
-                  <X className="size-4" strokeWidth={1.75} />
+                  <X className="size-4" />
                 </button>
               )}
             </div>

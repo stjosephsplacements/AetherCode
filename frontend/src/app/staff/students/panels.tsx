@@ -1,8 +1,8 @@
 "use client";
 
-import { ArrowLeft, Download, KeyRound, MoreHorizontal, TriangleAlert, Upload, UserPlus } from "lucide-react";
+import { ArrowLeft, DotsThree, DownloadSimple, Key, UploadSimple, UserPlus, Warning } from "@phosphor-icons/react/ssr";
 import { DropdownMenu } from "radix-ui";
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useMemo, useState, useTransition } from "react";
 import { CredentialsTable } from "@/components/staff/credentials";
 import { Field, FormMessage, Select, SubmitButton, TextArea, TextInput, initialActionState } from "@/components/staff/form";
 import { Button } from "@/components/ui/button";
@@ -113,7 +113,7 @@ export function ImportPanel({ batches, placements, departments }: { batches: Bat
                       {entry.name || "-"}
                       {entry.problem && (
                         <span role="alert" className="mt-0.5 flex items-center gap-1 text-[12px] text-danger">
-                          <TriangleAlert className="size-3.5 shrink-0" />
+                          <Warning className="size-3.5 shrink-0" />
                           {entry.problem}
                         </span>
                       )}
@@ -141,7 +141,7 @@ export function ImportPanel({ batches, placements, departments }: { batches: Bat
               dragging ? "border-brand bg-brand-soft/40" : "border-line-strong hover:bg-hover",
             )}
           >
-            <Upload aria-hidden className="size-5 text-ink-subtle" strokeWidth={1.75} />
+            <UploadSimple aria-hidden className="size-5 text-ink-subtle" />
             <span className="text-sm font-medium text-ink">{fileName || "Drop a CSV here, or choose one"}</span>
             <span className="text-[12.5px] text-ink-muted">roll number, name, and optionally email. Up to {MAX_IMPORT_ROWS} students.</span>
             <input type="file" accept=".csv,text/csv,text/plain" className="sr-only" onChange={(event) => void load(event.target.files?.[0])} />
@@ -151,7 +151,7 @@ export function ImportPanel({ batches, placements, departments }: { batches: Bat
             <div className="mb-2 flex items-center justify-between gap-3">
               <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">File format</span>
               <button type="button" onClick={downloadTemplate} className="inline-flex items-center gap-1.5 font-medium text-brand hover:underline">
-                <Download className="size-3.5" />
+                <DownloadSimple className="size-3.5" />
                 Download template
               </button>
             </div>
@@ -207,7 +207,7 @@ export function ReissuePanel({ batch }: { batch: Batch }) {
       <input type="hidden" name="college_id" value={batch.tenant_id} />
       <FormMessage state={state} />
       <SubmitButton variant="secondary">
-        <KeyRound />
+        <Key />
         Reissue all passwords
       </SubmitButton>
       {state.accounts && (
@@ -220,53 +220,67 @@ export function ReissuePanel({ batch }: { batch: Batch }) {
   );
 }
 
-/** Per-student actions: reset the password, or turn sign-in off and on. */
-export function StudentActions({ principalId, username, collegeId }: { principalId: string; username: string; collegeId: string }) {
-  const [reset, resetAction] = useActionState<CredentialsState, FormData>(resetPassword, initialActionState);
-  const [status, statusAction] = useActionState(setAccountStatus, initialActionState);
+/** Per-student actions: reset the password, or turn sign-in off and on. The result is shown in a dialog and the row's badge follows. */
+export function StudentActions({ principalId, username, collegeId, status }: { principalId: string; username: string; collegeId: string; status: string }) {
+  const [pending, start] = useTransition();
+  const [result, setResult] = useState<{ title: string; error?: string; password?: string } | null>(null);
+  const enabled = status === "active";
   const item = "flex w-full items-center rounded-md px-2.5 py-2 text-left text-sm text-ink outline-none data-[highlighted]:bg-hover";
+  const form = (extra: Record<string, string> = {}) => {
+    const data = new FormData();
+    data.set("principal_id", principalId);
+    data.set("college_id", collegeId);
+    data.set("username", username);
+    for (const [key, value] of Object.entries(extra)) data.set(key, value);
+    return data;
+  };
+  const reset = () =>
+    start(async () => {
+      const done = await resetPassword(initialActionState, form());
+      setResult(done.error ? { title: "Could not reset the password", error: done.error } : { title: `New password for ${username}`, password: done.accounts?.[0]?.password });
+    });
+  const toggle = () =>
+    start(async () => {
+      const next = enabled ? "disabled" : "active";
+      const done = await setAccountStatus(initialActionState, form({ status: next }));
+      setResult(done.error ? { title: enabled ? "Could not disable sign-in" : "Could not enable sign-in", error: done.error } : { title: done.message ?? "" });
+    });
   return (
-    <div className="flex items-center justify-end gap-2">
-      {reset.accounts?.[0] && (
-        <span className="rounded-md bg-warning-soft px-2 py-1 font-mono text-xs text-ink">
-          New password <span className="select-all font-semibold">{reset.accounts[0].password}</span>
-        </span>
-      )}
-      {(reset.error || status.error || status.message) && (
-        <span className={reset.error || status.error ? "text-xs text-danger" : "text-xs text-success"}>{reset.error ?? status.error ?? status.message}</span>
-      )}
+    <>
       <DropdownMenu.Root>
-        <DropdownMenu.Trigger aria-label={`Actions for ${username}`} className="grid size-8 place-items-center rounded-[var(--radius-control)] text-ink-muted hover:bg-hover hover:text-ink">
-          <MoreHorizontal className="size-4" />
+        <DropdownMenu.Trigger disabled={pending} aria-label={`Actions for ${username}`} className="grid size-8 place-items-center rounded-[var(--radius-control)] text-ink-muted hover:bg-hover hover:text-ink disabled:opacity-50">
+          <DotsThree className="size-4" />
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
           <DropdownMenu.Content align="end" sideOffset={4} className="z-50 min-w-[190px] animate-fade rounded-[var(--radius-control)] border border-line bg-surface p-1 shadow-[var(--shadow-overlay)]">
-            <form action={resetAction}>
-              <input type="hidden" name="principal_id" value={principalId} />
-              <input type="hidden" name="college_id" value={collegeId} />
-              <input type="hidden" name="username" value={username} />
-              <DropdownMenu.Item asChild>
-                <button type="submit" className={item}>
-                  Reset password
-                </button>
-              </DropdownMenu.Item>
-            </form>
-            {(["disabled", "active"] as const).map((value) => (
-              <form key={value} action={statusAction}>
-                <input type="hidden" name="principal_id" value={principalId} />
-              <input type="hidden" name="college_id" value={collegeId} />
-                <input type="hidden" name="status" value={value} />
-                <DropdownMenu.Item asChild>
-                  <button type="submit" className={item}>
-                    {value === "disabled" ? "Disable sign-in" : "Enable sign-in"}
-                  </button>
-                </DropdownMenu.Item>
-              </form>
-            ))}
+            <DropdownMenu.Item className={item} onSelect={reset}>
+              Reset password
+            </DropdownMenu.Item>
+            <DropdownMenu.Item className={item} onSelect={toggle}>
+              {enabled ? "Disable sign-in" : "Enable sign-in"}
+            </DropdownMenu.Item>
           </DropdownMenu.Content>
         </DropdownMenu.Portal>
       </DropdownMenu.Root>
-    </div>
+      <Dialog open={result !== null} onOpenChange={(open) => !open && setResult(null)}>
+        <DialogContent title={result?.title || "Done"} className="w-[min(92vw,420px)]">
+          <div className="p-6 text-sm">
+            {result?.error ? (
+              <p role="alert" className="text-danger">
+                {result.error}
+              </p>
+            ) : result?.password ? (
+              <>
+                <p className="mb-2 text-ink-muted">Share this once. It is not shown again and the student must change it at first sign-in.</p>
+                <p className="select-all rounded-md bg-warning-soft px-3 py-2 font-mono text-base font-semibold text-ink">{result.password}</p>
+              </>
+            ) : (
+              <p className="text-ink-muted">The status badge in the row is updated.</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -276,7 +290,7 @@ export function ImportDialog(props: { batches: Batch[]; placements: PlacementOpt
     <Dialog>
       <DialogTrigger asChild>
         <Button disabled={Boolean(disabledReason)} title={disabledReason}>
-          <Upload />
+          <UploadSimple />
           Bulk import
         </Button>
       </DialogTrigger>

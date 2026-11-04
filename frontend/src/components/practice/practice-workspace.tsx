@@ -1,6 +1,8 @@
 "use client";
 
-import { ArrowLeft, Check, ChevronDown, CircleCheck, CircleX, LoaderCircle, Lock, Play, Upload } from "lucide-react";
+import { ArrowLeft, Check, CheckCircle, CircleNotch, Lock, Play, UploadSimple, XCircle } from "@phosphor-icons/react/ssr";
+import { Select } from "@/components/staff/form";
+import { LanguageLabel } from "@/components/language-icon";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Checkbox, Tabs } from "radix-ui";
@@ -10,6 +12,10 @@ import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/card";
 import { useEditorSettings } from "@/components/exam/editor-settings";
+import { LayoutMenu } from "./layout-menu";
+import { Splitter } from "./splitter";
+import { WorkspaceTools } from "./workspace-tools";
+import { DEFAULT_LAYOUT, updateLayout, useLayout } from "./layout-settings";
 import { EditorSettingsMenu } from "@/components/exam/editor-settings-menu";
 import { RunConsole, type RunState } from "@/components/exam/run-console";
 import type { CodeRun, PracticeQuestion, PracticeRun } from "@/lib/api-types";
@@ -74,7 +80,10 @@ function readDraft(questionId: string, language: string): string {
 export function PracticeWorkspace({ tenantId, question }: { tenantId: string; question: PracticeQuestion }) {
   const base = `/question-bank/v1/tenants/${tenantId}/practice`;
   const settings = useEditorSettings();
-  const [language, setLanguage] = useState(question.languages[0] ?? "");
+  // A function-only problem offers the languages it has a stub for.
+  const stubbed = Object.keys(question.starters ?? {});
+  const languages = stubbed.length > 0 ? question.languages.filter((key) => stubbed.includes(key)) : question.languages;
+  const [language, setLanguage] = useState(languages[0] ?? "");
   const [source, setSource] = useState("");
   const [input, setInput] = useState(question.samples[0]?.input ?? "");
   const [useCustomInput, setUseCustomInput] = useState(false);
@@ -86,9 +95,9 @@ export function PracticeWorkspace({ tenantId, question }: { tenantId: string; qu
   // Code opened from a submission replaces the draft of its language once.
   const opened = useRef<string | null>(null);
   useEffect(() => {
-    setSource(opened.current ?? readDraft(question.question_id, language));
+    setSource(opened.current ?? (readDraft(question.question_id, language) || question.starters?.[language] || ""));
     opened.current = null;
-  }, [question.question_id, language]);
+  }, [question.question_id, language, question.starters]);
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
@@ -173,20 +182,14 @@ export function PracticeWorkspace({ tenantId, question }: { tenantId: string; qu
 
   const solved = history?.some((entry) => entry.verdict === "accepted") ?? false;
 
-  return (
-    <div className="flex h-dvh flex-col bg-canvas">
-      <header className="flex h-14 shrink-0 items-center gap-3 border-b px-4">
-        <Link href="/student/practice" className="flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink">
-          <ArrowLeft className="size-4" strokeWidth={1.75} />
-          Practice
-        </Link>
-        <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{question.title}</h1>
-        {solved && <Badge tone="success">Solved</Badge>}
-      </header>
+  const layout = useLayout();
+  const row = useRef<HTMLDivElement>(null);
+  const column = useRef<HTMLDivElement>(null);
+  const side = layout.console === "right";
 
-      <div className="flex min-h-0 flex-1 flex-col gap-3 p-3 lg:flex-row">
-        <section aria-label="Problem" className="flex min-h-0 flex-col lg:w-[40%] lg:max-w-[640px]">
-          <article className="min-h-0 flex-1 overflow-y-auto px-3 pb-8 pt-3 lg:px-4">
+  const problemPane = (
+    <section aria-label="Problem" className="flex min-h-[260px] min-w-0 flex-col overflow-hidden rounded-3xl border border-line bg-surface shadow-[var(--shadow-panel)] lg:min-h-0" style={{ flexBasis: `${layout.problemPct}%` }}>
+          <article className="min-h-0 flex-1 overflow-y-auto px-5 pb-8 pt-4">
             <h2 className="display text-[1.75rem] text-ink">{question.title}</h2>
             <p className="mt-3 flex flex-wrap gap-2 text-[13px] text-ink-muted">
               <Badge tone={DIFFICULTY_TONE[question.difficulty]}>{question.difficulty}</Badge>
@@ -209,47 +212,12 @@ export function PracticeWorkspace({ tenantId, question }: { tenantId: string; qu
               </div>
             ))}
           </article>
-        </section>
+    </section>
+  );
 
-        <section
-          aria-label="Your code"
-          className="flex min-h-[460px] flex-1 flex-col overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface shadow-[var(--shadow-panel)]"
-        >
-          <div className="flex h-12 shrink-0 items-center gap-1 border-b px-2.5">
-            <label className="relative">
-              <span className="sr-only">Language</span>
-              <select
-                value={language}
-                onChange={(event) => setLanguage(event.target.value)}
-                className="h-8 appearance-none rounded-[var(--radius-control)] bg-transparent pl-2.5 pr-8 text-[13px] font-medium text-ink outline-none transition-colors hover:bg-hover focus-visible:ring-2 focus-visible:ring-brand"
-              >
-                {question.languages.map((key) => (
-                  <option key={key} value={key}>
-                    {languageName(key)}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-ink-muted" strokeWidth={2} />
-            </label>
-            <div className="ml-auto">
-              <EditorSettingsMenu />
-            </div>
-          </div>
-
-          <div className="min-h-0 flex-1">
-            <CodeEditor
-              path={`${question.question_id}-${language}`}
-              language={language}
-              value={source}
-              onChange={setSource}
-              readOnly={false}
-              settings={settings}
-              onRun={runCode}
-              onSubmit={submitCode}
-            />
-          </div>
-
-          <Tabs.Root value={consoleTab} onValueChange={(value) => setConsoleTab(value as ConsoleTab)} className="flex h-[40%] min-h-[220px] shrink-0 flex-col border-t bg-canvas/40">
+  const consolePane = (
+    <div className="flex min-h-0 min-w-0 flex-col" style={{ flexBasis: `${layout.consolePct}%` }}>
+          <Tabs.Root value={consoleTab} onValueChange={(value) => setConsoleTab(value as ConsoleTab)} className="flex min-h-0 min-w-0 flex-1 flex-col bg-canvas/40">
             <Tabs.List aria-label="Console" className="flex h-10 shrink-0 items-center gap-0.5 px-2">
               <TabTrigger value="results" active={consoleTab === "results"}>
                 Test results
@@ -291,7 +259,37 @@ export function PracticeWorkspace({ tenantId, question }: { tenantId: string; qu
               <History runs={history} onOpen={openSubmission} />
             </Tabs.Content>
           </Tabs.Root>
+    </div>
+  );
 
+  const editorPane = (
+    <section aria-label="Your code" className="flex min-h-[520px] min-w-0 flex-1 flex-col overflow-hidden rounded-3xl border border-line bg-surface shadow-[var(--shadow-panel)] lg:min-h-0">
+      <div className="flex h-12 shrink-0 items-center gap-1 border-b px-2.5">
+        <Select aria-label="Language" size="sm" className="w-40" value={language} onValueChange={setLanguage}>
+          {languages.map((key) => (
+            <option key={key} value={key}>
+              <LanguageLabel language={key} />
+            </option>
+          ))}
+        </Select>
+        <div className="ml-auto flex items-center gap-0.5">
+          <LayoutMenu />
+          <EditorSettingsMenu />
+        </div>
+      </div>
+      <div ref={column} className={cn("flex min-h-0 flex-1", side ? "flex-row" : "flex-col")}>
+        <div className="min-h-[200px] min-w-0 flex-1">
+          <CodeEditor path={`${question.question_id}-${language}`} language={language} value={source} onChange={setSource} readOnly={false} settings={settings} onRun={runCode} onSubmit={submitCode} />
+        </div>
+        <Splitter
+          direction={side ? "horizontal" : "vertical"}
+          container={column}
+          label="Resize the console"
+          onChange={(percent) => updateLayout({ consolePct: Math.round(100 - percent) })}
+          onReset={() => updateLayout({ consolePct: DEFAULT_LAYOUT.consolePct })}
+        />
+        {consolePane}
+      </div>
           <div className="flex h-14 shrink-0 items-center gap-3 border-t px-3">
             <label className="flex cursor-pointer items-center gap-2 text-[13px] text-ink">
               <Checkbox.Root
@@ -304,23 +302,45 @@ export function PracticeWorkspace({ tenantId, question }: { tenantId: string; qu
                 className="grid size-4 place-items-center rounded-[4px] border border-line-strong bg-surface outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand data-[state=checked]:border-brand data-[state=checked]:bg-brand"
               >
                 <Checkbox.Indicator>
-                  <Check className="size-3 text-brand-ink" strokeWidth={3} />
+                  <Check className="size-3 text-brand-ink" />
                 </Checkbox.Indicator>
               </Checkbox.Root>
               Test against custom input
             </label>
             <div className="ml-auto flex items-center gap-2">
               <Button variant="secondary" onClick={runCode} disabled={run.kind === "running"} title="Ctrl + Enter">
-                {run.kind === "running" ? <LoaderCircle className="animate-spin" /> : <Play />}
+                {run.kind === "running" ? <CircleNotch className="animate-spin" /> : <Play />}
                 Run code
               </Button>
               <Button onClick={submitCode} disabled={submit.kind === "judging"} title="Ctrl + Shift + Enter">
-                {submit.kind === "judging" ? <LoaderCircle className="animate-spin" /> : <Upload />}
+                {submit.kind === "judging" ? <CircleNotch className="animate-spin" /> : <UploadSimple />}
                 Submit
               </Button>
             </div>
           </div>
-        </section>
+    </section>
+  );
+
+  return (
+    <div className="flex h-dvh flex-col bg-canvas">
+      <header className="flex h-14 shrink-0 items-center gap-3 border-b px-4">
+        <Link href="/student/practice" className="flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink">
+          <ArrowLeft className="size-4" />
+          Practice
+        </Link>
+        <h1 className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{question.title}</h1>
+        {solved && <Badge tone="success">Solved</Badge>}
+        <WorkspaceTools storageKey={`practice-${question.question_id}`} />
+      </header>
+
+      <div ref={row} className={cn("flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 lg:flex-row lg:overflow-hidden", layout.swap && "lg:flex-row-reverse")}>
+        {!layout.focus && (
+          <>
+            {problemPane}
+            <Splitter direction="horizontal" container={row} label="Resize the problem" onChange={(percent) => updateLayout({ problemPct: layout.swap ? 100 - percent : percent })} onReset={() => updateLayout({ problemPct: DEFAULT_LAYOUT.problemPct })} />
+          </>
+        )}
+        {editorPane}
       </div>
     </div>
   );
@@ -357,7 +377,7 @@ function SubmitResult({ state }: { state: SubmitState }) {
   if (state.kind === "judging") {
     return (
       <p className="flex items-center gap-2 py-3 text-[13px] text-ink-muted">
-        <LoaderCircle className="size-4 animate-spin" />
+        <CircleNotch className="size-4 animate-spin" />
         Judging your submission against every test
       </p>
     );
@@ -389,7 +409,7 @@ function SubmitResult({ state }: { state: SubmitState }) {
                 unit.verdict === "accepted" ? "bg-success-soft text-success" : "bg-danger-soft text-danger",
               )}
             >
-              {unit.verdict === "accepted" ? <CircleCheck className="size-3" strokeWidth={2} /> : <CircleX className="size-3" strokeWidth={2} />}
+              {unit.verdict === "accepted" ? <CheckCircle className="size-3" /> : <XCircle className="size-3" />}
               Test {index + 1}
               {unit.time_ms !== undefined && <span className="opacity-70">{unit.time_ms} ms</span>}
             </span>
@@ -404,7 +424,7 @@ function History({ runs, onOpen }: { runs: PracticeRun[] | undefined; onOpen: (i
   if (runs.length === 0) {
     return (
       <p className="flex items-center gap-1.5 py-3 text-[13px] text-ink-muted">
-        <Lock className="size-3.5" strokeWidth={2} />
+        <Lock className="size-3.5" />
         Submit to check your code against every test, hidden ones included.
       </p>
     );
@@ -414,11 +434,11 @@ function History({ runs, onOpen }: { runs: PracticeRun[] | undefined; onOpen: (i
       {runs.map((entry) => (
         <li key={entry.id} className="flex items-center gap-3 px-3.5 py-2.5 text-[13px]">
           {entry.lifecycle_state === "queued" ? (
-            <LoaderCircle className="size-4 animate-spin text-ink-muted" />
+            <CircleNotch className="size-4 animate-spin text-ink-muted" />
           ) : entry.verdict === "accepted" ? (
-            <CircleCheck className="size-4 text-success" strokeWidth={2} />
+            <CheckCircle className="size-4 text-success" />
           ) : (
-            <CircleX className="size-4 text-danger" strokeWidth={2} />
+            <XCircle className="size-4 text-danger" />
           )}
           <span className={cn("font-medium", entry.verdict === "accepted" ? "text-success" : "text-ink")}>
             {entry.lifecycle_state === "queued" ? "Judging" : (VERDICTS[entry.verdict ?? ""] ?? entry.verdict)}

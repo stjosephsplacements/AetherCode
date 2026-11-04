@@ -82,8 +82,8 @@ func TestGradesOutputLocally(t *testing.T) {
 	if verdict.Status != "accepted" || verdict.TimeMS != 7 || verdict.MemoryKB != 4096 {
 		t.Fatalf("verdict = %+v, want accepted after normalizing whitespace", verdict)
 	}
-	if sent.Language != "python" || sent.Mode != "run" || sent.TimeLimitMS != 2000 || sent.MemoryLimitKB != minMemoryLimitKB {
-		t.Fatalf("request = %+v, want python run mode, doubled time, memory clamped to the engine minimum", sent)
+	if sent.Language != "python" || sent.TimeLimitMS != 2000 || sent.MemoryLimitKB != minMemoryLimitKB {
+		t.Fatalf("request = %+v, want python, doubled time, memory clamped to the engine minimum", sent)
 	}
 	if len(sent.Tests) != 1 || sent.Tests[0].Input != "21\n" || sent.Tests[0].ExpectedOutput != "" {
 		t.Fatalf("tests = %+v, want the input only: the expected output never leaves the judge", sent.Tests)
@@ -122,5 +122,139 @@ func TestRejectsUnknownLanguagesAndLostVerdicts(t *testing.T) {
 	verdict, err := client.Poll(context.Background(), "aethercode-unknown")
 	if err != nil || verdict.Status != "internal_error" {
 		t.Fatalf("lost verdict = %+v, %v; want internal_error so the unit is regraded", verdict, err)
+	}
+}
+
+func TestSendsTheUnitAsIdempotencyKeyAndAcceptsARepeatedJob(t *testing.T) {
+	var key string
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		switch request.URL.Path {
+		case "/api/v1/execute":
+			key = request.Header.Get("Idempotency-Key")
+			writer.WriteHeader(http.StatusOK) // the engine already had this key
+			_, _ = writer.Write([]byte(`{"job_id":"job-1"}`))
+		case "/api/v1/stream":
+			writer.Header().Set("Content-Type", "text/event-stream")
+			_, _ = fmt.Fprint(writer, "event: VERDICT\ndata: {\"type\":\"VERDICT\",\"data\":{\"verdict\":\"accepted\",\"results\":[{\"test_index\":0,\"verdict\":\"accepted\",\"stdout\":\"1\\n\"}]}}\n\n")
+		}
+	}))
+	defer server.Close()
+
+	verdict := run(t, server, dispatcher.UnitRequest{Language: "c", SourceCode: "x", ExpectedOutput: "1\n", IdempotencyKey: "unit-7"})
+	if key != "unit-7" || verdict.Status != "accepted" {
+		t.Fatalf("key = %q, verdict = %+v, want the unit id as the key and an accepted verdict from the repeated job", key, verdict)
+	}
+}
+
+func TestSubmitBatchRunsAllUnitsInOneEngineJobAndGradesEachOne(t *testing.T) {
+	var executes atomic.Int32
+	var sent executeRequest
+	var key string
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		switch request.URL.Path {
+		case "/api/v1/execute":
+			executes.Add(1)
+			key = request.Header.Get("Idempotency-Key")
+			_ = json.NewDecoder(request.Body).Decode(&sent)
+			writer.WriteHeader(http.StatusCreated)
+			_, _ = writer.Write([]byte(`{"job_id":"job-1"}`))
+		case "/api/v1/stream":
+			writer.Header().Set("Content-Type", "text/event-stream")
+			// Results arrive out of order; each is matched by its test index.
+			verdict := `{"verdict":"wrong_answer","results":[` +
+				`{"test_index":2,"verdict":"time_limit","cpu_time_ns":2000000000},` +
+				`{"test_index":0,"verdict":"accepted","stdout":"a\n","cpu_time_ns":1000000},` +
+				`{"test_index":1,"verdict":"accepted","stdout":"WRONG\n","cpu_time_ns":2000000}]}`
+			_, _ = fmt.Fprint(writer, "event: VERDICT\ndata: {\"type\":\"VERDICT\",\"data\":"+verdict+"}\n\n")
+		}
+	}))
+	defer server.Close()
+
+	client, err := NewClient(server.URL, 10*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	requests := []dispatcher.UnitRequest{
+		{Language: "python3", SourceCode: "x", Stdin: "in0", ExpectedOutput: "a\n", TimeLimitMS: 1000, MemLimitKB: 65536, IdempotencyKey: "u0"},
+		{Language: "python3", SourceCode: "x", Stdin: "in1", ExpectedOutput: "b\n", TimeLimitMS: 1000, MemLimitKB: 65536, IdempotencyKey: "u1"},
+		{Language: "python3", SourceCode: "x", Stdin: "in2", ExpectedOutput: "c\n", TimeLimitMS: 1000, MemLimitKB: 65536, IdempotencyKey: "u2"},
+	}
+	tokens, err := client.SubmitBatch(context.Background(), requests)
+	if err != nil {
+		t.Fatalf("SubmitBatch: %v", err)
+	}
+	if executes.Load() != 1 || len(sent.Tests) != 3 {
+		t.Fatalf("execute calls = %d with %d tests, want one call carrying all 3", executes.Load(), len(sent.Tests))
+	}
+	for i, test := range sent.Tests {
+		if test.ExpectedOutput != "" || test.Input != fmt.Sprintf("in%d", i) {
+			t.Errorf("test %d = %+v, want its input only: the expected output never leaves the judge", i, test)
+		}
+	}
+	if !strings.HasPrefix(key, "batch-") || len(key) < 20 {
+		t.Errorf("idempotency key = %q, want a batch key", key)
+	}
+
+	want := []string{"accepted", "wrong_answer", "time_limit_exceeded"}
+	for i, token := range tokens {
+		verdict, err := client.Poll(context.Background(), token)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if verdict.Status != want[i] {
+			t.Errorf("unit %d status = %q, want %q", i, verdict.Status, want[i])
+		}
+	}
+}
+
+func TestSubmitBatchSharesACompileErrorAndRejectsMixedPrograms(t *testing.T) {
+	server := fakeEngine(t, 0, `{"verdict":"compilation_error","compile_stderr":"boom"}`, nil)
+	defer server.Close()
+	client, err := NewClient(server.URL, 10*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	same := []dispatcher.UnitRequest{
+		{Language: "c", SourceCode: "x", Stdin: "1", TimeLimitMS: 1000, MemLimitKB: 65536},
+		{Language: "c", SourceCode: "x", Stdin: "2", TimeLimitMS: 1000, MemLimitKB: 65536},
+	}
+	tokens, err := client.SubmitBatch(context.Background(), same)
+	if err != nil {
+		t.Fatalf("SubmitBatch: %v", err)
+	}
+	for _, token := range tokens {
+		verdict, _ := client.Poll(context.Background(), token)
+		if verdict.Status != "compile_error" || verdict.CompileOutput != "boom" {
+			t.Errorf("verdict = %+v, want compile_error with the compiler's output", verdict)
+		}
+	}
+
+	mixed := []dispatcher.UnitRequest{same[0], {Language: "c", SourceCode: "y", Stdin: "2", TimeLimitMS: 1000, MemLimitKB: 65536}}
+	if _, err := client.SubmitBatch(context.Background(), mixed); err == nil {
+		t.Error("a batch of different programs was accepted")
+	}
+	if _, err := client.SubmitBatch(context.Background(), nil); err == nil {
+		t.Error("an empty batch was accepted")
+	}
+	too := make([]dispatcher.UnitRequest, dispatcher.MaxBatchUnits+1)
+	for i := range too {
+		too[i] = same[0]
+	}
+	if _, err := client.SubmitBatch(context.Background(), too); err == nil {
+		t.Error("a batch above the limit was accepted")
+	}
+}
+
+func TestForgetReleasesAVerdict(t *testing.T) {
+	server := fakeEngine(t, 0, `{"verdict":"accepted","results":[{"test_index":0,"verdict":"accepted","stdout":"x"}]}`, nil)
+	defer server.Close()
+	client, _ := NewClient(server.URL, 10*time.Second)
+	tokens, err := client.SubmitBatch(context.Background(), []dispatcher.UnitRequest{{Language: "c", SourceCode: "x", TimeLimitMS: 1000, MemLimitKB: 65536}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client.Forget(tokens[0])
+	if verdict, _ := client.Poll(context.Background(), tokens[0]); verdict.Status != "internal_error" {
+		t.Fatalf("a forgotten verdict polled as %q, want internal_error", verdict.Status)
 	}
 }

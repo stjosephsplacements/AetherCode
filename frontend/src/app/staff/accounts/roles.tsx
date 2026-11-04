@@ -1,6 +1,6 @@
 "use client";
 
-import { X } from "lucide-react";
+import { X } from "@phosphor-icons/react/ssr";
 import { useActionState, useState } from "react";
 import { Checkbox, FormMessage, Select, initialActionState } from "@/components/staff/form";
 import { Button } from "@/components/ui/button";
@@ -79,13 +79,6 @@ export function RoleEditor({
                 <option key={placement.id} value={placement.id}>{placement.name}</option>
               ))}
             </Select>
-          )}
-          {role === "placement_user" && (
-            <select name="placement_department_id" className="h-8 w-full rounded-[var(--radius-control)] border border-line bg-surface px-2 text-sm">
-              {placements.map((placement) => (
-                <option key={placement.id} value={placement.id}>{placement.name}</option>
-              ))}
-            </select>
           )}
           {role === "mentor" && (
             <fieldset className="grid max-h-40 grid-cols-2 gap-1 overflow-y-auto text-sm">

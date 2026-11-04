@@ -22,7 +22,7 @@ export function ReleaseList() {
             onClick={() => setTag(value)}
             className={cn(
               "h-8 rounded-full border px-3.5 text-[13px] transition-colors",
-              tag === value ? "border-ink bg-ink text-canvas" : "border-line-strong text-ink-muted hover:text-ink",
+              tag === value ? "border-line-strong bg-ink text-canvas" : "border-line-strong text-ink-muted hover:text-ink",
             )}
           >
             {value ?? "Everything"}

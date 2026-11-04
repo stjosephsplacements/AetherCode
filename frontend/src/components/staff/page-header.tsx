@@ -1,4 +1,4 @@
-import { CircleAlert } from "lucide-react";
+import { WarningCircle } from "@phosphor-icons/react/ssr";
 import type { GatewayError } from "@/lib/server/gateway";
 
 /** A ruled header: the hairline under it is where the page's work begins. */
@@ -45,7 +45,7 @@ export function LoadError({ error }: { error: unknown }) {
   const status = (error as GatewayError | undefined)?.status;
   return (
     <div role="alert" className="flex items-start gap-3 rounded-[var(--radius-surface)] border border-line bg-surface px-5 py-4 text-sm text-ink-muted">
-      <CircleAlert className="mt-0.5 size-4 shrink-0 text-danger" strokeWidth={1.75} />
+      <WarningCircle className="mt-0.5 size-4 shrink-0 text-danger" />
       <p>
         {status === 403
           ? "Your role cannot see this. Ask a college administrator."

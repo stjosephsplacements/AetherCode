@@ -21,6 +21,11 @@ export function buildViewer(me: Me, principal: Principal): Viewer {
   };
 }
 
+/** Placement staff who hold no college role: they work across colleges in /placement, never in /staff. */
+export function isPlacementOnly(viewer: Viewer): boolean {
+  return viewer.roles.includes("placement_user") && viewer.roles.every((role) => role === "placement_user" || role === "student");
+}
+
 export function isStudent(viewer: Viewer): boolean {
   return viewer.roles.includes("student");
 }
@@ -31,11 +36,13 @@ export function isStaff(viewer: Viewer): boolean {
 
 /**
  * Where a viewer lands after signing in, and when they open "/". Staff land
- * on /staff; a student who also holds a staff role can still open /student.
+ * on /staff, platform administrators on /admin, placement staff on /placement; a student who also holds a staff role can still open /student.
  * An account whose roles have not arrived yet is treated as a student: that
  * area shows only what the services allow, which is nothing until they do.
  */
-export function homeFor(viewer: Viewer): "/student" | "/staff" {
+export function homeFor(viewer: Viewer): "/student" | "/staff" | "/admin" | "/placement" {
+  if (viewer.roles.includes("super_admin")) return "/admin";
+  if (isPlacementOnly(viewer)) return "/placement";
   return isStaff(viewer) ? "/staff" : "/student";
 }
 

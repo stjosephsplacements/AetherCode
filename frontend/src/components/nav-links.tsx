@@ -1,13 +1,13 @@
 "use client";
 
-import { Activity, BookOpen, Briefcase, CalendarDays, FileText, GitFork, ListChecks, MessagesSquare, Newspaper, Rocket, Trophy, UserRound, ChartColumn, ScrollText, Building2, CodeXml, House, LifeBuoy, NotebookPen, TrendingUp, UserCog, Users } from "lucide-react";
+import { BookOpen, Briefcase, Buildings, CalendarBlank, ChartBar, Chats, CodeSimple, FileText, GitFork, House, Lifebuoy, ListChecks, Newspaper, NotePencil, Pulse, Question, Rocket, Scroll, TrendUp, Trophy, UserCircle, UserGear, Users } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-export const ICONS = { exams: NotebookPen, home: House, questions: BookOpen, students: Users, organisation: Building2, accounts: UserCog, status: Activity, help: LifeBuoy, practice: CodeXml, progress: TrendingUp, analytics: ChartColumn, audit: ScrollText, calendar: CalendarDays, contests: Trophy, hackathons: Rocket, opensource: GitFork, interviews: MessagesSquare, blogs: Newspaper, tasks: ListChecks, profile: UserRound, resume: FileText, community: MessagesSquare, placements: Briefcase };
+export const ICONS = { exams: NotePencil, home: House, questions: BookOpen, students: Users, organisation: Buildings, accounts: UserGear, status: Pulse, help: Lifebuoy, practice: CodeSimple, progress: TrendUp, analytics: ChartBar, audit: Scroll, calendar: CalendarBlank, contests: Trophy, hackathons: Rocket, opensource: GitFork, interviews: Chats, blogs: Newspaper, tasks: ListChecks, profile: UserCircle, resume: FileText, community: Chats, placements: Briefcase, start: Rocket, faq: Question };
 
-export type NavItem = { href: string; label: string; icon: keyof typeof ICONS };
+export type NavItem = { href: string; label: string; icon: keyof typeof ICONS; /** Why the page cannot be used yet; shown instead of a link. */ locked?: string };
 
 export function NavLinks({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
@@ -27,7 +27,7 @@ export function NavLinks({ items }: { items: NavItem[] }) {
                 active ? "bg-hover font-medium text-ink" : "text-ink-muted hover:bg-hover hover:text-ink",
               )}
             >
-              <Icon className="size-[18px]" strokeWidth={1.75} />
+              <Icon className="size-[18px]" />
               {item.label}
             </Link>
           </li>

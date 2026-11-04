@@ -802,3 +802,57 @@ func TestPermissionEditorWriteIsLimitedToAdministrators(t *testing.T) {
 		})
 	}
 }
+
+// A delegated super admin has no blanket policy: it is denied what the root is allowed
+// until the root grants it, and it can never change anyone's permissions.
+func TestDelegatedSuperAdminHoldsOnlyItsGrants(t *testing.T) {
+	t.Parallel()
+	secret := base64.StdEncoding.EncodeToString([]byte(strings.Repeat("d", 32)))
+	keyring, err := centralauthz.ParseKeyring(`[{"audience":"aether_submission","key_id":"` + testKeyID + `","secret_base64":"` + secret + `"},{"audience":"aether_users","key_id":"` + testKeyID + `","secret_base64":"` + secret + `"}]`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rules := []centralauthz.PolicyRule{{PType: "p", Values: []string{"super_admin", "platform", "/*", "*"}}}
+	read := []Grant{{ScopeKind: "platform", Permission: "submission.attempts.read"}}
+	cases := []struct {
+		name      string
+		delegated bool
+		grants    []Grant
+		service   string
+		resource  string
+		action    string
+		want      bool
+	}{
+		{"root reads any resource", false, nil, "submission", "attempts", "read", true},
+		{"delegated without grants is denied", true, nil, "submission", "attempts", "read", false},
+		{"delegated with a grant reads it", true, read, "submission", "attempts", "read", true},
+		{"a read grant does not write", true, read, "submission", "attempts", "write", false},
+		{"delegated may use internal resources", true, nil, "submission", "judge_receipts", "read", true},
+		{"root changes permissions", false, nil, "user", "permission_grants", "write", true},
+		{"delegated never changes permissions", true, []Grant{{ScopeKind: "platform", Permission: "user.permission_grants.write"}}, "user", "permission_grants", "write", false},
+	}
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			service, err := NewService(fakeStore{snapshot: Snapshot{
+				Revision:    3,
+				Assignments: []Assignment{{Role: centralauthz.RoleSuperAdmin, ScopeKind: "platform", Delegated: test.delegated}},
+				PolicyRules: rules,
+				Grants:      test.grants,
+			}}, keyring, nil, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			decision, err := service.Authorize(context.Background(), Request{
+				PrincipalID: testPrincipal, TenantID: testTenant, RequestID: testRequestID,
+				Action: test.action, ResourceType: test.resource, ResourceID: "x-1", TargetService: test.service,
+			})
+			if err != nil {
+				t.Fatalf("Authorize() error = %v", err)
+			}
+			if decision.Allowed != test.want {
+				t.Fatalf("allowed = %v, want %v", decision.Allowed, test.want)
+			}
+		})
+	}
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, Printer } from "lucide-react";
+import { DownloadSimple, Printer } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 
 export type Credential = { username: string; name?: string; password: string };
@@ -33,7 +33,7 @@ export function CredentialsTable({ rows, filename }: { rows: Credential[]; filen
         </p>
         <div className="flex gap-2">
           <Button size="sm" variant="secondary" onClick={download}>
-            <Download />
+            <DownloadSimple />
             Download CSV
           </Button>
           <Button size="sm" variant="secondary" onClick={() => window.print()}>

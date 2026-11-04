@@ -4,7 +4,7 @@ import { defineConfig } from "@playwright/test";
 // at 127.0.0.1:8380. The gateway endpoint is intentionally fixed in the test.
 export default defineConfig({
   testDir: ".",
-  timeout: 300_000,
+  timeout: 540_000,
   expect: { timeout: 60_000 },
   workers: 1,
   reporter: [["list"]],

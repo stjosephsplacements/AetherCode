@@ -1,6 +1,6 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { MagnifyingGlass } from "@phosphor-icons/react/ssr";
 import { useState } from "react";
 import { LocalPager } from "@/components/staff/pager";
 import { percent } from "@/lib/analytics";
@@ -20,7 +20,7 @@ export function StudentList({ rows, several }: { rows: StudentRow[]; several: bo
   return (
     <div>
       <div className="relative mb-3 max-w-sm">
-        <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-subtle" strokeWidth={1.75} />
+        <MagnifyingGlass aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-subtle" />
         <input
           type="search"
           value={query}

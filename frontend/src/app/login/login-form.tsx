@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { type LoginState, login } from "./actions";
 
 const fieldClass =
-  "h-11 w-full border border-ink bg-surface px-3.5 font-mono text-[15px] text-ink shadow-[3px_3px_0_var(--ink)] outline-none transition-shadow placeholder:text-ink-subtle focus:shadow-[3px_3px_0_var(--brand)]";
+  "h-11 w-full rounded-[var(--radius-control)] border border-line-strong bg-surface px-3.5 font-mono text-[15px] text-ink outline-none transition-[border-color,box-shadow] placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15";
 
 export function LoginForm({ next }: { next: string }) {
   const [state, action, pending] = useActionState<LoginState, FormData>(login, { error: null, identifier: "" });
@@ -60,9 +60,9 @@ export function LoginForm({ next }: { next: string }) {
       <button
         type="submit"
         disabled={pending}
-        className="w-full bg-brand py-3 font-mono text-[15px] text-brand-ink shadow-[4px_4px_0_var(--ink)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5 disabled:translate-x-0 disabled:translate-y-0 disabled:opacity-60"
+        className="w-full rounded-full bg-brand py-3 text-[15px] font-medium text-brand-ink transition-opacity hover:opacity-90 disabled:opacity-60"
       >
-        {pending ? "[ checking... ]" : "[ sign in -> ]"}
+        {pending ? "Checking..." : "Sign in"}
       </button>
     </form>
   );

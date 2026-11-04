@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Check, ChevronRight, LoaderCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, CaretRight, Check, CircleNotch } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
@@ -194,7 +194,7 @@ export function QuestionWizard({ languages, categories: initialCategories, tagSu
               onClick={() => setAdvanced((open) => !open)}
               className="flex w-full items-center gap-2 px-4 py-3 text-left text-[13px] font-medium text-ink-muted transition-colors hover:text-ink"
             >
-              <ChevronRight className={cn("size-4 transition-transform duration-200", advanced && "rotate-90")} strokeWidth={1.75} />
+              <CaretRight className={cn("size-4 transition-transform duration-200", advanced && "rotate-90")} />
               Advanced
             </button>
             {advanced && (
@@ -242,7 +242,7 @@ export function QuestionWizard({ languages, categories: initialCategories, tagSu
         </Button>
         {step === "review" ? (
           <Button type="button" size="lg" onClick={save} disabled={saving}>
-            {saving ? <LoaderCircle className="animate-spin" /> : <Check />}
+            {saving ? <CircleNotch className="animate-spin" /> : <Check />}
             {mcq ? "Save draft" : "Save draft and verify"}
           </Button>
         ) : (

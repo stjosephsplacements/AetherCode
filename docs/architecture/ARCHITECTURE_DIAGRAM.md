@@ -40,9 +40,9 @@ flowchart TB
 
     subgraph JudgeIsolation["5. Hard Isolated Execution Subsystem (role=judge)"]
         direction TB
-        JudgeWrapper["Judge0 Wrapper Service<br/>(Idempotent Gateway, mTLS)"]
+        JudgeWrapper["Judge Wrapper Service<br/>(Idempotent Gateway, mTLS)"]
         RabbitMQ["RabbitMQ Quorum Cluster"]
-        JudgeWorkers["Isolated Judge0 Workers<br/>(gVisor Sandbox, No Network, Strict Limits)"]
+        JudgeWorkers["Execution Engine<br/>(go-judge Sandbox, No Network, Strict Limits)"]
         JudgeDB[("Isolated Judge PostgreSQL & Engine")]
 
         JudgeWrapper --> RabbitMQ

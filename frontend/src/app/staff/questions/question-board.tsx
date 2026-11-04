@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, Search, X } from "lucide-react";
+import { CaretRight, MagnifyingGlass, X } from "@phosphor-icons/react/ssr";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Select } from "@/components/staff/form";
@@ -117,7 +117,7 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
 
       <div className="mt-6 flex flex-wrap items-center gap-3">
         <div className="relative w-full max-w-md">
-          <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-subtle" strokeWidth={1.75} />
+          <MagnifyingGlass aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-subtle" />
           <input
             type="search"
             value={query}
@@ -128,7 +128,7 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
           />
           {query && (
             <button type="button" aria-label="Clear search" onClick={() => setQuery("")} className="absolute right-2 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-md text-ink-subtle transition-colors hover:bg-hover hover:text-ink">
-              <X className="size-3.5" strokeWidth={2} />
+              <X className="size-3.5" />
             </button>
           )}
         </div>
@@ -163,7 +163,7 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
                     <button type="button" onClick={() => openFolder(crumb.id)} className="inline-flex h-8 items-center rounded-[var(--radius-control)] text-sm text-ink-muted transition-colors hover:text-ink">
                       {crumb.name}
                     </button>
-                    <ChevronRight aria-hidden className="size-3.5 text-ink-subtle" strokeWidth={1.75} />
+                    <CaretRight aria-hidden className="size-3.5 text-ink-subtle" />
                   </span>
                 ))}
                 <h2 className="text-[17px] font-semibold tracking-[-0.01em] text-ink">{open.name}</h2>
@@ -215,7 +215,7 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
                               {tab === "review" && row.forYou && <Badge tone="brand">For you</Badge>}
                               {tab === "drafts" && <Badge>{row.inReview ? "In review" : "Draft"}</Badge>}
                               {tab === "drafts" && row.kind === "coding" && row.sample + row.hidden === 0 && <Badge tone="warning">No tests</Badge>}
-                              <ChevronRight aria-hidden className="size-4 shrink-0 text-ink-subtle transition-transform group-hover:translate-x-0.5" strokeWidth={1.75} />
+                              <CaretRight aria-hidden className="size-4 shrink-0 text-ink-subtle transition-transform group-hover:translate-x-0.5" />
                             </QuestionPeek>
                           </li>
                         ))}

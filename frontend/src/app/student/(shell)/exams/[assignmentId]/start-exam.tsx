@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Download, LoaderCircle, ShieldCheck } from "lucide-react";
+import { ArrowRight, CircleNotch, DownloadSimple, ShieldCheck } from "@phosphor-icons/react/ssr";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { HonorCode } from "@/components/exam/honor-code";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import type { Attempt, CandidateAssignment, Page } from "@/lib/api-types";
 import { APIError, api } from "@/lib/client/api";
 import { formatCountdown, useNow } from "@/lib/client/use-now";
+import { uuid } from "@/lib/client/uuid";
 
 type Status = { kind: "idle" } | { kind: "starting" } | { kind: "seb" } | { kind: "error"; message: string };
 
@@ -18,7 +19,7 @@ export function StartExam({ assignment, signature }: { assignment: CandidateAssi
   const [resumeId, setResumeId] = useState<string | null>(null);
   const [honorOpen, setHonorOpen] = useState(false);
   // One key per page visit: a double click or a retry starts one attempt, not two.
-  const idempotencyKey = useRef(crypto.randomUUID());
+  const idempotencyKey = useRef(uuid());
   const attempts = `/submission/v1/tenants/${assignment.tenant_id}/attempts`;
   const opensIn = now === null ? 0 : Date.parse(assignment.available_from) - now;
   const closed = now !== null && now >= Date.parse(assignment.available_until);
@@ -58,7 +59,7 @@ export function StartExam({ assignment, signature }: { assignment: CandidateAssi
     return (
       <div className="mt-8 rounded-[var(--radius-surface)] border border-line bg-surface p-5 shadow-[var(--shadow-panel)] sm:p-6">
         <div className="flex gap-3.5">
-          <ShieldCheck className="mt-0.5 size-5 shrink-0 text-brand" strokeWidth={1.75} />
+          <ShieldCheck className="mt-0.5 size-5 shrink-0 text-brand" />
           <div>
             <h2 className="text-[15px] font-semibold text-ink">Open this exam in Safe Exam Browser</h2>
             <p className="mt-1 text-sm leading-relaxed text-ink-muted">
@@ -67,7 +68,7 @@ export function StartExam({ assignment, signature }: { assignment: CandidateAssi
             </p>
             <Button asChild variant="secondary" className="mt-4">
               <a href={`/api/seb/v1/tenants/${assignment.tenant_id}/exams/${assignment.exam_id}/launch-file`} download>
-                <Download />
+                <DownloadSimple />
                 Download launch file
               </a>
             </Button>
@@ -102,7 +103,7 @@ export function StartExam({ assignment, signature }: { assignment: CandidateAssi
         </Button>
       ) : (
         <Button size="lg" onClick={() => setHonorOpen(true)} disabled={now === null || closed || opensIn > 0 || status.kind === "starting"}>
-          {status.kind === "starting" ? <LoaderCircle className="animate-spin" /> : <>Start exam<ArrowRight /></>}
+          {status.kind === "starting" ? <CircleNotch className="animate-spin" /> : <>Start exam<ArrowRight /></>}
         </Button>
       )}
       <HonorCode

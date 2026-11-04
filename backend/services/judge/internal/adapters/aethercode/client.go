@@ -1,9 +1,9 @@
 // Package aethercode is an evaluation engine adapter for the AetherCode
 // Execution Engine (github.com/stjosephsplacements/AetherCode-Execution-Engine),
 // the college's own on-premise engine on go-judge (ADR-0028). It uses the
-// engine's run mode only: the engine executes the code and returns its
-// output, and this adapter grades it with dispatcher.OutputsMatch, so no test
-// data is stored inside the engine.
+// engine as a pure executor: each unit is one job with a single test, the
+// engine returns the full output, and this adapter grades it with
+// dispatcher.OutputsMatch, so no expected output ever reaches the engine.
 package aethercode
 
 import (
@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -26,7 +27,7 @@ import (
 )
 
 const (
-	// The engine's accepted ranges for run-mode limits.
+	// The engine's accepted ranges for per-test limits.
 	minTimeLimitMS   = 100
 	maxTimeLimitMS   = 20_000
 	minMemoryLimitKB = 16_384
@@ -85,7 +86,6 @@ type testCase struct {
 type executeRequest struct {
 	Language      string     `json:"language"`
 	SourceCode    string     `json:"source_code"`
-	Mode          string     `json:"mode"`
 	Tests         []testCase `json:"tests"`
 	TimeLimitMS   int        `json:"time_limit_ms"`
 	MemoryLimitKB int        `json:"memory_limit_kb"`
@@ -115,10 +115,9 @@ func (client *Client) Submit(ctx context.Context, req dispatcher.UnitRequest) (s
 	if err != nil {
 		return "", err
 	}
-	jobID, streamToken, err := client.createJob(ctx, executeRequest{
+	jobID, streamToken, err := client.createJob(ctx, req.IdempotencyKey, executeRequest{
 		Language:   language.engineName,
 		SourceCode: req.SourceCode,
-		Mode:       "run",
 		// The expected output stays here: this adapter compares, not the engine.
 		Tests:         []testCase{{Input: req.Stdin, ExpectedOutput: ""}},
 		TimeLimitMS:   clamp(req.TimeLimitMS*language.timeMultiplier, minTimeLimitMS, maxTimeLimitMS),
@@ -140,8 +139,83 @@ func (client *Client) Submit(ctx context.Context, req dispatcher.UnitRequest) (s
 	if len(client.verdicts) >= maxPendingVerdicts {
 		return "", fmt.Errorf("aethercode: too many verdicts awaiting poll")
 	}
-	client.verdicts[token] = verdictFor(data, req.ExpectedOutput)
+	client.verdicts[token] = verdictFor(data, 0, req.ExpectedOutput)
 	return token, nil
+}
+
+// SubmitBatch runs several units of one program as a single engine job: one
+// queue entry and one compile, with the tests running side by side. Every
+// request must have the same language, source and limits. It returns one token
+// per request, in order. As in Submit, the expected output is never sent.
+func (client *Client) SubmitBatch(ctx context.Context, requests []dispatcher.UnitRequest) ([]string, error) {
+	if len(requests) == 0 {
+		return nil, fmt.Errorf("aethercode: a batch needs at least one unit")
+	}
+	if len(requests) > dispatcher.MaxBatchUnits {
+		return nil, fmt.Errorf("aethercode: a batch holds at most %d units", dispatcher.MaxBatchUnits)
+	}
+	first := requests[0]
+	if first.SourceCode == "" {
+		return nil, fmt.Errorf("aethercode: source code is required")
+	}
+	language, err := lookupLanguage(first.Language)
+	if err != nil {
+		return nil, err
+	}
+	tests := make([]testCase, len(requests))
+	for i, req := range requests {
+		if req.Language != first.Language || req.SourceCode != first.SourceCode || req.TimeLimitMS != first.TimeLimitMS || req.MemLimitKB != first.MemLimitKB {
+			return nil, fmt.Errorf("aethercode: unit %d differs from the first in language, source or limits", i)
+		}
+		tests[i] = testCase{Input: req.Stdin}
+	}
+	jobID, streamToken, err := client.createJob(ctx, batchKey(requests), executeRequest{
+		Language:      language.engineName,
+		SourceCode:    first.SourceCode,
+		Tests:         tests,
+		TimeLimitMS:   clamp(first.TimeLimitMS*language.timeMultiplier, minTimeLimitMS, maxTimeLimitMS),
+		MemoryLimitKB: clamp(first.MemLimitKB, minMemoryLimitKB, maxMemoryLimitKB),
+	})
+	if err != nil {
+		return nil, err
+	}
+	data, err := client.awaitVerdict(ctx, jobID, streamToken)
+	if err != nil {
+		return nil, err
+	}
+	tokens := make([]string, len(requests))
+	for i := range tokens {
+		if tokens[i], err = newToken(); err != nil {
+			return nil, err
+		}
+	}
+	client.mu.Lock()
+	defer client.mu.Unlock()
+	if len(client.verdicts)+len(tokens) > maxPendingVerdicts {
+		return nil, fmt.Errorf("aethercode: too many verdicts awaiting poll")
+	}
+	for i, req := range requests {
+		client.verdicts[tokens[i]] = verdictFor(data, i, req.ExpectedOutput)
+	}
+	return tokens, nil
+}
+
+// Forget drops a verdict that will not be polled.
+func (client *Client) Forget(token string) {
+	client.mu.Lock()
+	defer client.mu.Unlock()
+	delete(client.verdicts, token)
+}
+
+// batchKey is the idempotency key of a batch: the same units give the same key,
+// so a batch submitted again after a timeout returns the original engine job.
+func batchKey(requests []dispatcher.UnitRequest) string {
+	sum := sha256.New()
+	for _, req := range requests {
+		sum.Write([]byte(req.IdempotencyKey))
+		sum.Write([]byte{0})
+	}
+	return "batch-" + hex.EncodeToString(sum.Sum(nil))[:48]
 }
 
 // Poll returns and forgets the verdict stored by Submit.
@@ -156,7 +230,9 @@ func (client *Client) Poll(_ context.Context, token string) (*dispatcher.UnitVer
 	return &verdict, nil
 }
 
-func (client *Client) createJob(ctx context.Context, request executeRequest) (string, string, error) {
+// createJob posts the unit. A non-empty idempotencyKey makes a retry after a timeout
+// or restart return the original job instead of running the unit twice.
+func (client *Client) createJob(ctx context.Context, idempotencyKey string, request executeRequest) (string, string, error) {
 	body, err := json.Marshal(request)
 	if err != nil {
 		return "", "", fmt.Errorf("aethercode: encode execute request: %w", err)
@@ -168,6 +244,9 @@ func (client *Client) createJob(ctx context.Context, request executeRequest) (st
 			return "", "", fmt.Errorf("aethercode: build execute request: %w", err)
 		}
 		httpRequest.Header.Set("Content-Type", "application/json")
+		if idempotencyKey != "" {
+			httpRequest.Header.Set("Idempotency-Key", idempotencyKey)
+		}
 		httpResponse, err := client.http.Do(httpRequest)
 		if err != nil {
 			return "", "", fmt.Errorf("aethercode: execute request failed: %w", err)
@@ -175,7 +254,7 @@ func (client *Client) createJob(ctx context.Context, request executeRequest) (st
 		responseBody, _ := io.ReadAll(io.LimitReader(httpResponse.Body, 4096))
 		_ = httpResponse.Body.Close()
 		switch httpResponse.StatusCode {
-		case http.StatusCreated:
+		case http.StatusCreated, http.StatusOK: // 200: the engine already had this idempotency key
 			var created struct {
 				JobID       string `json:"job_id"`
 				StreamToken string `json:"stream_token"`
@@ -254,15 +333,21 @@ func readVerdict(stream io.Reader) (verdictData, error) {
 	return verdictData{}, fmt.Errorf("aethercode: stream ended without a verdict")
 }
 
-// verdictFor grades the single test's output against the expected output.
-func verdictFor(data verdictData, expectedOutput string) dispatcher.UnitVerdict {
+// verdictFor grades the output of test index against its expected output.
+func verdictFor(data verdictData, index int, expectedOutput string) dispatcher.UnitVerdict {
 	if data.Verdict == "compilation_error" {
 		return dispatcher.UnitVerdict{Status: "compile_error", CompileOutput: data.CompileStderr}
 	}
-	if len(data.Results) == 0 {
+	var result *testResult
+	for i := range data.Results {
+		if data.Results[i].TestIndex == index {
+			result = &data.Results[i]
+			break
+		}
+	}
+	if result == nil {
 		return dispatcher.UnitVerdict{Status: "internal_error", Stderr: "aethercode: no test result"}
 	}
-	result := data.Results[0]
 	verdict := dispatcher.UnitVerdict{
 		Stdout:   result.Stdout,
 		Stderr:   result.Stderr,

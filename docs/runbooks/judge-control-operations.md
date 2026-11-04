@@ -4,7 +4,7 @@
 
 This runbook covers the private Judge wrapper and its
 `aether_judge_wrapper` control database. It does not authorize direct access to
-the upstream Judge0 PostgreSQL database. The wrapper database contains opaque
+the execution engine's own state. The wrapper database contains opaque
 execution references and checksums; candidate source, hidden tests, SEB keys,
 and large results stay encrypted in object storage.
 
@@ -12,10 +12,9 @@ The wrapper exposes mTLS gRPC on port `8443`. Its unauthenticated operational
 health and readiness listener is port `8080` inside the workload only; the
 Helm service deliberately exposes no external health endpoint.
 
-The foundation release has no Judge0 dispatcher worker. Production runtime
-startup requires a true `JUDGE_ENGINE_COMPATIBILITY_APPROVED` value, and engine
-work remains a blocked release phase until the gVisor gate, worker dispatch,
-node-failure, and load evidence are approved.
+Production runtime startup requires a true `JUDGE_ENGINE_COMPATIBILITY_APPROVED`
+value, and engine work remains a blocked release phase until the gVisor
+compatibility gate, worker dispatch, node-failure, and load evidence are approved.
 
 ## Deploy and migrate
 
@@ -25,7 +24,7 @@ node-failure, and load evidence are approved.
    wrapper login receives only `aether_judge_app`.
 2. Apply migrations with the service migration runner before deploying a
    wrapper version that uses them. Never run wrapper migrations against the
-   Judge0 engine database.
+   execution engine.
 3. Set the wrapper runtime secret, TLS Secret, RabbitMQ secret, image digest,
    and `tls.allowedClientSubjects`. The Helm chart refuses to render without
    them. TLS files are mounted group-readable only to the non-root wrapper
@@ -118,10 +117,10 @@ durably stored the completion.
   replica is unavailable. After automatic failover, verify the migration
   version, wrapper readiness, expired leases, and replication/WAL archival
   health before reopening admission.
-- **Judge0 engine unavailable:** do not bypass the compatibility gate. In the
-  approved dispatch phase, leave jobs durable and retry through its
-  dispatch/reconciliation path. Do not connect a platform service directly to
-  the engine database or weaken the gVisor/network boundary to restore speed.
+- **Execution engine unavailable:** do not bypass the compatibility gate. Leave
+  jobs durable and retry through the dispatch/reconciliation path. Check the
+  engine with `curl http://<engine>:5100/api/v1/health`. Never expose the engine
+  publicly or connect a platform service directly to its database.
 
 ## Retention and evidence
 

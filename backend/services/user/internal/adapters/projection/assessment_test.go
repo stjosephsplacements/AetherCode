@@ -46,6 +46,8 @@ func TestParseAssignmentSnapshotAcceptsPinnedBundleReferences(t *testing.T) {
 		"pinned":     `"evaluation_bundle_key_reference":"local:k","sample_bundle_object_key":"qbank/s.bundle","sample_bundle_checksum":"` + strings.Repeat("b", 64) + `","sample_bundle_key_reference":"local:k"`,
 		"legacy":     `"evaluation_bundle_key_reference":null,"sample_bundle_object_key":null,"sample_bundle_checksum":null,"sample_bundle_key_reference":null,"time_limit_ms":null,"memory_limit_kib":null,"supported_languages":null`,
 		"executable": `"time_limit_ms":2000,"memory_limit_kib":262144,"supported_languages":["c","python3"]`,
+		"question":   `"title":"Q","prompt_markdown":"p","kind":"mcq","choices":[{"id":"a","text":"x"}],"correct_choices":["a"],"multiple_choice":false,"choice_explanations":{"a":"because"}`,
+		"coding":     `"title":"Q","prompt_markdown":"p","kind":"coding","choices":null,"correct_choices":null,"multiple_choice":null,"choice_explanations":null`,
 	} {
 		event := messaging.Event{
 			ID: "018f4b0d-08f8-7c09-9ba7-efdf9c223421", Type: assessmentCandidateAssignmentEvent,

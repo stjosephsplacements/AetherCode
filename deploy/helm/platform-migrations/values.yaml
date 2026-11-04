@@ -17,6 +17,6 @@ global:
   judgeDbHost: judge-db
 postgresImage: postgres:18.4
 
-# Judge engine whose languages are enabled in judge.language_mappings: aethercode or judge0.
+# Judge engine whose languages are enabled in judge.language_mappings: aethercode.
 judgeEngine: aethercode
 judgeWorkerConcurrency: 32

@@ -14,8 +14,8 @@ import (
 var derivedEnv = map[string]bool{"JUDGE_DATABASE_URL": true, "AETHERCODE_ENV": true}
 
 // TestChartSetsOnlyVariablesTheJudgeReads guards against the chart and the Go
-// configuration drifting apart, which once left Judge0 impossible to enable
-// (the chart set JUDGE_ENGINE_ENDPOINT while the code read JUDGE0_BASE_URL).
+// configuration drifting apart, which once left the engine impossible to enable
+// (the chart set one variable name while the code read another).
 func TestChartSetsOnlyVariablesTheJudgeReads(t *testing.T) {
 	t.Parallel()
 	root := filepath.Join("..", "..", "..", "..", "..")

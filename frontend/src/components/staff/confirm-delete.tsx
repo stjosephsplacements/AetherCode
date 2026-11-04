@@ -1,6 +1,6 @@
 "use client";
 
-import { LoaderCircle, Trash2 } from "lucide-react";
+import { CircleNotch, Trash } from "@phosphor-icons/react/ssr";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Field, FormMessage, TextArea, TextInput, type ActionState } from "@/components/staff/form";
@@ -71,7 +71,7 @@ export function ConfirmDelete({
       <DialogTrigger asChild>
         {trigger ?? (
           <Button type="button" variant="ghost" size={size} className="text-danger hover:bg-danger-soft hover:text-danger">
-            <Trash2 />
+            <Trash />
             {label}
           </Button>
         )}
@@ -102,7 +102,7 @@ export function ConfirmDelete({
               </Button>
             </DialogClose>
             <Button type="submit" disabled={!ready || pending} className="bg-danger text-canvas hover:bg-danger/90">
-              {pending ? <LoaderCircle className="animate-spin" /> : <Trash2 />}
+              {pending ? <CircleNotch className="animate-spin" /> : <Trash />}
               {label}
             </Button>
           </div>

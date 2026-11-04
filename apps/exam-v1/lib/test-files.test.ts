@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { zip } from "./batch.ts";
+import { zip } from "./zip.ts";
 import { pairTestFiles, readZip } from "./test-files.ts";
 
 test("pairTestFiles matches common naming schemes and reports leftovers", () => {

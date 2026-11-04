@@ -44,7 +44,7 @@ export default async function StatusPage() {
       <div
         role="status"
         className={cn(
-          "mt-10 flex items-center gap-4 border px-6 py-5 font-mono shadow-[4px_4px_0_var(--ink)]",
+          "mt-10 flex items-center gap-4 border px-6 py-5 font-mono shadow-[var(--shadow-panel)]",
           healthy ? "border-success bg-success-soft" : "border-danger bg-danger-soft",
         )}
       >
@@ -59,7 +59,7 @@ export default async function StatusPage() {
         </div>
       </div>
 
-      <ul className="mt-6 divide-y divide-line overflow-hidden border border-ink bg-surface shadow-[4px_4px_0_var(--ink)]">
+      <ul className="mt-6 divide-y divide-line overflow-hidden rounded-[var(--radius-surface)] overflow-hidden border border-line-strong bg-surface shadow-[var(--shadow-panel)]">
         {checks.map((check) => (
           <li key={check.name} className="flex items-start justify-between gap-6 px-6 py-5">
             <div>

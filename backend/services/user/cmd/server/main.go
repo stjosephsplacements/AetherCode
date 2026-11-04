@@ -99,6 +99,7 @@ func run(contextValue context.Context) error {
 	if err != nil {
 		return err
 	}
+	authorizationService.WithEngine(runtime.Engine)
 	listener, err := net.Listen("tcp", runtime.GRPCAddress)
 	if err != nil {
 		return fmt.Errorf("listen for authorization gRPC: %w", err)
@@ -136,6 +137,10 @@ func run(contextValue context.Context) error {
 	authorizer, err := httpauth.New(client, "user")
 	if err != nil {
 		grpcServer.Stop()
+		return err
+	}
+	rolesService, err := app.NewRolesService(userPool, managementStore)
+	if err != nil {
 		return err
 	}
 	managementService, err := app.NewManagementService(userPool, managementStore)
@@ -343,7 +348,12 @@ func run(contextValue context.Context) error {
 		grpcServer.Stop()
 		return err
 	}
-	handler, err := httpadapter.NewHandler(serviceConfig.Name, managementService, accountService, authorizationService, readiness, authorizer)
+	publicProfiles, err := app.NewPublicProfiles(userPool)
+	if err != nil {
+		grpcServer.Stop()
+		return err
+	}
+	handler, err := httpadapter.NewHandler(serviceConfig.Name, managementService, accountService, authorizationService, readiness, authorizer, publicProfiles, httpadapter.WithRoles(rolesService))
 	if err != nil {
 		grpcServer.Stop()
 		return err

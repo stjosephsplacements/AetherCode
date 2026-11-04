@@ -1,6 +1,6 @@
 "use client";
 
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";

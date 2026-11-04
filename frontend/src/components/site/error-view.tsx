@@ -58,8 +58,8 @@ export function ErrorView({
         </h1>
         <p className="mt-4 max-w-[46ch] text-[15.5px] leading-relaxed text-ink-muted">{message}</p>
 
-        <div className="mt-8 border border-ink bg-surface font-mono text-[13px] shadow-[4px_4px_0_var(--ink)]">
-          <p className="border-b border-ink px-4 py-2 text-ink-subtle">[ request ]</p>
+        <div className="mt-8 rounded-[var(--radius-surface)] overflow-hidden border border-line-strong bg-surface font-mono text-[13px] shadow-[var(--shadow-panel)]">
+          <p className="border-b border-line-strong px-4 py-2 text-ink-subtle">Request</p>
           <div className="space-y-1 px-4 py-3">
             <p className="break-all text-ink">
               <span className="text-brand">$ </span>GET {pathname || "/"}
@@ -78,20 +78,20 @@ export function ErrorView({
             <button
               type="button"
               onClick={onRetry}
-              className="bg-brand px-4 py-2.5 text-brand-ink shadow-[3px_3px_0_var(--ink)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"
+              className="rounded-full bg-brand px-4 py-2.5 text-brand-ink shadow-[var(--shadow-panel)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"
             >
-              [ try again ]
+              Try again
             </button>
           )}
           <Link
             href="/"
             className={
               onRetry
-                ? "border border-ink px-4 py-2.5 text-ink shadow-[3px_3px_0_var(--ink)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"
-                : "bg-brand px-4 py-2.5 text-brand-ink shadow-[3px_3px_0_var(--ink)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"
+                ? "rounded-full border border-line-strong px-4 py-2.5 text-ink shadow-[var(--shadow-panel)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"
+                : "bg-brand px-4 py-2.5 text-brand-ink shadow-[var(--shadow-panel)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"
             }
           >
-            [ go to my dashboard ]
+            Go to my dashboard
           </Link>
           <button type="button" onClick={() => void copyDiagnostics()} className="px-2 py-2.5 text-ink-muted transition-colors hover:text-ink">
             {copied ? "[copied \\o/]" : "[copy diagnostic info]"}

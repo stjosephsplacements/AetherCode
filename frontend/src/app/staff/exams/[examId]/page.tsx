@@ -1,4 +1,4 @@
-import { Activity, ArrowLeft, BarChart3, Download, Eye } from "lucide-react";
+import { ArrowLeft, ChartBar, DownloadSimple, Eye, Pulse } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ActionForm, Checkbox, Field, Select, TextArea, TextInput } from "@/components/staff/form";
@@ -96,7 +96,7 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
   return (
     <>
       <Link href="/staff/exams" className="mb-6 inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink">
-        <ArrowLeft className="size-4" strokeWidth={1.75} />
+        <ArrowLeft className="size-4" />
         Exams
       </Link>
       <PageHeader
@@ -146,7 +146,7 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
             {!draft && (
               <Button asChild variant="secondary" size="sm">
                 <Link href={`/staff/exams/${examId}/monitor`}>
-                  <Activity />
+                  <Pulse />
                   Live monitor
                 </Link>
               </Button>
@@ -154,7 +154,7 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
             {!draft && (
               <Button asChild variant="secondary" size="sm">
                 <Link href={`/staff/exams/${examId}/results`}>
-                  <BarChart3 />
+                  <ChartBar />
                   Results
                 </Link>
               </Button>
@@ -424,7 +424,7 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
               <Checkbox name="enabled" defaultChecked={seb?.enabled ?? false} />
               Require Safe Exam Browser
             </label>
-            <Field label="Browser Exam Keys or Config Keys" htmlFor="seb-keys" hint="From Safe Exam Browser on a lab machine. One per line.">
+            <Field label="Extra keys (optional)" htmlFor="seb-keys" hint="The launch file below is accepted automatically. Add a Browser Exam Key or Config Key from a lab machine only if you use your own SEB setup. One per line.">
               <TextArea id="seb-keys" name="accepted_keys" defaultValue={(seb?.accepted_keys ?? []).join("\n")} className="font-mono text-xs" spellCheck={false} />
             </Field>
             <Field label="Lab networks" htmlFor="seb-networks" hint="The lab's public address or range (what a lab machine sees at whatismyip), one per line. Leave empty to allow any network.">
@@ -434,8 +434,8 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
           {seb?.enabled && (
             <Button asChild variant="secondary" size="sm" className="mt-4">
               <a href={`/api/seb/v1/tenants/${staff.tenantId}/exams/${examId}/seb-policy/launch-file`} download>
-                <Download />
-                Download launch file
+                <DownloadSimple />
+                Download SEB launch file
               </a>
             </Button>
           )}

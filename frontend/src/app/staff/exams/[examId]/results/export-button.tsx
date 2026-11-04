@@ -1,6 +1,6 @@
 "use client";
 
-import { Download } from "lucide-react";
+import { DownloadSimple } from "@phosphor-icons/react/ssr";
 import { Button } from "@/components/ui/button";
 
 export function ExportButton({ rows, filename }: { rows: string[][]; filename: string }) {
@@ -16,7 +16,7 @@ export function ExportButton({ rows, filename }: { rows: string[][]; filename: s
   }
   return (
     <Button variant="secondary" size="sm" onClick={download}>
-      <Download />
+      <DownloadSimple />
       Export CSV
     </Button>
   );

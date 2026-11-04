@@ -65,3 +65,7 @@ backup:
   schedule: "*/15 * * * *"
   retentionDays: 7
   storage: 50Gi
+
+# Set when the execution engine and go-judge run in this namespace (a single-node install).
+engineInNamespace:
+  enabled: false

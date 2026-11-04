@@ -1,4 +1,4 @@
-import { Trash2 } from "lucide-react";
+import { Trash } from "@phosphor-icons/react/ssr";
 import { Markdown } from "@/components/markdown";
 import { Badge, Panel } from "@/components/ui/card";
 import type { InterviewExperience } from "@/lib/api-types";
@@ -49,7 +49,7 @@ export function ExperienceCard({ experience }: { experience: InterviewExperience
         <form action={deleteExperience} className="mt-4">
           <input type="hidden" name="id" value={experience.id} />
           <button type="submit" className="inline-flex items-center gap-1.5 text-[13px] text-ink-muted hover:text-danger">
-            <Trash2 className="size-3.5" strokeWidth={1.75} />
+            <Trash className="size-3.5" />
             Delete my post
           </button>
         </form>

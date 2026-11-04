@@ -4,13 +4,13 @@ The Judge service is AetherCode's private execution control plane. It accepts
 idempotent, encrypted execution references; schedules work through a durable
 RabbitMQ pointer notification; and leases terminal results to the platform
 submission adapter. It is not a public code-execution API and never connects to
-the upstream Judge0 PostgreSQL database.
+the execution engine's database.
 
 The dispatcher worker is off by default (`JUDGE_DISPATCHER_ENABLED=false`). When
 enabled it reads admission pointers from RabbitMQ, submits each test unit to the
 configured evaluation engine, polls for verdicts, and writes completion records.
-The stub engine (`JUDGE_ENGINE=stub`) is available without a Judge0 installation.
-The judge0 engine requires the gVisor compatibility gate to be approved first.
+The stub engine (`JUDGE_ENGINE=stub`) is available without an execution engine.
+The `aethercode` engine requires `JUDGE_ENGINE_COMPATIBILITY_APPROVED=true`.
 
 ## Ownership
 
@@ -25,7 +25,7 @@ The service owns `aether_judge_wrapper` and the `judge` schema:
 
 Candidate source, hidden tests, SEB data, and large outputs are encrypted
 object-storage objects referenced by checksum and key. The wrapper stores no
-scores, platform foreign keys, plaintext execution material, or Judge0 engine
+scores, platform foreign keys, plaintext execution material, or execution engine
 credentials beyond its explicitly scoped runtime configuration.
 
 ## Interface and security
@@ -88,7 +88,7 @@ docker compose --env-file .judge-control.env \
   -f deploy/compose/judge-control.compose.yaml up -d
 ```
 
-The local profile does not start Judge0. Apply migrations with a local principal
+The local profile does not start the execution engine. Apply migrations with a local principal
 that can assume `aether_judge_migrator`; service runtime connections use only
 `aether_judge_app`. See [migrations](migrations/README.md) and the
 [operations runbook](../../docs/runbooks/judge-control-operations.md).
@@ -182,15 +182,12 @@ dispatcher variables are optional when `JUDGE_DISPATCHER_ENABLED=false`.
 | Variable | Default | Description |
 |---|---|---|
 | `JUDGE_DISPATCHER_ENABLED` | `false` | Set to `true` to start the RabbitMQ consumer and dispatch worker. The server starts normally when false. |
-| `JUDGE_ENGINE` | `stub` | Evaluation engine: `stub` (deterministic accept, no external deps), `judge0` or `aethercode` (both require the compatibility gate). |
+| `JUDGE_ENGINE` | `stub` | Evaluation engine: `stub` (deterministic accept, no external deps) or `aethercode` (requires the compatibility approval). |
 | `JUDGE_WORKER_CONCURRENCY` | `4` | Number of concurrent dispatch goroutines. Must be 1–32. |
 | `JUDGE_POLL_INTERVAL_MS` | `2000` | Milliseconds between engine verdict poll attempts. |
 | `JUDGE_MAX_POLL_ATTEMPTS` | `30` | Maximum poll attempts before a synthetic `internal_error` verdict is recorded (the engine never reported a terminal state — an engine/infrastructure failure, not evidence the candidate's code timed out). |
-| `JUDGE0_BASE_URL` | *(required when `JUDGE_ENGINE=judge0` and the dispatcher is enabled)* | Base URL of the Judge0 HTTP API the `judge0` engine submits to and polls. Not required for any other engine or deployment, even when `JUDGE_ENGINE_COMPATIBILITY_APPROVED=true` — that flag is independently required in production/staging regardless of engine choice. |
-| `JUDGE0_TIMEOUT_SECONDS` | `10` | Per-request HTTP timeout for the Judge0 client. Must be 1–120. |
 | `AETHERCODE_ENGINE_URL` | *(required when `JUDGE_ENGINE=aethercode` and the dispatcher is enabled)* | Base URL of the AetherCode Execution Engine, e.g. `http://host.docker.internal:5100`. |
 | `AETHERCODE_TIMEOUT_SECONDS` | `330` | Bound on one unit: queueing, compiling and running. Must be 10–900; the engine itself gives up after five minutes. |
-| `JUDGE0_AUTH_TOKEN` | *(optional)* | Bearer/auth token forwarded to Judge0 as `X-Auth-Token` on every request. Leave unset for a local/dev Judge0 instance with no auth configured. |
 
 `JUDGE_RABBITMQ_URL`, `JUDGE_STORAGE_*` and `JUDGE_KMS_LOCAL_KEY` are also
 required when `JUDGE_DISPATCHER_ENABLED=true` (RabbitMQ is already required for
@@ -207,50 +204,23 @@ memory until the next `Poll` (a verdict lost to a restart is
 `internal_error`). The engine never receives the expected output: the adapter
 grades stdout with `dispatcher.OutputsMatch`, which normalizes line endings,
 trailing whitespace per line and trailing blank lines. Language keys are the
-Judge0 adapter's (`c`, `cpp17`, `java`, `python3`, `javascript`, `go`); Java,
-Python and JavaScript get twice the unit's time limit.
-
-### The `judge0` engine
-
-`JUDGE_ENGINE=judge0` constructs a real HTTP client (`internal/adapters/judge0`)
-that submits test units to a Judge0 instance at `JUDGE0_BASE_URL` and polls for
-verdicts. It is gated behind `JUDGE_ENGINE_COMPATIBILITY_APPROVED=true`: with the
-gate unset, the dispatcher logs a warning and does not start, matching the
-`stub` engine's off-by-default posture. `JUDGE0_BASE_URL` is only required in
-this specific case (dispatcher enabled, `JUDGE_ENGINE=judge0`, gate approved) —
-`internal/adapters/judge0.NewClient` rejects an empty or invalid base URL when
-the client is constructed, so no deployment that does not actually select the
-`judge0` engine is forced to set it.
-
-The dispatcher decrypts the candidate source and each test case before they
-reach this client (see [Grading path](#grading-path)), so it receives real
-source, stdin and expected output. `Submit` still fails loudly on an empty
-source rather than submitting an empty program to Judge0.
-
-Judge0's own default execution limits (commonly `max_cpu_time_limit` around
-15 seconds and `max_memory_limit` around 128 MB) are lower than this
-platform's configured maximums (this service's migrations allow up to 60000ms
-CPU time and 2GiB memory). An operator deploying a real Judge0 instance needs
-to raise Judge0's own limits to match, or over-limit jobs will fail with a 422
-from Judge0 — which the client already surfaces as a clear error, not a
-silent failure, but is worth planning for ahead of go-live.
-
-This adapter's request/response handling is covered by `httptest`-mocked unit
-tests only. It has not been live-validated against a real Judge0 deployment —
-per the [deployment gate](#deployment-gate) above, no Judge0 instance may be
-added to the local compose stack until the gVisor compatibility evidence suite
-is approved. Do not treat `JUDGE_ENGINE_COMPATIBILITY_APPROVED=true` as
-production sign-off by itself; it must be backed by that approved evidence.
+platform's (`c`, `cpp17`, `java`, `python3`, `javascript`, `go`), mapped to the
+engine's (`c`, `cpp`, `java`, `python`, `javascript`, `go`); Java, Python and
+JavaScript get twice the unit's time limit. A job's pending units that share the same program are sent to the engine
+as one job of up to 100 tests (`SubmitBatch`): one queue entry and one compile,
+with the tests running side by side, and each unit is graded from its own
+result. Units of different programs, a single pending unit, or a failed batch
+fall back to one engine job per unit. A unit sent alone carries its id as the
+`Idempotency-Key`, so a submit repeated after a timeout returns the engine's
+original job instead of running the unit twice.
 
 ## Deployment gate
 
 The wrapper control-plane chart requires three replicas, digest-pinned images,
 mTLS client allowlisting, RabbitMQ quorum, a non-root runtime, and
-deny-by-default network policy. The separate `judge0-engine` chart remains
-disabled until the gVisor compatibility gate has produced approved evidence.
+deny-by-default network policy. The execution engine runs outside the cluster (ADR-0028).
 Production wrapper configuration also carries the fail-closed
 `JUDGE_ENGINE_COMPATIBILITY_APPROVED` value from that approval; it must be true
 before the runtime starts in production. Do not claim grading availability until
 the approved engine-dispatch phase has passed its compatibility and load gates.
-See [ADR-0009](../../docs/adr/0009-judge0-gvisor-compatibility-gate.md) and
-[`deploy/validation/judge0-gvisor`](../../deploy/validation/judge0-gvisor).
+See [ADR-0028](../../docs/adr/0028-aethercode-execution-engine.md).

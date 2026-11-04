@@ -16,7 +16,7 @@ import (
 )
 
 // Server is the concrete Judge API. Every method persists or reads wrapper
-// control-plane state; it is not a proxy to Judge0.
+// control-plane state; it is not a proxy to the execution engine.
 type Server struct {
 	judgev1.UnimplementedJudgeServiceServer
 	service *app.Service

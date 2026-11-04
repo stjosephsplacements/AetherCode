@@ -11,8 +11,8 @@ Each decision is a numbered file; new ones start from [the template](0000-templa
 | [0005](0005-platform-postgres-ha.md) | Three-node India-hosted PostgreSQL HA topology |
 | [0006](0006-signed-authz-context.md) | Signed authorization context for local RLS |
 | [0007](0007-india-residency-retention.md) | India-only residency and tenant-configurable retention |
-| [0008](0008-judge-persistence-boundary.md) | Isolate Judge wrapper persistence from the Judge0 engine |
-| [0009](0009-judge0-gvisor-compatibility-gate.md) | Block Judge0 promotion until gVisor isolation is proven |
+| [0008](0008-judge-persistence-boundary.md) | Isolate Judge wrapper persistence from the execution engine |
+| [0009](0009-judge0-gvisor-compatibility-gate.md) | Block Judge0 promotion until gVisor isolation is proven (superseded by 0060) |
 | [0010](0010-judge-control-plane-ha.md) | Use independent HA control-plane and queue clusters for Judge |
 | [0011](0011-assignment-revocation-cancellation.md) | Assignment revocation cancels nonterminal candidate work |
 | [0012](0012-gateway-seb-enforcement-boundary.md) | Fail-closed Gateway and SEB enforcement boundary |
@@ -63,3 +63,14 @@ Each decision is a numbered file; new ones start from [the template](0000-templa
 | [0057](0057-student-directory.md) | A student directory for the staff console, with account summaries and bulk account actions (accepted) |
 | [0058](0058-sub-categories-and-choice-explanations.md) | Sub-categories, and an explanation for each multiple-choice option (accepted) |
 | [0059](0059-codepro-parity.md) | Closing the remaining gaps with the reference product: branding, failed work, profile sync (proposed) |
+| [0060](0060-remove-judge0.md) | Remove Judge0; the AetherCode Execution Engine is the only engine (accepted) |
+| [0061](0061-root-and-delegated-super-admin.md) | Root and delegated super admins (accepted) |
+| [0062](0062-public-student-profile.md) | Opt-in public student profile (accepted) |
+| [0063](0063-function-only-questions.md) | Function-only questions: stubs and hidden wrappers (accepted) |
+| [0064](0064-generated-seb-config-key.md) | Generated SEB Config Key (accepted) |
+| [0065](0065-admin-console-route.md) | Admin console on its own route (accepted) |
+| [0066](0066-discord-style-rbac.md) | Discord-style roles with Gold, Silver and Bronze tiers (accepted; implementation in progress; supersedes 0055 and 0061 once the contract migration ships) |
+| [0067](0067-medallion-analytics-layers.md) | Bronze, silver and gold analytics layers (accepted; implementation in progress) |
+| [0068](0068-admin-staff-placement-areas.md) | Admin, staff and placement are separate areas (accepted) |
+| [0069](0069-question-intake-app.md) | Question intake web app for rapid problem authoring (accepted) |
+| [0070](0070-question-statement-format.md) | Question statement formatting with LaTeX mathematics (accepted) |

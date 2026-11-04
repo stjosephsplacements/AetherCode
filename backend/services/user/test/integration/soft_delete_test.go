@@ -56,7 +56,7 @@ func TestSoftDeleteFlow_EndToEnd(t *testing.T) {
 	require.NoError(t, err)
 
 	readinessFunc := func(ctx context.Context) error { return nil }
-	handler, err := httpadapter.NewHandler("user-test", service, accountService, refuseSelf{}, readinessFunc, authorizer)
+	handler, err := httpadapter.NewHandler("user-test", service, accountService, refuseSelf{}, readinessFunc, authorizer, nil)
 	require.NoError(t, err)
 
 	// Test data
@@ -160,7 +160,7 @@ func TestHardDeleteFlow_SuperAdminOnly(t *testing.T) {
 	require.NoError(t, err)
 
 	readinessFunc := func(ctx context.Context) error { return nil }
-	handler, err := httpadapter.NewHandler("user-test", service, accountService, refuseSelf{}, readinessFunc, authorizer)
+	handler, err := httpadapter.NewHandler("user-test", service, accountService, refuseSelf{}, readinessFunc, authorizer, nil)
 	require.NoError(t, err)
 
 	tenantID := uuid.New()

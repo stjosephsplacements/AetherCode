@@ -1,6 +1,6 @@
 "use client";
 
-import { LoaderCircle, Pencil } from "lucide-react";
+import { CircleNotch, PencilSimple } from "@phosphor-icons/react/ssr";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Field, FormMessage, Select, TextArea, TextInput, type ActionState } from "@/components/staff/form";
@@ -66,7 +66,7 @@ export function EditDialog({
       <DialogTrigger asChild>
         {trigger ?? (
           <Button type="button" variant="ghost" size={size}>
-            <Pencil />
+            <PencilSimple />
             {label}
           </Button>
         )}
@@ -125,7 +125,7 @@ export function EditDialog({
               </Button>
             </DialogClose>
             <Button type="submit" disabled={!ready || pending}>
-              {pending && <LoaderCircle className="animate-spin" />}
+              {pending && <CircleNotch className="animate-spin" />}
               Save changes
             </Button>
           </div>

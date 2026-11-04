@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, Moon, Sun } from "lucide-react";
+import { List, Lock, Moon, Sun } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Tooltip } from "radix-ui";
@@ -12,8 +12,8 @@ import { cn } from "@/lib/utils";
 
 export type NavGroup = { label: string; items: NavItem[] };
 
-// "/staff" is every page's parent, so it is active only on its own page.
-const isActive = (pathname: string, href: string) => pathname === href || (href !== "/staff" && pathname.startsWith(`${href}/`));
+// "/staff", "/admin" and "/placement" are every page's parent, so it is active only on its own page.
+const isActive = (pathname: string, href: string) => pathname === href || (href !== "/staff" && href !== "/admin" && href !== "/placement" && pathname.startsWith(`${href}/`));
 
 export function StaffNav({ groups, collapsed = false }: { groups: NavGroup[]; collapsed?: boolean }) {
   const pathname = usePathname();
@@ -31,7 +31,22 @@ export function StaffNav({ groups, collapsed = false }: { groups: NavGroup[]; co
               {group.items.map((item) => {
                 const active = isActive(pathname, item.href);
                 const Icon = ICONS[item.icon];
-                const link = (
+                const link = item.locked ? (
+                  <span
+                    aria-disabled="true"
+                    title={item.locked}
+                    className={cn("flex h-8 cursor-not-allowed items-center gap-2.5 rounded-[var(--radius-control)] text-[13.5px] text-ink-subtle", collapsed ? "justify-center" : "px-2.5")}
+                  >
+                    <Icon className="size-4 shrink-0" />
+                    {!collapsed && (
+                      <>
+                        {item.label}
+                        <Lock className="ml-auto size-3" />
+                      </>
+                    )}
+                    {!collapsed && <span className="sr-only">{item.locked}</span>}
+                  </span>
+                ) : (
                   <Link
                     href={item.href}
                     aria-current={active ? "page" : undefined}
@@ -44,7 +59,7 @@ export function StaffNav({ groups, collapsed = false }: { groups: NavGroup[]; co
                   >
                     {/* The orange tick marks where you are, the same mark as "now" on the overview. */}
                     {active && <span aria-hidden className={cn("absolute top-1.5 bottom-1.5 w-[2px] rounded-full bg-brand", collapsed ? "-left-2.5" : "-left-2")} />}
-                    <Icon className="size-4 shrink-0" strokeWidth={1.75} />
+                    <Icon className="size-4 shrink-0" />
                     {!collapsed && item.label}
                   </Link>
                 );
@@ -55,7 +70,7 @@ export function StaffNav({ groups, collapsed = false }: { groups: NavGroup[]; co
                         <Tooltip.Trigger asChild>{link}</Tooltip.Trigger>
                         <Tooltip.Portal>
                           <Tooltip.Content side="right" sideOffset={10} className="z-50 animate-fade rounded-md border border-line-strong bg-surface px-2 py-1 text-[12.5px] font-medium text-ink shadow-[var(--shadow-overlay)]">
-                            {item.label}
+                            {item.locked ? `${item.label}: ${item.locked}` : item.label}
                           </Tooltip.Content>
                         </Tooltip.Portal>
                       </Tooltip.Root>
@@ -109,7 +124,7 @@ export function StaffMenu({ groups, college }: { groups: NavGroup[]; college?: R
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger aria-label="Open menu" className="-ml-1.5 grid size-9 place-items-center rounded-[var(--radius-control)] text-ink-muted transition-colors hover:bg-hover hover:text-ink lg:hidden">
-        <Menu className="size-[18px]" strokeWidth={1.75} />
+        <List className="size-[18px]" />
       </DialogTrigger>
       <SheetContent title="Menu" className="w-[min(88vw,320px)]">
         {college && <div className="border-b border-line px-5 py-4">{college}</div>}
@@ -133,7 +148,7 @@ export function ThemeToggle() {
       title={`Switch to ${next} theme`}
       className="grid size-9 place-items-center rounded-[var(--radius-control)] text-ink-muted transition-[color,background-color,transform] hover:bg-hover hover:text-ink active:scale-[0.97]"
     >
-      {theme === "dark" ? <Sun className="size-[17px]" strokeWidth={1.75} /> : <Moon className="size-[17px]" strokeWidth={1.75} />}
+      {theme === "dark" ? <Sun className="size-[17px]" /> : <Moon className="size-[17px]" />}
     </button>
   );
 }

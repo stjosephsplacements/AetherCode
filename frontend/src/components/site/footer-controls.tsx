@@ -1,6 +1,6 @@
 "use client";
 
-import { Moon, Sun } from "lucide-react";
+import { Moon, Sun } from "@phosphor-icons/react/ssr";
 import { setTheme, useTheme } from "@/lib/theme";
 import { openCookieSettings } from "./consent";
 
@@ -27,7 +27,7 @@ export function CookieSettingsLink() {
   );
 }
 
-/** The theme switch as a bracketed word, for the header. */
+/** The theme switch as an icon button, for the header. */
 export function ThemeIcon() {
   const theme = useTheme();
   const next = theme === "dark" ? "light" : "dark";
@@ -36,9 +36,9 @@ export function ThemeIcon() {
       type="button"
       onClick={() => setTheme(next)}
       aria-label={`Switch to ${next} theme`}
-      className="font-mono text-ink-muted transition-colors hover:text-ink"
+      className="grid size-8 place-items-center rounded-full text-ink-muted transition-colors hover:bg-hover hover:text-ink"
     >
-      [{next}]
+      {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
     </button>
   );
 }

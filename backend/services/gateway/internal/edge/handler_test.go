@@ -316,3 +316,35 @@ func TestHandlerRefusesRequestsFromOutsideTheLabNetwork(t *testing.T) {
 		t.Fatalf("status = %d, body = %s; want 403 naming the lab network", recorder.Code, recorder.Body.String())
 	}
 }
+
+// Only a GET of one public profile by slug is anonymous in the user service; everything else there needs a sign-in.
+func TestHandlerAllowsOnlyPublicProfileReadsAnonymously(t *testing.T) {
+	var paths []string
+	upstream := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		paths = append(paths, request.URL.Path)
+		writer.WriteHeader(http.StatusNoContent)
+	}))
+	defer upstream.Close()
+	verifier := &testVerifier{claims: authn.Claims{Subject: "11111111-1111-4111-8111-111111111111"}}
+	handler := newTestHandler(t, map[string]*url.URL{"user": mustURL(t, upstream.URL)}, verifier, nil, nil)
+
+	for _, test := range []struct {
+		method, path string
+		want         int
+	}{
+		{http.MethodGet, "/api/user/v1/public/profiles/asha-menon", http.StatusNoContent},
+		{http.MethodGet, "/api/user/v1/public/profiles/ab", http.StatusUnauthorized},
+		{http.MethodGet, "/api/user/v1/public/profiles/asha/extra", http.StatusUnauthorized},
+		{http.MethodPut, "/api/user/v1/public/profiles/asha-menon", http.StatusUnauthorized},
+		{http.MethodGet, "/api/user/v1/tenants/11111111-1111-4111-8111-111111111111/students", http.StatusUnauthorized},
+	} {
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, proxyRequest(test.method, test.path))
+		if recorder.Code != test.want {
+			t.Errorf("%s %s = %d, want %d", test.method, test.path, recorder.Code, test.want)
+		}
+	}
+	if len(paths) != 1 || verifier.calls.Load() != 0 {
+		t.Fatalf("upstream calls = %v, verifier calls = %d; want one anonymous call", paths, verifier.calls.Load())
+	}
+}

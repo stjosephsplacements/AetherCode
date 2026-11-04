@@ -52,6 +52,15 @@ func (w *Worker) DispatchJob(ctx context.Context, jobID string) error {
 		return nil
 	}
 
+	batched := w.submitBatches(ctx, job)
+	if engine, ok := w.engine.(BatchEngine); ok {
+		// Release any batch verdict that was never polled (an error ended the job early).
+		defer func() {
+			for _, token := range batched {
+				engine.Forget(token)
+			}
+		}()
+	}
 	compileFailed := false
 	for _, unit := range job.Units {
 		var output *evalbundle.UnitOutput
@@ -62,12 +71,18 @@ func (w *Worker) DispatchJob(ctx context.Context, jobID string) error {
 		// remaining units cannot behave differently; record them without
 		// spending engine time.
 		if compileFailed {
+			if token, ok := batched[unit.ID]; ok {
+				w.engine.(BatchEngine).Forget(token)
+			}
 			if err := w.store.RecordVerdict(ctx, unit.ID, UnitVerdict{Status: "compile_error"}, output); err != nil {
 				return fmt.Errorf("record verdict for unit %s: %w", unit.ID, err)
 			}
 			continue
 		}
 		token := unit.Token
+		if token == "" {
+			token = batched[unit.ID]
+		}
 		if token == "" {
 			submitted, submitErr := w.engine.Submit(ctx, UnitRequest{
 				Language:       unit.Language,
@@ -76,6 +91,7 @@ func (w *Worker) DispatchJob(ctx context.Context, jobID string) error {
 				TimeLimitMS:    unit.TimeLimitMS,
 				MemLimitKB:     unit.MemLimitKB,
 				ExpectedOutput: unit.ExpectedOutput,
+				IdempotencyKey: unit.ID,
 			})
 			if submitErr != nil {
 				return fmt.Errorf("submit unit %s: %w", unit.ID, submitErr)
@@ -105,13 +121,78 @@ func (w *Worker) DispatchJob(ctx context.Context, jobID string) error {
 	return nil
 }
 
+// submitBatches sends a job's pending units to a BatchEngine in as few engine
+// jobs as possible and returns the token of each unit it submitted, by unit id.
+// The engine then compiles the program once and runs the tests side by side
+// instead of one engine job per test. It does nothing, and the units go one by
+// one as before, when the engine has no batch support, when fewer than two
+// units are pending, or when a batch fails (the error is logged and the units
+// that did not get a token are submitted individually).
+func (w *Worker) submitBatches(ctx context.Context, job *DispatchJob) map[string]string {
+	engine, ok := w.engine.(BatchEngine)
+	if !ok {
+		return nil
+	}
+	var pending []DispatchUnit
+	for _, unit := range job.Units {
+		if unit.Token == "" {
+			pending = append(pending, unit)
+		}
+	}
+	if len(pending) < 2 || !sameProgram(pending) {
+		return nil
+	}
+	tokens := make(map[string]string, len(pending))
+	for start := 0; start < len(pending); start += MaxBatchUnits {
+		chunk := pending[start:min(start+MaxBatchUnits, len(pending))]
+		requests := make([]UnitRequest, len(chunk))
+		for i, unit := range chunk {
+			requests[i] = UnitRequest{
+				Language:       unit.Language,
+				SourceCode:     unit.SourceCode,
+				Stdin:          unit.Stdin,
+				TimeLimitMS:    unit.TimeLimitMS,
+				MemLimitKB:     unit.MemLimitKB,
+				ExpectedOutput: unit.ExpectedOutput,
+				IdempotencyKey: unit.ID,
+			}
+		}
+		submitted, err := engine.SubmitBatch(ctx, requests)
+		if err != nil || len(submitted) != len(chunk) {
+			w.logger.Warn("dispatch: batch submit failed; submitting the units one by one", "job_id", job.ID, "units", len(chunk), "err", err)
+			continue
+		}
+		for i, unit := range chunk {
+			if err := w.store.RecordToken(ctx, unit.ID, submitted[i]); err != nil {
+				w.logger.Warn("dispatch: could not record a batch token", "unit_id", unit.ID, "err", err)
+				engine.Forget(submitted[i])
+				continue
+			}
+			tokens[unit.ID] = submitted[i]
+		}
+	}
+	return tokens
+}
+
+// sameProgram reports whether every unit runs the same source in the same
+// language under the same limits, which is what one engine job requires.
+func sameProgram(units []DispatchUnit) bool {
+	first := units[0]
+	for _, unit := range units[1:] {
+		if unit.Language != first.Language || unit.SourceCode != first.SourceCode || unit.TimeLimitMS != first.TimeLimitMS || unit.MemLimitKB != first.MemLimitKB {
+			return false
+		}
+	}
+	return true
+}
+
 // pollUntilDone polls the engine until it returns a non-nil terminal verdict
 // or MaxPollAttempts is exhausted. On exhaustion, it returns a synthetic
 // internal_error verdict so the job transitions to a terminal state rather
 // than stalling indefinitely. internal_error (not time_limit_exceeded) is
 // used deliberately: poll exhaustion means the engine never reported a
-// terminal state at all, which is an engine/infrastructure failure (e.g. a
-// Judge0 outage), not evidence that the candidate's code ran too long — a
+// terminal state at all, which is an engine/infrastructure failure (e.g. an
+// engine outage), not evidence that the candidate's code ran too long — a
 // real TLE is reported by the engine itself as a terminal verdict.
 func (w *Worker) pollUntilDone(ctx context.Context, token string) (*UnitVerdict, error) {
 	for attempt := 0; attempt < w.runtime.MaxPollAttempts; attempt++ {

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDownAZ, ArrowUpAZ, Download, KeyRound, LoaderCircle, ListFilter, Search, UserRoundX, X } from "lucide-react";
+import { CircleNotch, DownloadSimple, FunnelSimple, Key, MagnifyingGlass, SortAscending, SortDescending, UserMinus, X } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Popover } from "radix-ui";
@@ -242,7 +242,7 @@ export function Roster({ rows, several, actions }: { rows: StudentRow[]; several
               </td>
               <td className="px-4 py-2.5">
                 <div className="flex items-center justify-end gap-1">
-                  <StudentActions principalId={student.principalId} username={student.username} collegeId={student.tenantId} />
+                  <StudentActions principalId={student.principalId} username={student.username} collegeId={student.tenantId} status={student.status} />
                   <EditDialog
                     title="Edit student"
                     description="The roll number must be unique in this college. Name, email and phone belong to the account."
@@ -300,7 +300,7 @@ export function Roster({ rows, several, actions }: { rows: StudentRow[]; several
         {quick("department", "Department", "All departments")}
         {quick("placement", "Placement department", "All placements")}
         <div className="relative min-w-52 flex-1 sm:max-w-xs">
-          <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-subtle" strokeWidth={1.75} />
+          <MagnifyingGlass aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-subtle" />
           <input
             type="search"
             value={query}
@@ -314,7 +314,7 @@ export function Roster({ rows, several, actions }: { rows: StudentRow[]; several
         <Popover.Root>
           <Popover.Trigger asChild>
             <Button variant="secondary" size="sm">
-              <ListFilter />
+              <FunnelSimple />
               More filters
               {filterCount > 0 && <span className="rounded-full bg-brand-soft px-1.5 font-mono text-[11px] text-brand">{filterCount}</span>}
             </Button>
@@ -352,13 +352,13 @@ export function Roster({ rows, several, actions }: { rows: StudentRow[]; several
             <option value="name">Name</option>
           </Select>
           <Button variant="ghost" size="icon" aria-label={descending ? "Sorted descending" : "Sorted ascending"} onClick={() => setDescending((current) => !current)}>
-            {descending ? <ArrowUpAZ /> : <ArrowDownAZ />}
+            {descending ? <SortDescending /> : <SortAscending />}
           </Button>
         </div>
 
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <Button variant="secondary" size="sm" onClick={exportCsv} disabled={shown.length === 0}>
-            <Download />
+            <DownloadSimple />
             Export
           </Button>
           {actions}
@@ -372,7 +372,7 @@ export function Roster({ rows, several, actions }: { rows: StudentRow[]; several
 
       {shown.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-[var(--radius-surface)] border border-dashed border-line-strong px-6 py-16 text-center">
-          <span aria-hidden className="grid size-11 place-items-center rounded-full bg-hover text-ink-subtle"><UserRoundX className="size-5" strokeWidth={1.75} /></span>
+          <span aria-hidden className="grid size-11 place-items-center rounded-full bg-hover text-ink-subtle"><UserMinus className="size-5" /></span>
           {rows.length === 0 ? (
             <>
               <p className="text-[15px] font-medium text-ink">No students yet</p>
@@ -428,7 +428,7 @@ export function Roster({ rows, several, actions }: { rows: StudentRow[]; several
             <Button variant="secondary" size="sm" disabled={busy} onClick={() => run(() => bulkSetStatus(targets(), "active"))}>Enable</Button>
             <Button variant="secondary" size="sm" disabled={busy} onClick={() => run(() => bulkSetStatus(targets(), "disabled"))}>Disable</Button>
             <Button variant="secondary" size="sm" disabled={busy} onClick={() => setConfirmReset(true)}>
-              {busy ? <LoaderCircle className="animate-spin" /> : <KeyRound />}
+              {busy ? <CircleNotch className="animate-spin" /> : <Key />}
               Reset passwords
             </Button>
             <Button variant="ghost" size="icon" aria-label="Clear selection" onClick={() => setSelected(new Set())}>
@@ -445,7 +445,7 @@ export function Roster({ rows, several, actions }: { rows: StudentRow[]; several
               <Button type="button" variant="ghost">Cancel</Button>
             </DialogClose>
             <Button type="button" onClick={() => { setConfirmReset(false); run(() => bulkResetPasswords(targets())); }}>
-              <KeyRound />
+              <Key />
               Reset passwords
             </Button>
           </div>

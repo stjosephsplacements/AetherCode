@@ -1,6 +1,6 @@
 # Submission
 
-Submission owns the durable candidate-attempt record: attempt state, append-only answer revisions, immutable evaluation requests, Judge receipts, and final score summaries. It admits graded work to the private Judge wrapper over mTLS (it never calls Judge0 itself) and it never stores source code, hidden tests, SEB material, or large output in PostgreSQL. Those payloads are encrypted object-storage references with SHA-256 checksums.
+Submission owns the durable candidate-attempt record: attempt state, append-only answer revisions, immutable evaluation requests, Judge receipts, and final score summaries. It admits graded work to the private Judge wrapper over mTLS (it never calls the execution engine itself) and it never stores source code, hidden tests, SEB material, or large output in PostgreSQL. Those payloads are encrypted object-storage references with SHA-256 checksums.
 
 Candidate API:
 

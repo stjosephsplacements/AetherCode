@@ -12,6 +12,7 @@ import (
 
 	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
 	"github.com/aethercode/aethercode/libs/pkg/database"
+	"github.com/aethercode/aethercode/libs/pkg/rbac"
 )
 
 var (
@@ -60,6 +61,18 @@ type Assignment struct {
 	ScopeKind string
 	TenantID  string
 	ScopeID   string
+	// Delegated is a super_admin that someone else granted. Only the root
+	// administrator, who granted itself, holds the platform's blanket policy;
+	// a delegated one holds just the permissions it was given (ADR-0061).
+	Delegated bool
+	// Perms are the permission bits of the assignment's role (ADR-0066); HasPerms is false when
+	// the role rows were not loaded or the assignment has no matching role.
+	Perms    rbac.Perms
+	HasPerms bool
+}
+
+func (assignment Assignment) isRoot() bool {
+	return assignment.Role == centralauthz.RoleSuperAdmin && assignment.ScopeKind == "platform" && !assignment.Delegated
 }
 
 // Snapshot is one current, non-cached view of the canonical policy state.
@@ -72,6 +85,8 @@ type Snapshot struct {
 	OwnedCandidateAssignments    map[string]struct{}
 	// Grants are the per-person permissions that add to the role's (ADR-0055).
 	Grants []Grant
+	// Flags maps a permission flag key to its bit index; loaded with the role bits.
+	Flags map[string]int
 }
 
 // Store supplies one authorization snapshot. Its adapter authenticates as the
@@ -102,6 +117,8 @@ type SnapshotQuery struct {
 	TenantID     string
 	ResourceType string
 	ResourceID   string
+	// RoleBits asks for the role bit sets and the flag registry (shadow and bitset engines).
+	RoleBits bool
 }
 
 // Decision is returned to the gRPC adapter. Capabilities are issued only for
@@ -158,8 +175,8 @@ var routes = map[string]route{
 	},
 	"user": {
 		Audience: "aether_users", ActionPrefix: "user", ResourcePrefix: "users",
-		OptionalTenantResources: resourceSet("role_assignments", "placement_department_memberships", "permission_grants"),
-		Resources:               resourceSet("staff_audit", "permission_grants", "accounts", "profiles", "students", "student_department_memberships", "current_student_affiliations", "student_batch_affiliations", "mentor_batch_assignments", "role_assignments", "placement_department_memberships"),
+		OptionalTenantResources: resourceSet("role_assignments", "placement_department_memberships", "permission_grants", "roles"),
+		Resources:               resourceSet("staff_audit", "roles", "role_overwrites", "permission_grants", "accounts", "profiles", "students", "student_department_memberships", "current_student_affiliations", "student_batch_affiliations", "mentor_batch_assignments", "role_assignments", "placement_department_memberships"),
 	},
 	"question-bank": {
 		Audience: "aether_qbank", ActionPrefix: "qbank", ResourcePrefix: "qbank", Global: true, StaffAuthoring: true,
@@ -203,7 +220,14 @@ type Service struct {
 	keyring                   *centralauthz.Keyring
 	identityAssertionVerifier IdentityAssertionVerifier
 	requireIdentityAssertion  bool
+	engine                    Engine
 	now                       func() time.Time
+}
+
+// WithEngine selects the authorization model; the default is Casbin.
+func (service *Service) WithEngine(engine Engine) *Service {
+	service.engine = engine
+	return service
 }
 
 func NewService(
@@ -247,6 +271,7 @@ func (service *Service) Authorize(contextValue context.Context, request Request)
 		TenantID:     validated.TenantID,
 		ResourceType: validated.ResourceType,
 		ResourceID:   validated.ResourceID,
+		RoleBits:     service.engine.usesRoleBits(),
 	})
 	if err != nil {
 		return Decision{}, fmt.Errorf("load canonical authorization snapshot: %w", err)
@@ -265,7 +290,7 @@ func (service *Service) Authorize(contextValue context.Context, request Request)
 	if validated.TargetService == "user" && validated.ResourceType == "permission_grants" && validated.Action != "read" {
 		permitted := false
 		for _, assignment := range snapshot.Assignments {
-			if (assignment.Role == centralauthz.RoleSuperAdmin && assignment.ScopeKind == "platform") ||
+			if assignment.isRoot() ||
 				(assignment.Role == centralauthz.RoleCollegeAdmin && assignment.ScopeKind == "college" && validated.TenantID != "" && assignment.TenantID == validated.TenantID) {
 				permitted = true
 				break
@@ -290,9 +315,25 @@ func (service *Service) Authorize(contextValue context.Context, request Request)
 		) {
 			continue
 		}
+		// A delegated super admin has no blanket policy: only what is internal or its own
+		// (resources the permission editor never lists) comes from the role; the rest from grants.
+		if assignment.Role == centralauthz.RoleSuperAdmin && assignment.Delegated {
+			if _, own := unlistedResources[validated.TargetService+"."+validated.ResourceType]; !own {
+				continue
+			}
+		}
 		allowed, enforceErr := engine.Authorize(assignment.Role, assignment.ScopeKind, casbinResource, validated.Action)
 		if enforceErr != nil {
 			return Decision{}, fmt.Errorf("evaluate canonical Casbin policy: %w", enforceErr)
+		}
+		if service.engine.usesRoleBits() {
+			bits := bitsAllow(snapshot.Flags, assignment, validated)
+			if bits != allowed {
+				logShadowDifference(validated, assignment, allowed, bits)
+			}
+			if service.engine == EngineBitset {
+				allowed = bits
+			}
 		}
 		if allowed {
 			matchingScopes = append(matchingScopes, Scope{Kind: assignment.ScopeKind, ID: assignment.ScopeID})
@@ -435,6 +476,12 @@ func assignmentApplies(
 		// The audit log of staff actions is for college administrators only
 		// (ADR-0043), however broad a department's policy is.
 		if request.ResourceType == "staff_audit" && assignment.Role != centralauthz.RoleCollegeAdmin {
+			return false
+		}
+		// Roles and overwrites belong to college administrators, and to custom roles that hold the
+		// permission (the role bits decide; Casbin has no rule for a custom role).
+		if (request.ResourceType == "roles" || request.ResourceType == "role_overwrites") &&
+			assignment.Role != centralauthz.RoleCollegeAdmin && assignment.Role != centralauthz.RoleCustom {
 			return false
 		}
 		return request.TenantID != "" && assignment.TenantID == request.TenantID

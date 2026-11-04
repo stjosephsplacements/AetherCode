@@ -25,7 +25,7 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
         {{- if .Values.engine.enabled }}
-        # The approval record for the Judge0 compatibility gate (runbook).
+        # The approval record for the execution engine compatibility gate (runbook).
         aethercode.dev/engine-compatibility-evidence: {{ .Values.engine.compatibilityEvidenceRef | quote }}
         {{- end }}
       {{- end }}
@@ -91,13 +91,6 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.runtimeSecret.name }}
                   key: {{ .Values.runtimeSecret.rabbitMQURLKey }}
-            {{- if .Values.engine.enabled }}
-            - name: JUDGE0_AUTH_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.engine.authSecretName }}
-                  key: {{ .Values.engine.authTokenKey }}
-            {{- end }}
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true

@@ -423,11 +423,6 @@
     --font-mono: "Departure Mono", ui-monospace, monospace;
     font-family: var(--font-sans);
   }
-  /* ASCII has no curves: every corner in the scope is square, utilities included. */
-  .ascii,
-  .ascii * {
-    border-radius: 0 !important;
-  }
   .ascii .heading,
   .ascii .display,
   .ascii [data-statement] {
@@ -438,7 +433,8 @@
   .marker {
     background: var(--brand);
     color: var(--brand-ink);
-    padding: 0.04em 0.22em;
+    border-radius: 0.2em;
+    padding: 0.04em 0.28em;
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
   }
@@ -501,3 +497,52 @@ html:has(.ascii)::-webkit-scrollbar {
 .ascii .prose-doc ul > li { position: relative; padding-left: 1.4em; }
 .ascii .prose-doc ul > li::before { content: "-"; position: absolute; left: 0; font-family: var(--font-mono); color: var(--accent); }
 .ascii .prose-doc a { text-decoration-color: var(--accent); text-decoration-thickness: 1.5px; }
+
+@keyframes flow-fill {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+@keyframes flow-press {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-brand) 50%, transparent); }
+  50% { transform: scale(0.94); }
+  100% { transform: scale(1); box-shadow: 0 0 0 10px transparent; }
+}
+@keyframes flow-bar {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+/* Scrollbars in the app: square, thin, hairline track and an ink thumb that turns orange on hover.
+   The public pages keep theirs hidden (html:has(.ascii) above). */
+@supports not selector(::-webkit-scrollbar) {
+  html:not(:has(.ascii)),
+  html:not(:has(.ascii)) * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--ink-subtle) transparent;
+  }
+}
+html:not(:has(.ascii))::-webkit-scrollbar,
+html:not(:has(.ascii)) *::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+  background: transparent;
+}
+html:not(:has(.ascii))::-webkit-scrollbar-track,
+html:not(:has(.ascii)) *::-webkit-scrollbar-track {
+  background: transparent;
+  border-left: 1px solid var(--line);
+}
+html:not(:has(.ascii))::-webkit-scrollbar-thumb,
+html:not(:has(.ascii)) *::-webkit-scrollbar-thumb {
+  background: var(--ink-subtle);
+  border: 2px solid var(--canvas);
+  border-radius: 0;
+}
+html:not(:has(.ascii))::-webkit-scrollbar-thumb:hover,
+html:not(:has(.ascii)) *::-webkit-scrollbar-thumb:hover {
+  background: var(--brand);
+}
+html:not(:has(.ascii))::-webkit-scrollbar-corner,
+html:not(:has(.ascii)) *::-webkit-scrollbar-corner {
+  background: transparent;
+}
