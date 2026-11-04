@@ -28,13 +28,14 @@ var (
 // Claims are the identity facts authorized by the Identity service. Times use
 // Unix seconds because that is the interoperable JWT representation.
 type Claims struct {
-	Issuer    string   `json:"iss"`
-	Audience  []string `json:"aud"`
-	Subject   string   `json:"sub"`
-	TokenID   string   `json:"jti"`
-	IssuedAt  int64    `json:"iat"`
-	NotBefore int64    `json:"nbf"`
-	ExpiresAt int64    `json:"exp"`
+	Issuer       string   `json:"iss"`
+	Audience     []string `json:"aud"`
+	Subject      string   `json:"sub"`
+	TokenID      string   `json:"jti"`
+	IssuedAt     int64    `json:"iat"`
+	NotBefore    int64    `json:"nbf"`
+	ExpiresAt    int64    `json:"exp"`
+	MFAVerifiedAt *int64  `json:"mfa_vat,omitempty"`
 }
 
 type header struct {
@@ -97,7 +98,9 @@ func ParsePrivateKey(encoded string) (ed25519.PrivateKey, error) {
 }
 
 // Issue produces a compact JWS assertion with a bounded lifetime.
-func (signer *Signer) Issue(subject, tokenID string, issuedAt time.Time, lifetime time.Duration) (string, Claims, error) {
+// mfaVerifiedAt, when non-nil, stamps when the bearer last completed MFA;
+// it must not be after issuedAt or more than 15 minutes before it.
+func (signer *Signer) Issue(subject, tokenID string, issuedAt time.Time, lifetime time.Duration, mfaVerifiedAt *time.Time) (string, Claims, error) {
 	if signer == nil {
 		return "", Claims{}, fmt.Errorf("identity assertion signer is nil")
 	}
@@ -110,9 +113,19 @@ func (signer *Signer) Issue(subject, tokenID string, issuedAt time.Time, lifetim
 		return "", Claims{}, fmt.Errorf("identity assertion lifetime must be between zero and fifteen minutes")
 	}
 	issuedAt = issuedAt.UTC().Truncate(time.Second)
+	var mfaUnix *int64
+	if mfaVerifiedAt != nil {
+		t := mfaVerifiedAt.UTC().Truncate(time.Second)
+		if t.After(issuedAt) || t.Before(issuedAt.Add(-15*time.Minute)) {
+			return "", Claims{}, fmt.Errorf("identity assertion MFA timestamp is out of range")
+		}
+		unix := t.Unix()
+		mfaUnix = &unix
+	}
 	claims := Claims{
 		Issuer: signer.issuer, Audience: []string{signer.audience}, Subject: subject, TokenID: tokenID,
 		IssuedAt: issuedAt.Unix(), NotBefore: issuedAt.Unix(), ExpiresAt: issuedAt.Add(lifetime).Unix(),
+		MFAVerifiedAt: mfaUnix,
 	}
 	encodedHeader, err := encodeJSON(header{Algorithm: algorithm, Type: tokenType, KeyID: signer.keyID})
 	if err != nil {

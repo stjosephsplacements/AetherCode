@@ -51,11 +51,15 @@ func (server *Server) Authorize(contextValue context.Context, request *authzv1.A
 	if err != nil {
 		var validationError *app.ValidationError
 		var authenticationError app.AuthenticationError
+		var mfaRequired app.MFARequiredError
 		if errors.As(err, &validationError) {
 			return nil, status.Error(codes.InvalidArgument, validationError.Error())
 		}
 		if errors.As(err, &authenticationError) {
 			return nil, status.Error(codes.Unauthenticated, authenticationError.Error())
+		}
+		if errors.As(err, &mfaRequired) {
+			return nil, status.Error(codes.PermissionDenied, mfaRequired.Error())
 		}
 		return nil, status.Error(codes.Unavailable, fmt.Sprintf("authorization decision unavailable: %v", err))
 	}

@@ -1,5 +1,4 @@
 {{- if .Values.networkPolicy.enabled }}
-{{- /* Ingress only: from the named platform services, from anything in the listed namespaces, and from the monitoring scraper on the HTTP port. */}}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -10,7 +9,11 @@ spec:
   podSelector:
     matchLabels:
       {{- include "platform-service.selectorLabels" . | nindent 6 }}
-  policyTypes: ["Ingress"]
+  policyTypes:
+    - Ingress
+    {{- if .Values.networkPolicy.egress.enabled }}
+    - Egress
+    {{- end }}
   ingress:
     {{- range .Values.networkPolicy.allowFrom }}
     - from:
@@ -32,4 +35,62 @@ spec:
             matchLabels:
               kubernetes.io/metadata.name: {{ . | quote }}
     {{- end }}
+  {{- if .Values.networkPolicy.egress.enabled }}
+  egress:
+    {{- /* DNS */ -}}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              {{- toYaml .Values.networkPolicy.egress.dnsNamespaceLabels | nindent 14 }}
+          podSelector:
+            matchLabels:
+              {{- toYaml .Values.networkPolicy.egress.dnsPodLabels | nindent 14 }}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    {{- /* Postgres */ -}}
+    {{- if .Values.networkPolicy.egress.postgres.enabled }}
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: aethercode
+              app.kubernetes.io/component: postgres
+      ports:
+        - protocol: TCP
+          port: {{ .Values.networkPolicy.egress.postgres.port }}
+    {{- end }}
+    {{- /* NATS */ -}}
+    {{- if .Values.networkPolicy.egress.nats.enabled }}
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: aethercode
+              app.kubernetes.io/name: nats
+      ports:
+        - protocol: TCP
+          port: {{ .Values.networkPolicy.egress.nats.port }}
+    {{- end }}
+    {{- /* User service gRPC (authorization) */ -}}
+    {{- if .Values.networkPolicy.egress.userGrpc.enabled }}
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: aethercode
+              app.kubernetes.io/name: user
+      ports:
+        - protocol: TCP
+          port: {{ .Values.networkPolicy.egress.userGrpc.port }}
+    {{- end }}
+    {{- /* Per-service extra egress rules */ -}}
+    {{- range .Values.networkPolicy.egress.extraRules }}
+    - to:
+        {{- toYaml .to | nindent 8 }}
+      {{- if .ports }}
+      ports:
+        {{- toYaml .ports | nindent 8 }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
 {{- end }}

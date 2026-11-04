@@ -13,7 +13,7 @@ func TestUnverifiedSubjectExtractsOnlySyntacticSubject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSigner() error = %v", err)
 	}
-	token, _, err := signer.Issue("019b11a0-0000-7000-8000-000000000001", "019b11a0-0000-7000-8000-000000000002", time.Now(), time.Minute)
+	token, _, err := signer.Issue("019b11a0-0000-7000-8000-000000000001", "019b11a0-0000-7000-8000-000000000002", time.Now(), time.Minute, nil)
 	if err != nil {
 		t.Fatalf("Issue() error = %v", err)
 	}

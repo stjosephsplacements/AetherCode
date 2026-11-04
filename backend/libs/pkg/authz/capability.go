@@ -7,14 +7,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 )
 
 const (
-	capabilityPrefix     = "aether-authz-context-v2"
+	capabilityPrefix     = "aether-authz-context-v3"
 	capabilityTTL        = 5 * time.Second
 	capabilityTimeFormat = "2006-01-02T15:04:05.000000Z"
+	maxNodes             = 64
 )
 
 var (
@@ -37,9 +39,13 @@ type Capability struct {
 	Decision      string
 	Action        string
 	Resource      string
-	IssuedAt      time.Time
-	ExpiresAt     time.Time
-	Signature     []byte
+	// Nodes are the department/batch scope IDs the actor's matching
+	// assignments cover. They are sorted, deduplicated, and signed into the
+	// HMAC so downstream RLS can enforce sub-tenant boundaries.
+	Nodes     []string
+	IssuedAt  time.Time
+	ExpiresAt time.Time
+	Signature []byte
 }
 
 // SigningKey is supplied only to the canonical authorization service through
@@ -62,18 +68,19 @@ type signingKeyConfig struct {
 }
 
 type encodedCapability struct {
-	Audience      string `json:"audience"`
-	KeyID         string `json:"key_id"`
-	CapabilityID  string `json:"capability_id"`
-	ActorID       string `json:"actor_id"`
-	TenantID      string `json:"tenant_id"`
-	AuthzRevision int64  `json:"authz_revision"`
-	Decision      string `json:"decision"`
-	Action        string `json:"action"`
-	Resource      string `json:"resource"`
-	IssuedAt      string `json:"issued_at"`
-	ExpiresAt     string `json:"expires_at"`
-	Signature     string `json:"signature"`
+	Audience      string   `json:"audience"`
+	KeyID         string   `json:"key_id"`
+	CapabilityID  string   `json:"capability_id"`
+	ActorID       string   `json:"actor_id"`
+	TenantID      string   `json:"tenant_id"`
+	AuthzRevision int64    `json:"authz_revision"`
+	Decision      string   `json:"decision"`
+	Action        string   `json:"action"`
+	Resource      string   `json:"resource"`
+	Nodes         []string `json:"nodes,omitempty"`
+	IssuedAt      string   `json:"issued_at"`
+	ExpiresAt     string   `json:"expires_at"`
+	Signature     string   `json:"signature"`
 }
 
 // ParseKeyring decodes AUTHZ_CAPABILITY_KEYS. The value is a JSON array of
@@ -138,6 +145,7 @@ func (keyring *Keyring) Issue(
 	authzRevision int64,
 	capabilityID string,
 	action, resource string,
+	nodes []string,
 	now time.Time,
 ) (Capability, error) {
 	if keyring == nil {
@@ -158,6 +166,7 @@ func (keyring *Keyring) Issue(
 		Decision:      "allow",
 		Action:        strings.TrimSpace(action),
 		Resource:      strings.TrimSpace(resource),
+		Nodes:         normalizeNodes(nodes),
 		IssuedAt:      issuedAt,
 		ExpiresAt:     issuedAt.Add(capabilityTTL),
 	}
@@ -185,6 +194,7 @@ func (capability Capability) Encode() (string, error) {
 		Decision:      capability.Decision,
 		Action:        capability.Action,
 		Resource:      capability.Resource,
+		Nodes:         capability.Nodes,
 		IssuedAt:      capabilityTimestamp(capability.IssuedAt),
 		ExpiresAt:     capabilityTimestamp(capability.ExpiresAt),
 		Signature:     base64.RawURLEncoding.EncodeToString(capability.Signature),
@@ -229,6 +239,7 @@ func DecodeCapability(encoded string, now time.Time) (Capability, error) {
 		Decision:      raw.Decision,
 		Action:        raw.Action,
 		Resource:      raw.Resource,
+		Nodes:         normalizeNodes(raw.Nodes),
 		IssuedAt:      issuedAt,
 		ExpiresAt:     expiresAt,
 		Signature:     signature,
@@ -253,6 +264,7 @@ func (capability Capability) CanonicalPayload() string {
 		capability.Decision,
 		capability.Action,
 		capability.Resource,
+		strings.Join(capability.Nodes, ","),
 		capabilityTimestamp(capability.IssuedAt),
 		capabilityTimestamp(capability.ExpiresAt),
 	}, "|")
@@ -285,6 +297,14 @@ func (capability Capability) ValidateAt(now time.Time) error {
 	if !actionPattern.MatchString(capability.Action) || !resourcePattern.MatchString(capability.Resource) {
 		return fmt.Errorf("authorization capability action or resource is invalid")
 	}
+	if len(capability.Nodes) > maxNodes {
+		return fmt.Errorf("authorization capability may contain at most %d nodes", maxNodes)
+	}
+	for _, node := range capability.Nodes {
+		if !uuidPattern.MatchString(node) {
+			return fmt.Errorf("authorization capability node must be a UUID")
+		}
+	}
 	if len(capability.Signature) != sha256.Size {
 		return fmt.Errorf("authorization capability signature must be %d bytes", sha256.Size)
 	}
@@ -303,6 +323,21 @@ func (capability Capability) ValidateAt(now time.Time) error {
 		return fmt.Errorf("authorization capability issued_at is too far in the future")
 	}
 	return nil
+}
+
+func normalizeNodes(nodes []string) []string {
+	if len(nodes) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(nodes))
+	for _, n := range nodes {
+		n = strings.ToLower(strings.TrimSpace(n))
+		if n != "" {
+			out = append(out, n)
+		}
+	}
+	slices.Sort(out)
+	return slices.Compact(out)
 }
 
 func normalizeCapabilityTime(value time.Time) time.Time {

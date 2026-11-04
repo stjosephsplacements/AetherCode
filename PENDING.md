@@ -68,22 +68,36 @@ After a reboot the k3s server (kernel 7.0.0-42) had several faults. Workarounds 
    (gateway, identity, user, tenant, question-bank, assessment, submission, judge, seb, notification, analytics, aethercode-exec) are all Ready.
    `AUTHZ_ENGINE=shadow` is set via kubectl on the user deployment, not in helm values.
 
-## 4. Platform work remaining (plan: `/Users/shreesh/.claude/plans/async-orbiting-mccarthy.md`, ADRs 0066-0068)
+## 4. Platform work remaining (plan: `/Users/shreesh/.claude/plans/async-orbiting-mccarthy.md`, ADRs 0066-0068, 0072)
 
 Done and merged earlier: `libs/pkg/rbac` (256-bit perms, ranks, overwrites resolver), user migrations 000039/000040/000041, roles API,
 frontend `/admin`, `/placement`, `lib/rbac.ts`, Phosphor icons everywhere (Lucide removed).
+
+Security fixes implemented on `development` (ADR-0072, not yet committed):
+- **F-001 (HIGH) Node-scoped capability chain (DONE):** v2->v3 signed capability with `nodes uuid[]`. Go:
+  `capability.go` (v3 prefix, Nodes field, normalizeNodes, maxNodes=64), `tenant_tx.go`/`gorm.go` (12-param
+  set_context with pgtype.FlatArray), `authorization.go` (collects dept/batch/placement scope IDs into nodes).
+  SQL: all 9 services get migration `node_scoped_capability_chain` (DROP old 11-param, CREATE new 12-param
+  set_context with v3 envelope, `nodes uuid[]` column on request_contexts). User, assessment, analytics, tenant
+  also get `authz.current_context_covers_node(uuid)` helper. Next: add per-table RLS policies calling the helper.
+- **F-002 (MEDIUM) MFA step-up (DONE):** `authn.Claims.MFAVerifiedAt` (mfa_vat), `Signer.Issue()` accepts
+  mfaVerifiedAt, Identity `CompleteMFA` stamps `session.MFAVerifiedAt = &now`, User service
+  `verifyIdentityAssertion` returns identity with MFA timestamp, `requiresMFAStepUp` gate for
+  permission_grants/roles/role_overwrites/question_exports/accounts writes, `MFARequiredError` mapped to gRPC
+  PermissionDenied. Frontend re-verify prompt not yet built.
+- **F-007 (MEDIUM) Egress NetworkPolicies (DONE):** Helm chart template adds egress when `egress.enabled`.
+  Per-service values: gateway (all services + NATS + DNS), user (Postgres + NATS + identity + DNS), judge
+  (Postgres + RabbitMQ + MinIO + wrapper + DNS), frontend (gateway + Prometheus). All other services use defaults
+  (Postgres + NATS + User gRPC + DNS).
+
 Remaining, in priority order (all are ask-first areas under AGENTS.md; the owner approved the plan):
-0. **Egress NetworkPolicies for platform services (security, new from audit).** The platform-service Helm chart
-   has ingress-only NetworkPolicy; platform service pods can make arbitrary outbound connections. Add per-service
-   egress rules allowing only their own Postgres, NATS, the gateway, and kube-dns. IaC change: ask first.
-1. **Department/batch node scoping (security).** `assignmentApplies` in `backend/services/user/internal/app/authorization.go` only
-   compares tenant for `department` and `batch` assignments, so a department user gets the whole college. The `Request` carries no
-   node. Plan: add a bounded `nodes` list to the signed capability (`backend/libs/pkg/authz/capability.go`, v2 format) and a
-   `authz.context_covers_node(dept, batch)` check in RLS of department/batch-keyed tables, user service first, then assessment, then
-   analytics; narrow list requests to the actor's nodes. Contract-breaking: confirm with the owner before changing the capability format.
-2. MFA step-up: identity `mfa_verified_at` claim, `Authorize` returns `step_up_required` for elevated flags (ADMINISTRATOR, MANAGE_ROLES,
-   MANAGE_OVERWRITES, EXPORT_DATA, VIEW_STUDENT_PII), frontend re-verify prompt.
-3. Placement read model: placement-keyed signed context, `users.placement_roster` view, endpoints
+0. **Per-table RLS policies using current_context_covers_node().** The helper is deployed; each service with
+   department/batch-keyed tables needs RLS policies calling it. User first (departments, batches, student rosters),
+   then assessment (student_batch_enrollments), analytics (batch affiliations, batch progress), tenant (department
+   configs). These are new migrations per service.
+1. **Frontend MFA re-verify prompt.** The gateway needs to surface `MFARequiredError` to the frontend so it can
+   trigger a TOTP re-entry dialog before retrying the elevated operation.
+2. Placement read model: placement-keyed signed context, `users.placement_roster` view, endpoints
    `/user/v1/placement/departments/{id}/students[/{studentId}]`, PII read gated by `VIEW_STUDENT_PII` and audited in `staff_audit`;
    then `/placement` pages on real data.
 4. Analytics medallion: schemas `analytics_bronze|silver|gold`, lineage columns, gold tables incl. cross-tenant placement tables with a

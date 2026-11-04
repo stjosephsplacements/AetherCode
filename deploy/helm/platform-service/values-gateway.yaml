@@ -48,6 +48,27 @@ networkPolicy:
       ports: [8080]
   # The ingress controller reaches /api/realtime directly; change it if yours differs.
   allowFromNamespaces: [ingress-nginx]
+  egress:
+    enabled: true
+    dnsNamespaceLabels:
+      kubernetes.io/metadata.name: kube-system
+    dnsPodLabels:
+      k8s-app: kube-dns
+    postgres:
+      enabled: false
+    nats:
+      enabled: true
+      port: 4222
+    userGrpc:
+      enabled: false
+    extraRules:
+      - to:
+          - podSelector:
+              matchLabels:
+                app.kubernetes.io/part-of: aethercode
+        ports:
+          - protocol: TCP
+            port: 8080
 
 # Only the staff WebSocket is public; everything else under /api/ goes through the frontend.
 # The host defaults to global.publicOrigin's, the frontend's own host, because the

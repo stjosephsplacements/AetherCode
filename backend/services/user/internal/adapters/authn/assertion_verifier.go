@@ -53,5 +53,10 @@ func (verifier *AssertionVerifier) Verify(contextValue context.Context, assertio
 	if err := verifier.sessionValidator.Validate(contextValue, assertion); err != nil {
 		return app.VerifiedIdentity{}, fmt.Errorf("validate Identity access-token session: %w", err)
 	}
-	return app.VerifiedIdentity{PrincipalID: claims.Subject}, nil
+	identity := app.VerifiedIdentity{PrincipalID: claims.Subject}
+	if claims.MFAVerifiedAt != nil {
+		t := time.Unix(*claims.MFAVerifiedAt, 0).UTC()
+		identity.MFAVerifiedAt = &t
+	}
+	return identity, nil
 }

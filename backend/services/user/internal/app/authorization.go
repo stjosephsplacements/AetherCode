@@ -39,7 +39,8 @@ type Request struct {
 // identity-validation path. The verifier owns cryptographic token validation;
 // Authz compares the verified principal with the request before policy lookup.
 type VerifiedIdentity struct {
-	PrincipalID string
+	PrincipalID   string
+	MFAVerifiedAt *time.Time
 }
 
 // IdentityAssertionVerifier verifies a short-lived identity assertion minted
@@ -149,6 +150,33 @@ type AuthenticationError struct{}
 
 func (AuthenticationError) Error() string {
 	return "identity assertion is invalid"
+}
+
+// MFARequiredError signals that the operation is allowed by policy but the
+// bearer must re-verify MFA before it can proceed.
+type MFARequiredError struct{}
+
+func (MFARequiredError) Error() string {
+	return "this operation requires recent MFA verification"
+}
+
+const mfaStepUpMaxAge = 5 * time.Minute
+
+var mfaElevatedOperations = map[string]map[string]struct{}{
+	"permission_grants": {"write": {}, "delete": {}},
+	"roles":             {"write": {}, "delete": {}},
+	"role_overwrites":   {"write": {}, "delete": {}},
+	"question_exports":  {"read": {}},
+	"accounts":          {"write": {}},
+}
+
+func requiresMFAStepUp(resourceType, action string) bool {
+	actions, found := mfaElevatedOperations[resourceType]
+	if !found {
+		return false
+	}
+	_, required := actions[action]
+	return required
 }
 
 type route struct {
@@ -262,7 +290,8 @@ func (service *Service) Authorize(contextValue context.Context, request Request)
 	if err != nil {
 		return Decision{}, err
 	}
-	if err := service.verifyIdentityAssertion(contextValue, validated); err != nil {
+	identity, err := service.verifyIdentityAssertion(contextValue, validated)
+	if err != nil {
 		return Decision{}, err
 	}
 
@@ -351,6 +380,13 @@ func (service *Service) Authorize(contextValue context.Context, request Request)
 	decision.Allowed = true
 	decision.Scopes = uniqueScopes(matchingScopes)
 
+	if service.requireIdentityAssertion && requiresMFAStepUp(validated.ResourceType, validated.Action) {
+		now := service.now()
+		if identity.MFAVerifiedAt == nil || now.Sub(*identity.MFAVerifiedAt) > mfaStepUpMaxAge {
+			return Decision{}, MFARequiredError{}
+		}
+	}
+
 	// A delete is a write as far as the databases go: their policies and functions accept
 	// <service>.write. The audit log below keeps the real verb (ADR-0053).
 	databaseVerb := validated.Action
@@ -359,6 +395,12 @@ func (service *Service) Authorize(contextValue context.Context, request Request)
 	}
 	databaseAction := targetRoute.ActionPrefix + "." + databaseVerb
 	databaseResource := targetRoute.ResourcePrefix + "." + validated.ResourceType
+	var nodes []string
+	for _, scope := range decision.Scopes {
+		if scope.Kind == "department" || scope.Kind == "batch" || scope.Kind == "placement_department" {
+			nodes = append(nodes, scope.ID)
+		}
+	}
 	capability, err := service.keyring.Issue(
 		targetRoute.Audience,
 		validated.PrincipalID,
@@ -367,6 +409,7 @@ func (service *Service) Authorize(contextValue context.Context, request Request)
 		decisionID,
 		databaseAction,
 		databaseResource,
+		nodes,
 		service.now(),
 	)
 	if err != nil {
@@ -435,18 +478,18 @@ func hasResource(resources map[string]struct{}, resource string) bool {
 	return found
 }
 
-func (service *Service) verifyIdentityAssertion(contextValue context.Context, request Request) error {
+func (service *Service) verifyIdentityAssertion(contextValue context.Context, request Request) (VerifiedIdentity, error) {
 	if !service.requireIdentityAssertion {
-		return nil
+		return VerifiedIdentity{PrincipalID: request.PrincipalID}, nil
 	}
 	if request.IdentityAssertion == "" || service.identityAssertionVerifier == nil {
-		return AuthenticationError{}
+		return VerifiedIdentity{}, AuthenticationError{}
 	}
 	identity, err := service.identityAssertionVerifier.Verify(contextValue, request.IdentityAssertion)
 	if err != nil || strings.ToLower(strings.TrimSpace(identity.PrincipalID)) != request.PrincipalID {
-		return AuthenticationError{}
+		return VerifiedIdentity{}, AuthenticationError{}
 	}
-	return nil
+	return identity, nil
 }
 
 func assignmentApplies(

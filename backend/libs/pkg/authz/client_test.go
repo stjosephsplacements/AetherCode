@@ -30,7 +30,7 @@ func TestClientDecodesFreshAllowedCapability(t *testing.T) {
 		t.Fatalf("ParseKeyring() error = %v", err)
 	}
 	decisionID := "018f4b0d-08f8-7c09-9ba7-efdf9c223377"
-	capability, err := keyring.Issue("aether_submission", "018f4b0d-08f8-7c09-9ba7-efdf9c223355", "018f4b0d-08f8-7c09-9ba7-efdf9c223366", 9, decisionID, "submission.read", "submission.attempts", now)
+	capability, err := keyring.Issue("aether_submission", "018f4b0d-08f8-7c09-9ba7-efdf9c223355", "018f4b0d-08f8-7c09-9ba7-efdf9c223366", 9, decisionID, "submission.read", "submission.attempts", nil, now)
 	if err != nil {
 		t.Fatalf("Issue() error = %v", err)
 	}
@@ -93,6 +93,7 @@ func TestClientRejectsCapabilityBoundToAnotherDecision(t *testing.T) {
 		"018f4b0d-08f8-7c09-9ba7-efdf9c223388",
 		"submission.read",
 		"submission.attempts",
+		nil,
 		now,
 	)
 	if err != nil {

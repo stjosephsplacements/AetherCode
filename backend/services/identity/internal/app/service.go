@@ -94,6 +94,7 @@ type Session struct {
 	TenantID      string
 	AuthzRevision int64
 	MFARequired   bool
+	MFAVerifiedAt *time.Time
 	// PasswordChangeRequired: the password was issued by staff (ADR-0036).
 	PasswordChangeRequired bool
 }
@@ -417,6 +418,7 @@ func (service *Service) CompleteMFA(contextValue context.Context, challengeToken
 	if err != nil {
 		return TokenPair{}, err
 	}
+	session.MFAVerifiedAt = &now
 	return service.issueTokenPair(session, accessTokenID, refreshToken, now)
 }
 
@@ -571,7 +573,7 @@ func (service *Service) issueTokenPair(session Session, accessTokenID, refreshTo
 	if session.PrincipalID == "" || accessTokenID == "" {
 		return TokenPair{}, fmt.Errorf("identity store returned an incomplete session")
 	}
-	accessToken, claims, err := service.signer.Issue(session.PrincipalID, accessTokenID, now, service.accessTokenLifetime)
+	accessToken, claims, err := service.signer.Issue(session.PrincipalID, accessTokenID, now, service.accessTokenLifetime, session.MFAVerifiedAt)
 	if err != nil {
 		return TokenPair{}, fmt.Errorf("issue access token: %w", err)
 	}

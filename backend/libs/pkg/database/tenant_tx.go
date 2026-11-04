@@ -10,6 +10,7 @@ import (
 	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -38,10 +39,15 @@ func WithTenantTx(
 	if capability.TenantID != "" {
 		tenantID = capability.TenantID
 	}
+	var nodes any
+	if len(capability.Nodes) > 0 {
+		nodes = pgtype.FlatArray[string](capability.Nodes)
+	}
 	if _, err := transaction.Exec(contextValue, `
-		SELECT authz.set_context($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		SELECT authz.set_context($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 	`, capability.ActorID, tenantID, capability.AuthzRevision,
 		capability.Decision, capability.CapabilityID, capability.Action, capability.Resource,
+		nodes,
 		capability.IssuedAt.UTC(), capability.ExpiresAt.UTC(), capability.KeyID, capability.Signature); err != nil {
 		return contextError(err)
 	}

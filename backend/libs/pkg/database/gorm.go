@@ -98,10 +98,15 @@ func WithTenantGormTx(
 		if capability.TenantID != "" {
 			tenantID = capability.TenantID
 		}
+		var nodes any
+		if len(capability.Nodes) > 0 {
+			nodes = capability.Nodes
+		}
 		if err := transaction.Exec(`
-			SELECT authz.set_context($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+			SELECT authz.set_context($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		`, capability.ActorID, tenantID, capability.AuthzRevision,
 			capability.Decision, capability.CapabilityID, capability.Action, capability.Resource,
+			nodes,
 			capability.IssuedAt.UTC(), capability.ExpiresAt.UTC(), capability.KeyID, capability.Signature).Error; err != nil {
 			return contextError(err)
 		}
