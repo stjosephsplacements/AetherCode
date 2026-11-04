@@ -8,8 +8,8 @@ export type Difficulty = (typeof DIFFICULTIES)[number];
 export const KINDS = ["coding", "mcq"] as const;
 export type Kind = (typeof KINDS)[number];
 
-/** A slug is 3 to 80 characters of a-z, 0-9 and hyphens. */
-export const SLUG = /^[a-z0-9-]{3,80}$/;
+/** A slug is 3 to 80 characters of a-z, 0-9 and hyphens without leading, trailing or consecutive hyphens. */
+export const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export function slugify(title: string): string {
   return title
@@ -31,7 +31,7 @@ export const cleanTags = (tags: string[]): string[] => [...new Set(tags.map(norm
 
 /** A category name: trimmed, 1 to 80 characters, no control characters; unique among its siblings, ignoring case. */
 export const normalizeCategory = (name: string) => name.trim().toLowerCase();
-export const validCategoryName = (name: string) => name === name.trim() && name.length >= 1 && name.length <= 80 && !/[\u0000-\u001f\u007f]/.test(name);
+export const validCategoryName = (name: string) => name === name.trim().replace(/\s+/g, " ") && name.length >= 1 && name.length <= 80 && !/[\u0000-\u001f\u007f-\u009f]/.test(name);
 
 /** The judge compares whole lines, so every saved test value ends in a newline. */
 export const withNewline = (value: string) => (value === "" || value.endsWith("\n") ? value : `${value}\n`);

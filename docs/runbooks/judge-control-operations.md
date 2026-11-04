@@ -13,8 +13,8 @@ health and readiness listener is port `8080` inside the workload only; the
 Helm service deliberately exposes no external health endpoint.
 
 Production runtime startup requires a true `JUDGE_ENGINE_COMPATIBILITY_APPROVED`
-value, and engine work remains a blocked release phase until worker dispatch,
-node-failure, and load evidence are approved.
+value, and engine work remains a blocked release phase until the gVisor
+compatibility gate, worker dispatch, node-failure, and load evidence are approved.
 
 ## Deploy and migrate
 

@@ -111,6 +111,9 @@ func (service *Service) SetTemplates(contextValue context.Context, capability ce
 	if err != nil {
 		return err
 	}
+	if len(raw) > 1<<20 {
+		return apperrors.New(apperrors.CodeInvalidArgument, "templates payload exceeds 1 MiB limit")
+	}
 	return service.storage.Put(contextValue, templateObjectKey(versionID), bytes.NewReader(raw), int64(len(raw)), "application/json")
 }
 

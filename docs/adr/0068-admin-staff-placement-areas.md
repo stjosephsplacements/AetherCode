@@ -24,6 +24,6 @@ had no area of their own.
 ## Consequences
 
 - Cross-college reads leave `/staff`. `/placement` reads through the placement context once the backend
-  read model (ADR-0066) ships; until then a placement officer sees the college their account belongs to.
+  read model (ADR-0067) ships; until then a placement officer sees the college their account belongs to.
 - The permissions editor for platform scope is still reached through a college workspace; it moves into
   `/admin/roles` with the roles UI.

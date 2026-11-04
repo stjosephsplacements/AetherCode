@@ -20,7 +20,7 @@ const LINKS = [
 
 export default async function AdminHome() {
   const staff = await requireAdmin();
-  const health = staff.tenantId ? await serviceHealth(staff.tenantId).catch(() => null) : null;
+  const health = staff.tenants[0] ? await serviceHealth(staff.tenants[0].id).catch(() => null) : null;
   return (
     <>
       <PageHeader title="Admin console" description="Everything that spans colleges. Work inside one college from its workspace." actions={<ServicesBadge initial={health} />} />

@@ -3,13 +3,14 @@
 import { X } from "@phosphor-icons/react";
 import { useState } from "react";
 import { field } from "@/components/ui";
+import { MAX_TAGS } from "@/lib/platform";
 
 /** Topics as removable chips: type and press Enter or a comma. */
 export function TagInput({ id, value, onChange, placeholder }: { id: string; value: string[]; onChange: (value: string[]) => void; placeholder?: string }) {
   const [text, setText] = useState("");
   const add = (raw: string) => {
     const tag = raw.trim().replace(/,$/, "").trim();
-    if (tag && !value.includes(tag) && value.length < 12) onChange([...value, tag]);
+    if (tag && !value.includes(tag) && value.length < MAX_TAGS) onChange([...value, tag]);
     setText("");
   };
   return (

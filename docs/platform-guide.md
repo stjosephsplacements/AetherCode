@@ -62,8 +62,9 @@ Execution Engine (ADR-0028).
 
 The execution engine runs outside the cluster (ADR-0028) and is enabled only
 when `JUDGE_ENGINE_COMPATIBILITY_APPROVED` is set. That approval must be backed
-by recorded queue-replay, node-failure, and 10,000-candidate / five-minute load
-evidence, including the 60-second final-verdict P95 target.
+by proof of no-network sandboxed execution, recorded queue-replay, node-failure,
+and 10,000-candidate / five-minute load evidence, including the 60-second
+final-verdict P95 target.
 
 
 ## Platform: current backend scope

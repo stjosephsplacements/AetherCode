@@ -78,7 +78,6 @@ const TOKEN = new RegExp(
   ].join("|"),
   "g",
 );
-const SYMBOL_LATEX = new Map(SYMBOLS.map(([pattern, replacement]) => [pattern.source.replace(/\|\|.*$/, "").replace(/[|].*/, ""), replacement]));
 
 type Token = { text: string; start: number; end: number; kind: "operand" | "operator" };
 

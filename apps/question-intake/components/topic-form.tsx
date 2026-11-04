@@ -20,11 +20,15 @@ export function TopicForm({ parents }: { parents: { id: string; name: string }[]
       onSubmit={(event) => {
         event.preventDefault();
         start(async () => {
-          const result = await createTopic(name, parent === "none" ? null : parent);
-          if ("error" in result) return setError(result.error);
-          setName("");
-          setError(null);
-          router.push(`/topics/${result.id}`);
+          try {
+            const result = await createTopic(name, parent === "none" ? null : parent);
+            if ("error" in result) return setError(result.error);
+            setName("");
+            setError(null);
+            router.push(`/topics/${result.id}`);
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to create topic");
+          }
         });
       }}
     >

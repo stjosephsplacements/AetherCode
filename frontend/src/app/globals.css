@@ -514,10 +514,12 @@ html:has(.ascii)::-webkit-scrollbar {
 
 /* Scrollbars in the app: square, thin, hairline track and an ink thumb that turns orange on hover.
    The public pages keep theirs hidden (html:has(.ascii) above). */
-html:not(:has(.ascii)),
-html:not(:has(.ascii)) * {
-  scrollbar-width: thin;
-  scrollbar-color: var(--ink-subtle) transparent;
+@supports not selector(::-webkit-scrollbar) {
+  html:not(:has(.ascii)),
+  html:not(:has(.ascii)) * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--ink-subtle) transparent;
+  }
 }
 html:not(:has(.ascii))::-webkit-scrollbar,
 html:not(:has(.ascii)) *::-webkit-scrollbar {

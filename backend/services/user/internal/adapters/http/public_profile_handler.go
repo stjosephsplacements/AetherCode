@@ -74,6 +74,6 @@ func (handler *Handler) getPublicProfile(writer http.ResponseWriter, request *ht
 		httpx.WriteError(writer, err)
 		return
 	}
-	writer.Header().Set("Cache-Control", "public, max-age=60")
+	writer.Header().Set("Cache-Control", "no-store")
 	httpx.WriteJSON(writer, http.StatusOK, profile)
 }

@@ -16,7 +16,7 @@ database; the platform's question bank is untouched. Import into it later.
   content hash (title, difficulty, statement, limits, tests, solutions) for 30 minutes, bound to the person.
   The save action refuses anything without a valid token for that exact content, and the editor disables Save
   after any change to what was verified.
-- **Languages**: C, C++, Java, Python 3, JavaScript, Go, Rust, Ruby, PHP, C#.
+- **Languages**: C, C++, Java, Python 3, JavaScript, Go, Rust, Ruby, PHP, C#, Bash, SQLite.
 
 ## Run
 

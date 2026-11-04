@@ -67,3 +67,10 @@ Each decision is a numbered file; new ones start from [the template](0000-templa
 | [0061](0061-root-and-delegated-super-admin.md) | Root and delegated super admins (accepted) |
 | [0062](0062-public-student-profile.md) | Opt-in public student profile (accepted) |
 | [0063](0063-function-only-questions.md) | Function-only questions: stubs and hidden wrappers (accepted) |
+| [0064](0064-generated-seb-config-key.md) | Generated SEB Config Key (accepted) |
+| [0065](0065-admin-console-route.md) | Admin console on its own route (accepted) |
+| [0066](0066-discord-style-rbac.md) | Discord-style roles with Gold, Silver and Bronze tiers (accepted; implementation in progress; supersedes 0055 and 0061 once the contract migration ships) |
+| [0067](0067-medallion-analytics-layers.md) | Bronze, silver and gold analytics layers (accepted; implementation in progress) |
+| [0068](0068-admin-staff-placement-areas.md) | Admin, staff and placement are separate areas (accepted) |
+| [0069](0069-question-intake-app.md) | Question intake web app for rapid problem authoring (accepted) |
+| [0070](0070-question-statement-format.md) | Question statement formatting with LaTeX mathematics (accepted) |

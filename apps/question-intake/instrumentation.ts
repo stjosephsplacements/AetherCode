@@ -8,7 +8,8 @@ export async function register() {
         try {
           await sql`select 1`;
           return;
-        } catch {
+        } catch (error) {
+          console.warn(`database warm-up attempt ${attempt + 1} of 10 failed`, error);
           await new Promise((resolve) => setTimeout(resolve, 1500));
         }
       }

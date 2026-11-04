@@ -37,14 +37,6 @@ function subject(token: string): string {
   }
 }
 
-function expiry(token: string): number {
-  try {
-    return ((JSON.parse(Buffer.from(token.split(".")[1] ?? "", "base64url").toString("utf8")) as { exp?: number }).exp ?? 0) * 1000;
-  } catch {
-    return 0;
-  }
-}
-
 async function loadViewer(token: string): Promise<Viewer | null> {
   const me = await call<{ principal_id: string; roles: { role_name: string }[] }>("/user/v1/me", { token });
   if (me.status !== 200 || !me.data) return null;
@@ -64,6 +56,10 @@ async function store(pair: TokenPair, viewer: Viewer) {
 
 export async function clearSession() {
   const jar = await cookies();
+  const refresh = jar.get(REFRESH)?.value;
+  if (refresh) {
+    await call("/identity/v1/auth/logout", { method: "POST", body: { refresh_token: refresh } }).catch(() => {});
+  }
   for (const name of [ACCESS, REFRESH, VIEWER]) jar.delete(name);
 }
 
@@ -82,8 +78,9 @@ export async function signIn(identifier: string, password: string): Promise<stri
 /** The signed-in staff member. The proxy has already rotated an expiring token. */
 export async function requireViewer(): Promise<{ viewer: Viewer; token: string }> {
   const jar = await cookies();
-  const raw = jar.get(VIEWER)?.value;
   const access = jar.get(ACCESS)?.value;
-  if (!raw || !access) redirect("/login");
-  return { viewer: JSON.parse(raw) as Viewer, token: access };
+  if (!access) redirect("/login");
+  const viewer = await loadViewer(access);
+  if (!viewer) redirect("/login");
+  return { viewer, token: access };
 }
