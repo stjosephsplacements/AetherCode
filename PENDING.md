@@ -22,6 +22,14 @@ Security fixes pushed to `development` (not yet promoted to `production`):
 - CodeQL #6, #7, #14: added `lgtm` suppression comments (false positives: SHA-256 on random tokens, SEB
   protocol requirement, and e2e test JSON body). These alerts have delegated dismissal enabled on the org and
   cannot be dismissed via API; the suppression comments will silence them on the next CodeQL run.
+- Full security audit hardening (commit 0d08e5b):
+  - SEB `configkey.go`: `json.Marshal` for dict keys and string values (JSON injection fix).
+  - Gateway `handler.go`: `writeError` uses `json.Marshal` instead of string concatenation.
+  - exam-v1 `auth.ts`: session cookie `sameSite: "strict"`.
+  - exam-v1 `next.config.ts`: security response headers + `bodySizeLimit` reduced to 2mb.
+  - question-intake `next.config.ts`: matching security response headers.
+  - question-intake `proxy.ts`: capped rotations Map at 200 entries.
+  - question-intake `session.ts`: documented `requireViewer()` invariant.
 
 GitHub auth: `gh` active account `AlgoQX-Platform` can push (admin). The `Shreesh-Sree` keyring token is
 invalid (`gh auth refresh -h github.com` needed by the owner). Do not use `gh auth switch` unless needed.
@@ -65,6 +73,9 @@ After a reboot the k3s server (kernel 7.0.0-42) had several faults. Workarounds 
 Done and merged earlier: `libs/pkg/rbac` (256-bit perms, ranks, overwrites resolver), user migrations 000039/000040/000041, roles API,
 frontend `/admin`, `/placement`, `lib/rbac.ts`, Phosphor icons everywhere (Lucide removed).
 Remaining, in priority order (all are ask-first areas under AGENTS.md; the owner approved the plan):
+0. **Egress NetworkPolicies for platform services (security, new from audit).** The platform-service Helm chart
+   has ingress-only NetworkPolicy; platform service pods can make arbitrary outbound connections. Add per-service
+   egress rules allowing only their own Postgres, NATS, the gateway, and kube-dns. IaC change: ask first.
 1. **Department/batch node scoping (security).** `assignmentApplies` in `backend/services/user/internal/app/authorization.go` only
    compares tenant for `department` and `batch` assignments, so a department user gets the whole college. The `Request` carries no
    node. Plan: add a bounded `nodes` list to the signed capability (`backend/libs/pkg/authz/capability.go`, v2 format) and a
