@@ -26,7 +26,8 @@ export default async function Home() {
       <div className="mb-5">
         <h1 className="text-[26px] font-semibold tracking-tight">Topics</h1>
         <p className="mt-1 text-[14px] text-ink-muted">
-          Create a topic first, then add questions to it by difficulty, exactly as the platform files them. {questions} question{questions === 1 ? "" : "s"} so far.
+          Create a topic first, then add questions to it by difficulty, exactly as the platform files them. {questions} question{questions === 1 ? "" : "s"} so far.{" "}
+          <a href="/walkthrough.mp4" target="_blank" rel="noreferrer" className="font-medium text-brand hover:underline">Watch the 3 minute walkthrough</a>.
         </p>
       </div>
       <Panel className="mb-6">
