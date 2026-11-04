@@ -14,6 +14,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: parsed.error.issues.map((issue) => issue.message).join(" ") }, { status: 400 });
   }
   const question = parsed.data;
+  if (question.kind !== "coding") return NextResponse.json({ error: "Only coding questions are judged." }, { status: 400 });
   let verification;
   try {
     verification = await verifyQuestion(question);
