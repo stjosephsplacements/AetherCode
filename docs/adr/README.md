@@ -74,3 +74,4 @@ Each decision is a numbered file; new ones start from [the template](0000-templa
 | [0068](0068-admin-staff-placement-areas.md) | Admin, staff and placement are separate areas (accepted) |
 | [0069](0069-question-intake-app.md) | Question intake web app for rapid problem authoring (accepted) |
 | [0070](0070-question-statement-format.md) | Question statement formatting with LaTeX mathematics (accepted) |
+| [0071](0071-zip-bulk-test-upload.md) | Zip bulk test upload in question intake (accepted) |

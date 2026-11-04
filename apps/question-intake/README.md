@@ -16,6 +16,10 @@ database; the platform's question bank is untouched. Import into it later.
   content hash (title, difficulty, statement, limits, tests, solutions) for 30 minutes, bound to the person.
   The save action refuses anything without a valid token for that exact content, and the editor disables Save
   after any change to what was verified.
+- **Zip bulk upload**: staff can upload a `.zip` of test-case files (`input_N.txt`/`output_N.txt` or
+  `in_N.txt`/`out_N.txt`). The zip is decompressed client-side with `fflate`, validated for structure and size
+  (1 MiB zip, 256 KiB per file, 100 tests max), and the tests populate the same list manual entry uses. See
+  ADR-0071.
 - **Languages**: C, C++, Java, Python 3, JavaScript, Go, Rust, Ruby, PHP, C#, Bash, SQLite.
 
 ## Run
