@@ -25,7 +25,7 @@ async function call<T>(method: string, path: string, body?: unknown, token?: str
         ...(method === "GET" ? {} : { "Idempotency-Key": crypto.randomUUID() }),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : JSON.stringify(body), // lgtm[js/file-access-to-http]
     });
     if (response.status === 503 && attempt < 5) {
       await new Promise((resolve) => setTimeout(resolve, 2000));

@@ -4,3 +4,4 @@ allowBuilds:
 overrides:
   dompurify: '>=3.4.16'
   katex: '>=0.18.2'
+  minimatch@<4: '10.2.6'

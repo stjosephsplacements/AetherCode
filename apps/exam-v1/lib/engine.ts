@@ -290,5 +290,3 @@ function acVerdict(verdict: string): ExecStatus {
   }
 }
 
-const b64 = (value: string) => Buffer.from(value, "utf8").toString("base64");
-const unb64 = (value: string | null | undefined) => (value ? Buffer.from(value, "base64").toString("utf8") : "");
