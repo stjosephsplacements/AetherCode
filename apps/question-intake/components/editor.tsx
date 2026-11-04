@@ -1,5 +1,6 @@
 "use client";
 
+import { TestZipImport } from "@/components/test-zip-import";
 import { ArrowLeft, ArrowRight, CheckCircle, CircleNotch, MagicWand, Plus, ShieldCheck, Trash, WarningCircle, XCircle } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
@@ -313,6 +314,7 @@ export function QuestionEditor({ id, initial, topics: initialTopics, canDelete }
               <Plus className="size-3.5" /> Add test
             </Button>
           </div>
+          <TestZipImport onImport={(tests, mode) => set("tests", mode === "replace" ? tests : [...draft.tests.filter((entry) => entry.input.trim() !== "" || entry.expected_output.trim() !== ""), ...tests])} />
           <div className="space-y-3">
             {draft.tests.map((entry, index) => (
               <div key={index} className="rounded-[var(--radius-control)] border border-line p-3">
