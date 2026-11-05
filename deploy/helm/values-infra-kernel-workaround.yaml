@@ -1,0 +1,9 @@
+# For kernels where PostgreSQL 18 asynchronous I/O hangs (seen on 7.0.0-42, 2026-11-04): every
+# instance needs io_method=sync, and a cold start takes about five minutes before it is ready.
+#   helm upgrade infra platform-infra -n <ns> -f values-infra-kernel-workaround.yaml
+postgres:
+  ioMethod: sync
+  livenessInitialDelaySeconds: 900
+judgeDb:
+  ioMethod: sync
+  livenessInitialDelaySeconds: 900
