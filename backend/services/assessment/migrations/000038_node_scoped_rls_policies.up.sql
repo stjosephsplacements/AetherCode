@@ -36,7 +36,15 @@ CREATE POLICY student_batch_enrollments_projection_worker
 CREATE POLICY student_batch_enrollments_app_read
     ON assessment.student_batch_enrollments
     FOR SELECT TO aether_assessment_app
-    USING (authz.current_context_covers_node(batch_id));
+    USING (
+        authz.current_context_covers_node(batch_id)
+        -- A department-scoped capability covers the batches of that department.
+        OR EXISTS (
+            SELECT 1 FROM assessment.batch_department_projections AS projection
+            WHERE projection.batch_id = student_batch_enrollments.batch_id
+              AND authz.current_context_covers_node(projection.department_id)
+        )
+    );
 
 ALTER TABLE assessment.batch_department_projections ENABLE ROW LEVEL SECURITY;
 ALTER TABLE assessment.batch_department_projections FORCE ROW LEVEL SECURITY;
@@ -56,7 +64,10 @@ CREATE POLICY batch_department_projections_projection_worker
 CREATE POLICY batch_department_projections_app_read
     ON assessment.batch_department_projections
     FOR SELECT TO aether_assessment_app
-    USING (authz.current_context_covers_node(batch_id));
+    USING (
+        authz.current_context_covers_node(batch_id)
+        OR authz.current_context_covers_node(department_id)
+    );
 
 GRANT EXECUTE ON FUNCTION authz.current_context_covers_node(uuid)
     TO aether_assessment_app;

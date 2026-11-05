@@ -426,7 +426,7 @@ func (rpc *fakeAuthorizationRPC) Authorize(
 	decisionID := strings.ToLower(uuid.New().String())
 	capability, err := rpc.keyring.Issue(
 		rpc.audience, request.GetPrincipalId(), request.GetTenantId(), testAuthzRevision,
-		decisionID, "user."+request.GetAction(), "users."+request.GetResourceType(), time.Now(),
+		decisionID, "user."+request.GetAction(), "users."+request.GetResourceType(), nil, time.Now(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("issue test database capability: %w", err)

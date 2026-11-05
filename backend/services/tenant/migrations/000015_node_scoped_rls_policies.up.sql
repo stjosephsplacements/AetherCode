@@ -50,7 +50,8 @@ CREATE POLICY batches_app_read ON tenant.batches FOR SELECT TO aether_tenant_app
             authz.current_context_allows(tenant_id, 'tenant.read', 'tenant.batches')
             OR authz.current_context_allows(tenant_id, 'tenant.write', 'tenant.batches')
         )
-        AND authz.current_context_covers_node(id)
+        -- A department-scoped capability also covers the batches of that department.
+        AND (authz.current_context_covers_node(id) OR authz.current_context_covers_node(department_id))
     );
 
 GRANT EXECUTE ON FUNCTION authz.current_context_covers_node(uuid)

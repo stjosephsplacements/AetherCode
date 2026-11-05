@@ -168,7 +168,7 @@ func TestPractice(t *testing.T) {
 	require.Equal(t, 1, progress.Solved)
 
 	// A signed context carries a tenant only for practice.
-	_, err = pool.Exec(ctx, `SELECT authz.set_context($1, $2, 1, 'allow', $3, 'qbank.read', 'qbank.questions',
+	_, err = pool.Exec(ctx, `SELECT authz.set_context($1, $2, 1, 'allow', $3, 'qbank.read', 'qbank.questions', NULL::uuid[],
 		clock_timestamp(), clock_timestamp() + interval '4 seconds', $4, decode(repeat('00', 32), 'hex'))`,
 		student, tenant, uuid.New(), uuid.New())
 	requirePgCode(t, err, "28000")
