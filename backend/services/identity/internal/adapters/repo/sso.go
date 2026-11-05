@@ -101,7 +101,7 @@ func (repository *Postgres) AuthenticateSSO(contextValue context.Context, comman
 	if err := transaction.Commit(contextValue); err != nil {
 		return app.Session{}, fmt.Errorf("commit SSO login: %w", err)
 	}
-	return app.Session{PrincipalID: principalID, AuthzRevision: 1}, nil
+	return app.Session{PrincipalID: principalID, AuthzRevision: 1, MFAVerifiedAt: &ssoVerifiedAt}, nil
 }
 
 // DueDirectorySync returns accounts waiting to be copied to the provider.
