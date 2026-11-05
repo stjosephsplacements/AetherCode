@@ -91,12 +91,14 @@ test("platform administrator: console and college workspace", async ({ browser }
   await open.close();
   await sweep(context, [
     "/staff", "/staff/accounts", "/staff/analytics", "/staff/audit", "/staff/calendar", "/staff/community", "/staff/departments",
-    "/staff/exams", "/staff/exams/new", "/staff/get-started", "/staff/help", "/staff/organisation", "/staff/permissions",
-    "/staff/questions", "/staff/questions/new", "/staff/roles", "/staff/status", "/staff/students",
+    "/staff/exams", "/staff/exams/new", "/staff/get-started", "/staff/help", "/staff/permissions",
+    "/staff/questions", "/staff/questions/new", "/staff/status", "/staff/students",
     `/staff/exams/${seed.examId}`, `/staff/exams/${seed.examId}/monitor`, `/staff/exams/${seed.examId}/preview`,
     `/staff/exams/${seed.examId}/results`, `/staff/exams/${seed.examId}/similarity`,
     `/staff/questions/${seed.questionVersionId}`,
   ]);
+  // These routes only forward to the page that now holds their content.
+  await sweep(context, ["/staff/organisation", "/staff/roles"], { allowRedirect: true });
 });
 
 test("department user: staff workspace", async ({ browser }) => {
@@ -118,18 +120,26 @@ test("student: dashboard, exams, practice, results and profile", async ({ browse
   await signIn(context, seed.roll, studentPassword);
   await sweep(context, [
     "/student", "/student/blogs", "/student/completed", "/student/contests", "/student/exams", "/student/hackathons", "/student/help",
-    "/student/interviews", "/student/my-results", "/student/open-source", "/student/performance", "/student/practice", "/student/profile",
-    "/student/progress", "/student/resume", "/student/scheduled", "/student/tasks", "/account/password", "/account/security",
+    "/student/interviews", "/student/open-source", "/student/performance", "/student/practice", "/student/profile",
+    "/student/resume", "/student/scheduled", "/student/tasks", "/account/password", "/account/security",
   ]);
+  await sweep(context, ["/student/my-results", "/student/progress"], { allowRedirect: true });
 });
 
 test("a student cannot open staff or admin pages", async ({ browser }) => {
   const context = await browser.newContext();
   await signIn(context, seed.roll, studentPassword);
-  for (const path of ["/admin", "/staff", "/staff/students", "/placement"]) {
+  for (const path of ["/admin", "/admin/colleges", "/staff", "/staff/students", "/placement"]) {
     const page = await context.newPage();
-    await page.goto(path);
-    expect(new URL(page.url()).pathname, `${path} must not open for a student`).not.toMatch(/^\/(admin|staff|placement)/);
+    const response = await page.goto(path);
+    // A refusal can stream in after the first byte (a client-side redirect), so give it a moment.
+    await page.waitForURL((url) => !/^\/(admin|staff|placement)/.test(url.pathname), { timeout: 6_000 }).catch(() => {});
+    const landed = new URL(page.url()).pathname;
+    // Either sent away, or refused outright (401/403/404) without rendering any console content.
+    const refused = [401, 403, 404].includes(response?.status() ?? 0);
+    const sentAway = !/^\/(admin|staff|placement)/.test(landed);
+    expect(refused || sentAway, `${path} must not open for a student (status ${response?.status()}, landed on ${landed})`).toBe(true);
+    await expect(page.getByRole("link", { name: /Open workspace|Colleges|Students/ })).toHaveCount(0);
     await page.close();
   }
 });

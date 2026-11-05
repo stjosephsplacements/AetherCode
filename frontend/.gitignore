@@ -1,3 +1,7 @@
 /public/monaco/
 /next-env.d.ts
 *.tsbuildinfo
+
+# Playwright output
+/test-results/
+/playwright-report/
