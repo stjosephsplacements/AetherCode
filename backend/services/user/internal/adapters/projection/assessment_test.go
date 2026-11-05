@@ -23,16 +23,17 @@ func TestParseAssignmentSnapshotAcceptsRevokedTombstone(t *testing.T) {
 	}
 }
 
-func TestParseAssignmentSnapshotRejectsUnknownFields(t *testing.T) {
+func TestParseAssignmentSnapshotIgnoresUnknownFields(t *testing.T) {
 	t.Parallel()
 	event := messaging.Event{
 		ID: "018f4b0d-08f8-7c09-9ba7-efdf9c223431", Type: assessmentCandidateAssignmentEvent,
 		SchemaVersion: 1, AggregateType: "candidate_assignment", AggregateID: "018f4b0d-08f8-7c09-9ba7-efdf9c223432",
 		TenantID: "018f4b0d-08f8-7c09-9ba7-efdf9c223433", OccurredAt: time.Now().UTC(),
-		Payload: []byte(`{"tenant_id":"018f4b0d-08f8-7c09-9ba7-efdf9c223433","candidate_assignment_id":"018f4b0d-08f8-7c09-9ba7-efdf9c223432","candidate_id":"018f4b0d-08f8-7c09-9ba7-efdf9c223434","exam_id":"018f4b0d-08f8-7c09-9ba7-efdf9c223435","exam_version_id":"018f4b0d-08f8-7c09-9ba7-efdf9c223436","available_from":"2026-07-24T00:00:00Z","available_until":"2026-07-24T01:00:00Z","attempt_limit":1,"lifecycle_state":"revoked","version":2,"items":[],"unknown":true}`),
+		Payload: []byte(`{"tenant_id":"018f4b0d-08f8-7c09-9ba7-efdf9c223433","candidate_assignment_id":"018f4b0d-08f8-7c09-9ba7-efdf9c223432","candidate_id":"018f4b0d-08f8-7c09-9ba7-efdf9c223434","exam_id":"018f4b0d-08f8-7c09-9ba7-efdf9c223435","exam_version_id":"018f4b0d-08f8-7c09-9ba7-efdf9c223436","available_from":"2026-07-24T00:00:00Z","available_until":"2026-07-24T01:00:00Z","attempt_limit":1,"lifecycle_state":"revoked","version":2,"items":[],"added_by_a_newer_publisher":true}`),
 	}
-	if _, err := parseAssignmentSnapshot(event); err == nil {
-		t.Fatal("parseAssignmentSnapshot() accepted an unknown field")
+	// Additive fields must never stall the projection: the publisher may roll out first.
+	if _, err := parseAssignmentSnapshot(event); err != nil {
+		t.Fatalf("parseAssignmentSnapshot() rejected an additive field: %v", err)
 	}
 }
 

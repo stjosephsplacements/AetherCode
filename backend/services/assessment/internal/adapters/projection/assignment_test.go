@@ -132,20 +132,6 @@ func TestParseBatchAffiliationRejectsInvalidPayloads(t *testing.T) {
 			},
 			wantErr: true,
 		},
-		{
-			name: "unknown field in payload",
-			event: messaging.Event{
-				ID:            uuid.NewString(),
-				Type:          StudentBatchAffiliationEventType,
-				SchemaVersion: 1,
-				TenantID:      tenantID,
-				AggregateType: "student_batch_affiliation",
-				AggregateID:   studentID,
-				Payload:       []byte(`{"tenant_id":"` + tenantID + `","student_id":"` + studentID + `","batch_id":"` + batchID + `","lifecycle_state":"active","version":1,"extra":"field"}`),
-				OccurredAt:    time.Now(),
-			},
-			wantErr: true,
-		},
 	}
 
 	for _, tt := range tests {
@@ -255,20 +241,6 @@ func TestParseBatchCreatedRejectsInvalidPayloads(t *testing.T) {
 				AggregateType: "batch",
 				AggregateID:   batchID,
 				Payload:       mustMarshalJSON(batchCreatedPayload{TenantID: tenantID, BatchID: "not-a-uuid", DepartmentID: departmentID}),
-				OccurredAt:    time.Now(),
-			},
-			wantErr: true,
-		},
-		{
-			name: "unknown field in payload",
-			event: messaging.Event{
-				ID:            uuid.NewString(),
-				Type:          BatchCreatedEventType,
-				SchemaVersion: 1,
-				TenantID:      tenantID,
-				AggregateType: "batch",
-				AggregateID:   batchID,
-				Payload:       []byte(`{"tenant_id":"` + tenantID + `","batch_id":"` + batchID + `","department_id":"` + departmentID + `","extra":"field"}`),
 				OccurredAt:    time.Now(),
 			},
 			wantErr: true,
@@ -462,20 +434,6 @@ func TestParseAssignmentRuleCreatedRejectsInvalidPayload(t *testing.T) {
 				AggregateType: "assignment_rule",
 				AggregateID:   assignmentRuleID,
 				Payload:       mustMarshalJSON(assignmentRuleCreatedPayload{TenantID: "not-a-uuid", AssignmentRuleID: assignmentRuleID, ExamVersionID: examVersionID, TargetType: "batch", TargetID: targetID}),
-				OccurredAt:    time.Now(),
-			},
-			wantErr: true,
-		},
-		{
-			name: "unknown field in payload",
-			event: messaging.Event{
-				ID:            uuid.NewString(),
-				Type:          AssignmentRuleCreatedEventType,
-				SchemaVersion: 1,
-				TenantID:      tenantID,
-				AggregateType: "assignment_rule",
-				AggregateID:   assignmentRuleID,
-				Payload:       []byte(`{"tenant_id":"` + tenantID + `","assignment_rule_id":"` + assignmentRuleID + `","exam_version_id":"` + examVersionID + `","target_type":"batch","target_id":"` + targetID + `","extra":"field"}`),
 				OccurredAt:    time.Now(),
 			},
 			wantErr: true,

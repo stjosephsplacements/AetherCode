@@ -805,7 +805,6 @@ func decodeEvent(event messaging.Event, eventType string, destination any) error
 	}
 	decoder := json.NewDecoder(bytes.NewReader(event.Payload))
 	decoder.UseNumber()
-	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(destination); err != nil {
 		return err
 	}

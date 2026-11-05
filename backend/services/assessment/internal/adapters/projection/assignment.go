@@ -201,7 +201,6 @@ func parseBatchAffiliation(event messaging.Event) (batchAffiliationPayload, erro
 
 func decodePayload(raw []byte, target any) error {
 	decoder := json.NewDecoder(strings.NewReader(string(raw)))
-	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(target); err != nil {
 		return fmt.Errorf("decode assessment materialization payload: %w", err)
 	}

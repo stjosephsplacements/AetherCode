@@ -305,7 +305,6 @@ func parseJudgeCompleted(event messaging.Event) (judgeCompleted, error) {
 func decodePayload(raw json.RawMessage, destination any) error {
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.UseNumber()
-	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(destination); err != nil {
 		return err
 	}

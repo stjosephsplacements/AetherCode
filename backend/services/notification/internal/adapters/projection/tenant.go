@@ -188,7 +188,6 @@ func parseLegalHold(event messaging.Event, expectedType, expectedStatus string) 
 
 func decodePayload(raw []byte, target any) error {
 	decoder := json.NewDecoder(strings.NewReader(string(raw)))
-	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(target); err != nil {
 		return fmt.Errorf("decode notification projection payload: %w", err)
 	}

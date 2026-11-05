@@ -164,7 +164,6 @@ func parseAssignmentSnapshot(event messaging.Event) (assignmentSnapshot, error) 
 		return assignmentSnapshot{}, fmt.Errorf("unsupported Assessment candidate assignment snapshot")
 	}
 	decoder := json.NewDecoder(strings.NewReader(string(event.Payload)))
-	decoder.DisallowUnknownFields()
 	decoder.UseNumber()
 	var payload assignmentSnapshot
 	if err := decoder.Decode(&payload); err != nil {
