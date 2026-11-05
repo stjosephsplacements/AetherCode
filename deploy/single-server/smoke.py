@@ -11,7 +11,7 @@ The public origin is what Safe Exam Browser hashes request URLs with; it must
 match the gateway's GATEWAY_SEB_PUBLIC_ORIGIN; by default it is PUBLIC_ORIGIN
 from the .env beside this script.
 """
-import base64, gzip, hashlib, json, os, sys, time, urllib.request, urllib.error, uuid
+import base64, gzip, hashlib, hmac, json, os, struct, sys, time, urllib.request, urllib.error, uuid
 
 CREDENTIALS = sys.argv[1] if len(sys.argv) > 1 else os.path.expanduser("~/aethercode-admin.txt")
 BASE = (sys.argv[2] if len(sys.argv) > 2 else "http://127.0.0.1:8380") + "/api"
@@ -22,8 +22,31 @@ def env_origin():
             return line.split("=", 1)[1].strip()
     sys.exit("PUBLIC_ORIGIN is not in .env; pass the public origin as the third argument")
 PUBLIC_ORIGIN = sys.argv[3] if len(sys.argv) > 3 else env_origin()
-admin_email, admin_password = open(CREDENTIALS).read().split()[:2]
+_credentials = open(CREDENTIALS).read().split()
+admin_email, admin_password = _credentials[:2]
+admin_totp = _credentials[2] if len(_credentials) > 2 else None  # TOTP secret, written on first run
 run = uuid.uuid4().hex[:6]
+
+
+ADMIN_TOKEN = [None]
+STEP_UPS = {}  # original admin token -> token carrying a fresh MFA stamp
+_last_totp_step = [0]
+
+def totp(secret):
+    """RFC 6238 code (SHA-1, 6 digits, 30 s); waits for a new window so a code is never reused."""
+    step = int(time.time() // 30)
+    if step <= _last_totp_step[0]:
+        time.sleep((step + 1) * 30 - time.time() + 0.5)
+        step = int(time.time() // 30)
+    _last_totp_step[0] = step
+    key = base64.b32decode(secret.upper() + "=" * (-len(secret) % 8))
+    digest = hmac.new(key, struct.pack(">Q", step), hashlib.sha1).digest()
+    offset = digest[-1] & 15
+    return f"{(struct.unpack('>I', digest[offset:offset + 4])[0] & 0x7FFFFFFF) % 10**6:06d}"
+
+def step_up(token):
+    _, pair, _ = call("POST", "/identity/v1/auth/mfa/step-up", {"code": totp(admin_totp)}, token=token, expect=200)
+    return pair["access_token"]
 
 def call(method, path, body=None, token=None, expect=None, retries=5, headers=None):
     request_headers = headers
@@ -34,6 +57,8 @@ def call(method, path, body=None, token=None, expect=None, retries=5, headers=No
         request.add_header(name, value)
     if method != "GET":
         request.add_header("Idempotency-Key", str(uuid.uuid4()))
+    original_token = token
+    token = STEP_UPS.get(token, token)
     if token:
         request.add_header("Authorization", "Bearer " + token)
     try:
@@ -45,6 +70,10 @@ def call(method, path, body=None, token=None, expect=None, retries=5, headers=No
         payload = json.loads(raw) if raw else None
     except ValueError:
         payload = raw  # binary, such as a .seb launch file
+    if status == 403 and isinstance(payload, dict) and payload.get("code") == "mfa_required" \
+            and admin_totp and original_token == ADMIN_TOKEN[0] and retries > 0:
+        STEP_UPS[original_token] = step_up(token)  # the admin's MFA stamp is older than 15 minutes
+        return call(method, path, body, original_token, expect, retries - 1, request_headers)
     if status == 503 and retries > 0:
         # Permissions or projections still settling; a real client retries.
         time.sleep(float(headers.get("Retry-After", "2")))
@@ -53,15 +82,30 @@ def call(method, path, body=None, token=None, expect=None, retries=5, headers=No
         sys.exit(f"FAIL {method} {path}: HTTP {status} {payload}")
     return status, payload, headers
 
-def login(identifier, password, expect=200):
+def login(identifier, password, expect=200, secret=None):
     status, payload, _ = call("POST", "/identity/v1/auth/login", {"identifier": identifier, "password": password}, expect=expect)
+    if status == 200 and payload.get("mfa_required"):
+        if not secret:
+            sys.exit(f"FAIL {identifier} needs MFA; put the TOTP secret as a third word in the credentials file")
+        _, payload, _ = call("POST", "/identity/v1/auth/mfa/verify-login", {"mfa_challenge_token": payload["mfa_challenge_token"], "code": totp(secret)}, expect=200)
     return payload["access_token"] if status == 200 else None
 
 def ok(message):
     print("PASS", message)
 
-admin = login(admin_email, admin_password)
+admin = login(admin_email, admin_password, secret=admin_totp)
 ok("admin signs in by email via identifier")
+ADMIN_TOKEN[0] = admin
+if not admin_totp:
+    # Elevated writes (accounts, roles, grants) need MFA verified in the last 15 minutes: enrol the admin once.
+    _, factor, _ = call("POST", "/identity/v1/auth/mfa/totp", {"label": "smoke"}, token=admin, expect=201)
+    admin_totp = factor["secret"]
+    call("POST", f"/identity/v1/auth/mfa/totp/{factor['factor_id']}/activate", {"code": totp(admin_totp)}, token=admin, expect=200)
+    with open(CREDENTIALS, "a") as handle:
+        handle.write(" " + admin_totp + "\n")
+    ok("admin enrolled a TOTP factor (secret appended to the credentials file)")
+STEP_UPS[admin] = step_up(admin)
+ok("admin stepped up with MFA")
 _, tenants, _ = call("GET", "/tenant/v1/tenants", token=admin, expect=200)
 tenant = tenants["items"][0]["id"]
 _, departments, _ = call("GET", f"/tenant/v1/tenants/{tenant}/departments", token=admin, expect=200)
@@ -469,7 +513,8 @@ assert status == 403, status
 ok("the audit log records staff actions (extra time, announcements) for administrators only")
 faculty_id = json.loads(base64.urlsafe_b64decode(faculty.split(".")[1] + "=="))["sub"]
 _, named, _ = call("POST", f"/user/v1/tenants/{tenant}/accounts/describe", {"principal_ids": [faculty_id, admin_id]}, token=admin, expect=200)
-assert [n["display_name"] for n in named] == ["Faculty One"] and "password" not in json.dumps(named), named
+secret_keys = {"password", "password_hash", "temporary_password", "token"}
+assert [n["display_name"] for n in named] == ["Faculty One"] and not secret_keys & {k for n in named for k in n}, named
 ok("staff names are described for this college's accounts only")
 print("ALL M6 CHECKS PASSED")
 
@@ -489,7 +534,8 @@ ok("a student cannot lock or unlock an exam")
 call("PUT", policy_path, {"title": "Locked smoke test", "enabled": True, "accepted_keys": [browser_exam_key.upper()]},
      token=faculty, expect=200)
 _, policy, _ = call("GET", policy_path, token=faculty, expect=200)
-assert policy["enabled"] and policy["accepted_keys"] == [browser_exam_key], policy
+# The platform also accepts the generated launch file's config key (#117), so the list has more than ours.
+assert policy["enabled"] and browser_exam_key in policy["accepted_keys"], policy
 ok("faculty lock the exam to Safe Exam Browser with its Browser Exam Key")
 _, launch, launch_headers = call("GET", f"/seb/v1/tenants/{tenant}/exams/{locked_exam}/launch-file", token=student, expect=200)
 assert launch_headers["Content-Type"] == "application/seb" and launch_headers["Content-Encoding"] == "identity", dict(launch_headers)
