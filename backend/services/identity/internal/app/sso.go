@@ -134,6 +134,8 @@ func (service *Service) CompleteSSO(contextValue context.Context, code, verifier
 	if err != nil {
 		return TokenPair{}, err
 	}
+	// SSO is provider-verified; treat it as an MFA step-up for the session lifetime.
+	session.MFAVerifiedAt = &now
 	return service.issueTokenPair(session, ids[2], refreshToken, now)
 }
 

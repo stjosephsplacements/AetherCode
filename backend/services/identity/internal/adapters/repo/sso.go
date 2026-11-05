@@ -74,10 +74,11 @@ func (repository *Postgres) AuthenticateSSO(contextValue context.Context, comman
 	`, principalID); err != nil {
 		return app.Session{}, fmt.Errorf("update SSO principal: %w", err)
 	}
+	ssoVerifiedAt := time.Now().UTC()
 	if err := createRefreshSession(contextValue, transaction, refreshSessionCommand{
 		PrincipalID: principalID, FamilyID: command.RefreshFamilyID, TokenID: command.RefreshTokenID,
 		TokenHash: command.RefreshTokenHash, ExpiresAt: command.RefreshExpiresAt, AccessTokenID: command.AccessTokenID,
-		AccessExpiresAt: command.AccessExpiresAt, UserAgent: command.UserAgent,
+		AccessExpiresAt: command.AccessExpiresAt, UserAgent: command.UserAgent, MFAVerifiedAt: &ssoVerifiedAt,
 	}); err != nil {
 		return app.Session{}, err
 	}

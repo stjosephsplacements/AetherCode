@@ -80,6 +80,8 @@ func WriteError(writer http.ResponseWriter, err error) {
 			status = http.StatusUnauthorized
 		case apperrors.CodeForbidden:
 			status = http.StatusForbidden
+		case apperrors.CodeMFARequired:
+			status = http.StatusForbidden
 		case apperrors.CodeNotFound:
 			status = http.StatusNotFound
 		case apperrors.CodeConflict:

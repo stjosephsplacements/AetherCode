@@ -7,9 +7,12 @@ import "fmt"
 type Code string
 
 const (
-	CodeInvalidArgument    Code = "invalid_argument"
-	CodeUnauthorized       Code = "unauthorized"
-	CodeForbidden          Code = "forbidden"
+	CodeInvalidArgument Code = "invalid_argument"
+	CodeUnauthorized    Code = "unauthorized"
+	CodeForbidden       Code = "forbidden"
+	// CodeMFARequired signals that the operation is policy-allowed but requires
+	// recent MFA verification. Callers should prompt for MFA re-entry and retry.
+	CodeMFARequired        Code = "mfa_required"
 	CodeNotFound           Code = "not_found"
 	CodeConflict           Code = "conflict"
 	CodeFailedPrecondition Code = "failed_precondition"

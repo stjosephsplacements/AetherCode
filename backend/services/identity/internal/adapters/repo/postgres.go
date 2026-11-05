@@ -413,7 +413,12 @@ func (repository *Postgres) RotateRefresh(contextValue context.Context, command 
 	if err := transaction.Commit(contextValue); err != nil {
 		return app.Session{}, fmt.Errorf("commit refresh rotation: %w", err)
 	}
-	return app.Session{PrincipalID: refresh.PrincipalID, TenantID: refresh.TenantID, AuthzRevision: refresh.AuthzRevision}, nil
+	return app.Session{
+		PrincipalID:   refresh.PrincipalID,
+		TenantID:      refresh.TenantID,
+		AuthzRevision: refresh.AuthzRevision,
+		MFAVerifiedAt: refresh.MFAVerifiedAt,
+	}, nil
 }
 
 // RevokeRefresh revokes the enclosing family when a caller logs out.  Unknown
@@ -755,10 +760,12 @@ func (repository *Postgres) CompleteMFAChallenge(contextValue context.Context, c
 	`, verifiedFactorID); err != nil {
 		return app.Session{}, fmt.Errorf("mark MFA factor used: %w", err)
 	}
+	mfaVerifiedAt := time.Now().UTC()
 	if err := createRefreshSession(contextValue, transaction, refreshSessionCommand{
 		PrincipalID: challenge.PrincipalID, TenantID: challenge.TenantID, FamilyID: command.RefreshFamilyID,
 		TokenID: command.RefreshTokenID, TokenHash: command.RefreshTokenHash, ExpiresAt: command.RefreshExpiresAt,
 		AccessTokenID: command.AccessTokenID, AccessExpiresAt: command.AccessExpiresAt, UserAgent: command.UserAgent,
+		MFAVerifiedAt: &mfaVerifiedAt,
 	}); err != nil {
 		return app.Session{}, err
 	}
@@ -901,10 +908,17 @@ type refreshSessionCommand struct {
 	AccessTokenID   string
 	AccessExpiresAt time.Time
 	UserAgent       string
+	// MFAVerifiedAt records the time MFA was completed; stored in family metadata
+	// so RotateRefresh can propagate it into fresh access tokens.
+	MFAVerifiedAt *time.Time
 }
 
 func createRefreshSession(contextValue context.Context, transaction pgx.Tx, command refreshSessionCommand) error {
-	metadata, err := json.Marshal(map[string]string{"user_agent": truncate(command.UserAgent, 512)})
+	meta := map[string]any{"user_agent": truncate(command.UserAgent, 512)}
+	if command.MFAVerifiedAt != nil {
+		meta["mfa_verified_at_unix"] = command.MFAVerifiedAt.Unix()
+	}
+	metadata, err := json.Marshal(meta)
 	if err != nil {
 		return fmt.Errorf("encode refresh metadata: %w", err)
 	}
@@ -1295,14 +1309,17 @@ type refreshRecord struct {
 	UsedAt          *time.Time
 	RevokedAt       *time.Time
 	PrincipalStatus string
+	// MFAVerifiedAt is decoded from family.metadata["mfa_verified_at_unix"] when present.
+	MFAVerifiedAt *time.Time
 }
 
 func lockRefreshToken(contextValue context.Context, transaction pgx.Tx, tokenHash []byte) (refreshRecord, bool, error) {
 	var refresh refreshRecord
+	var familyMetadata []byte
 	err := transaction.QueryRow(contextValue, `
 		SELECT token.id, token.family_id, family.principal_id, COALESCE(family.tenant_id::text, ''),
 		       family.authz_revision, family.state, family.expires_at, token.expires_at,
-		       token.used_at, token.revoked_at, principal.status
+		       token.used_at, token.revoked_at, principal.status, family.metadata
 		FROM identity.refresh_tokens AS token
 		JOIN identity.refresh_session_families AS family ON family.id = token.family_id
 		JOIN identity.principals AS principal ON principal.id = family.principal_id
@@ -1311,13 +1328,25 @@ func lockRefreshToken(contextValue context.Context, transaction pgx.Tx, tokenHas
 	`, tokenHash).Scan(
 		&refresh.TokenID, &refresh.FamilyID, &refresh.PrincipalID, &refresh.TenantID,
 		&refresh.AuthzRevision, &refresh.FamilyState, &refresh.FamilyExpiresAt, &refresh.TokenExpiresAt,
-		&refresh.UsedAt, &refresh.RevokedAt, &refresh.PrincipalStatus,
+		&refresh.UsedAt, &refresh.RevokedAt, &refresh.PrincipalStatus, &familyMetadata,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return refreshRecord{}, false, nil
 	}
 	if err != nil {
 		return refreshRecord{}, false, fmt.Errorf("lock refresh token: %w", err)
+	}
+	if len(familyMetadata) > 0 {
+		var meta map[string]any
+		if err := json.Unmarshal(familyMetadata, &meta); err == nil {
+			if unixVal, ok := meta["mfa_verified_at_unix"]; ok {
+				// JSON numbers decode as float64.
+				if unixFloat, ok := unixVal.(float64); ok && unixFloat > 0 {
+					t := time.Unix(int64(unixFloat), 0).UTC()
+					refresh.MFAVerifiedAt = &t
+				}
+			}
+		}
 	}
 	return refresh, true, nil
 }

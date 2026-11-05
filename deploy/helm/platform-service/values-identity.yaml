@@ -53,6 +53,12 @@ networkPolicy:
       ports: [8080]
     - service: user
       ports: [9444]
+  egress:
+    enabled: true
+    nats:
+      enabled: false
+    userGrpc:
+      enabled: false
 
 sso:
   # Single sign-on (ADR-0042) stays off while the issuer is empty.

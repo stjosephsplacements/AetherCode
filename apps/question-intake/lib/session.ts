@@ -51,7 +51,9 @@ async function store(pair: TokenPair, viewer: Viewer) {
   const base = { httpOnly: true, secure: secureCookies(), sameSite: "strict" as const, path: "/" };
   jar.set({ ...base, name: ACCESS, value: pair.access_token, expires: new Date(pair.access_token_expires_at) });
   jar.set({ ...base, name: REFRESH, value: pair.refresh_token, expires: new Date(pair.refresh_token_expires_at) });
-  jar.set({ ...base, name: VIEWER, value: JSON.stringify(viewer), expires: new Date(pair.refresh_token_expires_at) });
+  // qi_viewer is a navigation hint only — never used for authorization.
+  // Roles are excluded to avoid unsigned role data in the cookie jar.
+  jar.set({ ...base, name: VIEWER, value: JSON.stringify({ principalId: viewer.principalId, name: viewer.name }), expires: new Date(pair.refresh_token_expires_at) });
 }
 
 export async function clearSession() {

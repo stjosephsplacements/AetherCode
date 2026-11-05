@@ -150,7 +150,7 @@ networkPolicy:
     # User service gRPC (authorization decisions); most services need this.
     userGrpc:
       enabled: true
-      port: 9090
+      port: 9443
     # Additional per-service egress peers (set in values-<service>.yaml).
     extraRules: []
 

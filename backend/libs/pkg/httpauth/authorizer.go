@@ -4,6 +4,7 @@ package httpauth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -14,6 +15,8 @@ import (
 	"github.com/aethercode/aethercode/libs/pkg/database"
 	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
 	"github.com/aethercode/aethercode/libs/pkg/httpx"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Authorizer has no positive cache. It is safe to reuse across requests only
@@ -96,6 +99,10 @@ func (authorizer *Authorizer) authorize(
 		// (policy denial, mTLS failure, stale projection, ...).
 		slog.WarnContext(contextValue, "authorization denied", "request_id", requestID,
 			"action", action, "resource_type", resourceType, "error", err)
+		if isMFARequiredGRPCError(err) {
+			return Decision{}, apperrors.New(apperrors.CodeMFARequired,
+				"this operation requires recent MFA verification")
+		}
 		return Decision{}, apperrors.New(apperrors.CodeForbidden, "authorization denied")
 	}
 	return Decision{PrincipalID: principalID, RequestID: requestID, Capability: centralDecision.Capability}, nil
@@ -111,4 +118,19 @@ func principalFromRequest(request *http.Request) (string, error) {
 		return "", apperrors.New(apperrors.CodeUnauthorized, "access token is invalid")
 	}
 	return principalID, nil
+}
+
+// isMFARequiredGRPCError reports whether err — possibly wrapped by client.go —
+// is a gRPC PermissionDenied carrying the MFA step-up message.
+func isMFARequiredGRPCError(err error) bool {
+	const mfaMessage = "this operation requires recent MFA verification"
+	// Walk the error chain: client.go wraps with fmt.Errorf("...: %w", grpcErr).
+	for unwrapped := err; unwrapped != nil; unwrapped = errors.Unwrap(unwrapped) {
+		if grpcStatus, ok := status.FromError(unwrapped); ok &&
+			grpcStatus.Code() == codes.PermissionDenied &&
+			grpcStatus.Message() == mfaMessage {
+			return true
+		}
+	}
+	return false
 }
