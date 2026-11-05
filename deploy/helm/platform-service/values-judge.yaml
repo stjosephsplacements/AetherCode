@@ -83,8 +83,8 @@ networkPolicy:
       - to:
           - podSelector:
               matchLabels:
-                app.kubernetes.io/part-of: judge-control
-                app.kubernetes.io/component: rabbitmq
+                app.kubernetes.io/part-of: aethercode
+                app.kubernetes.io/name: judge-rabbitmq
         ports:
           - protocol: TCP
             port: 5672
@@ -99,8 +99,8 @@ networkPolicy:
       - to:
           - podSelector:
               matchLabels:
-                app.kubernetes.io/part-of: judge-control
-                app.kubernetes.io/component: wrapper
+                app.kubernetes.io/name: aethercode-exec
+                app.kubernetes.io/component: engine
         ports:
           - protocol: TCP
             port: 5100
