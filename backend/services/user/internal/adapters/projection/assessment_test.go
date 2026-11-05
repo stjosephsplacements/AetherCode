@@ -60,3 +60,19 @@ func TestParseAssignmentSnapshotAcceptsPinnedBundleReferences(t *testing.T) {
 		}
 	}
 }
+
+// Assessment migration 000029 adds the exam's title and instructions to every snapshot. Rejecting
+// them stalled the projection and left the whole platform unable to authorize.
+func TestParseAssignmentSnapshotAcceptsExamTitleAndInstructions(t *testing.T) {
+	t.Parallel()
+	event := messaging.Event{
+		ID: "018f4b0d-08f8-7c09-9ba7-efdf9c223441", Type: assessmentCandidateAssignmentEvent,
+		SchemaVersion: 1, AggregateType: "candidate_assignment", AggregateID: "018f4b0d-08f8-7c09-9ba7-efdf9c223442",
+		TenantID: "018f4b0d-08f8-7c09-9ba7-efdf9c223443", OccurredAt: time.Now().UTC(),
+		Payload: []byte(`{"tenant_id":"018f4b0d-08f8-7c09-9ba7-efdf9c223443","candidate_assignment_id":"018f4b0d-08f8-7c09-9ba7-efdf9c223442","candidate_id":"018f4b0d-08f8-7c09-9ba7-efdf9c223444","exam_id":"018f4b0d-08f8-7c09-9ba7-efdf9c223445","exam_version_id":"018f4b0d-08f8-7c09-9ba7-efdf9c223446","available_from":"2026-07-24T00:00:00Z","available_until":"2026-07-24T01:00:00Z","attempt_limit":1,"duration_seconds":3600,"title":"Mid-term","instructions_markdown":"Read first.","lifecycle_state":"revoked","version":2,"items":[]}`),
+	}
+	payload, err := parseAssignmentSnapshot(event)
+	if err != nil || payload.Title == nil || *payload.Title != "Mid-term" {
+		t.Fatalf("parseAssignmentSnapshot() = %#v, %v", payload, err)
+	}
+}
