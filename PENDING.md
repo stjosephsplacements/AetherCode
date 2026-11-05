@@ -106,6 +106,11 @@ Remaining, in priority order (all are ask-first areas under AGENTS.md; the owner
    (migration `node_scoped_capability_chain`).
 1. **Frontend MFA re-verify prompt.** The gateway needs to surface `MFARequiredError` to the frontend so it can
    trigger a TOTP re-entry dialog before retrying the elevated operation.
+1a. **MFA error detection: replace message-string matching with a proto status detail.** `httpauth/authorizer.go`
+    `isMFARequiredGRPCError` identifies MFA step-up errors by matching the literal gRPC status message string.
+    A wording change silently degrades to generic `forbidden` with no runtime error. Fix: add a
+    `MFARequiredDetail` proto message to `authz.proto`, attach it as a gRPC status detail in the user service,
+    and detect it structurally in `isMFARequiredGRPCError`. Ask-first (auth + contract change).
 2. Placement read model: placement-keyed signed context, `users.placement_roster` view, endpoints
    `/user/v1/placement/departments/{id}/students[/{studentId}]`, PII read gated by `VIEW_STUDENT_PII` and audited in `staff_audit`;
    then `/placement` pages on real data.
