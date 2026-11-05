@@ -5,10 +5,10 @@ go 1.26.0
 toolchain go1.26.10
 
 require (
-	github.com/stjosephsplacements/AetherCode/libs/pkg v0.0.0
-	github.com/stjosephsplacements/AetherCode/libs/proto v0.0.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.11.0
+	github.com/stjosephsplacements/AetherCode/libs/pkg v0.0.0
+	github.com/stjosephsplacements/AetherCode/libs/proto v0.0.0
 	github.com/stretchr/testify v1.12.1
 	google.golang.org/grpc v1.85.0
 	gorm.io/gorm v1.31.2
