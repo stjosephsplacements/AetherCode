@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/config"
@@ -97,8 +98,13 @@ func readinessHandler(service string, readiness ReadinessFunc) http.Handler {
 	if readiness == nil {
 		return healthHandler(service)
 	}
+	var lastLogged atomic.Int64
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		if err := readiness(request.Context()); err != nil {
+			// The reason stays out of the response, but operators need it: log it at most every 30 s.
+			if now := time.Now().UnixNano(); now-lastLogged.Load() > int64(30*time.Second) && lastLogged.CompareAndSwap(lastLogged.Load(), now) {
+				slog.WarnContext(request.Context(), "readiness check failed", "service", service, "error", err)
+			}
 			writer.Header().Set("Content-Type", "application/json")
 			writer.WriteHeader(http.StatusServiceUnavailable)
 			_, _ = fmt.Fprintf(writer, `{"service":%q,"status":"not_ready"}`+"\n", service)
