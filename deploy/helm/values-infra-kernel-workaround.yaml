@@ -1,9 +1,15 @@
-# For kernels where PostgreSQL 18 asynchronous I/O hangs (seen on 7.0.0-42, 2026-11-04): every
-# instance needs io_method=sync, and a cold start takes about five minutes before it is ready.
+# For the campus server's kernel (7.0.0-42 and -43, ext4 on md raid), seen 2026-11-04 and -05:
+# - PostgreSQL 18 asynchronous I/O hangs: every instance needs io_method=sync.
+# - Relation extension stalls inside posix_fallocate (a backend sits in Lock:extend with no blocker
+#   and a 100-student import never returns): file_extend_method=write_zeros removes it. With it a
+#   500-student import took 4 s.
+# A cold start takes about five minutes before it is ready.
 #   helm upgrade infra platform-infra -n <ns> -f values-infra-kernel-workaround.yaml
 postgres:
   ioMethod: sync
+  fileExtendMethod: write_zeros
   livenessInitialDelaySeconds: 900
 judgeDb:
   ioMethod: sync
+  fileExtendMethod: write_zeros
   livenessInitialDelaySeconds: 900

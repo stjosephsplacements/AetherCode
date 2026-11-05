@@ -24,6 +24,9 @@ postgres:
   # PostgreSQL io_method (worker, io_uring, sync). Leave empty for the server default; set
   # "sync" on kernels where asynchronous I/O hangs (see values-infra-kernel-workaround.yaml).
   ioMethod: ""
+  # posix_fallocate (the server default) or write_zeros. Some kernels and filesystems stall inside
+  # posix_fallocate while a relation is extended; see values-infra-kernel-workaround.yaml.
+  fileExtendMethod: ""
   livenessInitialDelaySeconds: 30
   storage: 100Gi
   maxConnections: 400
@@ -34,6 +37,7 @@ postgres:
 judgeDb:
   enabled: true
   ioMethod: ""
+  fileExtendMethod: ""
   livenessInitialDelaySeconds: 30
   storage: 20Gi
   resources:
