@@ -73,28 +73,37 @@ After a reboot the k3s server (kernel 7.0.0-42) had several faults. Workarounds 
 Done and merged earlier: `libs/pkg/rbac` (256-bit perms, ranks, overwrites resolver), user migrations 000039/000040/000041, roles API,
 frontend `/admin`, `/placement`, `lib/rbac.ts`, Phosphor icons everywhere (Lucide removed).
 
-Security fixes implemented on `development` (ADR-0072, not yet committed):
-- **F-001 (HIGH) Node-scoped capability chain (DONE):** v2->v3 signed capability with `nodes uuid[]`. Go:
-  `capability.go` (v3 prefix, Nodes field, normalizeNodes, maxNodes=64), `tenant_tx.go`/`gorm.go` (12-param
-  set_context with pgtype.FlatArray), `authorization.go` (collects dept/batch/placement scope IDs into nodes).
-  SQL: all 9 services get migration `node_scoped_capability_chain` (DROP old 11-param, CREATE new 12-param
-  set_context with v3 envelope, `nodes uuid[]` column on request_contexts). User, assessment, analytics, tenant
-  also get `authz.current_context_covers_node(uuid)` helper. Next: add per-table RLS policies calling the helper.
+Security fixes committed to `development` (ADR-0072):
+- **F-001 (HIGH) Node-scoped capability chain + RLS (DONE):** v2->v3 signed capability with `nodes uuid[]`.
+  Migration 000043 rewrites `current_context_valid_student` to call `current_context_covers_node(grant_source_id)`
+  for department/batch/placement grants. `tenant_department_projections` and `tenant_batch_projections` now have
+  RLS enabled with node-scoped app policies. Scope-bypass for dept/batch staff is closed at both the function
+  and table layer.
 - **F-002 (MEDIUM) MFA step-up (DONE):** `authn.Claims.MFAVerifiedAt` (mfa_vat), `Signer.Issue()` accepts
   mfaVerifiedAt, Identity `CompleteMFA` stamps `session.MFAVerifiedAt = &now`, User service
   `verifyIdentityAssertion` returns identity with MFA timestamp, `requiresMFAStepUp` gate for
   permission_grants/roles/role_overwrites/question_exports/accounts writes, `MFARequiredError` mapped to gRPC
   PermissionDenied. Frontend re-verify prompt not yet built.
+- **F-003 (MEDIUM) MFA error propagation (DONE):** `httpauth/authorizer.go` detects gRPC PermissionDenied
+  with the MFA step-up message via `isMFARequiredGRPCError` (walks wrapped error chain); returns
+  `apperrors.CodeMFARequired`. `httpx/json.go` maps it to HTTP 403 with code `mfa_required`. Test added.
+- **F-004 (MEDIUM) Refresh drops MFAVerifiedAt (DONE):** Identity `RotateRefresh` now preserves the MFA
+  timestamp. `CompleteMFAChallenge` and `AuthenticateSSO` store `mfa_verified_at_unix` in
+  `refresh_session_families.metadata`; `lockRefreshToken` reads it back; `RotateRefresh` propagates it in
+  `app.Session`. No migration needed (uses existing metadata jsonb column).
+- **F-005 (LOW) Identity egress override (DONE):** `values-identity.yaml` disables nats and userGrpc egress.
+- **F-006 (LOW) Intake cookie role integrity (DONE):** `qi_viewer` cookie no longer stores roles; only
+  principalId and display name are stored since roles are always re-derived from the live API in `requireViewer()`.
 - **F-007 (MEDIUM) Egress NetworkPolicies (DONE):** Helm chart template adds egress when `egress.enabled`.
   Per-service values: gateway (all services + NATS + DNS), user (Postgres + NATS + identity + DNS), judge
   (Postgres + RabbitMQ + MinIO + wrapper + DNS), frontend (gateway + Prometheus). All other services use defaults
-  (Postgres + NATS + User gRPC + DNS).
+  (Postgres + NATS + User gRPC + DNS). values.yaml userGrpc.port corrected 9090->9443.
 
 Remaining, in priority order (all are ask-first areas under AGENTS.md; the owner approved the plan):
-0. **Per-table RLS policies using current_context_covers_node().** The helper is deployed; each service with
-   department/batch-keyed tables needs RLS policies calling it. User first (departments, batches, student rosters),
-   then assessment (student_batch_enrollments), analytics (batch affiliations, batch progress), tenant (department
-   configs). These are new migrations per service.
+0. **Assessment/analytics/tenant RLS node policies.** Migration 000043 covers the user service. Similar
+   migrations needed for assessment (student_batch_enrollments), analytics (batch affiliations, batch progress),
+   and tenant (department configs). The `current_context_covers_node` helper is already deployed in those DBs
+   (migration `node_scoped_capability_chain`).
 1. **Frontend MFA re-verify prompt.** The gateway needs to surface `MFARequiredError` to the frontend so it can
    trigger a TOTP re-entry dialog before retrying the elevated operation.
 2. Placement read model: placement-keyed signed context, `users.placement_roster` view, endpoints
