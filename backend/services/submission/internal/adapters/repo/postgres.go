@@ -494,6 +494,8 @@ func mapDatabaseError(err error, operation string) error {
 		switch postgresError.Code {
 		case "42501", "28000":
 			return apperrors.New(apperrors.CodeForbidden, "submission access is no longer authorized")
+		case "P0002": // no_data_found: the function looked up a row that does not exist
+			return apperrors.New(apperrors.CodeNotFound, "submission record was not found")
 		case "P0001":
 			if strings.Contains(message, "not found") {
 				return apperrors.New(apperrors.CodeNotFound, "submission record was not found")
