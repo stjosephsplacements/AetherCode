@@ -110,7 +110,7 @@ async function StudentsContent({ staff }: { staff: Awaited<ReturnType<typeof req
           first, then come back to import them.
         </EmptyState>
       ) : (
-        <Roster rows={rows} several={staff.isPlatformAdmin} actions={dialogs} />
+        <Roster rows={rows} several={false} actions={dialogs} />
       )}
     </>
   );

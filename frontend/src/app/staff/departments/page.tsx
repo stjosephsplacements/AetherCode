@@ -90,7 +90,7 @@ export default async function OrganisationPage({ searchParams }: { searchParams:
     );
   }
   const { departments, batches, placement, unreachable, query } = data;
-  const several = staff.isPlatformAdmin;
+  const several = false; // /staff is one college (cross-college lists live in /admin), so no college picker or column
   const tab: Tab = TABS.find((entry) => entry.key === query.tab)?.key ?? "academic";
   const pagedDepartments = paginate(departments, query.dp);
   const pagedBatches = paginate(batches, query.bp);
