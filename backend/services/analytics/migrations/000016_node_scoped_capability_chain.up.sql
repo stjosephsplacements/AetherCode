@@ -19,7 +19,7 @@ DECLARE
     context_id uuid;
     v_now timestamptz := clock_timestamp();
 BEGIN
-    IF p_actor_id IS NULL OR p_authz_revision <= 0 OR p_capability_id IS NULL OR p_key_id IS NULL OR p_signature IS NULL
+    IF p_actor_id IS NULL OR p_tenant_id IS NULL OR p_authz_revision <= 0 OR p_capability_id IS NULL OR p_key_id IS NULL OR p_signature IS NULL
        OR octet_length(p_signature) <> 32 OR p_decision <> 'allow'
        OR p_action !~ '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$'
        OR p_resource !~ '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,255}$'
@@ -43,7 +43,7 @@ BEGIN
     );
     expected_signature := extensions.hmac(convert_to(canonical_envelope, 'UTF8'), context_key.key_material, 'sha256');
     IF expected_signature <> p_signature THEN RAISE EXCEPTION 'invalid signed authorization context' USING ERRCODE = '28000'; END IF;
-    IF p_tenant_id IS NOT NULL AND NOT authz.has_tenant_authorization_at(p_actor_id, p_tenant_id, p_authz_revision) THEN
+    IF NOT authz.has_tenant_authorization_at(p_actor_id, p_tenant_id, p_authz_revision) THEN
         RAISE EXCEPTION 'local authorization projection is not current' USING ERRCODE = '28000';
     END IF;
     PERFORM authz.purge_expired_contexts();
