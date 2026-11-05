@@ -6,7 +6,7 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { randomBytes } from "node:crypto";
 import { setUp } from "./seed";
-import { adminEmail, adminPassword, adminTotpSecret, dismissOnboarding, freshTotp } from "./support";
+import { GATEWAY, adminEmail, adminPassword, adminTotpSecret, call, dismissOnboarding, freshTotp } from "./support";
 
 const run = randomBytes(3).toString("hex").toUpperCase();
 const CORRECT = "n = int(input())\nprint(n * (n + 1) // 2)\n";
@@ -101,6 +101,20 @@ test("password change → start → run/submit → end test → release → scor
   await student.getByRole("alertdialog").getByRole("button", { name: "End test" }).click();
   await student.waitForURL("**/student/results/**");
   const resultURL = student.url();
+
+  // A classmate in the same college cannot read this student's attempt, answers or result.
+  const attemptId = new URL(resultURL).pathname.split("/").pop()!;
+  const classmate = await call<{ access_token: string }>("POST", "/identity/v1/auth/login", { identifier: setup.roll2, password: setup.password2 });
+  for (const path of ["", "/answers", "/result", "/review", "/paper"]) {
+    const status = (await fetch(`${GATEWAY}/submission/v1/tenants/${setup.tenant}/attempts/${attemptId}${path}`, {
+      headers: { Authorization: `Bearer ${classmate.access_token}` }, // lgtm[js/file-access-to-http]
+    })).status;
+    expect([401, 403, 404], `a classmate must not read attempts/${attemptId}${path} (got ${status})`).toContain(status);
+  }
+  const intruder = await signIn(browser, setup.roll2, setup.password2);
+  await intruder.goto(resultURL);
+  await expect(intruder.getByText("Your score")).toHaveCount(0);
+  await intruder.close();
 
   // Teacher: release the results from the live monitor.
   const teacher = await signIn(browser, adminEmail, adminPassword, adminTotpSecret);

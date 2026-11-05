@@ -2,7 +2,7 @@
 // MFA-verified administrator. Shared by the browser specs.
 import { adminSession, call } from "./support";
 
-export type Setup = { tenant: string; examId: string; examVersionId: string; questionVersionId: string; batchId: string; departmentId: string; roll: string; password: string; title: string };
+export type Setup = { tenant: string; examId: string; examVersionId: string; questionVersionId: string; batchId: string; departmentId: string; roll: string; password: string; roll2: string; password2: string; title: string };
 
 /** A batch with one student and a published one-question exam open in 20 s. */
 export async function setUp(run: string, opensInMs = 20_000): Promise<Setup> {
@@ -15,7 +15,7 @@ export async function setUp(run: string, opensInMs = 20_000): Promise<Setup> {
   await new Promise((resolve) => setTimeout(resolve, 5000)); // the batch reaches the user service
   const imported = await call<{ imported: { roll_number: string; password: string }[] }>("POST", `/user/v1/tenants/${tenant}/students/import`, {
     batch_id: batch.id, college_department_id: department, placement_department_id: placement.id,
-    students: [{ roll_number: `E2E${run}A`, name: "E2E Student" }],
+    students: [{ roll_number: `E2E${run}A`, name: "E2E Student" }, { roll_number: `E2E${run}B`, name: "E2E Classmate" }],
   }, admin, 201);
 
   const question = await call<{ question_version: { id: string; version: number } }>("POST", "/question-bank/v1/questions", {
@@ -61,6 +61,6 @@ export async function setUp(run: string, opensInMs = 20_000): Promise<Setup> {
   await call("POST", `${path}/sections/${section.id}/items`, { expected_content_version: await content(), position: 1, question_version_id: version.id, maximum_score: "10" }, admin, 201);
   await call("POST", `${path}/publish`, { expected_content_version: await content() }, admin);
   await call("POST", `${path}/assignment-rules`, { target_type: "batch", target_id: batch.id, available_from: examVersion.opens_at, available_until: examVersion.closes_at, accommodations: {} }, admin, 201);
-  return { tenant, examVersionId: examVersion.id, questionVersionId: version.id, batchId: batch.id, departmentId: department, examId: exam.id, roll: imported.imported[0]!.roll_number, password: imported.imported[0]!.password, title };
+  return { tenant, examVersionId: examVersion.id, questionVersionId: version.id, batchId: batch.id, departmentId: department, examId: exam.id, roll: imported.imported[0]!.roll_number, password: imported.imported[0]!.password, roll2: imported.imported[1]!.roll_number, password2: imported.imported[1]!.password, title };
 }
 
