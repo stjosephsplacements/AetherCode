@@ -5,43 +5,17 @@
 // the exam, a failing Run, a passing Submit, End test, release, and the score.
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { randomBytes } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { adminEmail, adminPassword, adminSession, adminTotpSecret, call, dismissOnboarding, freshTotp } from "./support";
 
-// Keep test credentials on the local platform; never let an environment
-// override redirect authentication requests to an external gateway.
-const GATEWAY = "http://127.0.0.1:8380/api";
-const [adminEmail, adminPassword] = readFileSync(process.env.E2E_ADMIN_FILE ?? `${homedir()}/aethercode-admin.txt`, "utf8").trim().split(/\s+/);
 const run = randomBytes(3).toString("hex").toUpperCase();
 const CORRECT = "n = int(input())\nprint(n * (n + 1) // 2)\n";
 const WRONG = "n = int(input())\nprint(n * n)\n";
 
-async function call<T>(method: string, path: string, body?: unknown, token?: string, expectStatus = 200): Promise<T> {
-  for (let attempt = 0; ; attempt++) {
-    const response = await fetch(GATEWAY + path, {
-      method,
-      headers: {
-        "Content-Type": "application/json",
-        ...(method === "GET" ? {} : { "Idempotency-Key": crypto.randomUUID() }),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: body === undefined ? undefined : JSON.stringify(body), // lgtm[js/file-access-to-http]
-    });
-    if (response.status === 503 && attempt < 5) {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      continue;
-    }
-    const payload = await response.json().catch(() => null);
-    if (response.status !== expectStatus) throw new Error(`${method} ${path}: HTTP ${response.status} ${JSON.stringify(payload)}`);
-    return payload as T;
-  }
-}
-
-type Setup = { examId: string; roll: string; password: string; title: string };
+type Setup = { tenant: string; examId: string; roll: string; password: string; title: string };
 
 /** A batch with one student and a published one-question exam open in 20 s. */
 async function setUp(): Promise<Setup> {
-  const admin = (await call<{ access_token: string }>("POST", "/identity/v1/auth/login", { identifier: adminEmail, password: adminPassword })).access_token;
+  const admin = await adminSession();
   const tenant = (await call<{ items: { id: string }[] }>("GET", "/tenant/v1/tenants", undefined, admin)).items[0]!.id;
   const department = (await call<{ items: { id: string }[] }>("GET", `/tenant/v1/tenants/${tenant}/departments`, undefined, admin)).items[0]!.id;
   const organization = await call<{ id: string }>("POST", "/tenant/v1/placement-organizations", { code: `E2E${run}`, legal_name: `E2E ${run}` }, admin, 201);
@@ -96,7 +70,7 @@ async function setUp(): Promise<Setup> {
   await call("POST", `${path}/sections/${section.id}/items`, { expected_content_version: await content(), position: 1, question_version_id: version.id, maximum_score: "10" }, admin, 201);
   await call("POST", `${path}/publish`, { expected_content_version: await content() }, admin);
   await call("POST", `${path}/assignment-rules`, { target_type: "batch", target_id: batch.id, available_from: examVersion.opens_at, available_until: examVersion.closes_at, accommodations: {} }, admin, 201);
-  return { examId: exam.id, roll: imported.imported[0]!.roll_number, password: imported.imported[0]!.password, title };
+  return { tenant, examId: exam.id, roll: imported.imported[0]!.roll_number, password: imported.imported[0]!.password, title };
 }
 
 /**
@@ -119,12 +93,16 @@ async function newPage(browser: Browser): Promise<Page> {
   return context.newPage();
 }
 
-async function signIn(browser: Browser, identifier: string, password: string): Promise<Page> {
+async function signIn(browser: Browser, identifier: string, password: string, totpSecret?: string): Promise<Page> {
   const page = await newPage(browser);
   await page.goto("/login");
   await page.getByLabel("Roll number or username").fill(identifier);
   await page.locator("#password").fill(password);
   await page.getByRole("button", { name: /sign in/i }).click();
+  if (totpSecret) {
+    await page.locator("#code").fill(await freshTotp(totpSecret));
+    await page.getByRole("button", { name: /verify and sign in/i }).click();
+  }
   await page.waitForURL((url) => !url.pathname.startsWith("/login"));
   return page;
 }
@@ -186,8 +164,11 @@ test("password change → start → run/submit → end test → release → scor
   const resultURL = student.url();
 
   // Teacher: release the results from the live monitor.
-  const teacher = await signIn(browser, adminEmail!, adminPassword!);
+  const teacher = await signIn(browser, adminEmail, adminPassword, adminTotpSecret);
   teacher.on("dialog", (dialog) => void dialog.accept());
+  // A platform administrator works in a college only after opening it (areas.spec.ts).
+  await teacher.goto(`/admin/open?college=${setup.tenant}&next=${encodeURIComponent("/staff")}`);
+  await dismissOnboarding(teacher);
   const release = teacher.getByRole("button", { name: "Release results" });
   await expect(async () => {
     await teacher.goto(`/staff/exams/${setup.examId}/monitor`);
@@ -199,12 +180,16 @@ test("password change → start → run/submit → end test → release → scor
     await expect(teacher.getByRole("button", { name: "Hide results" })).toBeVisible({ timeout: 5_000 });
   }).toPass({ timeout: 60_000 });
 
-  // Student: the released score is full marks.
+  // Student: the released score is full marks. The release reaches the student's read model
+  // asynchronously, so poll and report how long it took.
+  const released = Date.now();
   await expect
     .poll(async () => {
       await student.goto(resultURL);
-      return student.getByText("Your score").isVisible();
-    }, { timeout: 120_000, intervals: [3000] })
+      // The page streams in after load, so wait for the text instead of testing it at once.
+      return student.getByText("Your score").waitFor({ state: "visible", timeout: 8_000 }).then(() => true, () => false);
+    }, { timeout: 180_000, intervals: [1000] })
     .toBe(true);
+  console.log(`results reached the student after ${Math.round((Date.now() - released) / 1000)} s`);
   await expect(student.getByText(/\b10\s*\/\s*10\b/).first()).toBeVisible();
 });

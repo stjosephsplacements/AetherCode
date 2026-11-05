@@ -24,6 +24,9 @@ export type TokenPair = {
   refresh_token: string;
   refresh_token_expires_at: string;
   password_change_required?: boolean;
+  /** Set instead of the tokens when the account has a second factor (POST /auth/mfa/verify-login completes it). */
+  mfa_required?: boolean;
+  mfa_challenge_token?: string;
 };
 
 export type CookieSpec = {

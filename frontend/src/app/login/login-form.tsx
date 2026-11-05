@@ -1,14 +1,20 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { type LoginState, login } from "./actions";
+import { useActionState, useEffect, useState } from "react";
+import { type LoginState, type VerifyState, login, verifyLogin } from "./actions";
 
 const fieldClass =
   "h-11 w-full rounded-[var(--radius-control)] border border-line-strong bg-surface px-3.5 font-mono text-[15px] text-ink outline-none transition-[border-color,box-shadow] placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15";
 
 export function LoginForm({ next }: { next: string }) {
   const [state, action, pending] = useActionState<LoginState, FormData>(login, { error: null, identifier: "" });
+  const [expiredFor, setExpiredFor] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+
+  // The password was right and the account has a second factor: ask for the code (or a recovery code).
+  if (state.challenge && state.challenge !== expiredFor) {
+    return <MFAStep challenge={state.challenge} identifier={state.identifier} next={next} onExpired={() => setExpiredFor(state.challenge ?? null)} />;
+  }
 
   return (
     <form action={action} className="space-y-5" noValidate>
@@ -52,6 +58,48 @@ export function LoginForm({ next }: { next: string }) {
           </button>
         </div>
       </div>
+      {(state.error || state.challenge) && (
+        <p role="alert" className="border border-danger bg-danger-soft px-3.5 py-2.5 font-mono text-[13.5px] text-danger">
+          [!] {state.error ?? "This sign-in expired. Enter your password again."}
+        </p>
+      )}
+      <button
+        type="submit"
+        disabled={pending}
+        className="w-full rounded-full bg-brand py-3 text-[15px] font-medium text-brand-ink transition-opacity hover:opacity-90 disabled:opacity-60"
+      >
+        {pending ? "Checking..." : "Sign in"}
+      </button>
+    </form>
+  );
+}
+
+function MFAStep({ challenge, identifier, next, onExpired }: { challenge: string; identifier: string; next: string; onExpired: () => void }) {
+  const [state, action, pending] = useActionState<VerifyState, FormData>(verifyLogin, { error: null });
+  useEffect(() => {
+    if (state.expired) onExpired();
+  }, [state.expired, onExpired]);
+  return (
+    <form action={action} className="space-y-5" noValidate>
+      <input type="hidden" name="next" value={next} />
+      <input type="hidden" name="mfa_challenge_token" value={challenge} />
+      <p className="font-mono text-[13px] text-ink-muted">Two-factor sign-in for {identifier}.</p>
+      <div className="space-y-2">
+        <label htmlFor="code" className="block font-mono text-[13px] text-ink">
+          <span aria-hidden className="text-brand">&gt; </span>authenticator code or recovery code
+        </label>
+        <input
+          id="code"
+          name="code"
+          inputMode="text"
+          autoComplete="one-time-code"
+          autoCapitalize="none"
+          spellCheck={false}
+          required
+          autoFocus
+          className={fieldClass}
+        />
+      </div>
       {state.error && (
         <p role="alert" className="border border-danger bg-danger-soft px-3.5 py-2.5 font-mono text-[13.5px] text-danger">
           [!] {state.error}
@@ -62,7 +110,7 @@ export function LoginForm({ next }: { next: string }) {
         disabled={pending}
         className="w-full rounded-full bg-brand py-3 text-[15px] font-medium text-brand-ink transition-opacity hover:opacity-90 disabled:opacity-60"
       >
-        {pending ? "Checking..." : "Sign in"}
+        {pending ? "Checking..." : "Verify and sign in"}
       </button>
     </form>
   );

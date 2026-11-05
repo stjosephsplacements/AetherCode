@@ -1,6 +1,6 @@
 "use client";
 
-import { CaretUpDown, Key, Moon, SignOut, Sun } from "@phosphor-icons/react/ssr";
+import { CaretUpDown, Key, Moon, ShieldCheck, SignOut, Sun } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { DropdownMenu } from "radix-ui";
 import { useTransition } from "react";
@@ -65,6 +65,12 @@ export function AccountMenu({ viewer, compact = false }: { viewer: Viewer; compa
             <Link href="/account/password" className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm text-ink outline-none data-[highlighted]:bg-hover">
               <Key className="size-4 text-ink-muted" />
               Change password
+            </Link>
+          </DropdownMenu.Item>
+          <DropdownMenu.Item asChild>
+            <Link href="/account/security" className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm text-ink outline-none data-[highlighted]:bg-hover">
+              <ShieldCheck className="size-4 text-ink-muted" />
+              Two-factor sign-in
             </Link>
           </DropdownMenu.Item>
           {/* Called directly: a form inside the menu unmounts with it before it can submit. */}
