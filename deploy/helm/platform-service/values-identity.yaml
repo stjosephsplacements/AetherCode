@@ -55,8 +55,9 @@ networkPolicy:
       ports: [9444]
   egress:
     enabled: true
+    # The projection worker publishes resync requests and consumes projections over NATS.
     nats:
-      enabled: false
+      enabled: true
     userGrpc:
       enabled: false
 
