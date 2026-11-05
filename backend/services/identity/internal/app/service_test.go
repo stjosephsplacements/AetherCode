@@ -257,3 +257,14 @@ func (store *memoryStore) UpdateAccount(_ context.Context, _ string, changes Acc
 	return nil
 }
 func (store *memoryStore) DiscardAccounts(context.Context, []string, AccountAudit) error { return nil }
+
+func TestFreshMFADropsStaleStamp(t *testing.T) {
+	now := time.Now()
+	fresh, stale := now.Add(-5*time.Minute), now.Add(-16*time.Minute)
+	if freshMFA(&fresh, now) != &fresh {
+		t.Fatal("a stamp inside the window must be kept")
+	}
+	if freshMFA(&stale, now) != nil || freshMFA(nil, now) != nil {
+		t.Fatal("a stale or missing stamp must be dropped")
+	}
+}

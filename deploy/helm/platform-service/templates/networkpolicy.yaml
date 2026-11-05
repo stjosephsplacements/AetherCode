@@ -37,7 +37,7 @@ spec:
     {{- end }}
   {{- if .Values.networkPolicy.egress.enabled }}
   egress:
-    {{- /* DNS */ -}}
+    {{- /* DNS */}}
     - to:
         - namespaceSelector:
             matchLabels:
@@ -50,18 +50,21 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
-    {{- /* Postgres */ -}}
+    {{- /* Postgres */}}
     {{- if .Values.networkPolicy.egress.postgres.enabled }}
     - to:
         - podSelector:
             matchLabels:
               app.kubernetes.io/part-of: aethercode
-              app.kubernetes.io/component: postgres
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values: [postgres, judge-db]
       ports:
         - protocol: TCP
           port: {{ .Values.networkPolicy.egress.postgres.port }}
     {{- end }}
-    {{- /* NATS */ -}}
+    {{- /* NATS */}}
     {{- if .Values.networkPolicy.egress.nats.enabled }}
     - to:
         - podSelector:
@@ -72,7 +75,7 @@ spec:
         - protocol: TCP
           port: {{ .Values.networkPolicy.egress.nats.port }}
     {{- end }}
-    {{- /* User service gRPC (authorization) */ -}}
+    {{- /* User service gRPC (authorization) */}}
     {{- if .Values.networkPolicy.egress.userGrpc.enabled }}
     - to:
         - podSelector:
@@ -83,7 +86,7 @@ spec:
         - protocol: TCP
           port: {{ .Values.networkPolicy.egress.userGrpc.port }}
     {{- end }}
-    {{- /* Per-service extra egress rules */ -}}
+    {{- /* Per-service extra egress rules */}}
     {{- range .Values.networkPolicy.egress.extraRules }}
     - to:
         {{- toYaml .to | nindent 8 }}

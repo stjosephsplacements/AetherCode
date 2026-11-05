@@ -63,11 +63,14 @@ CREATE POLICY analytics_student_batch_affiliation_app_read
     ON analytics.student_batch_affiliation_projections
     FOR SELECT TO aether_analytics_app
     USING (
-        -- Inactive affiliations carry no batch_id. They may only be read by a
-        -- college-level context (nodes IS NULL = unrestricted in covers_node).
-        -- Active affiliations are gated by batch_id node coverage.
-        (lifecycle_state = 'inactive' AND authz.current_context_covers_node(NULL))
-        OR (lifecycle_state = 'active' AND authz.current_context_covers_node(batch_id))
+        authz.current_context_allows_read(tenant_id, 'analytics.read', 'analytics.write', 'analytics.student_batch_affiliation_projections')
+        AND (
+            -- Inactive affiliations carry no batch_id. They may only be read by a
+            -- college-level context (nodes IS NULL = unrestricted in covers_node).
+            -- Active affiliations are gated by batch_id node coverage.
+            (lifecycle_state = 'inactive' AND authz.current_context_covers_node(NULL))
+            OR (lifecycle_state = 'active' AND authz.current_context_covers_node(batch_id))
+        )
     );
 
 GRANT EXECUTE ON FUNCTION authz.current_context_covers_node(uuid)

@@ -856,3 +856,16 @@ func TestDelegatedSuperAdminHoldsOnlyItsGrants(t *testing.T) {
 		})
 	}
 }
+
+func TestCapabilityNodesBroadScopeWins(t *testing.T) {
+	narrow := []Scope{{Kind: "department", ID: "d1"}, {Kind: "batch", ID: "b1"}}
+	if got := capabilityNodes(narrow); len(got) != 2 {
+		t.Fatalf("narrow scopes must list their nodes, got %v", got)
+	}
+	if got := capabilityNodes(append(narrow, Scope{Kind: "college", ID: "c1"})); got != nil {
+		t.Fatalf("a college scope must leave the capability unrestricted, got %v", got)
+	}
+	if got := capabilityNodes(nil); got != nil {
+		t.Fatalf("no scopes must be unrestricted, got %v", got)
+	}
+}

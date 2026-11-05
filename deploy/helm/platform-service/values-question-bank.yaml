@@ -62,6 +62,24 @@ networkPolicy:
       ports: [8080]
     - service: assessment
       ports: [9445]
+  egress:
+    extraRules:
+      - to:
+          - podSelector:
+              matchLabels:
+                app.kubernetes.io/part-of: aethercode
+                app.kubernetes.io/name: judge
+        ports:
+          - protocol: TCP
+            port: 8443
+      - to:
+          - podSelector:
+              matchLabels:
+                app.kubernetes.io/part-of: aethercode
+                app.kubernetes.io/name: minio
+        ports:
+          - protocol: TCP
+            port: 9000
 
 # Publishing needs a review request from another member of staff (ADR-0044).
 requireReview: "false"
