@@ -10,11 +10,11 @@ import (
 	"strings"
 	"time"
 
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	"github.com/aethercode/aethercode/services/question-bank/internal/app"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	"github.com/stjosephsplacements/AetherCode/services/question-bank/internal/app"
 )
 
 type Postgres struct {

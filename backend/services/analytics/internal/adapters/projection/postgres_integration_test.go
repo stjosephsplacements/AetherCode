@@ -11,7 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
-	"github.com/aethercode/aethercode/libs/pkg/testutil/integration"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/testutil/integration"
 )
 
 // TestProjectionWorkerAppendsEventFactsIdempotently guards migration 000014:

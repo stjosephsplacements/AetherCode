@@ -6,8 +6,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/aethercode/aethercode/libs/pkg/authz"
-	"github.com/aethercode/aethercode/libs/pkg/database"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
 )
 
 // CommunityFunctions are the database operations behind community content

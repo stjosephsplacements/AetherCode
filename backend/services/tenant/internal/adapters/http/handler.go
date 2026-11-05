@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/aethercode/aethercode/libs/pkg/database"
-	"github.com/aethercode/aethercode/libs/pkg/httpauth"
-	"github.com/aethercode/aethercode/libs/pkg/httpx"
-	"github.com/aethercode/aethercode/services/tenant/internal/app"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpauth"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
+	"github.com/stjosephsplacements/AetherCode/services/tenant/internal/app"
 )
 
 type Handler struct {

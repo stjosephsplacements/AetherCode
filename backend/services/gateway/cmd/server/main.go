@@ -10,15 +10,15 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/config"
-	"github.com/aethercode/aethercode/libs/pkg/httpx"
-	"github.com/aethercode/aethercode/libs/pkg/logging"
-	"github.com/aethercode/aethercode/libs/pkg/ratelimit"
-	"github.com/aethercode/aethercode/libs/pkg/telemetry"
-	gatewayconfig "github.com/aethercode/aethercode/services/gateway/internal/config"
-	"github.com/aethercode/aethercode/services/gateway/internal/edge"
-	"github.com/aethercode/aethercode/services/gateway/internal/realtime"
 	"github.com/nats-io/nats.go"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/config"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/logging"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/ratelimit"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry"
+	gatewayconfig "github.com/stjosephsplacements/AetherCode/services/gateway/internal/config"
+	"github.com/stjosephsplacements/AetherCode/services/gateway/internal/edge"
+	"github.com/stjosephsplacements/AetherCode/services/gateway/internal/realtime"
 )
 
 func main() {

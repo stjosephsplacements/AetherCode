@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
+	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
 )
 
 func TestSelfReturnsTheVerifiedCallersRoles(t *testing.T) {

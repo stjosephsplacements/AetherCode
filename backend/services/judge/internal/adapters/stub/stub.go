@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/aethercode/aethercode/services/judge/internal/dispatcher"
+	"github.com/stjosephsplacements/AetherCode/services/judge/internal/dispatcher"
 )
 
 // Stub is a deterministic fake evaluation engine that immediately accepts any

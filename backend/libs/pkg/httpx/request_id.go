@@ -3,7 +3,7 @@ package httpx
 import (
 	"context"
 
-	"github.com/aethercode/aethercode/libs/pkg/telemetry"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry"
 )
 
 // ContextWithRequestID stores a request ID in the context. The value is

@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"time"
 
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	"github.com/aethercode/aethercode/services/identity/internal/app"
 	"github.com/jackc/pgx/v5"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	"github.com/stjosephsplacements/AetherCode/services/identity/internal/app"
 )
 
 // AuthenticateSSO starts a session for the account the provider vouched for

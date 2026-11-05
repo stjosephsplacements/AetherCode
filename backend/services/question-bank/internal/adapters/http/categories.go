@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/aethercode/aethercode/libs/pkg/database"
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	"github.com/aethercode/aethercode/libs/pkg/httpx"
-	"github.com/aethercode/aethercode/services/question-bank/internal/app"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
+	"github.com/stjosephsplacements/AetherCode/services/question-bank/internal/app"
 )
 
 // Categories file a question under Arrays, Strings, DP and so on (ADR-0052).

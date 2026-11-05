@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/authn"
-	"github.com/aethercode/aethercode/libs/pkg/database"
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	"github.com/aethercode/aethercode/services/identity/internal/domain"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/authn"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	"github.com/stjosephsplacements/AetherCode/services/identity/internal/domain"
 )
 
 var (

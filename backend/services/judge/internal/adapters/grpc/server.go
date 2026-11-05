@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/grpcmtls"
-	"github.com/aethercode/aethercode/libs/pkg/ratelimit"
-	judgev1 "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/judge/v1"
-	"github.com/aethercode/aethercode/services/judge/internal/app"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/grpcmtls"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/ratelimit"
+	judgev1 "github.com/stjosephsplacements/AetherCode/libs/proto/gen/go/aethercode/judge/v1"
+	"github.com/stjosephsplacements/AetherCode/services/judge/internal/app"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

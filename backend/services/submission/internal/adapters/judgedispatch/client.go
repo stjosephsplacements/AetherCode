@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	judgev1 "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/judge/v1"
+	judgev1 "github.com/stjosephsplacements/AetherCode/libs/proto/gen/go/aethercode/judge/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

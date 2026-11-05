@@ -15,8 +15,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/authn"
-	"github.com/aethercode/aethercode/libs/pkg/ratelimit"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/authn"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/ratelimit"
 )
 
 const (

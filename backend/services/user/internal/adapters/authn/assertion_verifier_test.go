@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	sharedauthn "github.com/aethercode/aethercode/libs/pkg/authn"
+	sharedauthn "github.com/stjosephsplacements/AetherCode/libs/pkg/authn"
 )
 
 type fakeSessionValidator struct{ err error }

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/messaging"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/messaging"
 )
 
 const projectionUUID = "018f4b0d-08f8-7c09-9ba7-efdf9c220099"

@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/aethercode/aethercode/libs/pkg/database"
-	"github.com/aethercode/aethercode/libs/pkg/evalbundle"
-	"github.com/aethercode/aethercode/libs/pkg/kms"
-	"github.com/aethercode/aethercode/libs/pkg/storage"
-	"github.com/aethercode/aethercode/services/judge/internal/app"
 	"github.com/jackc/pgx/v5"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/evalbundle"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/kms"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/storage"
+	"github.com/stjosephsplacements/AetherCode/services/judge/internal/app"
 )
 
 // maxObjectCiphertextBytes bounds how much of an encrypted object (bundle,

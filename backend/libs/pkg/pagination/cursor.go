@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
 )
 
 const separator = "|"

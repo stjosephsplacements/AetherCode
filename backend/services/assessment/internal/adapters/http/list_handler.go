@@ -5,9 +5,9 @@ package httpadapter
 import (
 	"net/http"
 
-	"github.com/aethercode/aethercode/libs/pkg/httpx"
-	"github.com/aethercode/aethercode/libs/pkg/pagination"
-	"github.com/aethercode/aethercode/services/assessment/internal/app"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/pagination"
+	"github.com/stjosephsplacements/AetherCode/services/assessment/internal/app"
 )
 
 func (handler *Handler) listCandidateAssignments(writer http.ResponseWriter, request *http.Request) {

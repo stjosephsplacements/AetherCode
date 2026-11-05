@@ -10,11 +10,11 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/aethercode/aethercode/libs/pkg/authn"
-	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
-	"github.com/aethercode/aethercode/libs/pkg/database"
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	"github.com/aethercode/aethercode/libs/pkg/httpx"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/authn"
+	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

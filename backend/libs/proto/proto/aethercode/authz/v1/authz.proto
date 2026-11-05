@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package aethercode.authz.v1;
 
-option go_package = "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/authz/v1;authzv1";
+option go_package = "github.com/stjosephsplacements/AetherCode/libs/proto/gen/go/aethercode/authz/v1;authzv1";
 
 service AuthorizationService {
   rpc Authorize(AuthorizeRequest) returns (AuthorizeResponse);

@@ -11,11 +11,11 @@ import (
 	"regexp"
 	"strings"
 
-	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
-	"github.com/aethercode/aethercode/libs/pkg/database"
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	"github.com/aethercode/aethercode/libs/pkg/evalbundle"
 	"github.com/jackc/pgx/v5"
+	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/evalbundle"
 )
 
 // Practice problems (ADR-0041). Staff mark a question for tests or practice;

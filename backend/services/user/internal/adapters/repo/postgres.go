@@ -11,15 +11,15 @@ import (
 	"sync"
 	"time"
 
-	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
-	"github.com/aethercode/aethercode/libs/pkg/database"
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	"github.com/aethercode/aethercode/libs/pkg/messaging"
-	"github.com/aethercode/aethercode/libs/pkg/rbac"
-	"github.com/aethercode/aethercode/services/user/internal/app"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/messaging"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/rbac"
+	"github.com/stjosephsplacements/AetherCode/services/user/internal/app"
 )
 
 // Postgres queries the canonical User authorization tables through the

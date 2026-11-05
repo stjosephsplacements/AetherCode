@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/database"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/nats-io/nats.go"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
 )
 
 var qualifiedTablePattern = regexp.MustCompile(`^[a-z_][a-z0-9_]{0,62}\.[a-z_][a-z0-9_]{0,62}$`)

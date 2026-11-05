@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	"github.com/aethercode/aethercode/libs/pkg/httpauth"
-	"github.com/aethercode/aethercode/services/assessment/internal/app"
+	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpauth"
+	"github.com/stjosephsplacements/AetherCode/services/assessment/internal/app"
 )
 
 // -- helpers -----------------------------------------------------------------

@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	"github.com/aethercode/aethercode/libs/pkg/httpx"
-	"github.com/aethercode/aethercode/libs/pkg/pagination"
-	"github.com/aethercode/aethercode/services/user/internal/app"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/pagination"
+	"github.com/stjosephsplacements/AetherCode/services/user/internal/app"
 )
 
 func (handler *Handler) listStudents(writer http.ResponseWriter, request *http.Request) {

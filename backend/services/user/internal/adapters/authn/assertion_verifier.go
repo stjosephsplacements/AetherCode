@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	sharedauthn "github.com/aethercode/aethercode/libs/pkg/authn"
-	"github.com/aethercode/aethercode/services/user/internal/app"
+	sharedauthn "github.com/stjosephsplacements/AetherCode/libs/pkg/authn"
+	"github.com/stjosephsplacements/AetherCode/services/user/internal/app"
 )
 
 // AssertionVerifier verifies an Ed25519 identity assertion before User Authz

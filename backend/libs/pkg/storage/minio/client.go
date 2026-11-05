@@ -9,7 +9,7 @@ import (
 	miniogo "github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 
-	"github.com/aethercode/aethercode/libs/pkg/storage"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/storage"
 )
 
 // Compile-time assertion: Client must implement storage.Object.

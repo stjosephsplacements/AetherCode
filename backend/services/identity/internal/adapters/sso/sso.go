@@ -23,7 +23,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aethercode/aethercode/services/identity/internal/app"
+	"github.com/stjosephsplacements/AetherCode/services/identity/internal/app"
 )
 
 const requestTimeout = 15 * time.Second

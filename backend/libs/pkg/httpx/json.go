@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"strings"
 
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
 )
 
 const maximumJSONBodyBytes = 1 << 20

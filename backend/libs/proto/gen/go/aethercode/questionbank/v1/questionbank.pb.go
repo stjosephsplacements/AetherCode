@@ -333,7 +333,7 @@ const file_aethercode_questionbank_v1_questionbank_proto_rawDesc = "" +
 	"\x0fmultiple_choice\x18\x0e \x01(\bR\x0emultipleChoice\x12/\n" +
 	"\x13choice_explanations\x18\x0f \x03(\tR\x12choiceExplanations2\xca\x01\n" +
 	"\x1bQuestionBankInternalService\x12\xaa\x01\n" +
-	"\x1fResolvePublishedQuestionVersion\x12B.aethercode.questionbank.v1.ResolvePublishedQuestionVersionRequest\x1aC.aethercode.questionbank.v1.ResolvePublishedQuestionVersionResponseB^Z\\github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/questionbank/v1;questionbankv1b\x06proto3"
+	"\x1fResolvePublishedQuestionVersion\x12B.aethercode.questionbank.v1.ResolvePublishedQuestionVersionRequest\x1aC.aethercode.questionbank.v1.ResolvePublishedQuestionVersionResponseB^Z\\github.com/stjosephsplacements/AetherCode/libs/proto/gen/go/aethercode/questionbank/v1;questionbankv1b\x06proto3"
 
 var (
 	file_aethercode_questionbank_v1_questionbank_proto_rawDescOnce sync.Once

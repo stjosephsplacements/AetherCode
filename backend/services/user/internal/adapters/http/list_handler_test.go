@@ -3,9 +3,9 @@ package httpadapter
 import (
 	"context"
 	"encoding/base64"
-	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
-	"github.com/aethercode/aethercode/libs/pkg/httpauth"
-	authzv1 "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/authz/v1"
+	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpauth"
+	authzv1 "github.com/stjosephsplacements/AetherCode/libs/proto/gen/go/aethercode/authz/v1"
 	"google.golang.org/grpc"
 	"net/http"
 	"net/http/httptest"

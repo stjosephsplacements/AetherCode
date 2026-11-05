@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/aethercode/aethercode/services/user/internal/app"
 	"github.com/jackc/pgx/v5"
+	"github.com/stjosephsplacements/AetherCode/services/user/internal/app"
 )
 
 // ExistingEnrollmentNumbers validates an import's departments and batch and

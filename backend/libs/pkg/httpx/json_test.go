@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
 )
 
 func TestDecodeJSONRejectsUnknownAndTrailingValues(t *testing.T) {

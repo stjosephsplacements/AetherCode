@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aethercode/aethercode/services/question-bank/internal/adapters/repo"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/stjosephsplacements/AetherCode/services/question-bank/internal/adapters/repo"
 	"github.com/stretchr/testify/require"
 )
 

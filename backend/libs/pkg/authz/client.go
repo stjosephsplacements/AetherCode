@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	authzv1 "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/authz/v1"
+	authzv1 "github.com/stjosephsplacements/AetherCode/libs/proto/gen/go/aethercode/authz/v1"
 	"google.golang.org/grpc"
 )
 

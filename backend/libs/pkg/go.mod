@@ -1,11 +1,11 @@
-module github.com/aethercode/aethercode/libs/pkg
+module github.com/stjosephsplacements/AetherCode/libs/pkg
 
 go 1.26.0
 
 toolchain go1.26.10
 
 require (
-	github.com/aethercode/aethercode/libs/proto v0.0.0
+	github.com/stjosephsplacements/AetherCode/libs/proto v0.0.0
 	github.com/casbin/casbin/v2 v2.135.0
 	github.com/golang-migrate/migrate/v4 v4.20.1
 	github.com/google/uuid v1.6.0
@@ -29,7 +29,7 @@ require (
 	gorm.io/gorm v1.31.2
 )
 
-replace github.com/aethercode/aethercode/libs/proto => ../proto
+replace github.com/stjosephsplacements/AetherCode/libs/proto => ../proto
 
 require (
 	dario.cat/mergo v1.0.2 // indirect

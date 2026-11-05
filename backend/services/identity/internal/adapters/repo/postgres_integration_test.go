@@ -13,10 +13,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 
-	"github.com/aethercode/aethercode/libs/pkg/testutil/integration"
-	"github.com/aethercode/aethercode/services/identity/internal/adapters/repo"
-	"github.com/aethercode/aethercode/services/identity/internal/app"
-	"github.com/aethercode/aethercode/services/identity/internal/domain"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/testutil/integration"
+	"github.com/stjosephsplacements/AetherCode/services/identity/internal/adapters/repo"
+	"github.com/stjosephsplacements/AetherCode/services/identity/internal/app"
+	"github.com/stjosephsplacements/AetherCode/services/identity/internal/domain"
 )
 
 // TestRLSIsolateTenants proves the access boundary identity actually

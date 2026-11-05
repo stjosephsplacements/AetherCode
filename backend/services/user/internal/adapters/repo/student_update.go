@@ -6,9 +6,9 @@ import (
 	"errors"
 	"fmt"
 
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	"github.com/aethercode/aethercode/services/user/internal/app"
 	"github.com/jackc/pgx/v5"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	"github.com/stjosephsplacements/AetherCode/services/user/internal/app"
 )
 
 // UpdateStudent changes the enrolment number or admission date; whatever is left

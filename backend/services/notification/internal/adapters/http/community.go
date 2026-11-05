@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"strconv"
 
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	"github.com/aethercode/aethercode/libs/pkg/httpauth"
-	"github.com/aethercode/aethercode/libs/pkg/httpx"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpauth"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
 )
 
 // communityRoute binds one URL to one database function (ADR-0048). Member

@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	questionbankv1 "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/questionbank/v1"
-	"github.com/aethercode/aethercode/services/assessment/internal/app"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	questionbankv1 "github.com/stjosephsplacements/AetherCode/libs/proto/gen/go/aethercode/questionbank/v1"
+	"github.com/stjosephsplacements/AetherCode/services/assessment/internal/app"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"

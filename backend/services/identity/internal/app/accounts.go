@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	"github.com/aethercode/aethercode/services/identity/internal/domain"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	"github.com/stjosephsplacements/AetherCode/services/identity/internal/domain"
 )
 
 // MaxProvisionedAccounts bounds one provisioning call. An import names one

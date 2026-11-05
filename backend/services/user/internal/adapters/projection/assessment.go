@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/messaging"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/messaging"
 )
 
 const assessmentCandidateAssignmentEvent = "assessment.candidate_assignment.snapshot.v1"

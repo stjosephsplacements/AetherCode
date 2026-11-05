@@ -6,9 +6,9 @@ import (
 	"errors"
 	"fmt"
 
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	"github.com/aethercode/aethercode/services/tenant/internal/app"
 	"github.com/jackc/pgx/v5"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	"github.com/stjosephsplacements/AetherCode/services/tenant/internal/app"
 )
 
 // Each update changes only the fields given (COALESCE keeps the rest), bumps

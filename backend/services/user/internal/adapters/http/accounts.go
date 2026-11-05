@@ -4,9 +4,9 @@ import (
 	"context"
 	"net/http"
 
-	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
-	"github.com/aethercode/aethercode/libs/pkg/httpx"
-	"github.com/aethercode/aethercode/services/user/internal/app"
+	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
+	"github.com/stjosephsplacements/AetherCode/services/user/internal/app"
 )
 
 type importStudentsRequest struct {

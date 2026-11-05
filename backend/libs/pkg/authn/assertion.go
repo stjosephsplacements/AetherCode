@@ -28,14 +28,14 @@ var (
 // Claims are the identity facts authorized by the Identity service. Times use
 // Unix seconds because that is the interoperable JWT representation.
 type Claims struct {
-	Issuer       string   `json:"iss"`
-	Audience     []string `json:"aud"`
-	Subject      string   `json:"sub"`
-	TokenID      string   `json:"jti"`
-	IssuedAt     int64    `json:"iat"`
-	NotBefore    int64    `json:"nbf"`
-	ExpiresAt    int64    `json:"exp"`
-	MFAVerifiedAt *int64  `json:"mfa_vat,omitempty"`
+	Issuer        string   `json:"iss"`
+	Audience      []string `json:"aud"`
+	Subject       string   `json:"sub"`
+	TokenID       string   `json:"jti"`
+	IssuedAt      int64    `json:"iat"`
+	NotBefore     int64    `json:"nbf"`
+	ExpiresAt     int64    `json:"exp"`
+	MFAVerifiedAt *int64   `json:"mfa_vat,omitempty"`
 }
 
 type header struct {

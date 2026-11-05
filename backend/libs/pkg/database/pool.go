@@ -6,8 +6,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aethercode/aethercode/libs/pkg/config"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/config"
 )
 
 // Open creates and verifies a bounded PostgreSQL connection pool.

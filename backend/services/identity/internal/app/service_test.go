@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/authn"
-	"github.com/aethercode/aethercode/services/identity/internal/domain"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/authn"
+	"github.com/stjosephsplacements/AetherCode/services/identity/internal/domain"
 )
 
 const (

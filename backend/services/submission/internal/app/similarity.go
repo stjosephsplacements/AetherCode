@@ -4,10 +4,10 @@ import (
 	"context"
 	"sync"
 
-	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
-	"github.com/aethercode/aethercode/libs/pkg/database"
-	"github.com/aethercode/aethercode/services/submission/internal/domain/similarity"
 	"github.com/jackc/pgx/v5"
+	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	"github.com/stjosephsplacements/AetherCode/services/submission/internal/domain/similarity"
 )
 
 const (

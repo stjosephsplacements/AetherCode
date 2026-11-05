@@ -3,8 +3,8 @@ package repo
 import (
 	"context"
 
-	"github.com/aethercode/aethercode/services/assessment/internal/app"
 	"github.com/jackc/pgx/v5"
+	"github.com/stjosephsplacements/AetherCode/services/assessment/internal/app"
 )
 
 func (repository *Postgres) UpdateExamVersion(ctx context.Context, transaction pgx.Tx, command app.UpdateExamVersion) error {

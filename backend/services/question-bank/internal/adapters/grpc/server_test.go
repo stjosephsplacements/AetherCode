@@ -5,9 +5,9 @@ import (
 	"errors"
 	"testing"
 
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	questionbankv1 "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/questionbank/v1"
-	"github.com/aethercode/aethercode/services/question-bank/internal/app"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	questionbankv1 "github.com/stjosephsplacements/AetherCode/libs/proto/gen/go/aethercode/questionbank/v1"
+	"github.com/stjosephsplacements/AetherCode/services/question-bank/internal/app"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

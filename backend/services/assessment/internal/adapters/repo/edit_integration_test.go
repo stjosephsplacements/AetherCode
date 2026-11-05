@@ -11,8 +11,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
 
-	"github.com/aethercode/aethercode/services/assessment/internal/adapters/repo"
-	"github.com/aethercode/aethercode/services/assessment/internal/app"
+	"github.com/stjosephsplacements/AetherCode/services/assessment/internal/adapters/repo"
+	"github.com/stjosephsplacements/AetherCode/services/assessment/internal/app"
 )
 
 // TestEditingADraftExam covers ADR-0054: a draft exam's details, a section and a

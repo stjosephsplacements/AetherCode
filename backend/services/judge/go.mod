@@ -1,12 +1,12 @@
-module github.com/aethercode/aethercode/services/judge
+module github.com/stjosephsplacements/AetherCode/services/judge
 
 go 1.26.0
 
 toolchain go1.26.10
 
 require (
-	github.com/aethercode/aethercode/libs/pkg v0.0.0
-	github.com/aethercode/aethercode/libs/proto v0.0.0
+	github.com/stjosephsplacements/AetherCode/libs/pkg v0.0.0
+	github.com/stjosephsplacements/AetherCode/libs/proto v0.0.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/rabbitmq/amqp091-go v1.16.0
@@ -108,6 +108,6 @@ require (
 	gorm.io/gorm v1.31.2 // indirect
 )
 
-replace github.com/aethercode/aethercode/libs/pkg => ../../libs/pkg
+replace github.com/stjosephsplacements/AetherCode/libs/pkg => ../../libs/pkg
 
-replace github.com/aethercode/aethercode/libs/proto => ../../libs/proto
+replace github.com/stjosephsplacements/AetherCode/libs/proto => ../../libs/proto

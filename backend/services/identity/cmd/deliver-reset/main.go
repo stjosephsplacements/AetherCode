@@ -18,8 +18,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/aethercode/aethercode/services/identity/internal/domain"
 	"github.com/jackc/pgx/v5"
+	"github.com/stjosephsplacements/AetherCode/services/identity/internal/domain"
 )
 
 func run(ctx context.Context, databaseURL, encodedKey, email string) (string, error) {

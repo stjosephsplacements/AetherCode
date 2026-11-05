@@ -6,8 +6,8 @@ import (
 	"net"
 	"testing"
 
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	questionbankv1 "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/questionbank/v1"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	questionbankv1 "github.com/stjosephsplacements/AetherCode/libs/proto/gen/go/aethercode/questionbank/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"

@@ -3,8 +3,8 @@ package repo
 import (
 	"testing"
 
-	"github.com/aethercode/aethercode/services/user/internal/domain"
 	"github.com/google/uuid"
+	"github.com/stjosephsplacements/AetherCode/services/user/internal/domain"
 	"github.com/stretchr/testify/assert"
 )
 

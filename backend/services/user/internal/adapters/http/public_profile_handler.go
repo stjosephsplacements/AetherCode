@@ -3,8 +3,8 @@ package httpadapter
 import (
 	"net/http"
 
-	"github.com/aethercode/aethercode/libs/pkg/httpx"
-	"github.com/aethercode/aethercode/services/user/internal/app"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
+	"github.com/stjosephsplacements/AetherCode/services/user/internal/app"
 )
 
 type publicProfileRequest struct {

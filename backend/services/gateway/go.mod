@@ -1,11 +1,11 @@
-module github.com/aethercode/aethercode/services/gateway
+module github.com/stjosephsplacements/AetherCode/services/gateway
 
 go 1.26.0
 
 toolchain go1.26.10
 
 require (
-	github.com/aethercode/aethercode/libs/pkg v0.0.0
+	github.com/stjosephsplacements/AetherCode/libs/pkg v0.0.0
 	github.com/coder/websocket v1.8.15
 	github.com/nats-io/nats.go v1.55.0
 )
@@ -47,4 +47,4 @@ require (
 	google.golang.org/protobuf v1.36.12 // indirect
 )
 
-replace github.com/aethercode/aethercode/libs/pkg => ../../libs/pkg
+replace github.com/stjosephsplacements/AetherCode/libs/pkg => ../../libs/pkg

@@ -6,8 +6,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/aethercode/aethercode/libs/pkg/testutil/integration"
 	"github.com/jackc/pgx/v5"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/testutil/integration"
 )
 
 // TestRequireAudienceMatchesDatabaseRejectsMismatch proves publish's

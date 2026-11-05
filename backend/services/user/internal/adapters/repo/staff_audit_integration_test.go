@@ -10,8 +10,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
-	"github.com/aethercode/aethercode/services/user/internal/adapters/repo"
-	"github.com/aethercode/aethercode/services/user/internal/app"
+	"github.com/stjosephsplacements/AetherCode/services/user/internal/adapters/repo"
+	"github.com/stjosephsplacements/AetherCode/services/user/internal/app"
 )
 
 // TestStaffAudit covers ADR-0043's database side: the read-only authorization

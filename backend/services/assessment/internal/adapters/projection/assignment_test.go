@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/messaging"
 	"github.com/google/uuid"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/messaging"
 )
 
 func TestParseBatchAffiliationRejectsInvalidPayloads(t *testing.T) {

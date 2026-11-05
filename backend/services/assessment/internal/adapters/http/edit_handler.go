@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/httpx"
-	"github.com/aethercode/aethercode/services/assessment/internal/app"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
+	"github.com/stjosephsplacements/AetherCode/services/assessment/internal/app"
 )
 
 type updateExamVersionRequest struct {

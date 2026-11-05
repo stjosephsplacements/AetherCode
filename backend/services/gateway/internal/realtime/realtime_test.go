@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/authn"
-	"github.com/aethercode/aethercode/libs/pkg/telemetry"
 	"github.com/coder/websocket"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/authn"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry"
 )
 
 const tenantA = "11111111-1111-4111-8111-111111111111"

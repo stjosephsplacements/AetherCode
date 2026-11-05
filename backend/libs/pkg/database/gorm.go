@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"time"
 
-	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
+	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"

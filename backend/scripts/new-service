@@ -26,7 +26,7 @@ mkdir -p "${directory}/cmd/server" "${directory}/internal/domain" \
   "${directory}/internal/adapters/repo" "${directory}/internal/adapters/messaging" \
   "${directory}/migrations" "${directory}/api"
 
-module="github.com/aethercode/aethercode/services/${service}"
+module="github.com/stjosephsplacements/AetherCode/services/${service}"
 cat >"${directory}/go.mod" <<EOF
 module ${module}
 
@@ -34,9 +34,9 @@ go 1.26.0
 
 toolchain go1.26.5
 
-require github.com/aethercode/aethercode/libs/pkg v0.0.0
+require github.com/stjosephsplacements/AetherCode/libs/pkg v0.0.0
 
-replace github.com/aethercode/aethercode/libs/pkg => ../../libs/pkg
+replace github.com/stjosephsplacements/AetherCode/libs/pkg => ../../libs/pkg
 EOF
 
 cat >"${directory}/cmd/server/main.go" <<EOF
@@ -49,7 +49,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/aethercode/aethercode/libs/pkg/httpx"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
 )
 
 func main() {

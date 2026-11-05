@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aethercode/aethercode/services/identity/internal/domain"
+	"github.com/stjosephsplacements/AetherCode/services/identity/internal/domain"
 )
 
 var testAudit = AccountAudit{ActorID: testPrincipalID, RequestID: testAccessID}

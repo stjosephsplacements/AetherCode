@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/aethercode/aethercode/libs/pkg/database"
-	"github.com/aethercode/aethercode/services/user/internal/domain"
 	"github.com/google/uuid"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	"github.com/stjosephsplacements/AetherCode/services/user/internal/domain"
 	"gorm.io/gorm"
 )
 

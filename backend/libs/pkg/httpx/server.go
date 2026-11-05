@@ -9,9 +9,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/config"
-	"github.com/aethercode/aethercode/libs/pkg/logging"
-	"github.com/aethercode/aethercode/libs/pkg/telemetry"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/config"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/logging"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry"
 )
 
 // ReadinessFunc reports whether a service can safely receive work.

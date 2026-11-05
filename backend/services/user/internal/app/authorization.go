@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
-	"github.com/aethercode/aethercode/libs/pkg/database"
-	"github.com/aethercode/aethercode/libs/pkg/rbac"
+	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/rbac"
 )
 
 var (

@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"time"
 
-	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
 )
 
 // WithTenantTx begins a protected transaction only after the central User

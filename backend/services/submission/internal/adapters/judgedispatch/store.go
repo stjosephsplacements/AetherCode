@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/aethercode/aethercode/libs/pkg/database"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
 )
 
 // Store uses the dedicated adapter pool. The database role has EXECUTE-only

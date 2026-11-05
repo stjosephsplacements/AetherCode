@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
+	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
 )
 
 const (

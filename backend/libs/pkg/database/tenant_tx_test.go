@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
 	"github.com/jackc/pgx/v5/pgconn"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
 )
 
 func TestContextErrorReportsOnlyProjectionLagAsRetryable(t *testing.T) {

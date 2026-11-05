@@ -1,12 +1,12 @@
-module github.com/aethercode/aethercode/services/user
+module github.com/stjosephsplacements/AetherCode/services/user
 
 go 1.26.0
 
 toolchain go1.26.10
 
 require (
-	github.com/aethercode/aethercode/libs/pkg v0.0.0
-	github.com/aethercode/aethercode/libs/proto v0.0.0
+	github.com/stjosephsplacements/AetherCode/libs/pkg v0.0.0
+	github.com/stjosephsplacements/AetherCode/libs/proto v0.0.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/stretchr/testify v1.12.1
@@ -99,6 +99,6 @@ require (
 	gorm.io/driver/postgres v1.6.3 // indirect
 )
 
-replace github.com/aethercode/aethercode/libs/pkg => ../../libs/pkg
+replace github.com/stjosephsplacements/AetherCode/libs/pkg => ../../libs/pkg
 
-replace github.com/aethercode/aethercode/libs/proto => ../../libs/proto
+replace github.com/stjosephsplacements/AetherCode/libs/proto => ../../libs/proto

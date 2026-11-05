@@ -13,8 +13,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 
-	"github.com/aethercode/aethercode/services/user/internal/adapters/repo"
-	"github.com/aethercode/aethercode/services/user/internal/app"
+	"github.com/stjosephsplacements/AetherCode/services/user/internal/adapters/repo"
+	"github.com/stjosephsplacements/AetherCode/services/user/internal/app"
 )
 
 // TestAccountManagementFunctions exercises migration 000024 as the

@@ -10,8 +10,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
 
-	"github.com/aethercode/aethercode/services/tenant/internal/adapters/repo"
-	"github.com/aethercode/aethercode/services/tenant/internal/app"
+	"github.com/stjosephsplacements/AetherCode/services/tenant/internal/adapters/repo"
+	"github.com/stjosephsplacements/AetherCode/services/tenant/internal/app"
 )
 
 func ptr(value string) *string { return &value }

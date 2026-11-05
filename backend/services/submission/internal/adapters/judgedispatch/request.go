@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	judgev1 "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/judge/v1"
+	judgev1 "github.com/stjosephsplacements/AetherCode/libs/proto/gen/go/aethercode/judge/v1"
 )
 
 // Bounds Judge's SubmitExecution validation enforces. A question's limits are

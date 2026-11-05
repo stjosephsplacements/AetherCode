@@ -1,4 +1,4 @@
-module github.com/aethercode/aethercode/libs/proto
+module github.com/stjosephsplacements/AetherCode/libs/proto
 
 go 1.26.0
 

@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	judgev1 "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/judge/v1"
 	"github.com/google/uuid"
+	judgev1 "github.com/stjosephsplacements/AetherCode/libs/proto/gen/go/aethercode/judge/v1"
 )
 
 // maxUnitResults and maxUnitMetric mirror the bounds

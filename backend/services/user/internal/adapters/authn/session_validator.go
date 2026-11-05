@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	userconfig "github.com/aethercode/aethercode/services/user/internal/config"
+	userconfig "github.com/stjosephsplacements/AetherCode/services/user/internal/config"
 )
 
 // SessionValidator calls Identity's private introspection endpoint for every

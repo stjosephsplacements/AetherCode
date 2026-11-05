@@ -15,7 +15,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/aethercode/aethercode/libs/pkg/testutil/integration"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/testutil/integration"
 )
 
 const tenantID = "018f4b0d-08f8-7c09-9ba7-efdf9c350001"

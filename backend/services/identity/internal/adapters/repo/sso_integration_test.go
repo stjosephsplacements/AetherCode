@@ -11,10 +11,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	"github.com/aethercode/aethercode/services/identity/internal/adapters/repo"
-	"github.com/aethercode/aethercode/services/identity/internal/app"
-	"github.com/aethercode/aethercode/services/identity/internal/domain"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	"github.com/stjosephsplacements/AetherCode/services/identity/internal/adapters/repo"
+	"github.com/stjosephsplacements/AetherCode/services/identity/internal/app"
+	"github.com/stjosephsplacements/AetherCode/services/identity/internal/domain"
 )
 
 // TestSingleSignOn covers ADR-0042's database side: provisioning queues the
