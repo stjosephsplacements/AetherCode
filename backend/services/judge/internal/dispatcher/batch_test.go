@@ -83,8 +83,8 @@ func TestDispatchJob_SendsAJobsUnitsToABatchEngineInOneJob(t *testing.T) {
 	if len(engine.batches) != 1 || len(engine.batches[0]) != 5 {
 		t.Fatalf("batches = %d (first has %d units), want one batch of 5", len(engine.batches), len(engine.batches[0]))
 	}
-	if engine.fakeEngine.submitCalls != 0 {
-		t.Fatalf("single submits = %d, want none: the batch covers every unit", engine.fakeEngine.submitCalls)
+	if engine.submitCalls != 0 {
+		t.Fatalf("single submits = %d, want none: the batch covers every unit", engine.submitCalls)
 	}
 	for i := range 5 {
 		id := fmt.Sprintf("u%d", i)
@@ -122,8 +122,8 @@ func TestDispatchJob_FallsBackToOneByOneWhenTheBatchFails(t *testing.T) {
 	if err := worker.DispatchJob(context.Background(), "job-3"); err != nil {
 		t.Fatalf("DispatchJob: %v", err)
 	}
-	if engine.fakeEngine.submitCalls != 3 {
-		t.Fatalf("single submits = %d, want 3 after the batch failed", engine.fakeEngine.submitCalls)
+	if engine.submitCalls != 3 {
+		t.Fatalf("single submits = %d, want 3 after the batch failed", engine.submitCalls)
 	}
 	if len(store.recordedVerdicts) != 3 {
 		t.Fatalf("verdicts recorded = %d, want 3", len(store.recordedVerdicts))
@@ -174,7 +174,7 @@ func TestDispatchJob_UnitsOfDifferentProgramsAreNotBatched(t *testing.T) {
 	if err := worker.DispatchJob(context.Background(), "job-6"); err != nil {
 		t.Fatalf("DispatchJob: %v", err)
 	}
-	if len(engine.batches) != 0 || engine.fakeEngine.submitCalls != 2 {
-		t.Fatalf("batches = %d, single submits = %d, want 0 and 2", len(engine.batches), engine.fakeEngine.submitCalls)
+	if len(engine.batches) != 0 || engine.submitCalls != 2 {
+		t.Fatalf("batches = %d, single submits = %d, want 0 and 2", len(engine.batches), engine.submitCalls)
 	}
 }
