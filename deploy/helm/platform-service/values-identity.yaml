@@ -70,9 +70,12 @@ sso:
   emailDomain: ""
 
 # Password hashing is memory-hard: a bulk student import runs many hashes at once and was OOM-killed at 512Mi.
+# Helm merges this over the chart's defaults, which carry a 500m CPU limit; that throttled Argon2 to
+# about 0.3 s per account, so a 500-student import could not finish. Say the CPU limit explicitly.
 resources:
   requests:
-    cpu: 100m
+    cpu: "1"
     memory: 512Mi
   limits:
+    cpu: "8"
     memory: 2Gi

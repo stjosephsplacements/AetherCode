@@ -68,3 +68,25 @@ func TestGeneratePasswordSatisfiesPolicy(t *testing.T) {
 		t.Fatalf("GeneratePassword() repeated a password in 200 draws")
 	}
 }
+
+func TestGeneratedPasswordHashVerifiesAndIsLighter(t *testing.T) {
+	t.Parallel()
+	password, err := GeneratePassword()
+	if err != nil {
+		t.Fatal(err)
+	}
+	generated, err := HashGeneratedPassword(password)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !VerifyPassword(generated, password) || VerifyPassword(generated, password+"x") {
+		t.Fatal("a generated-password hash must verify exactly its password")
+	}
+	if !strings.Contains(generated, "m=19456,t=2,p=1") {
+		t.Fatalf("generated passwords use the OWASP minimum settings, got %s", generated)
+	}
+	chosen, err := HashPassword("A person chose this 2026")
+	if err != nil || !strings.Contains(chosen, "m=65536,t=3,p=4") {
+		t.Fatalf("a chosen password keeps the full settings, got %s (%v)", chosen, err)
+	}
+}

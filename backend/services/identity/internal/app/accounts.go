@@ -288,7 +288,7 @@ func generateCredentials(principalIDs []string) ([]IssuedCredential, []string, e
 	for range hashWorkers {
 		workers.Go(func() {
 			for index := range indexes {
-				hashes[index], errs[index] = domain.HashPassword(credentials[index].Password)
+				hashes[index], errs[index] = domain.HashGeneratedPassword(credentials[index].Password)
 			}
 		})
 	}

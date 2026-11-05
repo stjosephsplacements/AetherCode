@@ -282,9 +282,10 @@ func serveIntrospection(
 		Addr:              runtime.IntrospectionAddress,
 		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       10 * time.Second,
-		WriteTimeout:      10 * time.Second,
-		IdleTimeout:       30 * time.Second,
+		// Account provisioning hashes up to 500 passwords in one call.
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  30 * time.Second,
 	}
 	serverErrors := make(chan error, 1)
 	go func() {
