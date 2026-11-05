@@ -627,11 +627,21 @@ func (service *Service) DisableTOTP(contextValue context.Context, principalID, f
 	return service.store.DisableTOTP(contextValue, TOTPDisable{PrincipalID: principalID, FactorID: factorID, Code: code})
 }
 
+// freshMFA drops an MFA stamp older than the 15-minute window the signer accepts, so a refresh
+// after that window issues a token without MFA claims (elevated writes then need a step-up)
+// instead of failing after the refresh token was already rotated.
+func freshMFA(at *time.Time, now time.Time) *time.Time {
+	if at == nil || now.Sub(*at) > 15*time.Minute {
+		return nil
+	}
+	return at
+}
+
 func (service *Service) issueTokenPair(session Session, accessTokenID, refreshToken string, now time.Time) (TokenPair, error) {
 	if session.PrincipalID == "" || accessTokenID == "" {
 		return TokenPair{}, fmt.Errorf("identity store returned an incomplete session")
 	}
-	accessToken, claims, err := service.signer.Issue(session.PrincipalID, accessTokenID, now, service.accessTokenLifetime, session.MFAVerifiedAt)
+	accessToken, claims, err := service.signer.Issue(session.PrincipalID, accessTokenID, now, service.accessTokenLifetime, freshMFA(session.MFAVerifiedAt, now))
 	if err != nil {
 		return TokenPair{}, fmt.Errorf("issue access token: %w", err)
 	}

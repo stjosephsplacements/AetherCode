@@ -82,7 +82,7 @@ AS $function$
                             WHERE membership.student_id = p_student_id
                               AND membership.tenant_id = p_tenant_id
                               AND membership.batch_id = grant_row.grant_source_id
-                              AND membership.is_current
+                              AND membership.lifecycle_state = 'active'
                         )
                     )
               )
@@ -114,7 +114,7 @@ CREATE POLICY tenant_department_projections_projection_worker
 CREATE POLICY tenant_department_projections_app_read
     ON users.tenant_department_projections
     FOR SELECT TO aether_user_app
-    USING (authz.current_context_covers_node(id));
+    USING (authz.current_context_covers_node(department_id));
 
 -- Scoped-node policy for tenant_batch_projections.
 ALTER TABLE users.tenant_batch_projections ENABLE ROW LEVEL SECURITY;
@@ -134,6 +134,6 @@ CREATE POLICY tenant_batch_projections_projection_worker
 CREATE POLICY tenant_batch_projections_app_read
     ON users.tenant_batch_projections
     FOR SELECT TO aether_user_app
-    USING (authz.current_context_covers_node(id));
+    USING (authz.current_context_covers_node(batch_id));
 
 RESET ROLE;

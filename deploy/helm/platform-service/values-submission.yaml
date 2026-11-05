@@ -69,3 +69,21 @@ networkPolicy:
   allowFrom:
     - service: gateway
       ports: [8080]
+  egress:
+    extraRules:
+      - to:
+          - podSelector:
+              matchLabels:
+                app.kubernetes.io/part-of: aethercode
+                app.kubernetes.io/name: judge
+        ports:
+          - protocol: TCP
+            port: 8443
+      - to:
+          - podSelector:
+              matchLabels:
+                app.kubernetes.io/part-of: aethercode
+                app.kubernetes.io/name: minio
+        ports:
+          - protocol: TCP
+            port: 9000

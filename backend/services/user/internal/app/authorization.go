@@ -395,12 +395,7 @@ func (service *Service) Authorize(contextValue context.Context, request Request)
 	}
 	databaseAction := targetRoute.ActionPrefix + "." + databaseVerb
 	databaseResource := targetRoute.ResourcePrefix + "." + validated.ResourceType
-	var nodes []string
-	for _, scope := range decision.Scopes {
-		if scope.Kind == "department" || scope.Kind == "batch" || scope.Kind == "placement_department" {
-			nodes = append(nodes, scope.ID)
-		}
-	}
+	nodes := capabilityNodes(decision.Scopes)
 	capability, err := service.keyring.Issue(
 		targetRoute.Audience,
 		validated.PrincipalID,
@@ -628,4 +623,20 @@ func (service *Service) auditStaffWrite(contextValue context.Context, request Re
 	}); err != nil {
 		slog.Warn("record staff action", "error", err, "principal_id", request.PrincipalID)
 	}
+}
+
+// capabilityNodes lists the department, batch and placement-department nodes a capability is
+// limited to. Any broader matching scope (college, platform, root) leaves it unrestricted (nil),
+// so holding one narrow role next to a college-wide one never narrows the wider access.
+func capabilityNodes(scopes []Scope) []string {
+	var nodes []string
+	for _, scope := range scopes {
+		switch scope.Kind {
+		case "department", "batch", "placement_department":
+			nodes = append(nodes, scope.ID)
+		default:
+			return nil
+		}
+	}
+	return nodes
 }

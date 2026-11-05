@@ -73,3 +73,15 @@ and network isolation:
   not included in this change.
 - Egress policies require testing in the deployment environment. The `extraRules` escape hatch
   allows temporary additions without chart changes.
+
+## Rollout and known limits (ultrareview follow-up)
+
+- **Upgrade needs a maintenance window.** The v3 `authz.set_context` takes a `nodes` argument and the
+  capability prefix moves from v2 to v3. Neither side accepts the other, so a rolling upgrade fails until
+  the User service and every other service run the new image. Run the migrations, then roll the User
+  service and all other services together, and expect requests to fail until they are all ready.
+- **Department scope covers its batches** in `tenant.batches` and the assessment batch tables. Analytics
+  rollups have no department column, so a department-scoped capability sees no batch rows there until a
+  department projection is added. A batch-scoped capability deliberately does not cover its parent
+  department (least privilege).
+- A refresh drops an MFA stamp older than 15 minutes instead of failing; elevated writes then need a step-up.
