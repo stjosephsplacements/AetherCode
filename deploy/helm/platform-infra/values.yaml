@@ -21,6 +21,10 @@ defaultDeny:
 
 postgres:
   enabled: true
+  # PostgreSQL io_method (worker, io_uring, sync). Leave empty for the server default; set
+  # "sync" on kernels where asynchronous I/O hangs (see values-infra-kernel-workaround.yaml).
+  ioMethod: ""
+  livenessInitialDelaySeconds: 30
   storage: 100Gi
   maxConnections: 400
   resources:
@@ -29,6 +33,8 @@ postgres:
 
 judgeDb:
   enabled: true
+  ioMethod: ""
+  livenessInitialDelaySeconds: 30
   storage: 20Gi
   resources:
     requests: {cpu: 250m, memory: 512Mi}
