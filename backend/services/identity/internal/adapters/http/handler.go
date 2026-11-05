@@ -36,6 +36,7 @@ type UseCases interface {
 	StartSSO(context.Context) (app.SSOStart, error)
 	CompleteSSO(context.Context, string, string, string, string, string) (app.TokenPair, error)
 	CompleteMFA(context.Context, string, string, string, string, string) (app.TokenPair, error)
+	MFAStepUp(context.Context, string, string, string, string, string, string) (app.TokenPair, error)
 	Refresh(context.Context, string, string, string, string) (app.TokenPair, error)
 	Logout(context.Context, string) error
 	RequestPasswordReset(context.Context, string, string, string) (string, error)
@@ -92,6 +93,7 @@ func NewHandler(serviceName string, service UseCases, readiness httpx.ReadinessF
 	mux.HandleFunc("POST /v1/auth/sso/start", handler.startSSO)
 	mux.HandleFunc("POST /v1/auth/sso/callback", handler.completeSSO)
 	mux.HandleFunc("POST /v1/auth/mfa/verify-login", handler.completeMFA)
+	mux.HandleFunc("POST /v1/auth/mfa/step-up", handler.mfaStepUp)
 	mux.HandleFunc("POST /v1/auth/refresh", handler.refresh)
 	mux.HandleFunc("POST /v1/auth/logout", handler.logout)
 	mux.HandleFunc("POST /v1/auth/password-reset", handler.requestPasswordReset)
@@ -505,18 +507,57 @@ func (handler *Handler) deletePrincipal(writer http.ResponseWriter, request *htt
 }
 
 func (handler *Handler) authenticatedPrincipal(request *http.Request) (string, error) {
-	token, err := httpx.BearerToken(request)
+	claims, err := handler.authenticatedClaims(request)
 	if err != nil {
 		return "", err
 	}
+	return claims.Subject, nil
+}
+
+func (handler *Handler) authenticatedClaims(request *http.Request) (authn.Claims, error) {
+	token, err := httpx.BearerToken(request)
+	if err != nil {
+		return authn.Claims{}, err
+	}
 	claims, err := handler.accessVerifier.Verify(token, time.Now().UTC())
 	if err != nil || claims.Subject == "" {
-		return "", apperrors.New(apperrors.CodeUnauthorized, "access token is invalid")
+		return authn.Claims{}, apperrors.New(apperrors.CodeUnauthorized, "access token is invalid")
 	}
 	if err := handler.service.ValidateAccessToken(request.Context(), claims.Subject, claims.TokenID); err != nil {
-		return "", apperrors.New(apperrors.CodeUnauthorized, "access token is invalid")
+		return authn.Claims{}, apperrors.New(apperrors.CodeUnauthorized, "access token is invalid")
 	}
-	return claims.Subject, nil
+	return claims, nil
+}
+
+type mfaStepUpRequest struct {
+	Code string `json:"code"`
+}
+
+func (handler *Handler) mfaStepUp(writer http.ResponseWriter, request *http.Request) {
+	claims, err := handler.authenticatedClaims(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var body mfaStepUpRequest
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	requestID, err := database.NewUUIDv7()
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	pair, err := handler.service.MFAStepUp(
+		request.Context(), claims.Subject, claims.TokenID, body.Code,
+		clientIP(request), request.UserAgent(), requestID,
+	)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, pair)
 }
 
 // clientIP returns the client address for rate limits and the audit log.

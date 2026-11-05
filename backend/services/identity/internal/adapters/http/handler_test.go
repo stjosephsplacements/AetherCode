@@ -49,6 +49,10 @@ func (fake *fakeUseCases) CompleteMFA(context.Context, string, string, string, s
 	return app.TokenPair{}, nil
 }
 
+func (fake *fakeUseCases) MFAStepUp(context.Context, string, string, string, string, string, string) (app.TokenPair, error) {
+	return app.TokenPair{}, nil
+}
+
 func (fake *fakeUseCases) Refresh(context.Context, string, string, string, string) (app.TokenPair, error) {
 	return app.TokenPair{}, nil
 }

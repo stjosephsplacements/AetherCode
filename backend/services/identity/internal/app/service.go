@@ -37,6 +37,7 @@ type Store interface {
 	DisableTOTP(context.Context, TOTPDisable) error
 	GetPrincipal(context.Context, string) (*Principal, error)
 	SoftDeletePrincipal(context.Context, DeletePrincipal) error
+	PerformMFAStepUp(context.Context, MFAStepUpCommand) (Session, error)
 	AccountStore
 	Ping(context.Context) error
 }
@@ -193,6 +194,22 @@ type DeletePrincipal struct {
 	ID      string
 	ActorID string
 	Reason  string
+}
+
+// MFAStepUpCommand authenticates a TOTP code against the currently-active session
+// so that the returned access token carries an MFAVerifiedAt stamp.
+type MFAStepUpCommand struct {
+	// PrincipalID is the authenticated subject from the bearer being stepped up.
+	PrincipalID string
+	// AccessTokenID is the jti of the bearer so the store can locate its family.
+	AccessTokenID string
+	// Code is the six-digit TOTP value or a recovery code.
+	Code        string
+	NewAccessID string
+	ExpiresAt   time.Time
+	RequestIP   string
+	UserAgent   string
+	RequestID   string
 }
 
 // TokenPair is returned only through the public HTTP adapter after successful
@@ -420,6 +437,47 @@ func (service *Service) CompleteMFA(contextValue context.Context, challengeToken
 	}
 	session.MFAVerifiedAt = &now
 	return service.issueTokenPair(session, accessTokenID, refreshToken, now)
+}
+
+// MFAStepUp verifies a TOTP code for an already-authenticated session and
+// returns a fresh access token with MFAVerifiedAt stamped. The refresh token is
+// unchanged; the caller should update the access cookie without touching the
+// refresh cookie.
+func (service *Service) MFAStepUp(contextValue context.Context, principalID, accessTokenID, code, requestIP, userAgent, requestID string) (TokenPair, error) {
+	principalID = strings.ToLower(strings.TrimSpace(principalID))
+	code = strings.TrimSpace(code)
+	if !isUUID(principalID) {
+		return TokenPair{}, apperrors.New(apperrors.CodeUnauthorized, "authenticated principal is invalid")
+	}
+	if !validTOTPCode(code) && len(code) < 6 {
+		return TokenPair{}, apperrors.New(apperrors.CodeInvalidArgument, "authenticator code is required")
+	}
+	newAccessID, err := service.newID()
+	if err != nil {
+		return TokenPair{}, err
+	}
+	now := service.now().UTC()
+	session, err := service.store.PerformMFAStepUp(contextValue, MFAStepUpCommand{
+		PrincipalID:   principalID,
+		AccessTokenID: strings.TrimSpace(accessTokenID),
+		Code:          code,
+		NewAccessID:   newAccessID,
+		ExpiresAt:     now.Add(service.accessTokenLifetime),
+		RequestIP:     strings.TrimSpace(requestIP),
+		UserAgent:     strings.TrimSpace(userAgent),
+		RequestID:     strings.TrimSpace(requestID),
+	})
+	if err != nil {
+		return TokenPair{}, err
+	}
+	accessToken, claims, err := service.signer.Issue(session.PrincipalID, newAccessID, now, service.accessTokenLifetime, session.MFAVerifiedAt)
+	if err != nil {
+		return TokenPair{}, fmt.Errorf("issue step-up access token: %w", err)
+	}
+	return TokenPair{
+		AccessToken:          accessToken,
+		AccessTokenExpiresAt: time.Unix(claims.ExpiresAt, 0).UTC(),
+	}, nil
 }
 
 // Refresh atomically rotates a refresh bearer and detects replay in the store.

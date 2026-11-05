@@ -81,6 +81,10 @@ func (store *memoryStore) ActivateTOTP(context.Context, TOTPActivation) ([]strin
 
 func (store *memoryStore) DisableTOTP(context.Context, TOTPDisable) error { return nil }
 
+func (store *memoryStore) PerformMFAStepUp(_ context.Context, _ MFAStepUpCommand) (Session, error) {
+	return store.session, nil
+}
+
 func (store *memoryStore) GetPrincipal(context.Context, string) (*Principal, error) {
 	return nil, nil
 }

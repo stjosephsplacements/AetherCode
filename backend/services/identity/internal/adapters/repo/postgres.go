@@ -795,6 +795,104 @@ func (repository *Postgres) CompleteMFAChallenge(contextValue context.Context, c
 	return app.Session{PrincipalID: challenge.PrincipalID, TenantID: challenge.TenantID, AuthzRevision: 1}, nil
 }
 
+// PerformMFAStepUp verifies a TOTP code against the principal's active factors,
+// stamps the current refresh session family with mfa_verified_at, and registers
+// a new access token session. The caller should replace only the access cookie.
+func (repository *Postgres) PerformMFAStepUp(contextValue context.Context, command app.MFAStepUpCommand) (app.Session, error) {
+	transaction, err := repository.pool.BeginTx(contextValue, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
+	if err != nil {
+		return app.Session{}, fmt.Errorf("begin MFA step-up: %w", err)
+	}
+	defer func() { _ = transaction.Rollback(contextValue) }()
+
+	// Find the session family for this access token and lock it.
+	var familyID, principalID, tenantID string
+	var authzRevision int64
+	err = transaction.QueryRow(contextValue, `
+		SELECT s.family_id, f.principal_id, COALESCE(f.tenant_id::text, ''), f.authz_revision
+		FROM identity.access_token_sessions AS s
+		JOIN identity.refresh_session_families AS f ON f.id = s.family_id
+		WHERE s.token_id = $1 AND s.principal_id = $2
+		  AND s.revoked_at IS NULL AND f.state = 'active' AND f.expires_at > clock_timestamp()
+		FOR UPDATE OF f
+	`, command.AccessTokenID, command.PrincipalID).Scan(&familyID, &principalID, &tenantID, &authzRevision)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return app.Session{}, apperrors.New(apperrors.CodeUnauthorized, "session is invalid")
+	}
+	if err != nil {
+		return app.Session{}, fmt.Errorf("lock step-up session family: %w", err)
+	}
+
+	if err := lockPrincipalMFAState(contextValue, transaction, principalID); err != nil {
+		return app.Session{}, err
+	}
+	factors, err := lockActiveMFAFactors(contextValue, transaction, principalID)
+	if err != nil {
+		return app.Session{}, err
+	}
+	if len(factors) == 0 {
+		return app.Session{}, apperrors.New(apperrors.CodeForbidden, "no active MFA factor configured")
+	}
+	verifiedFactorID, _, err := repository.verifyMFAProof(contextValue, transaction, factors, command.Code)
+	if err != nil {
+		return app.Session{}, err
+	}
+	if verifiedFactorID == "" {
+		if err := repository.recordAuthEvent(contextValue, transaction, authEvent{
+			PrincipalID: principalID, TenantID: tenantID, EventType: "identity.mfa.stepup.v1", Outcome: "failure",
+			RequestID: command.RequestID, IPAddress: command.RequestIP, UserAgent: command.UserAgent,
+			Metadata: map[string]string{"reason": "invalid_proof"},
+		}); err != nil {
+			return app.Session{}, err
+		}
+		if err := transaction.Commit(contextValue); err != nil {
+			return app.Session{}, fmt.Errorf("commit invalid step-up proof audit: %w", err)
+		}
+		return app.Session{}, apperrors.New(apperrors.CodeUnauthorized, "authenticator code is incorrect")
+	}
+
+	now := time.Now().UTC()
+
+	// Stamp the family so future token rotations preserve the MFA verification time.
+	metaRaw := map[string]any{"mfa_verified_at_unix": now.Unix()}
+	updatedMeta, err := json.Marshal(metaRaw)
+	if err != nil {
+		return app.Session{}, fmt.Errorf("encode step-up family metadata: %w", err)
+	}
+	if _, err := transaction.Exec(contextValue, `
+		UPDATE identity.refresh_session_families
+		SET metadata = metadata || $2::jsonb, last_seen_at = clock_timestamp(), version = version + 1
+		WHERE id = $1 AND state = 'active'
+	`, familyID, updatedMeta); err != nil {
+		return app.Session{}, fmt.Errorf("stamp step-up family: %w", err)
+	}
+
+	// Register the new access token session so ValidateAccessToken accepts it.
+	if _, err := transaction.Exec(contextValue, `
+		INSERT INTO identity.access_token_sessions (token_id, family_id, principal_id, expires_at)
+		VALUES ($1, $2, $3, $4)
+	`, command.NewAccessID, familyID, principalID, command.ExpiresAt.UTC()); err != nil {
+		return app.Session{}, fmt.Errorf("register step-up access token: %w", err)
+	}
+
+	if _, err := transaction.Exec(contextValue, `
+		UPDATE identity.mfa_factors SET last_used_at = clock_timestamp(), version = version + 1 WHERE id = $1
+	`, verifiedFactorID); err != nil {
+		return app.Session{}, fmt.Errorf("mark step-up factor used: %w", err)
+	}
+
+	if err := repository.recordAuthEvent(contextValue, transaction, authEvent{
+		PrincipalID: principalID, TenantID: tenantID, EventType: "identity.mfa.stepup.v1", Outcome: "success",
+		RequestID: command.RequestID, IPAddress: command.RequestIP, UserAgent: command.UserAgent,
+	}); err != nil {
+		return app.Session{}, err
+	}
+	if err := transaction.Commit(contextValue); err != nil {
+		return app.Session{}, fmt.Errorf("commit MFA step-up: %w", err)
+	}
+	return app.Session{PrincipalID: principalID, TenantID: tenantID, AuthzRevision: authzRevision, MFAVerifiedAt: &now}, nil
+}
+
 type mfaChallengeRecord struct {
 	ID           string
 	PrincipalID  string
