@@ -90,14 +90,16 @@ if batches["items"]:
     ids["batch_id"] = batches["items"][0]["id"]
 student = None
 students = get(f"/user/v1/tenants/{tenant}/students") or {"items": []}
-roll = None
-if students["items"] and "batch_id" in ids:
-    status, payload = http("POST", f"/user/v1/tenants/{tenant}/accounts/{students['items'][0].get('principal_id', uuid.uuid4())}/password", token=admin)
-    if status in (200, 201) and payload:
-        reset = json.loads(payload)
-        roll, password = students["items"][0].get("roll_number"), reset.get("password")
-        if roll and password:
-            student = login(roll, password)
+if students["items"]:
+    first = students["items"][0]
+    principal = first.get("principal_id") or first.get("id")
+    status, payload = http("POST", f"/user/v1/tenants/{tenant}/accounts/{principal}/password", token=admin)
+    reset = json.loads(payload) if status in (200, 201) and payload else {}
+    roll = first.get("roll_number") or reset.get("roll_number") or reset.get("username")
+    if roll and reset.get("password"):
+        student = login(roll, reset["password"])
+    else:
+        print(f"no student token: list item keys {sorted(first)}, reset status {status} keys {sorted(reset)}")
 exams = get(f"/assessment/v1/tenants/{tenant}/exams") or {"items": []}
 if exams["items"]:
     ids["exam_id"] = exams["items"][0]["id"]
@@ -106,7 +108,9 @@ if questions["items"]:
     first = questions["items"][0]
     ids["question_id"] = first.get("id") or first.get("question_id") or str(uuid.uuid4())
     ids["question_version_id"] = first.get("question_version_id") or (first.get("question_version") or {}).get("id") or str(uuid.uuid4())
-print(f"discovered: {sorted(ids)}; student token: {'yes' if student else 'no'}")
+print(f"discovered: {sorted(ids)}; students listed: {len(students['items'])}; student token: {'yes' if student else 'no'}")
+if os.environ.get("SWEEP_DISCOVER_ONLY"):
+    sys.exit(0)
 
 operations = []
 for spec in sorted(glob.glob(os.path.join(ROOT, "*", "api", "openapi.yaml"))):
