@@ -77,6 +77,10 @@ spec:
             - -c
             - io_method={{ . }}
             {{- end }}
+            {{- with $cfg.fileExtendMethod }}
+            - -c
+            - file_extend_method={{ . }}
+            {{- end }}
           ports:
             - name: postgres
               containerPort: 5432
