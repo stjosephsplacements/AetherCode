@@ -55,7 +55,7 @@ export default async function StaffAccountsPage({
   }
 
   const { perCollege, placement, page } = data;
-  const several = staff.isPlatformAdmin;
+  const several = false; // /staff is one college (cross-college lists live in /admin), so no college picker or column
 
   const placementList = placement.organizations.flatMap((org) =>
     org.departments.map((dep) => ({ id: dep.id, name: `${departmentLabel(dep)}, ${org.legal_name}` }))
