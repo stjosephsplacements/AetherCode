@@ -124,7 +124,6 @@ func parseSnapshot(event messaging.Event) (authorizationSnapshot, error) {
 		return authorizationSnapshot{}, fmt.Errorf("authorization snapshot event is invalid")
 	}
 	decoder := json.NewDecoder(strings.NewReader(string(event.Payload)))
-	decoder.DisallowUnknownFields()
 	var payload authorizationSnapshot
 	if err := decoder.Decode(&payload); err != nil {
 		return authorizationSnapshot{}, fmt.Errorf("decode authorization snapshot payload: %w", err)
