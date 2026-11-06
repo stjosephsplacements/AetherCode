@@ -75,3 +75,6 @@ Each decision is a numbered file; new ones start from [the template](0000-templa
 | [0069](0069-question-intake-app.md) | Question intake web app for rapid problem authoring (accepted) |
 | [0070](0070-question-statement-format.md) | Question statement formatting with LaTeX mathematics (accepted) |
 | [0071](0071-zip-bulk-test-upload.md) | Zip bulk test upload in question intake (accepted) |
+| [0072](0072-security-hardening-node-scoping-mfa-egress.md) | Security hardening: node scoping, MFA step-up, egress (accepted) |
+| [0073](0073-projection-consumers-tolerate-additive-fields.md) | Projection consumers tolerate additive fields (accepted) |
+| [0074](0074-database-pods-and-apparmor-signals.md) | Database pods run without the default AppArmor profile on hosts that deny signals (accepted) |
