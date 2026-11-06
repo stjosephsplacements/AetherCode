@@ -117,6 +117,10 @@ spec:
             allowPrivilegeEscalation: false
             capabilities:
               drop: [ALL]
+            {{- if $cfg.appArmorUnconfined }}
+            appArmorProfile:
+              type: Unconfined
+            {{- end }}
           resources:
             {{- toYaml $cfg.resources | nindent 12 }}
           volumeMounts:
