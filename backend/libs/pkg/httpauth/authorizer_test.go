@@ -2,7 +2,6 @@ package httpauth
 
 import (
 	"testing"
-
 )
 
 func TestNewRejectsMissingDependencies(t *testing.T) {
