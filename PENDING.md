@@ -101,7 +101,12 @@ Ask-first areas under AGENTS.md apply. In priority order:
 6. Analytics rollups have no department column, so a department-scoped user sees no batch rows there yet.
 7. Down migrations from 000042 on recreate a templated function, not the original body.
 8. Judge capacity: size the engine for the largest slot (1,000 at once gave p95 33 s for a verdict).
-9. Update the milestone table in `docs/roadmap.md`; every decision needs an ADR.
+9. A college administrator's "Enrol student" and "Bulk import" buttons are disabled ("Ask a platform administrator to
+   create ..."): placement departments are platform-level, so a college admin cannot enrol students alone. Decide
+   whether that is intended.
+10. Forms that render their result without `FormMessage` would still show the raw `__mfa_required__` marker; the
+    shared `FormMessage` now opens the step-up dialog (`stepup.spec.ts`), but a successful code is not browser-tested.
+11. Update the milestone table in `docs/roadmap.md`; every decision needs an ADR.
 
 ## 5. Verification commands
 
