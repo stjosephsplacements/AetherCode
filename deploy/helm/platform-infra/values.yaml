@@ -6,7 +6,7 @@
 secretName: aethercode-secrets
 
 images:
-  postgres: postgres:18.4
+  postgres: postgres:18.6
   nats: nats:2.14.3-alpine
   minio: cgr.dev/chainguard/minio@sha256:0f95aa412a12351a95bb43c3b54b66440eb0aa022bb3f3458942678a489e915b
   minioClient: cgr.dev/chainguard/minio-client@sha256:231c5976b6145971a5440dcd99257b23840513999f87cbcb68cd6a8ba674ca51
@@ -27,6 +27,10 @@ postgres:
   # posix_fallocate (the server default) or write_zeros. Some kernels and filesystems stall inside
   # posix_fallocate while a relation is extended; see values-infra-kernel-workaround.yaml.
   fileExtendMethod: ""
+  # Run the container without the node's default AppArmor profile. On some kernels that profile denies
+  # signals between processes of the same container; PostgreSQL wakes its backends with signals, so
+  # reloads (pg_reload_conf), pg_terminate_backend and lock wake-ups fail or hang.
+  appArmorUnconfined: false
   livenessInitialDelaySeconds: 30
   storage: 100Gi
   maxConnections: 400
@@ -38,6 +42,7 @@ judgeDb:
   enabled: true
   ioMethod: ""
   fileExtendMethod: ""
+  appArmorUnconfined: false
   livenessInitialDelaySeconds: 30
   storage: 20Gi
   resources:
