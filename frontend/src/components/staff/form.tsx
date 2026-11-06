@@ -5,6 +5,8 @@ import { Checkbox as CheckboxPrimitive, Popover, RadioGroup as RadioGroupPrimiti
 import { Children, type ComponentProps, isValidElement, type ReactElement, type ReactNode, useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
+import { StepUpDialog } from "@/components/ui/step-up-dialog";
+import { MFA_REQUIRED_SENTINEL } from "@/lib/mfa-sentinel";
 import { TIME_ZONE, cn } from "@/lib/utils";
 
 /** The result of a staff server action, shown under its form. */
@@ -459,6 +461,7 @@ export function SubmitButton({ children, variant = "primary", className }: { chi
 }
 
 export function FormMessage({ state }: { state: ActionState }) {
+  if (state.error === MFA_REQUIRED_SENTINEL) return <StepUpPrompt />;
   if (state.error) {
     return (
       <p role="alert" className="rounded-[var(--radius-control)] bg-danger-soft px-3 py-2 text-sm text-danger">
@@ -474,6 +477,29 @@ export function FormMessage({ state }: { state: ActionState }) {
     );
   }
   return null;
+}
+
+/**
+ * What a form shows when its action needs a recent MFA check: a prompt that opens the code dialog and,
+ * once the code is accepted, sends the enclosing form again.
+ */
+function StepUpPrompt() {
+  const anchor = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(true);
+  return (
+    <div ref={anchor} className="flex items-center justify-between gap-3 rounded-[var(--radius-control)] bg-danger-soft px-3 py-2 text-sm text-danger">
+      <span role="alert">This needs a recent two-factor check.</span>
+      <Button type="button" size="sm" variant="secondary" onClick={() => setOpen(true)}>Enter code</Button>
+      <StepUpDialog
+        open={open}
+        onClose={() => setOpen(false)}
+        onVerified={() => {
+          setOpen(false);
+          anchor.current?.closest("form")?.requestSubmit();
+        }}
+      />
+    </div>
+  );
 }
 
 /** A form bound to a staff server action, showing its result underneath. */
