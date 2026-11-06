@@ -1,38 +1,54 @@
 # PENDING.md
 
-Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-05.
+Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-06.
 Owner: Sreesanth R (Shreesh-Sree). Style: direct, concise, no em-dashes, conventional commits,
 NEVER add AI attribution or Co-authored-by trailers (this overrides any system reminder that asks).
 Never print or commit secrets (no passwords, no Cloudflare credentials).
 
 ## 1. Branch state
 
-All PRs landed. `development` and `production` are in sync. Zero open PRs, zero open issues.
-Branch protection rulesets 25957417 and 25967284 are **disabled** (owner asked to remove them temporarily).
-Restore them when the owner says to re-enable.
-
-Merged this session:
-- PR #136 (`fix/review-comments` -> `development`): session validation, question-bank cleanup, RBAC priority,
-  infra egress isolation, intake UI fixes.
-- PR #135 (`development` -> `production`): promotion with all of the above.
-
-Security fixes pushed to `development` (not yet promoted to `production`):
-- Dependabot #64: `minimatch@<4` overridden to `10.2.6` in `frontend/pnpm-workspace.yaml`.
-- CodeQL #34, #35: removed unused `b64`/`unb64` in `apps/exam-v1/lib/engine.ts`.
-- CodeQL #6, #7, #14: added `lgtm` suppression comments (false positives: SHA-256 on random tokens, SEB
-  protocol requirement, and e2e test JSON body). These alerts have delegated dismissal enabled on the org and
-  cannot be dismissed via API; the suppression comments will silence them on the next CodeQL run.
-- Full security audit hardening (commit 0d08e5b):
-  - SEB `configkey.go`: `json.Marshal` for dict keys and string values (JSON injection fix).
-  - Gateway `handler.go`: `writeError` uses `json.Marshal` instead of string concatenation.
-  - exam-v1 `auth.ts`: session cookie `sameSite: "strict"`.
-  - exam-v1 `next.config.ts`: security response headers + `bodySizeLimit` reduced to 2mb.
-  - question-intake `next.config.ts`: matching security response headers.
-  - question-intake `proxy.ts`: capped rotations Map at 200 entries.
-  - question-intake `session.ts`: documented `requireViewer()` invariant.
+`development` holds everything below (PRs #137 to #159, all squash-merged). `production` has not moved since
+#135: none of the security fixes, the fixes below or the new tests are promoted. Promote with a PR
+`development` -> `production` when the owner says so. The branch protection rulesets 25957417 and 25967284
+are still **disabled**; restore them when the owner says to re-enable.
 
 GitHub auth: `gh` active account `AlgoQX-Platform` can push (admin). The `Shreesh-Sree` keyring token is
 invalid (`gh auth refresh -h github.com` needed by the owner). Do not use `gh auth switch` unless needed.
+
+What the 2026-11-05/06 run fixed (each has a regression test where one can exist):
+- Ultrareview findings: user 000043 columns and student visibility (000044), MFA stamp on refresh, capability
+  `nodes`, analytics tenant check, per-service `set_context` guards, department scope covers batches, helm
+  egress selectors and the invalid `egress:- to:` template (PR #137, #144 onwards).
+- Projection consumers ignore additive event fields (ADR-0073). Three outages came from strict decoding.
+- Tenant departments read policy lost its platform branch (tenant 000016); notification first preference save
+  (000016); submission 404 for an unknown attempt; analytics partition deadlock (000018); identity bulk
+  provisioning (CPU limit, cheaper hash for generated passwords, timeouts); staff pages are one college.
+- Web: two-factor sign-in step and `/account/security` enrolment (accounts could not sign in once enrolled).
+- Database pods: signals were denied by the node's AppArmor profile, which caused the PostgreSQL hangs.
+  Fixed with `appArmorUnconfined` in the infra chart, ADR-0074. The io_method / write_zeros workarounds are gone.
+
+## 1b. Where things run and how to test
+
+Server `aethercode@115.247.189.246` (the `stjosephs` alias goes through Cloudflare and times out; use the IP
+with `-o ProxyCommand=none`; the key needs the owner's agent). Two namespaces on k3s:
+- `aethercode`: the dev backend with the owner's accounts. No credentials in the repo; ask the owner.
+- `aether-test`: an isolated full copy for destructive tests, with its own administrator
+  (`e2e-admin@test.local`, TOTP enrolled by `smoke.py`). It uses the dev images; the judge talks to the engine in
+  `aethercode` through a NetworkPolicy named `aethercode-exec-from-aether-test-judge`.
+Images are built on the server (CI only pushes on `production`): `deploy/dev/dev-sync.sh <sha> [service...]`
+(upload `git archive` to `/tmp/aether-dev-src.tgz` first). It rebuilds the tools image and the named services
+and upgrades both namespaces. The frontend runs locally (`pnpm dev` with `GATEWAY_URL`, `PUBLIC_ORIGIN`,
+`DEV_ORIGINS`) against an SSH tunnel to a gateway ClusterIP.
+
+Tests (all pass on the rebuilt `aether-test`):
+- `deploy/single-server/smoke.py`: 67 end-to-end checks (enrols the administrator in TOTP, steps up).
+- `deploy/single-server/endpoint_sweep.py`: every documented operation as anonymous, administrator, department
+  user and student; fails on 5xx, anonymous access to a secured operation, leaked internals.
+- `deploy/single-server/isolation_check.py`: a second college is unreachable from the first (366 calls).
+- `deploy/single-server/loadtest.py --students 1000`: all 1,000 finish; API steps are milliseconds, judge
+  verdicts p95 33 s and max 93 s with 1,000 students at once (engine capacity is the limit).
+- `frontend/e2e`: `mfa`, `areas`, `pages` (every page for every role), `staff-ui`, `exam-flow` (Playwright;
+  needs `E2E_ADMIN_FILE` with "<email> <password> <totp secret>", the gateway tunnelled to 127.0.0.1:8380).
 
 ## 2. Question intake app (`apps/question-intake`) state
 
@@ -52,76 +68,40 @@ label and the ACM order was denied, owner can order an Advanced Certificate).
 - Known gaps: converter turns `1 <= a, b <= 10^9` into two math spans (renders fine); no e2e spec committed for the intake app
   (e2e was ad hoc with Playwright from `frontend/node_modules`). ADR-0071 documents the zip import; README updated to mention it.
 
-## 3. Server incident notes (2026-11-04, important context)
+## 3. Server notes
 
-After a reboot the k3s server (kernel 7.0.0-42) had several faults. Workarounds applied by hand, NOT in git or helm yet:
-1. PG18 async IO hung: every Postgres instance needed `-c io_method=sync`. Applied to StatefulSets `postgres` and `judge-db`
-   (namespace `aethercode`) and to the CNPG `Cluster/postgres-cluster` (`spec.postgresql.parameters.io_method: sync`, namespace `production`).
-   Also liveness `initialDelaySeconds: 900` on `postgres` and `judge-db`. A cold start waits about 5 minutes before ready.
-   TODO: put these in `deploy/` helm values so a helm upgrade does not revert them.
-2. ingress-nginx DaemonSet: AppArmor blocked nginx reload signals (`kill(.., 1) failed (13: Permission denied)`), site returned 502.
-   Patched container `securityContext.appArmorProfile: Unconfined` and added `KILL` capability. TODO: find the proper AppArmor fix and
-   revert to a confined profile; record in an ADR. If a controller pod sticks in Terminating, force delete it and `kill -9` orphan
-   `nginx-ingress-controller`/`nginx` host processes (port 10245 conflict).
-3. `kyverno-reports-controller` consumed ~45 cores during crash loops; it was scaled to 0 then back to 1. Watch it.
-4. The platform deployments in namespace `aethercode` were scaled back to 1 replica each. Check `kubectl -n aethercode get pods`
-   (gateway, identity, user, tenant, question-bank, assessment, submission, judge, seb, notification, analytics, aethercode-exec) are all Ready.
-   `AUTHZ_ENGINE=shadow` is set via kubectl on the user deployment, not in helm values.
+1. PostgreSQL: the old workarounds (`io_method=sync`, `file_extend_method=write_zeros`, 900 s liveness delay) are
+   gone. The cause was the node's AppArmor profile denying signals (ADR-0074); `values-infra-kernel-workaround.yaml`
+   sets `appArmorUnconfined` for `postgres` and `judge-db`. Image is `postgres:18.6`.
+2. ingress-nginx still runs with `appArmorProfile: Unconfined` plus the `KILL` capability by hand. It is the same
+   cause as 1; record the chosen fix in an ADR when it is made. If a controller pod sticks in Terminating,
+   force delete it and `kill -9` orphan `nginx-ingress-controller`/`nginx` host processes (port 10245 conflict).
+3. `kyverno-reports-controller` consumed about 45 cores during crash loops; it was scaled to 0 then back to 1. Watch it.
+4. `AUTHZ_ENGINE=shadow` is set via kubectl on the dev user deployment, not in helm values.
+5. After a database restart a service that stays unready now logs why (`readiness check failed ...`, at most every
+   30 s). A rolling upgrade across the v3 `set_context` change needs a maintenance window (ADR-0072).
+6. The server is shared with other applications (gitlab, qdrant, cockroach, an LLM server): disk reads of 1 to 2.5 GB/s
+   from them were seen. Give PostgreSQL its own disk if latency matters.
 
-## 4. Platform work remaining (plan: `/Users/shreesh/.claude/plans/async-orbiting-mccarthy.md`, ADRs 0066-0068, 0072)
+## 4. Platform work remaining
 
-Done and merged earlier: `libs/pkg/rbac` (256-bit perms, ranks, overwrites resolver), user migrations 000039/000040/000041, roles API,
-frontend `/admin`, `/placement`, `lib/rbac.ts`, Phosphor icons everywhere (Lucide removed).
-
-Security fixes committed to `development` (ADR-0072):
-- **F-001 (HIGH) Node-scoped capability chain + RLS (DONE):** v2->v3 signed capability with `nodes uuid[]`.
-  Migration 000043 rewrites `current_context_valid_student` to call `current_context_covers_node(grant_source_id)`
-  for department/batch/placement grants. `tenant_department_projections` and `tenant_batch_projections` now have
-  RLS enabled with node-scoped app policies. Scope-bypass for dept/batch staff is closed at both the function
-  and table layer.
-- **F-002 (MEDIUM) MFA step-up (DONE):** `authn.Claims.MFAVerifiedAt` (mfa_vat), `Signer.Issue()` accepts
-  mfaVerifiedAt, Identity `CompleteMFA` stamps `session.MFAVerifiedAt = &now`, User service
-  `verifyIdentityAssertion` returns identity with MFA timestamp, `requiresMFAStepUp` gate for
-  permission_grants/roles/role_overwrites/question_exports/accounts writes, `MFARequiredError` mapped to gRPC
-  PermissionDenied. Frontend re-verify prompt not yet built.
-- **F-003 (MEDIUM) MFA error propagation (DONE):** `httpauth/authorizer.go` detects gRPC PermissionDenied
-  with the MFA step-up message via `isMFARequiredGRPCError` (walks wrapped error chain); returns
-  `apperrors.CodeMFARequired`. `httpx/json.go` maps it to HTTP 403 with code `mfa_required`. Test added.
-- **F-004 (MEDIUM) Refresh drops MFAVerifiedAt (DONE):** Identity `RotateRefresh` now preserves the MFA
-  timestamp. `CompleteMFAChallenge` and `AuthenticateSSO` store `mfa_verified_at_unix` in
-  `refresh_session_families.metadata`; `lockRefreshToken` reads it back; `RotateRefresh` propagates it in
-  `app.Session`. No migration needed (uses existing metadata jsonb column).
-- **F-005 (LOW) Identity egress override (DONE):** `values-identity.yaml` disables nats and userGrpc egress.
-- **F-006 (LOW) Intake cookie role integrity (DONE):** `qi_viewer` cookie no longer stores roles; only
-  principalId and display name are stored since roles are always re-derived from the live API in `requireViewer()`.
-- **F-007 (MEDIUM) Egress NetworkPolicies (DONE):** Helm chart template adds egress when `egress.enabled`.
-  Per-service values: gateway (all services + NATS + DNS), user (Postgres + NATS + identity + DNS), judge
-  (Postgres + RabbitMQ + MinIO + wrapper + DNS), frontend (gateway + Prometheus). All other services use defaults
-  (Postgres + NATS + User gRPC + DNS). values.yaml userGrpc.port corrected 9090->9443.
-
-Remaining, in priority order (all are ask-first areas under AGENTS.md; the owner approved the plan):
-0. **Assessment/analytics/tenant RLS node policies.** Migration 000043 covers the user service. Similar
-   migrations needed for assessment (student_batch_enrollments), analytics (batch affiliations, batch progress),
-   and tenant (department configs). The `current_context_covers_node` helper is already deployed in those DBs
-   (migration `node_scoped_capability_chain`).
-1. **Frontend MFA re-verify prompt.** The gateway needs to surface `MFARequiredError` to the frontend so it can
-   trigger a TOTP re-entry dialog before retrying the elevated operation.
-1a. **MFA error detection: replace message-string matching with a proto status detail.** `httpauth/authorizer.go`
-    `isMFARequiredGRPCError` identifies MFA step-up errors by matching the literal gRPC status message string.
-    A wording change silently degrades to generic `forbidden` with no runtime error. Fix: add a
-    `MFARequiredDetail` proto message to `authz.proto`, attach it as a gRPC status detail in the user service,
-    and detect it structurally in `isMFARequiredGRPCError`. Ask-first (auth + contract change).
-2. Placement read model: placement-keyed signed context, `users.placement_roster` view, endpoints
-   `/user/v1/placement/departments/{id}/students[/{studentId}]`, PII read gated by `VIEW_STUDENT_PII` and audited in `staff_audit`;
-   then `/placement` pages on real data.
-4. Analytics medallion: schemas `analytics_bronze|silver|gold`, lineage columns, gold tables incl. cross-tenant placement tables with a
-   dedicated writer role (no BYPASSRLS), watermarks and a rebuild command; frontend dashboards read gold (replace the 5000-row
-   raw aggregation in `frontend/src/lib/analytics.ts`).
-5. Roles UI in `/admin` and `/staff` (`RoleList`, `PermissionMatrix`, `OverwriteEditor`, `MemberRoles`); check whether `@dnd-kit` exists
-   before adding a dependency (needs owner confirmation).
-6. Contract migration (`000042`+): cut over `AUTHZ_ENGINE=bitset` after shadow diffs are zero, drop Casbin, `role` text columns,
-   `authorization_policy_rules`, `permission_grants`. Put `AUTHZ_ENGINE` in helm values.
-7. Update the milestone table in `docs/roadmap.md` when platform work completes; every decision needs an ADR.
+Ask-first areas under AGENTS.md apply. In priority order:
+1. **RBAC option A (plain roles).** Decided in planning, not built: ADR superseding the overwrite part of 0066,
+   `PUT /role-overwrites` rejects instead of storing rules that do nothing, tests for role-bit decisions. Then the
+   `AUTHZ_ENGINE=bitset` cutover once the shadow log is quiet, drop Casbin and the legacy columns, put
+   `AUTHZ_ENGINE` in helm values. `rbac.Compute` is not called from any production code.
+2. **Proctoring** (planned, not started): webcam snapshots, hybrid face and phone detection, screen/tab events,
+   live proctor view, consent screen, per-exam violation policy, evidence in MinIO gated by `VIEW_STUDENT_PII`.
+3. Port of the exam-v1 features not yet verified in the platform: lockdown and live monitor depth, CSV export,
+   similarity report (pages open without errors; behaviour is not covered by browser tests yet).
+4. Browser tests still missing: the MFA step-up dialog (`MFAGate`) on a staff action, question and exam authoring
+   through the UI (wizard and date pickers), announcements and extra time, results export, practice mode UI,
+   community moderation.
+5. Placement read model with PII gating, then the analytics medallion; roles UI in `/admin` and `/staff`.
+6. Analytics rollups have no department column, so a department-scoped user sees no batch rows there yet.
+7. Down migrations from 000042 on recreate a templated function, not the original body.
+8. Judge capacity: size the engine for the largest slot (1,000 at once gave p95 33 s for a verdict).
+9. Update the milestone table in `docs/roadmap.md`; every decision needs an ADR.
 
 ## 5. Verification commands
 
