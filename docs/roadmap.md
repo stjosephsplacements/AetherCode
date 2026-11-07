@@ -143,6 +143,9 @@ Done 2026-11-05 to 2026-11-08 (code; deployed to `aether-test`):
   exact prior `set_context` body (9 files fixed).
 - Browser tests: exam authoring wizard, extra time from the monitor, MFA
   step-up dialog, MCQ wizard, roster CSV export, practice mode.
+- Roles management UI (`/staff/roles`): lists college roles sorted by tier,
+  shows permission grids, create/edit/delete for non-managed roles (wired to
+  the ADR-0066 CRUD endpoints).
 
 ### Pending (2026-10-21)
 

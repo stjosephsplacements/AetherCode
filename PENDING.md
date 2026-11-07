@@ -92,21 +92,31 @@ Ask-first areas under AGENTS.md apply. In priority order:
    columns, put `AUTHZ_ENGINE` in helm values.
 2. **Proctoring** (planned, not started): webcam snapshots, hybrid face and phone detection, screen/tab events,
    live proctor view, consent screen, per-exam violation policy, evidence in MinIO gated by `VIEW_STUDENT_PII`.
-3. Port of the exam-v1 features not yet verified in the platform: lockdown and live monitor depth, CSV export,
-   similarity report (pages open without errors; behaviour is not covered by browser tests yet).
+3. Port of the exam-v1 features not yet verified in the platform: lockdown depth (SEB enforcement path),
+   live monitor real-time updates, similarity report (pages open without errors; lockdown and similarity
+   need a running SEB + engine to verify). CSV export now has a browser spec (`results-export.spec.ts`).
 4. ~~Browser tests still missing.~~ All listed flows now have specs: exam authoring (`exam-authoring.spec.ts`),
    extra time (`extra-time.spec.ts`), results CSV export (`results-export.spec.ts`), community moderation
    (`community.spec.ts`). Already had: MFA step-up (`stepup.spec.ts`), MCQ wizard (`authoring.spec.ts`),
    announcements and roster export (`exam-staff.spec.ts`), practice mode (`practice.spec.ts`).
-5. Placement read model with PII gating, then the analytics medallion; roles UI in `/admin` and `/staff`.
-6. Analytics rollups have no department column, so a department-scoped user sees no batch rows there yet.
+5. Placement read model with PII gating, then the analytics medallion. ~~Roles UI~~ → `/staff/roles` page
+   ships: lists college roles with permission grids, create/edit/delete (ADR-0066 APIs). Admin-level role
+   management (platform scope, @everyone tuning) is not yet exposed.
+6. Analytics `batch_progress_rollups` has no `department_id` column. The staff analytics page works around
+   this by computing department breakdowns client-side from `exam-results`. The gap affects only the
+   `GET /batch-progress/{batch_id}` API and report exports; it needs a migration to add the column and
+   update `rebuild_batch_progress()` to populate it from `student_batch_affiliation_projections`.
 7. ~~Down migrations from 000042 on recreate a templated function, not the original body.~~ Fixed: all 9 `node_scoped_capability_chain.down.sql` files now restore each service's exact prior `set_context` body.
 8. Judge capacity: size the engine for the largest slot (1,000 at once gave p95 33 s for a verdict).
-9. A college administrator's "Enrol student" and "Bulk import" buttons are disabled ("Ask a platform administrator to
-   create ..."): placement departments are platform-level, so a college admin cannot enrol students alone. Decide
-   whether that is intended.
+9. A college administrator's "Enrol student" and "Bulk import" buttons are disabled when no placement
+   department exists (`frontend/src/app/staff/students/page.tsx:91`). Placement departments are
+   platform-level because placements span colleges. Working as designed: the platform admin creates
+   placement departments, then college admins can enrol into them. If colleges should self-serve, the
+   cheapest fix is making `placement_department_id` nullable in student import (skip the placement
+   affiliation); a bigger change is college-scoped placement departments.
 10. ~~Forms that render their result without `FormMessage` would still show the raw `__mfa_required__` marker~~ Verified: every form whose action calls `actionError()` already renders through `FormMessage`. No live leak exists; a successful MFA code is not browser-tested.
-11. Update the milestone table in `docs/roadmap.md`; every decision needs an ADR.
+11. ~~Update the milestone table in `docs/roadmap.md`~~ Updated through 2026-11-08; every decision needs
+    an ADR (roles page has no new ADR — it wires existing ADR-0066 APIs to a UI).
 
 ## 5. Verification commands
 
