@@ -5,10 +5,12 @@ SERVICES := gateway identity tenant user question-bank assessment submission jud
 # Go code lives under backend/; the web UI under frontend/; apps/ holds standalone apps.
 MODULES := backend/libs/pkg $(addprefix backend/services/,$(SERVICES))
 
-.PHONY: help k8s-lint engine-check loadtest dev-up dev-down dev-judge-up dev-judge-down build test test-integration test-migrations lint proto migrate bootstrap rotate-authz-key fmt fmt-check vet vuln verify-workspace exam-check exam-build exam-up exam-down web-check web-build
+.PHONY: help check k8s-lint engine-check loadtest dev-up dev-down dev-judge-up dev-judge-down build test test-integration test-migrations lint proto migrate bootstrap rotate-authz-key fmt fmt-check vet vuln verify-workspace exam-check exam-build exam-up exam-down web-check web-build
 
 help:
-	@printf '%s\n' 'Targets: k8s-lint engine-check loadtest web-check web-build exam-check exam-build exam-up exam-down dev-up dev-down dev-judge-up dev-judge-down build test test-integration test-migrations lint proto migrate bootstrap rotate-authz-key fmt fmt-check vet vuln'
+	@printf '%s\n' 'Targets: check k8s-lint engine-check loadtest web-check web-build exam-check exam-build exam-up exam-down dev-up dev-down dev-judge-up dev-judge-down build test test-integration test-migrations lint proto migrate bootstrap rotate-authz-key fmt fmt-check vet vuln'
+
+check: build lint test web-check web-build
 
 verify-workspace:
 	@cd backend && go work sync
@@ -28,7 +30,8 @@ dev-judge-down:
 	@docker compose --env-file .judge-control.env -f deploy/compose/judge-control.compose.yaml down --remove-orphans
 
 build: verify-workspace
-	@for module in $(MODULES); do (cd $$module && go build ./...); done
+	@VERSION=$$(git describe --tags --always --dirty 2>/dev/null || echo dev); \
+	for module in $(MODULES); do (cd $$module && go build -ldflags="-X github.com/stjosephsplacements/AetherCode/libs/pkg/buildinfo.Version=$$VERSION" ./...); done
 
 test: verify-workspace
 	@for module in $(MODULES); do (cd $$module && go test ./...); done

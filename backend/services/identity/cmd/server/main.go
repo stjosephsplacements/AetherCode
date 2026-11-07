@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/authzprojection"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/buildinfo"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/config"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
@@ -22,6 +23,7 @@ import (
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/messaging"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/ratelimit"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry/dbmetrics"
 	httpadapter "github.com/stjosephsplacements/AetherCode/services/identity/internal/adapters/http"
 	introspectionadapter "github.com/stjosephsplacements/AetherCode/services/identity/internal/adapters/introspection"
 	"github.com/stjosephsplacements/AetherCode/services/identity/internal/adapters/repo"
@@ -49,7 +51,7 @@ func run(contextValue context.Context) error {
 	if err != nil {
 		return err
 	}
-	otelShutdown, err := telemetry.InitProvider(contextValue, "identity", "0.1.0")
+	otelShutdown, err := telemetry.InitProvider(contextValue, "identity", buildinfo.Version)
 	if err != nil {
 		logger.Warn("telemetry provider init failed, tracing disabled", "error", err)
 	} else {
@@ -68,6 +70,7 @@ func run(contextValue context.Context) error {
 		return err
 	}
 	defer pool.Close()
+	dbmetrics.Register("identity", pool)
 	runtime, err := identityconfig.Load(serviceConfig.Environment)
 	if err != nil {
 		return err

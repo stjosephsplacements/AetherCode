@@ -7,7 +7,7 @@ rm -rf ~/aether-dev && mkdir -p ~/aether-dev && tar -xzf /tmp/aether-dev-src.tgz
 cd ~/aether-dev
 build() { # name context dockerfile
   local img="$REG/aethercode-$1:$TAG"
-  buildah bud --network=host --env GOFLAGS=-p=16 --env GOMAXPROCS=32 -f "$3" -t "$img" "$2" > ~/aether-dev-logs-$1.log 2>&1 \
+  buildah bud --network=host --build-arg BUILD_VERSION="$TAG" --env GOFLAGS=-p=16 --env GOMAXPROCS=32 -f "$3" -t "$img" "$2" > ~/aether-dev-logs-$1.log 2>&1 \
    && buildah push "$img" "oci-archive:/tmp/aether-$1.tar:$img" >> ~/aether-dev-logs-$1.log 2>&1 \
    && sudo -n ctr -n k8s.io images import "/tmp/aether-$1.tar" >> ~/aether-dev-logs-$1.log 2>&1 && echo "built $1" || { echo "BUILD FAIL $1"; exit 1; }
   rm -f "/tmp/aether-$1.tar"

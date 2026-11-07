@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/buildinfo"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/config"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/grpcmtls"
@@ -23,6 +24,7 @@ import (
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/storage"
 	minioclient "github.com/stjosephsplacements/AetherCode/libs/pkg/storage/minio"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry/dbmetrics"
 	judgev1 "github.com/stjosephsplacements/AetherCode/libs/proto/gen/go/aethercode/judge/v1"
 	aethercodeadapter "github.com/stjosephsplacements/AetherCode/services/judge/internal/adapters/aethercode"
 	amqpadapter "github.com/stjosephsplacements/AetherCode/services/judge/internal/adapters/amqp"
@@ -56,7 +58,7 @@ func run(contextValue context.Context) error {
 	if err != nil {
 		return err
 	}
-	otelShutdown, err := telemetry.InitProvider(contextValue, "judge", "0.1.0")
+	otelShutdown, err := telemetry.InitProvider(contextValue, "judge", buildinfo.Version)
 	if err != nil {
 		logger.Warn("telemetry provider init failed, tracing disabled", "error", err)
 	} else {
@@ -75,6 +77,7 @@ func run(contextValue context.Context) error {
 		return err
 	}
 	defer pool.Close()
+	dbmetrics.Register("judge", pool)
 	runtime, err := judgeconfig.Load(serviceConfig.Environment)
 	if err != nil {
 		return err

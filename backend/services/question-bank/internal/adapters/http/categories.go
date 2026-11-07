@@ -188,8 +188,8 @@ func (handler *Handler) listTags(writer http.ResponseWriter, request *http.Reque
 	limit := 100
 	if raw := request.URL.Query().Get("limit"); raw != "" {
 		parsed, err := strconv.Atoi(raw)
-		if err != nil {
-			httpx.WriteError(writer, apperrors.New(apperrors.CodeInvalidArgument, "limit must be a number"))
+		if err != nil || parsed < 1 || parsed > 500 {
+			httpx.WriteError(writer, apperrors.New(apperrors.CodeInvalidArgument, "limit must be between 1 and 500"))
 			return
 		}
 		limit = parsed

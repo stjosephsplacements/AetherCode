@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -1544,6 +1545,9 @@ func truncate(value string, maximum int) string {
 	value = strings.TrimSpace(value)
 	if len(value) <= maximum {
 		return value
+	}
+	for maximum > 0 && !utf8.RuneStart(value[maximum]) {
+		maximum--
 	}
 	return value[:maximum]
 }

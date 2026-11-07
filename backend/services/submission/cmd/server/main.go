@@ -11,6 +11,7 @@ import (
 
 	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/authzprojection"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/buildinfo"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/config"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpauth"
@@ -23,6 +24,7 @@ import (
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/storage"
 	minioclient "github.com/stjosephsplacements/AetherCode/libs/pkg/storage/minio"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry/dbmetrics"
 	httpadapter "github.com/stjosephsplacements/AetherCode/services/submission/internal/adapters/http"
 	"github.com/stjosephsplacements/AetherCode/services/submission/internal/adapters/judgecompletion"
 	"github.com/stjosephsplacements/AetherCode/services/submission/internal/adapters/judgedispatch"
@@ -51,7 +53,7 @@ func run(contextValue context.Context) error {
 	if err != nil {
 		return err
 	}
-	otelShutdown, err := telemetry.InitProvider(contextValue, "submission", "0.1.0")
+	otelShutdown, err := telemetry.InitProvider(contextValue, "submission", buildinfo.Version)
 	if err != nil {
 		logger.Warn("telemetry provider init failed, tracing disabled", "error", err)
 	} else {
@@ -70,6 +72,7 @@ func run(contextValue context.Context) error {
 		return err
 	}
 	defer pool.Close()
+	dbmetrics.Register("submission", pool)
 
 	authzRuntime, err := centralauthz.LoadClientRuntime(serviceConfig.Environment)
 	if err != nil {

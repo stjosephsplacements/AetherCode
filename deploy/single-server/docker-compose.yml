@@ -242,6 +242,7 @@ services:
       AUTHZ_IDENTITY_INTROSPECTION_TLS_CA_FILE: /certs/ca.crt
       AUTHZ_IDENTITY_INTROSPECTION_TLS_SERVER_NAME: identity
       AUTHZ_CAPABILITY_KEYS: ${AUTHZ_CAPABILITY_KEYS}
+      AUTHZ_ENGINE: ${AUTHZ_ENGINE:-casbin}
     build: { context: ../../backend, dockerfile: services/user/Dockerfile }
 
   tenant:

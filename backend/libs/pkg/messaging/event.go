@@ -78,5 +78,6 @@ func Connect(ctx context.Context, url, name string) (*nats.Conn, error) {
 	if strings.TrimSpace(url) == "" || strings.TrimSpace(name) == "" {
 		return nil, fmt.Errorf("NATS URL and connection name are required")
 	}
-	return nats.Connect(url, nats.Name(name), nats.Timeout(5*time.Second))
+	return nats.Connect(url, nats.Name(name), nats.Timeout(5*time.Second),
+		nats.MaxReconnects(-1), nats.ReconnectWait(2*time.Second))
 }

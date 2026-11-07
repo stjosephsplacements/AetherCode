@@ -5,7 +5,8 @@ WORKDIR /src
 COPY libs/pkg ./libs/pkg
 COPY libs/proto ./libs/proto
 COPY services/${SERVICE} ./services/${SERVICE}
-RUN cd services/${SERVICE} && CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /out/server ./cmd/server
+ARG BUILD_VERSION=dev
+RUN cd services/${SERVICE} && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X github.com/stjosephsplacements/AetherCode/libs/pkg/buildinfo.Version=${BUILD_VERSION}" -o /out/server ./cmd/server
 
 FROM scratch
 COPY --from=build /out/server /server

@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/buildinfo"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/config"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/logging"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry"
@@ -67,7 +68,7 @@ func Serve(contextValue context.Context, service config.Service, logger *slog.Lo
 
 	serverErrors := make(chan error, 1)
 	go func() {
-		logger.Info("service listening", "service", service.Name, "address", service.HTTPAddress)
+		logger.Info("service listening", "service", service.Name, "address", service.HTTPAddress, "version", buildinfo.Version)
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			serverErrors <- err
 		}
@@ -90,7 +91,7 @@ func healthHandler(service string) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Content-Type", "application/json")
 		writer.WriteHeader(http.StatusOK)
-		_, _ = fmt.Fprintf(writer, `{"service":%q,"status":"ok"}`+"\n", service)
+		_, _ = fmt.Fprintf(writer, `{"service":%q,"status":"ok","version":%q}`+"\n", service, buildinfo.Version)
 	})
 }
 

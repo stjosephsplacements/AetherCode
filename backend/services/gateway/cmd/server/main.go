@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/buildinfo"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/config"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/logging"
@@ -39,7 +40,7 @@ func run(contextValue context.Context) error {
 	if err != nil {
 		return err
 	}
-	otelShutdown, err := telemetry.InitProvider(contextValue, "gateway", "0.1.0")
+	otelShutdown, err := telemetry.InitProvider(contextValue, "gateway", buildinfo.Version)
 	if err != nil {
 		logger.Warn("telemetry provider init failed, tracing disabled", "error", err)
 	} else {
