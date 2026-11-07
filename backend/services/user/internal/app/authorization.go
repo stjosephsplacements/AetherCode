@@ -88,6 +88,14 @@ type Snapshot struct {
 	Grants []Grant
 	// Flags maps a permission flag key to its bit index; loaded with the role bits.
 	Flags map[string]int
+	// ResolverFlags are the meta-flag indexes rbac.Compute needs (ADR-0075).
+	ResolverFlags rbac.Flags
+	// EveryonePerms are the @everyone role's permission bits for the request's tenant.
+	EveryonePerms rbac.Perms
+	// EveryoneRoleID is the @everyone role row's ID for the request's tenant.
+	EveryoneRoleID string
+	// Overwrites are the permission overwrites for the request's tenant (ADR-0075).
+	Overwrites []rbac.Overwrite
 }
 
 // Store supplies one authorization snapshot. Its adapter authenticates as the
@@ -356,7 +364,7 @@ func (service *Service) Authorize(contextValue context.Context, request Request)
 			return Decision{}, fmt.Errorf("evaluate canonical Casbin policy: %w", enforceErr)
 		}
 		if service.engine.usesRoleBits() {
-			bits := bitsAllow(snapshot.Flags, assignment, validated)
+			bits := computeAllow(snapshot, assignment, validated)
 			if bits != allowed {
 				logShadowDifference(validated, assignment, allowed, bits)
 			}

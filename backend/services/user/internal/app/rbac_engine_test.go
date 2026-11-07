@@ -68,12 +68,23 @@ func TestBitsAllow(t *testing.T) {
 	}
 }
 
+var testResolverFlags = rbac.Flags{
+	Administrator:    testFlagIndexes["ADMINISTRATOR"],
+	ViewScope:        testFlagIndexes["VIEW_SCOPE"],
+	WriteImpliesRead: map[int]int{testFlagIndexes["submission.attempts.write"]: testFlagIndexes["submission.attempts.read"]},
+}
+
 func snapshotWith(assignment Assignment, casbinAllows bool) Snapshot {
 	rules := []centralauthz.PolicyRule{{PType: "p", Values: []string{"college_admin", "college", "/attempts/:id", "read"}}}
 	if !casbinAllows {
 		rules = []centralauthz.PolicyRule{{PType: "p", Values: []string{"college_admin", "college", "/other/:id", "read"}}}
 	}
-	return Snapshot{Revision: 3, Assignments: []Assignment{assignment}, PolicyRules: rules, Flags: testFlagIndexes}
+	return Snapshot{
+		Revision: 3, Assignments: []Assignment{assignment}, PolicyRules: rules,
+		Flags: testFlagIndexes, ResolverFlags: testResolverFlags,
+		EveryoneRoleID: "aaaaaaaa-0000-0000-0000-000000000001",
+		EveryonePerms:  bitsFor("VIEW_SCOPE"),
+	}
 }
 
 func TestEnginesDecideFromTheirOwnModel(t *testing.T) {
@@ -110,4 +121,127 @@ func TestEnginesDecideFromTheirOwnModel(t *testing.T) {
 			t.Errorf("%s: allowed = %v, want %v", tc.name, decision.Allowed, tc.want)
 		}
 	}
+}
+
+func TestScopePath(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name string
+		a    Assignment
+		want int // expected path length, 0 = nil
+	}{
+		{"platform", Assignment{ScopeKind: "platform"}, 1},
+		{"college", Assignment{ScopeKind: "college", ScopeID: "c1"}, 2},
+		{"department", Assignment{ScopeKind: "department", TenantID: "c1", ScopeID: "d1"}, 3},
+		{"batch", Assignment{ScopeKind: "batch", TenantID: "c1", ScopeID: "b1"}, 3},
+		{"placement_organization", Assignment{ScopeKind: "placement_organization", ScopeID: "po1"}, 2},
+		{"placement_department", Assignment{ScopeKind: "placement_department", ScopeID: "pd1"}, 2},
+		{"self", Assignment{ScopeKind: "self", TenantID: "c1"}, 2},
+		{"unknown", Assignment{ScopeKind: "unknown"}, 0},
+	}
+	for _, tc := range cases {
+		path := scopePath(tc.a)
+		got := len(path)
+		if tc.want == 0 && path != nil {
+			t.Errorf("%s: expected nil path", tc.name)
+		} else if got != tc.want {
+			t.Errorf("%s: path length %d, want %d", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestPermsAllow(t *testing.T) {
+	t.Parallel()
+	read := Request{TargetService: "submission", ResourceType: "attempts", Action: "read"}
+	write := Request{TargetService: "submission", ResourceType: "attempts", Action: "write"}
+	remove := Request{TargetService: "submission", ResourceType: "attempts", Action: "delete"}
+
+	cases := []struct {
+		name  string
+		perms rbac.Perms
+		req   Request
+		want  bool
+	}{
+		{"read granted", bitsFor("VIEW_SCOPE", "submission.attempts.read"), read, true},
+		{"write grants read", bitsFor("VIEW_SCOPE", "submission.attempts.write"), read, true},
+		{"read does not grant write", bitsFor("VIEW_SCOPE", "submission.attempts.read"), write, false},
+		{"admin grants all", bitsFor("VIEW_SCOPE", "ADMINISTRATOR"), write, true},
+		{"no view scope", bitsFor("submission.attempts.read"), read, false},
+		{"delete flag", bitsFor("VIEW_SCOPE", "submission.attempts.delete"), remove, true},
+		{"unknown action denied", bitsFor("VIEW_SCOPE", "submission.attempts.read"), Request{TargetService: "submission", ResourceType: "attempts", Action: "list"}, false},
+	}
+	for _, tc := range cases {
+		if got := permsAllow(testFlagIndexes, tc.perms, tc.req); got != tc.want {
+			t.Errorf("%s: got %v want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestComputeAllow(t *testing.T) {
+	t.Parallel()
+	readReq := Request{PrincipalID: "p1", TargetService: "submission", ResourceType: "attempts", Action: "read"}
+	writeReq := Request{PrincipalID: "p1", TargetService: "submission", ResourceType: "attempts", Action: "write"}
+
+	base := Snapshot{
+		Flags:          testFlagIndexes,
+		ResolverFlags:  testResolverFlags,
+		EveryoneRoleID: "everyone-id",
+		EveryonePerms:  bitsFor("VIEW_SCOPE"),
+	}
+
+	t.Run("role with read permission at college scope", func(t *testing.T) {
+		a := Assignment{Role: "staff", ScopeKind: "college", TenantID: "t1", ScopeID: "t1", Perms: bitsFor("VIEW_SCOPE", "submission.attempts.read"), HasPerms: true}
+		if !computeAllow(base, a, readReq) {
+			t.Error("expected read to be allowed")
+		}
+	})
+
+	t.Run("role without HasPerms is denied", func(t *testing.T) {
+		a := Assignment{Role: "staff", ScopeKind: "college", ScopeID: "t1"}
+		if computeAllow(base, a, readReq) {
+			t.Error("expected denial when HasPerms is false")
+		}
+	})
+
+	t.Run("unknown scope kind returns nil path and denies", func(t *testing.T) {
+		a := Assignment{Role: "staff", ScopeKind: "galaxy", HasPerms: true, Perms: bitsFor("VIEW_SCOPE", "ADMINISTRATOR")}
+		if computeAllow(base, a, readReq) {
+			t.Error("expected denial for unknown scope kind")
+		}
+	})
+
+	t.Run("deny overwrite blocks read", func(t *testing.T) {
+		snap := base
+		snap.Overwrites = []rbac.Overwrite{{
+			At:         rbac.Node{Kind: rbac.NodeCollege, ID: "t1"},
+			TargetKind: rbac.TargetRole,
+			TargetID:   "staff",
+			Deny:       bitsFor("submission.attempts.read"),
+		}}
+		a := Assignment{Role: "staff", ScopeKind: "college", TenantID: "t1", ScopeID: "t1", Perms: bitsFor("VIEW_SCOPE", "submission.attempts.read"), HasPerms: true}
+		if computeAllow(snap, a, readReq) {
+			t.Error("expected deny overwrite to block read")
+		}
+	})
+
+	t.Run("allow overwrite grants write", func(t *testing.T) {
+		snap := base
+		snap.Overwrites = []rbac.Overwrite{{
+			At:         rbac.Node{Kind: rbac.NodeCollege, ID: "t1"},
+			TargetKind: rbac.TargetRole,
+			TargetID:   "staff",
+			Allow:      bitsFor("submission.attempts.write"),
+		}}
+		a := Assignment{Role: "staff", ScopeKind: "college", TenantID: "t1", ScopeID: "t1", Perms: bitsFor("VIEW_SCOPE", "submission.attempts.read"), HasPerms: true}
+		if !computeAllow(snap, a, writeReq) {
+			t.Error("expected allow overwrite to grant write")
+		}
+	})
+
+	t.Run("department scope walks through college", func(t *testing.T) {
+		a := Assignment{Role: "dept_admin", ScopeKind: "department", TenantID: "c1", ScopeID: "d1", Perms: bitsFor("VIEW_SCOPE", "submission.attempts.read"), HasPerms: true}
+		if !computeAllow(base, a, readReq) {
+			t.Error("expected department-scoped assignment to allow read")
+		}
+	})
 }

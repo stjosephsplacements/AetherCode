@@ -110,6 +110,7 @@ func (repository *Postgres) Snapshot(contextValue context.Context, query app.Sna
 			return app.Snapshot{}, flagErr
 		}
 		snapshot.Flags = flags
+		snapshot.ResolverFlags = resolverFlags(flags)
 		assignmentQuery = roleBitsAssignmentQuery
 	}
 	assignments, err := transaction.Query(contextValue, assignmentQuery, query.PrincipalID)
@@ -138,6 +139,12 @@ func (repository *Postgres) Snapshot(contextValue context.Context, query app.Sna
 		return app.Snapshot{}, fmt.Errorf("iterate active role assignments: %w", err)
 	}
 	assignments.Close()
+
+	if query.RoleBits && query.TenantID != "" {
+		if err := loadOverwritesAndEveryone(contextValue, transaction, query.TenantID, &snapshot); err != nil {
+			return app.Snapshot{}, err
+		}
+	}
 
 	staffScopes, err := transaction.Query(contextValue, `
 		SELECT placement_department_id::text
@@ -1201,7 +1208,81 @@ const roleBitsAssignmentQuery = `
 	WHERE a.principal_id = $1
 	ORDER BY a.role_name, a.scope_kind, a.tenant_id NULLS FIRST, a.scope_id NULLS FIRST`
 
-// flagIndexes returns the flag registry. It is append-only, so it is read once and kept.
+func resolverFlags(flags map[string]int) rbac.Flags {
+	f := rbac.Flags{WriteImpliesRead: make(map[int]int)}
+	if idx, ok := flags["ADMINISTRATOR"]; ok {
+		f.Administrator = idx
+	}
+	if idx, ok := flags["VIEW_SCOPE"]; ok {
+		f.ViewScope = idx
+	}
+	for key, writeIdx := range flags {
+		if strings.HasSuffix(key, ".write") {
+			readKey := key[:len(key)-len("write")] + "read"
+			if readIdx, ok := flags[readKey]; ok {
+				f.WriteImpliesRead[writeIdx] = readIdx
+			}
+		}
+	}
+	return f
+}
+
+// loadOverwritesAndEveryone reads the @everyone role's permissions and the overwrites
+// for the given tenant into the snapshot (ADR-0075).
+func loadOverwritesAndEveryone(ctx context.Context, tx pgx.Tx, tenantID string, snapshot *app.Snapshot) error {
+	var everyoneID, bits string
+	err := tx.QueryRow(ctx, `
+		SELECT r.id::text, COALESCE(r.permissions::text, '')
+		FROM users.roles AS r
+		WHERE r.tenant_id = $1 AND r.name = '@everyone' AND r.managed
+		LIMIT 1
+	`, tenantID).Scan(&everyoneID, &bits)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return fmt.Errorf("read @everyone role: %w", err)
+	}
+	if bits != "" {
+		perms, parseErr := rbac.ParseBitString(bits)
+		if parseErr != nil {
+			return fmt.Errorf("parse @everyone permissions: %w", parseErr)
+		}
+		snapshot.EveryonePerms = perms
+	}
+	snapshot.EveryoneRoleID = everyoneID
+
+	owRows, err := tx.Query(ctx, `
+		SELECT node_kind, COALESCE(node_id::text, ''), target_kind, target_id::text,
+		       COALESCE(allow::text, ''), COALESCE(deny::text, '')
+		FROM users.permission_overwrites
+		WHERE tenant_id = $1
+	`, tenantID)
+	if err != nil {
+		return fmt.Errorf("read permission overwrites: %w", err)
+	}
+	defer owRows.Close()
+	for owRows.Next() {
+		var nodeKind, nodeID, targetKind, targetID, allowBits, denyBits string
+		if err := owRows.Scan(&nodeKind, &nodeID, &targetKind, &targetID, &allowBits, &denyBits); err != nil {
+			return fmt.Errorf("scan permission overwrite: %w", err)
+		}
+		var ow rbac.Overwrite
+		ow.At = rbac.Node{Kind: rbac.NodeKind(nodeKind), ID: nodeID}
+		ow.TargetKind = rbac.TargetKind(targetKind)
+		ow.TargetID = targetID
+		if allowBits != "" {
+			if ow.Allow, err = rbac.ParseBitString(allowBits); err != nil {
+				return fmt.Errorf("parse overwrite allow bits: %w", err)
+			}
+		}
+		if denyBits != "" {
+			if ow.Deny, err = rbac.ParseBitString(denyBits); err != nil {
+				return fmt.Errorf("parse overwrite deny bits: %w", err)
+			}
+		}
+		snapshot.Overwrites = append(snapshot.Overwrites, ow)
+	}
+	return owRows.Err()
+}
+
 func (repository *Postgres) flagIndexes(contextValue context.Context) (map[string]int, error) {
 	repository.flagsMu.Lock()
 	defer repository.flagsMu.Unlock()
