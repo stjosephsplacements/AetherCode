@@ -294,7 +294,7 @@ const file_aethercode_authz_v1_authz_proto_rawDesc = "" +
 	"\x13database_capability\x18\x05 \x01(\tR\x12databaseCapability\x12C\n" +
 	"\x1edatabase_capability_expires_at\x18\x06 \x01(\tR\x1bdatabaseCapabilityExpiresAt2r\n" +
 	"\x14AuthorizationService\x12Z\n" +
-	"\tAuthorize\x12%.aethercode.authz.v1.AuthorizeRequest\x1a&.aethercode.authz.v1.AuthorizeResponseBPZNgithub.com/stjosephsplacements/AetherCode/libs/proto/gen/go/aethercode/authz/v1;authzv1b\x06proto3"
+	"\tAuthorize\x12%.aethercode.authz.v1.AuthorizeRequest\x1a&.aethercode.authz.v1.AuthorizeResponseBYZWgithub.com/stjosephsplacements/AetherCode/libs/proto/gen/go/aethercode/authz/v1;authzv1b\x06proto3"
 
 var (
 	file_aethercode_authz_v1_authz_proto_rawDescOnce sync.Once

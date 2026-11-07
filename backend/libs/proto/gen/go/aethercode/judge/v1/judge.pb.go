@@ -1123,7 +1123,7 @@ const file_aethercode_judge_v1_judge_proto_rawDesc = "" +
 	"\x17PullCompletedExecutions\x123.aethercode.judge.v1.PullCompletedExecutionsRequest\x1a4.aethercode.judge.v1.PullCompletedExecutionsResponse\x12~\n" +
 	"\x15AcknowledgeCompletion\x121.aethercode.judge.v1.AcknowledgeCompletionRequest\x1a2.aethercode.judge.v1.AcknowledgeCompletionResponse\x12u\n" +
 	"\x12DeleteExecutionJob\x12..aethercode.judge.v1.DeleteExecutionJobRequest\x1a/.aethercode.judge.v1.DeleteExecutionJobResponse\x12\x81\x01\n" +
-	"\x16HardDeleteExecutionJob\x122.aethercode.judge.v1.HardDeleteExecutionJobRequest\x1a3.aethercode.judge.v1.HardDeleteExecutionJobResponseBPZNgithub.com/stjosephsplacements/AetherCode/libs/proto/gen/go/aethercode/judge/v1;judgev1b\x06proto3"
+	"\x16HardDeleteExecutionJob\x122.aethercode.judge.v1.HardDeleteExecutionJobRequest\x1a3.aethercode.judge.v1.HardDeleteExecutionJobResponseBYZWgithub.com/stjosephsplacements/AetherCode/libs/proto/gen/go/aethercode/judge/v1;judgev1b\x06proto3"
 
 var (
 	file_aethercode_judge_v1_judge_proto_rawDescOnce sync.Once
