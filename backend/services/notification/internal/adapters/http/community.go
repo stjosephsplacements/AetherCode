@@ -122,8 +122,8 @@ func communityArguments(request *http.Request) (map[string]any, error) {
 			args[key] = value
 		} else if key == "limit" {
 			value, err := strconv.Atoi(values[0])
-			if err != nil {
-				return nil, apperrors.New(apperrors.CodeInvalidArgument, "limit must be a number")
+			if err != nil || value < 1 || value > 100 {
+				return nil, apperrors.New(apperrors.CodeInvalidArgument, "limit must be between 1 and 100")
 			}
 			args[key] = value
 		} else {

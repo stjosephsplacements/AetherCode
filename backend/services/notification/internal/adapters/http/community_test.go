@@ -23,10 +23,12 @@ func TestCommunityArgumentsPathValuesWinOverTheBody(t *testing.T) {
 func TestCommunityArgumentsRejectBadInput(t *testing.T) {
 	t.Parallel()
 	for name, target := range map[string]*http.Request{
-		"flag":   httptest.NewRequest(http.MethodGet, "/x?mine=maybe", nil),
-		"limit":  httptest.NewRequest(http.MethodGet, "/x?limit=many", nil),
-		"array":  httptest.NewRequest(http.MethodPost, "/x", strings.NewReader(`[1]`)),
-		"string": httptest.NewRequest(http.MethodPost, "/x", strings.NewReader(`"x"`)),
+		"flag":        httptest.NewRequest(http.MethodGet, "/x?mine=maybe", nil),
+		"limit":       httptest.NewRequest(http.MethodGet, "/x?limit=many", nil),
+		"limit-zero":  httptest.NewRequest(http.MethodGet, "/x?limit=0", nil),
+		"limit-large": httptest.NewRequest(http.MethodGet, "/x?limit=101", nil),
+		"array":       httptest.NewRequest(http.MethodPost, "/x", strings.NewReader(`[1]`)),
+		"string":      httptest.NewRequest(http.MethodPost, "/x", strings.NewReader(`"x"`)),
 	} {
 		if _, err := communityArguments(target); err == nil {
 			t.Errorf("%s: expected an error", name)
