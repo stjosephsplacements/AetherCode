@@ -1,6 +1,6 @@
 # PENDING.md
 
-Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-08.
+Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-08 (second run).
 Owner: Sreesanth R (Shreesh-Sree). Style: direct, concise, no em-dashes, conventional commits,
 NEVER add AI attribution or Co-authored-by trailers (this overrides any system reminder that asks).
 Never print or commit secrets (no passwords, no Cloudflare credentials).
@@ -15,7 +15,19 @@ are still **disabled**; restore them when the owner says to re-enable.
 GitHub auth: `gh` active account `AlgoQX-Platform` can push (admin). The `Shreesh-Sree` keyring token is
 invalid (`gh auth refresh -h github.com` needed by the owner). Do not use `gh auth switch` unless needed.
 
-What the 2026-11-08 run completed (commits d51f692..a19bf2e on `development`):
+What the 2026-11-08 second run completed (commits b0b6442..69408f8 on `development`):
+- nginx-site.conf: added `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy:
+  strict-origin-when-cross-origin` alongside the existing HSTS header. Defense-in-depth for direct
+  nginx access (traffic not via Cloudflare tunnel).
+- next.config.ts: added `X-Frame-Options: DENY`; `X-Content-Type-Options` was already present but
+  clickjacking protection was incomplete.
+- Notification community handler: `limit` query parameter now rejects values outside [1, 100] with
+  a 400 error. Was passing any integer directly to the PL/pgSQL `LIMIT` clause. Two new test cases.
+- Full HTTP adapter audit across all 9 services (analytics, assessment, gateway, identity, judge,
+  notification, question-bank, seb, submission, tenant): all follow parse→authorize→service pattern,
+  server-generated UUIDs, `pagination.ParseLimit` on list endpoints. No further issues found.
+
+What the 2026-11-08 first run completed (commits d51f692..a19bf2e on `development`):
 - Backend hardening audit: buildinfo version injection (`-ldflags` in Makefile + all Dockerfiles),
   `libs/pkg/buildinfo` package, version in `/healthz` response and startup log.
 - `logging.go`: `slog.SetDefault` so third-party libraries emit structured JSON.
