@@ -132,6 +132,18 @@ frontend build, **not yet deployed or run on the campus stack**:
 - Staff try an exam as a student in a private copy (ADR-0046); the
   `smoke.py` check for it has not been run.
 
+Done 2026-11-05 to 2026-11-08 (code; deployed to `aether-test`):
+- Security and correctness fixes from the ultrareview (PRs #137–#167); see
+  `PENDING.md` §1 for the full list.
+- RBAC overwrite wiring (ADR-0075): `rbac.Compute` is the live bitset
+  decision path, `PUT /role-overwrites` rejects no-op rules, full branch
+  coverage. Ready for `AUTHZ_ENGINE=shadow` observation then `=bitset`
+  cutover.
+- Down migrations from `node_scoped_capability_chain` restore each service's
+  exact prior `set_context` body (9 files fixed).
+- Browser tests: exam authoring wizard, extra time from the monitor, MFA
+  step-up dialog, MCQ wizard, roster CSV export, practice mode.
+
 ### Pending (2026-10-21)
 
 Needs the owner:
