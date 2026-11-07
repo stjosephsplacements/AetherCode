@@ -37,7 +37,8 @@ BEGIN
     );
     expected_signature := extensions.hmac(convert_to(canonical_envelope, 'UTF8'), context_key.key_material, 'sha256');
     IF expected_signature <> p_signature THEN RAISE EXCEPTION 'invalid signed authorization context' USING ERRCODE = '28000'; END IF;
-    IF p_tenant_id IS NOT NULL AND NOT authz.has_tenant_authorization_at(p_actor_id, p_tenant_id, p_authz_revision) THEN
+    IF (p_tenant_id IS NOT NULL AND NOT authz.has_tenant_authorization_at(p_actor_id, p_tenant_id, p_authz_revision))
+       OR (p_tenant_id IS NULL AND NOT authz.has_platform_authorization_at(p_actor_id, p_authz_revision)) THEN
         RAISE EXCEPTION 'local authorization projection is not current' USING ERRCODE = '28000';
     END IF;
     PERFORM authz.purge_expired_contexts();

@@ -8,36 +8,33 @@ CREATE FUNCTION authz.set_context(
     p_key_id uuid, p_signature bytea
 ) RETURNS void LANGUAGE plpgsql VOLATILE SECURITY DEFINER
 SET search_path = pg_catalog, authz, app, extensions AS $function$
-DECLARE
-    context_key authz.context_keys%ROWTYPE;
-    expected_signature bytea;
-    canonical_envelope text;
-    context_id uuid;
-    v_now timestamptz := clock_timestamp();
+DECLARE signing_key bytea; canonical_envelope text; context_id uuid; context_now timestamptz := clock_timestamp();
 BEGIN
-    IF p_actor_id IS NULL OR p_authz_revision <= 0 OR p_capability_id IS NULL OR p_key_id IS NULL OR p_signature IS NULL
-       OR octet_length(p_signature) <> 32 OR p_decision <> 'allow'
+    IF p_actor_id IS NULL OR p_tenant_id IS NULL OR p_authz_revision <= 0 OR p_capability_id IS NULL OR p_key_id IS NULL
+       OR p_signature IS NULL OR octet_length(p_signature) <> 32 OR p_decision <> 'allow'
        OR p_action !~ '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$'
        OR p_resource !~ '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,255}$'
-       OR p_issued_at IS NULL OR p_expires_at IS NULL OR p_expires_at <= v_now
-       OR p_issued_at > v_now + interval '1 second'
-       OR p_issued_at < v_now - interval '5 seconds'
-       OR p_expires_at > p_issued_at + interval '5 seconds'
-    THEN RAISE EXCEPTION 'invalid signed authorization context' USING ERRCODE = '28000'; END IF;
-    SELECT key.* INTO context_key FROM authz.context_keys AS key
-    WHERE key.key_id = p_key_id AND key.audience = current_database()
-      AND key.not_before <= v_now AND key.not_after > v_now AND key.retired_at IS NULL;
-    IF NOT FOUND THEN RAISE EXCEPTION 'authorization context key is unavailable' USING ERRCODE = '28000'; END IF;
+       OR p_issued_at IS NULL OR p_expires_at IS NULL OR p_expires_at <= context_now
+       OR p_issued_at > context_now + interval '1 second'
+       OR p_issued_at < context_now - interval '5 seconds'
+       OR p_expires_at > p_issued_at + interval '5 seconds' THEN
+        RAISE EXCEPTION 'invalid signed authorization context' USING ERRCODE = '28000';
+    END IF;
+    SELECT key_material INTO signing_key FROM authz.context_keys
+    WHERE key_id = p_key_id AND audience = current_database() AND not_before <= context_now
+      AND not_after > context_now AND retired_at IS NULL;
     canonical_envelope := format(
         'aether-authz-context-v2|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s',
-        current_database(), p_key_id, p_capability_id, p_actor_id, COALESCE(p_tenant_id::text, ''), p_authz_revision,
-        p_decision, p_action, p_resource,
+        current_database(), p_key_id, p_capability_id, p_actor_id, p_tenant_id, p_authz_revision, p_decision,
+        p_action, p_resource,
         to_char(p_issued_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
         to_char(p_expires_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
     );
-    expected_signature := extensions.hmac(convert_to(canonical_envelope, 'UTF8'), context_key.key_material, 'sha256');
-    IF expected_signature <> p_signature THEN RAISE EXCEPTION 'invalid signed authorization context' USING ERRCODE = '28000'; END IF;
-    IF p_tenant_id IS NOT NULL AND NOT authz.has_tenant_authorization_at(p_actor_id, p_tenant_id, p_authz_revision) THEN
+    IF signing_key IS NULL
+       OR extensions.hmac(convert_to(canonical_envelope, 'UTF8'), signing_key, 'sha256') <> p_signature THEN
+        RAISE EXCEPTION 'invalid signed authorization context' USING ERRCODE = '28000';
+    END IF;
+    IF NOT authz.has_tenant_authorization_at(p_actor_id, p_tenant_id, p_authz_revision) THEN
         RAISE EXCEPTION 'local authorization projection is not current' USING ERRCODE = '28000';
     END IF;
     PERFORM authz.purge_expired_contexts();
