@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { Pencil, Trash, Plus, ShieldCheck, CaretDown, CaretUp } from "@phosphor-icons/react/ssr";
 import { Checkbox, FormMessage, initialActionState } from "@/components/staff/form";
 import { Button } from "@/components/ui/button";
-import { type Resource, AREA_ORDER, isLockedRead, addPermission, removePermission, sameSet } from "@/lib/permissions";
+import { type Resource, isLockedRead, addPermission, removePermission, sameSet } from "@/lib/permissions";
 import { createRole, updateRole, deleteRole } from "./actions";
 
 type RoleData = {
@@ -20,7 +20,7 @@ type RoleData = {
 
 type Group = { area: string; resources: Resource[] };
 
-const TIER_LABELS: Record<number, string> = { 1: "Gold", 2: "Silver", 3: "Bronze" };
+const TIER_LABELS: Record<number, string> = { 3: "Gold", 2: "Silver", 1: "Bronze" };
 
 export function RoleList({
   roles,
@@ -96,7 +96,7 @@ function PermissionGrid({
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const toggle = (area: string) => {
     const next = new Set(collapsed);
-    next.has(area) ? next.delete(area) : next.add(area);
+    if (next.has(area)) { next.delete(area); } else { next.add(area); }
     setCollapsed(next);
   };
 
@@ -254,9 +254,9 @@ function CreateRoleForm({ groups, onDone }: { groups: Group[]; onDone: () => voi
       <label className="block text-sm">
         <span className="mb-1 block font-medium text-ink">Tier</span>
         <select name="tier" value={tier} onChange={(e) => setTier(Number(e.target.value))} className="w-full rounded-[var(--radius-control)] border border-line bg-canvas px-3 py-2 text-sm text-ink">
-          <option value={1}>Gold (spans colleges)</option>
+          <option value={3}>Gold (spans colleges)</option>
           <option value={2}>Silver (one college)</option>
-          <option value={3}>Bronze (batch or person)</option>
+          <option value={1}>Bronze (batch or person)</option>
         </select>
       </label>
       <input type="hidden" name="position" value="0" />

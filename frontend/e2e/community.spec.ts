@@ -1,5 +1,5 @@
 // A student submits an interview experience and staff approve it from the moderation queue.
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { randomBytes } from "node:crypto";
 import { setUp } from "./seed";
 import { adminEmail, adminPassword, adminTotpSecret, dismissOnboarding, freshTotp } from "./support";

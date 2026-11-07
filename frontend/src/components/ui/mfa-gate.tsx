@@ -37,14 +37,11 @@ export function MFAGate({
 
   // Synchronise dialog visibility with action state changes.
   // onSuccess is excluded from deps intentionally — it changes every render.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     if (state.error === MFA_REQUIRED_SENTINEL) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setDialogOpen(true);
+      setDialogOpen(true); // eslint-disable-line react-hooks/set-state-in-effect
       return;
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDialogOpen(false);
     if (state.message && !state.error) {
       formRef.current?.reset();

@@ -146,6 +146,123 @@ Done 2026-11-05 to 2026-11-08 (code; deployed to `aether-test`):
 - Roles management UI (`/staff/roles`): lists college roles sorted by tier,
   shows permission grids, create/edit/delete for non-managed roles (wired to
   the ADR-0066 CRUD endpoints).
+- Build version injection: `libs/pkg/buildinfo` package with `-ldflags`
+  injection in all 11 Dockerfiles, `Makefile` and `dev-sync.sh`; `/healthz`
+  returns `{"version":"…"}` for deployed-version verification.
+- `govet` shadow analyzer enabled with err-exclusion; gateway `route` variable
+  rename fixes the one real non-err shadow.
+- `AUTHZ_ENGINE` promoted from `kubectl` manual set to helm values and
+  docker-compose for reproducible deployments.
+- Gateway HTTP transport tuned: `MaxIdleConnsPerHost=20`, `MaxConnsPerHost=40`,
+  `IdleConnTimeout=90s` to eliminate connection churn under load.
+- Database pool metrics wired to all 11 services via `telemetry/dbmetrics`.
+- Landing page and login page Liquid Glass redesign.
+- JSON logging fix: `slog.SetDefault(logger)` in `logging.New()` so
+  package-level `slog.Error`/`slog.Warn` calls emit JSON, not text format.
+- NATS unlimited reconnection (`MaxReconnects(-1)`) prevents permanent
+  consumer death after extended broker maintenance.
+- Identity UTF-8 truncation fix: `truncate()` now respects rune boundaries,
+  preventing PostgreSQL `text` column rejections on multibyte user-agents.
+- Question-bank `listTags` HTTP adapter validates limit bounds (1–500) at the
+  handler, matching the app-layer cap.
+- `make check` convenience target: runs `build lint test web-check web-build`
+  in one command for pre-push validation.
+- Production readiness audit of: pagination library (keyset cursors, fixed-width
+  timestamps), outbox publisher (SKIP LOCKED leasing, NATS dedup, exponential
+  backoff), NATS consumer failure taxonomy, authz projection resync protocol,
+  submission expiry worker, identity auth lifecycle, and graceful shutdown
+  ordering.
+- Extended production readiness audit confirming: gateway config validation
+  (fail-closed, strict URL/CIDR/prefix validation, public service allowlist),
+  model-check runner (bounded resource caps, output checksum, graceful output
+  degradation), analytics projection (inbox dedup, temporal ordering, legal hold
+  awareness, `messaging.Permanent` error taxonomy), community content adapter
+  (DB-layer limit clamping, path-value override, RLS via `WithTenantTx`), tenant
+  service (keyset pagination, retention policy bounds, legal hold scope
+  validation, mandatory deletion reason), SEB lockdown (IPv4/v6 unmap for CIDR
+  match, URL fragment rejection, key deduplication), and identity auth
+  (hash-only token storage, refresh family rotation, MFA step-up, lockout
+  protection). All subsystems confirmed production-ready; `make build lint test`
+  and `make web-check` pass clean.
+- Comprehensive deep-audit of all remaining backend services (2026-11-08):
+  question-bank (three-bundle test architecture encrypt-then-SHA256, idempotency
+  fingerprint excludes server-generated UUIDs, function-only composition
+  Prefix+source+Suffix, `readSealed` checksum-then-decrypt, practice run vs
+  submit mode, `context.WithoutCancel` cleanup to prevent ciphertext leak);
+  submission (candidate source encrypted before transaction opens, `SubmitAttempt`
+  idempotent replay on re-submit, evaluation bundle keys from server not client,
+  similarity semaphore `sourceReads=16`); assessment (question bank resolved
+  before write transaction to avoid holding DB lock, `withTenantTx` cross-checks
+  capability.TenantID, score validated as `big.Rat`, canonical JSON for policy
+  checksum, `RepinExamItem` MCQ guard, temporal window guards with 1-minute grace,
+  `canonicalJSONObject` before hashing); judge dispatcher (compile-fail
+  short-circuit, batch submission with graceful degradation, poll exhaustion
+  yields `internal_error` not `time_limit_exceeded`, `sleepContext` for
+  cancellation-safe polling, completion validated on Pull). `make build lint test`
+  0 issues, all tests pass.
+- Complete shared-library and service wiring audit (2026-11-08): all 21
+  packages under `backend/libs/pkg/` read and verified (authn Ed25519 JWS
+  with canonical base64url enforcement, authz HMAC capability chain,
+  authzprojection resync protocol with constant-time manifest comparison,
+  rbac Discord-style bitset resolver, httpauth stateless authorizer with no
+  positive cache, grpcmtls TLS 1.3 + VerifiedChains enforcement, telemetry
+  OTel+Prometheus with path sanitisation for cardinality control, config
+  fail-closed mTLS enforcement in staging/production, kms AES-256-GCM with
+  random nonce, testutil Testcontainers integration helpers). All 11 service
+  HTTP adapter layers verified for consistent parse→authorize→service→write
+  ordering, server-generated UUIDs, `Cache-Control: no-store` on sensitive
+  responses, and idempotency keying on state-changing endpoints. Gateway edge
+  handler verified: header injection prevention (X-AetherCode-* always
+  blocked, X-Forwarded-* stripped and rewritten), path traversal rejection
+  (.., //, RawPath), SEB enforcement, no-proxy/no-redirect HTTP client,
+  and `no-store` wrapper on the entire Identity handler. Authorization client
+  chain verified: blocking dial (service starts only if User service is
+  reachable), decision-capability cross-check (CapabilityID==DecisionID,
+  ActorID, TenantID, AuthzRevision all validated), and MFA structured gRPC
+  detail detection. `make build test` 0 issues.
+- Remaining service adapter and judge sandbox audit (2026-11-08): SEB adapter
+  verified (`Cache-Control: no-store` on session issuance and validation,
+  `lowerSHA256` fingerprint validation, idempotency on all state transitions
+  except append-only validation events, soft vs hard delete with required reason);
+  Analytics adapter verified (authorization on every route, configurable per-endpoint
+  limit ceiling); Notification adapter verified (self-authorization on preference and
+  notification reads, `AuthorizeHTTP` for staff scheduling, community routes
+  disambiguate staff (`community_moderation`) vs member (`community`) resource at
+  authorization time, body size bounded to 256 KiB, path values win over body keys
+  to prevent IDOR via body); Assessment adapter verified (appService and
+  httpAuthorizer interfaces for testability, `WriteCommand.IdempotencyKey` threaded
+  through all write commands, `RepinExamItem` requires separate `exam_items` write
+  authorization, `MoveAssignmentWindow` does not require idempotency key since it is
+  idempotent by nature); Judge gRPC server verified (`clientSubject` falls back to
+  "submission" in dev — callers are partitioned by mTLS CN in production, rate
+  limiting checks non-empty `TenantFairnessKey` before engine admission,
+  unrecognised verdict codes → `codes.Internal` not a pass); Judge engine client
+  verified (`ExpectedOutput: ""` — expected outputs are never sent to the execution
+  engine, grading happens in `OutputsMatch` on the platform side, `Proxy: nil` and
+  `CheckRedirect → ErrUseLastResponse` on engine HTTP client, `maxPendingVerdicts`
+  bounds in-memory verdict map, `newToken` uses `crypto/rand`); `OverallVerdict`
+  treats unrecognised verdicts as `internal_error` (fail-closed); poll exhaustion
+  returns `internal_error` not `accepted`. `make lint` 0 issues (all 12 modules).
+- Service entrypoint and frontend audit (2026-11-08): all 11 service `cmd/server/main.go`
+  wiring verified — every service has `signal.NotifyContext` SIGTERM handling, OTel
+  shutdown with 5s timeout, `dbmetrics.Register` pool metrics, telemetry middleware,
+  readiness chain that gates on every dependency before `/readyz` returns 200, and
+  `defer pool.Close()` on each pgxpool; Gateway main verified (NATS optional with
+  graceful degradation, realtime hub+prober started before HTTP); Identity main
+  verified (three-consumer authzprojection resync stack, separate mTLS introspection
+  listener with defense-in-depth TLS 1.3 assertion); Judge main verified
+  (JUDGE_ENGINE_COMPATIBILITY_APPROVED gate, mTLS TLS 1.3 assertion, gRPC health
+  protocol with NOT_SERVING drain, graceful stop with timeout fallback); Submission
+  main verified (fail-fast guards: dispatch requires completion, completion requires
+  NATS, ProcessOnce startup drain for judge completion and expiry workers); httpx
+  server verified (production timeouts: ReadHeaderTimeout=5s, ReadTimeout=15s,
+  WriteTimeout=15s, IdleTimeout=60s; readiness error logged server-side only, never in
+  response body); golangci.yml verified (bodyclose, errcheck, errorlint, rowserrcheck,
+  sqlclosecheck, staticcheck, unused, govet/shadow); identity postgres `truncate`
+  function fixed to walk back to a UTF-8 rune boundary before slicing. Frontend: ESLint
+  zero issues (removed stale eslint-disable directives in `mfa-gate.tsx`, fixed ternary
+  side-effect expression in `role-editor.tsx`, removed unused imports from e2e specs);
+  `make web-check web-build` passes clean (111 tests, 0 errors).
 
 ### Pending (2026-10-21)
 

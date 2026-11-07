@@ -2,7 +2,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { randomBytes } from "node:crypto";
 import { setUp } from "./seed";
-import { adminEmail, adminPassword, adminTotpSecret, call, dismissOnboarding, freshTotp } from "./support";
+import { adminEmail, adminPassword, adminTotpSecret, dismissOnboarding, freshTotp } from "./support";
 
 const run = randomBytes(3).toString("hex").toUpperCase();
 
