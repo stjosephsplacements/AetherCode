@@ -94,11 +94,10 @@ Ask-first areas under AGENTS.md apply. In priority order:
    live proctor view, consent screen, per-exam violation policy, evidence in MinIO gated by `VIEW_STUDENT_PII`.
 3. Port of the exam-v1 features not yet verified in the platform: lockdown and live monitor depth, CSV export,
    similarity report (pages open without errors; behaviour is not covered by browser tests yet).
-4. Browser tests added this session: exam authoring through the UI (`exam-authoring.spec.ts`), extra time from
-   the monitor (`extra-time.spec.ts`). Already had: MFA step-up (`stepup.spec.ts`), MCQ wizard
-   (`authoring.spec.ts`), announcements and roster export (`exam-staff.spec.ts`), practice mode
-   (`practice.spec.ts`). Still missing: results CSV export (needs a graded attempt), community moderation
-   (needs a student-submitted interview experience).
+4. ~~Browser tests still missing.~~ All listed flows now have specs: exam authoring (`exam-authoring.spec.ts`),
+   extra time (`extra-time.spec.ts`), results CSV export (`results-export.spec.ts`), community moderation
+   (`community.spec.ts`). Already had: MFA step-up (`stepup.spec.ts`), MCQ wizard (`authoring.spec.ts`),
+   announcements and roster export (`exam-staff.spec.ts`), practice mode (`practice.spec.ts`).
 5. Placement read model with PII gating, then the analytics medallion; roles UI in `/admin` and `/staff`.
 6. Analytics rollups have no department column, so a department-scoped user sees no batch rows there yet.
 7. ~~Down migrations from 000042 on recreate a templated function, not the original body.~~ Fixed: all 9 `node_scoped_capability_chain.down.sql` files now restore each service's exact prior `set_context` body.
