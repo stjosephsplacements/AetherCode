@@ -51,12 +51,13 @@ func TestRolesServiceRejectsInvalidInputBeforeTheDatabase(t *testing.T) {
 	if _, err := service.Update(context.Background(), capability, UpdateRole{TenantID: node, RoleID: node, Position: &high}); err == nil {
 		t.Error("position 1000 was accepted on update")
 	}
-	base := PutOverwrite{TenantID: node, NodeKind: "department", NodeID: node, TargetKind: "role", TargetID: node, GrantedBy: node}
+	base := PutOverwrite{TenantID: node, NodeKind: "department", NodeID: node, TargetKind: "role", TargetID: node, GrantedBy: node, Allow: []string{"submission.attempts.read"}}
 	for name, mutate := range map[string]func(*PutOverwrite){
 		"platform node":      func(p *PutOverwrite) { p.NodeKind = "platform" },
 		"unknown target":     func(p *PutOverwrite) { p.TargetKind = "group" },
 		"other college node": func(p *PutOverwrite) { p.NodeKind = "college"; p.NodeID = "018f4b0d-08f8-7c09-9ba7-efdf9c223399" },
 		"bad node id":        func(p *PutOverwrite) { p.NodeID = "x" },
+		"no-op overwrite":    func(p *PutOverwrite) { p.Allow = nil; p.Deny = nil },
 	} {
 		command := base
 		mutate(&command)

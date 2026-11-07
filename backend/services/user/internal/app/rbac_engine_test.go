@@ -55,6 +55,10 @@ func TestBitsAllow(t *testing.T) {
 		{"no VIEW_SCOPE reaches nothing", hold("submission.attempts.read"), read, false},
 		{"ADMINISTRATOR holds everything", hold("VIEW_SCOPE", "ADMINISTRATOR"), write, true},
 		{"role without bits", Assignment{}, read, false},
+		{"delete flag grants read", hold("VIEW_SCOPE", "submission.attempts.delete"), read, true},
+		{"delete does not grant write", hold("VIEW_SCOPE", "submission.attempts.delete"), write, false},
+		{"ADMINISTRATOR without VIEW_SCOPE", hold("ADMINISTRATOR"), write, true},
+		{"HasPerms true with zero bits", Assignment{HasPerms: true}, read, false},
 		{"ADMINISTRATOR covers an unregistered resource", hold("VIEW_SCOPE", "ADMINISTRATOR"), Request{TargetService: "submission", ResourceType: "unknown", Action: "read"}, true},
 	}
 	for _, tc := range cases {

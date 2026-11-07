@@ -182,6 +182,9 @@ func (service *RolesService) Put(ctx context.Context, capability centralauthz.Ca
 	if command.NodeKind == "college" && command.NodeID != command.TenantID {
 		return Overwrite{}, invalidRole("a college overwrite names its own college")
 	}
+	if len(command.Allow) == 0 && len(command.Deny) == 0 {
+		return Overwrite{}, invalidRole("an overwrite must allow or deny at least one permission")
+	}
 	var stored Overwrite
 	err := service.run(ctx, capability, func(tx pgx.Tx) (err error) { stored, err = service.store.PutOverwrite(ctx, tx, command); return })
 	return stored, err
