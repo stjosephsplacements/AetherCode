@@ -1,0 +1,30 @@
+# For hosts whose kernel/AppArmor denies signals between the processes of one container (the campus
+# server, kernel 7.0.0-42 and later, seen 2026-11-04 and -05). ingress-nginx reloads the nginx
+# worker processes with SIGHUP and terminates old workers with SIGQUIT. When the node's default
+# AppArmor profile denies those signals:
+#   - nginx-ingress-controller cannot send the reload signal: old worker keeps listening; new
+#     config never takes effect; 502 Bad Gateway on new routes.
+#   - Pod termination leaves orphaned nginx-ingress-controller and nginx processes on the host,
+#     holding port 10245; the next controller pod fails to start.
+# The fix: run the controller pod without the node's default AppArmor profile and add the KILL
+# capability so the process manager can send arbitrary signals.
+#
+# Applied by:
+#   helm upgrade ingress-nginx ingress-nginx/ingress-nginx -n ingress-nginx \
+#     -f values-ingress-nginx-kernel-workaround.yaml
+#
+# Decision record: ADR-0076.
+controller:
+  # Remove the node-default AppArmor confinement for the controller.
+  # The controller pods run as a non-root user with a minimal capability set; this
+  # only removes the AppArmor MAC layer, not the seccomp profile or namespace isolation.
+  podAnnotations:
+    container.apparmor.security.beta.kubernetes.io/controller: unconfined
+
+  containerSecurityContext:
+    capabilities:
+      drop:
+        - ALL
+      add:
+        - NET_BIND_SERVICE
+        - KILL

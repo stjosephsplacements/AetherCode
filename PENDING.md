@@ -15,7 +15,7 @@ are still **disabled**; restore them when the owner says to re-enable.
 GitHub auth: `gh` active account `AlgoQX-Platform` can push (admin). The `Shreesh-Sree` keyring token is
 invalid (`gh auth refresh -h github.com` needed by the owner). Do not use `gh auth switch` unless needed.
 
-What the 2026-11-08 second run completed (commits b0b6442..69408f8 on `development`):
+What the 2026-11-08 third run completed (commits b0b6442..present on `development`):
 - nginx-site.conf: added `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy:
   strict-origin-when-cross-origin` alongside the existing HSTS header. Defense-in-depth for direct
   nginx access (traffic not via Cloudflare tunnel).
@@ -26,6 +26,11 @@ What the 2026-11-08 second run completed (commits b0b6442..69408f8 on `developme
 - Full HTTP adapter audit across all 9 services (analytics, assessment, gateway, identity, judge,
   notification, question-bank, seb, submission, tenant): all follow parse→authorize→service pattern,
   server-generated UUIDs, `pagination.ParseLimit` on list endpoints. No further issues found.
+- ingress-nginx AppArmor fix codified: `deploy/helm/values-ingress-nginx-kernel-workaround.yaml`
+  created alongside `values-infra-kernel-workaround.yaml`. Replaces the hand-applied kubectl patch
+  with an idempotent Helm values override. ADR-0076 written. Owner must run:
+  `helm upgrade ingress-nginx ingress-nginx/ingress-nginx -n ingress-nginx -f deploy/helm/values-ingress-nginx-kernel-workaround.yaml`
+- Zero TODO/FIXME markers in Go source. `make lint test web-check` all clean.
 
 What the 2026-11-08 first run completed (commits d51f692..a19bf2e on `development`):
 - Backend hardening audit: buildinfo version injection (`-ldflags` in Makefile + all Dockerfiles),
@@ -103,8 +108,10 @@ label and the ACM order was denied, owner can order an Advanced Certificate).
 1. PostgreSQL: the old workarounds (`io_method=sync`, `file_extend_method=write_zeros`, 900 s liveness delay) are
    gone. The cause was the node's AppArmor profile denying signals (ADR-0074); `values-infra-kernel-workaround.yaml`
    sets `appArmorUnconfined` for `postgres` and `judge-db`. Image is `postgres:18.6`.
-2. ingress-nginx still runs with `appArmorProfile: Unconfined` plus the `KILL` capability by hand. It is the same
-   cause as 1; record the chosen fix in an ADR when it is made. If a controller pod sticks in Terminating,
+2. ingress-nginx: the hand-applied fix (`appArmorProfile: Unconfined` + `KILL` capability) is now codified in
+   `deploy/helm/values-ingress-nginx-kernel-workaround.yaml` (ADR-0076). Owner should run:
+   `helm upgrade ingress-nginx ingress-nginx/ingress-nginx -n ingress-nginx -f deploy/helm/values-ingress-nginx-kernel-workaround.yaml`
+   to make it survive controller upgrades. If a controller pod sticks in Terminating,
    force delete it and `kill -9` orphan `nginx-ingress-controller`/`nginx` host processes (port 10245 conflict).
 3. `kyverno-reports-controller` consumed about 45 cores during crash loops; it was scaled to 0 then back to 1. Watch it.
 4. `AUTHZ_ENGINE=shadow` is set via kubectl on the dev user deployment. It is now also in `values-user.yaml`
@@ -152,6 +159,9 @@ Ask-first areas under AGENTS.md apply. In priority order:
 10. ~~Forms that render their result without `FormMessage` would still show the raw `__mfa_required__` marker~~ Verified: every form whose action calls `actionError()` already renders through `FormMessage`. No live leak exists; a successful MFA code is not browser-tested.
 11. ~~Update the milestone table in `docs/roadmap.md`~~ Updated through 2026-11-08; every decision needs
     an ADR (roles page has no new ADR — it wires existing ADR-0066 APIs to a UI).
+12. ~~ingress-nginx AppArmor fix has no ADR and fix was hand-applied.~~ Fixed: ADR-0076 written;
+    `deploy/helm/values-ingress-nginx-kernel-workaround.yaml` codifies the fix. Owner must apply it
+    once with `helm upgrade ingress-nginx` to make it survive controller upgrades (see §3 item 2).
 
 ## 5. Verification commands
 

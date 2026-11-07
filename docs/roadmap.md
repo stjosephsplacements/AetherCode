@@ -264,6 +264,17 @@ Done 2026-11-05 to 2026-11-08 (code; deployed to `aether-test`):
   side-effect expression in `role-editor.tsx`, removed unused imports from e2e specs);
   `make web-check web-build` passes clean (111 tests, 0 errors).
 
+- HTTP adapter full audit (2026-11-08, second run): all 9 service HTTP adapters reviewed
+  (analytics, assessment, gateway, identity, notification, question-bank, seb, submission,
+  tenant) — consistent parse→authorize→service pattern, server-generated UUIDs,
+  `pagination.ParseLimit` on every list endpoint, no authorization bypasses or IDOR vectors.
+  nginx-site.conf: added missing `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`
+  headers. next.config.ts: added `X-Frame-Options: DENY`. Notification community `?limit`
+  parameter now rejects values outside [1, 100] (was unbounded, forwarded to PL/pgSQL LIMIT
+  directly). ingress-nginx AppArmor fix codified: `deploy/helm/values-ingress-nginx-kernel-workaround.yaml`
+  replaces the hand-applied kubectl patch; ADR-0076 written. Zero TODO/FIXME markers in Go
+  source files. `make lint test web-check` clean.
+
 ### Pending (2026-10-21)
 
 Needs the owner:
