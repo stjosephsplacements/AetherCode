@@ -170,37 +170,39 @@ func (repository *Postgres) Snapshot(contextValue context.Context, query app.Sna
 	}
 	staffScopes.Close()
 
-	rules, err := transaction.Query(contextValue, `
-		SELECT ptype, v0, v1, v2, v3
-		FROM users.authorization_policy_rules
-		WHERE status = 'active'
-		ORDER BY ptype, v0, v1, v2, v3
-	`)
-	if err != nil {
-		return app.Snapshot{}, fmt.Errorf("read canonical Casbin policy rules: %w", err)
-	}
-	for rules.Next() {
-		var rule centralauthz.PolicyRule
-		var values [4]*string
-		if err := rules.Scan(&rule.PType, &values[0], &values[1], &values[2], &values[3]); err != nil {
-			rules.Close()
-			return app.Snapshot{}, fmt.Errorf("scan canonical Casbin policy rule: %w", err)
+	if !query.RoleBits {
+		rules, err := transaction.Query(contextValue, `
+			SELECT ptype, v0, v1, v2, v3
+			FROM users.authorization_policy_rules
+			WHERE status = 'active'
+			ORDER BY ptype, v0, v1, v2, v3
+		`)
+		if err != nil {
+			return app.Snapshot{}, fmt.Errorf("read canonical Casbin policy rules: %w", err)
 		}
-		rule.Values = make([]string, len(values))
-		for index, value := range values {
-			if value == nil {
+		for rules.Next() {
+			var rule centralauthz.PolicyRule
+			var values [4]*string
+			if err := rules.Scan(&rule.PType, &values[0], &values[1], &values[2], &values[3]); err != nil {
 				rules.Close()
-				return app.Snapshot{}, fmt.Errorf("canonical Casbin policy rule %q has fewer than four values", rule.PType)
+				return app.Snapshot{}, fmt.Errorf("scan canonical Casbin policy rule: %w", err)
 			}
-			rule.Values[index] = *value
+			rule.Values = make([]string, len(values))
+			for index, value := range values {
+				if value == nil {
+					rules.Close()
+					return app.Snapshot{}, fmt.Errorf("canonical Casbin policy rule %q has fewer than four values", rule.PType)
+				}
+				rule.Values[index] = *value
+			}
+			snapshot.PolicyRules = append(snapshot.PolicyRules, rule)
 		}
-		snapshot.PolicyRules = append(snapshot.PolicyRules, rule)
-	}
-	if err := rules.Err(); err != nil {
+		if err := rules.Err(); err != nil {
+			rules.Close()
+			return app.Snapshot{}, fmt.Errorf("iterate canonical Casbin policy rules: %w", err)
+		}
 		rules.Close()
-		return app.Snapshot{}, fmt.Errorf("iterate canonical Casbin policy rules: %w", err)
 	}
-	rules.Close()
 
 	if (query.ResourceType == "students" || query.ResourceType == "student_batch_affiliations") && query.TenantID != "" {
 		placementScopes, queryErr := transaction.Query(contextValue, `

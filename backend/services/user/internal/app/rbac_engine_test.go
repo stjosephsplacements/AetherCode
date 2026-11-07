@@ -249,3 +249,62 @@ func TestComputeAllow(t *testing.T) {
 		}
 	})
 }
+
+// TestBitsetEngineDoesNotRequirePolicyRules confirms that EngineBitset allows a decision
+// when PolicyRules is empty — the early-exit guard must not fire in bitset mode.
+func TestBitsetEngineDoesNotRequirePolicyRules(t *testing.T) {
+	t.Parallel()
+	withBits := Assignment{
+		Role: centralauthz.RoleCollegeAdmin, ScopeKind: "college", TenantID: testTenant, ScopeID: testTenant,
+	}
+	withBits.Perms, withBits.HasPerms = bitsFor("VIEW_SCOPE", "submission.attempts.read"), true
+	snapshot := Snapshot{
+		Revision:    1,
+		Assignments: []Assignment{withBits},
+		// PolicyRules intentionally empty — bitset does not need them.
+		Flags: testFlagIndexes, ResolverFlags: testResolverFlags,
+	}
+	service, err := NewService(fakeStore{snapshot: snapshot}, testKeyring(t), nil, false)
+	if err != nil {
+		t.Fatalf("NewService() error = %v", err)
+	}
+	service.now = func() time.Time { return time.Date(2026, 7, 24, 12, 0, 0, 0, time.UTC) }
+	request := Request{
+		PrincipalID: testPrincipal, TenantID: testTenant, RequestID: testRequestID,
+		Action: "read", ResourceType: "attempts", ResourceID: "a-1", TargetService: "submission",
+	}
+	decision, err := service.WithEngine(EngineBitset).Authorize(context.Background(), request)
+	if err != nil {
+		t.Fatalf("Authorize() error = %v", err)
+	}
+	if !decision.Allowed {
+		t.Error("EngineBitset must allow when role bits grant the permission, even with no PolicyRules")
+	}
+}
+
+// TestCasbinEngineStillDeniesWithoutPolicyRules confirms that the casbin early-exit
+// guard is preserved: an empty PolicyRules list is a deny for casbin/shadow modes.
+func TestCasbinEngineStillDeniesWithoutPolicyRules(t *testing.T) {
+	t.Parallel()
+	assignment := Assignment{Role: centralauthz.RoleCollegeAdmin, ScopeKind: "college", TenantID: testTenant, ScopeID: testTenant}
+	snapshot := Snapshot{
+		Revision:    1,
+		Assignments: []Assignment{assignment},
+		// No PolicyRules — casbin cannot decide; deny is the safe default.
+	}
+	service, err := NewService(fakeStore{snapshot: snapshot}, testKeyring(t), nil, false)
+	if err != nil {
+		t.Fatalf("NewService() error = %v", err)
+	}
+	request := Request{
+		PrincipalID: testPrincipal, TenantID: testTenant, RequestID: testRequestID,
+		Action: "read", ResourceType: "attempts", ResourceID: "a-1", TargetService: "submission",
+	}
+	decision, err := service.Authorize(context.Background(), request)
+	if err != nil {
+		t.Fatalf("Authorize() error = %v", err)
+	}
+	if decision.Allowed {
+		t.Error("EngineCasbin must deny when PolicyRules is empty")
+	}
+}

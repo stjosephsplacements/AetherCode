@@ -318,7 +318,11 @@ func (service *Service) Authorize(contextValue context.Context, request Request)
 		return Decision{}, err
 	}
 	decision := Decision{DecisionID: decisionID, AuthzRevision: snapshot.Revision}
-	if snapshot.Revision <= 0 || len(snapshot.Assignments) == 0 || len(snapshot.PolicyRules) == 0 {
+	if snapshot.Revision <= 0 || len(snapshot.Assignments) == 0 {
+		return decision, nil
+	}
+	// PolicyRules are not fetched in bitset mode; deny only when Casbin is the authoritative engine.
+	if !service.engine.usesRoleBits() && len(snapshot.PolicyRules) == 0 {
 		return decision, nil
 	}
 	// Permission changes can confer access. Limit them to root and the
