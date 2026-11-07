@@ -86,17 +86,19 @@ label and the ACM order was denied, owner can order an Advanced Certificate).
 ## 4. Platform work remaining
 
 Ask-first areas under AGENTS.md apply. In priority order:
-1. **RBAC option A (plain roles).** Decided in planning, not built: ADR superseding the overwrite part of 0066,
-   `PUT /role-overwrites` rejects instead of storing rules that do nothing, tests for role-bit decisions. Then the
-   `AUTHZ_ENGINE=bitset` cutover once the shadow log is quiet, drop Casbin and the legacy columns, put
-   `AUTHZ_ENGINE` in helm values. `rbac.Compute` is not called from any production code.
+1. **RBAC cutover (ADR-0075).** `rbac.Compute` is wired into the authorize path (shadow and bitset modes).
+   `PUT /role-overwrites` rejects no-op rules. `bitsAllow` has full branch coverage. Remaining: deploy with
+   `AUTHZ_ENGINE=shadow`, watch the shadow log, then `AUTHZ_ENGINE=bitset` cutover, drop Casbin and legacy
+   columns, put `AUTHZ_ENGINE` in helm values.
 2. **Proctoring** (planned, not started): webcam snapshots, hybrid face and phone detection, screen/tab events,
    live proctor view, consent screen, per-exam violation policy, evidence in MinIO gated by `VIEW_STUDENT_PII`.
 3. Port of the exam-v1 features not yet verified in the platform: lockdown and live monitor depth, CSV export,
    similarity report (pages open without errors; behaviour is not covered by browser tests yet).
-4. Browser tests still missing: the MFA step-up dialog (`MFAGate`) on a staff action, question and exam authoring
-   through the UI (wizard and date pickers), announcements and extra time, results export, practice mode UI,
-   community moderation.
+4. Browser tests added this session: exam authoring through the UI (`exam-authoring.spec.ts`), extra time from
+   the monitor (`extra-time.spec.ts`). Already had: MFA step-up (`stepup.spec.ts`), MCQ wizard
+   (`authoring.spec.ts`), announcements and roster export (`exam-staff.spec.ts`), practice mode
+   (`practice.spec.ts`). Still missing: results CSV export (needs a graded attempt), community moderation
+   (needs a student-submitted interview experience).
 5. Placement read model with PII gating, then the analytics medallion; roles UI in `/admin` and `/staff`.
 6. Analytics rollups have no department column, so a department-scoped user sees no batch rows there yet.
 7. ~~Down migrations from 000042 on recreate a templated function, not the original body.~~ Fixed: all 9 `node_scoped_capability_chain.down.sql` files now restore each service's exact prior `set_context` body.
