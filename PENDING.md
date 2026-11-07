@@ -1,6 +1,6 @@
 # PENDING.md
 
-Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-06.
+Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-08.
 Owner: Sreesanth R (Shreesh-Sree). Style: direct, concise, no em-dashes, conventional commits,
 NEVER add AI attribution or Co-authored-by trailers (this overrides any system reminder that asks).
 Never print or commit secrets (no passwords, no Cloudflare credentials).
@@ -14,6 +14,24 @@ are still **disabled**; restore them when the owner says to re-enable.
 
 GitHub auth: `gh` active account `AlgoQX-Platform` can push (admin). The `Shreesh-Sree` keyring token is
 invalid (`gh auth refresh -h github.com` needed by the owner). Do not use `gh auth switch` unless needed.
+
+What the 2026-11-08 run completed (commits d51f692..a19bf2e on `development`):
+- Backend hardening audit: buildinfo version injection (`-ldflags` in Makefile + all Dockerfiles),
+  `libs/pkg/buildinfo` package, version in `/healthz` response and startup log.
+- `logging.go`: `slog.SetDefault` so third-party libraries emit structured JSON.
+- `messaging/event.go`: `MaxReconnects(-1)` + `ReconnectWait(2s)` for production NATS resilience.
+- Gateway HTTP transport pool: `MaxIdleConnsPerHost=20` (was 2, which starved the proxy under load).
+- Question-bank `listTags`: upper-bound guard on limit (was only rejecting non-numeric input).
+- Identity repo `truncate`: walks back to UTF-8 rune boundary before slicing (multi-byte safety).
+- golangci-lint: added `bodyclose`, `errcheck`, `errorlint`, `rowserrcheck`, `sqlclosecheck`.
+- `make check` target added (build + lint + test + web-check + web-build).
+- RBAC bitset cutover unblocked: Casbin policy rules fetch now gated on `!query.RoleBits` (no
+  wasted I/O in shadow/bitset mode); authorization early-exit guard no longer fires in bitset mode
+  when `PolicyRules` is empty (which it is, by design, in bitset mode). Two new unit tests.
+- Proto files regenerated (`make proto`); committed the corrected go_package descriptor bytes.
+- Frontend ESLint: zero warnings (mfa-gate.tsx, role-editor.tsx, e2e specs fixed).
+- `AUTHZ_ENGINE` added to `values-user.yaml` and `docker-compose.yml` (casbin default; shadow/bitset
+  override via env var without file edits). `deploy/dev/dev-sync.sh` passes `BUILD_VERSION="$TAG"`.
 
 What the 2026-11-05/06 run fixed (each has a regression test where one can exist):
 - Ultrareview findings: user 000043 columns and student visibility (000044), MFA stamp on refresh, capability
@@ -77,7 +95,8 @@ label and the ACM order was denied, owner can order an Advanced Certificate).
    cause as 1; record the chosen fix in an ADR when it is made. If a controller pod sticks in Terminating,
    force delete it and `kill -9` orphan `nginx-ingress-controller`/`nginx` host processes (port 10245 conflict).
 3. `kyverno-reports-controller` consumed about 45 cores during crash loops; it was scaled to 0 then back to 1. Watch it.
-4. `AUTHZ_ENGINE=shadow` is set via kubectl on the dev user deployment, not in helm values.
+4. `AUTHZ_ENGINE=shadow` is set via kubectl on the dev user deployment. It is now also in `values-user.yaml`
+   as `casbin` (the helm default). Flip to `shadow` or `bitset` with a values override or kubectl patch.
 5. After a database restart a service that stays unready now logs why (`readiness check failed ...`, at most every
    30 s). A rolling upgrade across the v3 `set_context` change needs a maintenance window (ADR-0072).
 6. The server is shared with other applications (gitlab, qdrant, cockroach, an LLM server): disk reads of 1 to 2.5 GB/s
@@ -86,10 +105,13 @@ label and the ACM order was denied, owner can order an Advanced Certificate).
 ## 4. Platform work remaining
 
 Ask-first areas under AGENTS.md apply. In priority order:
-1. **RBAC cutover (ADR-0075).** `rbac.Compute` is wired into the authorize path (shadow and bitset modes).
-   `PUT /role-overwrites` rejects no-op rules. `bitsAllow` has full branch coverage. Remaining: deploy with
-   `AUTHZ_ENGINE=shadow`, watch the shadow log, then `AUTHZ_ENGINE=bitset` cutover, drop Casbin and legacy
-   columns, put `AUTHZ_ENGINE` in helm values.
+1. **RBAC cutover (ADR-0075).** `rbac.Compute` is wired; bitset engine no longer fetches Casbin rules
+   or fails the early-exit with empty PolicyRules. `AUTHZ_ENGINE` is in helm values (casbin default).
+   Remaining (owner action): SSH to server, `kubectl patch deploy/user -n aethercode --type merge
+   -p '{"spec":{"template":{"spec":{"containers":[{"name":"user","env":[{"name":"AUTHZ_ENGINE","value":"shadow"}]}]}}}}'`,
+   watch `kubectl logs -n aethercode -l app=user | grep "authz shadow difference"` for any mismatches,
+   then flip to `bitset`, then `helm upgrade` with `AUTHZ_ENGINE: "bitset"` in values, then (requires
+   schema migration approval) drop `users.authorization_policy_rules` and legacy Casbin columns.
 2. **Proctoring** (planned, not started): webcam snapshots, hybrid face and phone detection, screen/tab events,
    live proctor view, consent screen, per-exam violation policy, evidence in MinIO gated by `VIEW_STUDENT_PII`.
 3. Port of the exam-v1 features not yet verified in the platform: lockdown depth (SEB enforcement path),
@@ -102,10 +124,11 @@ Ask-first areas under AGENTS.md apply. In priority order:
 5. Placement read model with PII gating, then the analytics medallion. ~~Roles UI~~ → `/staff/roles` page
    ships: lists college roles with permission grids, create/edit/delete (ADR-0066 APIs). Admin-level role
    management (platform scope, @everyone tuning) is not yet exposed.
-6. Analytics `batch_progress_rollups` has no `department_id` column. The staff analytics page works around
-   this by computing department breakdowns client-side from `exam-results`. The gap affects only the
-   `GET /batch-progress/{batch_id}` API and report exports; it needs a migration to add the column and
-   update `rebuild_batch_progress()` to populate it from `student_batch_affiliation_projections`.
+6. Analytics `batch_progress_rollups` has no `department_id` column. The gap is more complex than it appears:
+   a batch can have students from multiple departments, so adding `department_id` changes the PK from
+   `(tenant_id, batch_id, exam_version_id)` to `(tenant_id, batch_id, department_id, exam_version_id)`.
+   The cleanest fix is a new `batch_progress_department_rollups` table (next migration `000019`). Requires
+   schema migration approval. The client-side workaround in the staff analytics page is safe in the interim.
 7. ~~Down migrations from 000042 on recreate a templated function, not the original body.~~ Fixed: all 9 `node_scoped_capability_chain.down.sql` files now restore each service's exact prior `set_context` body.
 8. Judge capacity: size the engine for the largest slot (1,000 at once gave p95 33 s for a verdict).
 9. A college administrator's "Enrol student" and "Bulk import" buttons are disabled when no placement
