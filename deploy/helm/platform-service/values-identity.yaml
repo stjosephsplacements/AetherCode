@@ -60,9 +60,12 @@ networkPolicy:
       enabled: true
     userGrpc:
       enabled: false
+    # SSO provider (ADR-0042): if SSO is enabled, identity must reach the OIDC
+    # provider. Add an egress rule to the provider's namespace+port here.
+    extraRules: []
 
 sso:
-  # Single sign-on (ADR-0042) stays off while the issuer is empty.
+  # Single sign-on (ADR-0042). Empty issuer = SSO off. Not currently in use.
   issuer: ""
   clientId: ""
   adminTokenFile: ""

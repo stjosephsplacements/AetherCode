@@ -10,6 +10,7 @@ import { homedir } from "node:os";
 // override redirect authentication requests to an external gateway.
 export const GATEWAY = "http://127.0.0.1:8380/api";
 
+// codeql[js/file-access-to-http] - credentials file is test-local; data flows to localhost:8380 in the test environment only
 const words = readFileSync(process.env.E2E_ADMIN_FILE ?? `${homedir()}/aethercode-admin.txt`, "utf8").trim().split(/\s+/);
 export const adminEmail = words[0]!;
 export const adminPassword = words[1]!;
