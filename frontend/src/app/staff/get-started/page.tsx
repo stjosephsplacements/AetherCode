@@ -80,91 +80,54 @@ export default async function GetStartedPage() {
   const done = steps.filter((step) => step.done).length;
   const complete = done === steps.length;
   const current = steps.find((step) => !step.done && !step.blocked);
-  const percent = Math.round((done / steps.length) * 100);
+  const percent = steps.length ? Math.round((done / steps.length) * 100) : 0;
 
   return (
-    <div className="mx-auto max-w-5xl">
-      <section className="relative overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface p-6 sm:p-8">
-        <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full bg-brand/10 blur-3xl" />
-        <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center">
-          <div className="relative size-24 shrink-0">
-            <svg viewBox="0 0 80 80" className="size-24 -rotate-90" role="img" aria-label={`${percent} percent complete`}>
-              <circle cx="40" cy="40" r="34" fill="none" strokeWidth="6" className="stroke-line" />
-              <circle cx="40" cy="40" r="34" fill="none" strokeWidth="6" strokeLinecap="round" className="stroke-brand transition-[stroke-dashoffset] duration-700" strokeDasharray={RING} strokeDashoffset={RING * (1 - done / steps.length)} />
-            </svg>
-            <span className="absolute inset-0 grid place-items-center text-xl font-semibold tabular-nums text-ink">{percent}%</span>
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="font-[family-name:var(--font-eyebrow)] text-[10.5px] uppercase tracking-[0.14em] text-ink-subtle">Setup guide</p>
-            <h1 className="mt-1 text-[26px] font-semibold leading-tight tracking-[-0.025em] text-ink">{complete ? "You are all set" : "Get your college running"}</h1>
-            <p className="mt-1.5 max-w-[60ch] text-sm leading-relaxed text-ink-muted">
-              {complete
-                ? "Every basic is in place. Add more of anything from its page, or read the guides to go deeper."
-                : `${done} of ${steps.length} steps done. Each step needs the one before it, so the order below is the order to work in.`}
-            </p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {current && (
-                <Button asChild>
-                  <Link href={current.href}>
-                    {META[current.key].cta}
-                    <ArrowRight />
-                  </Link>
-                </Button>
-              )}
-              <Button asChild variant="secondary">
-                <Link href="/staff/help">
-                  <Question />
-                  Watch how it works
-                </Link>
-              </Button>
-            </div>
-          </div>
+    <div className="mx-auto max-w-3xl animate-enter">
+      <div className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-center">
+        <div className="relative size-24 shrink-0">
+          <svg viewBox="0 0 80 80" className="size-24 -rotate-90" role="img" aria-label={`${percent}% complete`}>
+            <circle cx="40" cy="40" r="34" fill="none" strokeWidth="6" className="stroke-line" />
+            <circle cx="40" cy="40" r="34" fill="none" strokeWidth="6" strokeLinecap="round" className="stroke-brand transition-[stroke-dashoffset] duration-700" strokeDasharray={RING} strokeDashoffset={RING * (1 - done / Math.max(steps.length, 1))} />
+          </svg>
+          <span className="absolute inset-0 grid place-items-center text-xl font-semibold tabular-nums text-ink">{percent}%</span>
         </div>
-      </section>
+        <div>
+          <p className="font-[family-name:var(--font-eyebrow)] text-[10.5px] uppercase tracking-[0.14em] text-ink-subtle">Setup</p>
+          <h1 className="mt-1 text-[26px] font-semibold leading-tight tracking-[-0.025em] text-ink">{complete ? "All set" : `${done} of ${steps.length} done`}</h1>
+          <p className="mt-1.5 text-sm text-ink-muted">{complete ? "Everything is in place. Add more from any page." : "Work through these in order. Each step unlocks the next."}</p>
+        </div>
+      </div>
 
-      <ol className="relative mt-8 space-y-3">
-        <span aria-hidden className="absolute bottom-6 left-[27px] top-6 w-px bg-line" />
-        {steps.map((step, index) => {
-          const { icon: Icon, minutes, cta } = META[step.key];
+      <div className="grid gap-3 sm:grid-cols-2">
+        {steps.map((step) => {
+          const { icon: Icon, cta } = META[step.key];
           const now = step === current;
           return (
-            <li key={step.key} className="relative flex gap-4">
-              <span
-                className={cn(
-                  "relative z-10 grid size-14 shrink-0 place-items-center rounded-full border-2 bg-canvas",
-                  step.done && "border-brand bg-brand text-brand-ink",
-                  now && "border-brand text-brand shadow-[0_0_0_6px_color-mix(in_srgb,var(--color-brand)_14%,transparent)]",
-                  !step.done && !now && "border-line text-ink-subtle",
-                )}
-              >
-                {step.done ? <Check className="size-5" /> : step.blocked ? <Lock className="size-4" /> : <Icon className="size-5" />}
-              </span>
-              <div className={cn("flex min-w-0 flex-1 flex-col gap-3 rounded-[var(--radius-surface)] border p-4 sm:flex-row sm:items-center", now ? "border-brand/50 bg-surface" : "border-line", step.blocked && "opacity-60")}>
-                <div className="min-w-0 flex-1">
-                  <p className="font-mono text-[11px] text-ink-subtle">
-                    Step {index + 1} · {step.done ? "Done" : minutes}
-                  </p>
-                  <h2 className="mt-0.5 text-[15px] font-semibold text-ink">{step.title}</h2>
-                  <p className="mt-0.5 text-[13px] text-ink-muted">{step.blocked ?? step.text}</p>
+            <Link key={step.key} href={step.href} className={cn("group", step.blocked && "pointer-events-none opacity-50")}>
+              <Panel className={cn("flex h-full flex-col gap-3 p-5 transition-shadow group-hover:shadow-[var(--shadow-panel)]", now && "ring-2 ring-brand/30")}>
+                <div className="flex items-center justify-between">
+                  {step.done ? <Check className="size-6 text-brand" /> : step.blocked ? <Lock className="size-5 text-ink-subtle" /> : <Icon className="size-6 text-brand" />}
+                  {step.done && <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[11px] font-medium text-brand">Done</span>}
+                  {now && <span className="rounded-full bg-brand px-2 py-0.5 text-[11px] font-medium text-brand-ink">Next</span>}
                 </div>
-                {step.blocked ? (
-                  <span className="text-xs text-ink-subtle">Locked</span>
-                ) : (
-                  <Button asChild size="sm" variant={now ? "primary" : "secondary"}>
-                    <Link href={step.href}>
-                      {step.done ? "Open" : cta}
-                      {!step.done && <ArrowRight />}
-                    </Link>
-                  </Button>
+                <div>
+                  <p className="text-[15px] font-semibold text-ink">{step.title}</p>
+                  <p className="mt-1 text-[13px] leading-snug text-ink-muted">{step.text}</p>
+                </div>
+                {!step.blocked && (
+                  <span className="mt-auto inline-flex items-center gap-1 text-[13px] font-medium text-brand">
+                    {step.done ? "Open" : cta} <ArrowRight className="size-3.5" />
+                  </span>
                 )}
-              </div>
-            </li>
+              </Panel>
+            </Link>
           );
         })}
-      </ol>
+      </div>
 
       {complete && (
-        <p className="mt-8 flex items-center gap-2 text-sm text-ink-muted">
+        <p className="mt-6 flex items-center gap-2 text-sm text-ink-muted">
           <Confetti className="size-4 text-brand" />
           Next: invite staff from Staff accounts, or open the Dashboard to watch exams live.
         </p>
