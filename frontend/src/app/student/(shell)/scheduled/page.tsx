@@ -23,7 +23,7 @@ export default async function ScheduledPage() {
 
   return (
     <div className="animate-enter">
-      <PageHeader title="Scheduled" description="Exams open now and the ones coming up, soonest first." />
+      <PageHeader title="Scheduled" description="Upcoming exams, soonest first." />
       {rows.length === 0 ? (
         <EmptyState>
           <CalendarDots className="mx-auto mb-3 size-6 text-ink-subtle" />

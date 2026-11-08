@@ -33,7 +33,7 @@ export default async function ProfilePage() {
   const handleOf = (platform: PlatformName) => links.find((link) => link.platform === platform)?.handle ?? "";
   return (
     <div className="animate-enter">
-      <PageHeader title={viewer.displayName || "My profile"} description={"Link your coding accounts to see your public numbers in one place. Numbers refresh hourly and come from each site; if one is down it shows only the link."} />
+      <PageHeader title={viewer.displayName || "My profile"} description="Link your coding accounts (LeetCode, GitHub, etc.) to track your public numbers here." />
 
       {publicProfile && (
         <div className="mt-8">

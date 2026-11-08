@@ -26,7 +26,7 @@ export default async function CompletedPage() {
   return (
     <div className="animate-enter">
       <LiveRefresh topics={["grading"]} />
-      <PageHeader title="Completed" description="Every exam you have finished, newest first, with its result once it is released." />
+      <PageHeader title="Completed" description="Exams you've finished. Results show once your teacher releases them." />
       {finished.length === 0 ? (
         <EmptyState>
           <CheckCircle className="mx-auto mb-3 size-6 text-ink-subtle" />

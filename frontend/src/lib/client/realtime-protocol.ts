@@ -1,4 +1,4 @@
-/** What the gateway's staff WebSocket sends (ADR-0050). Hints carry no data; pages refetch. */
+/** What the gateway's WebSocket sends to staff and students (ADR-0050). Hints carry no data; pages refetch. */
 
 export type ServiceHealth = { name: string; description?: string; ready: boolean; milliseconds: number };
 export type HealthMessage = { type: "health"; checked_at: string; services: ServiceHealth[] };

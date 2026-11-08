@@ -17,7 +17,7 @@ type Realtime = {
 const Context = createContext<Realtime>({ status: "offline", health: null, subscribe: () => () => {} });
 
 /**
- * One WebSocket to the gateway for the whole console. It reconnects with
+ * One WebSocket to the gateway for staff or student pages. It reconnects with
  * backoff; when the session expires it lets the server refresh the cookie first.
  */
 export function RealtimeProvider({ tenantId, children }: { tenantId: string | null; children: React.ReactNode }) {

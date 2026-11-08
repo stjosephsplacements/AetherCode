@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "Help" };
 export default function HelpPage() {
   return (
     <div className="mx-auto max-w-[720px] animate-enter">
-      <PageHeader title={"Help"} description={"Answers to what students ask most during exams. For anything else, ask your invigilator."} />
+      <PageHeader title={"Help"} description="Common questions during exams. Ask your invigilator if you need more help." />
       {STUDENT_HELP.map((section) => (
         <section key={section.title} className="mt-10">
           <h2 className="mb-3 text-sm font-medium text-ink-muted">{section.title}</h2>

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { LoadError, PageHeader, Table } from "@/components/staff/page-header";
 import { Badge } from "@/components/ui/card";
 import type { Page, QuestionDetail } from "@/lib/api-types";
@@ -35,7 +34,7 @@ export default async function PlacementQuestionsPage() {
       <h2 className="mb-3 text-[15px] font-semibold tracking-[-0.01em] text-ink">Test questions ({tests.length})</h2>
       {tests.length > 0 && (
         <Table head={["Title", "Difficulty", "Languages", "Tests", "Status"]}>
-          {tests.map(({ question, question_version: version }) => (
+          {tests.map(({ question_version: version }) => (
             <tr key={version.id}>
               <td className="px-4 py-2.5 font-medium text-ink">{version.title}</td>
               <td className="px-4 py-2.5"><Badge tone="neutral">{version.difficulty}</Badge></td>
@@ -50,7 +49,7 @@ export default async function PlacementQuestionsPage() {
       <h2 className="mb-3 mt-8 text-[15px] font-semibold tracking-[-0.01em] text-ink">Practice questions ({practice.length})</h2>
       {practice.length > 0 && (
         <Table head={["Title", "Difficulty", "Languages", "Tests"]}>
-          {practice.map(({ question, question_version: version }) => (
+          {practice.map(({ question_version: version }) => (
             <tr key={version.id}>
               <td className="px-4 py-2.5 font-medium text-ink">{version.title}</td>
               <td className="px-4 py-2.5"><Badge tone="neutral">{version.difficulty}</Badge></td>

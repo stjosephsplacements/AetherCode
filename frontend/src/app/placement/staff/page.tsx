@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { EmptyState, LoadError, PageHeader, Table } from "@/components/staff/page-header";
-import { Badge } from "@/components/ui/card";
 import type { Page, RoleAssignment } from "@/lib/api-types";
 import { departmentLabel, listPlacement } from "@/lib/server/directory";
 import { gateway } from "@/lib/server/gateway";

@@ -25,7 +25,7 @@ export default async function AdminHome() {
   const health = staff.tenants[0] ? await serviceHealth(staff.tenants[0].id).catch(() => null) : null;
   return (
     <>
-      <PageHeader title="Admin console" description="Everything that spans colleges. Work inside one college from its workspace." actions={<ServicesBadge initial={health} />} />
+      <PageHeader title="Admin console" description="Platform-level settings. Open a college below to work inside it." actions={<ServicesBadge initial={health} />} />
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <Tile label="Colleges">
           <p className="font-mono text-[2rem] font-semibold leading-none text-ink">{staff.tenants.length}</p>

@@ -35,7 +35,7 @@ export default async function AdminsPage() {
   const candidates = perCollege.flatMap(({ college, value }) => (value ?? []).map((person) => ({ id: person.id, label: `${person.name} (${college.name})` })));
   return (
     <>
-      <PageHeader title="Administrators" description="People with platform-wide access. Narrow what each may do on the Permissions page." />
+      <PageHeader title="Administrators" description="People with access to every college. Manage their permissions from here." />
       <PlatformAdmins admins={superAdmins} candidates={candidates} viewerIsRoot={superAdmins.some((admin) => admin.root && admin.principalId === staff.viewer.principalId)} workspace={staff.tenants[0]?.id} />
     </>
   );

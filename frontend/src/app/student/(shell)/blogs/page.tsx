@@ -27,7 +27,7 @@ export default async function BlogsPage({ searchParams }: { searchParams: Promis
   }
   return (
     <div className="animate-enter">
-      <PageHeader title={"Blogs"} description={"Preparation guides and announcements from your placement team."} />
+      <PageHeader title="Blogs" description="Guides and announcements from your placement team." />
       {tag && (
         <p className="mt-4 text-sm text-ink-muted">
           Tagged <Badge tone="brand">{tag}</Badge>{" "}

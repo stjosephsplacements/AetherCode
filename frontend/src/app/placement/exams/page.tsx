@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { EmptyState, LoadError, PageHeader, Table } from "@/components/staff/page-header";
 import { Badge } from "@/components/ui/card";
-import type { Tenant } from "@/lib/api-types";
 import { type CollegeExam, listAllExams } from "@/lib/server/exams";
 import { requirePlacement } from "@/lib/server/placement";
 import { formatDateTime } from "@/lib/utils";

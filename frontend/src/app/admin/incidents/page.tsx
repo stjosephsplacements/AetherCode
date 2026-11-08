@@ -32,7 +32,7 @@ export default async function IncidentsPage() {
       <LiveRefresh topics={["grading", "attempts"]} fallbackSeconds={15} />
       <PageHeader
         title="Incidents"
-        description="What needs attention across every college, right now. Updates in real time."
+        description="Problems across all colleges, right now. Updates live."
         actions={
           board.incidents.length === 0 ? (
             <Badge tone="success">All clear</Badge>

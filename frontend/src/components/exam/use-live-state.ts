@@ -4,22 +4,26 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { Announcement, AttemptLiveState } from "@/lib/api-types";
 import { api } from "@/lib/client/api";
+import { useRealtime } from "@/lib/client/realtime";
 
-const POLL_MS = 15_000;
+const FALLBACK_MS = 30_000;
 
 /**
  * The parts of an attempt staff change while it runs (ADR-0027): the deadline,
- * when they grant extra time, and announcements. Polled every 15 seconds; a
- * failed poll keeps the last known state.
+ * when they grant extra time, and announcements. Refreshes immediately on a
+ * WebSocket hint (attempts topic); falls back to polling every 30 seconds when
+ * the socket is offline.
  */
 export function useLiveState(attemptPath: string, initialDeadline: string) {
   const [deadline, setDeadline] = useState(initialDeadline);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [integrity, setIntegrity] = useState({ requireFullscreen: false, blockExternalPaste: false });
   const seen = useRef<Set<string> | null>(null);
+  const { status, subscribe } = useRealtime();
 
   useEffect(() => {
     let cancelled = false;
+    let pending: ReturnType<typeof setTimeout> | undefined;
     async function poll() {
       const live = await api<AttemptLiveState>(`${attemptPath}/live`).catch(() => null);
       if (!live || cancelled) return;
@@ -28,8 +32,6 @@ export function useLiveState(attemptPath: string, initialDeadline: string) {
         if (added >= 60_000) toast(`Your teacher added ${Math.round(added / 60_000)} minutes.`);
         return live.submission_deadline;
       });
-      // Announcements made before the screen opened show in the banner, but
-      // only new ones pop up.
       if (seen.current) {
         for (const note of live.announcements) if (!seen.current.has(note.id)) toast.info(note.body, { duration: 15_000 });
       }
@@ -42,12 +44,21 @@ export function useLiveState(attemptPath: string, initialDeadline: string) {
       );
     }
     void poll();
-    const timer = setInterval(poll, POLL_MS);
+
+    const stop = subscribe((message) => {
+      if (message.topic !== "attempts") return;
+      clearTimeout(pending);
+      pending = setTimeout(poll, 500);
+    });
+
+    const timer = status === "live" ? undefined : setInterval(poll, FALLBACK_MS);
     return () => {
       cancelled = true;
+      clearTimeout(pending);
       clearInterval(timer);
+      stop();
     };
-  }, [attemptPath]);
+  }, [attemptPath, status, subscribe]);
 
   return { deadline, announcements, integrity };
 }

@@ -28,7 +28,7 @@ export default async function InterviewsPage({ searchParams }: { searchParams: P
   const waiting = mine.filter((experience) => experience.status !== "approved");
   return (
     <div className="animate-enter">
-      <PageHeader title={"Interview experiences"} description={"What seniors in your college were asked, round by round. Posts are anonymous and approved by the placement team first."} />
+      <PageHeader title="Interview experiences" description="What seniors were asked in interviews, round by round. Posts are anonymous and reviewed before publishing." />
 
       <form className="mt-6 flex max-w-[420px] gap-2" role="search">
         <TextInput name="company" defaultValue={company} placeholder="Filter by company" aria-label="Filter by company" />

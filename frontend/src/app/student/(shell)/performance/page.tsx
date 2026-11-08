@@ -59,7 +59,7 @@ export default async function PerformancePage() {
   return (
     <div className="animate-enter">
       <LiveRefresh topics={["grading"]} />
-      <PageHeader title="Performance" description="Your exam scores and practice, with how consistent you have been." />
+      <PageHeader title="Performance" description="Your scores, practice progress and streak." />
 
       <section aria-label="Summary" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Tile icon={<Medal className="size-4" />} label="Exams taken" value={String(finished.length)} note={finished.length === 1 ? "exam finished" : "exams finished"} />
