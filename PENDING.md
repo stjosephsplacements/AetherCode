@@ -7,7 +7,7 @@ Never print or commit secrets (no passwords, no Cloudflare credentials).
 
 ## 1. Branch state
 
-`development` is at `6fa50cd` (PR #168 + 17 additional commits pushed directly after PR creation).
+`development` is at `1632e8a` (PR #168 + 18 additional commits pushed directly after PR creation).
 `production` has not moved since #135.
 **PR #168** (`development` → `production`) is open:
 https://github.com/stjosephsplacements/AetherCode/pull/168
@@ -26,6 +26,10 @@ What the 2026-11-08 tenth run completed:
 - NATS stream `MaxBytes: 2 GiB` added to `ensurePlatformStream` in `libs/pkg/messaging/runtime.go`.
   Previously the stream had only `MaxAge: 8 days` with no size cap; a slow consumer could fill
   the server disk. Retention period now bounded by both time and size. Commit `6fa50cd`.
+- Inbox retention cleanup: `InboxStore.CleanProcessed` added to `libs/pkg/messaging/inbox.go`;
+  `PullConsumer` gains `WithInboxCleaner` builder method and runs cleanup on a 5-minute sub-ticker.
+  Analytics and submission wire it (highest volume; use `app.inbox_messages`). The `InboxCleaner`
+  interface keeps the consumer decoupled from the store type. Commit `1632e8a`.
 - `make lint test` clean.
 
 What the 2026-11-08 ninth run completed:
