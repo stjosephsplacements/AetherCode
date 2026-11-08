@@ -1,8 +1,8 @@
 // Proctor service schema — dedicated database for violation tracking.
-// Connects to aether_proctor (created by the proctor DB migration).
+// Connects to aether_proctor (created by migrations/000001_initial.up.sql).
 //
-// Run: prisma generate    — generates the Python client
-//      prisma db push     — apply schema to dev DB (migrations via prisma migrate in prod)
+// Run: prisma generate    — regenerates the Python client after schema changes
+// Tables live in the proctor schema (not public), so @@map uses "proctor.tablename".
 
 generator client {
   provider             = "prisma-client-py"
@@ -12,11 +12,11 @@ generator client {
 }
 
 datasource db {
-  provider          = "postgresql"
+  provider  = "postgresql"
   // Injected at runtime via PROCTOR_DATABASE_URL (kubernetes secret → env var).
   // Never hardcode credentials — see deploy/helm/platform-service/values-proctor.yaml.
-  url               = env("PROCTOR_DATABASE_URL")
-  directUrl         = env("PROCTOR_DATABASE_DIRECT_URL")
+  url       = env("PROCTOR_DATABASE_URL")
+  directUrl = env("PROCTOR_DATABASE_DIRECT_URL")
 }
 
 /// One violation detected by the GPU inference engine for a proctored attempt.
@@ -25,21 +25,21 @@ model Violation {
   tenantId    String   @map("tenant_id") @db.Uuid
   attemptId   String   @map("attempt_id") @db.Uuid
   snapshotId  String   @map("snapshot_id") @db.Uuid
-  kind        String   // "phone_detected" | "multiple_faces" | "face_missing" | "gaze_away"
+  kind        String
   confidence  Float
   details     String   @default("")
   detectedAt  DateTime @default(now()) @map("detected_at")
 
   @@index([attemptId, kind, detectedAt(sort: Desc)], name: "violation_cooldown_idx")
   @@index([tenantId, attemptId, detectedAt(sort: Desc)], name: "violation_attempt_idx")
-  @@map("violations")
+  @@map("proctor.violations")
 }
 
 /// Tracks which snapshots have been analyzed to avoid double-processing.
 model ProcessedSnapshot {
-  snapshotId   String   @id @map("snapshot_id") @db.Uuid
-  processedAt  DateTime @default(now()) @map("processed_at")
+  snapshotId  String   @id @map("snapshot_id") @db.Uuid
+  processedAt DateTime @default(now()) @map("processed_at")
 
   @@index([processedAt], name: "processed_snapshot_age_idx")
-  @@map("processed_snapshots")
+  @@map("proctor.processed_snapshots")
 }

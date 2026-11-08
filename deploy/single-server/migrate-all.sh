@@ -19,4 +19,5 @@ run submission    aether_submission   aether_submission_migrator    SUBMISSION_D
 run seb           aether_seb          aether_seb_migrator           SEB_DB_PASSWORD
 run notification  aether_notification aether_notification_migrator  NOTIFICATION_DB_PASSWORD
 run analytics     aether_analytics    aether_analytics_migrator     ANALYTICS_DB_PASSWORD
+run proctor       aether_proctor      aether_proctor_migrator       PROCTOR_DB_PASSWORD
 echo "all platform migrations applied"

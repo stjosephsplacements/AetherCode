@@ -17,6 +17,7 @@ readonly -a DATABASES=(
   'seb:aether_seb:SEB_DB_PASSWORD:seb'
   'notification:aether_notification:NOTIFICATION_DB_PASSWORD:notification'
   'analytics:aether_analytics:ANALYTICS_DB_PASSWORD:analytics'
+  'proctor:aether_proctor:PROCTOR_DB_PASSWORD:proctor'
 )
 
 create_group_role_if_missing() {

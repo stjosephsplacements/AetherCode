@@ -419,6 +419,39 @@ services:
       judge-rabbitmq:
         condition: service_healthy
 
+  proctor:
+    build: { context: ../../backend, dockerfile: services/proctor/Dockerfile }
+    restart: always
+    environment:
+      PROCTOR_SUBMISSION_URL: http://submission:8080
+      PROCTOR_MINIO_ENDPOINT: minio:9000
+      PROCTOR_MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      PROCTOR_MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      PROCTOR_MINIO_BUCKET: aethercode
+      PROCTOR_NATS_URL: nats://nats:4222
+      PROCTOR_DATABASE_URL: postgres://aether_proctor_app:${PROCTOR_DB_PASSWORD:?run setup.sh first}@postgres:5432/aether_proctor?sslmode=disable
+      PROCTOR_DATABASE_DIRECT_URL: postgres://aether_proctor_app:${PROCTOR_DB_PASSWORD}@postgres:5432/aether_proctor?sslmode=disable
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import httpx; httpx.get('http://localhost:8090/healthz').raise_for_status()\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      minio:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
   gateway:
     <<: [*service, *healthcheck]
     environment:

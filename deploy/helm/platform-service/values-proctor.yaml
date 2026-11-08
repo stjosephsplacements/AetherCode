@@ -40,8 +40,13 @@ secretEnv:
   # Mounted from aethercode-secrets Secret.
   - name: PROCTOR_MINIO_ACCESS_KEY
   - name: PROCTOR_MINIO_SECRET_KEY
+  - name: PROCTOR_DB_PASSWORD
+
+env:
   - name: PROCTOR_DATABASE_URL
+    value: "postgres://aether_proctor_app:$(PROCTOR_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_proctor?sslmode={{ .Values.global.postgresSSLMode }}"
   - name: PROCTOR_DATABASE_DIRECT_URL
+    value: "postgres://aether_proctor_app:$(PROCTOR_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_proctor?sslmode={{ .Values.global.postgresSSLMode }}"
 
 # Node selector — only schedule on nodes with NVIDIA GPUs.
 nodeSelector:
