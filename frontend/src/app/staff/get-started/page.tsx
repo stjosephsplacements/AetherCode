@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { LoadError, PageHeader } from "@/components/staff/page-header";
 import { type SetupKey, setupSteps } from "@/lib/server/setup";
 import { requireStaff } from "@/lib/server/staff";
 import { cn } from "@/lib/utils";
@@ -25,7 +26,17 @@ const RING = 2 * Math.PI * 34;
 export default async function GetStartedPage() {
   const staff = await requireStaff();
   if (!staff.canManageAccounts) redirect("/staff");
-  const steps = await setupSteps(staff);
+  let steps;
+  try {
+    steps = await setupSteps(staff);
+  } catch (error) {
+    return (
+      <>
+        <PageHeader title="Get started" />
+        <LoadError error={error} />
+      </>
+    );
+  }
   const done = steps.filter((step) => step.done).length;
   const complete = done === steps.length;
   const current = steps.find((step) => !step.done && !step.blocked);
