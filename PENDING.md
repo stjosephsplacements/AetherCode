@@ -7,7 +7,7 @@ Never print or commit secrets (no passwords, no Cloudflare credentials).
 
 ## 1. Branch state
 
-`development` is at `1632e8a` (PR #168 + 18 additional commits pushed directly after PR creation).
+`development` is at `c9dacd1` (PR #168 + 20 additional commits pushed directly after PR creation).
 `production` has not moved since #135.
 **PR #168** (`development` → `production`) is open:
 https://github.com/stjosephsplacements/AetherCode/pull/168
@@ -30,7 +30,10 @@ What the 2026-11-08 tenth run completed:
   `PullConsumer` gains `WithInboxCleaner` builder method and runs cleanup on a 5-minute sub-ticker.
   Analytics and submission wire it (highest volume; use `app.inbox_messages`). The `InboxCleaner`
   interface keeps the consumer decoupled from the store type. Commit `1632e8a`.
-- `make lint test` clean.
+- Permissions-Policy security header: added to `nginx-site.conf` (denies accelerometer, camera,
+  geolocation, gyroscope, magnetometer, microphone, payment, USB). Frontend `next.config.ts`
+  aligned to the same full policy (was only camera/microphone/geolocation). Commit `c9dacd1`.
+- `make lint test web-check web-build` clean.
 
 What the 2026-11-08 ninth run completed:
 - Docker Compose healthchecks added for all 11 platform services, gateway, and frontend.

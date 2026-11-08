@@ -289,13 +289,17 @@ Done 2026-11-05 to 2026-11-08 (code; deployed to `aether-test`):
   API paths: student-progress (with 30-second event propagation polling), exam-results (with 403
   for students), batch-progress, placement-progress, and report-exports (idempotency + storage-key
   redaction). Smoke test now covers every service end-to-end (75 checks total).
-- Outbox/inbox retention cleanup (2026-11-08, tenth run): `OutboxStore.CleanPublished` and
-  `InboxStore.CleanProcessed` added to `libs/pkg/messaging/`; `Publisher.Run` and `PullConsumer.Run`
+- Outbox/inbox retention cleanup and security headers (2026-11-08, tenth run): `OutboxStore.CleanPublished`
+  and `InboxStore.CleanProcessed` added to `libs/pkg/messaging/`; `Publisher.Run` and `PullConsumer.Run`
   call each every 5 minutes, deleting rows older than 8 days. All 9 services' `app.outbox_events`
   and the analytics/submission `app.inbox_messages` tables previously grew unbounded.
   `PullConsumer` gains a `WithInboxCleaner` builder method; the `InboxCleaner` interface keeps the
   consumer decoupled from the store. Also added `MaxBytes: 2 GiB` to the NATS platform stream in
   `ensurePlatformStream` — previously only `MaxAge: 8 days` with no size cap.
+  `Permissions-Policy` header added to `deploy/single-server/nginx-site.conf` and expanded in
+  `frontend/next.config.ts` (full 8-directive policy: accelerometer, camera, geolocation, gyroscope,
+  magnetometer, microphone, payment, USB — all denied; nginx previously had no policy at all;
+  frontend had only camera/microphone/geolocation).
 
 ### Pending (2026-10-21)
 
