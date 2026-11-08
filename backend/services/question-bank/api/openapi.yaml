@@ -88,6 +88,46 @@ paths:
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
+    delete:
+      summary: Soft-delete a question aggregate
+      parameters:
+        - {$ref: '#/components/parameters/QuestionID'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: {type: string, minLength: 1, maxLength: 500}
+      responses:
+        '204': {description: Question soft-deleted}
+        '400': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+  /v1/questions/{question_id}/hard:
+    delete:
+      summary: Permanently delete a question aggregate
+      description: Irreversible. Only permitted for questions with no published versions.
+      parameters:
+        - {$ref: '#/components/parameters/QuestionID'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: {type: string, minLength: 1, maxLength: 500}
+      responses:
+        '204': {description: Question permanently deleted}
+        '400': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
   /v1/questions/{question_id}/versions:
     get:
       operationId: listQuestionVersions
@@ -185,6 +225,43 @@ paths:
       responses:
         '200': {$ref: '#/components/responses/QuestionVersion'}
         '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+    delete:
+      summary: Soft-delete a question version
+      parameters: [{$ref: '#/components/parameters/QuestionVersionID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: {type: string, minLength: 1, maxLength: 500}
+      responses:
+        '204': {description: Version soft-deleted}
+        '400': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+  /v1/question-versions/{question_version_id}/hard:
+    delete:
+      summary: Permanently delete a draft question version
+      parameters: [{$ref: '#/components/parameters/QuestionVersionID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: {type: string, minLength: 1, maxLength: 500}
+      responses:
+        '204': {description: Version permanently deleted}
+        '400': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
   /v1/question-versions/{question_version_id}/tests:
@@ -584,6 +661,120 @@ paths:
         '200': { description: The question version. }
         '400': { description: Invalid options, answer or explanations. }
         '409': { description: Stale revision or not a draft. }
+  /v1/question-versions/{question_version_id}/templates:
+    get:
+      summary: Get an author's code stubs and wrappers for a version (ADR-0063)
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/QuestionVersionID'}]
+      responses:
+        '200':
+          description: The templates keyed by language identifier.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [templates]
+                properties:
+                  templates:
+                    type: object
+                    additionalProperties:
+                      type: object
+                      properties:
+                        starter: {type: string}
+                        prefix: {type: string}
+                        suffix: {type: string}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+    put:
+      summary: Replace code templates for a draft version (ADR-0063)
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/QuestionVersionID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [templates]
+              properties:
+                templates:
+                  type: object
+                  additionalProperties:
+                    type: object
+                    required: [starter, prefix, suffix]
+                    properties:
+                      starter: {type: string, maxLength: 8192}
+                      prefix: {type: string, maxLength: 16384}
+                      suffix: {type: string, maxLength: 16384}
+      responses:
+        '200':
+          description: Saved templates.
+          content:
+            application/json:
+              schema: {type: object}
+        '400': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+  /v1/question-versions/{question_version_id}/model-checks:
+    post:
+      summary: Run the author's reference solution on all tests of the version (ADR-0033)
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/QuestionVersionID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [language, source]
+              properties:
+                language: {type: string, pattern: '^[a-z0-9][a-z0-9+_.-]{0,79}$'}
+                source: {type: string, minLength: 1, maxLength: 65536}
+      responses:
+        '202':
+          description: Model check queued.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id]
+                properties:
+                  id: {type: string, format: uuid}
+        '400': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+    get:
+      summary: List model checks for a question version
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/QuestionVersionID'}]
+      responses:
+        '200':
+          description: All model checks for this version, newest first.
+          content:
+            application/json:
+              schema: {type: array, items: {type: object}}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+  /v1/question-versions/{question_version_id}/assets/{asset_kind}:
+    get:
+      summary: Decrypt and return a named asset for a question version
+      description: Requires read on question_versions.
+      security: [{bearerAuth: []}]
+      parameters:
+        - {$ref: '#/components/parameters/QuestionVersionID'}
+        - name: asset_kind
+          in: path
+          required: true
+          schema: {type: string, enum: [attachment, starter_code, reference_solution]}
+      responses:
+        '200':
+          description: The asset bytes with its original content type.
+          content:
+            application/octet-stream:
+              schema: {type: string, format: binary}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
   /v1/questions/{question_id}/audience:
     put:
       summary: Use a question for tests or for practice (ADR-0041)
