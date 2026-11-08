@@ -1,8 +1,9 @@
 "use client";
 
-import { Plus, X } from "@phosphor-icons/react/ssr";
-import { useActionState, useState } from "react";
-import { ActionForm, type ActionState, Field, FormMessage, Select, initialActionState } from "@/components/staff/form";
+import { Plus } from "@phosphor-icons/react/ssr";
+import { useState } from "react";
+import { ConfirmDelete } from "@/components/staff/confirm-delete";
+import { ActionForm, type ActionState, Field, Select } from "@/components/staff/form";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { removePlacementOfficer } from "./actions";
@@ -50,14 +51,18 @@ export function AssignOfficer({
 }
 
 export function RemoveOfficerButton({ assignmentId, name }: { assignmentId: string; name: string }) {
-  const [state, action] = useActionState(removePlacementOfficer, initialActionState);
   return (
-    <form action={action} className="inline">
-      <input type="hidden" name="role_assignment_id" value={assignmentId} />
-      <button type="submit" aria-label={`Remove ${name}`} className="grid size-6 place-items-center rounded-full text-ink-muted transition-colors hover:bg-surface hover:text-danger">
-        <X className="size-3.5" />
-      </button>
-      {state.error && <span className="ml-1 text-xs text-danger">{state.error}</span>}
-    </form>
+    <ConfirmDelete
+      label="Remove"
+      title={`Remove ${name}?`}
+      description="They will lose access to this placement area. The students they managed are not changed."
+      askReason={false}
+      onConfirm={async () => {
+        "use server";
+        const form = new FormData();
+        form.set("role_assignment_id", assignmentId);
+        return removePlacementOfficer({ error: null }, form);
+      }}
+    />
   );
 }
