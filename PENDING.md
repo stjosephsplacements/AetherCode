@@ -7,7 +7,7 @@ Never print or commit secrets (no passwords, no Cloudflare credentials).
 
 ## 1. Branch state
 
-`development` is at `88bf713` (PR #168 + 55 additional commits pushed directly after PR creation).
+`development` is at `d99188e` (PR #168 + 60 additional commits pushed directly after PR creation).
 `production` has not moved since #135.
 **PR #168** (`development` → `production`) is open:
 https://github.com/stjosephsplacements/AetherCode/pull/168
@@ -32,8 +32,14 @@ What the 2026-11-08 eighteenth run completed:
   staff get-started, student exams, student tasks, student blogs, contests, hackathons,
   interviews, and open-source pages. All now catch fetch failures inline instead of falling
   to the root error boundary.
-- `make lint test web-check web-build` all clean. 144 frontend tests, 0 lint issues.
-  Commits `5b9c56c`..`88bf713`.
+- **Backend handler extraction**: proctor policy handlers from assessment service into
+  `proctor_handler.go`, practice handlers from question-bank into `practice_handler.go`.
+  All Go handler files are now under 1000 lines.
+- Added READMEs for `libs/pkg` (package reference table) and `libs/proto`.
+- Updated frontend README, e2e page sweep to cover all placement routes.
+- `make lint test web-check web-build exam-check vuln` all clean. 144 frontend tests,
+  29 exam-v1 tests, 74 Go test packages pass, 0 lint issues, 0 reachable vulnerabilities.
+  Commits `5b9c56c`..`d99188e`.
 
 What the 2026-11-08 seventeenth run completed:
 - Extracted placement handlers in the tenant service: `placement_handler.go` and
