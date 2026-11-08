@@ -75,7 +75,7 @@ export default async function QuestionsPage({ searchParams }: { searchParams: Pr
     <>
       <PageHeader
         title="Questions"
-        description="One question bank shared by every college. A coding question is published only after a model solution passes every one of its tests."
+        description="Questions shared across colleges. A question must pass all tests with a model solution before you can publish it."
         actions={
           <>
             {staff.canManageAccounts && categories.length > 0 && <ManageCategories categories={categories} />}

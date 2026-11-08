@@ -124,7 +124,7 @@ export default async function OrganisationPage({ searchParams }: { searchParams:
     <>
       <PageHeader
         title="Departments"
-        description="Academic departments and batches for this college."
+        description="Departments and batches for this college. Students are enrolled into a batch."
       />
       {unreachable.length > 0 && <p role="alert" className="mb-4 text-sm text-warning">Could not load: {unreachable.join(", ")}.</p>}
 

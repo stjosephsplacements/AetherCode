@@ -49,7 +49,7 @@ export default async function RolesPage() {
     <>
       <PageHeader
         title="Roles"
-        description="Manage the roles in this college. Each role carries a set of permissions that apply to everyone who holds it. System-managed roles are read-only."
+        description="Roles in this college. Each role gives a set of permissions to whoever holds it."
       />
       {sorted.length === 0 ? (
         <EmptyState>

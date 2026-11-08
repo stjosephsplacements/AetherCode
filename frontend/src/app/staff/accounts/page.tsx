@@ -114,7 +114,7 @@ export default async function StaffAccountsPage({
     <>
       <PageHeader
         title="Staff accounts"
-        description="Faculty author questions and run exams for their department. Mentors follow batches. Placement officers oversee cohorts. College administrators manage overall college settings."
+        description="Create and manage staff accounts. Give them roles to control what they can do."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <ImportStaffDialog departments={departments} />

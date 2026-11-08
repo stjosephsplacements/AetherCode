@@ -76,7 +76,7 @@ export default async function PermissionsPage({ searchParams }: { searchParams: 
     <>
       <PageHeader
         title="Permissions"
-        description="Give a person more than their role allows. Whatever the role already permits stays; these are added on top. Changing or deleting something always includes seeing it."
+        description="Give a person extra permissions beyond their role. These stack on top of what the role already allows."
       />
       <ul className="mb-5 flex flex-wrap gap-2" aria-label="Summary">
         {chip(<Users className="size-3.5" />, "Staff", people.length)}

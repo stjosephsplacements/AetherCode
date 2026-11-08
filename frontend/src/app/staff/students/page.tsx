@@ -21,7 +21,7 @@ export default async function StudentsPage() {
     <>
       <PageHeader
         title="Students"
-        description="Enrol students one at a time or from a spreadsheet, hand out passwords, and reset, disable or remove accounts."
+        description="Add students one by one or import a spreadsheet. Manage passwords and accounts."
       />
       <Suspense fallback={<RosterSkeleton />}>
         <StudentsContent staff={staff} />

@@ -64,7 +64,7 @@ export default async function ResultsPage({ params, searchParams }: { params: Pr
       </Link>
       <PageHeader
         title="Results"
-        description="Each question counts its best submission. Updates in real time as attempts are graded."
+        description="Scores update live as students finish. Best submission per question counts."
         actions={
           rows.length > 0 && (
             <>
