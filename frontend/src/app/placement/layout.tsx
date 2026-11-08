@@ -27,6 +27,7 @@ export default async function PlacementLayout({ children }: { children: React.Re
       items: [
         { href: "/placement/questions", label: "Questions", icon: "questions" },
         { href: "/placement/exams", label: "Exams", icon: "exams" },
+        { href: "/placement/analytics", label: "Analytics", icon: "analytics" },
       ],
     },
   ];

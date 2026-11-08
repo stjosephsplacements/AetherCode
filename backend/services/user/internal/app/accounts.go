@@ -158,7 +158,7 @@ func NewAccountService(pool *pgxpool.Pool, store AccountStore, identity Accounts
 // whole file, so nothing is half-imported.
 func (service *AccountService) ImportStudents(contextValue context.Context, authorize Authorize, actorID string, command StudentImport) (StudentImportResult, error) {
 	if !isUUID(command.TenantID) || !isUUID(command.BatchID) || !isUUID(command.CollegeDepartmentID) ||
-		!isUUID(command.PlacementDepartmentID) || !isUUID(actorID) {
+		(command.PlacementDepartmentID != "" && !isUUID(command.PlacementDepartmentID)) || !isUUID(actorID) {
 		return StudentImportResult{}, apperrors.New(apperrors.CodeInvalidArgument, "tenant, batch, department, and actor IDs must be UUIDs")
 	}
 	if len(command.Students) == 0 || len(command.Students) > MaxStudentImport {

@@ -72,7 +72,8 @@ export function ImportPanel({ batches, placements, departments }: { batches: Bat
           </Select>
         </Field>
         <Field label="Placement department" htmlFor="import-placement">
-          <Select id="import-placement" name="placement_department_id" required>
+          <Select id="import-placement" name="placement_department_id">
+            <option value="">None</option>
             {placements.map((placement) => (
               <option key={placement.id} value={placement.id}>
                 {placement.label}
@@ -343,7 +344,8 @@ export function EnrolDialog({ batches, placements, departments, disabledReason }
               </Select>
             </Field>
             <Field label="Placement department" htmlFor="enrol-placement">
-              <Select id="enrol-placement" name="placement_department_id" required>
+              <Select id="enrol-placement" name="placement_department_id">
+                <option value="">None</option>
                 {placements.map((placement) => (
                   <option key={placement.id} value={placement.id}>
                     {placement.label}

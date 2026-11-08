@@ -291,7 +291,8 @@ func (service *ManagementService) UpsertProfile(contextValue context.Context, ca
 func (service *ManagementService) EnrollStudent(contextValue context.Context, capability centralauthz.Capability, command EnrollStudent) (Student, error) {
 	command.EnrollmentNumber = strings.TrimSpace(command.EnrollmentNumber)
 	if !isUUID(command.ID) || !isUUID(command.PrincipalID) || !isUUID(command.TenantID) ||
-		!isUUID(command.CollegeDepartmentID) || !isUUID(command.PlacementDepartmentID) ||
+		!isUUID(command.CollegeDepartmentID) ||
+		(command.PlacementDepartmentID != "" && !isUUID(command.PlacementDepartmentID)) ||
 		!isUUID(command.CollegeMembershipID) || !isUUID(command.PlacementMembershipID) ||
 		!isUUID(command.GrantedStudentRoleID) || !isUUID(command.CreatedByPrincipalID) ||
 		!validEnrollmentNumber(command.EnrollmentNumber) {
