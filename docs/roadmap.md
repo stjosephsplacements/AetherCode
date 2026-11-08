@@ -350,6 +350,12 @@ Done 2026-11-05 to 2026-11-08 (code; deployed to `aether-test`):
   `grading` event (student starts, submits, gets graded) instead of waiting up to 15 seconds.
   Falls back to 15-second polling when the WebSocket is down. No backend changes needed — the
   gateway hub already published these events.
+- Image alignment, admin hardening, test coverage (2026-11-08, sixteenth run): aligned 3 remaining
+  Postgres images to 18.6 (root dev compose, judge-control compose, tools Dockerfile — missed in the
+  eleventh run). Admin analytics and incidents pages now catch fetch failures inline with `LoadError`
+  instead of falling to the root error boundary. Incidents description updated to "real time." Admin
+  loading state added. Frontend test count raised to 144 (utils, lettermark, formatCountdown).
+  SEB entry page metadata added. `make lint test web-check web-build` clean.
 
 ### Pending (2026-10-21)
 
