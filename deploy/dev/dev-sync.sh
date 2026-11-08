@@ -52,10 +52,17 @@ if $BUILD; then
 
 else
   # ── CI fast path: pull pre-built images from GHCR ─────────────────────────
+  # GHCR_TOKEN is passed from CI via SSH SendEnv / environment.
+  # Fallback to /etc/rancher/k3s/registries.yaml credentials if not set.
+  PULL_OPTS=()
+  if [[ -n "${GHCR_TOKEN:-}" ]]; then
+    PULL_OPTS=(--user "x-access-token:${GHCR_TOKEN}")
+  fi
+
   echo "Pulling $TAG from GHCR…"
   for s in "${SVCS[@]}" tools; do
     img="$REG/aethercode-$s:$TAG"
-    sudo ctr -n k8s.io images pull "$img" \
+    sudo -E ctr -n k8s.io images pull "${PULL_OPTS[@]}" "$img" \
     && echo "  pulled $s" \
     || { echo "PULL FAIL $s — is CI done? Try: dev-sync.sh --build $SHA ${SVCS[*]}"; exit 1; }
   done

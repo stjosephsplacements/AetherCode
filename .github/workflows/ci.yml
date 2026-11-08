@@ -298,6 +298,10 @@ jobs:
           SERVER_USER: ${{ secrets.DEV_SERVER_USER }}
           DEPLOY_PATH: ${{ secrets.DEV_DEPLOY_PATH }}
           SHA: ${{ github.sha }}
+          # GITHUB_TOKEN is a built-in CI secret with read:packages on GHCR.
+          # Passed to the server as GHCR_TOKEN via SSH so ctr pull authenticates
+          # without storing any credential on the server itself.
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           mkdir -p "$HOME/.ssh"
@@ -311,4 +315,4 @@ jobs:
             -o StrictHostKeyChecking=yes \
             -o BatchMode=yes \
             "${SERVER_USER}@${SERVER_HOST}" \
-            "cd '${DEPLOY_PATH}' && bash deploy/dev/dev-sync.sh '${SHA}' gateway identity tenant user question-bank assessment submission judge seb notification analytics frontend"
+            "GHCR_TOKEN='${GHCR_TOKEN}' bash '${DEPLOY_PATH}/deploy/dev/dev-sync.sh' '${SHA}' gateway identity tenant user question-bank assessment submission judge seb notification analytics frontend"
