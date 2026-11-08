@@ -281,6 +281,14 @@ Done 2026-11-05 to 2026-11-08 (code; deployed to `aether-test`):
   HTTP endpoint `GET /v1/tenants/{tid}/batch-progress/{bid}/by-department` wired.
   Projection worker `rebuildBatchProgress` now also rebuilds the department slice.
   Migration must be applied before deploying. `make lint test` clean.
+- Docker Compose healthchecks (2026-11-08, ninth run): all 11 platform services, gateway, and
+  frontend now have healthcheck entries in `docker-compose.yml`. A shared `x-healthcheck` YAML
+  anchor uses `wget --spider -q http://localhost:8080/healthz`; the frontend uses `/system-check/ping`
+  on port 3000. Previously only infra services (postgres, nats, minio) had healthchecks.
+- Analytics smoke test coverage (2026-11-08, ninth run): `smoke.py` now covers all 6 analytics
+  API paths: student-progress (with 30-second event propagation polling), exam-results (with 403
+  for students), batch-progress, placement-progress, and report-exports (idempotency + storage-key
+  redaction). Smoke test now covers every service end-to-end (75 checks total).
 
 ### Pending (2026-10-21)
 
