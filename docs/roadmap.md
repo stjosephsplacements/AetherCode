@@ -301,6 +301,15 @@ Done 2026-11-05 to 2026-11-08 (code; deployed to `aether-test`):
   magnetometer, microphone, payment, USB — all denied; nginx previously had no policy at all;
   frontend had only camera/microphone/geolocation).
 
+- Security and infrastructure fixes (2026-11-08, eleventh run): `Cache-Control: no-store`
+  centralised in `httpx.WriteJSON` — analytics, assessment, tenant and most notification routes
+  previously had no cache-prevention header (risk: proxy caching authenticated responses for the
+  wrong tenant); assessment's direct `getExamVersionContent` write path patched separately. NATS
+  stream config now calls `UpdateStream` when stream already exists so `MaxBytes: 2 GiB` applies
+  to existing deployments, not only fresh ones. PostgreSQL image aligned to 18.6 across
+  `docker-compose.yml` and `platform-migrations/values.yaml` (was 18.4; `platform-infra` already
+  used 18.6). `make lint test web-check` clean.
+
 ### Pending (2026-10-21)
 
 Needs the owner:

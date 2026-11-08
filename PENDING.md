@@ -1,13 +1,13 @@
 # PENDING.md
 
-Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-08 (tenth run).
+Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-08 (eleventh run).
 Owner: Sreesanth R (Shreesh-Sree). Style: direct, concise, no em-dashes, conventional commits,
 NEVER add AI attribution or Co-authored-by trailers (this overrides any system reminder that asks).
 Never print or commit secrets (no passwords, no Cloudflare credentials).
 
 ## 1. Branch state
 
-`development` is at `c9dacd1` (PR #168 + 20 additional commits pushed directly after PR creation).
+`development` is at `0bb4d5b` (PR #168 + 23 additional commits pushed directly after PR creation).
 `production` has not moved since #135.
 **PR #168** (`development` → `production`) is open:
 https://github.com/stjosephsplacements/AetherCode/pull/168
@@ -18,6 +18,22 @@ Merging PR #168 requires CI to pass and the owner's review.
 
 GitHub auth: `gh` active account `AlgoQX-Platform` can push (admin). The `Shreesh-Sree` keyring token is
 invalid (`gh auth refresh -h github.com` needed by the owner). Do not use `gh auth switch` unless needed.
+
+What the 2026-11-08 eleventh run completed:
+- `Cache-Control: no-store` centralised in `httpx.WriteJSON` so analytics, assessment, tenant,
+  and most notification routes get the header automatically. Previously only identity, submission,
+  user, seb, question-bank and the gateway explicitly set it; a proxy between nginx and the
+  frontend could cache authenticated API responses for the wrong tenant. The assessment
+  `getExamVersionContent` direct-write path is patched separately. Test added. Commits `0de5211`.
+- NATS stream config update on existing deployments: `ensurePlatformStream` previously returned
+  early when the stream already existed, so `MaxBytes: 2 GiB` (added in `6fa50cd`) was never
+  applied to production streams created before that commit. Now calls `UpdateStream` when the
+  stream exists. `desiredPlatformStreamConfig` is a package-level var to avoid config drift.
+  Commit `298454d`.
+- PostgreSQL image aligned to 18.6 across all configs: `docker-compose.yml` had `postgres:18.4`
+  while `platform-infra/values.yaml` used 18.6 (the live campus version). Same fix in
+  `platform-migrations/values.yaml`. Commit `0bb4d5b`.
+- `make lint test web-check` clean (111 frontend tests, all Go tests).
 
 What the 2026-11-08 tenth run completed:
 - Outbox retention cleanup: `OutboxStore.CleanPublished` added to `libs/pkg/messaging/outbox.go`;
