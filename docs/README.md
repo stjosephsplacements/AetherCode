@@ -40,6 +40,8 @@ profile. The current status is maintained in [roadmap.md](roadmap.md).
   checks.
 - [Judge control-plane operations](runbooks/judge-control-operations.md) —
   private mTLS operation and durable completion handling.
+- [Judge capacity sizing](runbooks/judge-capacity.md) — how to size the engine
+  for concurrent exam slots, with measured numbers and scaling guidance.
 - [Single-server deployment](../deploy/single-server/README.md) — the Docker
   Compose stack the campus runs, including the release checklist, backups,
   single sign-on and branding.
