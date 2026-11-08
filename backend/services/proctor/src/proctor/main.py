@@ -37,11 +37,13 @@ logger = logging.getLogger("proctor")
 _detector: Detector | None = None
 _minio: Minio | None = None
 _db: Prisma | None = None
+_nc: nats.aio.client.Client | None = None
+_http: httpx.AsyncClient | None = None
 
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
-    global _detector, _minio, _db
+    global _detector, _minio, _db, _nc, _http
 
     logger.info("Connecting to Prisma DB…")
     _db = Prisma()
@@ -62,11 +64,16 @@ async def lifespan(application: FastAPI):
         secure=False,
     )
 
+    _http = httpx.AsyncClient(base_url=settings.submission_url, timeout=10)
+
     logger.info("Starting NATS consumer on %s", settings.nats_subject)
+    _nc = await nats.connect(settings.nats_url)
     asyncio.create_task(_consume())
     yield
 
     logger.info("Proctor shutting down")
+    await _nc.drain()
+    await _http.aclose()
     await _db.disconnect()
 
 
@@ -74,8 +81,8 @@ app = FastAPI(title="AetherCode Proctor", lifespan=lifespan)
 
 
 async def _consume() -> None:
-    nc = await nats.connect(settings.nats_url)
-    sub = await nc.subscribe(settings.nats_subject)
+    assert _nc is not None
+    sub = await _nc.subscribe(settings.nats_subject)
     logger.info("NATS subscribed to %s", settings.nats_subject)
     async for msg in sub.messages:
         try:
@@ -131,23 +138,31 @@ async def _store_violation(
     )
 
 
+def _fetch_jpeg(key: str) -> bytes:
+    """Blocking MinIO download — run in executor to keep the event loop free."""
+    assert _minio is not None
+    response = _minio.get_object(settings.minio_bucket, key)
+    try:
+        return response.read()
+    finally:
+        response.close()
+
+
 async def _process(event: SnapshotEvent) -> None:
-    assert _detector is not None and _minio is not None
+    assert _detector is not None and _http is not None
 
     if await _already_processed(event.snapshot_id):
         logger.debug("Snapshot %s already processed, skipping", event.snapshot_id)
         return
 
     t0 = time.monotonic()
+    loop = asyncio.get_running_loop()
     try:
-        response = _minio.get_object(settings.minio_bucket, event.storage_key)
-        jpeg = response.read()
-        response.close()
+        jpeg = await loop.run_in_executor(None, _fetch_jpeg, event.storage_key)
     except Exception as exc:
         logger.error("Cannot fetch snapshot %s: %s", event.snapshot_id, exc)
         return
 
-    loop = asyncio.get_event_loop()
     raw_violations = await loop.run_in_executor(None, _detector.analyze, jpeg)
     await _mark_processed(event.snapshot_id)
 
@@ -160,32 +175,31 @@ async def _process(event: SnapshotEvent) -> None:
     if not raw_violations:
         return
 
-    async with httpx.AsyncClient(base_url=settings.submission_url, timeout=10) as client:
-        for v in raw_violations:
-            if not await _is_cooled_down(event.attempt_id, v["kind"]):
-                continue
+    for v in raw_violations:
+        if not await _is_cooled_down(event.attempt_id, v["kind"]):
+            continue
 
-            # Persist violation to DB first (idempotent on re-delivery)
-            await _store_violation(
-                tenant_id=event.tenant_id,
-                attempt_id=event.attempt_id,
-                snapshot_id=event.snapshot_id,
-                kind=v["kind"],
-                confidence=v["confidence"],
-                details=v.get("details", ""),
+        # Persist violation to DB first (idempotent on re-delivery)
+        await _store_violation(
+            tenant_id=event.tenant_id,
+            attempt_id=event.attempt_id,
+            snapshot_id=event.snapshot_id,
+            kind=v["kind"],
+            confidence=v["confidence"],
+            details=v.get("details", ""),
+        )
+
+        # Post integrity event to submission service (best-effort)
+        try:
+            r = await _http.post(
+                f"/v1/tenants/{event.tenant_id}/attempts/{event.attempt_id}/events",
+                json={"kind": v["kind"]},
+                headers={"X-Internal-Proctor": "true"},
             )
-
-            # Post integrity event to submission service (best-effort)
-            try:
-                r = await client.post(
-                    f"/v1/tenants/{event.tenant_id}/attempts/{event.attempt_id}/events",
-                    json={"kind": v["kind"]},
-                    headers={"X-Internal-Proctor": "true"},
-                )
-                r.raise_for_status()
-                logger.info("Posted %s violation for attempt %s", v["kind"], event.attempt_id)
-            except Exception as exc:
-                logger.warning("Failed to post violation %s: %s", v["kind"], exc)
+            r.raise_for_status()
+            logger.info("Posted %s violation for attempt %s", v["kind"], event.attempt_id)
+        except Exception as exc:
+            logger.warning("Failed to post violation %s: %s", v["kind"], exc)
 
 
 @app.get("/healthz")
@@ -206,12 +220,10 @@ async def healthz() -> dict:
 @app.post("/analyze", response_model=AnalysisResult)
 async def analyze(event: SnapshotEvent) -> AnalysisResult:
     """Direct HTTP trigger — useful for smoke testing without NATS."""
-    assert _detector is not None and _minio is not None
+    assert _detector is not None
     t0 = time.monotonic()
-    response = _minio.get_object(settings.minio_bucket, event.storage_key)
-    jpeg = response.read()
-    response.close()
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
+    jpeg = await loop.run_in_executor(None, _fetch_jpeg, event.storage_key)
     raw = await loop.run_in_executor(None, _detector.analyze, jpeg)
     return AnalysisResult(
         snapshot_id=event.snapshot_id,

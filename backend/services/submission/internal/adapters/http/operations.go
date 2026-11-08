@@ -357,8 +357,6 @@ func (handler *Handler) getGradingQueue(writer http.ResponseWriter, request *htt
 	writeRaw(writer, http.StatusOK, queue, err)
 }
 
-const maxSnapshotRequestBytes = 512 << 10 // 512 KiB
-
 func (handler *Handler) storeSnapshot(writer http.ResponseWriter, request *http.Request) {
 	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
 	if err != nil {
@@ -375,12 +373,12 @@ func (handler *Handler) storeSnapshot(writer http.ResponseWriter, request *http.
 		httpx.WriteError(writer, err)
 		return
 	}
-	data, err := io.ReadAll(io.LimitReader(request.Body, maxSnapshotRequestBytes+1))
+	data, err := io.ReadAll(io.LimitReader(request.Body, app.MaxSnapshotBytes+1))
 	if err != nil {
 		httpx.WriteError(writer, fmt.Errorf("read snapshot body: %w", err))
 		return
 	}
-	if len(data) > maxSnapshotRequestBytes {
+	if len(data) > app.MaxSnapshotBytes {
 		httpx.WriteError(writer, fmt.Errorf("snapshot exceeds 512 KiB"))
 		return
 	}

@@ -729,16 +729,10 @@ func (repository *Postgres) ListSnapshotKeys(contextValue context.Context, trans
 	if err != nil {
 		return nil, mapDatabaseError(err, "list snapshot keys")
 	}
-	defer rows.Close()
-	var result []app.SnapshotRow
-	for rows.Next() {
-		var row app.SnapshotRow
-		if err := rows.Scan(&row.ID, &row.CapturedAt, &row.StorageKey); err != nil {
-			return nil, fmt.Errorf("scan snapshot row: %w", err)
-		}
-		result = append(result, row)
-	}
-	return result, rows.Err()
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (app.SnapshotRow, error) {
+		var r app.SnapshotRow
+		return r, row.Scan(&r.ID, &r.CapturedAt, &r.StorageKey)
+	})
 }
 
 func (repository *Postgres) RegradeItem(contextValue context.Context, transaction pgx.Tx, command app.ExamVersionCommand, examItemID string) (json.RawMessage, error) {

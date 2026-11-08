@@ -245,7 +245,8 @@ type Snapshot struct {
 	URL        string    `json:"url"`
 }
 
-const maxSnapshotBytes = 512 << 10 // 512 KiB
+// MaxSnapshotBytes is the upload limit enforced at the HTTP boundary and here.
+const MaxSnapshotBytes = 512 << 10 // 512 KiB
 
 // UploadSnapshot stores a JPEG image in MinIO and records its metadata.
 // data must be ≤512 KiB; capturedAt is the browser-reported capture time.
@@ -254,8 +255,8 @@ func (service *Service) UploadSnapshot(contextValue context.Context, capability 
 	if !isUUID(tenantID) || !isUUID(attemptID) {
 		return "", apperrors.New(apperrors.CodeInvalidArgument, "tenant ID and attempt ID are required")
 	}
-	if len(data) == 0 || len(data) > maxSnapshotBytes {
-		return "", apperrors.New(apperrors.CodeInvalidArgument, fmt.Sprintf("snapshot must be between 1 and %d bytes", maxSnapshotBytes))
+	if len(data) == 0 || len(data) > MaxSnapshotBytes {
+		return "", apperrors.New(apperrors.CodeInvalidArgument, fmt.Sprintf("snapshot must be between 1 and %d bytes", MaxSnapshotBytes))
 	}
 	if capturedAt.IsZero() {
 		capturedAt = time.Now().UTC()
@@ -286,11 +287,18 @@ func (service *Service) UploadSnapshot(contextValue context.Context, capability 
 	}
 	// Best-effort: publish to proctor service for GPU inference.
 	if service.snapshotPublisher != nil && id != "" {
-		payload := fmt.Sprintf(
-			`{"snapshot_id":%q,"attempt_id":%q,"tenant_id":%q,"storage_key":%q,"captured_at":%q}`,
-			id, attemptID, tenantID, key, capturedAt.Format(time.RFC3339Nano),
-		)
-		_ = service.snapshotPublisher.PublishSnapshot(context.WithoutCancel(contextValue), "proctor.analyze", []byte(payload))
+		type proctorEvent struct {
+			SnapshotID string `json:"snapshot_id"`
+			AttemptID  string `json:"attempt_id"`
+			TenantID   string `json:"tenant_id"`
+			StorageKey string `json:"storage_key"`
+			CapturedAt string `json:"captured_at"`
+		}
+		payload, _ := json.Marshal(proctorEvent{
+			SnapshotID: id, AttemptID: attemptID, TenantID: tenantID,
+			StorageKey: key, CapturedAt: capturedAt.Format(time.RFC3339Nano),
+		})
+		_ = service.snapshotPublisher.PublishSnapshot(context.WithoutCancel(contextValue), "proctor.analyze", payload)
 	}
 	return id, nil
 }
