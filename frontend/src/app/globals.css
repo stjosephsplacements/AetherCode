@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @import "skullet/styles.css";
 
+/* Hide scrollbars everywhere while keeping scroll functionality. */
+* { scrollbar-width: none; }
+*::-webkit-scrollbar { display: none; }
+
 /*
  * ═══════════════════════════════════════════════════════════════════════
  * AetherCode Design System
