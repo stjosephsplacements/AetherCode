@@ -5,6 +5,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useRef } from "react";
 import { SITE } from "@/lib/site";
+import { LiquidGlass } from "./liquid-glass";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
@@ -68,8 +69,10 @@ export function Engine() {
         code inside Linux kernel sandboxes and streams each step back as it happens.
       </p>
 
-      <div className="mt-12 rounded-[var(--radius-surface)] overflow-hidden border border-line-strong bg-surface shadow-[var(--shadow-panel)]">
-        <div className="flex border-b border-line-strong font-mono text-[13px]">
+      <div className="relative mt-12">
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 mx-auto h-[80%] max-w-5xl rounded-[40px] bg-brand/8 blur-[60px]" />
+      <LiquidGlass strong className="relative overflow-hidden rounded-3xl shadow-[var(--shadow-overlay)]">
+        <div className="flex border-b border-line font-mono text-[13px]">
           <p className="px-4 py-2.5 text-ink">aethercode-execution-engine</p>
           <p className="ml-auto hidden px-4 py-2.5 text-ink-subtle sm:block">Go · AGPL-3.0</p>
         </div>
@@ -118,6 +121,7 @@ export function Engine() {
         <p className="border-t border-line-strong px-6 py-3 font-mono text-[11.5px] text-ink-subtle">
           {"// published load test on a 256-thread host, 64 sandbox workers. your numbers depend on your hardware."}
         </p>
+      </LiquidGlass>
       </div>
     </section>
   );

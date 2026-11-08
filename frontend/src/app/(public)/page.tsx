@@ -34,8 +34,9 @@ export default async function Landing() {
       <section className="py-24">
         <div className="mx-auto max-w-6xl px-6">
           <h2 className="heading text-[2.2rem] text-ink sm:text-[2.8rem]">The exam screen, as students see it</h2>
-          <div className="mt-10 [perspective:1800px]">
-            <div data-tilt className="origin-top">
+          <div className="relative mt-10 [perspective:1800px]">
+            <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 mx-auto h-[90%] max-w-5xl rounded-[40px] bg-brand/8 blur-[60px]" />
+            <div data-tilt className="relative origin-top">
               <ExamPreview />
             </div>
           </div>

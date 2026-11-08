@@ -420,7 +420,7 @@ export function Roster({ rows, several, actions }: { rows: StudentRow[]; several
 
       {selected.size > 0 && (
         <div className="pointer-events-none fixed inset-x-0 bottom-6 z-40 flex justify-center px-4">
-          <div role="region" aria-label="Selected students" className="pointer-events-auto flex max-w-full animate-enter flex-wrap items-center gap-2 rounded-[var(--radius-surface)] border border-line-strong bg-surface/95 px-4 py-2.5 shadow-[var(--shadow-overlay)] backdrop-blur-md">
+          <div role="region" aria-label="Selected students" className="liquid-glass pointer-events-auto flex max-w-full animate-enter flex-wrap items-center gap-2 rounded-[var(--radius-surface)] px-4 py-2.5 shadow-[var(--shadow-overlay)]">
             <span className="mr-2 font-mono text-[13px] tabular-nums text-ink">
               {selected.size} selected
               {hiddenSelected > 0 && <span className="ml-1 text-ink-muted">({hiddenSelected} outside the filters)</span>}

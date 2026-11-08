@@ -68,7 +68,7 @@ export function HelpCenter() {
             <h2 className="mb-3 font-mono text-[12.5px] text-ink-subtle">{section.title}</h2>
             <div className="overflow-hidden rounded-[var(--radius-surface)] overflow-hidden border border-line-strong bg-surface shadow-[var(--shadow-panel)]">
               {section.entries.map((entry, index) => (
-                <details key={entry.question} open={Boolean(deferred)} className={cn("group", index > 0 && "border-t border-line")}>
+                <details key={entry.question} name={section.title} open={Boolean(deferred)} className={cn("group", index > 0 && "border-t border-line")}>
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-[15px] font-medium text-ink transition-colors hover:text-brand [&::-webkit-details-marker]:hidden">
                     {entry.question}
                     <span aria-hidden className="shrink-0 font-mono text-[13px] text-brand"><span className="group-open:hidden">+</span><span className="hidden group-open:inline">&minus;</span></span>

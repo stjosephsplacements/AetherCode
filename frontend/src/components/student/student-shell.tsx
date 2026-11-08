@@ -154,7 +154,7 @@ export function StudentShell({ viewer, brand, children }: { viewer: Viewer; bran
   return (
     <div className="min-h-dvh" style={brand?.color ? accentStyle(brand.color) : undefined}>
       <header className="sticky top-0 z-30 px-3 pt-3 sm:px-6 print:hidden">
-        <div className="flex h-14 items-center gap-2 rounded-2xl border border-line bg-surface/80 px-3 shadow-[var(--shadow-panel)] backdrop-blur-xl">
+        <div className="liquid-glass flex h-14 items-center gap-2 rounded-2xl px-3 shadow-[var(--shadow-panel)]">
           <Mobile />
           <Link href="/student" className="mr-3 shrink-0 pl-1">
             <Brand brand={brand} />

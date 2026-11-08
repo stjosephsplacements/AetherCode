@@ -4,7 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import { type LoginState, type VerifyState, login, verifyLogin } from "./actions";
 
 const fieldClass =
-  "h-11 w-full rounded-[var(--radius-control)] border border-line-strong bg-surface px-3.5 font-mono text-[15px] text-ink outline-none transition-[border-color,box-shadow] placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15";
+  "h-12 w-full rounded-2xl border border-line-strong bg-surface/50 px-4 font-mono text-[15px] text-ink outline-none backdrop-blur transition-[border-color,box-shadow] placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15";
 
 export function LoginForm({ next }: { next: string }) {
   const [state, action, pending] = useActionState<LoginState, FormData>(login, { error: null, identifier: "" });
@@ -59,14 +59,14 @@ export function LoginForm({ next }: { next: string }) {
         </div>
       </div>
       {(state.error || state.challenge) && (
-        <p role="alert" className="border border-danger bg-danger-soft px-3.5 py-2.5 font-mono text-[13.5px] text-danger">
+        <p role="alert" className="rounded-xl border border-danger bg-danger-soft px-3.5 py-2.5 font-mono text-[13.5px] text-danger">
           [!] {state.error ?? "This sign-in expired. Enter your password again."}
         </p>
       )}
       <button
         type="submit"
         disabled={pending}
-        className="w-full rounded-full bg-brand py-3 text-[15px] font-medium text-brand-ink transition-opacity hover:opacity-90 disabled:opacity-60"
+        className="w-full rounded-full bg-brand py-3.5 text-[15px] font-semibold text-brand-ink shadow-[0_2px_16px_-4px_var(--color-brand)] transition-all hover:shadow-[0_4px_24px_-4px_var(--color-brand)] hover:brightness-110 disabled:opacity-60 disabled:shadow-none"
       >
         {pending ? "Checking..." : "Sign in"}
       </button>
@@ -101,14 +101,14 @@ function MFAStep({ challenge, identifier, next, onExpired }: { challenge: string
         />
       </div>
       {state.error && (
-        <p role="alert" className="border border-danger bg-danger-soft px-3.5 py-2.5 font-mono text-[13.5px] text-danger">
+        <p role="alert" className="rounded-xl border border-danger bg-danger-soft px-3.5 py-2.5 font-mono text-[13.5px] text-danger">
           [!] {state.error}
         </p>
       )}
       <button
         type="submit"
         disabled={pending}
-        className="w-full rounded-full bg-brand py-3 text-[15px] font-medium text-brand-ink transition-opacity hover:opacity-90 disabled:opacity-60"
+        className="w-full rounded-full bg-brand py-3.5 text-[15px] font-semibold text-brand-ink shadow-[0_2px_16px_-4px_var(--color-brand)] transition-all hover:shadow-[0_4px_24px_-4px_var(--color-brand)] hover:brightness-110 disabled:opacity-60 disabled:shadow-none"
       >
         {pending ? "Checking..." : "Verify and sign in"}
       </button>

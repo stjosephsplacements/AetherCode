@@ -22,7 +22,7 @@ export function AppShell({ viewer, nav, brand, wide = false, children }: { viewe
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b bg-canvas/90 px-4 backdrop-blur lg:hidden print:hidden">
+        <header className="liquid-glass sticky top-0 z-20 flex h-14 items-center justify-between border-b border-line px-4 lg:hidden print:hidden">
           <Link href="/">
             <Brand brand={brand} />
           </Link>

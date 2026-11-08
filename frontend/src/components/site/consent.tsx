@@ -144,7 +144,7 @@ export function ConsentManager() {
           aria-label="Cookie choices"
           className="fixed inset-x-3 bottom-3 z-40 animate-pop sm:inset-x-auto sm:bottom-5 sm:left-5 sm:w-[420px]"
         >
-          <div className="rounded-[22px] border border-line bg-surface/95 p-5 shadow-[var(--shadow-panel)] backdrop-blur-md">
+          <div className="liquid-glass rounded-[22px] p-5 shadow-[var(--shadow-panel)]">
             <div className="flex items-start gap-3.5">
               <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-full bg-brand-soft text-brand">
                 <Cookie className="size-[18px]" />

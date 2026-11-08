@@ -17,7 +17,7 @@ export async function StaffShell({ viewer, tenantId, groups, brand, college, hom
         <StaffSidebar home={home} viewer={viewer} groups={groups} college={college} brand={<Brand brand={brand} size={20} />} initiallyCollapsed={(await cookies()).get(SIDEBAR_COOKIE)?.value === "collapsed"} />
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-20 flex h-12 items-center gap-3 border-b border-line bg-canvas/85 px-4 backdrop-blur sm:px-6 print:hidden">
+          <header className="liquid-glass sticky top-0 z-20 flex h-12 items-center gap-3 border-b border-line px-4 sm:px-6 print:hidden">
             <StaffMenu groups={groups} college={college} />
             <StaffPath groups={groups} />
             <div className="ml-auto flex items-center gap-2">
