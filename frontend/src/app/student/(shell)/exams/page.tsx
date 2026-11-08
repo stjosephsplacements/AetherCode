@@ -5,6 +5,7 @@ import { EmptyState, LoadError, PageHeader } from "@/components/staff/page-heade
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/card";
 import type { Attempt, Page } from "@/lib/api-types";
+import { LiveRefresh } from "@/lib/client/realtime";
 import { groupByPhase, listAssignments } from "@/lib/server/assignments";
 import { gateway } from "@/lib/server/gateway";
 import { requireViewer } from "@/lib/server/session";
@@ -46,6 +47,7 @@ export default async function MyExams({ searchParams }: { searchParams: Promise<
 
   return (
     <div className="animate-enter">
+      <LiveRefresh topics={["attempts", "grading"]} />
       <PageHeader title="My exams" description="Everything assigned to you, with its window and time limit." />
       <nav aria-label="Exam groups" className="mb-5 inline-flex max-w-full gap-1 overflow-x-auto rounded-[var(--radius-control)] border border-line bg-sidebar p-1">
         {TABS.map((entry) => (
