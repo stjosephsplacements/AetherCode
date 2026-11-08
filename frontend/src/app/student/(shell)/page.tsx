@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Ring } from "@/components/student/ring";
 import type { Attempt, Page, PracticeProgress } from "@/lib/api-types";
+import { LiveRefresh } from "@/lib/client/realtime";
 import { groupByPhase, listAssignments } from "@/lib/server/assignments";
 import { gateway } from "@/lib/server/gateway";
 import { requireViewer } from "@/lib/server/session";
@@ -51,6 +52,7 @@ export default async function StudentDashboard() {
 
   return (
     <div className="animate-enter space-y-6">
+      <LiveRefresh topics={["attempts", "grading"]} />
       {/* Hero */}
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1b1640] via-[#5a210d] to-[#b84a0d] p-6 text-white shadow-[var(--shadow-panel)] sm:p-9">
         <div aria-hidden className="pointer-events-none absolute -right-16 -top-20 size-72 rounded-full bg-white/15 blur-2xl" />
