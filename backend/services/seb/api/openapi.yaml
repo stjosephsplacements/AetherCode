@@ -17,14 +17,14 @@ paths:
     get:
       responses:
         '200': {$ref: '#/components/responses/Operational'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
   /readyz:
     get:
       responses:
         '200': {$ref: '#/components/responses/Operational'}
         '503': {$ref: '#/components/responses/Operational'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
   /v1/tenants/{tenant_id}/configurations:
     parameters: [$ref: '#/components/parameters/TenantID']
@@ -55,9 +55,9 @@ paths:
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     post:
       security: [bearerAuth: []]
@@ -74,9 +74,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/configurations/{configuration_id}:
     parameters:
@@ -89,9 +89,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     delete:
       security: [bearerAuth: []]
@@ -113,9 +113,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/configurations/{configuration_id}/hard:
     parameters:
@@ -141,9 +141,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/configurations/{configuration_id}/payload:
     parameters:
@@ -160,7 +160,7 @@ paths:
           description: Raw SEB configuration payload
           content:
             application/octet-stream:
-              schema: {type: string, format: binary}
+              schema: {type: string, format: binary, maxLength: 10485760}
           headers:
             RateLimit-Limit:
               $ref: '#/components/headers/RateLimit-Limit'
@@ -173,9 +173,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/configurations/{configuration_id}/rotate:
     parameters:
@@ -202,9 +202,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/configurations/{configuration_id}/revoke:
     parameters:
@@ -229,9 +229,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/sessions:
     parameters: [$ref: '#/components/parameters/TenantID']
@@ -266,9 +266,9 @@ paths:
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     post:
       security: [bearerAuth: []]
@@ -290,7 +290,7 @@ paths:
                 configuration_id: {$ref: '#/components/schemas/UUID'}
                 attempt_id: {$ref: '#/components/schemas/UUID'}
                 candidate_id: {$ref: '#/components/schemas/UUID'}
-                expires_at: {type: string, format: date-time}
+                expires_at: {type: string, format: date-time, maxLength: 35}
       responses:
         '201':
           description: Issued; the quit token is returned only in this response.
@@ -311,9 +311,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/sessions/{session_id}:
     parameters:
@@ -326,9 +326,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/sessions/{session_id}/close:
     parameters:
@@ -345,7 +345,7 @@ paths:
               type: object
               required: [expected_version, reason]
               properties:
-                expected_version: {type: integer, minimum: 1, format: int64}
+                expected_version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
                 reason: {type: string, minLength: 1, maxLength: 500}
       responses:
         '200': {$ref: '#/components/responses/Session'}
@@ -353,9 +353,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/sessions/{session_id}/validate:
     parameters:
@@ -398,9 +398,9 @@ paths:
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exams/{exam_id}/seb-policy:
     parameters:
@@ -427,9 +427,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     put:
       security: [bearerAuth: []]
@@ -453,7 +453,7 @@ paths:
                   type: array
                   maxItems: 16
                   description: Case-insensitive; at least one when enabled.
-                  items: {type: string, pattern: '^[0-9a-fA-F]{64}$'}
+                  items: {type: string, pattern: '^[0-9a-fA-F]{64}$', maxLength: 1000}
                 allowed_networks:
                   type: array
                   maxItems: 50
@@ -480,9 +480,9 @@ paths:
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exams/{exam_id}/seb-policy/launch-file:
     parameters:
@@ -498,9 +498,9 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '503': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exams/{exam_id}/launch-file:
     parameters:
@@ -518,9 +518,9 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '503': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/request-checks:
     parameters: [$ref: '#/components/parameters/TenantID']
@@ -569,13 +569,13 @@ paths:
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
 components:
   securitySchemes:
-    bearerAuth: {type: http, scheme: bearer, bearerFormat: AetherCode access token, description: 'Bearer JSON Web Token (JWT). Tokens are short-lived and signed per RFC 8725. Include as: Authorization: Bearer <token>.'}
+    bearerAuth: {type: http, scheme: bearer, bearerFormat: AetherCode access token, description: 'Bearer JSON Web Token (JWT). Tokens are short-lived and signed per RFC8725. Include as: Authorization: Bearer <token>.'}
   parameters:
     TenantID:
       name: tenant_id
@@ -622,6 +622,15 @@ components:
   responses:
     Operational:
       description: Operational status
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     Configuration:
       description: Non-secret configuration metadata
       content:
@@ -654,7 +663,7 @@ components:
         that starts SEB on <SEB_LAUNCH_BASE_URL>/exam/<exam_id>. The body is
         already gzip data, so Content-Encoding is identity.
       headers:
-        Content-Disposition: {schema: {type: string}}
+        Content-Disposition: {schema: {type: string, maxLength: 256}}
         Content-Encoding: {schema: {type: string, const: identity}}
         Cache-Control: {schema: {type: string, const: no-store}}
         RateLimit-Limit:
@@ -666,7 +675,7 @@ components:
         Access-Control-Allow-Origin:
           $ref: '#/components/headers/Access-Control-Allow-Origin'
       content:
-        application/seb: {schema: {type: string, format: binary}}
+        application/seb: {schema: {type: string, format: binary, maxLength: 10485760}}
     Problem:
       description: Stable error response
       content:
@@ -729,7 +738,7 @@ components:
           $ref: '#/components/headers/Retry-After'
   schemas:
     UUID: {type: string, format: uuid, maxLength: 36}
-    SHA256: {type: string, pattern: '^[0-9a-f]{64}$'}
+    SHA256: {type: string, pattern: '^[0-9a-f]{64}$', maxLength: 1000}
     ExamPolicy:
       type: object
       required: [tenant_id, exam_id, title, enabled, accepted_keys, updated_by, updated_at, version]
@@ -741,16 +750,16 @@ components:
         accepted_keys: {type: array, items: {$ref: '#/components/schemas/SHA256'}, maxItems: 200}
         allowed_networks: {type: array, items: {type: string, maxLength: 1000}, maxItems: 200}
         updated_by: {$ref: '#/components/schemas/UUID'}
-        updated_at: {type: string, format: date-time}
-        version: {type: integer, minimum: 1, format: int64}
-        config_key: {type: string, pattern: "^[0-9a-f]{64}$", description: Config Key of the generated launch file; present when launch files are configured}
+        updated_at: {type: string, format: date-time, maxLength: 35}
+        version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
+        config_key: {type: string, pattern: "^[0-9a-f]{64}$", description: Config Key of the generated launch file; present when launch files are configured, maxLength: 1000}
     ConfigurationInput:
       type: object
       required: [exam_id, exam_version_id, configuration_version, config_object_key, config_checksum, encryption_key_reference, config_key_hash]
       properties:
         exam_id: {$ref: '#/components/schemas/UUID'}
         exam_version_id: {$ref: '#/components/schemas/UUID'}
-        configuration_version: {type: integer, minimum: 1, format: int64}
+        configuration_version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
         config_object_key: {type: string, minLength: 1, maxLength: 1024}
         config_checksum: {$ref: '#/components/schemas/SHA256'}
         encryption_key_reference: {type: string, minLength: 1, maxLength: 1024}
@@ -764,13 +773,13 @@ components:
         tenant_id: {$ref: '#/components/schemas/UUID'}
         exam_id: {$ref: '#/components/schemas/UUID'}
         exam_version_id: {$ref: '#/components/schemas/UUID'}
-        configuration_version: {type: integer, format: int64}
+        configuration_version: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
         config_object_key: {type: string, maxLength: 1000}
         config_checksum: {$ref: '#/components/schemas/SHA256'}
         encryption_key_reference: {type: string, maxLength: 1000}
         lifecycle_state: {type: string, enum: [active, retired, revoked]}
         created_by: {$ref: '#/components/schemas/UUID'}
-        created_at: {type: string, format: date-time}
+        created_at: {type: string, format: date-time, maxLength: 35}
     Session:
       type: object
       required: [id, tenant_id, configuration_id, attempt_id, candidate_id, lifecycle_state, issued_at, expires_at, version]
@@ -781,12 +790,12 @@ components:
         attempt_id: {$ref: '#/components/schemas/UUID'}
         candidate_id: {$ref: '#/components/schemas/UUID'}
         lifecycle_state: {type: string, enum: [issued, active, closed, revoked, expired]}
-        issued_at: {type: string, format: date-time}
-        activated_at: {type: string, format: date-time}
-        closed_at: {type: string, format: date-time}
-        expires_at: {type: string, format: date-time}
+        issued_at: {type: string, format: date-time, maxLength: 35}
+        activated_at: {type: string, format: date-time, maxLength: 35}
+        closed_at: {type: string, format: date-time, maxLength: 35}
+        expires_at: {type: string, format: date-time, maxLength: 35}
         closed_reason: {type: string, maxLength: 1000}
-        version: {type: integer, minimum: 1, format: int64}
+        version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
     IssuedSession:
       type: object
       required: [session, quit_token]
@@ -802,7 +811,7 @@ components:
       properties:
         header_kind: {type: string, enum: [config_key, browser_exam_key]}
         validation_result: {type: string, enum: [matched, missing, mismatched, not_required, expired_session, closed_session, revoked_configuration]}
-        occurred_at: {type: string, format: date-time}
+        occurred_at: {type: string, format: date-time, maxLength: 35}
     PagedSessions:
       type: object
       required: [items]
@@ -853,3 +862,5 @@ components:
       schema:
         type: integer
         minimum: 0
+        format: int32
+        maximum: 86400

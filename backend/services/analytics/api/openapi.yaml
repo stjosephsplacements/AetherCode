@@ -8,14 +8,14 @@ paths:
     get:
       responses:
         '200': {description: Service is alive, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
   /readyz:
     get:
       responses:
         '200': {description: Database, authorization projection: null, outbox: null, and consumers are ready: null, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '503': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
   /v1/tenants/{tenant_id}/student-progress/{student_id}:
     get:
@@ -42,9 +42,9 @@ paths:
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exam-results:
     get:
@@ -74,9 +74,9 @@ paths:
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/batch-progress/{batch_id}:
     get:
@@ -106,9 +106,9 @@ paths:
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/batch-progress/{batch_id}/by-department:
     get:
@@ -138,9 +138,9 @@ paths:
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/placement-progress/{placement_department_id}:
     get:
@@ -170,9 +170,9 @@ paths:
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/report-exports:
     post:
@@ -214,9 +214,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/report-exports/{export_id}:
     get:
@@ -245,9 +245,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     delete:
       security: [bearerAuth: []]
@@ -274,9 +274,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/report-exports/{export_id}/hard:
     delete:
@@ -306,13 +306,13 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
 components:
   securitySchemes:
-    bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT, description: 'Bearer JSON Web Token (JWT). Tokens are short-lived and signed per RFC 8725. Include as: Authorization: Bearer <token>.'}
+    bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT, description: 'Bearer JSON Web Token (JWT). Tokens are short-lived and signed per RFC8725. Include as: Authorization: Bearer <token>.'}
   parameters:
     TenantID:
       name: tenant_id
@@ -405,13 +405,13 @@ components:
         tenant_id: {$ref: '#/components/schemas/UUID'}
         student_id: {$ref: '#/components/schemas/UUID'}
         question_id: {$ref: '#/components/schemas/UUID'}
-        attempts_count: {type: integer, minimum: 0, format: int64}
-        accepted_count: {type: integer, minimum: 0, format: int64}
+        attempts_count: {type: integer, minimum: 0, format: int64, maximum: 2147483647}
+        accepted_count: {type: integer, minimum: 0, format: int64, maximum: 2147483647}
         best_score: {type: string, maxLength: 1000}
-        last_attempt_at: {type: string, format: date-time}
-        source_revision: {type: integer, format: int64}
-        computed_at: {type: string, format: date-time}
-        version: {type: integer, format: int64}
+        last_attempt_at: {type: string, format: date-time, maxLength: 35}
+        source_revision: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
+        computed_at: {type: string, format: date-time, maxLength: 35}
+        version: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
     ExamResult:
       type: object
       required: [tenant_id, exam_id, exam_version_id, candidate_id, attempt_id, lifecycle_state, source_revision, computed_at, version]
@@ -422,15 +422,15 @@ components:
         candidate_id: {$ref: '#/components/schemas/UUID'}
         candidate_assignment_id: {$ref: '#/components/schemas/UUID'}
         attempt_id: {$ref: '#/components/schemas/UUID'}
-        attempt_number: {type: integer, format: int64}
+        attempt_number: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
         lifecycle_state: {type: string, enum: [assigned, in_progress, graded, invalidated]}
         score: {type: string, maxLength: 1000}
         maximum_score: {type: string, maxLength: 1000}
-        submitted_at: {type: string, format: date-time}
-        graded_at: {type: string, format: date-time}
-        source_revision: {type: integer, format: int64}
-        computed_at: {type: string, format: date-time}
-        version: {type: integer, format: int64}
+        submitted_at: {type: string, format: date-time, maxLength: 35}
+        graded_at: {type: string, format: date-time, maxLength: 35}
+        source_revision: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
+        computed_at: {type: string, format: date-time, maxLength: 35}
+        version: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
     BatchProgress:
       type: object
       required: [tenant_id, batch_id, exam_version_id, assigned_count, started_count, completed_count, source_revision, computed_at, version]
@@ -438,13 +438,13 @@ components:
         tenant_id: {$ref: '#/components/schemas/UUID'}
         batch_id: {$ref: '#/components/schemas/UUID'}
         exam_version_id: {$ref: '#/components/schemas/UUID'}
-        assigned_count: {type: integer, minimum: 0, description: Distinct actively affiliated students with a current active assignment., format: int64}
-        started_count: {type: integer, minimum: 0, description: Distinct actively affiliated students with a durable start fact for a current active assignment. A terminal grade is also treated as proof of a start during cross-subject delivery lag., format: int64}
-        completed_count: {type: integer, minimum: 0, description: Students with a terminal graded attempt., format: int64}
+        assigned_count: {type: integer, minimum: 0, description: Distinct actively affiliated students with a current active assignment., format: int64, maximum: 2147483647}
+        started_count: {type: integer, minimum: 0, description: Distinct actively affiliated students with a durable start fact for a current active assignment. A terminal grade is also treated as proof of a start during cross-subject delivery lag., format: int64, maximum: 2147483647}
+        completed_count: {type: integer, minimum: 0, description: Students with a terminal graded attempt., format: int64, maximum: 2147483647}
         average_score: {type: string, description: Average latest graded score per completed student for a current assignment., maxLength: 1000}
-        source_revision: {type: integer, format: int64}
-        computed_at: {type: string, format: date-time}
-        version: {type: integer, format: int64}
+        source_revision: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
+        computed_at: {type: string, format: date-time, maxLength: 35}
+        version: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
     DepartmentBatchProgress:
       type: object
       required: [tenant_id, batch_id, department_id, exam_version_id, assigned_count, started_count, completed_count, source_revision, computed_at, version]
@@ -453,13 +453,13 @@ components:
         batch_id: {$ref: '#/components/schemas/UUID'}
         department_id: {$ref: '#/components/schemas/UUID'}
         exam_version_id: {$ref: '#/components/schemas/UUID'}
-        assigned_count: {type: integer, minimum: 0, format: int64}
-        started_count: {type: integer, minimum: 0, format: int64}
-        completed_count: {type: integer, minimum: 0, format: int64}
+        assigned_count: {type: integer, minimum: 0, format: int64, maximum: 2147483647}
+        started_count: {type: integer, minimum: 0, format: int64, maximum: 2147483647}
+        completed_count: {type: integer, minimum: 0, format: int64, maximum: 2147483647}
         average_score: {type: string, maxLength: 1000}
-        source_revision: {type: integer, format: int64}
-        computed_at: {type: string, format: date-time}
-        version: {type: integer, format: int64}
+        source_revision: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
+        computed_at: {type: string, format: date-time, maxLength: 35}
+        version: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
     PlacementProgress:
       type: object
       required: [tenant_id, placement_department_id, student_id, home_department_id, source_revision, computed_at, version]
@@ -470,10 +470,10 @@ components:
         home_department_id: {$ref: '#/components/schemas/UUID'}
         latest_exam_version_id: {$ref: '#/components/schemas/UUID'}
         latest_score: {type: string, maxLength: 1000}
-        latest_activity_at: {type: string, format: date-time}
-        source_revision: {type: integer, format: int64}
-        computed_at: {type: string, format: date-time}
-        version: {type: integer, format: int64}
+        latest_activity_at: {type: string, format: date-time, maxLength: 35}
+        source_revision: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
+        computed_at: {type: string, format: date-time, maxLength: 35}
+        version: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
     ReportExport:
       type: object
       required: [id, tenant_id, requested_by, report_type, filters, lifecycle_state, requested_at, expires_at, retention_until, legal_hold, version]
@@ -494,14 +494,15 @@ components:
           pattern: '^[0-9a-f]{64}$'
           readOnly: true
           description: Internal encrypted object checksum. Always omitted from public responses.
-        requested_at: {type: string, format: date-time}
-        completed_at: {type: string, format: date-time}
-        expires_at: {type: string, format: date-time}
-        retention_until: {type: string, format: date-time}
+          maxLength: 1000
+        requested_at: {type: string, format: date-time, maxLength: 35}
+        completed_at: {type: string, format: date-time, maxLength: 35}
+        expires_at: {type: string, format: date-time, maxLength: 35}
+        retention_until: {type: string, format: date-time, maxLength: 35}
         legal_hold:
           type: boolean
           description: True when an active tenant-wide legal hold preserves this export from expiry and deletion.
-        version: {type: integer, format: int64}
+        version: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
   headers:
     RateLimit-Limit:
       description: Standard rate-limit response headers (RFC 6585 / IETF draft-ietf-httpapi-ratelimit-headers).
@@ -528,6 +529,8 @@ components:
       schema:
         type: integer
         minimum: 0
+        format: int32
+        maximum: 86400
 servers:
 - url: https://analytics.internal.aethercode.in
   description: AetherCode analytics service — internal platform endpoint (production)

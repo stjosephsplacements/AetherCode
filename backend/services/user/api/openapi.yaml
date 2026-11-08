@@ -20,7 +20,7 @@ paths:
       summary: Liveness probe
       responses:
         '200': {description: Process is alive, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
   /readyz:
     get:
@@ -29,7 +29,7 @@ paths:
       responses:
         '200': {description: Database and authorization dependencies are ready, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '503': {description: A required dependency is unavailable, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
   /v1/me:
     get:
@@ -79,9 +79,9 @@ paths:
             Access-Control-Allow-Origin:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         '401': {$ref: '#/components/responses/Problem401'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/profiles/{principal_id}:
     parameters:
@@ -99,9 +99,9 @@ paths:
         '400': {$ref: '#/components/responses/Problem400'}
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/profiles/{principal_id}/public:
     parameters:
@@ -112,11 +112,11 @@ paths:
       responses:
         '200': {description: Settings, whether or not the profile is public: null, content: {application/json: {schema: {$ref: '#/components/schemas/PublicProfile'}}}, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '403': {$ref: '#/components/responses/Problem403'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     put:
       summary: Publish, change or hide the caller's public profile
@@ -130,24 +130,24 @@ paths:
         '400': {$ref: '#/components/responses/Problem400'}
         '403': {$ref: '#/components/responses/Problem403'}
         '409': {description: The address is taken, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/public/profiles/{slug}:
     parameters:
-    - {name: slug, in: path, required: true, schema: {type: string, pattern: '^[a-z0-9][a-z0-9-]{2,30}$'}}
+    - {name: slug, in: path, required: true, schema: {type: string, pattern: '^[a-z0-9][a-z0-9-]{2,30}$', maxLength: 1000}}
     get:
       summary: An enabled public profile. No sign-in; the gateway allows this one route anonymously.
       security: []
       responses:
         '200': {description: The profile, content: {application/json: {schema: {$ref: '#/components/schemas/PublicProfile'}}}, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '404': {description: No such profile, or it is hidden: null, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/students:
     parameters: [$ref: '#/components/parameters/TenantID']
@@ -169,9 +169,9 @@ paths:
         '400': {$ref: '#/components/responses/Problem400'}
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     post:
       summary: Enroll an active student with current department affiliations
@@ -186,9 +186,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '409': {$ref: '#/components/responses/Problem409'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/students/roster:
     parameters: [$ref: '#/components/parameters/TenantID']
@@ -223,9 +223,9 @@ paths:
         '400': {$ref: '#/components/responses/Problem400'}
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/students/{student_id}:
     patch:
@@ -245,11 +245,11 @@ paths:
         '200': {description: The updated student, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Problem400'}
         '403': {$ref: '#/components/responses/Problem403'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     parameters:
     - $ref: '#/components/parameters/TenantID'
@@ -262,9 +262,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     delete:
       summary: Soft-delete a student
@@ -284,9 +284,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/students/{student_id}/hard:
     parameters:
@@ -310,9 +310,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/role-assignments:
     get:
@@ -333,9 +333,9 @@ paths:
         '400': {$ref: '#/components/responses/Problem400'}
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     post:
       summary: Grant a scoped canonical role
@@ -353,9 +353,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '409': {$ref: '#/components/responses/Problem409'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/role-assignments/{role_assignment_id}/revoke:
     parameters: [$ref: '#/components/parameters/RoleAssignmentID']
@@ -372,9 +372,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/placement-departments/{placement_department_id}/staff/{principal_id}:
     parameters:
@@ -393,9 +393,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '409': {$ref: '#/components/responses/Problem409'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/batches/{batch_id}/mentors:
     parameters:
@@ -412,9 +412,9 @@ paths:
         '400': {$ref: '#/components/responses/Problem400'}
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/batches/{batch_id}/mentors/{principal_id}:
     parameters:
@@ -429,9 +429,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '409': {$ref: '#/components/responses/Problem409'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/students/{student_id}/batch-affiliation:
     parameters:
@@ -445,9 +445,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     put:
       summary: Set a student's current batch affiliation
@@ -472,9 +472,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '409': {$ref: '#/components/responses/Problem409'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/students/{student_id}/batch-affiliation/revoke:
     parameters:
@@ -499,9 +499,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '409': {$ref: '#/components/responses/Problem409'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/students/import:
     parameters: [$ref: '#/components/parameters/TenantID']
@@ -536,9 +536,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '409': {$ref: '#/components/responses/Problem409'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/batches/{batch_id}/passwords:
     parameters:
@@ -553,9 +553,9 @@ paths:
         '200': {$ref: '#/components/responses/IssuedCredentials'}
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/accounts/{principal_id}/password:
     parameters:
@@ -583,9 +583,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/accounts/{principal_id}/status:
     parameters:
@@ -612,9 +612,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/staff:
     parameters: [$ref: '#/components/parameters/TenantID']
@@ -646,9 +646,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '409': {$ref: '#/components/responses/Problem409'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/staff-audit:
     parameters: [$ref: '#/components/parameters/TenantID']
@@ -658,7 +658,7 @@ paths:
         Reverse-chronological list of staff actions. Paginate backwards with
         ?before=<RFC 3339> timestamp. Returns at most 100 entries per call.
       parameters:
-      - {name: before, in: query, schema: {type: string, format: date-time}, description: Return entries before this RFC 3339 timestamp}
+      - {name: before, in: query, schema: {type: string, format: date-time, maxLength: 35}, description: Return entries before this RFC 3339 timestamp}
       responses:
         '200':
           description: Audit entries
@@ -681,9 +681,9 @@ paths:
         '400': {$ref: '#/components/responses/Problem400'}
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/accounts/bulk-status:
     parameters: [$ref: '#/components/parameters/TenantID']
@@ -705,9 +705,9 @@ paths:
         '400': {$ref: '#/components/responses/Problem400'}
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/accounts/bulk-password:
     parameters: [$ref: '#/components/parameters/TenantID']
@@ -728,9 +728,9 @@ paths:
         '400': {$ref: '#/components/responses/Problem400'}
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/accounts/describe:
     parameters: [$ref: '#/components/parameters/TenantID']
@@ -778,9 +778,9 @@ paths:
         '400': {$ref: '#/components/responses/Problem400'}
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/permission-catalogue:
     get:
@@ -789,11 +789,11 @@ paths:
       responses:
         '200': {description: The catalogue; platform_only entries need a root administrator, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '403': {$ref: '#/components/responses/Problem403'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/staff/{principal_id}/permissions:
     parameters:
@@ -805,11 +805,11 @@ paths:
       responses:
         '200': {description: The permissions, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '403': {$ref: '#/components/responses/Problem403'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     put:
       summary: Replace a staff member's extra permissions in one college; write and delete add the read they imply
@@ -828,11 +828,11 @@ paths:
         '200': {description: The permissions now held, with implied reads: null, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Problem400'}
         '403': {$ref: '#/components/responses/Problem403'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/staff/{principal_id}/permissions:
     parameters:
@@ -843,11 +843,11 @@ paths:
       responses:
         '200': {description: The permissions, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '403': {$ref: '#/components/responses/Problem403'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     put:
       summary: Replace a staff member's platform-wide extra permissions (root administrators only)
@@ -865,11 +865,11 @@ paths:
       responses:
         '200': {description: The permissions now held, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '403': {$ref: '#/components/responses/Problem403'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/permission-flags:
     get:
@@ -896,9 +896,9 @@ paths:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/roles:
     parameters: [$ref: '#/components/parameters/TenantID']
@@ -925,9 +925,9 @@ paths:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     post:
       summary: Create a college-scoped custom role
@@ -941,8 +941,8 @@ paths:
               required: [name, tier, position, permissions]
               properties:
                 name: {type: string, minLength: 1, maxLength: 120}
-                tier: {type: integer, minimum: 1, format: int64}
-                position: {type: integer, minimum: 0, format: int64}
+                tier: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
+                position: {type: integer, minimum: 0, format: int64, maximum: 2147483647}
                 permissions: {type: array, items: {type: string, maxLength: 1000}, maxItems: 200}
       responses:
         '201':
@@ -961,9 +961,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '409': {$ref: '#/components/responses/Problem409'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/roles/{role_id}:
     parameters:
@@ -980,7 +980,7 @@ paths:
               additionalProperties: false
               properties:
                 name: {type: string, minLength: 1, maxLength: 120}
-                position: {type: integer, minimum: 0, format: int64}
+                position: {type: integer, minimum: 0, format: int64, maximum: 2147483647}
                 permissions: {type: array, items: {type: string, maxLength: 1000}, maxItems: 200}
       responses:
         '200':
@@ -999,9 +999,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     delete:
       summary: Delete a college-scoped custom role
@@ -1010,9 +1010,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/role-overwrites:
     parameters: [$ref: '#/components/parameters/TenantID']
@@ -1042,9 +1042,9 @@ paths:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     put:
       summary: Create or replace a role permission overwrite for a node/target combination
@@ -1079,9 +1079,9 @@ paths:
         '400': {$ref: '#/components/responses/Problem400'}
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/role-overwrites/{overwrite_id}:
     parameters:
@@ -1094,9 +1094,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
 
 components:
@@ -1105,7 +1105,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: 'Bearer JSON Web Token (JWT). Tokens are short-lived and signed per RFC 8725. Include as: Authorization: Bearer <token>.'
+      description: 'Bearer JSON Web Token (JWT). Tokens are short-lived and signed per RFC8725. Include as: Authorization: Bearer <token>.'
   parameters:
     TenantID:
       name: tenant_id
@@ -1158,7 +1158,7 @@ components:
             additionalProperties: false
             required: [accounts]
             properties:
-              accounts: {type: array, items: {$ref: '#/components/schemas/IssuedCredential'}}
+              accounts: {type: array, items: {$ref: '#/components/schemas/IssuedCredential'}, maxItems: 500}
       headers:
         RateLimit-Limit:
           $ref: '#/components/headers/RateLimit-Limit'
@@ -1376,6 +1376,7 @@ components:
     Timestamp:
       type: string
       format: date-time
+      maxLength: 35
     Problem:
       type: object
       additionalProperties: false
@@ -1400,7 +1401,7 @@ components:
         given_name: {type: string, maxLength: 1000}
         family_name: {type: string, maxLength: 1000}
         preferred_name: {type: string, maxLength: 1000}
-        version: {type: integer, minimum: 1, format: int64}
+        version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
         created_at: {$ref: '#/components/schemas/Timestamp'}
         updated_at: {$ref: '#/components/schemas/Timestamp'}
     EnrollStudent:
@@ -1424,7 +1425,7 @@ components:
         status: {enum: [pending, active, inactive, withdrawn]}
         college_department_id: {$ref: '#/components/schemas/UUID'}
         placement_department_id: {$ref: '#/components/schemas/UUID'}
-        version: {type: integer, minimum: 1, format: int64}
+        version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
         created_at: {$ref: '#/components/schemas/Timestamp'}
     AssignRole:
       type: object
@@ -1456,7 +1457,7 @@ components:
         scope_id: {$ref: '#/components/schemas/UUID'}
         status: {enum: [active, revoked]}
         expires_at: {$ref: '#/components/schemas/Timestamp'}
-        version: {type: integer, minimum: 1, format: int64}
+        version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
         created_at: {$ref: '#/components/schemas/Timestamp'}
         root: {type: boolean, description: 'The first super_admin, which granted itself. Its access is fixed.'}
     PublicProfile:
@@ -1494,7 +1495,7 @@ components:
         placement_department_id: {$ref: '#/components/schemas/UUID'}
         status: {enum: [active, revoked]}
         expires_at: {$ref: '#/components/schemas/Timestamp'}
-        version: {type: integer, minimum: 1, format: int64}
+        version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
     MentorBatchAssignment:
       type: object
       additionalProperties: false
@@ -1506,7 +1507,7 @@ components:
         tenant_id: {$ref: '#/components/schemas/UUID'}
         batch_id: {$ref: '#/components/schemas/UUID'}
         status: {enum: [active, ended]}
-        version: {type: integer, minimum: 1, format: int64}
+        version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
         created_at: {$ref: '#/components/schemas/Timestamp'}
     StudentPage:
       type: object
@@ -1544,13 +1545,13 @@ components:
       required: [batch_id, expected_version]
       properties:
         batch_id: {$ref: '#/components/schemas/UUID'}
-        expected_version: {type: integer, minimum: 1, format: int64}
+        expected_version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
     EndStudentBatchAffiliation:
       type: object
       additionalProperties: false
       required: [expected_version]
       properties:
-        expected_version: {type: integer, minimum: 1, format: int64}
+        expected_version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
     StudentBatchAffiliation:
       type: object
       additionalProperties: false
@@ -1563,7 +1564,7 @@ components:
           format: uuid
           maxLength: 36
         lifecycle_state: {enum: [active, inactive]}
-        version: {type: integer, minimum: 1, format: int64}
+        version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
         updated_at: {$ref: '#/components/schemas/Timestamp'}
     ImportStudents:
       type: object
@@ -1582,9 +1583,9 @@ components:
             additionalProperties: false
             required: [roll_number, name]
             properties:
-              roll_number: {type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$'}
+              roll_number: {type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$', maxLength: 1000}
               name: {type: string, minLength: 1, maxLength: 200}
-              email: {type: string, format: email}
+              email: {type: string, format: email, maxLength: 320}
     StudentImportResult:
       type: object
       additionalProperties: false
@@ -1602,7 +1603,7 @@ components:
               roll_number: {type: string, maxLength: 1000}
               name: {type: string, maxLength: 1000}
               username: {type: string, maxLength: 1000}
-              password: {type: string, format: password}
+              password: {type: string, format: password, maxLength: 1000}
           maxItems: 200
         skipped: {type: array, items: {type: string, maxLength: 1000}, maxItems: 200}
     IssuedCredential:
@@ -1613,14 +1614,14 @@ components:
         principal_id: {$ref: '#/components/schemas/UUID'}
         username: {type: string, maxLength: 1000}
         display_name: {type: string, maxLength: 1000}
-        password: {type: string, format: password}
+        password: {type: string, format: password, maxLength: 1000}
     CreateStaff:
       type: object
       additionalProperties: false
       required: [username, display_name, role]
       properties:
-        username: {type: string, pattern: '^[a-z0-9][a-z0-9._-]{0,63}$'}
-        email: {type: string, format: email}
+        username: {type: string, pattern: '^[a-z0-9][a-z0-9._-]{0,63}$', maxLength: 1000}
+        email: {type: string, format: email, maxLength: 320}
         display_name: {type: string, minLength: 1, maxLength: 200}
         role: {enum: [college_admin, department_user]}
         department_id: {$ref: '#/components/schemas/UUID'}
@@ -1639,8 +1640,8 @@ components:
         id: {$ref: '#/components/schemas/UUID'}
         tenant_id: {$ref: '#/components/schemas/UUID'}
         name: {type: string, maxLength: 1000}
-        tier: {type: integer, format: int64}
-        position: {type: integer, format: int64}
+        tier: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
+        position: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
         permissions: {type: array, items: {type: string, maxLength: 1000}, maxItems: 200}
     RoleOverwrite:
       type: object
@@ -1682,3 +1683,5 @@ components:
       schema:
         type: integer
         minimum: 0
+        format: int32
+        maximum: 86400

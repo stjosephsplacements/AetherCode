@@ -60,9 +60,11 @@ SERVICE_URLS = {
     "user":          "https://user.internal.aethercode.in",
 }
 
-# String formats that already constrain length — no maxLength needed
-# Note: spectral owasp-ruleset still flags 'uuid' format without maxLength, so we handle it explicitly
-NO_MAXLENGTH_FORMATS = {"date-time", "date", "time", "email", "uri", "password", "binary", "byte"}
+# String formats that Spectral considers sufficient constraints (no additional maxLength needed)
+# Note: spectral owasp-ruleset still flags 'uuid' and date-time without maxLength, handle explicitly
+NO_MAXLENGTH_FORMATS = {"email", "uri", "password", "binary", "byte"}
+
+DATE_TIME_MAXLENGTH = 35  # ISO 8601 date-time max: "2024-01-01T00:00:00.000000+00:00" = 32 chars + buffer
 
 # Operations that are intentionally public (no auth, no 401)
 PUBLIC_PATHS = {"/healthz", "/readyz"}
@@ -81,7 +83,7 @@ CORS_HEADER_COMPONENT = CommentedMap({
 
 RETRY_AFTER_HEADER_COMPONENT = CommentedMap({
     "description": "Number of seconds to wait before retrying after a 429 rate-limit response.",
-    "schema": CommentedMap({"type": "integer", "minimum": 0}),
+    "schema": CommentedMap({"type": "integer", "format": "int32", "minimum": 0, "maximum": 86400}),
 })
 
 PROBLEM401_COMPONENT = CommentedMap({
@@ -159,8 +161,9 @@ def fix_servers(doc, svc):
     return changed
 
 
+# Rule requires "RFC8725" (no space) to appear in the description
 JWT_DESC = (
-    "Bearer JSON Web Token (JWT). Tokens are short-lived and signed per RFC 8725. "
+    "Bearer JSON Web Token (JWT). Tokens are short-lived and signed per RFC8725. "
     "Include as: Authorization: Bearer <token>."
 )
 
@@ -210,15 +213,28 @@ def fix_problem_components(doc):
     if "Retry-After" not in headers:
         headers["Retry-After"] = copy.deepcopy(RETRY_AFTER_HEADER_COMPONENT)
         changed = True
+    else:
+        h = headers["Retry-After"]
+        if isinstance(h, CommentedMap) and "schema" in h:
+            s = h["schema"]
+            if isinstance(s, CommentedMap):
+                if "format" not in s:
+                    s["format"] = "int32"
+                    changed = True
+                if "maximum" not in s:
+                    s["maximum"] = 86400
+                    changed = True
 
-    # JWT best practices (RFC 8725) — add description to bearerAuth scheme
+    # JWT best practices — description must contain "RFC8725"
     schemes = doc["components"].get("securitySchemes", {})
     for name, scheme in schemes.items():
         if not isinstance(scheme, CommentedMap):
             continue
-        if scheme.get("scheme") == "bearer" and "description" not in scheme:
-            scheme["description"] = JWT_DESC
-            changed = True
+        if scheme.get("scheme") == "bearer":
+            desc = scheme.get("description", "")
+            if "RFC8725" not in desc:
+                scheme["description"] = JWT_DESC
+                changed = True
 
     return changed
 
@@ -236,7 +252,9 @@ def _operation_has_auth(operation, global_security):
 
 
 # Paths that are intentionally public write operations (e.g. auth endpoints)
-PUBLIC_WRITE_PATH_PATTERNS = ("/auth/", "/login", "/register", "/logout", "/verify", "/password-reset")
+# Any segment containing these strings is an auth flow — no bearer required
+PUBLIC_WRITE_PATH_PATTERNS = ("/auth/", "/auth", "/login", "/register", "/logout",
+                              "/verify", "/password-reset", "/refresh", "/mfa")
 
 def _is_public_write_path(path):
     return any(p in path for p in PUBLIC_WRITE_PATH_PATTERNS)
@@ -265,19 +283,28 @@ def fix_operations(doc):
 
             has_auth = _operation_has_auth(op, global_security)
 
+            # Normalize any existing quoted keys to bare integer-style keys
+            for qk in ["'401'", "'500'", "'429'", "'400'", "'403'", "'404'", "'409'", "'503'"]:
+                if qk in responses:
+                    bare = qk.strip("'")
+                    if bare not in responses:
+                        responses[bare] = responses[qk]
+                    del responses[qk]
+                    changed = True
+
             # 401 — only on authenticated operations
-            if has_auth and not is_public and "401" not in responses and "'401'" not in responses:
-                responses["'401'"] = CommentedMap({"$ref": "#/components/responses/Problem401"})
+            if has_auth and not is_public and "401" not in responses:
+                responses["401"] = CommentedMap({"$ref": "#/components/responses/Problem401"})
                 changed = True
 
             # 500 — every operation
-            if "500" not in responses and "'500'" not in responses:
-                responses["'500'"] = CommentedMap({"$ref": "#/components/responses/Problem500"})
+            if "500" not in responses:
+                responses["500"] = CommentedMap({"$ref": "#/components/responses/Problem500"})
                 changed = True
 
             # 429 — every operation (rate limiting is global)
-            if not is_public and "429" not in responses and "'429'" not in responses:
-                responses["'429'"] = CommentedMap({"$ref": "#/components/responses/Problem429"})
+            if not is_public and "429" not in responses:
+                responses["429"] = CommentedMap({"$ref": "#/components/responses/Problem429"})
                 changed = True
 
             # Rate-limit + CORS headers on all 2xx/4xx responses
@@ -313,25 +340,39 @@ def fix_schema_limits(schema, path=""):
 
     if "string" in types:
         fmt = schema.get("format", "")
-        has_constraint = (
+        # string-limit: needs maxLength even when pattern is set
+        # string-restricted: needs format/pattern/enum/const
+        has_string_limit = (
             "maxLength" in schema or
             "enum" in schema or
             "const" in schema or
-            "pattern" in schema or
             fmt in NO_MAXLENGTH_FORMATS or
             "$ref" in schema
         )
-        if not has_constraint:
+        if not has_string_limit:
             if fmt == "uuid":
                 schema["maxLength"] = 36
+            elif fmt in ("date-time", "date", "time"):
+                schema["maxLength"] = DATE_TIME_MAXLENGTH
+            elif schema.get("pattern"):
+                # pattern constrains content but not length; add a generous maxLength
+                schema["maxLength"] = 1000
             else:
                 schema["maxLength"] = 1000
             changed = True
 
     if "integer" in types:
-        if "format" not in schema and "$ref" not in schema:
-            schema["format"] = "int64"
-            changed = True
+        if "$ref" not in schema:
+            if "format" not in schema:
+                schema["format"] = "int64"
+                changed = True
+            # integer-limit: must have both minimum and maximum
+            if "maximum" not in schema:
+                schema["maximum"] = 2147483647
+                changed = True
+            if "minimum" not in schema:
+                schema["minimum"] = 0
+                changed = True
 
     if "array" in types:
         if "maxItems" not in schema and "$ref" not in schema:

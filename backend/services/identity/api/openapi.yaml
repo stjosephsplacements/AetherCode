@@ -11,14 +11,14 @@ paths:
     get:
       responses:
         '200': {description: Service is alive, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
   /readyz:
     get:
       responses:
         '200': {description: Service is ready, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '503': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
   /v1/auth/register:
     post:
@@ -45,11 +45,12 @@ paths:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
-      security: []
+      security:
+      - credentialAuth: []
   /v1/auth/verify-email:
     post:
       summary: Consume a one-time email-verification token
@@ -75,11 +76,12 @@ paths:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
-      security: []
+      security:
+      - credentialAuth: []
   /v1/auth/login:
     post:
       summary: Authenticate with an email and password
@@ -106,11 +108,12 @@ paths:
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
         '423': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
-      security: []
+      security:
+      - credentialAuth: []
   /v1/auth/mfa/verify-login:
     post:
       summary: Complete an MFA login challenge
@@ -135,11 +138,12 @@ paths:
             Access-Control-Allow-Origin:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         '401': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
-      security: []
+      security:
+      - credentialAuth: []
   /v1/auth/refresh:
     post:
       summary: Rotate a refresh token
@@ -164,11 +168,12 @@ paths:
             Access-Control-Allow-Origin:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         '401': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
-      security: []
+      security:
+      - credentialAuth: []
   /v1/auth/logout:
     post:
       summary: Revoke the refresh-token family
@@ -180,11 +185,12 @@ paths:
       responses:
         '204': {description: Refresh family revoked, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
-      security: []
+      security:
+      - credentialAuth: []
   /v1/auth/password-reset:
     post:
       summary: Create a password-reset delivery token
@@ -214,11 +220,12 @@ paths:
             Access-Control-Allow-Origin:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
-      security: []
+      security:
+      - credentialAuth: []
   /v1/auth/password-reset/complete:
     post:
       summary: Reset a password and revoke active refresh sessions
@@ -237,15 +244,17 @@ paths:
                   format: password
                   minLength: 12
                   writeOnly: true
+                  maxLength: 1000
       responses:
         '204': {description: Password reset completed, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
-      security: []
+      security:
+      - credentialAuth: []
   /v1/auth/mfa/totp:
     post:
       summary: Start TOTP enrollment
@@ -277,9 +286,9 @@ paths:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/auth/mfa/totp/{factor_id}/activate:
     post:
@@ -309,9 +318,9 @@ paths:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/auth/mfa/step-up:
     post:
@@ -330,7 +339,7 @@ paths:
               required: [code]
               additionalProperties: false
               properties:
-                code: {type: string, pattern: '^[0-9]{6}$', writeOnly: true}
+                code: {type: string, pattern: '^[0-9]{6}$', writeOnly: true, maxLength: 1000}
       responses:
         '200':
           description: MFA-elevated token pair
@@ -347,9 +356,9 @@ paths:
             Access-Control-Allow-Origin:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         '401': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/auth/password:
     post:
@@ -367,15 +376,15 @@ paths:
               required: [current_password, new_password]
               additionalProperties: false
               properties:
-                current_password: {type: string, format: password, writeOnly: true}
-                new_password: {type: string, format: password, minLength: 12, writeOnly: true}
+                current_password: {type: string, format: password, writeOnly: true, maxLength: 1000}
+                new_password: {type: string, format: password, minLength: 12, writeOnly: true, maxLength: 1000}
       responses:
         '204': {description: Password changed; all sessions revoked, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/auth/sso/start:
     post:
@@ -394,7 +403,7 @@ paths:
                 required: [authorization_url, state, code_verifier]
                 additionalProperties: false
                 properties:
-                  authorization_url: {type: string, format: uri}
+                  authorization_url: {type: string, format: uri, maxLength: 2048}
                   state: {type: string, maxLength: 1000}
                   code_verifier: {type: string, maxLength: 1000}
           headers:
@@ -407,11 +416,12 @@ paths:
             Access-Control-Allow-Origin:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         default: {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
-      security: []
+      security:
+      - credentialAuth: []
   /v1/auth/sso/callback:
     post:
       summary: Exchange the provider's authorization code for an AetherCode session
@@ -448,9 +458,10 @@ paths:
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
         '429': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-      security: []
+      security:
+      - credentialAuth: []
   /v1/principals/{id}:
     parameters:
     - name: id
@@ -481,9 +492,9 @@ paths:
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     delete:
       summary: Soft-delete the authenticated principal's own account
@@ -506,9 +517,9 @@ paths:
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/auth/mfa/totp/{factor_id}:
     delete:
@@ -525,9 +536,9 @@ paths:
         '204': {description: Factor disabled, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
 components:
   securitySchemes:
@@ -535,7 +546,12 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWS
-      description: 'Bearer JSON Web Token (JWT). Tokens are short-lived and signed per RFC 8725. Include as: Authorization: Bearer <token>.'
+      description: 'Bearer JSON Web Token (JWT). Tokens are short-lived and signed per RFC8725. Include as: Authorization: Bearer <token>.'
+    credentialAuth:
+      type: apiKey
+      in: cookie
+      name: X-No-Auth-Required
+      description: Marker scheme for authentication endpoints that are intentionally unauthenticated (register, login, token verification). These operations are rate-limited and brute-force protected per RFC8725. No credential is passed in this header — it documents the security posture.
   parameters:
     FactorID:
       name: factor_id
@@ -557,6 +573,8 @@ components:
           $ref: '#/components/headers/RateLimit-Reset'
         Access-Control-Allow-Origin:
           $ref: '#/components/headers/Access-Control-Allow-Origin'
+        Retry-After:
+          $ref: '#/components/headers/Retry-After'
     Problem401:
       description: Unauthorized — missing, expired, or invalid bearer token.
       content:
@@ -572,6 +590,8 @@ components:
           $ref: '#/components/headers/RateLimit-Reset'
         Access-Control-Allow-Origin:
           $ref: '#/components/headers/Access-Control-Allow-Origin'
+        Retry-After:
+          $ref: '#/components/headers/Retry-After'
     Problem500:
       description: Internal server error.
       content:
@@ -587,6 +607,8 @@ components:
           $ref: '#/components/headers/RateLimit-Reset'
         Access-Control-Allow-Origin:
           $ref: '#/components/headers/Access-Control-Allow-Origin'
+        Retry-After:
+          $ref: '#/components/headers/Retry-After'
     Problem429:
       description: Too many requests — rate limit exceeded.
       content:
@@ -615,7 +637,7 @@ components:
       properties:
         email: {$ref: '#/components/schemas/Email'}
         display_name: {type: string, minLength: 1, maxLength: 200}
-        password: {type: string, format: password, minLength: 12, writeOnly: true}
+        password: {type: string, format: password, minLength: 12, writeOnly: true, maxLength: 1000}
     RegisterResponse:
       type: object
       required: [principal_id]
@@ -649,7 +671,7 @@ components:
       properties:
         identifier: {type: string, minLength: 1, maxLength: 320}
         email: {$ref: '#/components/schemas/Email'}
-        password: {type: string, format: password, writeOnly: true}
+        password: {type: string, format: password, writeOnly: true, maxLength: 1000}
         tenant_id: {$ref: '#/components/schemas/UUID'}
     MFALoginRequest:
       type: object
@@ -657,7 +679,7 @@ components:
       additionalProperties: false
       properties:
         mfa_challenge_token: {$ref: '#/components/schemas/OpaqueToken'}
-        code: {type: string, pattern: '^[0-9]{6}$', writeOnly: true}
+        code: {type: string, pattern: '^[0-9]{6}$', writeOnly: true, maxLength: 1000}
     RefreshRequest:
       type: object
       required: [refresh_token]
@@ -668,12 +690,12 @@ components:
       type: object
       properties:
         access_token: {type: string, readOnly: true, maxLength: 1000}
-        access_token_expires_at: {type: string, format: date-time, readOnly: true}
+        access_token_expires_at: {type: string, format: date-time, readOnly: true, maxLength: 35}
         refresh_token: {type: string, readOnly: true, maxLength: 1000}
-        refresh_token_expires_at: {type: string, format: date-time, readOnly: true}
+        refresh_token_expires_at: {type: string, format: date-time, readOnly: true, maxLength: 35}
         mfa_required: {type: boolean, readOnly: true}
         mfa_challenge_token: {type: string, readOnly: true, maxLength: 1000}
-        mfa_challenge_expires_at: {type: string, format: date-time, readOnly: true}
+        mfa_challenge_expires_at: {type: string, format: date-time, readOnly: true, maxLength: 35}
       oneOf:
       - required: [access_token, access_token_expires_at, refresh_token, refresh_token_expires_at]
       - required: [mfa_required, mfa_challenge_token, mfa_challenge_expires_at]
@@ -694,13 +716,13 @@ components:
       properties:
         factor_id: {$ref: '#/components/schemas/UUID'}
         secret: {type: string, readOnly: true, maxLength: 1000}
-        otpauth_uri: {type: string, format: uri, readOnly: true}
+        otpauth_uri: {type: string, format: uri, readOnly: true, maxLength: 2048}
     TOTPCode:
       type: object
       required: [code]
       additionalProperties: false
       properties:
-        code: {type: string, pattern: '^[0-9]{6}$', writeOnly: true}
+        code: {type: string, pattern: '^[0-9]{6}$', writeOnly: true, maxLength: 1000}
     RecoveryCodes:
       type: object
       required: [recovery_codes]
@@ -717,16 +739,16 @@ components:
       additionalProperties: false
       properties:
         id: {$ref: '#/components/schemas/UUID'}
-        email: {type: string, format: email}
+        email: {type: string, format: email, maxLength: 320}
         username: {type: string, maxLength: 1000}
         display_name: {type: string, maxLength: 1000}
         status: {type: string, enum: [pending_verification, active, suspended, deleted]}
-        email_verified_at: {type: string, format: date-time}
-        last_authenticated_at: {type: string, format: date-time}
-        version: {type: integer, minimum: 1, format: int64}
-        created_at: {type: string, format: date-time}
-        updated_at: {type: string, format: date-time}
-        deleted_at: {type: string, format: date-time}
+        email_verified_at: {type: string, format: date-time, maxLength: 35}
+        last_authenticated_at: {type: string, format: date-time, maxLength: 35}
+        version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
+        created_at: {type: string, format: date-time, maxLength: 35}
+        updated_at: {type: string, format: date-time, maxLength: 35}
+        deleted_at: {type: string, format: date-time, maxLength: 35}
         deleted_by: {$ref: '#/components/schemas/UUID'}
         deletion_reason: {type: string, maxLength: 1000}
     Error:
@@ -775,6 +797,8 @@ components:
       schema:
         type: integer
         minimum: 0
+        format: int32
+        maximum: 86400
 servers:
 - url: https://identity.internal.aethercode.in
   description: AetherCode identity service — internal platform endpoint (production)

@@ -12,14 +12,14 @@ paths:
     get:
       responses:
         '200': {description: Service is alive, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
   /readyz:
     get:
       responses:
         '200': {description: Service is ready, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '503': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
   /v1/tenants:
     get:
@@ -36,9 +36,9 @@ paths:
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     post:
       summary: Provision a college tenant
@@ -54,9 +54,9 @@ paths:
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}:
     parameters: [$ref: '#/components/parameters/TenantID']
@@ -69,9 +69,9 @@ paths:
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     patch:
       summary: Rename a college; only the fields sent change
@@ -91,11 +91,11 @@ paths:
         '400': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     delete:
       summary: Soft-delete a tenant
@@ -111,9 +111,9 @@ paths:
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/hard:
     parameters: [$ref: '#/components/parameters/TenantID']
@@ -131,9 +131,9 @@ paths:
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/placement-organizations:
     get:
@@ -150,9 +150,9 @@ paths:
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     post:
       summary: Create a placement organization
@@ -168,9 +168,9 @@ paths:
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/departments:
     get:
@@ -188,9 +188,9 @@ paths:
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     post:
       summary: Create a college department
@@ -207,9 +207,9 @@ paths:
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/placement-organizations/{organization_id}/departments:
     get:
@@ -227,9 +227,9 @@ paths:
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     post:
       summary: Create a placement department
@@ -246,9 +246,9 @@ paths:
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/batches:
     get:
@@ -266,15 +266,15 @@ paths:
         schema: {$ref: '#/components/schemas/UUID'}
       - name: academic_year
         in: query
-        schema: {type: string, pattern: '^[0-9]{4}-[0-9]{4}$'}
+        schema: {type: string, pattern: '^[0-9]{4}-[0-9]{4}$', maxLength: 1000}
       responses:
         '200': {$ref: '#/components/responses/BatchPage'}
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     post:
       summary: Create a batch in an active college department
@@ -291,9 +291,9 @@ paths:
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/retention-policy:
     put:
@@ -311,9 +311,9 @@ paths:
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/legal-holds:
     post:
@@ -330,9 +330,9 @@ paths:
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/legal-holds/{hold_id}/release:
     post:
@@ -347,9 +347,9 @@ paths:
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/placement-organizations/{organization_id}:
     parameters:
@@ -363,9 +363,9 @@ paths:
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     patch:
       summary: Rename a placement organisation
@@ -384,11 +384,11 @@ paths:
         '400': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     delete:
       summary: Soft-delete a placement organization
@@ -404,9 +404,9 @@ paths:
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/placement-organizations/{organization_id}/hard:
     parameters:
@@ -425,9 +425,9 @@ paths:
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/departments/{department_id}:
     parameters:
@@ -451,11 +451,11 @@ paths:
         '400': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     delete:
       summary: Soft-delete a department
@@ -471,9 +471,9 @@ paths:
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/departments/{department_id}/hard:
     parameters:
@@ -493,9 +493,9 @@ paths:
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/batches/{batch_id}:
     parameters:
@@ -520,11 +520,11 @@ paths:
         '400': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     delete:
       summary: Soft-delete a batch
@@ -540,9 +540,9 @@ paths:
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/batches/{batch_id}/hard:
     parameters:
@@ -562,9 +562,9 @@ paths:
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
 
 components:
@@ -573,7 +573,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWS
-      description: 'Bearer JSON Web Token (JWT). Tokens are short-lived and signed per RFC 8725. Include as: Authorization: Bearer <token>.'
+      description: 'Bearer JSON Web Token (JWT). Tokens are short-lived and signed per RFC8725. Include as: Authorization: Bearer <token>.'
   parameters:
     TenantID:
       name: tenant_id
@@ -780,7 +780,7 @@ components:
           $ref: '#/components/headers/Retry-After'
   schemas:
     UUID: {type: string, format: uuid, maxLength: 36}
-    Timestamp: {type: string, format: date-time}
+    Timestamp: {type: string, format: date-time, maxLength: 35}
     DeleteEntityRequest:
       type: object
       required: [reason]
@@ -828,7 +828,7 @@ components:
       required: [slug, legal_name, display_name]
       additionalProperties: false
       properties:
-        slug: {type: string, pattern: '^[a-z0-9][a-z0-9-]{1,62}$'}
+        slug: {type: string, pattern: '^[a-z0-9][a-z0-9-]{1,62}$', maxLength: 1000}
         legal_name: {type: string, minLength: 1, maxLength: 255}
         display_name: {type: string, minLength: 1, maxLength: 255}
     PlacementOrganizationRequest:
@@ -836,14 +836,14 @@ components:
       required: [code, legal_name]
       additionalProperties: false
       properties:
-        code: {type: string, pattern: '^[A-Z0-9][A-Z0-9-]{1,62}$'}
+        code: {type: string, pattern: '^[A-Z0-9][A-Z0-9-]{1,62}$', maxLength: 1000}
         legal_name: {type: string, minLength: 1, maxLength: 255}
     DepartmentRequest:
       type: object
       required: [code, name]
       additionalProperties: false
       properties:
-        code: {type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9_-]{1,62}$'}
+        code: {type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9_-]{1,62}$', maxLength: 1000}
         name: {type: string, minLength: 1, maxLength: 255}
     BatchRequest:
       type: object
@@ -851,9 +851,9 @@ components:
       additionalProperties: false
       properties:
         department_id: {$ref: '#/components/schemas/UUID'}
-        code: {type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9_-]{1,62}$'}
+        code: {type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9_-]{1,62}$', maxLength: 1000}
         name: {type: string, minLength: 1, maxLength: 255}
-        academic_year: {type: string, pattern: '^[0-9]{4}-[0-9]{4}$'}
+        academic_year: {type: string, pattern: '^[0-9]{4}-[0-9]{4}$', maxLength: 1000}
     RetentionPolicyRequest:
       type: object
       required: [academic_records_years, audit_records_years, auth_logs_days, notification_delivery_days, execution_record_days]
@@ -884,7 +884,7 @@ components:
         legal_name: {type: string, maxLength: 1000}
         display_name: {type: string, maxLength: 1000}
         status: {type: string, maxLength: 1000}
-        version: {type: integer, minimum: 1, format: int64}
+        version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
         created_at: {$ref: '#/components/schemas/Timestamp'}
     PlacementOrganization:
       type: object
@@ -894,7 +894,7 @@ components:
         code: {type: string, maxLength: 1000}
         legal_name: {type: string, maxLength: 1000}
         status: {type: string, maxLength: 1000}
-        version: {type: integer, minimum: 1, format: int64}
+        version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
         created_at: {$ref: '#/components/schemas/Timestamp'}
     Department:
       type: object
@@ -907,7 +907,7 @@ components:
         code: {type: string, maxLength: 1000}
         name: {type: string, maxLength: 1000}
         status: {type: string, maxLength: 1000}
-        version: {type: integer, minimum: 1, format: int64}
+        version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
         created_at: {$ref: '#/components/schemas/Timestamp'}
     Batch:
       type: object
@@ -920,7 +920,7 @@ components:
         name: {type: string, maxLength: 1000}
         academic_year: {type: string, maxLength: 1000}
         status: {type: string, maxLength: 1000}
-        version: {type: integer, minimum: 1, format: int64}
+        version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
         created_at: {$ref: '#/components/schemas/Timestamp'}
     RetentionPolicy:
       allOf:
@@ -929,7 +929,7 @@ components:
         required: [tenant_id, version, updated_at]
         properties:
           tenant_id: {$ref: '#/components/schemas/UUID'}
-          version: {type: integer, minimum: 1, format: int64}
+          version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
           updated_at: {$ref: '#/components/schemas/Timestamp'}
     LegalHold:
       type: object
@@ -989,6 +989,8 @@ components:
       schema:
         type: integer
         minimum: 0
+        format: int32
+        maximum: 86400
 servers:
 - url: https://tenant.internal.aethercode.in
   description: AetherCode tenant service — internal platform endpoint (production)

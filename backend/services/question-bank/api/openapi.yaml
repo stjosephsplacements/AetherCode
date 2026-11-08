@@ -19,7 +19,7 @@ paths:
       security: []
       responses:
         '200': {description: Service is alive, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
   /readyz:
     get:
@@ -27,7 +27,7 @@ paths:
       responses:
         '200': {description: Database, outbox publisher: null, and authorization projection are ready: null, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '503': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
   /v1/questions:
     get:
@@ -72,9 +72,9 @@ paths:
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     post:
       operationId: createQuestion
@@ -88,7 +88,7 @@ paths:
               - type: object
                 required: [slug]
                 properties:
-                  slug: {type: string, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'}
+                  slug: {type: string, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$', maxLength: 1000}
                   category_id: {$ref: '#/components/schemas/UUID', description: The category to file the question under; Uncategorised when omitted (ADR-0052).}
               - {$ref: '#/components/schemas/VersionContentInput'}
       responses:
@@ -97,9 +97,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/questions/{question_id}:
     get:
@@ -110,9 +110,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     delete:
       summary: Soft-delete a question aggregate
@@ -133,11 +133,11 @@ paths:
         '400': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/questions/{question_id}/hard:
     delete:
@@ -160,11 +160,11 @@ paths:
         '400': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/questions/{question_id}/versions:
     get:
@@ -197,9 +197,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     post:
       operationId: createDraftQuestionVersion
@@ -215,7 +215,7 @@ paths:
               - type: object
                 required: [expected_question_revision]
                 properties:
-                  expected_question_revision: {type: integer, minimum: 1, format: int64}
+                  expected_question_revision: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
               - {$ref: '#/components/schemas/VersionContentInput'}
       responses:
         '201': {$ref: '#/components/responses/QuestionDetail'}
@@ -224,9 +224,9 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/questions/{question_id}/archive:
     post:
@@ -242,7 +242,7 @@ paths:
               type: object
               required: [expected_question_revision]
               properties:
-                expected_question_revision: {type: integer, minimum: 1, format: int64}
+                expected_question_revision: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
       responses:
         '200': {$ref: '#/components/responses/QuestionDetail'}
         '400': {$ref: '#/components/responses/Problem'}
@@ -250,9 +250,9 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/question-versions/{question_version_id}:
     patch:
@@ -267,22 +267,22 @@ paths:
               additionalProperties: false
               required: [expected_question_version]
               properties:
-                expected_question_version: {type: integer, format: int64}
+                expected_question_version: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
                 title: {type: string, maxLength: 1000}
                 prompt_markdown: {type: string, maxLength: 1000}
                 difficulty: {type: string, enum: [easy, medium, hard]}
-                time_limit_ms: {type: integer, format: int64}
-                memory_limit_kib: {type: integer, format: int64}
+                time_limit_ms: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
+                memory_limit_kib: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
       responses:
         '200': {$ref: '#/components/responses/QuestionVersion'}
         '400': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     get:
       operationId: getQuestionVersion
@@ -292,9 +292,9 @@ paths:
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     delete:
       summary: Soft-delete a question version
@@ -314,11 +314,11 @@ paths:
         '400': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/question-versions/{question_version_id}/hard:
     delete:
@@ -339,11 +339,11 @@ paths:
         '400': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/question-versions/{question_version_id}/tests:
     put:
@@ -364,7 +364,7 @@ paths:
               additionalProperties: false
               required: [expected_question_version, tests]
               properties:
-                expected_question_version: {type: integer, minimum: 1, format: int64}
+                expected_question_version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
                 tests:
                   type: array
                   minItems: 2
@@ -386,9 +386,9 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/question-versions/{question_version_id}/assets:
     post:
@@ -407,8 +407,8 @@ paths:
                 asset_kind: {type: string, enum: [attachment, starter_code, reference_solution]}
                 object_reference: {$ref: '#/components/schemas/EncryptedObjectReference'}
                 content_type: {type: string, minLength: 1, maxLength: 180}
-                byte_size: {type: integer, minimum: 1, format: int64}
-                expected_question_version: {type: integer, minimum: 1, format: int64}
+                byte_size: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
+                expected_question_version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
       responses:
         '201': {$ref: '#/components/responses/QuestionVersion'}
         '400': {$ref: '#/components/responses/Problem'}
@@ -416,9 +416,9 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/question-versions/{question_version_id}/tags:
     put:
@@ -434,7 +434,7 @@ paths:
               type: object
               required: [expected_question_version, tags]
               properties:
-                expected_question_version: {type: integer, minimum: 1, format: int64}
+                expected_question_version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
                 tags:
                   type: array
                   maxItems: 50
@@ -446,9 +446,9 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/question-versions/{question_version_id}/publish:
     post:
@@ -464,7 +464,7 @@ paths:
               type: object
               required: [expected_question_version]
               properties:
-                expected_question_version: {type: integer, minimum: 1, format: int64}
+                expected_question_version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
       responses:
         '200': {$ref: '#/components/responses/QuestionDetail'}
         '400': {$ref: '#/components/responses/Problem'}
@@ -472,9 +472,9 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/review-policy:
     get:
@@ -503,9 +503,9 @@ paths:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/categories:
     get:
@@ -533,9 +533,9 @@ paths:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     post:
       summary: Add a category, open to every author. A name that exists in any letter case returns the existing one.
@@ -576,9 +576,9 @@ paths:
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/categories/{category_id}:
     patch:
@@ -615,11 +615,11 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     delete:
       summary: Delete (or merge) a category. Administrators only. Its questions move to move_to, or to Uncategorised. Refused (409) while it has sub-categories.
@@ -639,7 +639,7 @@ paths:
                 properties:
                   deleted: {$ref: '#/components/schemas/UUID'}
                   moved_to: {$ref: '#/components/schemas/UUID'}
-                  moved: {type: integer, minimum: 0, format: int64}
+                  moved: {type: integer, minimum: 0, format: int64, maximum: 2147483647}
           headers:
             RateLimit-Limit:
               $ref: '#/components/headers/RateLimit-Limit'
@@ -653,11 +653,11 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/questions/{question_id}/category:
     put:
@@ -688,11 +688,11 @@ paths:
         '400': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/questions/{question_id}/tags:
     put:
@@ -727,11 +727,11 @@ paths:
         '400': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tags:
     get:
@@ -748,7 +748,7 @@ paths:
                 type: object
                 required: [tags]
                 properties:
-                  tags: {type: array, items: {type: object, required: [name, count], properties: {name: {type: string, maxLength: 1000}, count: {type: integer, format: int64}}}, maxItems: 200}
+                  tags: {type: array, items: {type: object, required: [name, count], properties: {name: {type: string, maxLength: 1000}, count: {type: integer, format: int64, maximum: 2147483647, minimum: 0}}}, maxItems: 200}
           headers:
             RateLimit-Limit:
               $ref: '#/components/headers/RateLimit-Limit'
@@ -760,11 +760,11 @@ paths:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/languages:
     get:
@@ -802,9 +802,9 @@ paths:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/question-versions/{question_version_id}/request-review:
     post:
@@ -825,7 +825,7 @@ paths:
               type: object
               required: [expected_question_version]
               properties:
-                expected_question_version: {type: integer, minimum: 1, format: int64}
+                expected_question_version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
                 reviewer_id: {type: string, format: uuid, description: Optional; a hint for the queue, not a restriction: null, maxLength: 36}
       responses:
         '200': {$ref: '#/components/responses/QuestionDetail'}
@@ -834,9 +834,9 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/question-versions/{question_version_id}/export:
     get:
@@ -870,11 +870,11 @@ paths:
         '403': {description: Not an administrator., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '404': {description: No such question version., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '409': {description: The version has no tests yet., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/question-versions/{question_version_id}/choices:
     put:
@@ -896,20 +896,20 @@ paths:
               additionalProperties: false
               required: [expected_question_version, choices, correct_choices, multiple_choice]
               properties:
-                expected_question_version: {type: integer, format: int64}
+                expected_question_version: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
                 choices: {type: array, minItems: 2, maxItems: 10, items: {type: string, maxLength: 1000}}
-                correct_choices: {type: array, minItems: 1, items: {type: integer, minimum: 0, format: int64}, maxItems: 200}
+                correct_choices: {type: array, minItems: 1, items: {type: integer, minimum: 0, format: int64, maximum: 2147483647}, maxItems: 200}
                 multiple_choice: {type: boolean}
                 explanations: {type: [array, 'null'], maxItems: 10, items: {type: [string, 'null'], maxLength: 1000}, description: Why each option is right or wrong, ? one entry per option (null for none). Omitting it clears the explanations. Authors see them; the exam runner never receives them (ADR-0058). : null}
       responses:
         '200': {description: The question version., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {description: Invalid options, answer or explanations.: null, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '409': {description: Stale revision or not a draft., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/question-versions/{question_version_id}/templates:
     get:
@@ -944,11 +944,11 @@ paths:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     put:
       summary: Replace code templates for a draft version (ADR-0063)
@@ -989,11 +989,11 @@ paths:
         '400': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/question-versions/{question_version_id}/model-checks:
     post:
@@ -1009,7 +1009,7 @@ paths:
               additionalProperties: false
               required: [language, source]
               properties:
-                language: {type: string, pattern: '^[a-z0-9][a-z0-9+_.-]{0,79}$'}
+                language: {type: string, pattern: '^[a-z0-9][a-z0-9+_.-]{0,79}$', maxLength: 1000}
                 source: {type: string, minLength: 1, maxLength: 65536}
       responses:
         '202':
@@ -1033,11 +1033,11 @@ paths:
         '400': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     get:
       summary: List model checks for a question version
@@ -1060,11 +1060,11 @@ paths:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/question-versions/{question_version_id}/assets/{asset_kind}:
     get:
@@ -1082,7 +1082,7 @@ paths:
           description: The asset bytes with its original content type.
           content:
             application/octet-stream:
-              schema: {type: string, format: binary}
+              schema: {type: string, format: binary, maxLength: 10485760}
           headers:
             RateLimit-Limit:
               $ref: '#/components/headers/RateLimit-Limit'
@@ -1094,11 +1094,11 @@ paths:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/questions/{question_id}/audience:
     put:
@@ -1122,11 +1122,11 @@ paths:
         '200': {description: The new audience., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {description: Not test or practice., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '404': {description: No such question., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/practice/questions:
     get:
@@ -1141,11 +1141,11 @@ paths:
       - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
       responses:
         '200': {description: An array of practice problems., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/practice/progress:
     get:
@@ -1157,11 +1157,11 @@ paths:
       - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
       responses:
         '200': {description: The totals., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/practice/questions/{question_id}:
     get:
@@ -1175,11 +1175,11 @@ paths:
       responses:
         '200': {description: The problem., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '404': {description: Not a practice problem., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/practice/questions/{question_id}/submissions:
     get:
@@ -1191,11 +1191,11 @@ paths:
       - {name: question_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
       responses:
         '200': {description: Runs, newest first: null, with per-test verdicts and: null, for sample runs: null, output.: null, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     post:
       summary: Run or submit code on a practice problem (ADR-0041)
@@ -1227,11 +1227,11 @@ paths:
         '404': {description: Not a practice problem., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '409': {description: A run is already in flight, or practice is busy.: null, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '503': {description: Judge unavailable., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/practice/submissions/{submission_id}:
     get:
@@ -1244,11 +1244,11 @@ paths:
       responses:
         '200': {description: The run and its source., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '404': {description: Not the caller's run., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
 components:
   securitySchemes:
@@ -1256,7 +1256,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: 'Bearer JSON Web Token (JWT). Tokens are short-lived and signed per RFC 8725. Include as: Authorization: Bearer <token>.'
+      description: 'Bearer JSON Web Token (JWT). Tokens are short-lived and signed per RFC8725. Include as: Authorization: Bearer <token>.'
   parameters:
     IdempotencyKey:
       name: Idempotency-Key
@@ -1403,7 +1403,7 @@ components:
       required: [object_key, checksum, encryption_key_reference]
       properties:
         object_key: {type: string, minLength: 1, maxLength: 1024}
-        checksum: {type: string, pattern: '^[0-9a-fA-F]{64}$'}
+        checksum: {type: string, pattern: '^[0-9a-fA-F]{64}$', maxLength: 1000}
         encryption_key_reference: {type: string, minLength: 1, maxLength: 1024}
     VersionContentInput:
       type: object
@@ -1437,9 +1437,9 @@ components:
         id: {$ref: '#/components/schemas/UUID'}
         slug: {type: string, maxLength: 1000}
         lifecycle_state: {type: string, enum: [draft, published, archived]}
-        created_at: {type: string, format: date-time}
-        archived_at: {type: [string, 'null'], format: date-time}
-        version: {type: integer, minimum: 1, format: int64}
+        created_at: {type: string, format: date-time, maxLength: 35}
+        archived_at: {type: [string, 'null'], format: date-time, maxLength: 35}
+        version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
         category_id: {$ref: '#/components/schemas/UUID'}
         category: {$ref: '#/components/schemas/CategoryRef'}
     CategoryRef:
@@ -1455,32 +1455,32 @@ components:
         id: {$ref: '#/components/schemas/UUID'}
         name: {type: string, minLength: 1, maxLength: 80}
         parent_id: {type: [string, 'null'], format: uuid, description: Null for a top-level category., maxLength: 36}
-        question_count: {type: integer, minimum: 0, description: Live questions filed directly under it., format: int64}
-        question_count_total: {type: integer, minimum: 0, description: Top-level categories only; own questions plus those in its sub-categories., format: int64}
+        question_count: {type: integer, minimum: 0, description: Live questions filed directly under it., format: int64, maximum: 2147483647}
+        question_count_total: {type: integer, minimum: 0, description: Top-level categories only; own questions plus those in its sub-categories., format: int64, maximum: 2147483647}
     QuestionVersion:
       type: object
       required: [id, question_id, version_number, title, prompt_markdown, difficulty, supported_languages, time_limit_ms, memory_limit_kib, status, created_at, version, tags, sample_test_case_count, hidden_test_case_count, asset_count]
       properties:
         id: {$ref: '#/components/schemas/UUID'}
         question_id: {$ref: '#/components/schemas/UUID'}
-        version_number: {type: integer, minimum: 1, format: int64}
+        version_number: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
         title: {type: string, maxLength: 1000}
         prompt_markdown: {type: string, maxLength: 1000}
         difficulty: {type: string, enum: [easy, medium, hard]}
         supported_languages: {type: array, items: {type: string, maxLength: 1000}, maxItems: 200}
-        time_limit_ms: {type: integer, format: int64}
-        memory_limit_kib: {type: integer, format: int64}
+        time_limit_ms: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
+        memory_limit_kib: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
         status: {type: string, enum: [draft, published, retired]}
-        review_requested_at: {type: string, format: date-time}
+        review_requested_at: {type: string, format: date-time, maxLength: 35}
         review_requested_by: {type: string, format: uuid, maxLength: 36}
         assigned_reviewer_id: {type: string, format: uuid, maxLength: 36}
-        published_at: {type: [string, 'null'], format: date-time}
-        created_at: {type: string, format: date-time}
-        version: {type: integer, minimum: 1, format: int64}
+        published_at: {type: [string, 'null'], format: date-time, maxLength: 35}
+        created_at: {type: string, format: date-time, maxLength: 35}
+        version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
         tags: {type: array, items: {$ref: '#/components/schemas/Tag'}, maxItems: 200}
-        sample_test_case_count: {type: integer, minimum: 0, format: int64}
-        hidden_test_case_count: {type: integer, minimum: 0, format: int64}
-        asset_count: {type: integer, minimum: 0, format: int64}
+        sample_test_case_count: {type: integer, minimum: 0, format: int64, maximum: 2147483647}
+        hidden_test_case_count: {type: integer, minimum: 0, format: int64, maximum: 2147483647}
+        asset_count: {type: integer, minimum: 0, format: int64, maximum: 2147483647}
     QuestionDetail:
       type: object
       required: [question, question_version]
@@ -1519,3 +1519,5 @@ components:
       schema:
         type: integer
         minimum: 0
+        format: int32
+        maximum: 86400

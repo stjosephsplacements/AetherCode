@@ -18,7 +18,7 @@ paths:
               $ref: '#/components/headers/RateLimit-Reset'
             Access-Control-Allow-Origin:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
   /readyz:
     get:
@@ -45,7 +45,7 @@ paths:
               $ref: '#/components/headers/RateLimit-Reset'
             Access-Control-Allow-Origin:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
   /v1/tenants/{tenant_id}/attempts:
     get:
@@ -94,11 +94,11 @@ paths:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Problem400'}
         '403': {$ref: '#/components/responses/Problem403'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     post:
       summary: Start an assignment-backed candidate attempt
@@ -137,11 +137,11 @@ paths:
         '400': {$ref: '#/components/responses/Problem400'}
         '403': {$ref: '#/components/responses/Problem403'}
         '409': {$ref: '#/components/responses/Problem409'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}:
     get:
@@ -170,11 +170,11 @@ paths:
         '400': {$ref: '#/components/responses/Problem400'}
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     delete:
       summary: Soft-delete an attempt
@@ -198,11 +198,11 @@ paths:
         '400': {$ref: '#/components/responses/Problem400'}
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/hard:
     delete:
@@ -227,11 +227,11 @@ paths:
         '400': {$ref: '#/components/responses/Problem400'}
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/paper:
     get:
@@ -267,11 +267,11 @@ paths:
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
         '503': {$ref: '#/components/responses/Problem503'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/unit-results:
     get:
@@ -298,11 +298,11 @@ paths:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/judge-receipts:
     get:
@@ -329,11 +329,11 @@ paths:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/answers:
     get:
@@ -379,11 +379,11 @@ paths:
         '400': {$ref: '#/components/responses/Problem400'}
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/answers/{exam_item_id}:
     put:
@@ -417,6 +417,7 @@ paths:
                     Judge language key (c, cpp17, java, python3, javascript, go).
                     Must be one of the exam item's supported languages, which
                     are pinned from the question version; otherwise 400.
+                  maxLength: 1000
                 source:
                   type: string
                   maxLength: 65536
@@ -428,6 +429,7 @@ paths:
                   type: integer
                   minimum: 1
                   format: int64
+                  maximum: 2147483647
       responses:
         '201':
           description: Immutable answer revision accepted.
@@ -449,11 +451,11 @@ paths:
         '404': {$ref: '#/components/responses/Problem404'}
         '409': {$ref: '#/components/responses/Problem409'}
         '503': {$ref: '#/components/responses/Problem503'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/submit:
     post:
@@ -477,6 +479,7 @@ paths:
                   type: integer
                   minimum: 1
                   format: int64
+                  maximum: 2147483647
       responses:
         '202':
           description: The attempt and its durable evaluation work were accepted.
@@ -493,6 +496,7 @@ paths:
                     type: integer
                     minimum: 0
                     format: int64
+                    maximum: 2147483647
           headers:
             RateLimit-Limit:
               $ref: '#/components/headers/RateLimit-Limit'
@@ -506,11 +510,11 @@ paths:
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
         '409': {$ref: '#/components/responses/Problem409'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/items/{exam_item_id}/runs:
     post:
@@ -539,6 +543,7 @@ paths:
                   type: string
                   pattern: '^[a-z0-9][a-z0-9+_.-]{0,79}$'
                   description: One of the exam item's supported languages; otherwise 400.
+                  maxLength: 1000
                 source:
                   type: string
                   minLength: 1
@@ -588,9 +593,9 @@ paths:
             Retry-After:
               $ref: '#/components/headers/Retry-After'
         '503': {$ref: '#/components/responses/Problem503'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
     get:
       summary: List the caller's runs of one item, newest first (keyset paged)
@@ -625,11 +630,11 @@ paths:
         '400': {$ref: '#/components/responses/Problem400'}
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/items/{exam_item_id}/submissions:
     post:
@@ -682,9 +687,9 @@ paths:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
             Retry-After:
               $ref: '#/components/headers/Retry-After'
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
     get:
       summary: The caller's evaluations of one item, newest first (at most 50)
@@ -721,11 +726,11 @@ paths:
         '400': {$ref: '#/components/responses/Problem400'}
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/runs/{run_id}:
     get:
@@ -758,11 +763,11 @@ paths:
         '400': {$ref: '#/components/responses/Problem400'}
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/monitor:
     get:
@@ -792,11 +797,11 @@ paths:
             Access-Control-Allow-Origin:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         '403': {$ref: '#/components/responses/Problem403'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/results-release:
     put:
@@ -825,7 +830,7 @@ paths:
               schema:
                 type: object
                 properties:
-                  results_released_at: {type: [string, 'null'], format: date-time}
+                  results_released_at: {type: [string, 'null'], format: date-time, maxLength: 35}
           headers:
             RateLimit-Limit:
               $ref: '#/components/headers/RateLimit-Limit'
@@ -836,11 +841,11 @@ paths:
             Access-Control-Allow-Origin:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         '403': {$ref: '#/components/responses/Problem403'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/extensions:
     post:
@@ -873,7 +878,7 @@ paths:
               schema:
                 type: object
                 properties:
-                  extended_attempts: {type: integer, format: int64}
+                  extended_attempts: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
           headers:
             RateLimit-Limit:
               $ref: '#/components/headers/RateLimit-Limit'
@@ -886,11 +891,11 @@ paths:
         '400': {$ref: '#/components/responses/Problem400'}
         '403': {$ref: '#/components/responses/Problem403'}
         '409': {$ref: '#/components/responses/Problem409'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/announcements:
     post:
@@ -928,11 +933,11 @@ paths:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Problem400'}
         '403': {$ref: '#/components/responses/Problem403'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/live:
     get:
@@ -951,7 +956,7 @@ paths:
                 type: object
                 properties:
                   lifecycle_state: {type: string, maxLength: 1000}
-                  submission_deadline: {type: string, format: date-time}
+                  submission_deadline: {type: string, format: date-time, maxLength: 35}
                   announcements:
                     type: array
                     items: {$ref: '#/components/schemas/Announcement'}
@@ -967,11 +972,11 @@ paths:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/result:
     get:
@@ -1001,11 +1006,11 @@ paths:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/review:
     get:
@@ -1036,11 +1041,11 @@ paths:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/similarity:
     get:
@@ -1070,11 +1075,11 @@ paths:
             Access-Control-Allow-Origin:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         '403': {$ref: '#/components/responses/Problem403'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/choices/{exam_item_id}:
     put:
@@ -1095,16 +1100,16 @@ paths:
               additionalProperties: false
               required: [selected]
               properties:
-                selected: {type: array, maxItems: 10, items: {type: integer, minimum: 0, format: int64}}
+                selected: {type: array, maxItems: 10, items: {type: integer, minimum: 0, format: int64, maximum: 2147483647}}
       responses:
         '200': {description: The saved selection., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Problem400'}
         '409': {$ref: '#/components/responses/Problem409'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/integrity:
     put:
@@ -1127,11 +1132,11 @@ paths:
       responses:
         '200': {description: The saved settings., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '403': {$ref: '#/components/responses/Problem403'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/grading-queue:
     get:
@@ -1157,11 +1162,11 @@ paths:
             Access-Control-Allow-Origin:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         '403': {$ref: '#/components/responses/Problem403'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/items/{exam_item_id}/regrade:
     post:
@@ -1190,11 +1195,11 @@ paths:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/snapshots:
     post:
@@ -1206,12 +1211,12 @@ paths:
       - $ref: '#/components/parameters/AttemptID'
       - in: header
         name: X-Captured-At
-        schema: {type: string, format: date-time}
+        schema: {type: string, format: date-time, maxLength: 35}
       requestBody:
         required: true
         content:
           image/jpeg:
-            schema: {type: string, format: binary}
+            schema: {type: string, format: binary, maxLength: 10485760}
       responses:
         '201':
           description: Snapshot stored.
@@ -1232,11 +1237,11 @@ paths:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Problem400'}
         '503': {$ref: '#/components/responses/Problem503'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     get:
       summary: List webcam snapshots for an attempt (VIEW_STUDENT_PII)
@@ -1256,8 +1261,8 @@ paths:
                   type: object
                   properties:
                     id: {type: string, format: uuid, maxLength: 36}
-                    captured_at: {type: string, format: date-time}
-                    url: {type: string, format: uri}
+                    captured_at: {type: string, format: date-time, maxLength: 35}
+                    url: {type: string, format: uri, maxLength: 2048}
                 maxItems: 200
           headers:
             RateLimit-Limit:
@@ -1269,11 +1274,11 @@ paths:
             Access-Control-Allow-Origin:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         '403': {$ref: '#/components/responses/Problem403'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/events:
     post:
@@ -1296,11 +1301,11 @@ paths:
       responses:
         '204': {description: Recorded (or ignored once the attempt ended)., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Problem400'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
 components:
   securitySchemes:
@@ -1308,7 +1313,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: 'Bearer JSON Web Token (JWT). Tokens are short-lived and signed per RFC 8725. Include as: Authorization: Bearer <token>.'
+      description: 'Bearer JSON Web Token (JWT). Tokens are short-lived and signed per RFC8725. Include as: Authorization: Bearer <token>.'
   parameters:
     TenantID:
       name: tenant_id
@@ -1348,7 +1353,7 @@ components:
       properties:
         id: {$ref: '#/components/schemas/UUID'}
         body: {type: string, maxLength: 1000}
-        created_at: {type: string, format: date-time}
+        created_at: {type: string, format: date-time, maxLength: 35}
     UUID:
       type: string
       format: uuid
@@ -1356,6 +1361,7 @@ components:
     SHA256:
       type: string
       pattern: '^[0-9a-f]{64}$'
+      maxLength: 1000
     Attempt:
       type: object
       additionalProperties: false
@@ -1379,17 +1385,17 @@ components:
         exam_version_id: {$ref: '#/components/schemas/UUID'}
         candidate_id: {$ref: '#/components/schemas/UUID'}
         candidate_assignment_id: {$ref: '#/components/schemas/UUID'}
-        attempt_number: {type: integer, minimum: 1, format: int64}
+        attempt_number: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
         lifecycle_state:
           type: string
           enum: [created, active, submitted, grading, graded, expired, cancelled]
-        available_from: {type: string, format: date-time}
-        submission_deadline: {type: string, format: date-time}
-        started_at: {type: [string, 'null'], format: date-time}
-        submitted_at: {type: [string, 'null'], format: date-time}
-        completed_at: {type: [string, 'null'], format: date-time}
-        version: {type: integer, minimum: 1, format: int64}
-        created_at: {type: string, format: date-time}
+        available_from: {type: string, format: date-time, maxLength: 35}
+        submission_deadline: {type: string, format: date-time, maxLength: 35}
+        started_at: {type: [string, 'null'], format: date-time, maxLength: 35}
+        submitted_at: {type: [string, 'null'], format: date-time, maxLength: 35}
+        completed_at: {type: [string, 'null'], format: date-time, maxLength: 35}
+        version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
+        created_at: {type: string, format: date-time, maxLength: 35}
     AnswerRevision:
       type: object
       additionalProperties: false
@@ -1408,11 +1414,11 @@ components:
         tenant_id: {$ref: '#/components/schemas/UUID'}
         attempt_id: {$ref: '#/components/schemas/UUID'}
         exam_item_id: {$ref: '#/components/schemas/UUID'}
-        revision_number: {type: integer, minimum: 1, format: int64}
+        revision_number: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
         language_id: {type: string, maxLength: 1000}
-        created_at: {type: string, format: date-time}
+        created_at: {type: string, format: date-time, maxLength: 35}
         created_by: {$ref: '#/components/schemas/UUID'}
-        attempt_version: {type: integer, minimum: 1, format: int64}
+        attempt_version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
     AttemptPage:
       type: object
       additionalProperties: false
@@ -1450,10 +1456,10 @@ components:
         language_id: {type: string, maxLength: 1000}
         lifecycle_state: {type: string, enum: [queued, dispatched, completed, failed, cancelled]}
         verdict: {type: [string, 'null'], maxLength: 1000}
-        passed_units: {type: integer, minimum: 0, description: Listed runs only., format: int64}
-        total_units: {type: integer, minimum: 0, description: Listed runs only., format: int64}
-        created_at: {type: string, format: date-time}
-        completed_at: {type: [string, 'null'], format: date-time}
+        passed_units: {type: integer, minimum: 0, description: Listed runs only., format: int64, maximum: 2147483647}
+        total_units: {type: integer, minimum: 0, description: Listed runs only., format: int64, maximum: 2147483647}
+        created_at: {type: string, format: date-time, maxLength: 35}
+        completed_at: {type: [string, 'null'], format: date-time, maxLength: 35}
         units:
           type: array
           description: A fetched run only. Sample tests are not confidential, so nothing is redacted.
@@ -1462,15 +1468,15 @@ components:
             additionalProperties: false
             required: [unit_number, verdict]
             properties:
-              unit_number: {type: integer, minimum: 0, format: int64}
+              unit_number: {type: integer, minimum: 0, format: int64, maximum: 2147483647}
               verdict: {type: string, maxLength: 1000}
               stdin: {type: [string, 'null'], maxLength: 1000}
               expected_output: {type: [string, 'null'], maxLength: 1000}
               stdout: {type: [string, 'null'], maxLength: 1000}
               stderr: {type: [string, 'null'], maxLength: 1000}
               compile_output: {type: [string, 'null'], maxLength: 1000}
-              execution_time_ms: {type: [integer, 'null'], format: int64}
-              memory_kib: {type: [integer, 'null'], format: int64}
+              execution_time_ms: {type: [integer, 'null'], format: int64, maximum: 2147483647, minimum: 0}
+              memory_kib: {type: [integer, 'null'], format: int64, maximum: 2147483647, minimum: 0}
           maxItems: 200
     ItemSubmission:
       type: object
@@ -1481,17 +1487,17 @@ components:
         origin: {type: string, enum: [item_submit, final]}
         lifecycle_state: {type: string, enum: [queued, dispatched, completed, failed, cancelled]}
         language_id: {type: string, maxLength: 1000}
-        revision_number: {type: integer, minimum: 1, format: int64}
-        queued_at: {type: string, format: date-time}
-        completed_at: {type: [string, 'null'], format: date-time}
+        revision_number: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
+        queued_at: {type: string, format: date-time, maxLength: 35}
+        completed_at: {type: [string, 'null'], format: date-time, maxLength: 35}
         verdict: {type: [string, 'null'], maxLength: 1000}
         score: {type: [string, 'null'], description: Null until judged., maxLength: 1000}
         maximum_score: {type: string, maxLength: 1000}
-        passed_units: {type: [integer, 'null'], format: int64}
-        total_units: {type: [integer, 'null'], format: int64}
+        passed_units: {type: [integer, 'null'], format: int64, maximum: 2147483647, minimum: 0}
+        total_units: {type: [integer, 'null'], format: int64, maximum: 2147483647, minimum: 0}
         verdict_counts:
           type: object
-          additionalProperties: {type: integer, minimum: 1, format: int64}
+          additionalProperties: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
           description: Number of tests per verdict, for example {"accepted":3,"wrong_answer":1}.
     Paper:
       type: object
@@ -1510,13 +1516,13 @@ components:
             required: [exam_item_id, position, title, prompt_markdown, maximum_score, supported_languages, time_limit_ms, memory_limit_kib, latest_answer]
             properties:
               exam_item_id: {$ref: '#/components/schemas/UUID'}
-              position: {type: integer, minimum: 1, format: int64}
+              position: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
               title: {type: string, maxLength: 1000}
               prompt_markdown: {type: string, maxLength: 1000}
               maximum_score: {type: string, maxLength: 1000}
               supported_languages: {type: array, items: {type: string, maxLength: 1000}, maxItems: 200}
-              time_limit_ms: {type: integer, minimum: 0, format: int64}
-              memory_limit_kib: {type: integer, minimum: 0, format: int64}
+              time_limit_ms: {type: integer, minimum: 0, format: int64, maximum: 2147483647}
+              memory_limit_kib: {type: integer, minimum: 0, format: int64, maximum: 2147483647}
               latest_answer:
                 oneOf:
                 - type: 'null'
@@ -1526,7 +1532,7 @@ components:
                   properties:
                     language: {type: string, maxLength: 1000}
                     source: {type: string, maxLength: 1000}
-                    revision_number: {type: integer, minimum: 1, format: int64}
+                    revision_number: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
           maxItems: 200
     CodeRunPage:
       type: object
@@ -1692,6 +1698,8 @@ components:
       schema:
         type: integer
         minimum: 0
+        format: int32
+        maximum: 86400
 servers:
 - url: https://submission.internal.aethercode.in
   description: AetherCode submission service — internal platform endpoint (production)

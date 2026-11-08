@@ -18,7 +18,7 @@ paths:
       security: []
       responses:
         '200': {description: Process is alive, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
   /readyz:
     get:
@@ -26,7 +26,7 @@ paths:
       responses:
         '200': {description: Database, authorization projection: null, and broker are ready: null, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '503': {description: A required dependency is unavailable, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
   /v1/tenants/{tenant_id}/proctor-policies:
     parameters: [$ref: '#/components/parameters/TenantID']
@@ -46,11 +46,11 @@ paths:
       responses:
         '200': {$ref: '#/components/responses/ProctorPolicyPage'}
         default: {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     post:
       summary: Create a proctor-policy aggregate
@@ -68,11 +68,11 @@ paths:
       responses:
         '201': {$ref: '#/components/responses/ProctorPolicy'}
         default: {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/proctor-policies/{proctor_policy_id}:
     parameters:
@@ -83,11 +83,11 @@ paths:
       responses:
         '200': {$ref: '#/components/responses/ProctorPolicy'}
         default: {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/proctor-policies/{proctor_policy_id}/versions:
     parameters:
@@ -109,11 +109,11 @@ paths:
       responses:
         '200': {$ref: '#/components/responses/ProctorPolicyVersionPage'}
         default: {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     post:
       summary: Add the next immutable proctor-policy draft
@@ -127,16 +127,16 @@ paths:
               additionalProperties: false
               required: [expected_policy_version, policy]
               properties:
-                expected_policy_version: {type: integer, minimum: 1, format: int64}
+                expected_policy_version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
                 policy: {type: object}
       responses:
         '201': {$ref: '#/components/responses/ProctorPolicyVersion'}
         default: {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/proctor-policy-versions/{proctor_policy_version_id}:
     parameters:
@@ -147,11 +147,11 @@ paths:
       responses:
         '200': {$ref: '#/components/responses/ProctorPolicyVersion'}
         default: {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/proctor-policy-versions/{proctor_policy_version_id}/publish:
     parameters:
@@ -163,11 +163,11 @@ paths:
       responses:
         '200': {$ref: '#/components/responses/ProctorPolicyVersion'}
         default: {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exams:
     parameters: [$ref: '#/components/parameters/TenantID']
@@ -189,11 +189,11 @@ paths:
       responses:
         '200': {$ref: '#/components/responses/ExamPage'}
         default: {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     post:
       summary: Create an exam aggregate
@@ -210,11 +210,11 @@ paths:
       responses:
         '201': {$ref: '#/components/responses/Exam'}
         default: {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exams/{exam_id}:
     parameters:
@@ -225,11 +225,11 @@ paths:
       responses:
         '200': {$ref: '#/components/responses/Exam'}
         default: {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     patch:
       summary: Update an exam's external reference
@@ -243,16 +243,16 @@ paths:
               additionalProperties: false
               required: [expected_version]
               properties:
-                expected_version: {type: integer, format: int64, minimum: 1}
+                expected_version: {type: integer, format: int64, minimum: 1, maximum: 2147483647}
                 external_reference: {type: string, minLength: 1, maxLength: 160}
       responses:
         '200': {$ref: '#/components/responses/Exam'}
         default: {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     delete:
       summary: Soft-delete an exam
@@ -271,11 +271,11 @@ paths:
       responses:
         '204': {description: Exam soft-deleted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         default: {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exams/{exam_id}/hard:
     parameters:
@@ -298,11 +298,11 @@ paths:
       responses:
         '204': {description: Exam permanently deleted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         default: {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exams/{exam_id}/versions:
     parameters:
@@ -326,11 +326,11 @@ paths:
       responses:
         '200': {$ref: '#/components/responses/ExamVersionPage'}
         default: {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     post:
       summary: Create the next draft exam version from a published proctor policy
@@ -343,11 +343,11 @@ paths:
       responses:
         '201': {$ref: '#/components/responses/ExamVersion'}
         default: {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/content:
     parameters:
@@ -373,7 +373,7 @@ paths:
                       type: object
                       properties:
                         id: {$ref: '#/components/schemas/UUID'}
-                        position: {type: integer, format: int64}
+                        position: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
                         title: {type: string, maxLength: 1000}
                         instructions_markdown: {type: string, maxLength: 1000}
                         items:
@@ -382,7 +382,7 @@ paths:
                             type: object
                             properties:
                               id: {$ref: '#/components/schemas/UUID'}
-                              position: {type: integer, format: int64}
+                              position: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
                               question_id: {$ref: '#/components/schemas/UUID'}
                               question_version_id: {$ref: '#/components/schemas/UUID'}
                               question_title: {type: [string, 'null'], maxLength: 1000}
@@ -399,8 +399,8 @@ paths:
                         target_id: {$ref: '#/components/schemas/UUID'}
                         available_from: {$ref: '#/components/schemas/Timestamp'}
                         available_until: {$ref: '#/components/schemas/Timestamp'}
-                        disabled_at: {type: [string, 'null'], format: date-time}
-                        assigned_candidates: {type: integer, minimum: 0, format: int64}
+                        disabled_at: {type: [string, 'null'], format: date-time, maxLength: 35}
+                        assigned_candidates: {type: integer, minimum: 0, format: int64, maximum: 2147483647}
                     maxItems: 200
           headers:
             RateLimit-Limit:
@@ -412,11 +412,11 @@ paths:
             Access-Control-Allow-Origin:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         default: {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}:
     patch:
@@ -432,22 +432,22 @@ paths:
               additionalProperties: false
               required: [expected_content_version]
               properties:
-                expected_content_version: {type: integer, format: int64}
+                expected_content_version: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
                 title: {type: string, maxLength: 1000}
                 instructions_markdown: {type: string, maxLength: 1000}
-                opens_at: {type: string, format: date-time}
-                closes_at: {type: string, format: date-time}
-                duration_seconds: {type: integer, format: int64}
+                opens_at: {type: string, format: date-time, maxLength: 35}
+                closes_at: {type: string, format: date-time, maxLength: 35}
+                duration_seconds: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
       responses:
         '204': {description: Updated, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     parameters:
     - {$ref: '#/components/parameters/TenantID'}
@@ -457,11 +457,11 @@ paths:
       responses:
         '200': {$ref: '#/components/responses/ExamVersion'}
         default: {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/sections:
     parameters:
@@ -478,11 +478,11 @@ paths:
       responses:
         '201': {$ref: '#/components/responses/ExamSection'}
         default: {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/sections/{section_id}/items:
     parameters:
@@ -501,11 +501,11 @@ paths:
       responses:
         '201': {$ref: '#/components/responses/ExamItem'}
         default: {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/publish:
     parameters:
@@ -523,15 +523,15 @@ paths:
               additionalProperties: false
               required: [expected_content_version]
               properties:
-                expected_content_version: {type: integer, minimum: 1, format: int64}
+                expected_content_version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
       responses:
         '200': {$ref: '#/components/responses/ExamVersion'}
         default: {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/assignment-rules:
     parameters:
@@ -548,11 +548,11 @@ paths:
       responses:
         '201': {$ref: '#/components/responses/AssignmentRule'}
         default: {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/assignment-rules/{assignment_rule_id}/candidate-assignments:
     parameters:
@@ -579,11 +579,11 @@ paths:
       responses:
         '201': {$ref: '#/components/responses/CandidateAssignment'}
         default: {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/candidate-assignments:
     parameters: [$ref: '#/components/parameters/TenantID']
@@ -606,11 +606,11 @@ paths:
       responses:
         '200': {$ref: '#/components/responses/CandidateAssignmentPage'}
         default: {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/candidate-assignments/{candidate_assignment_id}:
     parameters:
@@ -621,11 +621,11 @@ paths:
       responses:
         '200': {$ref: '#/components/responses/CandidateAssignment'}
         default: {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/candidate-assignments/{candidate_assignment_id}/revoke:
     parameters:
@@ -649,15 +649,15 @@ paths:
               additionalProperties: false
               required: [expected_version]
               properties:
-                expected_version: {type: integer, minimum: 1, format: int64}
+                expected_version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
       responses:
         '200': {$ref: '#/components/responses/CandidateAssignment'}
         default: {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/sections/{section_id}:
     parameters:
@@ -677,21 +677,21 @@ paths:
               additionalProperties: false
               required: [expected_content_version]
               properties:
-                expected_content_version: {type: integer, format: int64}
+                expected_content_version: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
                 title: {type: string, maxLength: 1000}
                 instructions_markdown: {type: string, maxLength: 1000}
-                time_limit_seconds: {type: integer, format: int64}
+                time_limit_seconds: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
                 clear_time_limit: {type: boolean}
       responses:
         '204': {description: Updated, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     delete:
       summary: Remove a section from a draft exam version
@@ -705,15 +705,15 @@ paths:
               additionalProperties: false
               required: [expected_content_version]
               properties:
-                expected_content_version: {type: integer, format: int64}
+                expected_content_version: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
       responses:
         '204': {description: Section removed, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         default: {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/sections/{section_id}/items/{item_id}:
     parameters:
@@ -734,18 +734,18 @@ paths:
               additionalProperties: false
               required: [expected_content_version, maximum_score]
               properties:
-                expected_content_version: {type: integer, format: int64}
+                expected_content_version: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
                 maximum_score: {type: string, description: Decimal, up to 4 places: null, maxLength: 1000}
       responses:
         '204': {description: Updated, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
     delete:
       summary: Remove a question item from a draft exam section
@@ -759,15 +759,15 @@ paths:
               additionalProperties: false
               required: [expected_content_version]
               properties:
-                expected_content_version: {type: integer, format: int64}
+                expected_content_version: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
       responses:
         '204': {description: Item removed, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         default: {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/items/{item_id}/repin:
     parameters:
@@ -799,7 +799,7 @@ paths:
                 type: object
                 required: [assignments_resent]
                 properties:
-                  assignments_resent: {type: integer, minimum: 0, format: int64}
+                  assignments_resent: {type: integer, minimum: 0, format: int64, maximum: 2147483647}
           headers:
             RateLimit-Limit:
               $ref: '#/components/headers/RateLimit-Limit'
@@ -810,11 +810,11 @@ paths:
             Access-Control-Allow-Origin:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         default: {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/assignment-rules/{assignment_rule_id}/window:
     parameters:
@@ -845,7 +845,7 @@ paths:
                 type: object
                 required: [assignments_moved]
                 properties:
-                  assignments_moved: {type: integer, minimum: 0, format: int64}
+                  assignments_moved: {type: integer, minimum: 0, format: int64, maximum: 2147483647}
           headers:
             RateLimit-Limit:
               $ref: '#/components/headers/RateLimit-Limit'
@@ -856,11 +856,11 @@ paths:
             Access-Control-Allow-Origin:
               $ref: '#/components/headers/Access-Control-Allow-Origin'
         default: {$ref: '#/components/responses/Problem'}
-        "'401'":
+        '401':
           $ref: '#/components/responses/Problem401'
-        "'500'":
+        '500':
           $ref: '#/components/responses/Problem500'
-        "'429'":
+        '429':
           $ref: '#/components/responses/Problem429'
 
 components:
@@ -869,7 +869,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: 'Bearer JSON Web Token (JWT). Tokens are short-lived and signed per RFC 8725. Include as: Authorization: Bearer <token>.'
+      description: 'Bearer JSON Web Token (JWT). Tokens are short-lived and signed per RFC8725. Include as: Authorization: Bearer <token>.'
   parameters:
     TenantID:
       name: tenant_id
@@ -1140,6 +1140,7 @@ components:
     Timestamp:
       type: string
       format: date-time
+      maxLength: 35
     Problem:
       type: object
       required: [code, message]
@@ -1199,7 +1200,7 @@ components:
         tenant_id: {$ref: '#/components/schemas/UUID'}
         name: {type: string, maxLength: 1000}
         lifecycle_state: {enum: [active, archived]}
-        version: {type: integer, minimum: 1, format: int64}
+        version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
         created_at: {$ref: '#/components/schemas/Timestamp'}
     ProctorPolicyVersion:
       type: object
@@ -1208,9 +1209,9 @@ components:
         id: {$ref: '#/components/schemas/UUID'}
         tenant_id: {$ref: '#/components/schemas/UUID'}
         proctor_policy_id: {$ref: '#/components/schemas/UUID'}
-        version_number: {type: integer, minimum: 1, format: int64}
+        version_number: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
         policy: {type: object}
-        policy_checksum: {type: string, pattern: '^[0-9a-f]{64}$'}
+        policy_checksum: {type: string, pattern: '^[0-9a-f]{64}$', maxLength: 1000}
         status: {enum: [draft, published, retired]}
         published_at: {$ref: '#/components/schemas/Timestamp'}
         created_at: {$ref: '#/components/schemas/Timestamp'}
@@ -1222,7 +1223,7 @@ components:
         tenant_id: {$ref: '#/components/schemas/UUID'}
         external_reference: {type: string, maxLength: 1000}
         lifecycle_state: {enum: [draft, published, archived]}
-        version: {type: integer, minimum: 1, format: int64}
+        version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
         created_at: {$ref: '#/components/schemas/Timestamp'}
         updated_at: {$ref: '#/components/schemas/Timestamp'}
     CreateExamVersion:
@@ -1230,7 +1231,7 @@ components:
       additionalProperties: false
       required: [expected_exam_version, title, instructions_markdown, opens_at, closes_at, duration_seconds, proctor_policy_version_id]
       properties:
-        expected_exam_version: {type: integer, minimum: 1, format: int64}
+        expected_exam_version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
         title: {type: string, minLength: 1, maxLength: 300}
         instructions_markdown: {type: string, minLength: 1, maxLength: 100000}
         opens_at: {$ref: '#/components/schemas/Timestamp'}
@@ -1244,14 +1245,14 @@ components:
         id: {$ref: '#/components/schemas/UUID'}
         tenant_id: {$ref: '#/components/schemas/UUID'}
         exam_id: {$ref: '#/components/schemas/UUID'}
-        version_number: {type: integer, minimum: 1, format: int64}
-        content_version: {type: integer, minimum: 1, format: int64}
+        version_number: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
+        content_version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
         attempt_limit: {type: integer, minimum: 1, maximum: 20, format: int64}
         title: {type: string, maxLength: 1000}
         instructions_markdown: {type: string, maxLength: 1000}
         opens_at: {$ref: '#/components/schemas/Timestamp'}
         closes_at: {$ref: '#/components/schemas/Timestamp'}
-        duration_seconds: {type: integer, format: int64}
+        duration_seconds: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
         proctor_policy_version_id: {$ref: '#/components/schemas/UUID'}
         status: {enum: [draft, published, retired]}
         published_at: {$ref: '#/components/schemas/Timestamp'}
@@ -1261,8 +1262,8 @@ components:
       additionalProperties: false
       required: [expected_content_version, position, title, instructions_markdown]
       properties:
-        expected_content_version: {type: integer, minimum: 1, format: int64}
-        position: {type: integer, minimum: 1, format: int64}
+        expected_content_version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
+        position: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
         title: {type: string, minLength: 1, maxLength: 300}
         instructions_markdown: {type: string, maxLength: 100000}
         time_limit_seconds: {type: integer, minimum: 60, maximum: 43200, format: int64}
@@ -1279,20 +1280,20 @@ components:
         id: {$ref: '#/components/schemas/UUID'}
         tenant_id: {$ref: '#/components/schemas/UUID'}
         exam_version_id: {$ref: '#/components/schemas/UUID'}
-        position: {type: integer, format: int64}
+        position: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
         title: {type: string, maxLength: 1000}
         instructions_markdown: {type: string, maxLength: 1000}
-        time_limit_seconds: {type: integer, format: int64}
+        time_limit_seconds: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
         created_at: {$ref: '#/components/schemas/Timestamp'}
     AddExamItem:
       type: object
       additionalProperties: false
       required: [expected_content_version, position, question_version_id, maximum_score]
       properties:
-        expected_content_version: {type: integer, minimum: 1, format: int64}
-        position: {type: integer, minimum: 1, format: int64}
+        expected_content_version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
+        position: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
         question_version_id: {$ref: '#/components/schemas/UUID'}
-        maximum_score: {type: string, pattern: '^(?:0\.[0-9]{1,4}|[1-9][0-9]{0,7}(?:\.[0-9]{1,4})?)$'}
+        maximum_score: {type: string, pattern: '^(?:0\.[0-9]{1,4}|[1-9][0-9]{0,7}(?:\.[0-9]{1,4})?)$', maxLength: 1000}
     ExamItem:
       type: object
       required: [id, tenant_id, exam_version_id, section_id, position, question_id, question_version_id, maximum_score, evaluation_bundle_checksum, created_at]
@@ -1301,7 +1302,7 @@ components:
         tenant_id: {$ref: '#/components/schemas/UUID'}
         exam_version_id: {$ref: '#/components/schemas/UUID'}
         section_id: {$ref: '#/components/schemas/UUID'}
-        position: {type: integer, format: int64}
+        position: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
         question_id: {$ref: '#/components/schemas/UUID'}
         question_version_id: {$ref: '#/components/schemas/UUID'}
         maximum_score: {type: string, maxLength: 1000}
@@ -1330,7 +1331,7 @@ components:
         available_until: {$ref: '#/components/schemas/Timestamp'}
         accommodations: {type: object}
         disabled_at: {$ref: '#/components/schemas/Timestamp'}
-        version: {type: integer, format: int64}
+        version: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
         created_at: {$ref: '#/components/schemas/Timestamp'}
     CandidateAssignment:
       type: object
@@ -1351,7 +1352,7 @@ components:
         assigned_at: {$ref: '#/components/schemas/Timestamp'}
         revoked_at: {$ref: '#/components/schemas/Timestamp'}
         completed_at: {$ref: '#/components/schemas/Timestamp'}
-        version: {type: integer, format: int64}
+        version: {type: integer, format: int64, maximum: 2147483647, minimum: 0}
   headers:
     RateLimit-Limit:
       description: Standard rate-limit response headers (RFC 6585 / IETF draft-ietf-httpapi-ratelimit-headers).
@@ -1378,3 +1379,5 @@ components:
       schema:
         type: integer
         minimum: 0
+        format: int32
+        maximum: 86400
