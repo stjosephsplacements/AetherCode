@@ -23,7 +23,7 @@ export type StaffRow = {
   roles: RoleChip[];
   roleTypes: string[];
   departments: { id: string; name: string }[];
-  batches: { id: string; name: string }[];
+  batches: { id: string; name: string; departmentId: string }[];
 };
 
 type PlacementOption = { id: string; name: string };

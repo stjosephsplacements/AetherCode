@@ -103,7 +103,7 @@ export default async function StaffAccountsPage({
         roles,
         roleTypes: [...roleTypes],
         departments: entry.departments.map((department) => ({ id: department.id, name: department.name })),
-        batches: entry.batches.filter((batch) => batch.status === "active").map((batch) => ({ id: batch.id, name: `${batch.name} (${batch.academic_year})` })),
+        batches: entry.batches.filter((batch) => batch.status === "active").map((batch) => ({ id: batch.id, name: `${batch.name} (${batch.academic_year})`, departmentId: batch.department_id })),
       };
     });
   });

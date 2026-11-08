@@ -8,6 +8,7 @@ import { grantRole, revokeRole } from "./actions";
 
 export type RoleChip = { id: string; label: string };
 type Option = { id: string; name: string };
+type BatchOption = Option & { departmentId: string };
 
 const ROLE_LABELS = {
   college_admin: "College administrator",
@@ -29,13 +30,15 @@ export function RoleEditor({
   principalId: string;
   roles: RoleChip[];
   departments: Option[];
-  batches: Option[];
+  batches: BatchOption[];
   placements?: Option[];
 }) {
   const [revoked, revokeAction] = useActionState(revokeRole, initialActionState);
   const [granted, grantAction] = useActionState(grantRole, initialActionState);
   const [role, setRole] = useState<keyof typeof ROLE_LABELS>("department_user");
+  const [mentorDept, setMentorDept] = useState(departments[0]?.id ?? "");
   const [open, setOpen] = useState(false);
+  const mentorBatches = batches.filter((batch) => batch.departmentId === mentorDept);
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap gap-1.5">
@@ -81,15 +84,26 @@ export function RoleEditor({
             </Select>
           )}
           {role === "mentor" && (
-            <fieldset className="grid max-h-40 grid-cols-2 gap-1 overflow-y-auto text-sm">
-              <legend className="mb-1 text-xs text-ink-muted">Batches (choose any number)</legend>
-              {batches.map((batch) => (
-                <label key={batch.id} className="flex items-center gap-2">
-                  <Checkbox name="batch_id" value={batch.id} />
-                  {batch.name}
-                </label>
-              ))}
-            </fieldset>
+            <div className="space-y-2">
+              <Select name="mentor_department_id" aria-label="Department" size="sm" className="w-full" value={mentorDept} onValueChange={setMentorDept}>
+                {departments.map((department) => (
+                  <option key={department.id} value={department.id}>{department.name}</option>
+                ))}
+              </Select>
+              <fieldset className="grid max-h-40 grid-cols-2 gap-1 overflow-y-auto text-sm">
+                <legend className="mb-1 text-xs text-ink-muted">Batches in this department</legend>
+                {mentorBatches.length === 0 ? (
+                  <p className="col-span-2 text-xs text-ink-muted">No active batches in this department.</p>
+                ) : (
+                  mentorBatches.map((batch) => (
+                    <label key={batch.id} className="flex items-center gap-2">
+                      <Checkbox name="batch_id" value={batch.id} />
+                      {batch.name}
+                    </label>
+                  ))
+                )}
+              </fieldset>
+            </div>
           )}
           <FormMessage state={granted} />
           <Button type="submit" size="sm">Give role</Button>
