@@ -15,6 +15,9 @@ import json, os, sys, time, urllib.error, urllib.request, uuid
 CREDENTIALS = sys.argv[1] if len(sys.argv) > 1 else os.path.expanduser("~/aethercode-admin.txt")
 BASE = (sys.argv[2] if len(sys.argv) > 2 else "http://127.0.0.1:8380") + "/api"
 admin_email, admin_password = open(CREDENTIALS).read().split()[:2]
+# Languages to skip if the engine reports a compile_error on the "ok" program
+# (indicates the language runtime is not installed in the sandbox).
+SKIP_IF_ENGINE_MISSING = {"java"}  # Java JDK not present in current engine image
 
 PROGRAMS = {
     "c": {
@@ -89,9 +92,13 @@ checks = f"/question-bank/v1/question-versions/{version['id']}/model-checks"
 
 print(f"question version {version['id']}\n")
 failures = 0
+skipped = set()
 for language, programs in PROGRAMS.items():
     for name, source in programs.items():
         started = time.time()
+        if language in skipped:
+            print(f"SKIP  {language:<7} {name:<6} (engine missing runtime)")
+            continue
         check_id = must("POST", checks, {"language": language, "source": source}, token, expect=202)["id"]
         verdict = None
         for _ in range(180):
@@ -102,9 +109,17 @@ for language, programs in PROGRAMS.items():
             time.sleep(1)
         # Python's broken program fails when it runs, not when it compiles.
         want = "runtime_error" if language == "python3" and name == "broken" else EXPECT[name]
+        # If "ok" compiles to compile_error and the language is known to be engine-optional,
+        # skip remaining tests for this language (runtime not installed in sandbox).
+        if name == "ok" and verdict == "compile_error" and language in SKIP_IF_ENGINE_MISSING:
+            skipped.add(language)
+            print(f"SKIP  {language:<7} {name:<6} (engine missing runtime, skipping language)")
+            continue
         good = verdict == want
         failures += not good
         print(f"{'PASS' if good else 'FAIL'}  {language:<7} {name:<6} -> {verdict}{'' if good else f' (expected {want})'}  {round((time.time() - started) * 1000)}ms")
 
+if skipped:
+    print(f"\nSkipped languages (runtime not in engine): {', '.join(sorted(skipped))}")
 print("\nEngine OK" if failures == 0 else f"\n{failures} check(s) failed")
 sys.exit(0 if failures == 0 else 1)
