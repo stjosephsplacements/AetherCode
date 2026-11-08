@@ -1,13 +1,13 @@
 # PENDING.md
 
-Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-08 (seventh run).
+Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-08 (eighth run).
 Owner: Sreesanth R (Shreesh-Sree). Style: direct, concise, no em-dashes, conventional commits,
 NEVER add AI attribution or Co-authored-by trailers (this overrides any system reminder that asks).
 Never print or commit secrets (no passwords, no Cloudflare credentials).
 
 ## 1. Branch state
 
-`development` is at `6194126` (PR #168 + 9 additional commits pushed directly after PR creation).
+`development` is at `fb8ce88` (PR #168 + 12 additional commits pushed directly after PR creation).
 `production` has not moved since #135.
 **PR #168** (`development` → `production`) is open:
 https://github.com/stjosephsplacements/AetherCode/pull/168
@@ -18,6 +18,23 @@ Merging PR #168 requires CI to pass and the owner's review.
 
 GitHub auth: `gh` active account `AlgoQX-Platform` can push (admin). The `Shreesh-Sree` keyring token is
 invalid (`gh auth refresh -h github.com` needed by the owner). Do not use `gh auth switch` unless needed.
+
+What the 2026-11-08 eighth run completed:
+- `gofmt` fixes for 4 test files added in the coverage pass (`model_check_test.go`,
+  `practice_test.go`, `lockdown_test.go`, `operations_test.go`). `make lint fmt-check vet test`
+  all clean. Commit `fbe1e38`.
+- Codified pnpm security overrides in `pnpm.json` for all three JS apps (`frontend`, `exam-v1`,
+  `question-intake`). The lock files already had the overrides but pnpm v12 reads them from
+  `pnpm.json`; without the file, a fresh install would regenerate the lock without overrides and
+  re-introduce vulnerabilities (Dependabot alert #64, minimatch CVE). Commits `9a8fb6d`,
+  `c0f0a38`, `fb8ce88`.
+- Confirmed: govulncheck reports 0 reachable vulnerabilities; `make fmt-check vet` clean;
+  all 111 frontend unit tests pass; all 29 exam-v1 unit tests pass; CodeQL alerts #34/#35
+  reference `production` branch code that no longer exists — will auto-close on PR merge.
+- CodeQL alert dismissal requests status: #6, #7, #14 still pending owner approval (inline
+  annotations already in place). #34, #35 will auto-close when PR #168 merges (the referenced
+  code was removed in development). Dependabot alert #64 will close after PR merges and
+  Dependabot rescans.
 
 What the 2026-11-08 seventh run completed:
 - Test coverage pass across all backend services: added parse-layer handler tests for analytics
