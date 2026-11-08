@@ -2,10 +2,11 @@
 
 import { Check, CircleNotch } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { Attempt, AttemptResult } from "@/lib/api-types";
 import { api } from "@/lib/client/api";
+import { useRealtime } from "@/lib/client/realtime";
 import { formatDateTime, formatScoreText } from "@/lib/utils";
 
 // Confirms the submission and follows grading. Marks stay hidden until
@@ -14,6 +15,15 @@ export function AttemptStatus({ tenantId, attemptId }: { tenantId: string; attem
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [result, setResult] = useState<AttemptResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { subscribe } = useRealtime();
+  const wake = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    const stop = subscribe((message) => {
+      if (message.topic === "grading" || message.topic === "attempts") wake.current?.();
+    });
+    return stop;
+  }, [subscribe]);
 
   useEffect(() => {
     let stopped = false;
@@ -23,7 +33,12 @@ export function AttemptStatus({ tenantId, attemptId }: { tenantId: string; attem
         if (stopped) return;
         setAttempt(latest);
         if (latest.lifecycle_state === "active" || latest.lifecycle_state === "submitted" || latest.lifecycle_state === "grading") {
-          setTimeout(poll, 3000);
+          await new Promise<void>((resolve) => {
+            const timer = setTimeout(resolve, 3000);
+            wake.current = () => { clearTimeout(timer); resolve(); };
+          });
+          wake.current = null;
+          if (!stopped) void poll();
         } else if (latest.lifecycle_state === "graded") {
           setResult(await api<AttemptResult>(`/submission/v1/tenants/${tenantId}/attempts/${attemptId}/result`));
         }
@@ -34,6 +49,7 @@ export function AttemptStatus({ tenantId, attemptId }: { tenantId: string; attem
     void poll();
     return () => {
       stopped = true;
+      wake.current = null;
     };
   }, [tenantId, attemptId]);
 
