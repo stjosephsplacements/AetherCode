@@ -14,10 +14,10 @@ const buttonVariants = cva(
         quiet: "bg-hover text-ink hover:bg-line",
       },
       size: {
-        sm: "h-8 px-3.5 text-[13px]",
-        md: "h-9 px-4.5 text-sm",
+        sm: "h-9 px-3.5 text-[13px]",
+        md: "h-10 px-4.5 text-sm",
         lg: "h-11 px-6 text-[15px]",
-        icon: "size-8",
+        icon: "size-9",
       },
     },
     defaultVariants: { variant: "primary", size: "md" },

@@ -5,13 +5,16 @@ at the same time.
 
 ## Current numbers
 
-From `make loadtest --students 1000` on the campus server (single engine
-instance):
+From `make loadtest` on the campus server (single engine instance, 8 workers,
+3 gateway + 3 judge replicas):
 
-| Students | p50 verdict | p95 verdict | Max verdict | API steps |
-|----------|-------------|-------------|-------------|-----------|
-| 200      | ~4 s        | ~8 s        | ~15 s       | < 100 ms  |
-| 1,000    | ~12 s       | 33 s        | 93 s        | < 100 ms  |
+| Students | p50 verdict | p95 verdict | Max verdict | API p95 | Completed |
+|----------|-------------|-------------|-------------|---------|-----------|
+| 200      | 1.5 s       | 3.0 s       | 3.0 s       | 26 ms   | 200/200   |
+| 1,000    | 3.1 s       | 5.0 s       | 6.5 s       | 5.6 s*  | 461/1000  |
+
+\* 1000-student API latency is high because the SEB validation service becomes
+a bottleneck; 539 students hit SEB timeouts. Fix: scale SEB replicas from 1 to 3.
 
 API steps (start attempt, save code, run, submit) are milliseconds regardless
 of load. The bottleneck is the engine: how many programs it can compile and
