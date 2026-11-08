@@ -1,0 +1,2 @@
+-- Revert to exact authz_revision match (original behavior).
+-- This migration's up.sql has the current function bodies.
