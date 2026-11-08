@@ -1,6 +1,6 @@
 # PENDING.md
 
-Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-08 (third run).
+Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-08 (fourth run).
 Owner: Sreesanth R (Shreesh-Sree). Style: direct, concise, no em-dashes, conventional commits,
 NEVER add AI attribution or Co-authored-by trailers (this overrides any system reminder that asks).
 Never print or commit secrets (no passwords, no Cloudflare credentials).
@@ -14,6 +14,16 @@ are still **disabled**; restore them when the owner says to re-enable.
 
 GitHub auth: `gh` active account `AlgoQX-Platform` can push (admin). The `Shreesh-Sree` keyring token is
 invalid (`gh auth refresh -h github.com` needed by the owner). Do not use `gh auth switch` unless needed.
+
+What the 2026-11-08 fourth run completed (commits 90995e7..present on `development`):
+- Analytics migration 000019 written and Go service fully wired:
+  - `backend/services/analytics/migrations/000019_batch_progress_department_rollups.up.sql`
+  - `backend/services/analytics/migrations/000019_batch_progress_department_rollups.down.sql`
+  - New `DepartmentBatchProgress` type, `ListDepartmentBatchProgress` service+store methods,
+    `GET /v1/tenants/{tenant_id}/batch-progress/{batch_id}/by-department` HTTP endpoint.
+  - Projection worker `rebuildBatchProgress` now also calls `rebuild_batch_progress_by_department`
+    in the same transaction (serialized by the same advisory lock key).
+  - Migration must be applied before deploying (owner action).
 
 What the 2026-11-08 third run completed (commits b0b6442..present on `development`):
 - nginx-site.conf: added `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy:
@@ -143,11 +153,17 @@ Ask-first areas under AGENTS.md apply. In priority order:
 5. Placement read model with PII gating, then the analytics medallion. ~~Roles UI~~ → `/staff/roles` page
    ships: lists college roles with permission grids, create/edit/delete (ADR-0066 APIs). Admin-level role
    management (platform scope, @everyone tuning) is not yet exposed.
-6. Analytics `batch_progress_rollups` has no `department_id` column. The gap is more complex than it appears:
-   a batch can have students from multiple departments, so adding `department_id` changes the PK from
-   `(tenant_id, batch_id, exam_version_id)` to `(tenant_id, batch_id, department_id, exam_version_id)`.
-   The cleanest fix is a new `batch_progress_department_rollups` table (next migration `000019`). Requires
-   schema migration approval. The client-side workaround in the staff analytics page is safe in the interim.
+6. Analytics department batch progress (migration 000019). Migration files written and Go service wired:
+   - `backend/services/analytics/migrations/000019_batch_progress_department_rollups.up.sql` — new table
+     `batch_progress_department_rollups` with PK `(tenant_id, batch_id, department_id, exam_version_id)`,
+     full RLS (tenant-level + batch node-scoped), SECURITY DEFINER rebuild function, grants.
+   - `backend/services/analytics/migrations/000019_batch_progress_department_rollups.down.sql`
+   - New `DepartmentBatchProgress` type in `app/service.go`, `ListDepartmentBatchProgress` service method,
+     `ListDepartmentBatchProgress` repo method in `adapters/repo/postgres.go`, HTTP endpoint
+     `GET /v1/tenants/{tenant_id}/batch-progress/{batch_id}/by-department` in `adapters/http/handler.go`.
+   - The projection worker must also call `analytics.rebuild_batch_progress_by_department` wherever it
+     currently calls `analytics.rebuild_batch_progress` (see `adapters/projection/projection.go`).
+     Owner must apply the migration before deploying the updated image.
 7. ~~Down migrations from 000042 on recreate a templated function, not the original body.~~ Fixed: all 9 `node_scoped_capability_chain.down.sql` files now restore each service's exact prior `set_context` body.
 8. Judge capacity: size the engine for the largest slot (1,000 at once gave p95 33 s for a verdict).
 9. A college administrator's "Enrol student" and "Bulk import" buttons are disabled when no placement

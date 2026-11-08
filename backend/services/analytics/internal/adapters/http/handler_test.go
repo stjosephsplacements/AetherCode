@@ -18,3 +18,14 @@ func TestParseLimit(t *testing.T) {
 		}
 	}
 }
+
+func TestParseLimitUpTo(t *testing.T) {
+	r := httptest.NewRequest("GET", "/v1?limit=5000", nil)
+	if limit, err := parseLimitUpTo(r, 5000); err != nil || limit != 5000 {
+		t.Fatalf("parseLimitUpTo(5000) = %d, %v", limit, err)
+	}
+	r = httptest.NewRequest("GET", "/v1?limit=5001", nil)
+	if _, err := parseLimitUpTo(r, 5000); err == nil {
+		t.Fatal("parseLimitUpTo accepted value above maximum")
+	}
+}

@@ -274,6 +274,13 @@ Done 2026-11-05 to 2026-11-08 (code; deployed to `aether-test`):
   directly). ingress-nginx AppArmor fix codified: `deploy/helm/values-ingress-nginx-kernel-workaround.yaml`
   replaces the hand-applied kubectl patch; ADR-0076 written. Zero TODO/FIXME markers in Go
   source files. `make lint test web-check` clean.
+- Analytics department batch progress rollup (2026-11-08, fourth run): migration 000019
+  (`batch_progress_department_rollups`) written; new table adds `department_id` to the batch
+  progress PK, resolving the analytics gap where department-scoped staff could not read only
+  their slice without a client-side workaround. ADR-0077. Go service layer, repo adapter, and
+  HTTP endpoint `GET /v1/tenants/{tid}/batch-progress/{bid}/by-department` wired.
+  Projection worker `rebuildBatchProgress` now also rebuilds the department slice.
+  Migration must be applied before deploying. `make lint test` clean.
 
 ### Pending (2026-10-21)
 

@@ -743,6 +743,9 @@ func (store *Store) rebuildBatchProgress(ctx context.Context, tx pgx.Tx, tenantI
 	if _, err := tx.Exec(ctx, `SELECT analytics.rebuild_batch_progress($1::uuid, $2::uuid)`, tenantID, batchID); err != nil {
 		return projectionError(err, "rebuild batch progress")
 	}
+	if _, err := tx.Exec(ctx, `SELECT analytics.rebuild_batch_progress_by_department($1::uuid, $2::uuid)`, tenantID, batchID); err != nil {
+		return projectionError(err, "rebuild batch progress by department")
+	}
 	return nil
 }
 
