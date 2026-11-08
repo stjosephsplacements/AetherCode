@@ -27,6 +27,7 @@ profile. The current status is maintained in [roadmap.md](roadmap.md).
 - [Go backend audit, 2026-10-03](audits/2026-10-03-go-backend-audit.md) — the
   audit and its fix log; [SEB soft-delete deployment checklist](audits/seb-soft-delete-deployment-checklist.md)
   and [implementation report](audits/seb-soft-delete-implementation-report.md).
+- [API Reference](API.md) — every endpoint across all 9 platform services, from the OpenAPI specs.
 - [Roadmap](roadmap.md) — what is done, what is pending, what needs the owner.
 - [Gateway and SEB enforcement boundary](adr/0012-gateway-seb-enforcement-boundary.md)
   — fixed public routing, assertion verification, and candidate-bound SEB
