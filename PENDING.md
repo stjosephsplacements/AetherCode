@@ -1,13 +1,13 @@
 # PENDING.md
 
-Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-08 (seventeenth run).
+Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-08 (eighteenth run).
 Owner: Sreesanth R (Shreesh-Sree). Style: direct, concise, no em-dashes, conventional commits,
 NEVER add AI attribution or Co-authored-by trailers (this overrides any system reminder that asks).
 Never print or commit secrets (no passwords, no Cloudflare credentials).
 
 ## 1. Branch state
 
-`development` is at `06fb1a8` (PR #168 + 45 additional commits pushed directly after PR creation).
+`development` is at `88bf713` (PR #168 + 55 additional commits pushed directly after PR creation).
 `production` has not moved since #135.
 **PR #168** (`development` → `production`) is open:
 https://github.com/stjosephsplacements/AetherCode/pull/168
@@ -18,6 +18,22 @@ Merging PR #168 requires CI to pass and the owner's review.
 
 GitHub auth: `gh` active account `AlgoQX-Platform` can push (admin). The `Shreesh-Sree` keyring token is
 invalid (`gh auth refresh -h github.com` needed by the owner). Do not use `gh auth switch` unless needed.
+
+What the 2026-11-08 eighteenth run completed:
+- **Placement area expanded**: `/placement/staff` page for assigning/removing placement officers
+  (platform admins assign existing staff to placement departments). `/placement/questions` and
+  `/placement/exams` give placement staff a read-only view of the shared question bank and
+  cross-college exam listings. Admin sidebar now includes all placement navigation.
+- **Mentor scoping**: mentor batch assignment UI now shows a department picker first, then only
+  batches in that department. Prevents assigning mentors to batches outside their scope.
+- **Staff analytics LiveRefresh**: the college analytics page now refreshes via WebSocket when
+  grading events arrive, so exam statistics update in real time.
+- **LoadError hardening across all areas**: added inline error handling to staff community,
+  staff get-started, student exams, student tasks, student blogs, contests, hackathons,
+  interviews, and open-source pages. All now catch fetch failures inline instead of falling
+  to the root error boundary.
+- `make lint test web-check web-build` all clean. 144 frontend tests, 0 lint issues.
+  Commits `5b9c56c`..`88bf713`.
 
 What the 2026-11-08 seventeenth run completed:
 - Extracted placement handlers in the tenant service: `placement_handler.go` and
