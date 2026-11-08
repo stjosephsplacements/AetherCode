@@ -459,8 +459,8 @@ What the 2026-11-05/06 run fixed (each has a regression test where one can exist
 
 ## 1b. Where things run and how to test
 
-Server `aethercode@115.247.189.246` (the `stjosephs` alias goes through Cloudflare and times out; use the IP
-with `-o ProxyCommand=none`; the key needs the owner's agent). Two namespaces on k3s:
+Server: use the `aethercode` SSH alias (configured in `~/.ssh/config`) or the IP from `DEV_SERVER_HOST`
+(never committed — stored only in GitHub Secrets as `DEV_SERVER_HOST`). Add `-o ProxyCommand=none` to bypass Cloudflare if the alias times out. Two namespaces on k3s:
 - `aethercode`: the dev backend with the owner's accounts. No credentials in the repo; ask the owner.
 - `aether-test`: an isolated full copy for destructive tests, with its own administrator
   (`e2e-admin@test.local`, TOTP enrolled by `smoke.py`). It uses the dev images; the judge talks to the engine in
@@ -491,7 +491,7 @@ label and the ACM order was denied, owner can order an Advanced Certificate).
   owner in chat; ask the owner, it is intentionally not stored in the repo.
 - Walkthrough video: `apps/question-intake/public/walkthrough.mp4` (served at `/walkthrough.mp4`, linked from the Topics page).
   Copy on the owner's Desktop.
-- Deploy procedure (server `aethercode@115.247.189.246`, key `id_ed25519`, owner supplies the passphrase): tar the app with
+- Deploy procedure (server: `aethercode` SSH alias, key `id_ed25519`, owner supplies the passphrase): tar the app with
   `COPYFILE_DISABLE=1 tar --exclude='._*'`, `buildah bud --network=host -t question-intake:<sha> .`, `buildah push ... oci-archive`,
   `ctr -n k8s.io images import`, then `ctr -n k8s.io images tag question-intake:<sha> docker.io/library/question-intake:<sha>`
   (REQUIRED, otherwise ImagePullBackOff), `kubectl -n question-intake set image deploy/question-intake web=... migrate=...`.
