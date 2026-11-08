@@ -16,7 +16,7 @@ export default async function PlacementsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Placements"
-        description="Placement organisations and their departments, and how many students each college department has assigned to them."
+        description="Which students are in each placement track, across all colleges. Filter by organisation, department, batch or placement department to see who is assigned where."
       />
       <Suspense fallback={<PlacementsSkeleton />}>
         <PlacementsContent placement={placement} />

@@ -59,7 +59,7 @@ export default async function PlacementDepartmentsPage({ searchParams }: { searc
     <>
       <PageHeader
         title="Placement departments"
-        description="Placement organisations and the departments they run. These span colleges."
+        description="Placement organisations (like Training and Placement Cell) and their departments (like ELITE, HOPE, PEP). These span colleges — students from any department or batch can be assigned to a placement track."
       />
 
       <ul className="mb-5 flex flex-wrap gap-2" aria-label="Summary">
