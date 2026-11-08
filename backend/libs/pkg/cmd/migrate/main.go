@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/aethercode/aethercode/libs/pkg/database"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
 )
 
 func main() {

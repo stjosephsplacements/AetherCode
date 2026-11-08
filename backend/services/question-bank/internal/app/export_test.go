@@ -3,7 +3,7 @@ package app
 import (
 	"testing"
 
-	"github.com/aethercode/aethercode/libs/pkg/evalbundle"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/evalbundle"
 )
 
 func TestMarkSamplesFollowsTheEvaluationOrder(t *testing.T) {

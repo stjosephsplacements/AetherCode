@@ -12,11 +12,11 @@ import (
 	"strings"
 	"time"
 
-	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
-	"github.com/aethercode/aethercode/libs/pkg/database"
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
 )
 
 var uuidPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
@@ -70,6 +70,22 @@ type ExamResult struct {
 type BatchProgress struct {
 	TenantID       string    `json:"tenant_id"`
 	BatchID        string    `json:"batch_id"`
+	ExamVersionID  string    `json:"exam_version_id"`
+	AssignedCount  int       `json:"assigned_count"`
+	StartedCount   int       `json:"started_count"`
+	CompletedCount int       `json:"completed_count"`
+	AverageScore   *string   `json:"average_score,omitempty"`
+	SourceRevision int64     `json:"source_revision"`
+	ComputedAt     time.Time `json:"computed_at"`
+	Version        int64     `json:"version"`
+}
+
+// DepartmentBatchProgress is the department-sliced view of BatchProgress.
+// department_id is the college_department_id from student_affiliation_projections.
+type DepartmentBatchProgress struct {
+	TenantID       string    `json:"tenant_id"`
+	BatchID        string    `json:"batch_id"`
+	DepartmentID   string    `json:"department_id"`
 	ExamVersionID  string    `json:"exam_version_id"`
 	AssignedCount  int       `json:"assigned_count"`
 	StartedCount   int       `json:"started_count"`
@@ -152,6 +168,7 @@ type Store interface {
 	ListStudentProgress(context.Context, *database.GormDB, string, string, int) ([]StudentProgress, error)
 	ListExamResults(context.Context, *database.GormDB, string, string, int) ([]ExamResult, error)
 	ListBatchProgress(context.Context, *database.GormDB, string, string, int) ([]BatchProgress, error)
+	ListDepartmentBatchProgress(context.Context, *database.GormDB, string, string, int) ([]DepartmentBatchProgress, error)
 	ListPlacementProgress(context.Context, *database.GormDB, string, string, int) ([]PlacementProgress, error)
 	GetReportExport(context.Context, pgx.Tx, string, string) (ReportExport, error)
 	RequestReportExport(context.Context, pgx.Tx, RequestReportExport) (ReportExport, error)
@@ -213,6 +230,19 @@ func (service *Service) ListBatchProgress(ctx context.Context, capability centra
 	err := database.WithTenantGormTx(ctx, service.orm, capability, func(transaction *database.GormDB) error {
 		var err error
 		result, err = service.store.ListBatchProgress(ctx, transaction, tenantID, batchID, normalizedLimit(limit))
+		return err
+	})
+	return result, err
+}
+
+func (service *Service) ListDepartmentBatchProgress(ctx context.Context, capability centralauthz.Capability, tenantID, batchID string, limit int) ([]DepartmentBatchProgress, error) {
+	if !validID(tenantID) || !validID(batchID) || !validLimit(limit) {
+		return nil, invalid("department batch progress query is invalid")
+	}
+	var result []DepartmentBatchProgress
+	err := database.WithTenantGormTx(ctx, service.orm, capability, func(transaction *database.GormDB) error {
+		var err error
+		result, err = service.store.ListDepartmentBatchProgress(ctx, transaction, tenantID, batchID, normalizedLimit(limit))
 		return err
 	})
 	return result, err

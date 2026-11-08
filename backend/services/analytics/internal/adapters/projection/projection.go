@@ -15,11 +15,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/database"
-	"github.com/aethercode/aethercode/libs/pkg/messaging"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/messaging"
 )
 
 const (
@@ -62,6 +62,14 @@ func (store *Store) Ping(ctx context.Context) error {
 		return fmt.Errorf("ping Analytics projection database: %w", err)
 	}
 	return nil
+}
+
+// Inbox returns the inbox store so callers can wire it as a consumer cleaner.
+func (store *Store) Inbox() *messaging.InboxStore {
+	if store == nil {
+		return nil
+	}
+	return store.inbox
 }
 
 type studentEnrolled struct {
@@ -743,6 +751,9 @@ func (store *Store) rebuildBatchProgress(ctx context.Context, tx pgx.Tx, tenantI
 	if _, err := tx.Exec(ctx, `SELECT analytics.rebuild_batch_progress($1::uuid, $2::uuid)`, tenantID, batchID); err != nil {
 		return projectionError(err, "rebuild batch progress")
 	}
+	if _, err := tx.Exec(ctx, `SELECT analytics.rebuild_batch_progress_by_department($1::uuid, $2::uuid)`, tenantID, batchID); err != nil {
+		return projectionError(err, "rebuild batch progress by department")
+	}
 	return nil
 }
 
@@ -805,7 +816,6 @@ func decodeEvent(event messaging.Event, eventType string, destination any) error
 	}
 	decoder := json.NewDecoder(bytes.NewReader(event.Payload))
 	decoder.UseNumber()
-	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(destination); err != nil {
 		return err
 	}

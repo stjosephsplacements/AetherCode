@@ -24,6 +24,22 @@ paths:
         '503': {description: A required dependency is unavailable}
   /v1/tenants/{tenant_id}/proctor-policies:
     parameters: [{$ref: '#/components/parameters/TenantID'}]
+    get:
+      summary: List proctor policies for the tenant
+      description: Staff-scoped. Returns policies ordered by created_at DESC, id DESC.
+      parameters:
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+        - name: cursor
+          in: query
+          schema: {type: string}
+        - name: lifecycle_state
+          in: query
+          schema: {enum: [draft, active, archived]}
+      responses:
+        '200': {$ref: '#/components/responses/ProctorPolicyPage'}
+        default: {$ref: '#/components/responses/Problem'}
     post:
       summary: Create a proctor-policy aggregate
       parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
@@ -40,10 +56,35 @@ paths:
       responses:
         '201': {$ref: '#/components/responses/ProctorPolicy'}
         default: {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/proctor-policies/{proctor_policy_id}:
+    parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/ProctorPolicyID'}
+    get:
+      summary: Read a proctor-policy aggregate
+      responses:
+        '200': {$ref: '#/components/responses/ProctorPolicy'}
+        default: {$ref: '#/components/responses/Problem'}
   /v1/tenants/{tenant_id}/proctor-policies/{proctor_policy_id}/versions:
     parameters:
       - {$ref: '#/components/parameters/TenantID'}
       - {$ref: '#/components/parameters/ProctorPolicyID'}
+    get:
+      summary: List versions of a proctor policy
+      description: Staff-scoped. Returns versions ordered by version_number DESC, id DESC.
+      parameters:
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+        - name: cursor
+          in: query
+          schema: {type: string}
+        - name: status
+          in: query
+          schema: {enum: [draft, published]}
+      responses:
+        '200': {$ref: '#/components/responses/ProctorPolicyVersionPage'}
+        default: {$ref: '#/components/responses/Problem'}
     post:
       summary: Add the next immutable proctor-policy draft
       parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
@@ -60,6 +101,15 @@ paths:
                 policy: {type: object}
       responses:
         '201': {$ref: '#/components/responses/ProctorPolicyVersion'}
+        default: {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/proctor-policy-versions/{proctor_policy_version_id}:
+    parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/ProctorPolicyVersionID'}
+    get:
+      summary: Read an immutable proctor-policy version snapshot
+      responses:
+        '200': {$ref: '#/components/responses/ProctorPolicyVersion'}
         default: {$ref: '#/components/responses/Problem'}
   /v1/tenants/{tenant_id}/proctor-policy-versions/{proctor_policy_version_id}/publish:
     parameters:
@@ -105,6 +155,70 @@ paths:
                 external_reference: {type: string, minLength: 1, maxLength: 160}
       responses:
         '201': {$ref: '#/components/responses/Exam'}
+        default: {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/exams/{exam_id}:
+    parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/ExamID'}
+    get:
+      summary: Read an exam aggregate
+      responses:
+        '200': {$ref: '#/components/responses/Exam'}
+        default: {$ref: '#/components/responses/Problem'}
+    patch:
+      summary: Update an exam's external reference
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expected_version]
+              properties:
+                expected_version: {type: integer, format: int64, minimum: 1}
+                external_reference: {type: string, minLength: 1, maxLength: 160}
+      responses:
+        '200': {$ref: '#/components/responses/Exam'}
+        default: {$ref: '#/components/responses/Problem'}
+    delete:
+      summary: Soft-delete an exam
+      description: Sets deleted_at on the exam aggregate. Requires a reason.
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: {type: string, minLength: 1, maxLength: 500}
+      responses:
+        '204': {description: Exam soft-deleted}
+        default: {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/exams/{exam_id}/hard:
+    parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/ExamID'}
+    delete:
+      summary: Permanently delete an exam
+      description: Irreversible hard delete. Only permitted for draft exams with no candidate assignments. Requires a reason.
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: {type: string, minLength: 1, maxLength: 500}
+      responses:
+        '204': {description: Exam permanently deleted}
         default: {$ref: '#/components/responses/Problem'}
   /v1/tenants/{tenant_id}/exams/{exam_id}/versions:
     parameters:
@@ -399,6 +513,22 @@ paths:
         '400': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+    delete:
+      summary: Remove a section from a draft exam version
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expected_content_version]
+              properties:
+                expected_content_version: {type: integer, format: int64}
+      responses:
+        '204': {description: Section removed}
+        default: {$ref: '#/components/responses/Problem'}
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/sections/{section_id}/items/{item_id}:
     parameters:
       - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid}}
@@ -425,6 +555,85 @@ paths:
         '400': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+    delete:
+      summary: Remove a question item from a draft exam section
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expected_content_version]
+              properties:
+                expected_content_version: {type: integer, format: int64}
+      responses:
+        '204': {description: Item removed}
+        default: {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/items/{item_id}/repin:
+    parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/ExamVersionID'}
+      - {name: item_id, in: path, required: true, schema: {type: string, format: uuid}}
+    post:
+      summary: Repin an exam item to a corrected question version
+      description: >-
+        Points the item at a newer published version of its question and
+        re-dispatches candidate assignments for regrading (ADR-0039).
+        No idempotency key: the regrade side-effect is best-effort.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [question_version_id]
+              properties:
+                question_version_id: {$ref: '#/components/schemas/UUID'}
+      responses:
+        '200':
+          description: Repin applied; indicates how many assignments were re-dispatched.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [assignments_resent]
+                properties:
+                  assignments_resent: {type: integer, minimum: 0}
+        default: {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/assignment-rules/{assignment_rule_id}/window:
+    parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/AssignmentRuleID'}
+    post:
+      summary: Move the close time of a published assignment rule window
+      description: >-
+        Extends or shortens available_until for a live assignment rule and
+        propagates the change to all active candidate assignments (ADR-0040).
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [available_until]
+              properties:
+                available_until: {$ref: '#/components/schemas/Timestamp'}
+      responses:
+        '200':
+          description: Window moved; indicates how many candidate assignments were updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [assignments_moved]
+                properties:
+                  assignments_moved: {type: integer, minimum: 0}
+        default: {$ref: '#/components/responses/Problem'}
 
 components:
   securitySchemes:
@@ -482,9 +691,15 @@ components:
     ProctorPolicy:
       description: Proctor policy aggregate
       content: {application/json: {schema: {$ref: '#/components/schemas/ProctorPolicy'}}}
+    ProctorPolicyPage:
+      description: Keyset page of proctor policies
+      content: {application/json: {schema: {$ref: '#/components/schemas/ProctorPolicyPage'}}}
     ProctorPolicyVersion:
       description: Immutable proctor policy snapshot
       content: {application/json: {schema: {$ref: '#/components/schemas/ProctorPolicyVersion'}}}
+    ProctorPolicyVersionPage:
+      description: Keyset page of proctor policy versions
+      content: {application/json: {schema: {$ref: '#/components/schemas/ProctorPolicyVersionPage'}}}
     Exam:
       description: Exam aggregate
       content: {application/json: {schema: {$ref: '#/components/schemas/Exam'}}}
@@ -551,6 +766,22 @@ components:
         items:
           type: array
           items: {$ref: '#/components/schemas/ExamVersion'}
+        next_cursor: {type: string}
+    ProctorPolicyPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/ProctorPolicy'}
+        next_cursor: {type: string}
+    ProctorPolicyVersionPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/ProctorPolicyVersion'}
         next_cursor: {type: string}
     ProctorPolicy:
       type: object

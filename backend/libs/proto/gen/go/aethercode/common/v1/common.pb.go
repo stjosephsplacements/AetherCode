@@ -117,7 +117,7 @@ const file_aethercode_common_v1_common_proto_rawDesc = "" +
 	"\rHealthRequest\"B\n" +
 	"\x0eHealthResponse\x12\x18\n" +
 	"\aservice\x18\x01 \x01(\tR\aservice\x12\x16\n" +
-	"\x06status\x18\x02 \x01(\tR\x06statusBRZPgithub.com/aethercode/aethercode/libs/proto/gen/go/aethercode/common/v1;commonv1b\x06proto3"
+	"\x06status\x18\x02 \x01(\tR\x06statusB[ZYgithub.com/stjosephsplacements/AetherCode/libs/proto/gen/go/aethercode/common/v1;commonv1b\x06proto3"
 
 var (
 	file_aethercode_common_v1_common_proto_rawDescOnce sync.Once

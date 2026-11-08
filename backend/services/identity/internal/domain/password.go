@@ -22,6 +22,14 @@ const (
 	argonParallelism = 4
 	argonSaltLength  = 16
 	argonKeyLength   = 32
+
+	// Passwords the platform generates (12 random characters, about 69 bits) are hashed with the OWASP
+	// minimum Argon2id settings: a 500-student import hashes 500 of them in one request, and the person
+	// replaces the password with a stronger one at first sign-in. VerifyPassword reads the parameters
+	// from the hash, so both kinds verify.
+	generatedArgonMemory      = 19 * 1024
+	generatedArgonIterations  = 2
+	generatedArgonParallelism = 1
 )
 
 // ValidatePassword enforces the v1 password policy before Argon2id work is
@@ -66,6 +74,16 @@ func GeneratePassword() (string, error) {
 
 // HashPassword returns a self-describing Argon2id PHC string.
 func HashPassword(password string) (string, error) {
+	return hashPassword(password, argonMemory, argonIterations, argonParallelism)
+}
+
+// HashGeneratedPassword hashes a password GeneratePassword produced, which carries enough entropy for
+// the lighter settings above. Use HashPassword for anything a person chose.
+func HashGeneratedPassword(password string) (string, error) {
+	return hashPassword(password, generatedArgonMemory, generatedArgonIterations, generatedArgonParallelism)
+}
+
+func hashPassword(password string, memory, iterations uint32, parallelism uint8) (string, error) {
 	if err := ValidatePassword(password); err != nil {
 		return "", err
 	}
@@ -73,9 +91,9 @@ func HashPassword(password string) (string, error) {
 	if _, err := rand.Read(salt); err != nil {
 		return "", fmt.Errorf("read password salt: %w", err)
 	}
-	hash := argon2.IDKey([]byte(password), salt, argonIterations, argonMemory, argonParallelism, argonKeyLength)
+	hash := argon2.IDKey([]byte(password), salt, iterations, memory, parallelism, argonKeyLength)
 	return fmt.Sprintf("$argon2id$v=%d$m=%d,t=%d,p=%d$%s$%s",
-		argon2.Version, argonMemory, argonIterations, argonParallelism,
+		argon2.Version, memory, iterations, parallelism,
 		base64.RawStdEncoding.EncodeToString(salt), base64.RawStdEncoding.EncodeToString(hash)), nil
 }
 

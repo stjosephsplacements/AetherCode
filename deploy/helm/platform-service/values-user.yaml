@@ -25,6 +25,7 @@ tls:
 
 config:
   SERVICE_NAME: "user"
+  AUTHZ_ENGINE: "casbin"
   AUTHZ_CLIENT_TLS_CA_FILE: "/certs/ca.crt"
   AUTHZ_CLIENT_TLS_SERVER_NAME: "user"
   AUTHZ_CLIENT_TLS_CERT_FILE: "/certs/tls.crt"
@@ -76,3 +77,26 @@ networkPolicy:
       ports: [9443]
     - service: analytics
       ports: [9443]
+  egress:
+    enabled: true
+    dnsNamespaceLabels:
+      kubernetes.io/metadata.name: kube-system
+    dnsPodLabels:
+      k8s-app: kube-dns
+    postgres:
+      enabled: true
+      port: 5432
+    nats:
+      enabled: true
+      port: 4222
+    userGrpc:
+      enabled: false
+    extraRules:
+      - to:
+          - podSelector:
+              matchLabels:
+                app.kubernetes.io/part-of: aethercode
+                app.kubernetes.io/name: identity
+        ports:
+          - protocol: TCP
+            port: 9444

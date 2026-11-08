@@ -3,8 +3,8 @@ package httpadapter
 import (
 	"net/http"
 
-	"github.com/aethercode/aethercode/libs/pkg/httpx"
-	"github.com/aethercode/aethercode/services/tenant/internal/app"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
+	"github.com/stjosephsplacements/AetherCode/services/tenant/internal/app"
 )
 
 // Updates are PATCHes: only the fields in the body change.
@@ -36,34 +36,6 @@ func (handler *Handler) updateTenant(writer http.ResponseWriter, request *http.R
 		return
 	}
 	httpx.WriteJSON(writer, http.StatusOK, tenant)
-}
-
-type updatePlacementOrganizationRequest struct {
-	LegalName *string `json:"legal_name"`
-}
-
-func (handler *Handler) updatePlacementOrganization(writer http.ResponseWriter, request *http.Request) {
-	organizationID, err := httpx.ParseUUIDPathValue(request, "organization_id")
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	var body updatePlacementOrganizationRequest
-	if err := httpx.DecodeJSON(request, &body); err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "placement_organizations", organizationID, "")
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	organization, err := handler.service.UpdatePlacementOrganization(request.Context(), decision.Capability, app.UpdatePlacementOrganization{ID: organizationID, LegalName: body.LegalName})
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	httpx.WriteJSON(writer, http.StatusOK, organization)
 }
 
 type updateDepartmentRequest struct {

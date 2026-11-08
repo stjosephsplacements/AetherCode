@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/authn"
-	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
-	"github.com/aethercode/aethercode/services/user/internal/app"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/authn"
+	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
+	"github.com/stjosephsplacements/AetherCode/services/user/internal/app"
 )
 
 // Runtime controls the canonical authorization gRPC listener and its signing

@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	judgeadapter "github.com/aethercode/aethercode/services/question-bank/internal/adapters/judge"
+	judgeadapter "github.com/stjosephsplacements/AetherCode/services/question-bank/internal/adapters/judge"
 	"log/slog"
 	"net"
 	"os"
@@ -12,24 +12,26 @@ import (
 	"syscall"
 	"time"
 
-	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
-	"github.com/aethercode/aethercode/libs/pkg/authzprojection"
-	"github.com/aethercode/aethercode/libs/pkg/config"
-	"github.com/aethercode/aethercode/libs/pkg/database"
-	"github.com/aethercode/aethercode/libs/pkg/grpcmtls"
-	"github.com/aethercode/aethercode/libs/pkg/httpauth"
-	"github.com/aethercode/aethercode/libs/pkg/httpx"
-	localkms "github.com/aethercode/aethercode/libs/pkg/kms/local"
-	"github.com/aethercode/aethercode/libs/pkg/logging"
-	"github.com/aethercode/aethercode/libs/pkg/messaging"
-	minioclient "github.com/aethercode/aethercode/libs/pkg/storage/minio"
-	"github.com/aethercode/aethercode/libs/pkg/telemetry"
-	questionbankv1 "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/questionbank/v1"
-	grpcadapter "github.com/aethercode/aethercode/services/question-bank/internal/adapters/grpc"
-	httpadapter "github.com/aethercode/aethercode/services/question-bank/internal/adapters/http"
-	"github.com/aethercode/aethercode/services/question-bank/internal/adapters/repo"
-	"github.com/aethercode/aethercode/services/question-bank/internal/app"
-	qbankconfig "github.com/aethercode/aethercode/services/question-bank/internal/config"
+	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/authzprojection"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/buildinfo"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/config"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/grpcmtls"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpauth"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
+	localkms "github.com/stjosephsplacements/AetherCode/libs/pkg/kms/local"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/logging"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/messaging"
+	minioclient "github.com/stjosephsplacements/AetherCode/libs/pkg/storage/minio"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry/dbmetrics"
+	questionbankv1 "github.com/stjosephsplacements/AetherCode/libs/proto/gen/go/aethercode/questionbank/v1"
+	grpcadapter "github.com/stjosephsplacements/AetherCode/services/question-bank/internal/adapters/grpc"
+	httpadapter "github.com/stjosephsplacements/AetherCode/services/question-bank/internal/adapters/http"
+	"github.com/stjosephsplacements/AetherCode/services/question-bank/internal/adapters/repo"
+	"github.com/stjosephsplacements/AetherCode/services/question-bank/internal/app"
+	qbankconfig "github.com/stjosephsplacements/AetherCode/services/question-bank/internal/config"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -52,7 +54,7 @@ func run(contextValue context.Context) error {
 	if err != nil {
 		return err
 	}
-	otelShutdown, err := telemetry.InitProvider(contextValue, "question-bank", "0.1.0")
+	otelShutdown, err := telemetry.InitProvider(contextValue, "question-bank", buildinfo.Version)
 	if err != nil {
 		logger.Warn("telemetry provider init failed, tracing disabled", "error", err)
 	} else {
@@ -71,6 +73,7 @@ func run(contextValue context.Context) error {
 		return err
 	}
 	defer pool.Close()
+	dbmetrics.Register("question-bank", pool)
 
 	authzRuntime, err := centralauthz.LoadClientRuntime(serviceConfig.Environment)
 	if err != nil {

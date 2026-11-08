@@ -13,9 +13,12 @@ const LINKS = [
   { href: "/admin/incidents", title: "Incidents", text: "What needs attention now, and emergency controls for open exams." },
   { href: "/admin/colleges", title: "Colleges", text: "Add, edit and remove the colleges on this platform." },
   { href: "/admin/admins", title: "Administrators", text: "Who holds platform-wide access, and what they may do." },
+  { href: "/staff/permissions?scope=platform", title: "Permissions", text: "Grant extra permissions to staff beyond what their role allows." },
   { href: "/admin/analytics", title: "Analytics", text: "Load and health of every service, live." },
   { href: "/admin/status", title: "System status", text: "Service health and the judge queue." },
   { href: "/admin/audit", title: "Audit log", text: "Every staff change, in every college." },
+  { href: "/placement", title: "Placements", text: "Which students are in each placement track, across all colleges." },
+  { href: "/placement/departments", title: "Placement departments", text: "Organisations (like PEP, HOPE) and the departments they run." },
 ];
 
 export default async function AdminHome() {
@@ -23,7 +26,7 @@ export default async function AdminHome() {
   const health = staff.tenants[0] ? await serviceHealth(staff.tenants[0].id).catch(() => null) : null;
   return (
     <>
-      <PageHeader title="Admin console" description="Everything that spans colleges. Work inside one college from its workspace." actions={<ServicesBadge initial={health} />} />
+      <PageHeader title="Admin console" description="Platform-level settings. Open a college below to work inside it." actions={<ServicesBadge initial={health} />} />
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <Tile label="Colleges">
           <p className="font-mono text-[2rem] font-semibold leading-none text-ink">{staff.tenants.length}</p>

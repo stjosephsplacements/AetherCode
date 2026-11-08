@@ -42,7 +42,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
     );
   }
   const { entries, unreachable } = data;
-  const several = staff.isPlatformAdmin;
+  const several = false; // /staff is one college (cross-college lists live in /admin), so no college picker or column
   const last = entries.at(-1);
   const dayOf = new Intl.DateTimeFormat("en-IN", { timeZone: TIME_ZONE, weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const timeOf = new Intl.DateTimeFormat("en-IN", { timeZone: TIME_ZONE, hour: "numeric", minute: "2-digit", hour12: true });

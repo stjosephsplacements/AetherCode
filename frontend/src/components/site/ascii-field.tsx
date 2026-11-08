@@ -100,8 +100,8 @@ export function AsciiField() {
   const layer = "ascii-art pointer-events-none fixed inset-0 select-none overflow-hidden [font-size:calc(100vw/var(--columns,150)/0.6)]";
   return (
     <>
-      <pre ref={ref} aria-hidden className={`${layer} -z-30 text-ink/[0.07]`} />
-      <pre ref={glowRef} aria-hidden className={`${layer} -z-20 text-brand/35`} />
+      <pre ref={ref} aria-hidden className={`${layer} -z-30 ascii-grey`} />
+      <pre ref={glowRef} aria-hidden className={`${layer} -z-20 ascii-glow`} />
     </>
   );
 }

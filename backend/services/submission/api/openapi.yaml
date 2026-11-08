@@ -98,6 +98,51 @@ paths:
         '400': { $ref: '#/components/responses/Problem400' }
         '403': { $ref: '#/components/responses/Problem403' }
         '404': { $ref: '#/components/responses/Problem404' }
+    delete:
+      summary: Soft-delete an attempt
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/AttemptID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 1, maxLength: 500 }
+      responses:
+        '204': { description: Attempt soft-deleted. }
+        '400': { $ref: '#/components/responses/Problem400' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '404': { $ref: '#/components/responses/Problem404' }
+  /v1/tenants/{tenant_id}/attempts/{attempt_id}/hard:
+    delete:
+      summary: Permanently delete an attempt
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/AttemptID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 1, maxLength: 500 }
+      responses:
+        '204': { description: Attempt permanently deleted. }
+        '400': { $ref: '#/components/responses/Problem400' }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '404': { $ref: '#/components/responses/Problem404' }
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/paper:
     get:
       summary: The exam paper of an attempt the caller owns (ADR-0023)
@@ -123,6 +168,38 @@ paths:
         '403': { $ref: '#/components/responses/Problem403' }
         '404': { $ref: '#/components/responses/Problem404' }
         '503': { $ref: '#/components/responses/Problem503' }
+  /v1/tenants/{tenant_id}/attempts/{attempt_id}/unit-results:
+    get:
+      summary: Candidate's per-unit breakdown for their own attempt
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/AttemptID'
+      responses:
+        '200':
+          description: Per-unit test results for the attempt.
+          content:
+            application/json:
+              schema: { type: object }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '404': { $ref: '#/components/responses/Problem404' }
+  /v1/tenants/{tenant_id}/attempts/{attempt_id}/judge-receipts:
+    get:
+      summary: Full per-unit judge receipts for staff (requires judge_receipts capability)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/AttemptID'
+      responses:
+        '200':
+          description: Full unit results with judge receipts. Requires a staff-scoped role.
+          content:
+            application/json:
+              schema: { type: object }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '404': { $ref: '#/components/responses/Problem404' }
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/answers:
     get:
       summary: List answer-revision metadata for an attempt the caller owns (keyset paged)
@@ -644,6 +721,39 @@ paths:
       responses:
         '200': { description: The saved settings. }
         '403': { $ref: '#/components/responses/Problem403' }
+  /v1/tenants/{tenant_id}/grading-queue:
+    get:
+      summary: Staff view of the tenant's current grading queue (ADR-0043)
+      description: Requires read on score_summaries (staff-only resource).
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+      responses:
+        '200':
+          description: The grading queue.
+          content:
+            application/json:
+              schema: { type: object }
+        '403': { $ref: '#/components/responses/Problem403' }
+  /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/items/{exam_item_id}/regrade:
+    post:
+      summary: Re-evaluate all answers to one item on its current tests (ADR-0039)
+      description: Requires write on score_summaries.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/ExamVersionID'
+        - $ref: '#/components/parameters/ExamItemID'
+      responses:
+        '200':
+          description: Regrade queued.
+          content:
+            application/json:
+              schema: { type: object }
+        '403': { $ref: '#/components/responses/Problem403' }
+        '404': { $ref: '#/components/responses/Problem404' }
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/events:
     post:
       summary: Record an integrity event for the caller's attempt (ADR-0037)

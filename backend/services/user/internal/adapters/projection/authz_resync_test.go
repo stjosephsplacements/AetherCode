@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/aethercode/aethercode/libs/pkg/messaging"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/messaging"
 )
 
 func TestMapAuthorizationResyncRequestErrorKeepsOnlyRateLimitRetryable(t *testing.T) {

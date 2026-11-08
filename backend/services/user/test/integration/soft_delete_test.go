@@ -15,17 +15,17 @@ import (
 	"testing"
 	"time"
 
-	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
-	"github.com/aethercode/aethercode/libs/pkg/httpauth"
-	"github.com/aethercode/aethercode/libs/pkg/testutil/integration"
-	authzv1 "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/authz/v1"
-	authnadapter "github.com/aethercode/aethercode/services/user/internal/adapters/authn"
-	httpadapter "github.com/aethercode/aethercode/services/user/internal/adapters/http"
-	"github.com/aethercode/aethercode/services/user/internal/adapters/repo"
-	"github.com/aethercode/aethercode/services/user/internal/app"
-	userconfig "github.com/aethercode/aethercode/services/user/internal/config"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpauth"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/testutil/integration"
+	authzv1 "github.com/stjosephsplacements/AetherCode/libs/proto/gen/go/aethercode/authz/v1"
+	authnadapter "github.com/stjosephsplacements/AetherCode/services/user/internal/adapters/authn"
+	httpadapter "github.com/stjosephsplacements/AetherCode/services/user/internal/adapters/http"
+	"github.com/stjosephsplacements/AetherCode/services/user/internal/adapters/repo"
+	"github.com/stjosephsplacements/AetherCode/services/user/internal/app"
+	userconfig "github.com/stjosephsplacements/AetherCode/services/user/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -426,7 +426,7 @@ func (rpc *fakeAuthorizationRPC) Authorize(
 	decisionID := strings.ToLower(uuid.New().String())
 	capability, err := rpc.keyring.Issue(
 		rpc.audience, request.GetPrincipalId(), request.GetTenantId(), testAuthzRevision,
-		decisionID, "user."+request.GetAction(), "users."+request.GetResourceType(), time.Now(),
+		decisionID, "user."+request.GetAction(), "users."+request.GetResourceType(), nil, time.Now(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("issue test database capability: %w", err)

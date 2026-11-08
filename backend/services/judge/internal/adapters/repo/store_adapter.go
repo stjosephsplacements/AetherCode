@@ -10,13 +10,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/database"
-	"github.com/aethercode/aethercode/libs/pkg/evalbundle"
-	"github.com/aethercode/aethercode/libs/pkg/kms"
-	"github.com/aethercode/aethercode/libs/pkg/storage"
-	"github.com/aethercode/aethercode/services/judge/internal/dispatcher"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/evalbundle"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/kms"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/storage"
+	"github.com/stjosephsplacements/AetherCode/services/judge/internal/dispatcher"
 )
 
 // DispatchStoreAdapter implements dispatcher.Store over the judge PostgreSQL

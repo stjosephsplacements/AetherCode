@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/database"
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	"github.com/aethercode/aethercode/services/analytics/internal/app"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	"github.com/stjosephsplacements/AetherCode/services/analytics/internal/app"
 )
 
 type Postgres struct{ pool *pgxpool.Pool }
@@ -156,6 +156,45 @@ func (repository *Postgres) ListBatchProgress(ctx context.Context, tx *database.
 		})
 	}
 	return batchProgress, nil
+}
+
+type departmentBatchProgressRow struct {
+	TenantID       string    `gorm:"column:tenant_id"`
+	BatchID        string    `gorm:"column:batch_id"`
+	DepartmentID   string    `gorm:"column:department_id"`
+	ExamVersionID  string    `gorm:"column:exam_version_id"`
+	AssignedCount  int       `gorm:"column:assigned_count"`
+	StartedCount   int       `gorm:"column:started_count"`
+	CompletedCount int       `gorm:"column:completed_count"`
+	AverageScore   *string   `gorm:"column:average_score"`
+	SourceRevision int64     `gorm:"column:source_revision"`
+	ComputedAt     time.Time `gorm:"column:computed_at"`
+	Version        int64     `gorm:"column:version"`
+}
+
+func (repository *Postgres) ListDepartmentBatchProgress(ctx context.Context, tx *database.GormDB, tenantID, batchID string, limit int) ([]app.DepartmentBatchProgress, error) {
+	rows := make([]departmentBatchProgressRow, 0)
+	result := tx.WithContext(ctx).
+		Table("analytics.batch_progress_department_rollups").
+		Where(map[string]any{"tenant_id": tenantID, "batch_id": batchID}).
+		Order("department_id ASC").
+		Order("exam_version_id ASC").
+		Limit(limit).
+		Find(&rows)
+	if result.Error != nil {
+		return nil, mapError(result.Error, "list department batch progress")
+	}
+	progress := make([]app.DepartmentBatchProgress, 0, len(rows))
+	for _, row := range rows {
+		progress = append(progress, app.DepartmentBatchProgress{
+			TenantID: row.TenantID, BatchID: row.BatchID, DepartmentID: row.DepartmentID,
+			ExamVersionID: row.ExamVersionID, AssignedCount: row.AssignedCount,
+			StartedCount: row.StartedCount, CompletedCount: row.CompletedCount,
+			AverageScore: row.AverageScore, SourceRevision: row.SourceRevision,
+			ComputedAt: row.ComputedAt, Version: row.Version,
+		})
+	}
+	return progress, nil
 }
 
 type placementProgressRow struct {

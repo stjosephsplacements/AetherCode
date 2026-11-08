@@ -13,11 +13,17 @@ function expiry(token: string | undefined): number {
 
 // One refresh per refresh token: identity revokes a session whose refresh token is used twice, and a page
 // can fire several requests at once. Concurrent requests share the rotation.
+// Capped at MAX_ROTATIONS to prevent unbounded memory growth; staff-only app so 200 is ample.
+const MAX_ROTATIONS = 200;
 const rotations = new Map<string, Promise<Record<string, string> | null>>();
 
 async function rotate(refresh: string): Promise<Record<string, string> | null> {
   const existing = rotations.get(refresh);
   if (existing) return existing;
+  if (rotations.size >= MAX_ROTATIONS) {
+    const firstKey = rotations.keys().next().value;
+    if (firstKey !== undefined) rotations.delete(firstKey);
+  }
   const promise = fetch(`${process.env.GATEWAY_URL}/identity/v1/auth/refresh`, {
     method: "POST",
     headers: { "content-type": "application/json", "idempotency-key": crypto.randomUUID() },

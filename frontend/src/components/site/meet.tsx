@@ -5,6 +5,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Fragment, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { LiquidGlass } from "./liquid-glass";
 import { SCREENS } from "./meet-screens";
 
 const TABS = [
@@ -93,8 +94,9 @@ export function Meet() {
         </p>
       </div>
 
-      <div className="pt-10">
-      <div className="rounded-[var(--radius-surface)] overflow-hidden border border-line-strong bg-surface shadow-[var(--shadow-panel)]">
+      <div className="relative pt-10">
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-10 mx-auto h-[80%] max-w-5xl rounded-[40px] bg-brand/8 blur-[60px]" />
+      <LiquidGlass strong className="relative overflow-hidden rounded-3xl shadow-[var(--shadow-overlay)]">
         <div className="flex border-b border-line-strong font-mono text-[13px]">
         <div role="tablist" aria-label="Parts of an exam day" className="flex flex-wrap">
           {TABS.map((item, index) => (
@@ -150,7 +152,7 @@ export function Meet() {
             </pre>
           </div>
         </div>
-      </div>
+      </LiquidGlass>
       </div>
       </div>
     </section>

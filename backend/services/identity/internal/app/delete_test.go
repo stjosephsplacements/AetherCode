@@ -33,7 +33,10 @@ func (m *mockStore) CompleteMFAChallenge(context.Context, MFAChallengeCompletion
 func (m *mockStore) BeginTOTP(context.Context, TOTPEnrollment) error                { return nil }
 func (m *mockStore) ActivateTOTP(context.Context, TOTPActivation) ([]string, error) { return nil, nil }
 func (m *mockStore) DisableTOTP(context.Context, TOTPDisable) error                 { return nil }
-func (m *mockStore) Ping(context.Context) error                                     { return nil }
+func (m *mockStore) PerformMFAStepUp(context.Context, MFAStepUpCommand) (Session, error) {
+	return Session{}, nil
+}
+func (m *mockStore) Ping(context.Context) error { return nil }
 
 func (m *mockStore) GetPrincipal(ctx context.Context, id string) (*Principal, error) {
 	if m.getPrincipalFunc != nil {

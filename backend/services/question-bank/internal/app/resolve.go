@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
 )
 
 // PublishedVersionStore reads a published version's pinned artifacts for the

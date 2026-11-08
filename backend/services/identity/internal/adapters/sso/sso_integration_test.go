@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aethercode/aethercode/services/identity/internal/app"
-	"github.com/aethercode/aethercode/services/identity/internal/domain"
+	"github.com/stjosephsplacements/AetherCode/services/identity/internal/app"
+	"github.com/stjosephsplacements/AetherCode/services/identity/internal/domain"
 )
 
 // TestDirectoryAgainstZitadel runs against a real ZITADEL with the argon2

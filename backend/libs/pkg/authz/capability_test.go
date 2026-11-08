@@ -26,12 +26,12 @@ func TestCapabilityRoundTripUsesDatabaseCanonicalEnvelope(t *testing.T) {
 	capability, err := keyring.Issue(
 		"aether_submission", testActorID, testTenant, 42,
 		testCapabilityID,
-		"submission.answer.write", "attempt:018f4b0d-08f8-7c09-9ba7-efdf9c223377", now,
+		"submission.answer.write", "attempt:018f4b0d-08f8-7c09-9ba7-efdf9c223377", nil, now,
 	)
 	if err != nil {
 		t.Fatalf("Issue() error = %v", err)
 	}
-	wantCanonical := "aether-authz-context-v2|aether_submission|" + testKeyID + "|" + testCapabilityID + "|" + testActorID + "|" + testTenant + "|42|allow|submission.answer.write|attempt:018f4b0d-08f8-7c09-9ba7-efdf9c223377|2026-07-24T10:11:12.123456Z|2026-07-24T10:11:17.123456Z"
+	wantCanonical := "aether-authz-context-v3|aether_submission|" + testKeyID + "|" + testCapabilityID + "|" + testActorID + "|" + testTenant + "|42|allow|submission.answer.write|attempt:018f4b0d-08f8-7c09-9ba7-efdf9c223377||2026-07-24T10:11:12.123456Z|2026-07-24T10:11:17.123456Z"
 	if got := capability.CanonicalPayload(); got != wantCanonical {
 		t.Fatalf("CanonicalPayload() = %q, want %q", got, wantCanonical)
 	}
@@ -59,7 +59,7 @@ func TestDecodeCapabilityRejectsExpiredAndMalformedEnvelope(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseKeyring() error = %v", err)
 	}
-	capability, err := keyring.Issue("aether_submission", testActorID, testTenant, 1, testCapabilityID, "read", "attempt:one", now)
+	capability, err := keyring.Issue("aether_submission", testActorID, testTenant, 1, testCapabilityID, "read", "attempt:one", nil, now)
 	if err != nil {
 		t.Fatalf("Issue() error = %v", err)
 	}
@@ -82,7 +82,7 @@ func TestCapabilityAllowsOnlyExplicitGlobalTenantScope(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseKeyring() error = %v", err)
 	}
-	capability, err := keyring.Issue("aether_qbank", testActorID, "", 3, testCapabilityID, "question.read", "question:global", now)
+	capability, err := keyring.Issue("aether_qbank", testActorID, "", 3, testCapabilityID, "question.read", "question:global", nil, now)
 	if err != nil {
 		t.Fatalf("Issue() error = %v", err)
 	}

@@ -126,11 +126,33 @@ ingress:
   tlsSecretName: ""
   annotations: {}
 
-# Ingress-only policies. The platform-wide default deny is created by platform-infra.
+# Network policies. The platform-wide default deny is created by platform-infra.
 networkPolicy:
   enabled: true
   allowFrom: []
   allowFromNamespaces: []
+  # Egress: restrict outbound to known destinations (F-007).
+  egress:
+    enabled: true
+    # DNS resolution via kube-dns.
+    dnsNamespaceLabels:
+      kubernetes.io/metadata.name: kube-system
+    dnsPodLabels:
+      k8s-app: kube-dns
+    # Postgres (same namespace by default).
+    postgres:
+      enabled: true
+      port: 5432
+    # NATS (same namespace by default).
+    nats:
+      enabled: true
+      port: 4222
+    # User service gRPC (authorization decisions); most services need this.
+    userGrpc:
+      enabled: true
+      port: 9443
+    # Additional per-service egress peers (set in values-<service>.yaml).
+    extraRules: []
 
 # Pull secrets for private registries, e.g. [{name: ghcr-creds}]. Create the secret first.
 imagePullSecrets: []

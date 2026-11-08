@@ -41,7 +41,7 @@ export default async function MonitorPage({ params }: { params: Promise<{ examId
         <ArrowLeft className="size-4" />
         {version.title}
       </Link>
-      <PageHeader title="Live monitor" description={`${formatWindow(version.opens_at, version.closes_at)}. Refreshes every 15 seconds.`} />
+      <PageHeader title="Live monitor" description={`${formatWindow(version.opens_at, version.closes_at)}. Updates in real time.`} />
       <MonitorBoard examId={examId} versionId={version.id} monitor={monitor} rollNumber={rollNumber} />
     </>
   );

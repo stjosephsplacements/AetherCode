@@ -1,11 +1,11 @@
 "use client";
 
-import { BookOpen, Briefcase, Buildings, CalendarBlank, ChartBar, Chats, CodeSimple, FileText, GitFork, House, Lifebuoy, ListChecks, Newspaper, NotePencil, Pulse, Question, Rocket, Scroll, TrendUp, Trophy, UserCircle, UserGear, Users } from "@phosphor-icons/react/ssr";
+import { BookOpen, Briefcase, Buildings, CalendarBlank, ChartBar, Chats, CodeSimple, FileText, GitFork, House, Lifebuoy, ListChecks, Newspaper, NotePencil, Pulse, Question, Rocket, Scroll, ShieldCheck, TrendUp, Trophy, UserCircle, UserGear, Users } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-export const ICONS = { exams: NotePencil, home: House, questions: BookOpen, students: Users, organisation: Buildings, accounts: UserGear, status: Pulse, help: Lifebuoy, practice: CodeSimple, progress: TrendUp, analytics: ChartBar, audit: Scroll, calendar: CalendarBlank, contests: Trophy, hackathons: Rocket, opensource: GitFork, interviews: Chats, blogs: Newspaper, tasks: ListChecks, profile: UserCircle, resume: FileText, community: Chats, placements: Briefcase, start: Rocket, faq: Question };
+export const ICONS = { exams: NotePencil, home: House, questions: BookOpen, students: Users, organisation: Buildings, accounts: UserGear, roles: ShieldCheck, status: Pulse, help: Lifebuoy, practice: CodeSimple, progress: TrendUp, analytics: ChartBar, audit: Scroll, calendar: CalendarBlank, contests: Trophy, hackathons: Rocket, opensource: GitFork, interviews: Chats, blogs: Newspaper, tasks: ListChecks, profile: UserCircle, resume: FileText, community: Chats, placements: Briefcase, start: Rocket, faq: Question };
 
 export type NavItem = { href: string; label: string; icon: keyof typeof ICONS; /** Why the page cannot be used yet; shown instead of a link. */ locked?: string };
 

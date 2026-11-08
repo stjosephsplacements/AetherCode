@@ -2,9 +2,12 @@ package httpadapter
 
 import (
 	"net/http"
+	"strings"
 
-	"github.com/aethercode/aethercode/libs/pkg/httpx"
-	"github.com/aethercode/aethercode/services/user/internal/app"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/pagination"
+	"github.com/stjosephsplacements/AetherCode/services/user/internal/app"
 )
 
 // Option adds optional routes to the handler without changing its constructor.
@@ -231,4 +234,166 @@ func (handler *Handler) deleteOverwrite(writer http.ResponseWriter, request *htt
 		return
 	}
 	writer.WriteHeader(http.StatusNoContent)
+}
+
+// --- Role assignments (assign, list, revoke) ---
+
+type roleAssignmentRequest struct {
+	PrincipalID string `json:"principal_id"`
+	RoleName    string `json:"role_name"`
+	ScopeKind   string `json:"scope_kind"`
+	TenantID    string `json:"tenant_id"`
+	ScopeID     string `json:"scope_id"`
+	ExpiresAt   string `json:"expires_at"`
+}
+
+func (handler *Handler) assignRole(writer http.ResponseWriter, request *http.Request) {
+	var body roleAssignmentRequest
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	principalID, err := httpx.ParseUUIDValue(body.PrincipalID, "principal_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	tenantID, err := optionalTenant(body.TenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	scopeID := strings.TrimSpace(body.ScopeID)
+	if scopeID != "" {
+		scopeID, err = httpx.ParseUUIDValue(scopeID, "scope_id")
+		if err != nil {
+			httpx.WriteError(writer, err)
+			return
+		}
+	}
+	expiresAt, err := parseOptionalExpiry(body.ExpiresAt)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	id, err := database.NewUUIDv7()
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "role_assignments", id, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	assignment, err := handler.service.AssignRole(request.Context(), decision.Capability, app.AssignRole{
+		ID: id, PrincipalID: principalID, RoleName: body.RoleName, ScopeKind: body.ScopeKind,
+		TenantID: tenantID, ScopeID: scopeID, GrantedByPrincipalID: decision.PrincipalID, ExpiresAt: expiresAt,
+	})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusCreated, assignment)
+}
+
+type revokeRoleRequest struct {
+	TenantID string `json:"tenant_id"`
+}
+
+func (handler *Handler) revokeRole(writer http.ResponseWriter, request *http.Request) {
+	assignmentID, err := httpx.ParseUUIDPathValue(request, "role_assignment_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var body revokeRoleRequest
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	tenantID, err := optionalTenant(body.TenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "role_assignments", assignmentID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	assignment, err := handler.service.RevokeRole(request.Context(), decision.Capability, app.RevokeRole{ID: assignmentID})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, assignment)
+}
+
+func (handler *Handler) listRoleAssignments(writer http.ResponseWriter, request *http.Request) {
+	tenantID := strings.TrimSpace(request.Header.Get("X-Tenant-ID"))
+	if tenantID != "" {
+		var err error
+		tenantID, err = httpx.ParseUUIDValue(tenantID, "X-Tenant-ID")
+		if err != nil {
+			httpx.WriteError(writer, err)
+			return
+		}
+	}
+	limit, err := pagination.ParseLimit(request.URL.Query().Get("limit"), 20, 100)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	cursor, _, err := pagination.Parse(request.URL.Query().Get("cursor"))
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	principalID := strings.TrimSpace(request.URL.Query().Get("principal_id"))
+	if principalID != "" {
+		principalID, err = httpx.ParseUUIDValue(principalID, "principal_id")
+		if err != nil {
+			httpx.WriteError(writer, err)
+			return
+		}
+	}
+	roleName, err := httpx.ParseEnumQuery(request, "role_name",
+		"super_admin", "placement_user", "college_admin", "department_user", "mentor", "student")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	scopeKind, err := httpx.ParseEnumQuery(request, "scope_kind",
+		"platform", "college", "department", "batch", "placement_department", "self")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	principalFilterOrTenant := principalID
+	if principalFilterOrTenant == "" {
+		principalFilterOrTenant = tenantID
+	}
+	if principalFilterOrTenant == "" {
+		principalFilterOrTenant = "all"
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "role_assignments", principalFilterOrTenant, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	page, err := handler.service.ListRoleAssignments(request.Context(), decision.Capability, app.ListRoleAssignments{
+		TenantID:    tenantID,
+		PrincipalID: principalID,
+		RoleName:    roleName,
+		ScopeKind:   scopeKind,
+		Limit:       limit,
+		CursorSort:  cursor.SortValue,
+		CursorID:    cursor.ID,
+	})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, page)
 }

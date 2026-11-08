@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	"github.com/aethercode/aethercode/services/seb/internal/app"
 	"github.com/jackc/pgx/v5"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	"github.com/stjosephsplacements/AetherCode/services/seb/internal/app"
 )
 
 const examPolicyColumns = `tenant_id::text, exam_id::text, title, enabled, accepted_keys,

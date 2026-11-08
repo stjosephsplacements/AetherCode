@@ -9,8 +9,8 @@ import (
 	"regexp"
 	"strings"
 
-	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
+	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
 )
 
 // Function-only questions (ADR-0063). Per language, an author writes the stub students see

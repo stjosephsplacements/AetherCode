@@ -9,11 +9,11 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/aethercode/aethercode/libs/pkg/authn"
-	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
-	"github.com/aethercode/aethercode/libs/pkg/database"
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	"github.com/aethercode/aethercode/libs/pkg/httpx"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/authn"
+	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
 )
 
 // Authorizer has no positive cache. It is safe to reuse across requests only
@@ -96,6 +96,10 @@ func (authorizer *Authorizer) authorize(
 		// (policy denial, mTLS failure, stale projection, ...).
 		slog.WarnContext(contextValue, "authorization denied", "request_id", requestID,
 			"action", action, "resource_type", resourceType, "error", err)
+		if centralauthz.IsMFARequired(err) {
+			return Decision{}, apperrors.New(apperrors.CodeMFARequired,
+				"this operation requires recent MFA verification")
+		}
 		return Decision{}, apperrors.New(apperrors.CodeForbidden, "authorization denied")
 	}
 	return Decision{PrincipalID: principalID, RequestID: requestID, Capability: centralDecision.Capability}, nil

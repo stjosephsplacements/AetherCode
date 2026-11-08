@@ -4,6 +4,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { EmptyState, PageHeader } from "@/components/staff/page-header";
 import { Badge } from "@/components/ui/card";
+import { LiveRefresh } from "@/lib/client/realtime";
 import { listAssignments } from "@/lib/server/assignments";
 import { listMyAttempts } from "@/lib/server/attempts";
 import { requireViewer } from "@/lib/server/session";
@@ -24,7 +25,8 @@ export default async function CompletedPage() {
 
   return (
     <div className="animate-enter">
-      <PageHeader title="Completed" description="Every exam you have finished, newest first, with its result once it is released." />
+      <LiveRefresh topics={["grading"]} />
+      <PageHeader title="Completed" description="Exams you've finished. Results show once your teacher releases them." />
       {finished.length === 0 ? (
         <EmptyState>
           <CheckCircle className="mx-auto mb-3 size-6 text-ink-subtle" />

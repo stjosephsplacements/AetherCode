@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aethercode/aethercode/libs/pkg/httpauth"
-	"github.com/aethercode/aethercode/libs/pkg/pagination"
-	"github.com/aethercode/aethercode/services/question-bank/internal/app"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpauth"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/pagination"
+	"github.com/stjosephsplacements/AetherCode/services/question-bank/internal/app"
 )
 
 func TestIdempotencyKeyRequiresPrintableHeader(t *testing.T) {

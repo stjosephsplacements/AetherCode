@@ -94,7 +94,7 @@ func (p Perms) Covers(other Perms) bool { return other.AndNot(p).IsZero() }
 func (p Perms) BitString() string {
 	var b strings.Builder
 	b.Grow(Width)
-	for i := 0; i < Width; i++ {
+	for i := range Width {
 		if p.Has(i) {
 			b.WriteByte('1')
 		} else {
@@ -110,7 +110,7 @@ func ParseBitString(text string) (Perms, error) {
 	if len(text) != Width {
 		return p, fmt.Errorf("rbac: bit string has %d characters, want %d", len(text), Width)
 	}
-	for i := 0; i < Width; i++ {
+	for i := range Width {
 		switch text[i] {
 		case '1':
 			p = p.With(i)

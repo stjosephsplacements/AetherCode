@@ -23,7 +23,7 @@ export default async function StatusPage() {
       <LiveRefresh topics={["grading"]} />
       <PageHeader
         title="System status"
-        description="Live from the gateway, which checks every service it routes to every few seconds. The code-execution engine is checked by grading itself: a run that never finishes shows on the exam screen."
+        description="Service health, checked every few seconds. The code engine is verified by running actual grading."
         actions={<ServicesBadge initial={health} />}
       />
       <ServicesTable initial={health} />

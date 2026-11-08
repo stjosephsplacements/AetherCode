@@ -9,28 +9,30 @@ import (
 	"syscall"
 	"time"
 
-	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
-	"github.com/aethercode/aethercode/libs/pkg/authzprojection"
-	"github.com/aethercode/aethercode/libs/pkg/config"
-	"github.com/aethercode/aethercode/libs/pkg/database"
-	"github.com/aethercode/aethercode/libs/pkg/httpauth"
-	"github.com/aethercode/aethercode/libs/pkg/httpx"
-	"github.com/aethercode/aethercode/libs/pkg/kms"
-	localkms "github.com/aethercode/aethercode/libs/pkg/kms/local"
-	"github.com/aethercode/aethercode/libs/pkg/logging"
-	"github.com/aethercode/aethercode/libs/pkg/messaging"
-	"github.com/aethercode/aethercode/libs/pkg/ratelimit"
-	"github.com/aethercode/aethercode/libs/pkg/storage"
-	minioclient "github.com/aethercode/aethercode/libs/pkg/storage/minio"
-	"github.com/aethercode/aethercode/libs/pkg/telemetry"
-	httpadapter "github.com/aethercode/aethercode/services/submission/internal/adapters/http"
-	"github.com/aethercode/aethercode/services/submission/internal/adapters/judgecompletion"
-	"github.com/aethercode/aethercode/services/submission/internal/adapters/judgedispatch"
-	"github.com/aethercode/aethercode/services/submission/internal/adapters/projection"
-	"github.com/aethercode/aethercode/services/submission/internal/adapters/repo"
-	"github.com/aethercode/aethercode/services/submission/internal/app"
-	submissionconfig "github.com/aethercode/aethercode/services/submission/internal/config"
-	"github.com/aethercode/aethercode/services/submission/internal/expiry"
+	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/authzprojection"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/buildinfo"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/config"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpauth"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/kms"
+	localkms "github.com/stjosephsplacements/AetherCode/libs/pkg/kms/local"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/logging"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/messaging"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/ratelimit"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/storage"
+	minioclient "github.com/stjosephsplacements/AetherCode/libs/pkg/storage/minio"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry/dbmetrics"
+	httpadapter "github.com/stjosephsplacements/AetherCode/services/submission/internal/adapters/http"
+	"github.com/stjosephsplacements/AetherCode/services/submission/internal/adapters/judgecompletion"
+	"github.com/stjosephsplacements/AetherCode/services/submission/internal/adapters/judgedispatch"
+	"github.com/stjosephsplacements/AetherCode/services/submission/internal/adapters/projection"
+	"github.com/stjosephsplacements/AetherCode/services/submission/internal/adapters/repo"
+	"github.com/stjosephsplacements/AetherCode/services/submission/internal/app"
+	submissionconfig "github.com/stjosephsplacements/AetherCode/services/submission/internal/config"
+	"github.com/stjosephsplacements/AetherCode/services/submission/internal/expiry"
 )
 
 func main() {
@@ -51,7 +53,7 @@ func run(contextValue context.Context) error {
 	if err != nil {
 		return err
 	}
-	otelShutdown, err := telemetry.InitProvider(contextValue, "submission", "0.1.0")
+	otelShutdown, err := telemetry.InitProvider(contextValue, "submission", buildinfo.Version)
 	if err != nil {
 		logger.Warn("telemetry provider init failed, tracing disabled", "error", err)
 	} else {
@@ -70,6 +72,7 @@ func run(contextValue context.Context) error {
 		return err
 	}
 	defer pool.Close()
+	dbmetrics.Register("submission", pool)
 
 	authzRuntime, err := centralauthz.LoadClientRuntime(serviceConfig.Environment)
 	if err != nil {
@@ -269,6 +272,7 @@ func run(contextValue context.Context) error {
 		if consumerErr != nil {
 			return consumerErr
 		}
+		assignmentConsumer.WithInboxCleaner(projectionStore.Inbox())
 		judgeCompletionConsumer, consumerErr := messaging.NewPullConsumer(
 			contextValue, messagingRuntime.URL, serviceConfig.Name+"-judge-completion",
 			"submission_judge_completed_v1", projection.JudgeCompletedEventType, logger, projectionStore.ApplyJudgeCompletion,

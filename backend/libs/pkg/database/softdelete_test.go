@@ -11,7 +11,7 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
-	"github.com/aethercode/aethercode/libs/pkg/database"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
 )
 
 type TestModel struct {

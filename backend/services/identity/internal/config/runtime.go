@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/authn"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/authn"
 )
 
 // Runtime contains the validated configuration needed by the Identity HTTP

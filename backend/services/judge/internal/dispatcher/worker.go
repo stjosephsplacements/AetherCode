@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/evalbundle"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/evalbundle"
 )
 
 // Worker dispatches queued execution jobs to an evaluation engine and records

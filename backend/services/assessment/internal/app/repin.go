@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
-	"github.com/aethercode/aethercode/libs/pkg/database"
 	"github.com/jackc/pgx/v5"
+	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
 )
 
 // RepinExamItem points an item of an exam, published or not, at a corrected

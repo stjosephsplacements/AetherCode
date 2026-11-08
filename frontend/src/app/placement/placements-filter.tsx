@@ -201,7 +201,7 @@ export function PlacementsBoard({
             ) : orgs.length === 0 ? (
               <EmptyState>
                 No placement organisations yet. Add one in{" "}
-                <Link href="/staff/departments?tab=placement" className="text-brand hover:underline">
+                <Link href="/placement/departments" className="text-brand hover:underline">
                   Departments
                 </Link>
                 .
@@ -265,7 +265,7 @@ export function PlacementsBoard({
                           Export
                         </Button>
                         <Button asChild variant="ghost" size="sm">
-                          <Link href="/staff/departments?tab=placement">Manage</Link>
+                          <Link href="/placement/departments">Manage</Link>
                         </Button>
                       </div>
                     </Panel>

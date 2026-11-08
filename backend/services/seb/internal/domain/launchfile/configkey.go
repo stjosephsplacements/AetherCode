@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -64,7 +65,11 @@ func parseDict(decoder *xml.Decoder) (string, error) {
 			})
 			parts := make([]string, 0, len(pairs))
 			for _, p := range pairs {
-				parts = append(parts, `"`+p.key+`":`+p.json)
+				keyJSON, encErr := json.Marshal(p.key)
+				if encErr != nil {
+					return "", fmt.Errorf("encode SEB settings key: %w", encErr)
+				}
+				parts = append(parts, string(keyJSON)+":"+p.json)
 			}
 			return "{" + strings.Join(parts, ",") + "}", nil
 		case xml.StartElement:
@@ -116,7 +121,11 @@ func parseValue(decoder *xml.Decoder, start xml.StartElement) (string, error) {
 		if start.Name.Local == "data" {
 			value = strings.Join(strings.Fields(value), "")
 		}
-		return `"` + value + `"`, err
+		valueJSON, encErr := json.Marshal(value)
+		if encErr != nil {
+			return "", fmt.Errorf("encode SEB settings value: %w", encErr)
+		}
+		return string(valueJSON), err
 	case "integer", "real":
 		value, err := text(decoder)
 		if _, parseErr := strconv.ParseFloat(value, 64); parseErr != nil {

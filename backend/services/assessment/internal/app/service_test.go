@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
+	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
 )
 
 func TestCanonicalJSONObjectNormalizesAndChecksumsPolicy(t *testing.T) {

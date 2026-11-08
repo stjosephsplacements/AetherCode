@@ -66,6 +66,44 @@ networkPolicy:
       ports: [8443]
     - service: question-bank
       ports: [8443]
+  egress:
+    enabled: true
+    dnsNamespaceLabels:
+      kubernetes.io/metadata.name: kube-system
+    dnsPodLabels:
+      k8s-app: kube-dns
+    postgres:
+      enabled: true
+      port: 5432
+    nats:
+      enabled: false
+    userGrpc:
+      enabled: false
+    extraRules:
+      - to:
+          - podSelector:
+              matchLabels:
+                app.kubernetes.io/part-of: aethercode
+                app.kubernetes.io/name: judge-rabbitmq
+        ports:
+          - protocol: TCP
+            port: 5672
+      - to:
+          - podSelector:
+              matchLabels:
+                app.kubernetes.io/part-of: aethercode
+                app.kubernetes.io/name: minio
+        ports:
+          - protocol: TCP
+            port: 9000
+      - to:
+          - podSelector:
+              matchLabels:
+                app.kubernetes.io/name: aethercode-exec
+                app.kubernetes.io/component: engine
+        ports:
+          - protocol: TCP
+            port: 5100
 
 # aethercode is the college's execution engine (ADR-0028), reached at global.engineUrl.
 engine: aethercode

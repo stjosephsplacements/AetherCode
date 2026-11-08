@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aethercode/aethercode/libs/pkg/database"
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	"github.com/aethercode/aethercode/services/user/internal/app"
 	"github.com/jackc/pgx/v5"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	"github.com/stjosephsplacements/AetherCode/services/user/internal/app"
 )
 
 // grantsFor reads one person's per-person permissions for the authorizer (ADR-0055).

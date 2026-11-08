@@ -12,6 +12,10 @@ const realtimeSource = (() => {
   try {
     const url = new URL(process.env.NEXT_PUBLIC_REALTIME_URL ?? "");
     const hosts = [url.host, ...developmentHosts.map((hostname) => `${hostname}${url.port ? `:${url.port}` : ""}`)];
+    if (/^(localhost|127\.0\.0\.1)$/.test(url.hostname)) {
+      const alt = url.hostname === "localhost" ? "127.0.0.1" : "localhost";
+      hosts.push(`${alt}${url.port ? `:${url.port}` : ""}`);
+    }
     return hosts.map((host) => ` ${url.protocol}//${host}`).join("");
   } catch {
     return "";
@@ -58,8 +62,9 @@ const nextConfig: NextConfig = {
         headers: [
           { key: "Content-Security-Policy", value: contentSecurityPolicy },
           { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "same-origin" },
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          { key: "Permissions-Policy", value: "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()" },
         ],
       },
     ];

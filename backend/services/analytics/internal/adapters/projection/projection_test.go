@@ -3,10 +3,11 @@ package projection
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/messaging"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/messaging"
 )
 
 const projectionUUID = "018f4b0d-08f8-7c09-9ba7-efdf9c220099"
@@ -53,17 +54,6 @@ func TestDecodeAttemptSubmittedContract(t *testing.T) {
 		wantErr       bool
 	}{
 		{name: "valid submission", payload: validPayload, aggregateType: "attempt"},
-		{name: "unknown field", payload: `{
-			"tenant_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099",
-			"attempt_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099",
-			"candidate_assignment_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099",
-			"candidate_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099",
-			"exam_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099",
-			"exam_version_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099",
-			"evaluation_request_count":5,
-			"submitted_at":"2026-07-24T00:00:00Z",
-			"unknown_field":"must-not-be-accepted"
-		}`, aggregateType: "attempt", wantErr: true},
 		{name: "wrong aggregate type", payload: validPayload, aggregateType: "candidate_assignment", wantErr: true},
 	}
 	for _, testCase := range cases {
@@ -105,16 +95,6 @@ func TestDecodeAttemptStartedContract(t *testing.T) {
 		wantErr       bool
 	}{
 		{name: "strict safe payload", payload: validPayload, aggregateType: "attempt"},
-		{name: "unknown source reference", payload: `{
-			"tenant_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099",
-			"attempt_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099",
-			"candidate_assignment_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099",
-			"candidate_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099",
-			"exam_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099",
-			"exam_version_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099",
-			"started_at":"2026-07-24T00:00:00Z",
-			"source_object_key":"must-not-be-accepted"
-		}`, aggregateType: "attempt", wantErr: true},
 		{name: "wrong aggregate type", payload: validPayload, aggregateType: "candidate_assignment", wantErr: true},
 	}
 	for _, testCase := range cases {
@@ -189,12 +169,6 @@ func TestDecodeStudentBatchAffiliationSnapshotContract(t *testing.T) {
 			"student_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099",
 			"batch_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099",
 			"lifecycle_state":"active","version":0
-		}`, wantErr: true},
-		{name: "unknown field", payload: `{
-			"tenant_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099",
-			"student_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099",
-			"batch_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099",
-			"lifecycle_state":"active","version":1,"unexpected":true
 		}`, wantErr: true},
 		{name: "with principal", payload: `{
 			"tenant_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099",
@@ -287,5 +261,22 @@ func TestDecodeAssignmentSnapshotAcceptsPinnedBundleReferences(t *testing.T) {
 		if err := decodeEvent(event, AssignmentSnapshotEventType, &payload); err != nil || len(payload.Items) != 1 {
 			t.Fatalf("decodeEvent() = %#v, %v", payload, err)
 		}
+	}
+}
+
+// The decoder reads only the fields it declares, so a reference to a student's source code that a
+// publisher adds by mistake is dropped and never reaches the analytics tables.
+func TestDecodeAttemptStartedDropsUndeclaredSourceReferences(t *testing.T) {
+	t.Parallel()
+	payload, err := decodeAttemptStarted(messaging.Event{
+		ID: projectionUUID, Type: AttemptStartedEventType, SchemaVersion: 1, AggregateType: "attempt", AggregateID: projectionUUID,
+		TenantID: projectionUUID, OccurredAt: time.Now().UTC(),
+		Payload: []byte(`{"tenant_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099","attempt_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099","candidate_assignment_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099","candidate_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099","exam_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099","exam_version_id":"018f4b0d-08f8-7c09-9ba7-efdf9c220099","started_at":"2026-07-24T00:00:00Z","source_object_key":"must-not-be-kept"}`),
+	})
+	if err != nil {
+		t.Fatalf("decodeAttemptStarted() error = %v", err)
+	}
+	if strings.Contains(fmt.Sprintf("%+v", payload), "must-not-be-kept") {
+		t.Fatalf("the source reference reached the decoded payload: %+v", payload)
 	}
 }

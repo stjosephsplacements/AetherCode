@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Panel } from "@/components/ui/card";
 import { assignmentForExam, listAssignments } from "@/lib/server/assignments";
 import { requireViewer } from "@/lib/server/session";
+
+export const metadata: Metadata = { title: "Exam" };
 
 // Safe Exam Browser's start page (the .seb launch file opens /exam/<exam id>).
 // It sends the student on to their assignment for that exam.

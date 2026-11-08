@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"net/http"
 
-	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
-	"github.com/aethercode/aethercode/libs/pkg/httpx"
-	"github.com/aethercode/aethercode/services/submission/internal/app"
+	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
+	"github.com/stjosephsplacements/AetherCode/services/submission/internal/app"
 )
 
 // Exam-day operations (ADR-0027). Staff routes authorize on the exam version

@@ -15,6 +15,14 @@ linters:
     - sqlclosecheck
     - staticcheck
     - unused
+  settings:
+    govet:
+      enable:
+        - shadow
+  exclusions:
+    rules:
+      - linters: [govet]
+        text: "shadow: declaration of \"err\" shadows"
 
 formatters:
   enable:

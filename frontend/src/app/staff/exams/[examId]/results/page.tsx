@@ -7,6 +7,7 @@ import { EmptyState, LoadError, PageHeader, Table } from "@/components/staff/pag
 import { Button } from "@/components/ui/button";
 import { Badge, Panel } from "@/components/ui/card";
 import type { ExamResult, ExamVersionContent } from "@/lib/api-types";
+import { LiveRefresh } from "@/lib/client/realtime";
 import { latestVersion } from "@/lib/server/exams";
 import { gateway } from "@/lib/server/gateway";
 import { requireCollege } from "@/lib/server/staff";
@@ -56,13 +57,14 @@ export default async function ResultsPage({ params, searchParams }: { params: Pr
 
   return (
     <>
+      <LiveRefresh topics={["grading"]} />
       <Link href={`/staff/exams/${examId}`} className="mb-6 inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink">
         <ArrowLeft className="size-4" />
         {version.title}
       </Link>
       <PageHeader
         title="Results"
-        description="Each question counts its best submission. Results appear once an attempt is graded."
+        description="Scores update live as students finish. Best submission per question counts."
         actions={
           rows.length > 0 && (
             <>

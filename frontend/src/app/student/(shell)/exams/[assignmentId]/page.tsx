@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Markdown } from "@/components/markdown";
+import { LoadError, PageHeader } from "@/components/staff/page-header";
 import { listAssignments } from "@/lib/server/assignments";
 import { requireViewer } from "@/lib/server/session";
 import { formatDuration, formatWindow } from "@/lib/utils";
@@ -19,9 +20,19 @@ const FACTS = [
 export default async function ExamLobby({ params }: { params: Promise<{ assignmentId: string }> }) {
   const { assignmentId } = await params;
   const viewer = await requireViewer();
-  const assignment = viewer.tenantId
-    ? (await listAssignments(viewer.tenantId)).find((candidate) => candidate.id === assignmentId)
-    : undefined;
+  let assignment;
+  try {
+    assignment = viewer.tenantId
+      ? (await listAssignments(viewer.tenantId)).find((candidate) => candidate.id === assignmentId)
+      : undefined;
+  } catch (error) {
+    return (
+      <div className="mx-auto max-w-[680px] animate-enter">
+        <PageHeader title="Exam" />
+        <LoadError error={error} />
+      </div>
+    );
+  }
   if (!assignment) notFound();
 
   return (

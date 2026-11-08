@@ -14,8 +14,10 @@ export function Platform() {
   return (
     <section className="mx-auto max-w-6xl px-6 py-24">
       <h2 className="heading text-center text-[2.4rem] text-ink sm:text-[3.4rem]">Powered by the AetherCode platform</h2>
-      <div data-reveal className="mt-12 rounded-[var(--radius-surface)] overflow-hidden border border-line-strong bg-surface shadow-[var(--shadow-panel)]">
-        <div className="flex items-center justify-between border-b border-line-strong px-5 py-2.5 font-mono text-[13px] text-ink-muted">
+      <div className="relative mt-12">
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 mx-auto h-[80%] max-w-5xl rounded-[40px] bg-brand/8 blur-[60px]" />
+      <div data-reveal className="liquid-glass-strong relative overflow-hidden rounded-3xl shadow-[var(--shadow-overlay)]">
+        <div className="flex items-center justify-between border-b border-line px-5 py-2.5 font-mono text-[13px] text-ink-muted">
           <span>Platform</span>
           <span>{PARTS.length} parts</span>
         </div>
@@ -46,6 +48,7 @@ export function Platform() {
             </article>
           ))}
         </div>
+      </div>
       </div>
     </section>
   );

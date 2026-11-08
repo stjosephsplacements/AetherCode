@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { Tooltip } from "radix-ui";
 import { useState } from "react";
 import { ICONS, type NavItem } from "@/components/nav-links";
-import { Dialog, DialogTrigger, SheetContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { setTheme, useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
@@ -118,7 +118,7 @@ export function StaffPath({ groups }: { groups: NavGroup[] }) {
   );
 }
 
-/** Below lg the sidebar folds into a sheet behind a menu button. */
+/** Below lg the sidebar folds into a floating panel behind a menu button. */
 export function StaffMenu({ groups, college }: { groups: NavGroup[]; college?: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
@@ -126,13 +126,56 @@ export function StaffMenu({ groups, college }: { groups: NavGroup[]; college?: R
       <DialogTrigger aria-label="Open menu" className="-ml-1.5 grid size-9 place-items-center rounded-[var(--radius-control)] text-ink-muted transition-colors hover:bg-hover hover:text-ink lg:hidden">
         <List className="size-[18px]" />
       </DialogTrigger>
-      <SheetContent title="Menu" className="w-[min(88vw,320px)]">
-        {college && <div className="border-b border-line px-5 py-4">{college}</div>}
-        <nav aria-label="Main" className="px-3 py-4" onClick={(event) => (event.target as Element).closest("a") && setOpen(false)}>
-          <StaffNav groups={groups} />
+      <DialogContent title="Menu" className="!fixed !inset-auto !left-3 !top-3 !w-[min(calc(100vw-24px),340px)] !max-h-[calc(100dvh-24px)] !translate-x-0 !translate-y-0 !rounded-2xl">
+        {college && <div className="border-b border-line px-5 pb-3 mb-2">{college}</div>}
+        <nav aria-label="Main" className="space-y-5 overflow-y-auto px-4 pb-5" onClick={(event) => (event.target as Element).closest("a") && setOpen(false)}>
+          {groups.map((group) => (
+            <div key={group.label}>
+              <p className="mb-2 px-1 font-[family-name:var(--font-eyebrow)] text-[10px] uppercase tracking-[0.16em] text-ink-subtle">{group.label}</p>
+              <ul className="space-y-1">
+                {group.items.map((item) => {
+                  const Icon = ICONS[item.icon];
+                  return (
+                    <li key={item.href}>
+                      <MobileNavLink href={item.href} icon={<Icon className="size-5" />} label={item.label} locked={item.locked} />
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
         </nav>
-      </SheetContent>
+      </DialogContent>
     </Dialog>
+  );
+}
+
+function MobileNavLink({ href, icon, label, locked }: { href: string; icon: React.ReactNode; label: string; locked?: string }) {
+  const pathname = usePathname();
+  const current = isActive(pathname, href);
+  if (locked) {
+    return (
+      <span className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] text-ink-subtle" title={locked}>
+        <span className="grid size-9 place-items-center rounded-lg bg-hover text-ink-subtle">{icon}</span>
+        <span>{label}</span>
+        <Lock className="ml-auto size-3.5" />
+      </span>
+    );
+  }
+  return (
+    <Link
+      href={href}
+      aria-current={current ? "page" : undefined}
+      className={cn(
+        "flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] transition-colors",
+        current ? "bg-brand-soft font-medium text-ink" : "text-ink-muted active:bg-hover",
+      )}
+    >
+      <span className={cn("grid size-9 place-items-center rounded-lg transition-colors", current ? "bg-brand text-brand-ink" : "bg-hover text-ink-muted")}>
+        {icon}
+      </span>
+      <span>{label}</span>
+    </Link>
   );
 }
 

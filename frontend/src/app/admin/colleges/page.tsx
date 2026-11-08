@@ -72,7 +72,7 @@ export default async function CollegesPage({ searchParams }: { searchParams: Pro
 
   return (
     <>
-      <PageHeader title="Colleges" description="Every college on this platform. Each has its own departments, students, staff, exams and results." actions={addCollege} />
+      <PageHeader title="Colleges" description="All colleges on this platform. Each one has its own departments, students, staff and exams." actions={addCollege} />
       <ul className="mb-5 flex flex-wrap gap-2" aria-label="Summary">
         {chip(<Buildings className="size-3.5" />, "Colleges", tenants.length)}
         {chip(<CheckCircle className="size-3.5" />, "Active", tenants.filter((tenant) => tenant.status === "active").length)}

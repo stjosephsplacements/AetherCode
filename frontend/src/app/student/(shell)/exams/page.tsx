@@ -1,10 +1,11 @@
 import { Clock } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { EmptyState, PageHeader } from "@/components/staff/page-header";
+import { EmptyState, LoadError, PageHeader } from "@/components/staff/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/card";
 import type { Attempt, Page } from "@/lib/api-types";
+import { LiveRefresh } from "@/lib/client/realtime";
 import { groupByPhase, listAssignments } from "@/lib/server/assignments";
 import { gateway } from "@/lib/server/gateway";
 import { requireViewer } from "@/lib/server/session";
@@ -21,12 +22,22 @@ const TABS = [
 
 export default async function MyExams({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const viewer = await requireViewer();
-  const [assignments, attempts] = viewer.tenantId
-    ? await Promise.all([
-        listAssignments(viewer.tenantId),
-        gateway<Page<Attempt>>(`/submission/v1/tenants/${viewer.tenantId}/attempts?limit=100`).then((page) => page.items, () => []),
-      ])
-    : [[], []];
+  let assignments, attempts;
+  try {
+    [assignments, attempts] = viewer.tenantId
+      ? await Promise.all([
+          listAssignments(viewer.tenantId),
+          gateway<Page<Attempt>>(`/submission/v1/tenants/${viewer.tenantId}/attempts?limit=100`).then((page) => page.items, () => [] as Attempt[]),
+        ])
+      : [[], [] as Attempt[]];
+  } catch (error) {
+    return (
+      <>
+        <PageHeader title="My exams" />
+        <LoadError error={error} />
+      </>
+    );
+  }
   const phases = groupByPhase(assignments);
   const requested = (await searchParams).tab;
   const tab = TABS.find((entry) => entry.key === requested)?.key ?? (phases.live.length ? "live" : phases.upcoming.length ? "upcoming" : phases.past.length ? "past" : "live");
@@ -36,7 +47,8 @@ export default async function MyExams({ searchParams }: { searchParams: Promise<
 
   return (
     <div className="animate-enter">
-      <PageHeader title="My exams" description="Everything assigned to you, with its window and time limit." />
+      <LiveRefresh topics={["attempts", "grading"]} />
+      <PageHeader title="My exams" description="Your exams, with their time windows and duration." />
       <nav aria-label="Exam groups" className="mb-5 inline-flex max-w-full gap-1 overflow-x-auto rounded-[var(--radius-control)] border border-line bg-sidebar p-1">
         {TABS.map((entry) => (
           <Link

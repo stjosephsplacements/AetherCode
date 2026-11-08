@@ -11,8 +11,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/aethercode/aethercode/services/judge/internal/adapters/repo"
 	"github.com/rabbitmq/amqp091-go"
+	"github.com/stjosephsplacements/AetherCode/services/judge/internal/adapters/repo"
 )
 
 const (

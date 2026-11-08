@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/messaging"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/messaging"
 )
 
 const (

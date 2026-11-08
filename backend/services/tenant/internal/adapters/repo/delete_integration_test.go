@@ -13,9 +13,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 
-	"github.com/aethercode/aethercode/libs/pkg/testutil/integration"
-	"github.com/aethercode/aethercode/services/tenant/internal/adapters/repo"
-	"github.com/aethercode/aethercode/services/tenant/internal/app"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/testutil/integration"
+	"github.com/stjosephsplacements/AetherCode/services/tenant/internal/adapters/repo"
+	"github.com/stjosephsplacements/AetherCode/services/tenant/internal/app"
 )
 
 // migratedTenantPool starts PostgreSQL with the tenant roles and every migration.

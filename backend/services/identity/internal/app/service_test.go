@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/authn"
-	"github.com/aethercode/aethercode/services/identity/internal/domain"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/authn"
+	"github.com/stjosephsplacements/AetherCode/services/identity/internal/domain"
 )
 
 const (
@@ -80,6 +80,10 @@ func (store *memoryStore) ActivateTOTP(context.Context, TOTPActivation) ([]strin
 }
 
 func (store *memoryStore) DisableTOTP(context.Context, TOTPDisable) error { return nil }
+
+func (store *memoryStore) PerformMFAStepUp(_ context.Context, _ MFAStepUpCommand) (Session, error) {
+	return store.session, nil
+}
 
 func (store *memoryStore) GetPrincipal(context.Context, string) (*Principal, error) {
 	return nil, nil
@@ -253,3 +257,14 @@ func (store *memoryStore) UpdateAccount(_ context.Context, _ string, changes Acc
 	return nil
 }
 func (store *memoryStore) DiscardAccounts(context.Context, []string, AccountAudit) error { return nil }
+
+func TestFreshMFADropsStaleStamp(t *testing.T) {
+	now := time.Now()
+	fresh, stale := now.Add(-5*time.Minute), now.Add(-16*time.Minute)
+	if freshMFA(&fresh, now) != &fresh {
+		t.Fatal("a stamp inside the window must be kept")
+	}
+	if freshMFA(&stale, now) != nil || freshMFA(nil, now) != nil {
+		t.Fatal("a stale or missing stamp must be dropped")
+	}
+}

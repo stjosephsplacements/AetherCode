@@ -33,8 +33,7 @@ type Student struct {
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 
-	// Soft delete fields per ADR-0013
-	DeletedAt      *time.Time `gorm:"index"`
+	DeletedAt      *time.Time
 	DeletedBy      *uuid.UUID
 	DeletionReason *string
 }

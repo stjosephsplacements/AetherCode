@@ -70,7 +70,8 @@ export function Footer({ compact = false }: { compact?: boolean }) {
   ];
   return (
     <footer className="relative px-3 pb-3 pt-16 sm:px-4">
-      <div className="mx-auto max-w-6xl overflow-hidden rounded-[28px] border border-line bg-surface shadow-[var(--shadow-panel)]">
+      <div aria-hidden className="pointer-events-none mx-auto h-[300px] max-w-5xl rounded-[40px] bg-brand/6 blur-[60px]" />
+      <div className="liquid-glass-strong mx-auto -mt-[260px] max-w-6xl overflow-hidden rounded-3xl shadow-[var(--shadow-overlay)]">
         <div className="grid grid-cols-2 gap-x-6 gap-y-10 p-7 sm:p-10 md:grid-cols-4 lg:grid-cols-[1.4fr_repeat(4,1fr)]">
           <div className="col-span-2 md:col-span-4 lg:col-span-1">
             <Link href="/" className="inline-flex items-center gap-2.5">

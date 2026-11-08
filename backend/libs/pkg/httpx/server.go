@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"sync/atomic"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/config"
-	"github.com/aethercode/aethercode/libs/pkg/logging"
-	"github.com/aethercode/aethercode/libs/pkg/telemetry"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/buildinfo"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/config"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/logging"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry"
 )
 
 // ReadinessFunc reports whether a service can safely receive work.
@@ -66,7 +68,7 @@ func Serve(contextValue context.Context, service config.Service, logger *slog.Lo
 
 	serverErrors := make(chan error, 1)
 	go func() {
-		logger.Info("service listening", "service", service.Name, "address", service.HTTPAddress)
+		logger.Info("service listening", "service", service.Name, "address", service.HTTPAddress, "version", buildinfo.Version)
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			serverErrors <- err
 		}
@@ -89,7 +91,7 @@ func healthHandler(service string) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Content-Type", "application/json")
 		writer.WriteHeader(http.StatusOK)
-		_, _ = fmt.Fprintf(writer, `{"service":%q,"status":"ok"}`+"\n", service)
+		_, _ = fmt.Fprintf(writer, `{"service":%q,"status":"ok","version":%q}`+"\n", service, buildinfo.Version)
 	})
 }
 
@@ -97,8 +99,13 @@ func readinessHandler(service string, readiness ReadinessFunc) http.Handler {
 	if readiness == nil {
 		return healthHandler(service)
 	}
+	var lastLogged atomic.Int64
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		if err := readiness(request.Context()); err != nil {
+			// The reason stays out of the response, but operators need it: log it at most every 30 s.
+			if now := time.Now().UnixNano(); now-lastLogged.Load() > int64(30*time.Second) && lastLogged.CompareAndSwap(lastLogged.Load(), now) {
+				slog.WarnContext(request.Context(), "readiness check failed", "service", service, "error", err)
+			}
 			writer.Header().Set("Content-Type", "application/json")
 			writer.WriteHeader(http.StatusServiceUnavailable)
 			_, _ = fmt.Fprintf(writer, `{"service":%q,"status":"not_ready"}`+"\n", service)

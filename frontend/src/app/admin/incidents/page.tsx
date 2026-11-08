@@ -1,7 +1,7 @@
 import { CheckCircle, WarningCircle, Warning } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { EmptyState, PageHeader, Section, Table } from "@/components/staff/page-header";
+import { EmptyState, LoadError, PageHeader, Section, Table } from "@/components/staff/page-header";
 import { Badge } from "@/components/ui/card";
 import { LiveRefresh } from "@/lib/client/realtime";
 import { loadIncidents } from "@/lib/server/incidents";
@@ -15,14 +15,24 @@ const age = (iso: string | null) => (iso ? `${Math.max(0, Math.round((Date.now()
 
 export default async function IncidentsPage() {
   const staff = await requireAdmin();
-  const board = await loadIncidents(staff);
+  let board;
+  try {
+    board = await loadIncidents(staff);
+  } catch (error) {
+    return (
+      <>
+        <PageHeader title="Incidents" />
+        <LoadError error={error} />
+      </>
+    );
+  }
   const critical = board.incidents.filter((incident) => incident.severity === "critical").length;
   return (
     <>
       <LiveRefresh topics={["grading", "attempts"]} fallbackSeconds={15} />
       <PageHeader
         title="Incidents"
-        description="What needs attention across every college, right now. Refreshes every 15 seconds."
+        description="Problems across all colleges, right now. Updates live."
         actions={
           board.incidents.length === 0 ? (
             <Badge tone="success">All clear</Badge>

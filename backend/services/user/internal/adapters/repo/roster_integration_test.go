@@ -6,10 +6,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/aethercode/aethercode/services/user/internal/adapters/repo"
-	"github.com/aethercode/aethercode/services/user/internal/app"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/stjosephsplacements/AetherCode/services/user/internal/adapters/repo"
+	"github.com/stjosephsplacements/AetherCode/services/user/internal/app"
 	"github.com/stretchr/testify/require"
 )
 

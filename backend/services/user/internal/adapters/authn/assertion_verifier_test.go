@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	sharedauthn "github.com/aethercode/aethercode/libs/pkg/authn"
+	sharedauthn "github.com/stjosephsplacements/AetherCode/libs/pkg/authn"
 )
 
 type fakeSessionValidator struct{ err error }
@@ -40,7 +40,7 @@ func TestAssertionVerifierReturnsOnlyVerifiedIdentityBinding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewAssertionVerifier() error = %v", err)
 	}
-	assertion, _, err := signer.Issue(adapterTestPrincipal, adapterTestRequestID, time.Now(), time.Minute)
+	assertion, _, err := signer.Issue(adapterTestPrincipal, adapterTestRequestID, time.Now(), time.Minute, nil)
 	if err != nil {
 		t.Fatalf("Issue() error = %v", err)
 	}

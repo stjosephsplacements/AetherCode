@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/database"
-	"github.com/aethercode/aethercode/services/judge/internal/app"
 	"github.com/jackc/pgx/v5"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	"github.com/stjosephsplacements/AetherCode/services/judge/internal/app"
 )
 
 // AdmissionLease is a DB-backed claim for a pointer-only RabbitMQ wake-up.

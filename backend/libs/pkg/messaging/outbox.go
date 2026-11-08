@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/database"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/nats-io/nats.go"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
 )
 
 var qualifiedTablePattern = regexp.MustCompile(`^[a-z_][a-z0-9_]{0,62}\.[a-z_][a-z0-9_]{0,62}$`)
@@ -124,6 +124,27 @@ func (store *OutboxStore) Lease(contextValue context.Context, limit int, leaseDu
 		return nil, fmt.Errorf("iterate leased outbox events: %w", err)
 	}
 	return leased, nil
+}
+
+// CleanPublished deletes published rows older than retention. It is safe to
+// call concurrently: DELETE is per-row atomic and the publisher calls this
+// infrequently. A small batch limit keeps the lock brief on large outboxes.
+func (store *OutboxStore) CleanPublished(contextValue context.Context, retention time.Duration) error {
+	if store == nil || store.pool == nil {
+		return fmt.Errorf("outbox store is not initialized")
+	}
+	if retention <= 0 {
+		return fmt.Errorf("outbox retention must be positive")
+	}
+	_, err := store.pool.Exec(contextValue, fmt.Sprintf(`
+		DELETE FROM %s
+		WHERE published_at IS NOT NULL
+		  AND published_at < clock_timestamp() - $1::interval
+	`, store.table), retention.String())
+	if err != nil {
+		return fmt.Errorf("clean published outbox events: %w", err)
+	}
+	return nil
 }
 
 // MarkPublished records a broker-confirmed event delivery. The exact lease

@@ -2,7 +2,7 @@ import { Check, Circle, Trash } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { ActionForm, Field, TextInput } from "@/components/staff/form";
-import { EmptyState, PageHeader } from "@/components/staff/page-header";
+import { EmptyState, LoadError, PageHeader } from "@/components/staff/page-header";
 import { Panel } from "@/components/ui/card";
 import type { PersonalTask } from "@/lib/api-types";
 import { communityList } from "@/lib/server/community";
@@ -15,7 +15,17 @@ export const metadata: Metadata = { title: "My tasks" };
 export default async function TasksPage() {
   const viewer = await requireViewer();
   if (!viewer.tenantId) redirect("/student");
-  const tasks = await communityList<PersonalTask>(viewer.tenantId, "tasks");
+  let tasks;
+  try {
+    tasks = await communityList<PersonalTask>(viewer.tenantId, "tasks");
+  } catch (error) {
+    return (
+      <>
+        <PageHeader title="My tasks" />
+        <LoadError error={error} />
+      </>
+    );
+  }
   return (
     <div className="animate-enter">
       <PageHeader title={"My tasks"} description={"Your own to-do list: mock tests, applications, revision. Only you can see it."} />

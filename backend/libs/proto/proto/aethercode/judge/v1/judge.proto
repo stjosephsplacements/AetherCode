@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package aethercode.judge.v1;
 
-option go_package = "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/judge/v1;judgev1";
+option go_package = "github.com/stjosephsplacements/AetherCode/libs/proto/gen/go/aethercode/judge/v1;judgev1";
 
 service JudgeService {
   rpc SubmitExecution(SubmitExecutionRequest) returns (SubmitExecutionResponse);

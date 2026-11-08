@@ -70,7 +70,7 @@ export function CommunityView({ tab, kind, page, several, queue, posts, items, u
     <>
       <PageHeader
         title="Community"
-        description="What students read beyond exams: approve interview experiences, write blogs and keep the contest, hackathon and open-source lists current."
+        description="Review interview posts, write blogs and manage contest/hackathon listings."
         actions={
           <>
             {tab === "blogs" && <PostDialog />}

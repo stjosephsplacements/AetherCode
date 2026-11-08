@@ -1,4 +1,4 @@
-import { Briefcase, Buildings, GraduationCap, Stack } from "@phosphor-icons/react/ssr";
+import { Buildings, GraduationCap } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -11,18 +11,17 @@ import { Pager } from "@/components/staff/pager";
 import { Badge } from "@/components/ui/card";
 import { paginate } from "@/lib/paginate";
 import { inColleges } from "@/lib/server/colleges";
-import { departmentLabel, listBatches, listDepartments, listPlacement } from "@/lib/server/directory";
+import { departmentLabel, listBatches, listDepartments } from "@/lib/server/directory";
 import { collegesFor, requireStaff } from "@/lib/server/staff";
 import { cn } from "@/lib/utils";
 import { lettermark } from "@/lib/lettermark";
 import { AddDialog } from "./add-dialog";
-import { createBatch, createDepartment, createPlacementDepartment, createPlacementOrganization, deleteBatch, deleteDepartment, deletePlacementOrganization, updateBatch, updateDepartment, updatePlacementOrganization } from "./actions";
+import { createBatch, createDepartment, deleteBatch, deleteDepartment, updateBatch, updateDepartment } from "./actions";
 
 export const metadata: Metadata = { title: "Departments" };
 
 const TABS = [
   { key: "academic", label: "Academic departments" },
-  { key: "placement", label: "Placement organisations" },
   { key: "batches", label: "Batches" },
 ] as const;
 type Tab = (typeof TABS)[number]["key"];
@@ -70,15 +69,11 @@ export default async function OrganisationPage({ searchParams }: { searchParams:
   try {
     const query = await searchParams;
     const colleges = collegesFor(staff);
-    const [perCollege, placement] = await Promise.all([
-      inColleges(colleges, async (collegeId) => ({ departments: await listDepartments(collegeId), batches: await listBatches(collegeId) })),
-      listPlacement(),
-    ]);
+    const perCollege = await inColleges(colleges, async (collegeId) => ({ departments: await listDepartments(collegeId), batches: await listBatches(collegeId) }));
     data = {
       departments: perCollege.flatMap(({ college, value }) => (value?.departments ?? []).filter((department) => department.department_type === "college").map((department) => ({ ...department, collegeId: college.id, collegeName: college.name }))),
       batches: perCollege.flatMap(({ college, value }) => (value?.batches ?? []).map((batch) => ({ ...batch, collegeId: college.id, collegeName: college.name }))),
       unreachable: perCollege.filter((entry) => entry.failed).map((entry) => entry.college.name),
-      placement,
       query,
     };
   } catch (error) {
@@ -89,14 +84,11 @@ export default async function OrganisationPage({ searchParams }: { searchParams:
       </>
     );
   }
-  const { departments, batches, placement, unreachable, query } = data;
-  const several = staff.isPlatformAdmin;
+  const { departments, batches, unreachable, query } = data;
+  const several = false; // /staff is one college (cross-college lists live in /admin), so no college picker or column
   const tab: Tab = TABS.find((entry) => entry.key === query.tab)?.key ?? "academic";
   const pagedDepartments = paginate(departments, query.dp);
   const pagedBatches = paginate(batches, query.bp);
-  const pagedOrganizations = paginate(placement.organizations, query.op);
-  const placementDepartments = placement.organizations.flatMap((organization) => organization.departments.map((department) => ({ department, organization })));
-  const pagedPlacementDepartments = paginate(placementDepartments, query.pp);
   const departmentName = new Map(departments.map((department) => [department.id, departmentLabel(department)]));
   const batchesIn = (departmentId: string) => batches.filter((batch) => batch.department_id === departmentId);
 
@@ -132,15 +124,13 @@ export default async function OrganisationPage({ searchParams }: { searchParams:
     <>
       <PageHeader
         title="Departments"
-        description="Every student belongs to one college department, through a batch, and one placement department."
+        description="Departments and batches for this college. Students are enrolled into a batch."
       />
       {unreachable.length > 0 && <p role="alert" className="mb-4 text-sm text-warning">Could not load: {unreachable.join(", ")}.</p>}
 
       <ul className="mb-5 flex flex-wrap gap-2" aria-label="Summary">
         {chip(<Buildings className="size-3.5" />, "Departments", departments.length)}
         {chip(<GraduationCap className="size-3.5" />, "Batches", batches.length)}
-        {chip(<Briefcase className="size-3.5" />, "Organisations", placement.organizations.length)}
-        {chip(<Stack className="size-3.5" />, "Placement departments", placementDepartments.length)}
       </ul>
 
       <nav aria-label="Sections" className="mb-5 inline-flex max-w-full gap-1 overflow-x-auto rounded-[var(--radius-control)] border border-line bg-sidebar p-1">
@@ -306,116 +296,6 @@ export default async function OrganisationPage({ searchParams }: { searchParams:
         </section>
       )}
 
-      {tab === "placement" && (
-        <section aria-label="Placement organisations" className="space-y-6">
-          {!placement.readable ? (
-            <EmptyState>Only a platform administrator can manage placement organisations.</EmptyState>
-          ) : (
-            <>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-[13px] text-ink-muted">Placement organisations, with the placement departments they run. These can span colleges.</p>
-                  <AddDialog label="Add organisation" title="New placement organisation" submitLabel="Create organisation" action={createPlacementOrganization}>
-                    <div className="grid grid-cols-3 gap-3">
-                      <Field label="Code" htmlFor="organization-code">
-                        <TextInput id="organization-code" name="code" required placeholder="TPC" />
-                      </Field>
-                      <Field label="Legal name" htmlFor="organization-name" className="col-span-2">
-                        <TextInput id="organization-name" name="legal_name" required placeholder="Training and Placement Cell" />
-                      </Field>
-                    </div>
-                  </AddDialog>
-                </div>
-                {placement.organizations.length === 0 ? (
-                  <EmptyState>No placement organisations yet.</EmptyState>
-                ) : (
-                  <>
-                    <Table head={["Organisation", "Code", "Placement departments", ""]}>
-                      {pagedOrganizations.rows.map((organization) => (
-                        <tr key={organization.id}>
-                          <td className="px-4 py-3"><Named name={organization.legal_name} /></td>
-                          <td className="px-4 py-3 font-mono text-xs text-ink-muted">{organization.code}</td>
-                          <td className="px-4 py-3"><Few labels={organization.departments.map((department) => department.code)} empty="None yet" /></td>
-                          <td className="px-4 py-2">
-                            <div className="flex items-center justify-end gap-1">
-                              <EditDialog
-                                title={`Edit ${organization.legal_name}`}
-                                fields={[{ name: "legal_name", label: "Legal name", value: organization.legal_name }]}
-                                onSave={async (changes) => {
-                                  "use server";
-                                  return updatePlacementOrganization(organization.id, changes);
-                                }}
-                              />
-                              <ConfirmDelete
-                                title={`Delete ${organization.legal_name}?`}
-                                description="Its placement departments go with it. Students already placed through it keep their records."
-                                confirmText={organization.code}
-                                onConfirm={async (reason) => {
-                                  "use server";
-                                  return deletePlacementOrganization(organization.id, reason);
-                                }}
-                              />
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </Table>
-                    <Pager meta={pagedOrganizations} param="op" noun="organisations" />
-                  </>
-                )}
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Placement departments</h2>
-                  <AddDialog
-                    label="Add placement department"
-                    title="New placement department"
-                    submitLabel="Create placement department"
-                    action={createPlacementDepartment}
-                    variant="secondary"
-                    disabledReason={placement.organizations.length === 0 ? "Create an organisation first" : undefined}
-                  >
-                    <Field label="Organisation" htmlFor="placement-organization">
-                      <Select id="placement-organization" name="organization_id" required>
-                        {placement.organizations.map((organization) => (
-                          <option key={organization.id} value={organization.id}>
-                            {organization.legal_name}
-                          </option>
-                        ))}
-                      </Select>
-                    </Field>
-                    <div className="grid grid-cols-3 gap-3">
-                      <Field label="Code" htmlFor="placement-code">
-                        <TextInput id="placement-code" name="code" required placeholder="TPO" />
-                      </Field>
-                      <Field label="Name" htmlFor="placement-name" className="col-span-2">
-                        <TextInput id="placement-name" name="name" required placeholder="Training and Placement" />
-                      </Field>
-                    </div>
-                  </AddDialog>
-                </div>
-                {placementDepartments.length === 0 ? (
-                  <EmptyState>No placement departments yet.</EmptyState>
-                ) : (
-                  <>
-                    <Table head={["Placement department", "Code", "Organisation"]}>
-                      {pagedPlacementDepartments.rows.map(({ department, organization }) => (
-                        <tr key={department.id}>
-                          <td className="px-4 py-3"><Named name={department.name} /></td>
-                          <td className="px-4 py-3 font-mono text-xs text-ink-muted">{department.code}</td>
-                          <td className="px-4 py-3 text-ink-muted"><Clip>{organization.legal_name}</Clip></td>
-                        </tr>
-                      ))}
-                    </Table>
-                    <Pager meta={pagedPlacementDepartments} param="pp" noun="departments" />
-                  </>
-                )}
-              </div>
-            </>
-          )}
-        </section>
-      )}
     </>
   );
 }

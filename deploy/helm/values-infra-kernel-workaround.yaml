@@ -1,0 +1,15 @@
+# For hosts whose kernel/AppArmor denies signals between the processes of one container (the campus
+# server, kernel 7.0.0-42 and later, seen 2026-11-04 and -05). PostgreSQL wakes its backends and its
+# helper processes with signals, so on such a host:
+#   - pg_reload_conf(), pg_terminate_backend() and pg_ctl stop fail with "Permission denied";
+#   - a backend waiting for a lock or for I/O is never woken: asynchronous I/O "hangs", and a backend
+#     holding the relation-extension lock of app.outbox_events sat in Lock:extend for good, so a
+#     100-student import never returned and projections stalled for hours.
+# Running the database pods without the node's default AppArmor profile fixes all of it; the earlier
+# workarounds (io_method=sync, file_extend_method=write_zeros) are not needed and are gone. With this
+# file a five-times-500-student import took under 4 s each and a 1,000-student exam completed.
+#   helm upgrade infra platform-infra -n <ns> -f values-infra-kernel-workaround.yaml
+postgres:
+  appArmorUnconfined: true
+judgeDb:
+  appArmorUnconfined: true

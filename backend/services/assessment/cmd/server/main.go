@@ -8,20 +8,22 @@ import (
 	"syscall"
 	"time"
 
-	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
-	"github.com/aethercode/aethercode/libs/pkg/authzprojection"
-	"github.com/aethercode/aethercode/libs/pkg/config"
-	"github.com/aethercode/aethercode/libs/pkg/database"
-	"github.com/aethercode/aethercode/libs/pkg/httpauth"
-	"github.com/aethercode/aethercode/libs/pkg/httpx"
-	"github.com/aethercode/aethercode/libs/pkg/logging"
-	"github.com/aethercode/aethercode/libs/pkg/messaging"
-	"github.com/aethercode/aethercode/libs/pkg/telemetry"
-	httpadapter "github.com/aethercode/aethercode/services/assessment/internal/adapters/http"
-	"github.com/aethercode/aethercode/services/assessment/internal/adapters/projection"
-	"github.com/aethercode/aethercode/services/assessment/internal/adapters/questionbank"
-	"github.com/aethercode/aethercode/services/assessment/internal/adapters/repo"
-	"github.com/aethercode/aethercode/services/assessment/internal/app"
+	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/authzprojection"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/buildinfo"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/config"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpauth"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/logging"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/messaging"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry/dbmetrics"
+	httpadapter "github.com/stjosephsplacements/AetherCode/services/assessment/internal/adapters/http"
+	"github.com/stjosephsplacements/AetherCode/services/assessment/internal/adapters/projection"
+	"github.com/stjosephsplacements/AetherCode/services/assessment/internal/adapters/questionbank"
+	"github.com/stjosephsplacements/AetherCode/services/assessment/internal/adapters/repo"
+	"github.com/stjosephsplacements/AetherCode/services/assessment/internal/app"
 )
 
 func main() {
@@ -42,7 +44,7 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	otelShutdown, err := telemetry.InitProvider(ctx, "assessment", "0.1.0")
+	otelShutdown, err := telemetry.InitProvider(ctx, "assessment", buildinfo.Version)
 	if err != nil {
 		logger.Warn("telemetry provider init failed, tracing disabled", "error", err)
 	} else {
@@ -61,6 +63,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 	defer pool.Close()
+	dbmetrics.Register("assessment", pool)
 
 	authzRuntime, err := centralauthz.LoadClientRuntime(serviceConfig.Environment)
 	if err != nil {

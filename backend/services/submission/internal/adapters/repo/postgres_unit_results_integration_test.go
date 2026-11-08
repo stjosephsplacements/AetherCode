@@ -15,7 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 
-	"github.com/aethercode/aethercode/libs/pkg/testutil/integration"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/testutil/integration"
 )
 
 // startSubmissionDatabase starts a disposable PostgreSQL container, provisions

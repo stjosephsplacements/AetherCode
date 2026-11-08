@@ -10,8 +10,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
 
-	"github.com/aethercode/aethercode/services/question-bank/internal/adapters/repo"
-	"github.com/aethercode/aethercode/services/question-bank/internal/app"
+	"github.com/stjosephsplacements/AetherCode/services/question-bank/internal/adapters/repo"
+	"github.com/stjosephsplacements/AetherCode/services/question-bank/internal/app"
 )
 
 func ptr[T any](value T) *T { return &value }

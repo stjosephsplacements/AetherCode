@@ -5,7 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/aethercode/aethercode/services/identity/internal/adapters/sso"
+	"github.com/stjosephsplacements/AetherCode/services/identity/internal/adapters/sso"
 	"log/slog"
 	"net"
 	"net/http"
@@ -14,19 +14,21 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/authzprojection"
-	"github.com/aethercode/aethercode/libs/pkg/config"
-	"github.com/aethercode/aethercode/libs/pkg/database"
-	"github.com/aethercode/aethercode/libs/pkg/httpx"
-	"github.com/aethercode/aethercode/libs/pkg/logging"
-	"github.com/aethercode/aethercode/libs/pkg/messaging"
-	"github.com/aethercode/aethercode/libs/pkg/ratelimit"
-	"github.com/aethercode/aethercode/libs/pkg/telemetry"
-	httpadapter "github.com/aethercode/aethercode/services/identity/internal/adapters/http"
-	introspectionadapter "github.com/aethercode/aethercode/services/identity/internal/adapters/introspection"
-	"github.com/aethercode/aethercode/services/identity/internal/adapters/repo"
-	"github.com/aethercode/aethercode/services/identity/internal/app"
-	identityconfig "github.com/aethercode/aethercode/services/identity/internal/config"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/authzprojection"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/buildinfo"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/config"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/logging"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/messaging"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/ratelimit"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry/dbmetrics"
+	httpadapter "github.com/stjosephsplacements/AetherCode/services/identity/internal/adapters/http"
+	introspectionadapter "github.com/stjosephsplacements/AetherCode/services/identity/internal/adapters/introspection"
+	"github.com/stjosephsplacements/AetherCode/services/identity/internal/adapters/repo"
+	"github.com/stjosephsplacements/AetherCode/services/identity/internal/app"
+	identityconfig "github.com/stjosephsplacements/AetherCode/services/identity/internal/config"
 )
 
 func main() {
@@ -49,7 +51,7 @@ func run(contextValue context.Context) error {
 	if err != nil {
 		return err
 	}
-	otelShutdown, err := telemetry.InitProvider(contextValue, "identity", "0.1.0")
+	otelShutdown, err := telemetry.InitProvider(contextValue, "identity", buildinfo.Version)
 	if err != nil {
 		logger.Warn("telemetry provider init failed, tracing disabled", "error", err)
 	} else {
@@ -68,6 +70,7 @@ func run(contextValue context.Context) error {
 		return err
 	}
 	defer pool.Close()
+	dbmetrics.Register("identity", pool)
 	runtime, err := identityconfig.Load(serviceConfig.Environment)
 	if err != nil {
 		return err
@@ -282,9 +285,10 @@ func serveIntrospection(
 		Addr:              runtime.IntrospectionAddress,
 		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       10 * time.Second,
-		WriteTimeout:      10 * time.Second,
-		IdleTimeout:       30 * time.Second,
+		// Account provisioning hashes up to 500 passwords in one call.
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  30 * time.Second,
 	}
 	serverErrors := make(chan error, 1)
 	go func() {

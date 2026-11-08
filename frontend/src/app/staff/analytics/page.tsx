@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { LoadError, PageHeader } from "@/components/staff/page-header";
 import type { ExamResult, Page, Student } from "@/lib/api-types";
+import { LiveRefresh } from "@/lib/client/realtime";
 import { listBatches, listDepartments } from "@/lib/server/directory";
 import { listExams, mapLimit } from "@/lib/server/exams";
 import { gateway } from "@/lib/server/gateway";
@@ -113,11 +114,14 @@ export default async function AnalyticsPage() {
   const recent = [...points].sort((a, b) => b.at.localeCompare(a.at));
 
   return (
+    <>
+    <LiveRefresh topics={["grading"]} />
     <AnalyticsView
       several={several}
       scope="the college"
       notice={unreachable.length > 0 ? <p role="alert" className="mb-4 text-sm text-warning">Could not load: {unreachable.join(", ")}.</p> : undefined}
       data={{ attempts, points, recent, overall, change, departmentRows, batchRows, students: students_, needAttention }}
     />
+    </>
   );
 }

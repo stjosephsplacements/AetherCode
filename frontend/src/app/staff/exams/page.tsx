@@ -27,7 +27,7 @@ export default async function ExamsPage() {
       <LiveRefresh topics={["attempts"]} />
       <PageHeader
         title="Exams"
-        description="Build an exam from published questions, publish it, then assign it to a batch, a department or a placement department. Click an exam for its quick view."
+        description="Create exams, add questions, publish and assign to students. Click one to see details."
         actions={<NewExamDialog />}
       />
       <ExamBoard exams={exams.map(({ exam, version, college }) => ({ exam: { id: exam.id, created_at: exam.created_at }, version, college }))} renderedAt={renderedAt} />

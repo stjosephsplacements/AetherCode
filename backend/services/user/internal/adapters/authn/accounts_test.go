@@ -8,9 +8,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	"github.com/aethercode/aethercode/services/user/internal/app"
-	userconfig "github.com/aethercode/aethercode/services/user/internal/config"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	"github.com/stjosephsplacements/AetherCode/services/user/internal/app"
+	userconfig "github.com/stjosephsplacements/AetherCode/services/user/internal/config"
 )
 
 var testAudit = app.AccountAudit{ActorID: "019b11a0-0000-7000-8000-000000000001", RequestID: "019b11a0-0000-7000-8000-000000000002"}

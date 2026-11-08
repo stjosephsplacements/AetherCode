@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
+	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
 )
 
 // Self is what the signed-in principal may know about their own access:

@@ -55,7 +55,7 @@ export default async function StaffAccountsPage({
   }
 
   const { perCollege, placement, page } = data;
-  const several = staff.isPlatformAdmin;
+  const several = false; // /staff is one college (cross-college lists live in /admin), so no college picker or column
 
   const placementList = placement.organizations.flatMap((org) =>
     org.departments.map((dep) => ({ id: dep.id, name: `${departmentLabel(dep)}, ${org.legal_name}` }))
@@ -103,7 +103,7 @@ export default async function StaffAccountsPage({
         roles,
         roleTypes: [...roleTypes],
         departments: entry.departments.map((department) => ({ id: department.id, name: department.name })),
-        batches: entry.batches.filter((batch) => batch.status === "active").map((batch) => ({ id: batch.id, name: `${batch.name} (${batch.academic_year})` })),
+        batches: entry.batches.filter((batch) => batch.status === "active").map((batch) => ({ id: batch.id, name: `${batch.name} (${batch.academic_year})`, departmentId: batch.department_id })),
       };
     });
   });
@@ -114,7 +114,7 @@ export default async function StaffAccountsPage({
     <>
       <PageHeader
         title="Staff accounts"
-        description="Faculty author questions and run exams for their department. Mentors follow batches. Placement officers oversee cohorts. College administrators manage overall college settings."
+        description="Create and manage staff accounts. Give them roles to control what they can do."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <ImportStaffDialog departments={departments} />

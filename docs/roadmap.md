@@ -132,6 +132,245 @@ frontend build, **not yet deployed or run on the campus stack**:
 - Staff try an exam as a student in a private copy (ADR-0046); the
   `smoke.py` check for it has not been run.
 
+Done 2026-11-05 to 2026-11-08 (code; deployed to `aether-test`):
+- Security and correctness fixes from the ultrareview (PRs #137–#167); see
+  `PENDING.md` §1 for the full list.
+- RBAC overwrite wiring (ADR-0075): `rbac.Compute` is the live bitset
+  decision path, `PUT /role-overwrites` rejects no-op rules, full branch
+  coverage. Ready for `AUTHZ_ENGINE=shadow` observation then `=bitset`
+  cutover.
+- Down migrations from `node_scoped_capability_chain` restore each service's
+  exact prior `set_context` body (9 files fixed).
+- Browser tests: exam authoring wizard, extra time from the monitor, MFA
+  step-up dialog, MCQ wizard, roster CSV export, practice mode.
+- Roles management UI (`/staff/roles`): lists college roles sorted by tier,
+  shows permission grids, create/edit/delete for non-managed roles (wired to
+  the ADR-0066 CRUD endpoints).
+- Build version injection: `libs/pkg/buildinfo` package with `-ldflags`
+  injection in all 11 Dockerfiles, `Makefile` and `dev-sync.sh`; `/healthz`
+  returns `{"version":"…"}` for deployed-version verification.
+- `govet` shadow analyzer enabled with err-exclusion; gateway `route` variable
+  rename fixes the one real non-err shadow.
+- `AUTHZ_ENGINE` promoted from `kubectl` manual set to helm values and
+  docker-compose for reproducible deployments.
+- Gateway HTTP transport tuned: `MaxIdleConnsPerHost=20`, `MaxConnsPerHost=40`,
+  `IdleConnTimeout=90s` to eliminate connection churn under load.
+- Database pool metrics wired to all 11 services via `telemetry/dbmetrics`.
+- Landing page and login page Liquid Glass redesign.
+- JSON logging fix: `slog.SetDefault(logger)` in `logging.New()` so
+  package-level `slog.Error`/`slog.Warn` calls emit JSON, not text format.
+- NATS unlimited reconnection (`MaxReconnects(-1)`) prevents permanent
+  consumer death after extended broker maintenance.
+- Identity UTF-8 truncation fix: `truncate()` now respects rune boundaries,
+  preventing PostgreSQL `text` column rejections on multibyte user-agents.
+- Question-bank `listTags` HTTP adapter validates limit bounds (1–500) at the
+  handler, matching the app-layer cap.
+- `make check` convenience target: runs `build lint test web-check web-build`
+  in one command for pre-push validation.
+- Production readiness audit of: pagination library (keyset cursors, fixed-width
+  timestamps), outbox publisher (SKIP LOCKED leasing, NATS dedup, exponential
+  backoff), NATS consumer failure taxonomy, authz projection resync protocol,
+  submission expiry worker, identity auth lifecycle, and graceful shutdown
+  ordering.
+- Extended production readiness audit confirming: gateway config validation
+  (fail-closed, strict URL/CIDR/prefix validation, public service allowlist),
+  model-check runner (bounded resource caps, output checksum, graceful output
+  degradation), analytics projection (inbox dedup, temporal ordering, legal hold
+  awareness, `messaging.Permanent` error taxonomy), community content adapter
+  (DB-layer limit clamping, path-value override, RLS via `WithTenantTx`), tenant
+  service (keyset pagination, retention policy bounds, legal hold scope
+  validation, mandatory deletion reason), SEB lockdown (IPv4/v6 unmap for CIDR
+  match, URL fragment rejection, key deduplication), and identity auth
+  (hash-only token storage, refresh family rotation, MFA step-up, lockout
+  protection). All subsystems confirmed production-ready; `make build lint test`
+  and `make web-check` pass clean.
+- Comprehensive deep-audit of all remaining backend services (2026-11-08):
+  question-bank (three-bundle test architecture encrypt-then-SHA256, idempotency
+  fingerprint excludes server-generated UUIDs, function-only composition
+  Prefix+source+Suffix, `readSealed` checksum-then-decrypt, practice run vs
+  submit mode, `context.WithoutCancel` cleanup to prevent ciphertext leak);
+  submission (candidate source encrypted before transaction opens, `SubmitAttempt`
+  idempotent replay on re-submit, evaluation bundle keys from server not client,
+  similarity semaphore `sourceReads=16`); assessment (question bank resolved
+  before write transaction to avoid holding DB lock, `withTenantTx` cross-checks
+  capability.TenantID, score validated as `big.Rat`, canonical JSON for policy
+  checksum, `RepinExamItem` MCQ guard, temporal window guards with 1-minute grace,
+  `canonicalJSONObject` before hashing); judge dispatcher (compile-fail
+  short-circuit, batch submission with graceful degradation, poll exhaustion
+  yields `internal_error` not `time_limit_exceeded`, `sleepContext` for
+  cancellation-safe polling, completion validated on Pull). `make build lint test`
+  0 issues, all tests pass.
+- Complete shared-library and service wiring audit (2026-11-08): all 21
+  packages under `backend/libs/pkg/` read and verified (authn Ed25519 JWS
+  with canonical base64url enforcement, authz HMAC capability chain,
+  authzprojection resync protocol with constant-time manifest comparison,
+  rbac Discord-style bitset resolver, httpauth stateless authorizer with no
+  positive cache, grpcmtls TLS 1.3 + VerifiedChains enforcement, telemetry
+  OTel+Prometheus with path sanitisation for cardinality control, config
+  fail-closed mTLS enforcement in staging/production, kms AES-256-GCM with
+  random nonce, testutil Testcontainers integration helpers). All 11 service
+  HTTP adapter layers verified for consistent parse→authorize→service→write
+  ordering, server-generated UUIDs, `Cache-Control: no-store` on sensitive
+  responses, and idempotency keying on state-changing endpoints. Gateway edge
+  handler verified: header injection prevention (X-AetherCode-* always
+  blocked, X-Forwarded-* stripped and rewritten), path traversal rejection
+  (.., //, RawPath), SEB enforcement, no-proxy/no-redirect HTTP client,
+  and `no-store` wrapper on the entire Identity handler. Authorization client
+  chain verified: blocking dial (service starts only if User service is
+  reachable), decision-capability cross-check (CapabilityID==DecisionID,
+  ActorID, TenantID, AuthzRevision all validated), and MFA structured gRPC
+  detail detection. `make build test` 0 issues.
+- Remaining service adapter and judge sandbox audit (2026-11-08): SEB adapter
+  verified (`Cache-Control: no-store` on session issuance and validation,
+  `lowerSHA256` fingerprint validation, idempotency on all state transitions
+  except append-only validation events, soft vs hard delete with required reason);
+  Analytics adapter verified (authorization on every route, configurable per-endpoint
+  limit ceiling); Notification adapter verified (self-authorization on preference and
+  notification reads, `AuthorizeHTTP` for staff scheduling, community routes
+  disambiguate staff (`community_moderation`) vs member (`community`) resource at
+  authorization time, body size bounded to 256 KiB, path values win over body keys
+  to prevent IDOR via body); Assessment adapter verified (appService and
+  httpAuthorizer interfaces for testability, `WriteCommand.IdempotencyKey` threaded
+  through all write commands, `RepinExamItem` requires separate `exam_items` write
+  authorization, `MoveAssignmentWindow` does not require idempotency key since it is
+  idempotent by nature); Judge gRPC server verified (`clientSubject` falls back to
+  "submission" in dev — callers are partitioned by mTLS CN in production, rate
+  limiting checks non-empty `TenantFairnessKey` before engine admission,
+  unrecognised verdict codes → `codes.Internal` not a pass); Judge engine client
+  verified (`ExpectedOutput: ""` — expected outputs are never sent to the execution
+  engine, grading happens in `OutputsMatch` on the platform side, `Proxy: nil` and
+  `CheckRedirect → ErrUseLastResponse` on engine HTTP client, `maxPendingVerdicts`
+  bounds in-memory verdict map, `newToken` uses `crypto/rand`); `OverallVerdict`
+  treats unrecognised verdicts as `internal_error` (fail-closed); poll exhaustion
+  returns `internal_error` not `accepted`. `make lint` 0 issues (all 12 modules).
+- Service entrypoint and frontend audit (2026-11-08): all 11 service `cmd/server/main.go`
+  wiring verified — every service has `signal.NotifyContext` SIGTERM handling, OTel
+  shutdown with 5s timeout, `dbmetrics.Register` pool metrics, telemetry middleware,
+  readiness chain that gates on every dependency before `/readyz` returns 200, and
+  `defer pool.Close()` on each pgxpool; Gateway main verified (NATS optional with
+  graceful degradation, realtime hub+prober started before HTTP); Identity main
+  verified (three-consumer authzprojection resync stack, separate mTLS introspection
+  listener with defense-in-depth TLS 1.3 assertion); Judge main verified
+  (JUDGE_ENGINE_COMPATIBILITY_APPROVED gate, mTLS TLS 1.3 assertion, gRPC health
+  protocol with NOT_SERVING drain, graceful stop with timeout fallback); Submission
+  main verified (fail-fast guards: dispatch requires completion, completion requires
+  NATS, ProcessOnce startup drain for judge completion and expiry workers); httpx
+  server verified (production timeouts: ReadHeaderTimeout=5s, ReadTimeout=15s,
+  WriteTimeout=15s, IdleTimeout=60s; readiness error logged server-side only, never in
+  response body); golangci.yml verified (bodyclose, errcheck, errorlint, rowserrcheck,
+  sqlclosecheck, staticcheck, unused, govet/shadow); identity postgres `truncate`
+  function fixed to walk back to a UTF-8 rune boundary before slicing. Frontend: ESLint
+  zero issues (removed stale eslint-disable directives in `mfa-gate.tsx`, fixed ternary
+  side-effect expression in `role-editor.tsx`, removed unused imports from e2e specs);
+  `make web-check web-build` passes clean (111 tests, 0 errors).
+
+- HTTP adapter full audit (2026-11-08, second run): all 9 service HTTP adapters reviewed
+  (analytics, assessment, gateway, identity, notification, question-bank, seb, submission,
+  tenant) — consistent parse→authorize→service pattern, server-generated UUIDs,
+  `pagination.ParseLimit` on every list endpoint, no authorization bypasses or IDOR vectors.
+  nginx-site.conf: added missing `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`
+  headers. next.config.ts: added `X-Frame-Options: DENY`. Notification community `?limit`
+  parameter now rejects values outside [1, 100] (was unbounded, forwarded to PL/pgSQL LIMIT
+  directly). ingress-nginx AppArmor fix codified: `deploy/helm/values-ingress-nginx-kernel-workaround.yaml`
+  replaces the hand-applied kubectl patch; ADR-0076 written. Zero TODO/FIXME markers in Go
+  source files. `make lint test web-check` clean.
+- Analytics department batch progress rollup (2026-11-08, fourth run): migration 000019
+  (`batch_progress_department_rollups`) written; new table adds `department_id` to the batch
+  progress PK, resolving the analytics gap where department-scoped staff could not read only
+  their slice without a client-side workaround. ADR-0077. Go service layer, repo adapter, and
+  HTTP endpoint `GET /v1/tenants/{tid}/batch-progress/{bid}/by-department` wired.
+  Projection worker `rebuildBatchProgress` now also rebuilds the department slice.
+  Migration must be applied before deploying. `make lint test` clean.
+- Docker Compose healthchecks (2026-11-08, ninth run): all 11 platform services, gateway, and
+  frontend now have healthcheck entries in `docker-compose.yml`. A shared `x-healthcheck` YAML
+  anchor uses `wget --spider -q http://localhost:8080/healthz`; the frontend uses `/system-check/ping`
+  on port 3000. Previously only infra services (postgres, nats, minio) had healthchecks.
+- Analytics smoke test coverage (2026-11-08, ninth run): `smoke.py` now covers all 6 analytics
+  API paths: student-progress (with 30-second event propagation polling), exam-results (with 403
+  for students), batch-progress, placement-progress, and report-exports (idempotency + storage-key
+  redaction). Smoke test now covers every service end-to-end (75 checks total).
+- Outbox/inbox retention cleanup and security headers (2026-11-08, tenth run): `OutboxStore.CleanPublished`
+  and `InboxStore.CleanProcessed` added to `libs/pkg/messaging/`; `Publisher.Run` and `PullConsumer.Run`
+  call each every 5 minutes, deleting rows older than 8 days. All 9 services' `app.outbox_events`
+  and the analytics/submission `app.inbox_messages` tables previously grew unbounded.
+  `PullConsumer` gains a `WithInboxCleaner` builder method; the `InboxCleaner` interface keeps the
+  consumer decoupled from the store. Also added `MaxBytes: 2 GiB` to the NATS platform stream in
+  `ensurePlatformStream` — previously only `MaxAge: 8 days` with no size cap.
+  `Permissions-Policy` header added to `deploy/single-server/nginx-site.conf` and expanded in
+  `frontend/next.config.ts` (full 8-directive policy: accelerometer, camera, geolocation, gyroscope,
+  magnetometer, microphone, payment, USB — all denied; nginx previously had no policy at all;
+  frontend had only camera/microphone/geolocation).
+
+- Security and infrastructure fixes (2026-11-08, eleventh run): `Cache-Control: no-store`
+  centralised in `httpx.WriteJSON` — analytics, assessment, tenant and most notification routes
+  previously had no cache-prevention header (risk: proxy caching authenticated responses for the
+  wrong tenant); assessment's direct `getExamVersionContent` write path patched separately. NATS
+  stream config now calls `UpdateStream` when stream already exists so `MaxBytes: 2 GiB` applies
+  to existing deployments, not only fresh ones. PostgreSQL image aligned to 18.6 across
+  `docker-compose.yml` and `platform-migrations/values.yaml` (was 18.4; `platform-infra` already
+  used 18.6). `make lint test web-check` clean.
+
+- OpenAPI spec completeness (2026-11-08, twelfth run): 67 handler operations were registered but
+  missing from their service's `api/openapi.yaml`, meaning `endpoint_sweep.py` never exercised
+  them. All 9 service specs are now fully aligned with their HTTP handlers — symmetric diff is 0
+  across analytics, assessment, identity, notification, question-bank, seb, submission, tenant, and
+  user. Notable additions: assessment (12 ops: GET/PATCH/DELETE exam, proctor-policy
+  get/list/list-versions, section/item delete, repin, move-window), identity (6 ops: SSO, MFA
+  step-up, change-password, get/delete principal), user (15 ops: roles, role-overwrites, account
+  bulk ops, staff-audit, student roster/delete), tenant (10 ops: placement-org CRUD, entity hard
+  deletes), submission (6 ops: attempt delete/hard, judge-receipts, unit-results, regrade,
+  grading-queue), question-bank (9 ops: model-checks, templates, asset download, soft/hard deletes),
+  seb (3 ops: config payload, deletes), notification (4 ops: preference PUT, notification deletes),
+  analytics (2 ops: report-export deletes). `make lint test` clean.
+
+- Dead code and dependency hygiene (2026-11-08, thirteenth run): removed `StudentGormRepo` from
+  `services/user` — implemented as an ADR-0013 demonstration but never wired; was the sole reason
+  `gorm.io/gorm` appeared as a direct dependency of the user module. Removed dead GORM test from
+  `postgres_test.go`, `gorm:"index"` tag from `domain/student.go`, and a misleading comment in
+  identity. Applied `rangeint` modernisation in identity's MFA recovery-code loop. Broad production
+  readiness audit completed: rate limiter coverage verified (gateway/identity/submission), judge
+  fairness key (per-tenant admission limiting), `WithTenantTx` / `authz.set_context` coverage
+  (all user-facing mutations gated; raw `BeginTx` only in projection workers and identity auth),
+  model-check security chain (encrypt-before-store, hidden tests never leave MinIO), Helm resource
+  limits / PDB / HPA template confirmed, credential isolation per service confirmed, backup atomic
+  write pattern, `math/rand` absent from all production paths. `make lint test` clean.
+- Full production readiness deep audit (2026-11-08, fourteenth run, no code changes): verified
+  capability validation chain (`ValidateAt`: UUID format, TTL 0<t<=5s, HMAC length, clock skew),
+  practice run hidden-test isolation, readiness check completeness in all 11 services (full
+  dependency chain including NATS consumers, projection stores, judge workers), isolation check
+  auto-covers 170 tenant-scoped operations (510 cross-college calls), NATS consumer permanent vs
+  transient error handling, gateway header injection defence and WebSocket origin validation,
+  security headers at both nginx and Next.js layers, zero string-concatenated SQL, 1 MiB request
+  body bound, HTTP server timeouts, graceful SIGTERM shutdown, proto generation zero-drift,
+  dependency version consistency (Go 1.26.0, pgx 5.11.0, nats 1.55.0, grpc 1.85.0),
+  `govulncheck` 0 reachable vulnerabilities, all `nolint` suppressions justified and documented.
+- Live monitor real-time WebSocket (2026-11-08, fifteenth run): `MonitorBoard` replaced its
+  15-second `setInterval(router.refresh())` polling with `LiveRefresh` over the existing gateway
+  WebSocket. The monitor now re-renders from the server within ~750 ms of any `attempts` or
+  `grading` event (student starts, submits, gets graded) instead of waiting up to 15 seconds.
+  Falls back to 15-second polling when the WebSocket is down. No backend changes needed — the
+  gateway hub already published these events.
+- Image alignment, admin hardening, test coverage (2026-11-08, sixteenth run): aligned 3 remaining
+  Postgres images to 18.6 (root dev compose, judge-control compose, tools Dockerfile — missed in the
+  eleventh run). Admin analytics and incidents pages now catch fetch failures inline with `LoadError`
+  instead of falling to the root error boundary. Incidents description updated to "real time." Admin
+  loading state added. Frontend test count raised to 144 (utils, lettermark, formatCountdown).
+  SEB entry page metadata added. `make lint test web-check web-build` clean.
+- Handler separation and results LiveRefresh (2026-11-08, seventeenth run): tenant service
+  placement handlers extracted into `placement_handler.go` (were interleaved with tenant CRUD);
+  user service role assignment handlers consolidated into `roles_handler.go` (alongside existing
+  role CRUD/overwrites). Results page (`/staff/exams/{id}/results`) now gets `LiveRefresh` on
+  the `grading` topic so results appear in real time as attempts are graded. Frontend README
+  screens table updated from M5-only to all current routes. `make lint test web-check` clean.
+- Placement expansion and error handling (2026-11-08, eighteenth run): new `/placement/staff`
+  page for managing placement officers (assign from existing staff, remove with confirmation).
+  `/placement/questions` and `/placement/exams` give placement staff cross-college visibility.
+  Admin sidebar links to all placement pages. Mentor batch assignment scoped to department.
+  Staff analytics gets LiveRefresh on grading. LoadError added to 10+ student and staff pages
+  that previously fell to the root error boundary. Backend handler extraction: proctor policy
+  handlers from assessment, practice handlers from question-bank. `libs/pkg` and `libs/proto`
+  READMEs added. Full API reference at `docs/API.md`.
+
 ### Pending (2026-10-21)
 
 Needs the owner:

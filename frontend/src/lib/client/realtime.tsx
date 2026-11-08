@@ -17,7 +17,7 @@ type Realtime = {
 const Context = createContext<Realtime>({ status: "offline", health: null, subscribe: () => () => {} });
 
 /**
- * One WebSocket to the gateway for the whole console. It reconnects with
+ * One WebSocket to the gateway for staff or student pages. It reconnects with
  * backoff; when the session expires it lets the server refresh the cookie first.
  */
 export function RealtimeProvider({ tenantId, children }: { tenantId: string | null; children: React.ReactNode }) {
@@ -87,6 +87,7 @@ export function LiveRefresh({ topics, fallbackSeconds = 60 }: { topics: Topic[];
   const router = useRouter();
   const { status, subscribe } = useRealtime();
   const key = topics.join(",");
+  const wasOffline = useRef(false);
 
   useEffect(() => {
     let pending: ReturnType<typeof setTimeout> | undefined;
@@ -103,7 +104,12 @@ export function LiveRefresh({ topics, fallbackSeconds = 60 }: { topics: Topic[];
   }, [key, router, subscribe]);
 
   useEffect(() => {
-    if (status === "live") return;
+    if (status === "live") {
+      if (wasOffline.current) router.refresh();
+      wasOffline.current = false;
+      return;
+    }
+    wasOffline.current = true;
     const refresh = () => {
       if (document.visibilityState === "visible") router.refresh();
     };

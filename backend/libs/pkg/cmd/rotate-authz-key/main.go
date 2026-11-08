@@ -20,8 +20,8 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/database"
 	"github.com/jackc/pgx/v5"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
 )
 
 // audiencePattern mirrors authz.SigningKey's unexported validation regex and

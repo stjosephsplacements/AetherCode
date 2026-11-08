@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aethercode/aethercode/services/judge/internal/dispatcher"
+	"github.com/stjosephsplacements/AetherCode/services/judge/internal/dispatcher"
 )
 
 // fakeEngine answers like the engine: 201 with a job id, then an SSE stream

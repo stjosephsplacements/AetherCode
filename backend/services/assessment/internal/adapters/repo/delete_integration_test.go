@@ -9,8 +9,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
-	"github.com/aethercode/aethercode/services/assessment/internal/adapters/repo"
-	"github.com/aethercode/aethercode/services/assessment/internal/app"
+	"github.com/stjosephsplacements/AetherCode/services/assessment/internal/adapters/repo"
+	"github.com/stjosephsplacements/AetherCode/services/assessment/internal/app"
 )
 
 // TestDeletingExams covers ADR-0053: an exam that was never published can be

@@ -9,7 +9,7 @@ import { AccountMenu } from "@/components/account-menu";
 import { Brand } from "@/components/brand";
 import { ICONS } from "@/components/nav-links";
 import { ThemeToggle } from "@/components/staff/staff-nav";
-import { Dialog, DialogTrigger, SheetContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { accentStyle } from "@/lib/branding";
 import type { Brand as CollegeBrand } from "@/lib/server/branding";
 import { cn } from "@/lib/utils";
@@ -47,6 +47,7 @@ const NAV: Entry[] = [
       { href: "/student/tasks", label: "My tasks", icon: "tasks" },
       { href: "/student/profile", label: "My profile", icon: "profile" },
       { href: "/student/resume", label: "My resume", icon: "resume" },
+      { href: "/student/get-started", label: "Get started", icon: "start" },
       { href: "/student/help", label: "Help", icon: "help" },
     ],
   },
@@ -117,24 +118,30 @@ function Mobile() {
       <DialogTrigger aria-label="Open menu" className="-ml-1.5 grid size-9 place-items-center rounded-[var(--radius-control)] text-ink-muted transition-colors hover:bg-hover hover:text-ink lg:hidden">
         <List className="size-[18px]" />
       </DialogTrigger>
-      <SheetContent title="Menu" className="w-[min(88vw,320px)]">
-        <nav aria-label="Main" className="space-y-5 px-3 py-4" onClick={(event) => (event.target as Element).closest("a") && setOpen(false)}>
+      <DialogContent title="Menu" className="!fixed !inset-auto !left-3 !top-16 !w-[min(calc(100vw-24px),340px)] !max-h-[calc(100dvh-80px)] !translate-x-0 !translate-y-0 !rounded-2xl">
+        <nav aria-label="Main" className="space-y-5 overflow-y-auto px-4 pb-5" onClick={(event) => (event.target as Element).closest("a") && setOpen(false)}>
           {NAV.map((entry) => {
             const items = isGroup(entry) ? entry.items : [entry];
             return (
               <div key={entry.label}>
-                {isGroup(entry) && <p className="mb-1 px-2.5 font-[family-name:var(--font-eyebrow)] text-[10.5px] uppercase tracking-[0.14em] text-ink-subtle">{entry.label}</p>}
-                <ul className="space-y-px">
+                {isGroup(entry) && <p className="mb-2 px-1 font-[family-name:var(--font-eyebrow)] text-[10px] uppercase tracking-[0.16em] text-ink-subtle">{entry.label}</p>}
+                <ul className="space-y-1">
                   {items.map((item) => {
                     const Icon = ICONS[item.icon];
+                    const current = active(pathname, item.href);
                     return (
                       <li key={item.href}>
                         <Link
                           href={item.href}
-                          aria-current={active(pathname, item.href) ? "page" : undefined}
-                          className={cn("flex h-9 items-center gap-2.5 rounded-[var(--radius-control)] px-2.5 text-[14px]", active(pathname, item.href) ? "bg-hover font-medium text-ink" : "text-ink-muted hover:bg-hover hover:text-ink")}
+                          aria-current={current ? "page" : undefined}
+                          className={cn(
+                            "flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] transition-colors",
+                            current ? "bg-brand-soft font-medium text-ink" : "text-ink-muted active:bg-hover",
+                          )}
                         >
-                          <Icon className="size-4" />
+                          <span className={cn("grid size-9 place-items-center rounded-lg transition-colors", current ? "bg-brand text-brand-ink" : "bg-hover text-ink-muted")}>
+                            <Icon className="size-5" />
+                          </span>
                           {item.label}
                         </Link>
                       </li>
@@ -145,7 +152,7 @@ function Mobile() {
             );
           })}
         </nav>
-      </SheetContent>
+      </DialogContent>
     </Dialog>
   );
 }
@@ -154,7 +161,7 @@ export function StudentShell({ viewer, brand, children }: { viewer: Viewer; bran
   return (
     <div className="min-h-dvh" style={brand?.color ? accentStyle(brand.color) : undefined}>
       <header className="sticky top-0 z-30 px-3 pt-3 sm:px-6 print:hidden">
-        <div className="flex h-14 items-center gap-2 rounded-2xl border border-line bg-surface/80 px-3 shadow-[var(--shadow-panel)] backdrop-blur-xl">
+        <div className="liquid-glass flex h-14 items-center gap-2 rounded-2xl px-3 shadow-[var(--shadow-panel)]">
           <Mobile />
           <Link href="/student" className="mr-3 shrink-0 pl-1">
             <Brand brand={brand} />

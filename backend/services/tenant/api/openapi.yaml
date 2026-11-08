@@ -47,6 +47,16 @@ paths:
         '403': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
   /v1/tenants/{tenant_id}:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    get:
+      summary: Read a tenant
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {$ref: '#/components/responses/Tenant'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
     patch:
       summary: Rename a college; only the fields sent change
       security: [{bearerAuth: []}]
@@ -65,17 +75,51 @@ paths:
         '400': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
-    get:
-      summary: Read a tenant
+    delete:
+      summary: Soft-delete a tenant
       security: [{bearerAuth: []}]
-      parameters: [{$ref: '#/components/parameters/TenantID'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/DeleteEntityRequest'}
       responses:
-        '200': {$ref: '#/components/responses/Tenant'}
+        '204': {description: Tenant soft-deleted}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+  /v1/tenants/{tenant_id}/hard:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    delete:
+      summary: Permanently delete a tenant
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/DeleteEntityRequest'}
+      responses:
+        '204': {description: Tenant permanently deleted}
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
   /v1/placement-organizations:
+    get:
+      summary: List placement organizations (global resource, Class B)
+      security: [{bearerAuth: []}]
+      parameters:
+        - {$ref: '#/components/parameters/Limit'}
+        - {$ref: '#/components/parameters/Cursor'}
+        - name: status
+          in: query
+          schema: {type: string, enum: [active, suspended, closed]}
+      responses:
+        '200': {$ref: '#/components/responses/PlacementOrganizationPage'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
     post:
       summary: Create a placement organization
       security: [{bearerAuth: []}]
@@ -236,6 +280,15 @@ paths:
   /v1/placement-organizations/{organization_id}:
     parameters:
       - {name: organization_id, in: path, required: true, schema: {type: string, format: uuid}}
+    get:
+      summary: Read a placement organization
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {$ref: '#/components/responses/PlacementOrganization'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
     patch:
       summary: Rename a placement organisation
       security: [{bearerAuth: []}]
@@ -253,6 +306,37 @@ paths:
         '400': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
+    delete:
+      summary: Soft-delete a placement organization
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/DeleteEntityRequest'}
+      responses:
+        '204': {description: Organization soft-deleted}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+  /v1/placement-organizations/{organization_id}/hard:
+    parameters:
+      - {name: organization_id, in: path, required: true, schema: {type: string, format: uuid}}
+    delete:
+      summary: Permanently delete a placement organization
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/DeleteEntityRequest'}
+      responses:
+        '204': {description: Organization permanently deleted}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
   /v1/tenants/{tenant_id}/departments/{department_id}:
     parameters:
       - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid}}
@@ -275,6 +359,38 @@ paths:
         '400': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
+    delete:
+      summary: Soft-delete a department
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/DeleteEntityRequest'}
+      responses:
+        '204': {description: Department soft-deleted}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+  /v1/tenants/{tenant_id}/departments/{department_id}/hard:
+    parameters:
+      - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: department_id, in: path, required: true, schema: {type: string, format: uuid}}
+    delete:
+      summary: Permanently delete a department
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/DeleteEntityRequest'}
+      responses:
+        '204': {description: Department permanently deleted}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
   /v1/tenants/{tenant_id}/batches/{batch_id}:
     parameters:
       - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid}}
@@ -298,6 +414,38 @@ paths:
         '400': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
+    delete:
+      summary: Soft-delete a batch
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/DeleteEntityRequest'}
+      responses:
+        '204': {description: Batch soft-deleted}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+  /v1/tenants/{tenant_id}/batches/{batch_id}/hard:
+    parameters:
+      - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: batch_id, in: path, required: true, schema: {type: string, format: uuid}}
+    delete:
+      summary: Permanently delete a batch
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/DeleteEntityRequest'}
+      responses:
+        '204': {description: Batch permanently deleted}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
 
 components:
   securitySchemes:
@@ -339,6 +487,9 @@ components:
     PlacementOrganization:
       description: Placement organization record
       content: {application/json: {schema: {$ref: '#/components/schemas/PlacementOrganization'}}}
+    PlacementOrganizationPage:
+      description: Keyset page of placement organizations
+      content: {application/json: {schema: {$ref: '#/components/schemas/PlacementOrganizationPage'}}}
     Department:
       description: Department record
       content: {application/json: {schema: {$ref: '#/components/schemas/Department'}}}
@@ -363,6 +514,20 @@ components:
   schemas:
     UUID: {type: string, format: uuid}
     Timestamp: {type: string, format: date-time}
+    DeleteEntityRequest:
+      type: object
+      required: [reason]
+      additionalProperties: false
+      properties:
+        reason: {type: string, minLength: 1, maxLength: 500}
+    PlacementOrganizationPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/PlacementOrganization'}
+        next_cursor: {type: string}
     TenantPage:
       type: object
       required: [items]

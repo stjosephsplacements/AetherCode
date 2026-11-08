@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	"github.com/aethercode/aethercode/libs/pkg/httpx"
-	"github.com/aethercode/aethercode/libs/pkg/pagination"
-	"github.com/aethercode/aethercode/services/user/internal/app"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/pagination"
+	"github.com/stjosephsplacements/AetherCode/services/user/internal/app"
 )
 
 func (handler *Handler) listStudents(writer http.ResponseWriter, request *http.Request) {
@@ -158,76 +158,6 @@ func (handler *Handler) listMentorBatchAssignments(writer http.ResponseWriter, r
 		Limit:      limit,
 		CursorSort: cursor.SortValue,
 		CursorID:   cursor.ID,
-	})
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	httpx.WriteJSON(writer, http.StatusOK, page)
-}
-
-func (handler *Handler) listRoleAssignments(writer http.ResponseWriter, request *http.Request) {
-	tenantID := strings.TrimSpace(request.Header.Get("X-Tenant-ID"))
-	if tenantID != "" {
-		var err error
-		tenantID, err = httpx.ParseUUIDValue(tenantID, "X-Tenant-ID")
-		if err != nil {
-			httpx.WriteError(writer, err)
-			return
-		}
-	}
-	limit, err := pagination.ParseLimit(request.URL.Query().Get("limit"), 20, 100)
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	cursor, _, err := pagination.Parse(request.URL.Query().Get("cursor"))
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	principalID := strings.TrimSpace(request.URL.Query().Get("principal_id"))
-	if principalID != "" {
-		principalID, err = httpx.ParseUUIDValue(principalID, "principal_id")
-		if err != nil {
-			httpx.WriteError(writer, err)
-			return
-		}
-	}
-	roleName, err := httpx.ParseEnumQuery(request, "role_name",
-		"super_admin", "placement_user", "college_admin", "department_user", "mentor", "student")
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	scopeKind, err := httpx.ParseEnumQuery(request, "scope_kind",
-		"platform", "college", "department", "batch", "placement_department", "self")
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	// Name the collection when neither a principal nor a tenant is filtered.
-	// Authorization and RLS still determine which scopes may list it.
-	principalFilterOrTenant := principalID
-	if principalFilterOrTenant == "" {
-		principalFilterOrTenant = tenantID
-	}
-	if principalFilterOrTenant == "" {
-		principalFilterOrTenant = "all"
-	}
-	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "role_assignments", principalFilterOrTenant, tenantID)
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	page, err := handler.service.ListRoleAssignments(request.Context(), decision.Capability, app.ListRoleAssignments{
-		TenantID:    tenantID,
-		PrincipalID: principalID,
-		RoleName:    roleName,
-		ScopeKind:   scopeKind,
-		Limit:       limit,
-		CursorSort:  cursor.SortValue,
-		CursorID:    cursor.ID,
 	})
 	if err != nil {
 		httpx.WriteError(writer, err)

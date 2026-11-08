@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	"github.com/aethercode/aethercode/libs/pkg/httpx"
-	"github.com/aethercode/aethercode/services/user/internal/app"
-	userconfig "github.com/aethercode/aethercode/services/user/internal/config"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
+	"github.com/stjosephsplacements/AetherCode/services/user/internal/app"
+	userconfig "github.com/stjosephsplacements/AetherCode/services/user/internal/config"
 )
 
 // AccountsClient calls Identity's private account endpoints (ADR-0019) over
@@ -37,7 +37,7 @@ func NewAccountsClient(runtime userconfig.IdentityIntrospectionRuntime) (*Accoun
 		MaxConnsPerHost:       4,
 		IdleConnTimeout:       30 * time.Second,
 		TLSHandshakeTimeout:   5 * time.Second,
-		ResponseHeaderTimeout: 12 * time.Second,
+		ResponseHeaderTimeout: 30 * time.Second,
 	}
 	if runtime.RequireMTLS {
 		tlsConfig, err := loadMTLSClientConfig(runtime)
@@ -50,7 +50,7 @@ func NewAccountsClient(runtime userconfig.IdentityIntrospectionRuntime) (*Accoun
 		base: &url.URL{Scheme: endpoint.Scheme, Host: endpoint.Host},
 		client: &http.Client{
 			Transport: transport,
-			Timeout:   13 * time.Second,
+			Timeout:   32 * time.Second,
 			CheckRedirect: func(*http.Request, []*http.Request) error {
 				return http.ErrUseLastResponse
 			},

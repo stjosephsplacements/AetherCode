@@ -13,10 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/messaging"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/messaging"
 )
 
 const AuthorizationSnapshotEventType = "authz.grants_snapshot.v1"
@@ -124,7 +124,6 @@ func parseSnapshot(event messaging.Event) (authorizationSnapshot, error) {
 		return authorizationSnapshot{}, fmt.Errorf("authorization snapshot event is invalid")
 	}
 	decoder := json.NewDecoder(strings.NewReader(string(event.Payload)))
-	decoder.DisallowUnknownFields()
 	var payload authorizationSnapshot
 	if err := decoder.Decode(&payload); err != nil {
 		return authorizationSnapshot{}, fmt.Errorf("decode authorization snapshot payload: %w", err)

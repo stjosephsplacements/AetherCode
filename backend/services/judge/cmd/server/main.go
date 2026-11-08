@@ -11,27 +11,29 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/config"
-	"github.com/aethercode/aethercode/libs/pkg/database"
-	"github.com/aethercode/aethercode/libs/pkg/grpcmtls"
-	"github.com/aethercode/aethercode/libs/pkg/httpx"
-	"github.com/aethercode/aethercode/libs/pkg/kms"
-	localkms "github.com/aethercode/aethercode/libs/pkg/kms/local"
-	"github.com/aethercode/aethercode/libs/pkg/logging"
-	"github.com/aethercode/aethercode/libs/pkg/ratelimit"
-	"github.com/aethercode/aethercode/libs/pkg/storage"
-	minioclient "github.com/aethercode/aethercode/libs/pkg/storage/minio"
-	"github.com/aethercode/aethercode/libs/pkg/telemetry"
-	judgev1 "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/judge/v1"
-	aethercodeadapter "github.com/aethercode/aethercode/services/judge/internal/adapters/aethercode"
-	amqpadapter "github.com/aethercode/aethercode/services/judge/internal/adapters/amqp"
-	grpcadapter "github.com/aethercode/aethercode/services/judge/internal/adapters/grpc"
-	"github.com/aethercode/aethercode/services/judge/internal/adapters/repo"
-	stubengine "github.com/aethercode/aethercode/services/judge/internal/adapters/stub"
-	"github.com/aethercode/aethercode/services/judge/internal/app"
-	judgeconfig "github.com/aethercode/aethercode/services/judge/internal/config"
-	"github.com/aethercode/aethercode/services/judge/internal/dispatcher"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/buildinfo"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/config"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/grpcmtls"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/kms"
+	localkms "github.com/stjosephsplacements/AetherCode/libs/pkg/kms/local"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/logging"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/ratelimit"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/storage"
+	minioclient "github.com/stjosephsplacements/AetherCode/libs/pkg/storage/minio"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry/dbmetrics"
+	judgev1 "github.com/stjosephsplacements/AetherCode/libs/proto/gen/go/aethercode/judge/v1"
+	aethercodeadapter "github.com/stjosephsplacements/AetherCode/services/judge/internal/adapters/aethercode"
+	amqpadapter "github.com/stjosephsplacements/AetherCode/services/judge/internal/adapters/amqp"
+	grpcadapter "github.com/stjosephsplacements/AetherCode/services/judge/internal/adapters/grpc"
+	"github.com/stjosephsplacements/AetherCode/services/judge/internal/adapters/repo"
+	stubengine "github.com/stjosephsplacements/AetherCode/services/judge/internal/adapters/stub"
+	"github.com/stjosephsplacements/AetherCode/services/judge/internal/app"
+	judgeconfig "github.com/stjosephsplacements/AetherCode/services/judge/internal/config"
+	"github.com/stjosephsplacements/AetherCode/services/judge/internal/dispatcher"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	grpcHealth "google.golang.org/grpc/health"
@@ -56,7 +58,7 @@ func run(contextValue context.Context) error {
 	if err != nil {
 		return err
 	}
-	otelShutdown, err := telemetry.InitProvider(contextValue, "judge", "0.1.0")
+	otelShutdown, err := telemetry.InitProvider(contextValue, "judge", buildinfo.Version)
 	if err != nil {
 		logger.Warn("telemetry provider init failed, tracing disabled", "error", err)
 	} else {
@@ -75,6 +77,7 @@ func run(contextValue context.Context) error {
 		return err
 	}
 	defer pool.Close()
+	dbmetrics.Register("judge", pool)
 	runtime, err := judgeconfig.Load(serviceConfig.Environment)
 	if err != nil {
 		return err

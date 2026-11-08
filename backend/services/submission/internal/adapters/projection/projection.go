@@ -13,12 +13,12 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/aethercode/aethercode/libs/pkg/database"
-	"github.com/aethercode/aethercode/libs/pkg/messaging"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/messaging"
 )
 
 const (
@@ -50,6 +50,14 @@ func (store *Store) Ping(contextValue context.Context) error {
 		return fmt.Errorf("ping Submission projection database: %w", err)
 	}
 	return nil
+}
+
+// Inbox returns the inbox store so callers can wire it as a consumer cleaner.
+func (store *Store) Inbox() *messaging.InboxStore {
+	if store == nil {
+		return nil
+	}
+	return store.inbox
 }
 
 // assignmentItem decodes every field Assessment emits and Submission stores. The
@@ -305,7 +313,6 @@ func parseJudgeCompleted(event messaging.Event) (judgeCompleted, error) {
 func decodePayload(raw json.RawMessage, destination any) error {
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.UseNumber()
-	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(destination); err != nil {
 		return err
 	}

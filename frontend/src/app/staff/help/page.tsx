@@ -10,7 +10,7 @@ export default async function HelpPage() {
   await requireStaff();
   return (
     <>
-      <PageHeader title="FAQ and guides" description="How the platform fits together, step by step." />
+      <PageHeader title="FAQ and guides" description="Common questions and step-by-step guides." />
       <Section title="Walkthroughs" description="Pick a flow. Each step shows the page to use and what to fill in.">
         <FlowPlayer />
       </Section>

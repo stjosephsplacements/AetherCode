@@ -31,7 +31,7 @@ export async function startSession(user: Pick<User, "id" | "role">): Promise<voi
     VALUES (${hashToken(token)}, ${user.id}, now() + make_interval(hours => ${SESSION_HOURS}))`;
   (await cookies()).set(COOKIE, token, {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: "strict",
     secure: process.env.COOKIE_SECURE !== "false",
     path: "/",
     maxAge: SESSION_HOURS * 3600,

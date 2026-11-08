@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { PageHeader } from "@/components/staff/page-header";
+import { LoadError, PageHeader } from "@/components/staff/page-header";
 import { isRange } from "@/lib/platform-metrics";
 import { loadSnapshot } from "@/lib/server/platform-snapshot";
 import { requireStaff } from "@/lib/server/staff";
@@ -13,7 +13,17 @@ export default async function PlatformAnalyticsPage({ searchParams }: { searchPa
   const staff = await requireStaff();
   if (!staff.isPlatformAdmin) redirect("/staff");
   const requested = (await searchParams).range;
-  const snapshot = await loadSnapshot(isRange(requested) ? requested : "1h");
+  let snapshot;
+  try {
+    snapshot = await loadSnapshot(isRange(requested) ? requested : "1h");
+  } catch (error) {
+    return (
+      <>
+        <PageHeader title="Platform" description="Live health and load of every service, from Prometheus." />
+        <LoadError error={error} />
+      </>
+    );
+  }
   return (
     <>
       <PageHeader title="Platform" description="Live health and load of every service, from Prometheus. Updates every ten seconds while this page is open." />

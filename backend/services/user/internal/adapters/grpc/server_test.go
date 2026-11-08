@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
-	authzv1 "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/authz/v1"
-	"github.com/aethercode/aethercode/services/user/internal/app"
+	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
+	authzv1 "github.com/stjosephsplacements/AetherCode/libs/proto/gen/go/aethercode/authz/v1"
+	"github.com/stjosephsplacements/AetherCode/services/user/internal/app"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

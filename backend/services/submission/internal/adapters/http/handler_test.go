@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	"github.com/aethercode/aethercode/libs/pkg/httpauth"
-	"github.com/aethercode/aethercode/libs/pkg/ratelimit"
-	authzv1 "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/authz/v1"
+	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpauth"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/ratelimit"
+	authzv1 "github.com/stjosephsplacements/AetherCode/libs/proto/gen/go/aethercode/authz/v1"
 	"google.golang.org/grpc"
 )
 

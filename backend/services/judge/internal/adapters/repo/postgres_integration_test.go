@@ -17,10 +17,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
-	"github.com/aethercode/aethercode/libs/pkg/database"
-	"github.com/aethercode/aethercode/libs/pkg/testutil/integration"
-	"github.com/aethercode/aethercode/services/judge/internal/adapters/repo"
-	"github.com/aethercode/aethercode/services/judge/internal/app"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/testutil/integration"
+	"github.com/stjosephsplacements/AetherCode/services/judge/internal/adapters/repo"
+	"github.com/stjosephsplacements/AetherCode/services/judge/internal/app"
 )
 
 // TestRLSIsolateTenants proves the access boundary judge actually implements

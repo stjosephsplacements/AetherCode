@@ -7,7 +7,7 @@ export function Panel({ className, glass = false, ...props }: ComponentProps<"di
     <div
       className={cn(
         "rounded-[var(--radius-surface)] border border-line shadow-[var(--shadow-panel)]",
-        glass ? "bg-surface/70 backdrop-blur-xl" : "bg-surface",
+        glass ? "liquid-glass" : "bg-surface",
         className,
       )}
       {...props}

@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"strconv"
 
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	"github.com/aethercode/aethercode/libs/pkg/httpauth"
-	"github.com/aethercode/aethercode/libs/pkg/httpx"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpauth"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
 )
 
 // communityRoute binds one URL to one database function (ADR-0048). Member
@@ -122,8 +122,8 @@ func communityArguments(request *http.Request) (map[string]any, error) {
 			args[key] = value
 		} else if key == "limit" {
 			value, err := strconv.Atoi(values[0])
-			if err != nil {
-				return nil, apperrors.New(apperrors.CodeInvalidArgument, "limit must be a number")
+			if err != nil || value < 1 || value > 100 {
+				return nil, apperrors.New(apperrors.CodeInvalidArgument, "limit must be between 1 and 100")
 			}
 			args[key] = value
 		} else {

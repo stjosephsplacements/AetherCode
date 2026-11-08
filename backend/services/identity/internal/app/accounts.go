@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	"github.com/aethercode/aethercode/services/identity/internal/domain"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	"github.com/stjosephsplacements/AetherCode/services/identity/internal/domain"
 )
 
 // MaxProvisionedAccounts bounds one provisioning call. An import names one
@@ -288,7 +288,7 @@ func generateCredentials(principalIDs []string) ([]IssuedCredential, []string, e
 	for range hashWorkers {
 		workers.Go(func() {
 			for index := range indexes {
-				hashes[index], errs[index] = domain.HashPassword(credentials[index].Password)
+				hashes[index], errs[index] = domain.HashGeneratedPassword(credentials[index].Password)
 			}
 		})
 	}

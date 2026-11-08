@@ -5,7 +5,7 @@ import type { ActionState } from "@/components/staff/form";
 import type { Page, Student } from "@/lib/api-types";
 import { actionError } from "@/lib/server/actions";
 import { gateway } from "@/lib/server/gateway";
-import { collegeFor, requireCollege, requireStaff } from "@/lib/server/staff";
+import { collegeFor, requireStaff } from "@/lib/server/staff";
 
 const text = (form: FormData, name: string) => String(form.get(name) ?? "").trim();
 
@@ -44,34 +44,6 @@ export async function createBatch(_previous: ActionState, form: FormData): Promi
   return { error: null, message: "Batch created." };
 }
 
-export async function createPlacementOrganization(_previous: ActionState, form: FormData): Promise<ActionState> {
-  await requireCollege();
-  try {
-    await gateway("/tenant/v1/placement-organizations", {
-      method: "POST",
-      body: { code: text(form, "code").toUpperCase(), legal_name: text(form, "legal_name") },
-    });
-  } catch (error) {
-    return { error: actionError(error) };
-  }
-  revalidatePath("/staff/departments");
-  return { error: null, message: "Placement organization created." };
-}
-
-export async function createPlacementDepartment(_previous: ActionState, form: FormData): Promise<ActionState> {
-  await requireCollege();
-  try {
-    await gateway(`/tenant/v1/placement-organizations/${text(form, "organization_id")}/departments`, {
-      method: "POST",
-      body: { code: text(form, "code").toUpperCase(), name: text(form, "name") },
-    });
-  } catch (error) {
-    return { error: actionError(error) };
-  }
-  revalidatePath("/staff/departments");
-  return { error: null, message: "Placement department created." };
-}
-
 /** Deletes a department with no live batch; the database refuses one that still has some (ADR-0053). */
 export async function deleteDepartment(collegeId: string, id: string, reason: string): Promise<ActionState> {
   const tenantId = collegeFor(await requireStaff());
@@ -99,8 +71,6 @@ export async function deleteBatch(collegeId: string, id: string, reason: string)
   revalidatePath("/staff/departments");
   return { error: null, message: "Deleted." };
 }
-
-const REASON = "A reason is needed to delete anything.";
 
 /** Renames or recodes a department. Only what changed is sent (ADR-0054). */
 export async function updateDepartment(collegeId: string, departmentId: string, changes: Record<string, string>): Promise<ActionState> {
@@ -133,28 +103,3 @@ export async function updateBatch(collegeId: string, batchId: string, changes: R
   return { error: null, message: "Saved." };
 }
 
-export async function updatePlacementOrganization(organizationId: string, changes: Record<string, string>): Promise<ActionState> {
-  const staff = await requireCollege();
-  if (!staff.isPlatformAdmin) return { error: "Only platform administrators change placement organizations." };
-  try {
-    await gateway(`/tenant/v1/placement-organizations/${organizationId}`, { method: "PATCH", body: { legal_name: changes.legal_name?.trim() } });
-  } catch (error) {
-    return { error: actionError(error) };
-  }
-  revalidatePath("/staff/departments");
-  return { error: null, message: "Saved." };
-}
-
-/** Root administrators only: it removes the organization and, with it, the placement departments under it. */
-export async function deletePlacementOrganization(organizationId: string, reason: string): Promise<ActionState> {
-  const staff = await requireCollege();
-  if (!staff.isPlatformAdmin) return { error: "Only platform administrators delete placement organizations." };
-  if (!reason.trim()) return { error: REASON };
-  try {
-    await gateway(`/tenant/v1/placement-organizations/${organizationId}`, { method: "DELETE", body: { reason: reason.trim() } });
-  } catch (error) {
-    return { error: actionError(error) };
-  }
-  revalidatePath("/staff/departments");
-  return { error: null, message: "Deleted." };
-}

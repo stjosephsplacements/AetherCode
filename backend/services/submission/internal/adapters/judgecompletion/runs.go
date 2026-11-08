@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/aethercode/aethercode/libs/pkg/evalbundle"
-	"github.com/aethercode/aethercode/libs/pkg/kms"
-	"github.com/aethercode/aethercode/libs/pkg/storage"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/evalbundle"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/kms"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/storage"
 )
 
 // maxOutputCiphertextBytes bounds one unit output object: five fields of at

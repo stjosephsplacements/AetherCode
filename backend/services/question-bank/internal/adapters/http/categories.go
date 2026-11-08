@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/aethercode/aethercode/libs/pkg/database"
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	"github.com/aethercode/aethercode/libs/pkg/httpx"
-	"github.com/aethercode/aethercode/services/question-bank/internal/app"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
+	"github.com/stjosephsplacements/AetherCode/services/question-bank/internal/app"
 )
 
 // Categories file a question under Arrays, Strings, DP and so on (ADR-0052).
@@ -188,8 +188,8 @@ func (handler *Handler) listTags(writer http.ResponseWriter, request *http.Reque
 	limit := 100
 	if raw := request.URL.Query().Get("limit"); raw != "" {
 		parsed, err := strconv.Atoi(raw)
-		if err != nil {
-			httpx.WriteError(writer, apperrors.New(apperrors.CodeInvalidArgument, "limit must be a number"))
+		if err != nil || parsed < 1 || parsed > 500 {
+			httpx.WriteError(writer, apperrors.New(apperrors.CodeInvalidArgument, "limit must be between 1 and 500"))
 			return
 		}
 		limit = parsed

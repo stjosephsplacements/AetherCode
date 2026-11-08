@@ -15,8 +15,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/aethercode/aethercode/libs/pkg/database"
 	"github.com/jackc/pgx/v5"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
 )
 
 func validateArguments(email, displayName string) error {

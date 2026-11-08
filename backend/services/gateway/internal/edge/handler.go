@@ -15,8 +15,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/authn"
-	"github.com/aethercode/aethercode/libs/pkg/ratelimit"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/authn"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/ratelimit"
 )
 
 const (
@@ -160,6 +160,10 @@ func secureHTTPClient(timeout time.Duration) *http.Client {
 	// Platform service URLs must be explicit. An environment proxy could turn a
 	// redirect or an outage into an unintended external network path.
 	transport.Proxy = nil
+	transport.MaxIdleConns = 100
+	transport.MaxIdleConnsPerHost = 20
+	transport.MaxConnsPerHost = 40
+	transport.IdleConnTimeout = 90 * time.Second
 	return &http.Client{
 		Transport: transport,
 		Timeout:   timeout,
@@ -172,7 +176,7 @@ func secureHTTPClient(timeout time.Duration) *http.Client {
 // ServeHTTP applies header trust rules, verifies every protected request, then
 // optionally enforces SEB before opening the fixed upstream connection.
 func (handler *Handler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
-	route, err := handler.route(request)
+	matched, err := handler.route(request)
 	if err != nil {
 		writeError(writer, http.StatusNotFound, "route is not available")
 		return
@@ -187,8 +191,8 @@ func (handler *Handler) ServeHTTP(writer http.ResponseWriter, request *http.Requ
 		return
 	}
 
-	public := (route.service == "identity" && isPublicIdentityRoute(request.Method, route.forwardedPath)) ||
-		(route.service == "user" && isPublicProfileRoute(request.Method, route.forwardedPath))
+	public := (matched.service == "identity" && isPublicIdentityRoute(request.Method, matched.forwardedPath)) ||
+		(matched.service == "user" && isPublicProfileRoute(request.Method, matched.forwardedPath))
 	assertion := ""
 	principalID := ""
 	if !public {
@@ -219,8 +223,8 @@ func (handler *Handler) ServeHTTP(writer http.ResponseWriter, request *http.Requ
 		return
 	}
 
-	if handler.requiresSEB(route.externalPath) {
-		if err := handler.enforceSEB(request, route, assertion, clientIP); err != nil {
+	if handler.requiresSEB(matched.externalPath) {
+		if err := handler.enforceSEB(request, matched, assertion, clientIP); err != nil {
 			message := "secure exam browser validation failed"
 			if errors.Is(err, errOutsideLabNetwork) {
 				message = "this exam can only be taken from the college lab network"
@@ -230,7 +234,7 @@ func (handler *Handler) ServeHTTP(writer http.ResponseWriter, request *http.Requ
 		}
 	}
 
-	handler.forward(writer, request, route, clientIP)
+	handler.forward(writer, request, matched, clientIP)
 }
 
 // Ready verifies that every configured dependency is reachable through its
@@ -597,5 +601,9 @@ func writeError(writer http.ResponseWriter, status int, message string) {
 	writer.Header().Set("Content-Type", "application/json")
 	writer.Header().Set("Cache-Control", "no-store")
 	writer.WriteHeader(status)
-	_, _ = io.WriteString(writer, `{"error":"`+message+`"}`+"\n")
+	payload, _ := json.Marshal(struct {
+		Error string `json:"error"`
+	}{Error: message})
+	_, _ = writer.Write(payload)
+	_, _ = io.WriteString(writer, "\n")
 }

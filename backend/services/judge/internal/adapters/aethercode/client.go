@@ -23,7 +23,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aethercode/aethercode/services/judge/internal/dispatcher"
+	"github.com/stjosephsplacements/AetherCode/services/judge/internal/dispatcher"
 )
 
 const (

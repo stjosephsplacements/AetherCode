@@ -9,13 +9,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/database"
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	"github.com/aethercode/aethercode/libs/pkg/messaging"
-	"github.com/aethercode/aethercode/services/submission/internal/app"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/messaging"
+	"github.com/stjosephsplacements/AetherCode/services/submission/internal/app"
 )
 
 type Postgres struct {
@@ -494,6 +494,8 @@ func mapDatabaseError(err error, operation string) error {
 		switch postgresError.Code {
 		case "42501", "28000":
 			return apperrors.New(apperrors.CodeForbidden, "submission access is no longer authorized")
+		case "P0002": // no_data_found: the function looked up a row that does not exist
+			return apperrors.New(apperrors.CodeNotFound, "submission record was not found")
 		case "P0001":
 			if strings.Contains(message, "not found") {
 				return apperrors.New(apperrors.CodeNotFound, "submission record was not found")

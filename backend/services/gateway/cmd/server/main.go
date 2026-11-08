@@ -10,15 +10,16 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/config"
-	"github.com/aethercode/aethercode/libs/pkg/httpx"
-	"github.com/aethercode/aethercode/libs/pkg/logging"
-	"github.com/aethercode/aethercode/libs/pkg/ratelimit"
-	"github.com/aethercode/aethercode/libs/pkg/telemetry"
-	gatewayconfig "github.com/aethercode/aethercode/services/gateway/internal/config"
-	"github.com/aethercode/aethercode/services/gateway/internal/edge"
-	"github.com/aethercode/aethercode/services/gateway/internal/realtime"
 	"github.com/nats-io/nats.go"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/buildinfo"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/config"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/logging"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/ratelimit"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry"
+	gatewayconfig "github.com/stjosephsplacements/AetherCode/services/gateway/internal/config"
+	"github.com/stjosephsplacements/AetherCode/services/gateway/internal/edge"
+	"github.com/stjosephsplacements/AetherCode/services/gateway/internal/realtime"
 )
 
 func main() {
@@ -39,7 +40,7 @@ func run(contextValue context.Context) error {
 	if err != nil {
 		return err
 	}
-	otelShutdown, err := telemetry.InitProvider(contextValue, "gateway", "0.1.0")
+	otelShutdown, err := telemetry.InitProvider(contextValue, "gateway", buildinfo.Version)
 	if err != nil {
 		logger.Warn("telemetry provider init failed, tracing disabled", "error", err)
 	} else {

@@ -8,11 +8,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/aethercode/aethercode/libs/pkg/database"
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	"github.com/aethercode/aethercode/libs/pkg/httpauth"
-	"github.com/aethercode/aethercode/libs/pkg/httpx"
-	"github.com/aethercode/aethercode/services/analytics/internal/app"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpauth"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
+	"github.com/stjosephsplacements/AetherCode/services/analytics/internal/app"
 )
 
 type Handler struct {
@@ -29,6 +29,7 @@ func NewHandler(serviceName string, service *app.Service, readiness httpx.Readin
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/student-progress/{student_id}", handler.listStudentProgress)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/exam-results", handler.listExamResults)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/batch-progress/{batch_id}", handler.listBatchProgress)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/batch-progress/{batch_id}/by-department", handler.listDepartmentBatchProgress)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/placement-progress/{placement_department_id}", handler.listPlacementProgress)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/report-exports", handler.requestReportExport)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/report-exports/{export_id}", handler.getReportExport)
@@ -97,6 +98,25 @@ func (handler *Handler) listBatchProgress(writer http.ResponseWriter, request *h
 		return
 	}
 	result, err := handler.service.ListBatchProgress(request.Context(), decision.Capability, tenantID, batchID, limit)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, result)
+}
+
+func (handler *Handler) listDepartmentBatchProgress(writer http.ResponseWriter, request *http.Request) {
+	tenantID, batchID, limit, err := tenantResourceAndLimit(request, "batch_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "batch_progress_department_rollups", batchID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	result, err := handler.service.ListDepartmentBatchProgress(request.Context(), decision.Capability, tenantID, batchID, limit)
 	if err != nil {
 		httpx.WriteError(writer, err)
 		return

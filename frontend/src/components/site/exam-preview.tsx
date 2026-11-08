@@ -4,6 +4,7 @@ import { Check, CircleNotch, Clock } from "@phosphor-icons/react/ssr";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { useRef } from "react";
+import { LiquidGlass } from "./liquid-glass";
 
 // The solution as lines of [tone, text] pairs; an empty tone is plain text.
 const CODE: [string, string][][] = [
@@ -58,7 +59,7 @@ export function ExamPreview() {
   );
 
   return (
-    <div ref={root} aria-hidden className="overflow-hidden rounded-[14px] border border-line-strong bg-canvas text-left text-ink shadow-[0_0_0_1px_var(--line),0_40px_120px_-40px_rgb(0_0_0/0.45)]">
+    <LiquidGlass ref={root} strong aria-hidden className="overflow-hidden rounded-3xl text-left text-ink shadow-[0_40px_120px_-40px_rgb(0_0_0/0.45)]">
       <div className="flex items-center gap-3 border-b border-line bg-surface px-4 py-2.5 text-[13px]">
         <span className="font-semibold">AetherCode</span>
         <span className="text-ink-subtle">/</span>
@@ -146,6 +147,6 @@ export function ExamPreview() {
           </div>
         </div>
       </div>
-    </div>
+    </LiquidGlass>
   );
 }

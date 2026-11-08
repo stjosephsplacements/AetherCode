@@ -12,11 +12,11 @@ import (
 	"io"
 	"strings"
 
-	"github.com/aethercode/aethercode/libs/pkg/messaging"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/messaging"
 )
 
 const (
@@ -201,7 +201,6 @@ func parseBatchAffiliation(event messaging.Event) (batchAffiliationPayload, erro
 
 func decodePayload(raw []byte, target any) error {
 	decoder := json.NewDecoder(strings.NewReader(string(raw)))
-	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(target); err != nil {
 		return fmt.Errorf("decode assessment materialization payload: %w", err)
 	}

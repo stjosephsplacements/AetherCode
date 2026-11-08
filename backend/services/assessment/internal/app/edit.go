@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
 	"github.com/jackc/pgx/v5"
+	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
 )
 
 // Edits to a draft exam (ADR-0054). A nil field is left as it is; the content

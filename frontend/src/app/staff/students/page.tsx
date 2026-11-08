@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Suspense } from "react";
 import { EmptyState, LoadError, PageHeader } from "@/components/staff/page-header";
+import { SkulletBoundary } from "@/components/skullet-suspense";
 import { departmentLabel, listBatches, listDepartments, listPlacement } from "@/lib/server/directory";
 import { inColleges } from "@/lib/server/colleges";
 import { describeAccounts } from "@/lib/server/people";
@@ -10,7 +10,6 @@ import { collegesFor, requireStaff } from "@/lib/server/staff";
 import { listRoster } from "@/lib/server/students";
 import { EnrolDialog, ImportDialog } from "./panels";
 import { Roster, type StudentRow } from "./roster";
-import { RosterSkeleton } from "./skeleton";
 
 export const metadata: Metadata = { title: "Students" };
 
@@ -21,11 +20,11 @@ export default async function StudentsPage() {
     <>
       <PageHeader
         title="Students"
-        description="Enrol students one at a time or from a spreadsheet, hand out passwords, and reset, disable or remove accounts."
+        description="Add students one by one or import a spreadsheet. Manage passwords and accounts."
       />
-      <Suspense fallback={<RosterSkeleton />}>
+      <SkulletBoundary id="students" label="Loading students">
         <StudentsContent staff={staff} />
-      </Suspense>
+      </SkulletBoundary>
     </>
   );
 }
@@ -110,7 +109,7 @@ async function StudentsContent({ staff }: { staff: Awaited<ReturnType<typeof req
           first, then come back to import them.
         </EmptyState>
       ) : (
-        <Roster rows={rows} several={staff.isPlatformAdmin} actions={dialogs} />
+        <Roster rows={rows} several={false} actions={dialogs} />
       )}
     </>
   );

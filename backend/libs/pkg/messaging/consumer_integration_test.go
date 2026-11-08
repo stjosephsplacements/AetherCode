@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/testutil/integration"
 	"github.com/nats-io/nats.go"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/testutil/integration"
 	"github.com/stretchr/testify/require"
 )
 

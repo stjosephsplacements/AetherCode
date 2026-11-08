@@ -8,19 +8,21 @@ import (
 	"syscall"
 	"time"
 
-	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
-	"github.com/aethercode/aethercode/libs/pkg/authzprojection"
-	"github.com/aethercode/aethercode/libs/pkg/config"
-	"github.com/aethercode/aethercode/libs/pkg/database"
-	"github.com/aethercode/aethercode/libs/pkg/httpauth"
-	"github.com/aethercode/aethercode/libs/pkg/httpx"
-	"github.com/aethercode/aethercode/libs/pkg/logging"
-	"github.com/aethercode/aethercode/libs/pkg/messaging"
-	"github.com/aethercode/aethercode/libs/pkg/telemetry"
-	httpadapter "github.com/aethercode/aethercode/services/analytics/internal/adapters/http"
-	"github.com/aethercode/aethercode/services/analytics/internal/adapters/projection"
-	"github.com/aethercode/aethercode/services/analytics/internal/adapters/repo"
-	"github.com/aethercode/aethercode/services/analytics/internal/app"
+	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/authzprojection"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/buildinfo"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/config"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpauth"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/logging"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/messaging"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry/dbmetrics"
+	httpadapter "github.com/stjosephsplacements/AetherCode/services/analytics/internal/adapters/http"
+	"github.com/stjosephsplacements/AetherCode/services/analytics/internal/adapters/projection"
+	"github.com/stjosephsplacements/AetherCode/services/analytics/internal/adapters/repo"
+	"github.com/stjosephsplacements/AetherCode/services/analytics/internal/app"
 )
 
 func main() {
@@ -41,7 +43,7 @@ func run(contextValue context.Context) error {
 	if err != nil {
 		return err
 	}
-	otelShutdown, err := telemetry.InitProvider(contextValue, "analytics", "0.1.0")
+	otelShutdown, err := telemetry.InitProvider(contextValue, "analytics", buildinfo.Version)
 	if err != nil {
 		logger.Warn("telemetry provider init failed, tracing disabled", "error", err)
 	} else {
@@ -60,6 +62,7 @@ func run(contextValue context.Context) error {
 		return err
 	}
 	defer pool.Close()
+	dbmetrics.Register("analytics", pool)
 	authzRuntime, err := centralauthz.LoadClientRuntime(serviceConfig.Environment)
 	if err != nil {
 		return err
@@ -158,7 +161,8 @@ func run(contextValue context.Context) error {
 			return resyncCompletedConsumerErr
 		}
 		consumers := []*messaging.PullConsumer{snapshotConsumer, resyncSnapshotConsumer, resyncCompletedConsumer}
-		for _, specification := range []struct {
+		inboxCleaner := reportProjection.Inbox()
+		for i, specification := range []struct {
 			durable string
 			subject string
 			handler messaging.EventHandler
@@ -183,6 +187,10 @@ func run(contextValue context.Context) error {
 			)
 			if consumerErr != nil {
 				return consumerErr
+			}
+			// One consumer runs the inbox cleanup; others share the same table.
+			if i == 0 && inboxCleaner != nil {
+				consumer.WithInboxCleaner(inboxCleaner)
 			}
 			consumers = append(consumers, consumer)
 		}

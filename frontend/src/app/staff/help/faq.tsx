@@ -16,7 +16,7 @@ export const FAQ = [
 
 export function FaqList() {
   return (
-    <Accordion.Root type="multiple" className="divide-y divide-line rounded-[var(--radius-surface)] border border-line bg-surface">
+    <Accordion.Root type="single" collapsible className="divide-y divide-line rounded-[var(--radius-surface)] border border-line bg-surface">
       {FAQ.map((item) => (
         <Accordion.Item key={item.q} value={item.q}>
           <Accordion.Header>

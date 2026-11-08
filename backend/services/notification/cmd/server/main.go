@@ -9,21 +9,23 @@ import (
 	"syscall"
 	"time"
 
-	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
-	"github.com/aethercode/aethercode/libs/pkg/authzprojection"
-	"github.com/aethercode/aethercode/libs/pkg/config"
-	"github.com/aethercode/aethercode/libs/pkg/database"
-	"github.com/aethercode/aethercode/libs/pkg/httpauth"
-	"github.com/aethercode/aethercode/libs/pkg/httpx"
-	"github.com/aethercode/aethercode/libs/pkg/logging"
-	"github.com/aethercode/aethercode/libs/pkg/messaging"
-	"github.com/aethercode/aethercode/libs/pkg/telemetry"
-	httpadapter "github.com/aethercode/aethercode/services/notification/internal/adapters/http"
-	"github.com/aethercode/aethercode/services/notification/internal/adapters/projection"
-	"github.com/aethercode/aethercode/services/notification/internal/adapters/repo"
-	"github.com/aethercode/aethercode/services/notification/internal/app"
-	"github.com/aethercode/aethercode/services/notification/internal/retention"
-	"github.com/aethercode/aethercode/services/notification/internal/worker"
+	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/authzprojection"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/buildinfo"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/config"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpauth"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/logging"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/messaging"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry/dbmetrics"
+	httpadapter "github.com/stjosephsplacements/AetherCode/services/notification/internal/adapters/http"
+	"github.com/stjosephsplacements/AetherCode/services/notification/internal/adapters/projection"
+	"github.com/stjosephsplacements/AetherCode/services/notification/internal/adapters/repo"
+	"github.com/stjosephsplacements/AetherCode/services/notification/internal/app"
+	"github.com/stjosephsplacements/AetherCode/services/notification/internal/retention"
+	"github.com/stjosephsplacements/AetherCode/services/notification/internal/worker"
 )
 
 func main() {
@@ -44,7 +46,7 @@ func run(contextValue context.Context) error {
 	if err != nil {
 		return err
 	}
-	otelShutdown, err := telemetry.InitProvider(contextValue, "notification", "0.1.0")
+	otelShutdown, err := telemetry.InitProvider(contextValue, "notification", buildinfo.Version)
 	if err != nil {
 		logger.Warn("telemetry provider init failed, tracing disabled", "error", err)
 	} else {
@@ -63,6 +65,7 @@ func run(contextValue context.Context) error {
 		return err
 	}
 	defer pool.Close()
+	dbmetrics.Register("notification", pool)
 	authzRuntime, err := centralauthz.LoadClientRuntime(serviceConfig.Environment)
 	if err != nil {
 		return err
@@ -111,7 +114,8 @@ func run(contextValue context.Context) error {
 		if retentionRoleErr := retentionStore.Ping(contextValue); retentionRoleErr != nil {
 			return retentionRoleErr
 		}
-		retentionRunner, retentionRunnerErr := retention.NewRunner(retentionStore, retentionRuntime, logger)
+		var retentionRunnerErr error
+		retentionRunner, retentionRunnerErr = retention.NewRunner(retentionStore, retentionRuntime, logger)
 		if retentionRunnerErr != nil {
 			return retentionRunnerErr
 		}

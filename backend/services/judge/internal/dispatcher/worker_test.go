@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/aethercode/aethercode/libs/pkg/evalbundle"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/evalbundle"
 )
 
 // fakeEngine records Submit calls and returns a fixed verdict on Poll.

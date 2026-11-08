@@ -1,4 +1,9 @@
 @import "tailwindcss";
+@import "skullet/styles.css";
+
+/* Hide scrollbars everywhere while keeping scroll functionality. */
+* { scrollbar-width: none; }
+*::-webkit-scrollbar { display: none; }
 
 /*
  * ═══════════════════════════════════════════════════════════════════════
@@ -149,6 +154,7 @@
     --lavender: #b9b2ff;
     --glow: rgb(255 255 255 / 0.06);
     --glow-2: rgb(255 90 31 / 0.08);
+    --hero-aurora-1: var(--brand-soft);
     --poster-sky: linear-gradient(to bottom, #050505 0%, #1a0d08 45%, #ff5a1f 100%);
     --poster-ink: #f2f2f2;
     --poster-on-ink: #050505;
@@ -166,12 +172,12 @@
     --shadow-overlay-v: 0 1px 0 rgb(255 255 255 / 0.06) inset, 0 32px 80px -16px rgb(0 0 0 / 0.7);
   }
 
-  /* Day: warm paper, indigo ink, tangerine as the accent. */
+  /* Day: warm parchment, deep indigo ink, burnt-orange accents. Not white. */
   [data-theme="light"] {
     color-scheme: light;
-    --canvas: #fbf8f4;
-    --surface: #ffffff;
-    --surface-2: #f4efe9;
+    --canvas: #f0ebe3;
+    --surface: #f7f3ed;
+    --surface-2: #e8e1d7;
     /* Chart series, one per busy service. Validated with the dataviz checks against this theme. */
     --series-1: #0072B2;
     --series-2: #D98200;
@@ -181,39 +187,40 @@
     --series-6: #D55E00;
     --series-7: #3FA7D6;
     --series-8: #8C6D1F;
-    --sidebar: #f8f4ef;
-    --hover: #f4efe9;
-    --ink: #1b1640;
-    --ink-muted: #5d5878;
-    --ink-subtle: #6c6788;
-    --line: #ece5dc;
-    --line-strong: #e0d7cc;
+    --sidebar: #ebe5db;
+    --hover: #e4ddd2;
+    --ink: #1a1535;
+    --ink-muted: #4d4766;
+    --ink-subtle: #6b6580;
+    --line: #d9d0c4;
+    --line-strong: #cdc2b4;
 
-    --brand: #c84a0c;
-    --brand-hover: #b54208;
+    --brand: #b83d04;
+    --brand-hover: #a33600;
     --brand-ink: #ffffff;
-    --brand-soft: #fdeadf;
-    --brand-soft-ink: #b34700;
-    --accent: #b34700;
-    --coral: #d6295a;
+    --brand-soft: #f5d8c4;
+    --brand-soft-ink: #8f2e00;
+    --accent: #9a3300;
+    --coral: #c41d4a;
     --lavender: #4b3fd1;
-    --glow: rgb(255 122 0 / 0.14);
-    --glow-2: rgb(75 63 209 / 0.10);
-    --poster-sky: linear-gradient(to bottom, #fbf8f4 0%, #f4e4ec 30%, #eab3bf 58%, #ff9a62 84%, #ffc27a 100%);
-    --poster-ink: #1b1640;
-    --poster-on-ink: #ffffff;
-    --horizon: linear-gradient(to top, rgb(255 122 0 / 0.22), rgb(255 176 102 / 0.16) 34%, rgb(75 63 209 / 0.05) 66%, transparent);
+    --glow: rgb(184 61 4 / 0.20);
+    --glow-2: rgb(75 63 209 / 0.12);
+    --hero-aurora-1: rgb(184 61 4 / 0.18);
+    --poster-sky: linear-gradient(to bottom, #f0ebe3 0%, #e8d8ce 30%, #daa898 58%, #e07030 84%, #f0a060 100%);
+    --poster-ink: #1a1535;
+    --poster-on-ink: #f7f3ed;
+    --horizon: linear-gradient(to top, rgb(184 61 4 / 0.24), rgb(220 140 70 / 0.18) 34%, rgb(75 63 209 / 0.06) 66%, transparent);
 
-    --success: #0f7a4d;
-    --success-soft: #e6f6ee;
-    --danger: #c42b4a;
-    --danger-soft: #fdebef;
-    --warning: #8a4b08;
-    --warning-soft: #fdf3e1;
+    --success: #0d6b42;
+    --success-soft: #daf0e4;
+    --danger: #b52340;
+    --danger-soft: #f8e0e6;
+    --warning: #7a4207;
+    --warning-soft: #f5ead4;
 
-    --shadow-hairline-v: 0 1px 2px rgb(27 22 64 / 0.04);
-    --shadow-panel-v: 0 1px 2px rgb(27 22 64 / 0.04), 0 8px 24px -12px rgb(27 22 64 / 0.10);
-    --shadow-overlay-v: 0 24px 64px -16px rgb(27 22 64 / 0.24);
+    --shadow-hairline-v: 0 1px 2px rgb(26 21 53 / 0.06);
+    --shadow-panel-v: 0 1px 2px rgb(26 21 53 / 0.06), 0 8px 24px -12px rgb(26 21 53 / 0.12);
+    --shadow-overlay-v: 0 24px 64px -16px rgb(26 21 53 / 0.28);
   }
 
   .logo-light { display: none !important; }
@@ -465,9 +472,67 @@
   .aurora { animation: none; }
 }
 
+/* ASCII field layers: more visible on the warm light canvas. */
+.ascii-grey { color: var(--ink); opacity: 0.07; }
+.ascii-glow { color: var(--brand); opacity: 0.35; }
+[data-theme="light"] .ascii-grey { opacity: 0.10; }
+[data-theme="light"] .ascii-glow { opacity: 0.40; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Liquid Glass — real Apple-style refraction with SVG displacement.
+   The <LiquidGlass> component applies backdrop-filter: url(#filter) in
+   Chromium. These CSS classes provide the universal fallback (blur-based
+   glassmorphism) and the shared edge/rim styling that both paths use.
+   ═══════════════════════════════════════════════════════════════════════ */
+.glass,
+.liquid-glass {
+  background: rgb(255 255 255 / 0.45);
+  backdrop-filter: blur(24px) saturate(1.6);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  border: 1px solid rgb(0 0 0 / 0.06);
+  box-shadow:
+    inset 0 0.5px 0 0 rgb(255 255 255 / 0.60),
+    inset 0 -0.5px 0 0 rgb(0 0 0 / 0.04),
+    0 1px 3px rgb(0 0 0 / 0.04),
+    0 8px 32px -8px rgb(0 0 0 / 0.08);
+}
+[data-theme="dark"] .glass,
+[data-theme="dark"] .liquid-glass {
+  background: rgb(255 255 255 / 0.06);
+  border-color: rgb(255 255 255 / 0.10);
+  box-shadow:
+    inset 0 0.5px 0 0 rgb(255 255 255 / 0.12),
+    inset 0 -0.5px 0 0 rgb(0 0 0 / 0.30),
+    0 1px 3px rgb(0 0 0 / 0.15),
+    0 8px 32px -8px rgb(0 0 0 / 0.50);
+}
+.glass-strong,
+.liquid-glass-strong {
+  background: rgb(255 255 255 / 0.55);
+  backdrop-filter: blur(40px) saturate(1.8);
+  -webkit-backdrop-filter: blur(40px) saturate(1.8);
+  border: 1px solid rgb(0 0 0 / 0.05);
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.70),
+    inset 0 -1px 0 0 rgb(0 0 0 / 0.04),
+    0 2px 4px rgb(0 0 0 / 0.03),
+    0 12px 40px -12px rgb(0 0 0 / 0.10);
+}
+[data-theme="dark"] .glass-strong,
+[data-theme="dark"] .liquid-glass-strong {
+  background: rgb(255 255 255 / 0.08);
+  border-color: rgb(255 255 255 / 0.14);
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.16),
+    inset 0 -1px 0 0 rgb(0 0 0 / 0.40),
+    0 2px 4px rgb(0 0 0 / 0.12),
+    0 12px 40px -12px rgb(0 0 0 / 0.60);
+}
+
 /* The public and sign-in pages scroll without a visible scrollbar; the app keeps its scrollbars. */
 html:has(.ascii) {
   scrollbar-width: none;
+  scroll-behavior: smooth;
 }
 html:has(.ascii)::-webkit-scrollbar {
   display: none;
@@ -497,6 +562,15 @@ html:has(.ascii)::-webkit-scrollbar {
 .ascii .prose-doc ul > li { position: relative; padding-left: 1.4em; }
 .ascii .prose-doc ul > li::before { content: "-"; position: absolute; left: 0; font-family: var(--font-mono); color: var(--accent); }
 .ascii .prose-doc a { text-decoration-color: var(--accent); text-decoration-thickness: 1.5px; }
+
+@keyframes login-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(4%, -3%) scale(1.05); }
+  66% { transform: translate(-3%, 4%) scale(0.97); }
+}
+.login-orb {
+  animation: login-drift 20s ease-in-out infinite;
+}
 
 @keyframes flow-fill {
   from { clip-path: inset(0 100% 0 0); }

@@ -6,8 +6,9 @@ import (
 	"errors"
 	"fmt"
 
-	authzv1 "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/authz/v1"
-	"github.com/aethercode/aethercode/services/user/internal/app"
+	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
+	authzv1 "github.com/stjosephsplacements/AetherCode/libs/proto/gen/go/aethercode/authz/v1"
+	"github.com/stjosephsplacements/AetherCode/services/user/internal/app"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -51,11 +52,15 @@ func (server *Server) Authorize(contextValue context.Context, request *authzv1.A
 	if err != nil {
 		var validationError *app.ValidationError
 		var authenticationError app.AuthenticationError
+		var mfaRequired app.MFARequiredError
 		if errors.As(err, &validationError) {
 			return nil, status.Error(codes.InvalidArgument, validationError.Error())
 		}
 		if errors.As(err, &authenticationError) {
 			return nil, status.Error(codes.Unauthenticated, authenticationError.Error())
+		}
+		if errors.As(err, &mfaRequired) {
+			return nil, centralauthz.MFARequiredStatus(mfaRequired.Error())
 		}
 		return nil, status.Error(codes.Unavailable, fmt.Sprintf("authorization decision unavailable: %v", err))
 	}

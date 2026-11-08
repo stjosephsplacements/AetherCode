@@ -10,11 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/database"
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	"github.com/aethercode/aethercode/libs/pkg/httpauth"
-	"github.com/aethercode/aethercode/libs/pkg/httpx"
-	"github.com/aethercode/aethercode/services/user/internal/app"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpauth"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
+	"github.com/stjosephsplacements/AetherCode/services/user/internal/app"
 )
 
 type Handler struct {
@@ -238,98 +238,6 @@ func (handler *Handler) getStudent(writer http.ResponseWriter, request *http.Req
 		return
 	}
 	httpx.WriteJSON(writer, http.StatusOK, student)
-}
-
-type roleAssignmentRequest struct {
-	PrincipalID string `json:"principal_id"`
-	RoleName    string `json:"role_name"`
-	ScopeKind   string `json:"scope_kind"`
-	TenantID    string `json:"tenant_id"`
-	ScopeID     string `json:"scope_id"`
-	ExpiresAt   string `json:"expires_at"`
-}
-
-func (handler *Handler) assignRole(writer http.ResponseWriter, request *http.Request) {
-	var body roleAssignmentRequest
-	if err := httpx.DecodeJSON(request, &body); err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	principalID, err := httpx.ParseUUIDValue(body.PrincipalID, "principal_id")
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	tenantID, err := optionalTenant(body.TenantID)
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	scopeID := strings.TrimSpace(body.ScopeID)
-	if scopeID != "" {
-		scopeID, err = httpx.ParseUUIDValue(scopeID, "scope_id")
-		if err != nil {
-			httpx.WriteError(writer, err)
-			return
-		}
-	}
-	expiresAt, err := parseOptionalExpiry(body.ExpiresAt)
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	id, err := database.NewUUIDv7()
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "role_assignments", id, tenantID)
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	assignment, err := handler.service.AssignRole(request.Context(), decision.Capability, app.AssignRole{
-		ID: id, PrincipalID: principalID, RoleName: body.RoleName, ScopeKind: body.ScopeKind,
-		TenantID: tenantID, ScopeID: scopeID, GrantedByPrincipalID: decision.PrincipalID, ExpiresAt: expiresAt,
-	})
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	httpx.WriteJSON(writer, http.StatusCreated, assignment)
-}
-
-type revokeRoleRequest struct {
-	TenantID string `json:"tenant_id"`
-}
-
-func (handler *Handler) revokeRole(writer http.ResponseWriter, request *http.Request) {
-	assignmentID, err := httpx.ParseUUIDPathValue(request, "role_assignment_id")
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	var body revokeRoleRequest
-	if err := httpx.DecodeJSON(request, &body); err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	tenantID, err := optionalTenant(body.TenantID)
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "role_assignments", assignmentID, tenantID)
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	assignment, err := handler.service.RevokeRole(request.Context(), decision.Capability, app.RevokeRole{ID: assignmentID})
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	httpx.WriteJSON(writer, http.StatusOK, assignment)
 }
 
 type placementStaffRequest struct {

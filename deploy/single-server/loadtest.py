@@ -15,7 +15,7 @@ trusts from this host, so per-address sign-in limits behave as in a lab.
 Prints per-step latency (p50/p95/p99), errors, and how long Judge took to
 return run and submission verdicts. Exits non-zero if any student failed.
 """
-import argparse, json, os, random, statistics, sys, threading, time, urllib.error, urllib.request, uuid
+import argparse, base64, hashlib, hmac, json, os, random, statistics, struct, sys, threading, time, urllib.error, urllib.request, uuid
 from concurrent.futures import ThreadPoolExecutor
 
 parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
@@ -37,6 +37,14 @@ TESTS = [
 ]
 
 timings, errors, lock = {}, [], threading.Lock()
+
+
+def totp(secret):
+    """RFC 6238 code (SHA-1, 6 digits, 30 s)."""
+    digest = hmac.new(base64.b32decode(secret.upper() + "=" * (-len(secret) % 8)), struct.pack(">Q", int(time.time() // 30)), hashlib.sha1).digest()
+    offset = digest[-1] & 15
+    return f"{(struct.unpack('>I', digest[offset:offset + 4])[0] & 0x7FFFFFFF) % 10**6:06d}"
+
 
 
 def call(method, path, body=None, token=None, address=None, expect=None, step=None):
@@ -72,8 +80,17 @@ def call(method, path, body=None, token=None, address=None, expect=None, step=No
 
 
 def setup():
-    email, password = open(args.credentials).read().split()[:2]
-    admin = call("POST", "/identity/v1/auth/login", {"identifier": email, "password": password}, expect=200)["access_token"]
+    words = open(args.credentials).read().split()
+    email, password = words[:2]
+    admin = call("POST", "/identity/v1/auth/login", {"identifier": email, "password": password}, expect=200)
+    if admin.get("mfa_required"):
+        # The administrator has an authenticator (smoke.py enrols it): the TOTP secret is the third word.
+        admin = call("POST", "/identity/v1/auth/mfa/verify-login", {"mfa_challenge_token": admin["mfa_challenge_token"], "code": totp(words[2])}, expect=200)
+    admin = admin["access_token"]
+    if len(words) > 2:
+        # Creating accounts needs MFA verified in the last 15 minutes.
+        time.sleep(31)  # a code is accepted once; take the next window
+        admin = call("POST", "/identity/v1/auth/mfa/step-up", {"code": totp(words[2])}, token=admin, expect=200)["access_token"]
     tenant = call("GET", "/tenant/v1/tenants", token=admin, expect=200)["items"][0]["id"]
     department = call("GET", f"/tenant/v1/tenants/{tenant}/departments", token=admin, expect=200)["items"][0]["id"]
     organization = call("POST", "/tenant/v1/placement-organizations", {"code": f"LT{RUN}", "legal_name": f"LOADTEST-{RUN}"}, token=admin, expect=201)

@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ItemSubmission, Page } from "@/lib/api-types";
 import { api } from "@/lib/client/api";
+import { useRealtime } from "@/lib/client/realtime";
 
 const PENDING = new Set(["queued", "dispatched"]);
 
@@ -22,10 +23,13 @@ async function fetchSubmissions(attemptPath: string, ids: string[]): Promise<Sub
 
 /**
  * Every question's per-question submissions, newest first, refreshed while
- * any is still being judged.
+ * any is still being judged. Refreshes immediately on a WebSocket grading hint;
+ * falls back to a 1.5 s poll when the socket is offline or no hint arrives.
  */
 export function useSubmissions(attemptPath: string, itemIds: string[]) {
   const [byItem, setByItem] = useState<SubmissionsByItem>({});
+  const { subscribe } = useRealtime();
+  const triggerRef = useRef<(() => void) | null>(null);
 
   const refresh = useCallback(
     (only?: string[]) =>
@@ -33,8 +37,17 @@ export function useSubmissions(attemptPath: string, itemIds: string[]) {
     [attemptPath, itemIds],
   );
 
-  // Load once, then poll only the questions with a submission still being
-  // judged. Each fetch replaces byItem, which schedules the next poll.
+  // Subscribe to grading hints and fire an immediate refresh when one arrives.
+  useEffect(() => {
+    const stop = subscribe((message) => {
+      if (message.topic !== "grading") return;
+      triggerRef.current?.();
+    });
+    return stop;
+  }, [subscribe]);
+
+  // Load once, then poll only the questions with a pending verdict.
+  // WebSocket hints call triggerRef to skip the delay.
   useEffect(() => {
     let stopped = false;
     const pending = Object.entries(byItem)
@@ -42,18 +55,19 @@ export function useSubmissions(attemptPath: string, itemIds: string[]) {
       .map(([id]) => id);
     const firstLoad = Object.keys(byItem).length === 0;
     const ids = firstLoad ? itemIds : pending;
-    if (ids.length === 0) return;
-    const timer = setTimeout(
-      () => {
-        void fetchSubmissions(attemptPath, ids).then((fetched) => {
-          if (!stopped) setByItem((previous) => ({ ...previous, ...fetched }));
-        });
-      },
-      firstLoad ? 0 : 1500,
-    );
+    if (ids.length === 0) { triggerRef.current = null; return; }
+
+    const run = () => {
+      void fetchSubmissions(attemptPath, ids).then((fetched) => {
+        if (!stopped) setByItem((previous) => ({ ...previous, ...fetched }));
+      });
+    };
+    triggerRef.current = run;
+    const timer = setTimeout(run, firstLoad ? 0 : 1500);
     return () => {
       stopped = true;
       clearTimeout(timer);
+      triggerRef.current = null;
     };
   }, [byItem, attemptPath, itemIds]);
 

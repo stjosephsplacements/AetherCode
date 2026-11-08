@@ -24,7 +24,7 @@ func TestAssertionRoundTrip(t *testing.T) {
 		t.Fatalf("NewSigner() error = %v", err)
 	}
 	now := time.Date(2026, time.July, 24, 10, 11, 12, 0, time.UTC)
-	token, issuedClaims, err := signer.Issue(testSubject, testTokenID, now, 5*time.Minute)
+	token, issuedClaims, err := signer.Issue(testSubject, testTokenID, now, 5*time.Minute, nil)
 	if err != nil {
 		t.Fatalf("Issue() error = %v", err)
 	}
@@ -52,7 +52,7 @@ func TestAssertionVerifierRejectsTamperingAndWrongAudience(t *testing.T) {
 		t.Fatalf("NewSigner() error = %v", err)
 	}
 	now := time.Date(2026, time.July, 24, 10, 11, 12, 0, time.UTC)
-	token, _, err := signer.Issue(testSubject, testTokenID, now, time.Minute)
+	token, _, err := signer.Issue(testSubject, testTokenID, now, time.Minute, nil)
 	if err != nil {
 		t.Fatalf("Issue() error = %v", err)
 	}

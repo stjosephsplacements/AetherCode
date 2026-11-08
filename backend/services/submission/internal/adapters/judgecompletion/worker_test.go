@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/evalbundle"
-	judgev1 "github.com/aethercode/aethercode/libs/proto/gen/go/aethercode/judge/v1"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/evalbundle"
+	judgev1 "github.com/stjosephsplacements/AetherCode/libs/proto/gen/go/aethercode/judge/v1"
 )
 
 const (

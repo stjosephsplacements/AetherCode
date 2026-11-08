@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
-	"github.com/aethercode/aethercode/libs/pkg/database"
-	"github.com/aethercode/aethercode/libs/pkg/rbac"
+	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/rbac"
 )
 
 var (
@@ -39,7 +39,8 @@ type Request struct {
 // identity-validation path. The verifier owns cryptographic token validation;
 // Authz compares the verified principal with the request before policy lookup.
 type VerifiedIdentity struct {
-	PrincipalID string
+	PrincipalID   string
+	MFAVerifiedAt *time.Time
 }
 
 // IdentityAssertionVerifier verifies a short-lived identity assertion minted
@@ -87,6 +88,14 @@ type Snapshot struct {
 	Grants []Grant
 	// Flags maps a permission flag key to its bit index; loaded with the role bits.
 	Flags map[string]int
+	// ResolverFlags are the meta-flag indexes rbac.Compute needs (ADR-0075).
+	ResolverFlags rbac.Flags
+	// EveryonePerms are the @everyone role's permission bits for the request's tenant.
+	EveryonePerms rbac.Perms
+	// EveryoneRoleID is the @everyone role row's ID for the request's tenant.
+	EveryoneRoleID string
+	// Overwrites are the permission overwrites for the request's tenant (ADR-0075).
+	Overwrites []rbac.Overwrite
 }
 
 // Store supplies one authorization snapshot. Its adapter authenticates as the
@@ -149,6 +158,33 @@ type AuthenticationError struct{}
 
 func (AuthenticationError) Error() string {
 	return "identity assertion is invalid"
+}
+
+// MFARequiredError signals that the operation is allowed by policy but the
+// bearer must re-verify MFA before it can proceed.
+type MFARequiredError struct{}
+
+func (MFARequiredError) Error() string {
+	return "this operation requires recent MFA verification"
+}
+
+const mfaStepUpMaxAge = 5 * time.Minute
+
+var mfaElevatedOperations = map[string]map[string]struct{}{
+	"permission_grants": {"write": {}, "delete": {}},
+	"roles":             {"write": {}, "delete": {}},
+	"role_overwrites":   {"write": {}, "delete": {}},
+	"question_exports":  {"read": {}},
+	"accounts":          {"write": {}},
+}
+
+func requiresMFAStepUp(resourceType, action string) bool {
+	actions, found := mfaElevatedOperations[resourceType]
+	if !found {
+		return false
+	}
+	_, required := actions[action]
+	return required
 }
 
 type route struct {
@@ -262,7 +298,8 @@ func (service *Service) Authorize(contextValue context.Context, request Request)
 	if err != nil {
 		return Decision{}, err
 	}
-	if err := service.verifyIdentityAssertion(contextValue, validated); err != nil {
+	identity, err := service.verifyIdentityAssertion(contextValue, validated)
+	if err != nil {
 		return Decision{}, err
 	}
 
@@ -281,7 +318,11 @@ func (service *Service) Authorize(contextValue context.Context, request Request)
 		return Decision{}, err
 	}
 	decision := Decision{DecisionID: decisionID, AuthzRevision: snapshot.Revision}
-	if snapshot.Revision <= 0 || len(snapshot.Assignments) == 0 || len(snapshot.PolicyRules) == 0 {
+	if snapshot.Revision <= 0 || len(snapshot.Assignments) == 0 {
+		return decision, nil
+	}
+	// PolicyRules are not fetched in bitset mode; deny only when Casbin is the authoritative engine.
+	if !service.engine.usesRoleBits() && len(snapshot.PolicyRules) == 0 {
 		return decision, nil
 	}
 	// Permission changes can confer access. Limit them to root and the
@@ -327,7 +368,7 @@ func (service *Service) Authorize(contextValue context.Context, request Request)
 			return Decision{}, fmt.Errorf("evaluate canonical Casbin policy: %w", enforceErr)
 		}
 		if service.engine.usesRoleBits() {
-			bits := bitsAllow(snapshot.Flags, assignment, validated)
+			bits := computeAllow(snapshot, assignment, validated)
 			if bits != allowed {
 				logShadowDifference(validated, assignment, allowed, bits)
 			}
@@ -351,6 +392,13 @@ func (service *Service) Authorize(contextValue context.Context, request Request)
 	decision.Allowed = true
 	decision.Scopes = uniqueScopes(matchingScopes)
 
+	if service.requireIdentityAssertion && requiresMFAStepUp(validated.ResourceType, validated.Action) {
+		now := service.now()
+		if identity.MFAVerifiedAt == nil || now.Sub(*identity.MFAVerifiedAt) > mfaStepUpMaxAge {
+			return Decision{}, MFARequiredError{}
+		}
+	}
+
 	// A delete is a write as far as the databases go: their policies and functions accept
 	// <service>.write. The audit log below keeps the real verb (ADR-0053).
 	databaseVerb := validated.Action
@@ -359,6 +407,7 @@ func (service *Service) Authorize(contextValue context.Context, request Request)
 	}
 	databaseAction := targetRoute.ActionPrefix + "." + databaseVerb
 	databaseResource := targetRoute.ResourcePrefix + "." + validated.ResourceType
+	nodes := capabilityNodes(decision.Scopes)
 	capability, err := service.keyring.Issue(
 		targetRoute.Audience,
 		validated.PrincipalID,
@@ -367,6 +416,7 @@ func (service *Service) Authorize(contextValue context.Context, request Request)
 		decisionID,
 		databaseAction,
 		databaseResource,
+		nodes,
 		service.now(),
 	)
 	if err != nil {
@@ -435,18 +485,18 @@ func hasResource(resources map[string]struct{}, resource string) bool {
 	return found
 }
 
-func (service *Service) verifyIdentityAssertion(contextValue context.Context, request Request) error {
+func (service *Service) verifyIdentityAssertion(contextValue context.Context, request Request) (VerifiedIdentity, error) {
 	if !service.requireIdentityAssertion {
-		return nil
+		return VerifiedIdentity{PrincipalID: request.PrincipalID}, nil
 	}
 	if request.IdentityAssertion == "" || service.identityAssertionVerifier == nil {
-		return AuthenticationError{}
+		return VerifiedIdentity{}, AuthenticationError{}
 	}
 	identity, err := service.identityAssertionVerifier.Verify(contextValue, request.IdentityAssertion)
 	if err != nil || strings.ToLower(strings.TrimSpace(identity.PrincipalID)) != request.PrincipalID {
-		return AuthenticationError{}
+		return VerifiedIdentity{}, AuthenticationError{}
 	}
-	return nil
+	return identity, nil
 }
 
 func assignmentApplies(
@@ -585,4 +635,20 @@ func (service *Service) auditStaffWrite(contextValue context.Context, request Re
 	}); err != nil {
 		slog.Warn("record staff action", "error", err, "principal_id", request.PrincipalID)
 	}
+}
+
+// capabilityNodes lists the department, batch and placement-department nodes a capability is
+// limited to. Any broader matching scope (college, platform, root) leaves it unrestricted (nil),
+// so holding one narrow role next to a college-wide one never narrows the wider access.
+func capabilityNodes(scopes []Scope) []string {
+	var nodes []string
+	for _, scope := range scopes {
+		switch scope.Kind {
+		case "department", "batch", "placement_department":
+			nodes = append(nodes, scope.ID)
+		default:
+			return nil
+		}
+	}
+	return nodes
 }

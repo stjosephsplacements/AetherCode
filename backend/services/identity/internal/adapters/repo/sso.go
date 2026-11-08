@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"time"
 
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	"github.com/aethercode/aethercode/services/identity/internal/app"
 	"github.com/jackc/pgx/v5"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	"github.com/stjosephsplacements/AetherCode/services/identity/internal/app"
 )
 
 // AuthenticateSSO starts a session for the account the provider vouched for
@@ -74,10 +74,11 @@ func (repository *Postgres) AuthenticateSSO(contextValue context.Context, comman
 	`, principalID); err != nil {
 		return app.Session{}, fmt.Errorf("update SSO principal: %w", err)
 	}
+	ssoVerifiedAt := time.Now().UTC()
 	if err := createRefreshSession(contextValue, transaction, refreshSessionCommand{
 		PrincipalID: principalID, FamilyID: command.RefreshFamilyID, TokenID: command.RefreshTokenID,
 		TokenHash: command.RefreshTokenHash, ExpiresAt: command.RefreshExpiresAt, AccessTokenID: command.AccessTokenID,
-		AccessExpiresAt: command.AccessExpiresAt, UserAgent: command.UserAgent,
+		AccessExpiresAt: command.AccessExpiresAt, UserAgent: command.UserAgent, MFAVerifiedAt: &ssoVerifiedAt,
 	}); err != nil {
 		return app.Session{}, err
 	}
@@ -100,7 +101,7 @@ func (repository *Postgres) AuthenticateSSO(contextValue context.Context, comman
 	if err := transaction.Commit(contextValue); err != nil {
 		return app.Session{}, fmt.Errorf("commit SSO login: %w", err)
 	}
-	return app.Session{PrincipalID: principalID, AuthzRevision: 1}, nil
+	return app.Session{PrincipalID: principalID, AuthzRevision: 1, MFAVerifiedAt: &ssoVerifiedAt}, nil
 }
 
 // DueDirectorySync returns accounts waiting to be copied to the provider.

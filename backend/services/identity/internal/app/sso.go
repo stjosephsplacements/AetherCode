@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	"github.com/aethercode/aethercode/services/identity/internal/domain"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	"github.com/stjosephsplacements/AetherCode/services/identity/internal/domain"
 )
 
 // Single sign-on through the college's identity provider (ADR-0042). A
@@ -134,6 +134,8 @@ func (service *Service) CompleteSSO(contextValue context.Context, code, verifier
 	if err != nil {
 		return TokenPair{}, err
 	}
+	// SSO is provider-verified; treat it as an MFA step-up for the session lifetime.
+	session.MFAVerifiedAt = &now
 	return service.issueTokenPair(session, ids[2], refreshToken, now)
 }
 

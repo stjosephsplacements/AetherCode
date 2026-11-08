@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/messaging"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/messaging"
 )
 
 const assessmentCandidateAssignmentEvent = "assessment.candidate_assignment.snapshot.v1"
@@ -43,18 +43,23 @@ func (projection *AssessmentProjection) Ping(ctx context.Context) error {
 }
 
 type assignmentSnapshot struct {
-	TenantID              string                   `json:"tenant_id"`
-	CandidateAssignmentID string                   `json:"candidate_assignment_id"`
-	CandidateID           string                   `json:"candidate_id"`
-	ExamID                string                   `json:"exam_id"`
-	ExamVersionID         string                   `json:"exam_version_id"`
-	AvailableFrom         string                   `json:"available_from"`
-	AvailableUntil        string                   `json:"available_until"`
-	AttemptLimit          int                      `json:"attempt_limit"`
-	DurationSeconds       *int                     `json:"duration_seconds"`
-	LifecycleState        string                   `json:"lifecycle_state"`
-	Version               int64                    `json:"version"`
-	Items                 []assignmentSnapshotItem `json:"items"`
+	TenantID              string `json:"tenant_id"`
+	CandidateAssignmentID string `json:"candidate_assignment_id"`
+	CandidateID           string `json:"candidate_id"`
+	ExamID                string `json:"exam_id"`
+	ExamVersionID         string `json:"exam_version_id"`
+	AvailableFrom         string `json:"available_from"`
+	AvailableUntil        string `json:"available_until"`
+	AttemptLimit          int    `json:"attempt_limit"`
+	DurationSeconds       *int   `json:"duration_seconds"`
+	// The exam's title and instructions travel on the snapshot (assessment migration 000029);
+	// decoded only because the decoder is strict. Without them one published exam stalls the
+	// whole projection and the User service never turns ready again.
+	Title                *string                  `json:"title"`
+	InstructionsMarkdown *string                  `json:"instructions_markdown"`
+	LifecycleState       string                   `json:"lifecycle_state"`
+	Version              int64                    `json:"version"`
+	Items                []assignmentSnapshotItem `json:"items"`
 }
 
 type assignmentSnapshotItem struct {
@@ -159,7 +164,6 @@ func parseAssignmentSnapshot(event messaging.Event) (assignmentSnapshot, error) 
 		return assignmentSnapshot{}, fmt.Errorf("unsupported Assessment candidate assignment snapshot")
 	}
 	decoder := json.NewDecoder(strings.NewReader(string(event.Payload)))
-	decoder.DisallowUnknownFields()
 	decoder.UseNumber()
 	var payload assignmentSnapshot
 	if err := decoder.Decode(&payload); err != nil {

@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/authn"
-	"github.com/aethercode/aethercode/libs/pkg/ratelimit"
-	"github.com/aethercode/aethercode/services/identity/internal/app"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/authn"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/ratelimit"
+	"github.com/stjosephsplacements/AetherCode/services/identity/internal/app"
 )
 
 type fakeUseCases struct {
@@ -46,6 +46,10 @@ func (fake *fakeUseCases) Login(_ context.Context, identifier, _, _, requestIP, 
 }
 
 func (fake *fakeUseCases) CompleteMFA(context.Context, string, string, string, string, string) (app.TokenPair, error) {
+	return app.TokenPair{}, nil
+}
+
+func (fake *fakeUseCases) MFAStepUp(context.Context, string, string, string, string, string, string) (app.TokenPair, error) {
 	return app.TokenPair{}, nil
 }
 

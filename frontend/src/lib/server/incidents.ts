@@ -45,7 +45,7 @@ export async function loadIncidents(staff: StaffContext): Promise<IncidentBoard>
   const colleges = staff.tenants.map((tenant) => ({ id: tenant.id, name: tenant.display_name }));
   const now = Date.now();
   const [health, snapshot, queues, exams] = await Promise.all([
-    staff.tenantId ? serviceHealth(staff.tenantId).catch(() => null) : null,
+    (staff.tenantId ?? colleges[0]?.id) ? serviceHealth(staff.tenantId ?? colleges[0]!.id).catch(() => null) : null,
     loadSnapshot("1h"),
     inColleges(colleges, (id) => gateway<GradingQueue>(`/submission/v1/tenants/${id}/grading-queue`)),
     listAllExams(staff.tenants),

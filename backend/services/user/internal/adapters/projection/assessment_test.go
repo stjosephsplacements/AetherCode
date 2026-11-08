@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/messaging"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/messaging"
 )
 
 func TestParseAssignmentSnapshotAcceptsRevokedTombstone(t *testing.T) {
@@ -23,16 +23,17 @@ func TestParseAssignmentSnapshotAcceptsRevokedTombstone(t *testing.T) {
 	}
 }
 
-func TestParseAssignmentSnapshotRejectsUnknownFields(t *testing.T) {
+func TestParseAssignmentSnapshotIgnoresUnknownFields(t *testing.T) {
 	t.Parallel()
 	event := messaging.Event{
 		ID: "018f4b0d-08f8-7c09-9ba7-efdf9c223431", Type: assessmentCandidateAssignmentEvent,
 		SchemaVersion: 1, AggregateType: "candidate_assignment", AggregateID: "018f4b0d-08f8-7c09-9ba7-efdf9c223432",
 		TenantID: "018f4b0d-08f8-7c09-9ba7-efdf9c223433", OccurredAt: time.Now().UTC(),
-		Payload: []byte(`{"tenant_id":"018f4b0d-08f8-7c09-9ba7-efdf9c223433","candidate_assignment_id":"018f4b0d-08f8-7c09-9ba7-efdf9c223432","candidate_id":"018f4b0d-08f8-7c09-9ba7-efdf9c223434","exam_id":"018f4b0d-08f8-7c09-9ba7-efdf9c223435","exam_version_id":"018f4b0d-08f8-7c09-9ba7-efdf9c223436","available_from":"2026-07-24T00:00:00Z","available_until":"2026-07-24T01:00:00Z","attempt_limit":1,"lifecycle_state":"revoked","version":2,"items":[],"unknown":true}`),
+		Payload: []byte(`{"tenant_id":"018f4b0d-08f8-7c09-9ba7-efdf9c223433","candidate_assignment_id":"018f4b0d-08f8-7c09-9ba7-efdf9c223432","candidate_id":"018f4b0d-08f8-7c09-9ba7-efdf9c223434","exam_id":"018f4b0d-08f8-7c09-9ba7-efdf9c223435","exam_version_id":"018f4b0d-08f8-7c09-9ba7-efdf9c223436","available_from":"2026-07-24T00:00:00Z","available_until":"2026-07-24T01:00:00Z","attempt_limit":1,"lifecycle_state":"revoked","version":2,"items":[],"added_by_a_newer_publisher":true}`),
 	}
-	if _, err := parseAssignmentSnapshot(event); err == nil {
-		t.Fatal("parseAssignmentSnapshot() accepted an unknown field")
+	// Additive fields must never stall the projection: the publisher may roll out first.
+	if _, err := parseAssignmentSnapshot(event); err != nil {
+		t.Fatalf("parseAssignmentSnapshot() rejected an additive field: %v", err)
 	}
 }
 
@@ -58,5 +59,21 @@ func TestParseAssignmentSnapshotAcceptsPinnedBundleReferences(t *testing.T) {
 		if payload, err := parseAssignmentSnapshot(event); err != nil || len(payload.Items) != 1 {
 			t.Fatalf("%s: parseAssignmentSnapshot() = %#v, %v", name, payload, err)
 		}
+	}
+}
+
+// Assessment migration 000029 adds the exam's title and instructions to every snapshot. Rejecting
+// them stalled the projection and left the whole platform unable to authorize.
+func TestParseAssignmentSnapshotAcceptsExamTitleAndInstructions(t *testing.T) {
+	t.Parallel()
+	event := messaging.Event{
+		ID: "018f4b0d-08f8-7c09-9ba7-efdf9c223441", Type: assessmentCandidateAssignmentEvent,
+		SchemaVersion: 1, AggregateType: "candidate_assignment", AggregateID: "018f4b0d-08f8-7c09-9ba7-efdf9c223442",
+		TenantID: "018f4b0d-08f8-7c09-9ba7-efdf9c223443", OccurredAt: time.Now().UTC(),
+		Payload: []byte(`{"tenant_id":"018f4b0d-08f8-7c09-9ba7-efdf9c223443","candidate_assignment_id":"018f4b0d-08f8-7c09-9ba7-efdf9c223442","candidate_id":"018f4b0d-08f8-7c09-9ba7-efdf9c223444","exam_id":"018f4b0d-08f8-7c09-9ba7-efdf9c223445","exam_version_id":"018f4b0d-08f8-7c09-9ba7-efdf9c223446","available_from":"2026-07-24T00:00:00Z","available_until":"2026-07-24T01:00:00Z","attempt_limit":1,"duration_seconds":3600,"title":"Mid-term","instructions_markdown":"Read first.","lifecycle_state":"revoked","version":2,"items":[]}`),
+	}
+	payload, err := parseAssignmentSnapshot(event)
+	if err != nil || payload.Title == nil || *payload.Title != "Mid-term" {
+		t.Fatalf("parseAssignmentSnapshot() = %#v, %v", payload, err)
 	}
 }

@@ -1,6 +1,8 @@
 package httpauth
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestNewRejectsMissingDependencies(t *testing.T) {
 	t.Parallel()

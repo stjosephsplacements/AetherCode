@@ -37,3 +37,13 @@ networkPolicy:
   allowFrom:
     - service: gateway
       ports: [8080]
+  egress:
+    extraRules:
+      - to:
+          - podSelector:
+              matchLabels:
+                app.kubernetes.io/part-of: aethercode
+                app.kubernetes.io/name: question-bank
+        ports:
+          - protocol: TCP
+            port: 9445

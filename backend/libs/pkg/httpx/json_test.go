@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
 )
 
 func TestDecodeJSONRejectsUnknownAndTrailingValues(t *testing.T) {
@@ -32,6 +32,15 @@ func TestDecodeJSONRawReturnsExactValidatedBody(t *testing.T) {
 	raw, err := DecodeJSONRaw(request, &value)
 	if err != nil || string(raw) != body || value.Known != "value" {
 		t.Fatalf("DecodeJSONRaw() = %q, %#v, %v", raw, value, err)
+	}
+}
+
+func TestWriteJSONSetsNoCacheHeader(t *testing.T) {
+	t.Parallel()
+	response := httptest.NewRecorder()
+	WriteJSON(response, http.StatusOK, map[string]string{"k": "v"})
+	if got := response.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("Cache-Control = %q, want %q", got, "no-store")
 	}
 }
 

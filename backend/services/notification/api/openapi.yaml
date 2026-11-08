@@ -54,6 +54,40 @@ paths:
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/me/preferences/email:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    put:
+      security: [{bearerAuth: []}]
+      summary: Create or optimistically update the caller's email preference
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PreferenceWrite'}
+      responses:
+        '200': {$ref: '#/components/responses/Preference'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/me/preferences/sms:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    put:
+      security: [{bearerAuth: []}]
+      summary: Create or optimistically update the caller's SMS preference
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PreferenceWrite'}
+      responses:
+        '200': {$ref: '#/components/responses/Preference'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
   /v1/tenants/{tenant_id}/me/notifications:
     parameters: [{$ref: '#/components/parameters/TenantID'}]
     get:
@@ -114,6 +148,52 @@ paths:
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/notifications/{notification_id}:
+    parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/NotificationID'}
+    delete:
+      security: [{bearerAuth: []}]
+      summary: Soft-delete a notification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: {type: string, minLength: 1, maxLength: 500}
+      responses:
+        '204': {description: Notification soft-deleted}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/notifications/{notification_id}/hard:
+    parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/NotificationID'}
+    delete:
+      security: [{bearerAuth: []}]
+      summary: Permanently delete a notification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: {type: string, minLength: 1, maxLength: 500}
+      responses:
+        '204': {description: Notification permanently deleted}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
   /v1/tenants/{tenant_id}/community/interview-experiences:
     parameters: [{$ref: '#/components/parameters/TenantID'}]
     get:

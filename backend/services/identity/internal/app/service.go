@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aethercode/aethercode/libs/pkg/authn"
-	"github.com/aethercode/aethercode/libs/pkg/database"
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	"github.com/aethercode/aethercode/services/identity/internal/domain"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/authn"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	"github.com/stjosephsplacements/AetherCode/services/identity/internal/domain"
 )
 
 var (
@@ -37,6 +37,7 @@ type Store interface {
 	DisableTOTP(context.Context, TOTPDisable) error
 	GetPrincipal(context.Context, string) (*Principal, error)
 	SoftDeletePrincipal(context.Context, DeletePrincipal) error
+	PerformMFAStepUp(context.Context, MFAStepUpCommand) (Session, error)
 	AccountStore
 	Ping(context.Context) error
 }
@@ -94,6 +95,7 @@ type Session struct {
 	TenantID      string
 	AuthzRevision int64
 	MFARequired   bool
+	MFAVerifiedAt *time.Time
 	// PasswordChangeRequired: the password was issued by staff (ADR-0036).
 	PasswordChangeRequired bool
 }
@@ -192,6 +194,22 @@ type DeletePrincipal struct {
 	ID      string
 	ActorID string
 	Reason  string
+}
+
+// MFAStepUpCommand authenticates a TOTP code against the currently-active session
+// so that the returned access token carries an MFAVerifiedAt stamp.
+type MFAStepUpCommand struct {
+	// PrincipalID is the authenticated subject from the bearer being stepped up.
+	PrincipalID string
+	// AccessTokenID is the jti of the bearer so the store can locate its family.
+	AccessTokenID string
+	// Code is the six-digit TOTP value or a recovery code.
+	Code        string
+	NewAccessID string
+	ExpiresAt   time.Time
+	RequestIP   string
+	UserAgent   string
+	RequestID   string
 }
 
 // TokenPair is returned only through the public HTTP adapter after successful
@@ -417,7 +435,49 @@ func (service *Service) CompleteMFA(contextValue context.Context, challengeToken
 	if err != nil {
 		return TokenPair{}, err
 	}
+	session.MFAVerifiedAt = &now
 	return service.issueTokenPair(session, accessTokenID, refreshToken, now)
+}
+
+// MFAStepUp verifies a TOTP code for an already-authenticated session and
+// returns a fresh access token with MFAVerifiedAt stamped. The refresh token is
+// unchanged; the caller should update the access cookie without touching the
+// refresh cookie.
+func (service *Service) MFAStepUp(contextValue context.Context, principalID, accessTokenID, code, requestIP, userAgent, requestID string) (TokenPair, error) {
+	principalID = strings.ToLower(strings.TrimSpace(principalID))
+	code = strings.TrimSpace(code)
+	if !isUUID(principalID) {
+		return TokenPair{}, apperrors.New(apperrors.CodeUnauthorized, "authenticated principal is invalid")
+	}
+	if !validTOTPCode(code) && len(code) < 6 {
+		return TokenPair{}, apperrors.New(apperrors.CodeInvalidArgument, "authenticator code is required")
+	}
+	newAccessID, err := service.newID()
+	if err != nil {
+		return TokenPair{}, err
+	}
+	now := service.now().UTC()
+	session, err := service.store.PerformMFAStepUp(contextValue, MFAStepUpCommand{
+		PrincipalID:   principalID,
+		AccessTokenID: strings.TrimSpace(accessTokenID),
+		Code:          code,
+		NewAccessID:   newAccessID,
+		ExpiresAt:     now.Add(service.accessTokenLifetime),
+		RequestIP:     strings.TrimSpace(requestIP),
+		UserAgent:     strings.TrimSpace(userAgent),
+		RequestID:     strings.TrimSpace(requestID),
+	})
+	if err != nil {
+		return TokenPair{}, err
+	}
+	accessToken, claims, err := service.signer.Issue(session.PrincipalID, newAccessID, now, service.accessTokenLifetime, session.MFAVerifiedAt)
+	if err != nil {
+		return TokenPair{}, fmt.Errorf("issue step-up access token: %w", err)
+	}
+	return TokenPair{
+		AccessToken:          accessToken,
+		AccessTokenExpiresAt: time.Unix(claims.ExpiresAt, 0).UTC(),
+	}, nil
 }
 
 // Refresh atomically rotates a refresh bearer and detects replay in the store.
@@ -567,11 +627,21 @@ func (service *Service) DisableTOTP(contextValue context.Context, principalID, f
 	return service.store.DisableTOTP(contextValue, TOTPDisable{PrincipalID: principalID, FactorID: factorID, Code: code})
 }
 
+// freshMFA drops an MFA stamp older than the 15-minute window the signer accepts, so a refresh
+// after that window issues a token without MFA claims (elevated writes then need a step-up)
+// instead of failing after the refresh token was already rotated.
+func freshMFA(at *time.Time, now time.Time) *time.Time {
+	if at == nil || now.Sub(*at) > 15*time.Minute {
+		return nil
+	}
+	return at
+}
+
 func (service *Service) issueTokenPair(session Session, accessTokenID, refreshToken string, now time.Time) (TokenPair, error) {
 	if session.PrincipalID == "" || accessTokenID == "" {
 		return TokenPair{}, fmt.Errorf("identity store returned an incomplete session")
 	}
-	accessToken, claims, err := service.signer.Issue(session.PrincipalID, accessTokenID, now, service.accessTokenLifetime)
+	accessToken, claims, err := service.signer.Issue(session.PrincipalID, accessTokenID, now, service.accessTokenLifetime, freshMFA(session.MFAVerifiedAt, now))
 	if err != nil {
 		return TokenPair{}, fmt.Errorf("issue access token: %w", err)
 	}

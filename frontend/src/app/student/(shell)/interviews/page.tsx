@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { RoundsEditor } from "@/components/community/rounds-editor";
 import { ActionForm, Field, Select, TextArea, TextInput } from "@/components/staff/form";
-import { EmptyState, Section, PageHeader } from "@/components/staff/page-header";
+import { EmptyState, LoadError, Section, PageHeader } from "@/components/staff/page-header";
 import { Panel } from "@/components/ui/card";
 import type { InterviewExperience } from "@/lib/api-types";
 import { communityList } from "@/lib/server/community";
@@ -16,14 +16,19 @@ export default async function InterviewsPage({ searchParams }: { searchParams: P
   const viewer = await requireViewer();
   if (!viewer.tenantId) redirect("/student");
   const company = (await searchParams).company?.trim();
-  const [shared, mine] = await Promise.all([
-    communityList<InterviewExperience>(viewer.tenantId, "interview-experiences", { company }),
-    communityList<InterviewExperience>(viewer.tenantId, "interview-experiences", { mine: true }),
-  ]);
+  let shared, mine;
+  try {
+    [shared, mine] = await Promise.all([
+      communityList<InterviewExperience>(viewer.tenantId, "interview-experiences", { company }),
+      communityList<InterviewExperience>(viewer.tenantId, "interview-experiences", { mine: true }),
+    ]);
+  } catch (error) {
+    return (<><PageHeader title="Interview experiences" /><LoadError error={error} /></>);
+  }
   const waiting = mine.filter((experience) => experience.status !== "approved");
   return (
     <div className="animate-enter">
-      <PageHeader title={"Interview experiences"} description={"What seniors in your college were asked, round by round. Posts are anonymous and approved by the placement team first."} />
+      <PageHeader title="Interview experiences" description="What seniors were asked in interviews, round by round. Posts are anonymous and reviewed before publishing." />
 
       <form className="mt-6 flex max-w-[420px] gap-2" role="search">
         <TextInput name="company" defaultValue={company} placeholder="Filter by company" aria-label="Filter by company" />

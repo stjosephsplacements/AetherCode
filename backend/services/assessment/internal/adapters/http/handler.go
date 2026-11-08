@@ -9,12 +9,12 @@ import (
 	"strings"
 	"time"
 
-	centralauthz "github.com/aethercode/aethercode/libs/pkg/authz"
-	"github.com/aethercode/aethercode/libs/pkg/database"
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
-	"github.com/aethercode/aethercode/libs/pkg/httpauth"
-	"github.com/aethercode/aethercode/libs/pkg/httpx"
-	"github.com/aethercode/aethercode/services/assessment/internal/app"
+	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpauth"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
+	"github.com/stjosephsplacements/AetherCode/services/assessment/internal/app"
 )
 
 // appService is the subset of *app.Service methods consumed by Handler.
@@ -104,120 +104,6 @@ func NewHandler(serviceName string, service *app.Service, readiness httpx.Readin
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/exams", handler.listExams)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/exams/{exam_id}/versions", handler.listExamVersions)
 	return mux, nil
-}
-
-type createProctorPolicyRequest struct {
-	Name string `json:"name"`
-}
-
-func (handler *Handler) createProctorPolicy(writer http.ResponseWriter, request *http.Request) {
-	tenantID, err := tenantID(request)
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	var body createProctorPolicyRequest
-	if err := httpx.DecodeJSON(request, &body); err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	key, err := idempotencyKey(request)
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	id, err := database.NewUUIDv7()
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "proctor_policies", id, tenantID)
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	policy, err := handler.service.CreateProctorPolicy(request.Context(), decision.Capability, app.CreateProctorPolicy{WriteCommand: app.WriteCommand{IdempotencyKey: key}, ID: id, TenantID: tenantID, Name: body.Name})
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	httpx.WriteJSON(writer, http.StatusCreated, policy)
-}
-
-type createProctorPolicyVersionRequest struct {
-	ExpectedPolicyVersion int64           `json:"expected_policy_version"`
-	Policy                json.RawMessage `json:"policy"`
-}
-
-func (handler *Handler) createProctorPolicyVersion(writer http.ResponseWriter, request *http.Request) {
-	tenantID, err := tenantID(request)
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	proctorPolicyID, err := httpx.ParseUUIDPathValue(request, "proctor_policy_id")
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	var body createProctorPolicyVersionRequest
-	if err := httpx.DecodeJSON(request, &body); err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	key, err := idempotencyKey(request)
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	id, err := database.NewUUIDv7()
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "proctor_policy_versions", id, tenantID)
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	policyVersion, err := handler.service.CreateProctorPolicyVersion(request.Context(), decision.Capability, app.CreateProctorPolicyVersion{
-		WriteCommand: app.WriteCommand{IdempotencyKey: key}, ID: id, TenantID: tenantID, ProctorPolicyID: proctorPolicyID,
-		ExpectedPolicyVersion: body.ExpectedPolicyVersion, Policy: body.Policy,
-	})
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	httpx.WriteJSON(writer, http.StatusCreated, policyVersion)
-}
-
-func (handler *Handler) publishProctorPolicyVersion(writer http.ResponseWriter, request *http.Request) {
-	tenantID, err := tenantID(request)
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	versionID, err := httpx.ParseUUIDPathValue(request, "proctor_policy_version_id")
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	key, err := idempotencyKey(request)
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "proctor_policy_versions", versionID, tenantID)
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	policyVersion, err := handler.service.PublishProctorPolicyVersion(request.Context(), decision.Capability, app.PublishProctorPolicyVersion{WriteCommand: app.WriteCommand{IdempotencyKey: key}, TenantID: tenantID, ProctorPolicyVersionID: versionID})
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	httpx.WriteJSON(writer, http.StatusOK, policyVersion)
 }
 
 type createExamRequest struct {
@@ -360,6 +246,7 @@ func (handler *Handler) getExamVersionContent(writer http.ResponseWriter, reques
 		return
 	}
 	writer.Header().Set("Content-Type", "application/json")
+	writer.Header().Set("Cache-Control", "no-store")
 	writer.WriteHeader(http.StatusOK)
 	_, _ = writer.Write(content)
 }
@@ -890,54 +777,6 @@ func (handler *Handler) getExam(writer http.ResponseWriter, request *http.Reques
 		return
 	}
 	httpx.WriteJSON(writer, http.StatusOK, exam)
-}
-
-func (handler *Handler) getProctorPolicy(writer http.ResponseWriter, request *http.Request) {
-	tenantID, err := tenantID(request)
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	policyID, err := httpx.ParseUUIDPathValue(request, "proctor_policy_id")
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "proctor_policies", policyID, tenantID)
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	policy, err := handler.service.GetProctorPolicy(request.Context(), decision.Capability, tenantID, policyID)
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	httpx.WriteJSON(writer, http.StatusOK, policy)
-}
-
-func (handler *Handler) getProctorPolicyVersion(writer http.ResponseWriter, request *http.Request) {
-	tenantID, err := tenantID(request)
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	versionID, err := httpx.ParseUUIDPathValue(request, "proctor_policy_version_id")
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "proctor_policy_versions", versionID, tenantID)
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	policyVersion, err := handler.service.GetProctorPolicyVersion(request.Context(), decision.Capability, tenantID, versionID)
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	httpx.WriteJSON(writer, http.StatusOK, policyVersion)
 }
 
 func tenantID(request *http.Request) (string, error) {

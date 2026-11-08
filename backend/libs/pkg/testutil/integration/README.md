@@ -57,7 +57,7 @@ import (
     "runtime"
     "testing"
 
-    "github.com/aethercode/aethercode/libs/pkg/testutil/integration"
+    "github.com/stjosephsplacements/AetherCode/libs/pkg/testutil/integration"
 )
 
 func TestSomething(t *testing.T) {

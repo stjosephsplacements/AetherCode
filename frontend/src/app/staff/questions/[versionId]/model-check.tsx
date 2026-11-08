@@ -2,7 +2,8 @@
 
 import { CaretRight, CheckCircle, CircleNotch, Play, Warning, WarningCircle } from "@phosphor-icons/react/ssr";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
+import { LiveRefresh } from "@/lib/client/realtime";
 import { CodeEditor } from "@/components/exam/code-editor";
 import { useEditorSettings } from "@/components/exam/editor-settings";
 import { EditorSettingsMenu } from "@/components/exam/editor-settings-menu";
@@ -14,8 +15,6 @@ import { type Language, editorModeOf, nameOf } from "@/lib/languages";
 import { type CheckStatus, checkStatus, firstProblem, newestFirst, passedCount, verdictLabel } from "@/lib/model-checks";
 import { cn, formatTime } from "@/lib/utils";
 import { runModelCheck } from "../actions";
-
-const POLL_MS = 2000;
 
 /** A comment to start from; the line comment of the mode, nothing more. */
 const starter = (editor: string) => `${editor === "python" ? "#" : "//"} Write a correct solution. It runs on every test, hidden ones included.\n`;
@@ -68,13 +67,6 @@ export function ModelCheckPanel({ versionId, languages, supported, checks, tests
   const sorted = newestFirst(checks);
   const latest = sorted[0];
 
-  // While Judge works, ask the server for the new results.
-  useEffect(() => {
-    if (!running) return;
-    const timer = setInterval(() => router.refresh(), POLL_MS);
-    return () => clearInterval(timer);
-  }, [running, router]);
-
   function run() {
     if (starting || running) return;
     setError(null);
@@ -91,6 +83,7 @@ export function ModelCheckPanel({ versionId, languages, supported, checks, tests
 
   return (
     <div className="space-y-4">
+      {running && <LiveRefresh topics={["grading"]} fallbackSeconds={2} />}
       <div role="status" className={cn("flex items-start gap-3 rounded-[var(--radius-surface)] border px-5 py-4", banner.tone)}>
         <span className="mt-0.5 shrink-0">{ICON[status]}</span>
         <div className="min-w-0">

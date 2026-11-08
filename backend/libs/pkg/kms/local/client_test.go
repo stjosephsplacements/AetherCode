@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aethercode/aethercode/libs/pkg/kms/local"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/kms/local"
 )
 
 func testKey() []byte {

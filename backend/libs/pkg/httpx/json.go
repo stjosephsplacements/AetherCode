@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"strings"
 
-	apperrors "github.com/aethercode/aethercode/libs/pkg/errors"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
 )
 
 const maximumJSONBodyBytes = 1 << 20
@@ -56,8 +56,10 @@ func DecodeJSONRaw(request *http.Request, destination any) ([]byte, error) {
 }
 
 // WriteJSON serializes a response and always includes a JSON content type.
+// Cache-Control: no-store prevents proxies from caching authenticated API responses.
 func WriteJSON(writer http.ResponseWriter, status int, value any) {
 	writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+	writer.Header().Set("Cache-Control", "no-store")
 	writer.WriteHeader(status)
 	if err := json.NewEncoder(writer).Encode(value); err != nil {
 		return
@@ -79,6 +81,8 @@ func WriteError(writer http.ResponseWriter, err error) {
 		case apperrors.CodeUnauthorized:
 			status = http.StatusUnauthorized
 		case apperrors.CodeForbidden:
+			status = http.StatusForbidden
+		case apperrors.CodeMFARequired:
 			status = http.StatusForbidden
 		case apperrors.CodeNotFound:
 			status = http.StatusNotFound

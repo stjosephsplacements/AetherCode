@@ -5,9 +5,9 @@ package httpadapter
 import (
 	"net/http"
 
-	"github.com/aethercode/aethercode/libs/pkg/httpx"
-	"github.com/aethercode/aethercode/libs/pkg/pagination"
-	"github.com/aethercode/aethercode/services/assessment/internal/app"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/pagination"
+	"github.com/stjosephsplacements/AetherCode/services/assessment/internal/app"
 )
 
 func (handler *Handler) listCandidateAssignments(writer http.ResponseWriter, request *http.Request) {
@@ -102,73 +102,6 @@ func (handler *Handler) listExamVersions(writer http.ResponseWriter, request *ht
 		CursorSort: cursor.SortValue,
 		CursorID:   cursor.ID,
 		Status:     status,
-	})
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	httpx.WriteJSON(writer, http.StatusOK, page)
-}
-
-func (handler *Handler) listProctorPolicies(writer http.ResponseWriter, request *http.Request) {
-	tenantID, limit, cursor, err := listRequestParts(request)
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	lifecycleState, err := httpx.ParseEnumQuery(request, "lifecycle_state",
-		"draft", "active", "archived")
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "proctor_policies", tenantID, tenantID)
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	page, err := handler.service.ListProctorPolicies(request.Context(), decision.Capability, app.ListProctorPolicies{
-		TenantID:       tenantID,
-		Limit:          limit,
-		CursorSort:     cursor.SortValue,
-		CursorID:       cursor.ID,
-		LifecycleState: lifecycleState,
-	})
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	httpx.WriteJSON(writer, http.StatusOK, page)
-}
-
-func (handler *Handler) listProctorPolicyVersions(writer http.ResponseWriter, request *http.Request) {
-	tenantID, limit, cursor, err := listRequestParts(request)
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	policyID, err := httpx.ParseUUIDPathValue(request, "proctor_policy_id")
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	status, err := httpx.ParseEnumQuery(request, "status", "draft", "published")
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "proctor_policy_versions", policyID, tenantID)
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	page, err := handler.service.ListProctorPolicyVersions(request.Context(), decision.Capability, app.ListProctorPolicyVersions{
-		TenantID:        tenantID,
-		ProctorPolicyID: policyID,
-		Limit:           limit,
-		CursorSort:      cursor.SortValue,
-		CursorID:        cursor.ID,
-		Status:          status,
 	})
 	if err != nil {
 		httpx.WriteError(writer, err)
