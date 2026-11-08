@@ -13,9 +13,9 @@ func TestSetQuestionAudienceRejectsInvalidAudienceAndID(t *testing.T) {
 	t.Parallel()
 	service := testService(newFakeStorage())
 	for name, cmd := range map[string]SetQuestionAudience{
-		"non-UUID QuestionID":  {QuestionID: "bad", Audience: "practice"},
-		"unknown audience":     {QuestionID: practiceTestUUID, Audience: "exam"},
-		"empty audience":       {QuestionID: practiceTestUUID, Audience: ""},
+		"non-UUID QuestionID": {QuestionID: "bad", Audience: "practice"},
+		"unknown audience":    {QuestionID: practiceTestUUID, Audience: "exam"},
+		"empty audience":      {QuestionID: practiceTestUUID, Audience: ""},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

@@ -123,10 +123,10 @@ func TestRecordIntegrityEventRejectsInvalidKindAndIDs(t *testing.T) {
 		cmd  GetAttempt
 		kind string
 	}{
-		"unknown kind":   {valid, "unknown"},
-		"empty kind":     {valid, ""},
-		"bad tenant":     {GetAttempt{TenantID: "bad", AttemptID: validSubmissionTestUUID}, "blur"},
-		"bad attempt":    {GetAttempt{TenantID: validSubmissionTestUUID, AttemptID: "bad"}, "paste"},
+		"unknown kind": {valid, "unknown"},
+		"empty kind":   {valid, ""},
+		"bad tenant":   {GetAttempt{TenantID: "bad", AttemptID: validSubmissionTestUUID}, "blur"},
+		"bad attempt":  {GetAttempt{TenantID: validSubmissionTestUUID, AttemptID: "bad"}, "paste"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

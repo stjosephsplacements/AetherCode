@@ -68,4 +68,4 @@ func TestListModelChecksRejectsInvalidVersionID(t *testing.T) {
 type noopModelCheckRunner struct{}
 
 func (*noopModelCheckRunner) Submit(context.Context, ModelCheckJob) error { return nil }
-func (*noopModelCheckRunner) Fail(context.Context, string) error         { return nil }
+func (*noopModelCheckRunner) Fail(context.Context, string) error          { return nil }

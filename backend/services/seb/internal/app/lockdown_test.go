@@ -44,4 +44,3 @@ func TestGetExamPolicyRejectsInvalidIDs(t *testing.T) {
 		})
 	}
 }
-
