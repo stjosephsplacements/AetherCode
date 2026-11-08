@@ -25,7 +25,7 @@ tls:
 
 config:
   SERVICE_NAME: "user"
-  AUTHZ_ENGINE: "casbin"
+  AUTHZ_ENGINE: "bitset"
   AUTHZ_CLIENT_TLS_CA_FILE: "/certs/ca.crt"
   AUTHZ_CLIENT_TLS_SERVER_NAME: "user"
   AUTHZ_CLIENT_TLS_CERT_FILE: "/certs/tls.crt"
