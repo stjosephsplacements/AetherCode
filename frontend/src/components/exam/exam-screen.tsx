@@ -21,6 +21,7 @@ import { formatCountdown, useNow } from "@/lib/client/use-now";
 import { cn, formatTime } from "@/lib/utils";
 import { useEditorSettings } from "./editor-settings";
 import { EditorSettingsMenu } from "./editor-settings-menu";
+import { WebcamConsent } from "./webcam-consent";
 import { ConnectionBanner } from "./connection-banner";
 import { ExamGuides } from "./exam-guides";
 import { EndTestDialog } from "./end-test-dialog";
@@ -144,8 +145,12 @@ function ExamWorkspace({ attemptPath, attemptId, tenantId, attempt, paper }: Loa
   const customRun = customRuns[currentId] ?? { kind: "idle" };
   const activeRun = useCustomInput ? customRun : run;
   const readOnly = answers.saveState === "closed";
+  const [webcamConsentGiven, setWebcamConsentGiven] = useState(() => {
+    try { return sessionStorage.getItem(`webcam_consent_${attemptId}`) === "1"; }
+    catch { return false; }
+  });
   const integrity = useIntegrity(attemptPath, live.integrity.requireFullscreen, !readOnly && !ending);
-  useWebcam(live.integrity.webcamRequired && !readOnly && !ending, tenantId, attemptId);
+  useWebcam(live.integrity.webcamRequired && webcamConsentGiven && !readOnly && !ending, tenantId, attemptId);
   const itemSubmissions = submissions.byItem[currentId];
 
   const statuses = useMemo(() => {
@@ -299,6 +304,13 @@ function ExamWorkspace({ attemptPath, attemptId, tenantId, attempt, paper }: Loa
       </header>
 
       <ConnectionBanner answers={answers} />
+
+      {live.integrity.webcamRequired && !webcamConsentGiven && (
+        <WebcamConsent onConsent={() => {
+          try { sessionStorage.setItem(`webcam_consent_${attemptId}`, "1"); } catch { /* private mode */ }
+          setWebcamConsentGiven(true);
+        }} />
+      )}
 
       {integrity.needsFullscreen && (
         <div role="dialog" aria-modal="true" className="fixed inset-0 z-40 grid place-items-center bg-canvas px-4">
