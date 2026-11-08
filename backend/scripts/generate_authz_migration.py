@@ -8,16 +8,16 @@ Each service hosts an identical set of authz functions that differ only in:
   - the authorization table variant (global vs. tenant)
 
 Usage (dry-run prints files to stdout):
-    python3 deploy/tools/generate_authz_migration.py
+    python3 backend/scripts/generate_authz_migration.py
 
 Apply (write files to services/*/migrations/):
-    python3 deploy/tools/generate_authz_migration.py --apply
+    python3 backend/scripts/generate_authz_migration.py --apply
 
 Generate for one service only:
-    python3 deploy/tools/generate_authz_migration.py --service tenant --apply
+    python3 backend/scripts/generate_authz_migration.py --service tenant --apply
 
 Add a new service:
-    python3 deploy/tools/generate_authz_migration.py --service mynewsvc --migration-number 000007 --apply
+    python3 backend/scripts/generate_authz_migration.py --service mynewsvc --migration-number 000007 --apply
 """
 
 import argparse
