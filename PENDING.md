@@ -7,7 +7,7 @@ Never print or commit secrets (no passwords, no Cloudflare credentials).
 
 ## 1. Branch state
 
-`development` is at `f0e5716` (PR #168 + 80 additional commits pushed directly after PR creation).
+`development` is at `9181297` (PR #168 + 84 additional commits pushed directly after PR creation).
 `production` has not moved since #135.
 **PR #168** (`development` → `production`) is open:
 https://github.com/stjosephsplacements/AetherCode/pull/168
@@ -23,13 +23,18 @@ What the 2026-11-08 twenty-first run completed:
 - **Admin Permissions link**: added platform-scope Permissions to the admin sidebar and
   overview page (links to `/staff/permissions?scope=platform`), so admins can manage
   platform-level permission grants directly from the admin console.
+- **Attempt result WebSocket**: `AttemptStatus` now subscribes to `grading`/`attempts`
+  hints and cancels the 3s poll delay, so the "Submitted" screen updates ~100ms after
+  the judge finishes instead of up to 3s.
+- **Student nav get-started link**: added Get started to the student Me dropdown menu.
+- **Placement loading state**: added `loading.tsx` for the placement route group.
 - **Practice topic error handling**: the only remaining API-calling page without `LoadError`
   catch was `/student/practice/topics/[topic]` — now wrapped.
 - **E2e page sweep expanded**: added `/student/get-started` to the student page sweep test.
 - **Stagger animation fix**: staff get-started timeline steps now have `animation:
   var(--animate-enter)` in their inline style so the `animationDelay` actually fires.
 - All checks clean: `make lint test web-check web-build`. 144 frontend tests.
-  Commits `8309231`, `f0e5716`.
+  Commits `5bfb265`..`9181297` (8 commits).
 
 What the 2026-11-08 twentieth run completed:
 - **Practice workspace WebSocket**: `RealtimeProvider` added to the full-screen practice
