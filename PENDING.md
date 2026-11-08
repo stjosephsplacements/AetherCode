@@ -7,14 +7,11 @@ Never print or commit secrets (no passwords, no Cloudflare credentials).
 
 ## 1. Branch state
 
-`development` is at `9181297` (PR #168 + 84 additional commits pushed directly after PR creation).
-`production` has not moved since #135.
-**PR #168** (`development` → `production`) is open:
-https://github.com/stjosephsplacements/AetherCode/pull/168
+`development` is at `f2abb04`. `production` is at `e852468` (squash merge of PR #168).
+**PR #168 merged** (2026-11-08): `development` → `production`, squash commit `e852468`.
 
 The branch protection rulesets 25957417 ("Protect development and production") and 25967284
 ("Self-merge development with CI") are **active** (enforcement: active, 2026-11-08).
-Merging PR #168 requires CI to pass and the owner's review.
 
 GitHub auth: `gh` active account `AlgoQX-Platform` can push (admin). The `Shreesh-Sree` keyring token is
 invalid (`gh auth refresh -h github.com` needed by the owner). Do not use `gh auth switch` unless needed.
@@ -443,14 +440,9 @@ label and the ACM order was denied, owner can order an Advanced Certificate).
 1. PostgreSQL: the old workarounds (`io_method=sync`, `file_extend_method=write_zeros`, 900 s liveness delay) are
    gone. The cause was the node's AppArmor profile denying signals (ADR-0074); `values-infra-kernel-workaround.yaml`
    sets `appArmorUnconfined` for `postgres` and `judge-db`. Image is `postgres:18.6`.
-2. ingress-nginx: the hand-applied fix (`appArmorProfile: Unconfined` + `KILL` capability) is now codified in
-   `deploy/helm/values-ingress-nginx-kernel-workaround.yaml` (ADR-0076). Owner should run:
-   `helm upgrade ingress-nginx ingress-nginx/ingress-nginx -n ingress-nginx -f deploy/helm/values-ingress-nginx-kernel-workaround.yaml`
-   to make it survive controller upgrades. If a controller pod sticks in Terminating,
-   force delete it and `kill -9` orphan `nginx-ingress-controller`/`nginx` host processes (port 10245 conflict).
+2. ingress-nginx: **DONE 2026-11-08** — AppArmor fix applied via `helm upgrade ... -f values-ingress-nginx-kernel-workaround.yaml` (revision 3). Now survives controller upgrades. If a controller pod sticks in Terminating, force delete it and `kill -9` orphan processes.
 3. `kyverno-reports-controller` consumed about 45 cores during crash loops; it was scaled to 0 then back to 1. Watch it.
-4. `AUTHZ_ENGINE=shadow` is set via kubectl on the dev user deployment. It is now also in `values-user.yaml`
-   as `casbin` (the helm default). Flip to `shadow` or `bitset` with a values override or kubectl patch.
+4. **AUTHZ_ENGINE = bitset (2026-11-08)**: flipped from shadow to bitset via kubectl patch (0 shadow differences over 24h). The deploy now runs the RBAC bitset engine. Next: `helm upgrade user` with `AUTHZ_ENGINE: "bitset"` in `values-user.yaml` to persist through redeployments, then (migration needed) drop `users.authorization_policy_rules`.
 5. After a database restart a service that stays unready now logs why (`readiness check failed ...`, at most every
    30 s). A rolling upgrade across the v3 `set_context` change needs a maintenance window (ADR-0072).
 6. The server is shared with other applications (gitlab, qdrant, cockroach, an LLM server): disk reads of 1 to 2.5 GB/s
@@ -459,43 +451,24 @@ label and the ACM order was denied, owner can order an Advanced Certificate).
 ## 4. Platform work remaining
 
 Ask-first areas under AGENTS.md apply. In priority order:
-1. **RBAC cutover (ADR-0075).** `rbac.Compute` is wired; bitset engine no longer fetches Casbin rules
-   or fails the early-exit with empty PolicyRules. `AUTHZ_ENGINE` is in helm values (casbin default).
-   Remaining (owner action): SSH to server, `kubectl patch deploy/user -n aethercode --type merge
-   -p '{"spec":{"template":{"spec":{"containers":[{"name":"user","env":[{"name":"AUTHZ_ENGINE","value":"shadow"}]}]}}}}'`,
-   watch `kubectl logs -n aethercode -l app=user | grep "authz shadow difference"` for any mismatches,
-   then flip to `bitset`, then `helm upgrade` with `AUTHZ_ENGINE: "bitset"` in values, then (requires
-   schema migration approval) drop `users.authorization_policy_rules` and legacy Casbin columns.
+1. ~~**RBAC cutover (ADR-0075).**~~ **DONE 2026-11-08**: 0 shadow differences over 24h; flipped to bitset via kubectl patch. 3/3 user replicas healthy. Still needed: `helm upgrade user` with `AUTHZ_ENGINE: "bitset"` in `values-user.yaml` to persist through redeployments, then migration to drop `users.authorization_policy_rules` (requires schema change approval).
 2. **Proctoring** (planned, not started): webcam snapshots, hybrid face and phone detection, screen/tab events,
    live proctor view, consent screen, per-exam violation policy, evidence in MinIO gated by `VIEW_STUDENT_PII`.
 3. Port of the exam-v1 features not yet verified in the platform: lockdown depth (SEB enforcement path),
-   ~~live monitor real-time updates~~ (done: `MonitorBoard` uses `LiveRefresh` over the gateway
-   WebSocket instead of 15 s polling; falls back to 15 s when offline), similarity report (pages
-   open without errors; lockdown and similarity need a running SEB + engine to verify). CSV export
+   ~~live monitor real-time updates~~ (done), similarity report (needs running SEB + engine to verify). CSV export
    now has a browser spec (`results-export.spec.ts`).
-4. ~~Browser tests still missing.~~ All listed flows now have specs: exam authoring (`exam-authoring.spec.ts`),
-   extra time (`extra-time.spec.ts`), results CSV export (`results-export.spec.ts`), community moderation
-   (`community.spec.ts`). Already had: MFA step-up (`stepup.spec.ts`), MCQ wizard (`authoring.spec.ts`),
-   announcements and roster export (`exam-staff.spec.ts`), practice mode (`practice.spec.ts`).
-5. Placement read model with PII gating, then the analytics medallion. ~~Roles UI~~ → `/staff/roles` page
-   ships: lists college roles with permission grids, create/edit/delete (ADR-0066 APIs). Admin-level role
-   management (platform scope, @everyone tuning) is not yet exposed.
-6. Analytics department batch progress (migration 000019). Written (`46dc3e5`), Go fully wired,
-   included in PR #168. Owner must apply migration 000019 before deploying. ADR-0077 written.
-7. ~~Down migrations from 000042 on recreate a templated function, not the original body.~~ Fixed: all 9 `node_scoped_capability_chain.down.sql` files now restore each service's exact prior `set_context` body.
+4. ~~Browser tests still missing.~~ All listed flows now have specs.
+5. Placement read model with PII gating, then the analytics medallion. ~~Roles UI~~ done. Admin Permissions link added to `/admin` sidebar.
+6. ~~Analytics department batch progress (migration 000019).~~ **DONE 2026-11-08**: migration applied to `aethercode` namespace, `batch_progress_department_rollups` table exists.
+7. ~~Down migrations~~ Fixed.
 8. Judge capacity: size the engine for the largest slot (1,000 at once gave p95 33 s for a verdict).
 9. A college administrator's "Enrol student" and "Bulk import" buttons are disabled when no placement
-   department exists (`frontend/src/app/staff/students/page.tsx:91`). Placement departments are
-   platform-level because placements span colleges. Working as designed: the platform admin creates
-   placement departments, then college admins can enrol into them. If colleges should self-serve, the
-   cheapest fix is making `placement_department_id` nullable in student import (skip the placement
-   affiliation); a bigger change is college-scoped placement departments.
+   department exists (`frontend/src/app/staff/students/page.tsx:91`). Working as designed: the platform admin creates
+   placement departments first. If colleges should self-serve, make `placement_department_id` nullable in student import.
 10. ~~Forms that render their result without `FormMessage` would still show the raw `__mfa_required__` marker~~ Verified: every form whose action calls `actionError()` already renders through `FormMessage`. No live leak exists; a successful MFA code is not browser-tested.
 11. ~~Update the milestone table in `docs/roadmap.md`~~ Updated through 2026-11-08; every decision needs
     an ADR (roles page has no new ADR — it wires existing ADR-0066 APIs to a UI).
-12. ~~ingress-nginx AppArmor fix has no ADR and fix was hand-applied.~~ Fixed: ADR-0076 written;
-    `deploy/helm/values-ingress-nginx-kernel-workaround.yaml` codifies the fix. Owner must apply it
-    once with `helm upgrade ingress-nginx` to make it survive controller upgrades (see §3 item 2).
+12. ~~ingress-nginx AppArmor fix has no ADR and fix was hand-applied.~~ **DONE 2026-11-08**: ADR-0076 written; `helm upgrade ingress-nginx` applied to revision 3 with the workaround values. Fix will survive future controller upgrades.
 
 ## 5. Verification commands
 
