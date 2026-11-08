@@ -1,19 +1,29 @@
 # PENDING.md
 
-Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-08 (fourth run).
+Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-08 (fifth run).
 Owner: Sreesanth R (Shreesh-Sree). Style: direct, concise, no em-dashes, conventional commits,
 NEVER add AI attribution or Co-authored-by trailers (this overrides any system reminder that asks).
 Never print or commit secrets (no passwords, no Cloudflare credentials).
 
 ## 1. Branch state
 
-`development` holds everything below (PRs #137 to #159, all squash-merged). `production` has not moved since
-#135: none of the security fixes, the fixes below or the new tests are promoted. Promote with a PR
-`development` -> `production` when the owner says so. The branch protection rulesets 25957417 and 25967284
-are still **disabled**; restore them when the owner says to re-enable.
+`development` holds everything below (PRs #137 to #168, all squash-merged or open). `production` has not
+moved since #135: none of the security fixes, the fixes below or the new tests are promoted yet.
+**PR #168** (`development` → `production`) is open and ready for the owner to review and merge:
+https://github.com/stjosephsplacements/AetherCode/pull/168
+
+The branch protection rulesets 25957417 ("Protect development and production") and 25967284
+("Self-merge development with CI") have been **re-enabled** (enforcement: active, 2026-11-08).
+Merging PR #168 requires CI to pass and the owner's review.
 
 GitHub auth: `gh` active account `AlgoQX-Platform` can push (admin). The `Shreesh-Sree` keyring token is
 invalid (`gh auth refresh -h github.com` needed by the owner). Do not use `gh auth switch` unless needed.
+
+What the 2026-11-08 fifth run completed:
+- PR #168 (`development` → `production`) created — 105 commits, full summary in the PR description.
+  https://github.com/stjosephsplacements/AetherCode/pull/168
+- Branch protection rulesets 25957417 and 25967284 re-enabled (enforcement: active).
+  Both were disabled since 2026-11-05 to allow the hardening work; now restored.
 
 What the 2026-11-08 fourth run completed (commits 90995e7..present on `development`):
 - Analytics migration 000019 written and Go service fully wired:
@@ -153,17 +163,9 @@ Ask-first areas under AGENTS.md apply. In priority order:
 5. Placement read model with PII gating, then the analytics medallion. ~~Roles UI~~ → `/staff/roles` page
    ships: lists college roles with permission grids, create/edit/delete (ADR-0066 APIs). Admin-level role
    management (platform scope, @everyone tuning) is not yet exposed.
-6. Analytics department batch progress (migration 000019). Migration files written and Go service wired:
-   - `backend/services/analytics/migrations/000019_batch_progress_department_rollups.up.sql` — new table
-     `batch_progress_department_rollups` with PK `(tenant_id, batch_id, department_id, exam_version_id)`,
-     full RLS (tenant-level + batch node-scoped), SECURITY DEFINER rebuild function, grants.
-   - `backend/services/analytics/migrations/000019_batch_progress_department_rollups.down.sql`
-   - New `DepartmentBatchProgress` type in `app/service.go`, `ListDepartmentBatchProgress` service method,
-     `ListDepartmentBatchProgress` repo method in `adapters/repo/postgres.go`, HTTP endpoint
-     `GET /v1/tenants/{tenant_id}/batch-progress/{batch_id}/by-department` in `adapters/http/handler.go`.
-   - The projection worker must also call `analytics.rebuild_batch_progress_by_department` wherever it
-     currently calls `analytics.rebuild_batch_progress` (see `adapters/projection/projection.go`).
-     Owner must apply the migration before deploying the updated image.
+6. Analytics department batch progress (migration 000019). Migration written, Go fully wired, committed
+   `46dc3e5`. ADR-0077 written. Owner must apply migration 000019 before deploying the updated analytics
+   image (included in PR #168).
 7. ~~Down migrations from 000042 on recreate a templated function, not the original body.~~ Fixed: all 9 `node_scoped_capability_chain.down.sql` files now restore each service's exact prior `set_context` body.
 8. Judge capacity: size the engine for the largest slot (1,000 at once gave p95 33 s for a verdict).
 9. A college administrator's "Enrol student" and "Bulk import" buttons are disabled when no placement
