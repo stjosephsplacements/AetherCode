@@ -60,9 +60,35 @@ networkPolicy:
       enabled: true
     userGrpc:
       enabled: false
+    # SSO provider (ADR-0042): identity must reach the OIDC provider for token exchange.
+    # The CasDoor service listens on port 80 (targetPort 8000 internally).
+    # Also allow HTTPS through ingress-nginx for external OIDC issuer URL resolution.
+    extraRules:
+      - to:
+          - namespaceSelector:
+              matchLabels:
+                kubernetes.io/metadata.name: casdoor
+        ports:
+          - protocol: TCP
+            port: 80
+          - protocol: TCP
+            port: 8000
+      - to:
+          - namespaceSelector:
+              matchLabels:
+                kubernetes.io/metadata.name: ingress-nginx
+        ports:
+          - protocol: TCP
+            port: 80
+          - protocol: TCP
+            port: 443
 
 sso:
-  # Single sign-on (ADR-0042) stays off while the issuer is empty.
+  # Single sign-on (ADR-0042). Empty issuer = SSO off. To enable, set:
+  #   issuer: the OIDC provider's issuer URL (must match .well-known/openid-configuration)
+  #   clientId: the OIDC client ID
+  # And set IDENTITY_SSO_CLIENT_SECRET and IDENTITY_SSO_REDIRECT_URI via --set.
+  # Works with any OIDC provider (Google, Microsoft, Authentik, Keycloak).
   issuer: ""
   clientId: ""
   adminTokenFile: ""
