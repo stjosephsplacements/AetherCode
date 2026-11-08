@@ -134,6 +134,10 @@ export function MonitorBoard({
             <Checkbox name="block_external_paste" defaultChecked={monitor.block_external_paste} />
             Block pasting from outside the exam
           </label>
+          <label className="flex items-center gap-2 text-sm text-ink">
+            <Checkbox name="webcam_required" defaultChecked={monitor.webcam_required} />
+            Require webcam (captures periodic snapshots)
+          </label>
         </ActionForm>
       </Panel>
 

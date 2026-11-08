@@ -371,6 +371,7 @@ export type ExamMonitor = {
   exam_version_id: string;
   require_fullscreen: boolean;
   block_external_paste: boolean;
+  webcam_required: boolean;
   results_released_at: string | null;
   announcements: Announcement[];
   candidates: MonitorCandidate[];
@@ -384,6 +385,7 @@ export type AttemptLiveState = {
   /** Exam integrity (ADR-0037). */
   require_fullscreen: boolean;
   block_external_paste: boolean;
+  webcam_required: boolean;
 };
 
 /** A candidate's score, present only after staff release results. */

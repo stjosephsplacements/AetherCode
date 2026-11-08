@@ -11,6 +11,8 @@ export type PlacementContext = {
   isPlatformAdmin: boolean;
   /** The colleges this member's placement departments reach. A platform administrator reaches all of them. */
   colleges: CollegeRef[];
+  /** Whether the viewer may see student names and roll numbers. False for future read-only dashboard viewers. */
+  canViewPII: boolean;
 };
 
 /** The placement area: placement staff and platform administrators. Everyone else goes back to their own area. */
@@ -23,5 +25,6 @@ export async function requirePlacement(): Promise<PlacementContext> {
     : viewer.tenantId
       ? [{ id: viewer.tenantId, name: "" }]
       : [];
-  return { viewer, isPlatformAdmin, colleges };
+  const canViewPII = isPlatformAdmin || viewer.roles.includes("placement_user") || viewer.roles.includes("college_admin");
+  return { viewer, isPlatformAdmin, colleges, canViewPII };
 }

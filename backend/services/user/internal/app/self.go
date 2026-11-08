@@ -41,7 +41,7 @@ func (service *Service) Self(contextValue context.Context, assertion string) (Se
 	if err != nil || !uuidPattern.MatchString(principalID) {
 		return Self{}, AuthenticationError{}
 	}
-	snapshot, err := service.store.Snapshot(contextValue, SnapshotQuery{PrincipalID: principalID})
+	snapshot, err := service.store.Snapshot(contextValue, SnapshotQuery{PrincipalID: principalID, RoleBits: true})
 	if err != nil {
 		return Self{}, fmt.Errorf("read own role assignments: %w", err)
 	}

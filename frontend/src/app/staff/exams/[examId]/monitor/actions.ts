@@ -63,7 +63,7 @@ export async function setIntegrity(_previous: ActionState, form: FormData): Prom
   try {
     await gateway(`${base}/integrity`, {
       method: "PUT",
-      body: { require_fullscreen: form.get("require_fullscreen") === "on", block_external_paste: form.get("block_external_paste") === "on" },
+      body: { require_fullscreen: form.get("require_fullscreen") === "on", block_external_paste: form.get("block_external_paste") === "on", webcam_required: form.get("webcam_required") === "on" },
     });
     revalidatePath(path);
     return { error: null, message: "Saved. Open exam screens apply it within 15 seconds." };

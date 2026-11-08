@@ -26,6 +26,8 @@ function download(filename: string, lines: string[][]) {
 const today = () => new Date().toISOString().slice(0, 10);
 
 /** The placements console: filters on top drive every number and list below. */
+const maskName = (name: string) => name.split(/\s+/).map((w) => w[0] ?? "").join("").toUpperCase() || "?";
+
 export function PlacementsBoard({
   rows,
   orgs,
@@ -34,6 +36,7 @@ export function PlacementsBoard({
   departments,
   several,
   truncated,
+  canViewPII = true,
 }: {
   rows: CandidateRow[];
   orgs: OrgRow[];
@@ -42,6 +45,7 @@ export function PlacementsBoard({
   departments: Option[];
   several: boolean;
   truncated: boolean;
+  canViewPII?: boolean;
 }) {
   const [batch, setBatch] = useState("");
   const [picked, setPicked] = useState<Set<string>>(new Set());
@@ -117,9 +121,10 @@ export function PlacementsBoard({
                 type="search"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search roll number or name"
+                placeholder={canViewPII ? "Search roll number or name" : "Search by department or batch"}
                 aria-label="Search students"
-                className="h-8 w-full rounded-full border border-line-strong bg-surface pl-9 pr-3 text-[13px] text-ink outline-none transition-[border-color,box-shadow] placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15"
+                disabled={!canViewPII && !batch && picked.size === 0}
+                className="h-8 w-full rounded-full border border-line-strong bg-surface pl-9 pr-3 text-[13px] text-ink outline-none transition-[border-color,box-shadow] placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15 disabled:opacity-50"
               />
             </div>
             <Select aria-label="Batch" size="sm" className="w-full" value={batch} onValueChange={(value) => { setBatch(value); setPage(1); }}>
@@ -258,7 +263,9 @@ export function PlacementsBoard({
                           disabled={inOrg === 0}
                           onClick={() => {
                             const own = new Set(org.tracks.map((track) => track.id));
-                            download(`${org.code || "organisation"}-students-${today()}.csv`, [["Roll number", "Name", ...(several ? ["College"] : []), "Department", "Batch", "Placement department"], ...shown.filter((row) => own.has(row.placementId)).map((row) => [row.roll, row.name, ...(several ? [row.college] : []), row.department, row.batch, trackName.get(row.placementId) ?? ""])]);
+                            const header = [...(canViewPII ? ["Roll number", "Name"] : []), ...(several ? ["College"] : []), "Department", "Batch", "Placement department"];
+                            const body = shown.filter((row) => own.has(row.placementId)).map((row) => [...(canViewPII ? [row.roll, row.name] : []), ...(several ? [row.college] : []), row.department, row.batch, trackName.get(row.placementId) ?? ""]);
+                            download(`${org.code || "organisation"}-students-${today()}.csv`, [header, ...body]);
                           }}
                         >
                           <DownloadSimple />
@@ -283,7 +290,11 @@ export function PlacementsBoard({
                 variant="secondary"
                 size="sm"
                 disabled={shown.length === 0}
-                onClick={() => download(`placement-candidates-${today()}.csv`, [["Roll number", "Name", ...(several ? ["College"] : []), "Department", "Batch", "Placement department", "Sign-in"], ...shown.map((row) => [row.roll, row.name, ...(several ? [row.college] : []), row.department, row.batch, trackName.get(row.placementId) ?? "", row.status])])}
+                onClick={() => {
+                  const header = [...(canViewPII ? ["Roll number", "Name"] : []), ...(several ? ["College"] : []), "Department", "Batch", "Placement department", "Sign-in"];
+                  const body = shown.map((row) => [...(canViewPII ? [row.roll, row.name] : []), ...(several ? [row.college] : []), row.department, row.batch, trackName.get(row.placementId) ?? "", row.status]);
+                  download(`placement-candidates-${today()}.csv`, [header, ...body]);
+                }}
               >
                 <DownloadSimple />
                 Export {shown.length}
@@ -298,8 +309,8 @@ export function PlacementsBoard({
                   {paged.rows.map((row) => (
                     <tr key={row.id}>
                       <td className="px-4 py-2.5">
-                        <span className="block text-ink">{row.name || <span className="text-ink-subtle">Unnamed</span>}</span>
-                        <span className="block font-mono text-[12px] text-ink-muted">{row.roll}</span>
+                        <span className="block text-ink">{canViewPII ? (row.name || <span className="text-ink-subtle">Unnamed</span>) : maskName(row.name)}</span>
+                        <span className="block font-mono text-[12px] text-ink-muted">{canViewPII ? row.roll : "•••"}</span>
                       </td>
                       <td className="max-w-48 px-4 py-2.5 text-ink-muted"><span className="block truncate" title={row.department}>{row.department || "None"}</span>{several && <span className="block truncate text-[11.5px] text-ink-subtle">{row.college}</span>}</td>
                       <td className="whitespace-nowrap px-4 py-2.5 font-mono text-[12px] text-ink-muted">{row.batch}</td>
