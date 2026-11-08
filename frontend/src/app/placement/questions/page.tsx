@@ -12,7 +12,7 @@ export default async function PlacementQuestionsPage() {
   await requirePlacement();
   let questions;
   try {
-    questions = (await gateway<Page<QuestionDetail>>("/question-bank/v1/questions?limit=200")).items;
+    questions = (await gateway<Page<QuestionDetail>>("/question-bank/v1/questions?limit=100")).items;
   } catch (error) {
     return (
       <>
