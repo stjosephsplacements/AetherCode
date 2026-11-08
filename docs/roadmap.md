@@ -362,6 +362,14 @@ Done 2026-11-05 to 2026-11-08 (code; deployed to `aether-test`):
   role CRUD/overwrites). Results page (`/staff/exams/{id}/results`) now gets `LiveRefresh` on
   the `grading` topic so results appear in real time as attempts are graded. Frontend README
   screens table updated from M5-only to all current routes. `make lint test web-check` clean.
+- Placement expansion and error handling (2026-11-08, eighteenth run): new `/placement/staff`
+  page for managing placement officers (assign from existing staff, remove with confirmation).
+  `/placement/questions` and `/placement/exams` give placement staff cross-college visibility.
+  Admin sidebar links to all placement pages. Mentor batch assignment scoped to department.
+  Staff analytics gets LiveRefresh on grading. LoadError added to 10+ student and staff pages
+  that previously fell to the root error boundary. Backend handler extraction: proctor policy
+  handlers from assessment, practice handlers from question-bank. `libs/pkg` and `libs/proto`
+  READMEs added. Full API reference at `docs/API.md`.
 
 ### Pending (2026-10-21)
 
