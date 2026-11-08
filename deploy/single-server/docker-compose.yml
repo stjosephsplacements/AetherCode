@@ -25,6 +25,14 @@ x-service: &service
     nats:
       condition: service_healthy
 
+x-healthcheck: &healthcheck
+  healthcheck:
+    test: ["CMD-SHELL", "wget --spider -q http://localhost:8080/healthz"]
+    interval: 15s
+    timeout: 5s
+    retries: 5
+    start_period: 10s
+
 services:
   postgres:
     image: postgres:18.4
@@ -189,7 +197,7 @@ services:
         condition: service_completed_successfully
 
   identity:
-    <<: *service
+    <<: [*service, *healthcheck]
     environment:
       <<: *common-env
       SERVICE_NAME: identity
@@ -219,7 +227,7 @@ services:
     build: { context: ../../backend, dockerfile: services/identity/Dockerfile }
 
   user:
-    <<: *service
+    <<: [*service, *healthcheck]
     environment:
       <<: [*common-env, *authz-client]
       SERVICE_NAME: user
@@ -246,7 +254,7 @@ services:
     build: { context: ../../backend, dockerfile: services/user/Dockerfile }
 
   tenant:
-    <<: *service
+    <<: [*service, *healthcheck]
     environment:
       <<: [*common-env, *authz-client]
       SERVICE_NAME: tenant
@@ -257,7 +265,7 @@ services:
     build: { context: ../../backend, dockerfile: services/tenant/Dockerfile }
 
   question-bank:
-    <<: *service
+    <<: [*service, *healthcheck]
     environment:
       <<: [*common-env, *authz-client]
       SERVICE_NAME: question-bank
@@ -285,7 +293,7 @@ services:
     build: { context: ../../backend, dockerfile: services/question-bank/Dockerfile }
 
   assessment:
-    <<: *service
+    <<: [*service, *healthcheck]
     environment:
       <<: [*common-env, *authz-client]
       SERVICE_NAME: assessment
@@ -301,7 +309,7 @@ services:
     build: { context: ../../backend, dockerfile: services/assessment/Dockerfile }
 
   submission:
-    <<: *service
+    <<: [*service, *healthcheck]
     environment:
       <<: [*common-env, *authz-client]
       SERVICE_NAME: submission
@@ -332,7 +340,7 @@ services:
     build: { context: ../../backend, dockerfile: services/submission/Dockerfile }
 
   seb:
-    <<: *service
+    <<: [*service, *healthcheck]
     environment:
       <<: [*common-env, *authz-client]
       SERVICE_NAME: seb
@@ -352,7 +360,7 @@ services:
     build: { context: ../../backend, dockerfile: services/seb/Dockerfile }
 
   notification:
-    <<: *service
+    <<: [*service, *healthcheck]
     environment:
       <<: [*common-env, *authz-client]
       SERVICE_NAME: notification
@@ -365,7 +373,7 @@ services:
     build: { context: ../../backend, dockerfile: services/notification/Dockerfile }
 
   analytics:
-    <<: *service
+    <<: [*service, *healthcheck]
     environment:
       <<: [*common-env, *authz-client]
       SERVICE_NAME: analytics
@@ -376,7 +384,7 @@ services:
     build: { context: ../../backend, dockerfile: services/analytics/Dockerfile }
 
   judge:
-    <<: *service
+    <<: [*service, *healthcheck]
     environment:
       <<: *common-env
       SERVICE_NAME: judge
@@ -412,7 +420,7 @@ services:
         condition: service_healthy
 
   gateway:
-    <<: *service
+    <<: [*service, *healthcheck]
     environment:
       <<: *common-env
       SERVICE_NAME: gateway
@@ -445,6 +453,12 @@ services:
   # proxied to the gateway over the edge network with the session's bearer.
   frontend:
     restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:3000/system-check/ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     build: { context: ../../frontend }
     environment:
       GATEWAY_URL: http://gateway:8080

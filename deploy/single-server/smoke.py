@@ -55,7 +55,7 @@ def call(method, path, body=None, token=None, expect=None, retries=5, headers=No
     request.add_header("Content-Type", "application/json")
     for name, value in (headers or {}).items():
         request.add_header(name, value)
-    if method != "GET":
+    if method != "GET" and "Idempotency-Key" not in (headers or {}):
         request.add_header("Idempotency-Key", str(uuid.uuid4()))
     original_token = token
     token = STEP_UPS.get(token, token)
@@ -625,3 +625,58 @@ _, links, _ = call("GET", f"{community}/profile-links", token=student, expect=20
 assert links["items"] == [{"platform": "github", "handle": "octocat"}], links
 ok("listings, bookmarks and linked accounts work for a student")
 print("ALL COMMUNITY CHECKS PASSED")
+
+# --- Analytics (ADR-0048 read models) -------------------------------------
+analytics = f"/analytics/v1/tenants/{tenant}"
+# Student progress may arrive with slight delay after grading; poll up to 30 s.
+for _ in range(15):
+    _, progress, _ = call("GET", f"{analytics}/student-progress/{first['principal_id']}", token=faculty, expect=200)
+    if progress:
+        break
+    time.sleep(2)
+assert progress, "FAIL no student progress projected within 30 s of grading"
+assert all(p["student_id"] == first["principal_id"] and "attempts_count" in p for p in progress), progress
+ok("student progress shows question-level stats for the graded student")
+
+_, exam_results, _ = call("GET", f"{analytics}/exam-results?exam_version_id={exam_version['id']}", token=faculty, expect=200)
+graded_results = [r for r in exam_results if r["lifecycle_state"] == "graded"]
+assert graded_results, f"FAIL no graded exam-results for version {exam_version['id']}: {exam_results}"
+assert any(r["candidate_id"] == first["principal_id"] for r in graded_results), graded_results
+ok("exam results list at least one graded attempt for the smoke-test student")
+
+# Students cannot read exam results (only faculty/staff can).
+status, _, _ = call("GET", f"{analytics}/exam-results?exam_version_id={exam_version['id']}", token=student)
+assert status == 403, status
+ok("students are forbidden from reading raw exam results")
+
+_, batch_progress, _ = call("GET", f"{analytics}/batch-progress/{batch['id']}", token=faculty, expect=200)
+assert batch_progress, f"FAIL no batch-progress rows for batch {batch['id']}"
+assert any(r["exam_version_id"] == exam_version["id"] and r["completed_count"] >= 1 for r in batch_progress), batch_progress
+ok("batch progress shows at least one completed attempt for the smoke exam")
+
+_, placement_progress, _ = call("GET", f"{analytics}/placement-progress/{placement['id']}", token=faculty, expect=200)
+assert isinstance(placement_progress, list), placement_progress
+ok("placement progress endpoint returns a list (may be empty before placement exam graded)")
+
+# Report export: idempotent, student is forbidden.
+status, _, _ = call("POST", f"{analytics}/report-exports",
+                    {"report_type": "exam_results", "filters": {"exam_version_id": exam_version["id"]}},
+                    token=student)
+assert status == 403, status
+_, export, _ = call("POST", f"{analytics}/report-exports",
+                    {"report_type": "exam_results", "filters": {"exam_version_id": exam_version["id"]}},
+                    token=faculty, expect=202,
+                    headers={"Idempotency-Key": f"smoke-{run}-analytics-export"})
+assert export["report_type"] == "exam_results" and export["lifecycle_state"] in ("queued", "running", "completed"), export
+assert "object_key" not in export and "checksum" not in export, export
+_, same, _ = call("POST", f"{analytics}/report-exports",
+                  {"report_type": "exam_results", "filters": {"exam_version_id": exam_version["id"]}},
+                  token=faculty, expect=202,
+                  headers={"Idempotency-Key": f"smoke-{run}-analytics-export"})
+assert same["id"] == export["id"], (export, same)
+ok("report export accepted; object_key and checksum stay server-side; idempotent on repeated submission")
+
+_, export_status, _ = call("GET", f"{analytics}/report-exports/{export['id']}", token=faculty, expect=200)
+assert export_status["id"] == export["id"] and "object_key" not in export_status, export_status
+ok("report export status fetch returns state without leaking storage keys")
+print("ALL ANALYTICS CHECKS PASSED")
