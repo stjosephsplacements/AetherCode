@@ -289,6 +289,12 @@ Done 2026-11-05 to 2026-11-08 (code; deployed to `aether-test`):
   API paths: student-progress (with 30-second event propagation polling), exam-results (with 403
   for students), batch-progress, placement-progress, and report-exports (idempotency + storage-key
   redaction). Smoke test now covers every service end-to-end (75 checks total).
+- Outbox retention cleanup (2026-11-08, tenth run): `OutboxStore.CleanPublished` added to
+  `libs/pkg/messaging/outbox.go`; `Publisher.Run` calls it every 5 minutes, deleting published
+  rows older than 8 days. All 9 services' `app.outbox_events` tables previously grew unbounded.
+  Also added `MaxBytes: 2 GiB` to the NATS platform stream in `ensurePlatformStream` — previously
+  the stream had only `MaxAge: 8 days` with no size cap, leaving the server disk vulnerable to
+  a slow consumer during a busy exam session.
 
 ### Pending (2026-10-21)
 

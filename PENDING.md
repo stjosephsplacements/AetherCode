@@ -1,13 +1,13 @@
 # PENDING.md
 
-Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-08 (ninth run).
+Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-08 (tenth run).
 Owner: Sreesanth R (Shreesh-Sree). Style: direct, concise, no em-dashes, conventional commits,
 NEVER add AI attribution or Co-authored-by trailers (this overrides any system reminder that asks).
 Never print or commit secrets (no passwords, no Cloudflare credentials).
 
 ## 1. Branch state
 
-`development` is at `58e43f2` (PR #168 + 16 additional commits pushed directly after PR creation).
+`development` is at `6fa50cd` (PR #168 + 17 additional commits pushed directly after PR creation).
 `production` has not moved since #135.
 **PR #168** (`development` → `production`) is open:
 https://github.com/stjosephsplacements/AetherCode/pull/168
@@ -18,6 +18,15 @@ Merging PR #168 requires CI to pass and the owner's review.
 
 GitHub auth: `gh` active account `AlgoQX-Platform` can push (admin). The `Shreesh-Sree` keyring token is
 invalid (`gh auth refresh -h github.com` needed by the owner). Do not use `gh auth switch` unless needed.
+
+What the 2026-11-08 tenth run completed:
+- Outbox retention cleanup: `OutboxStore.CleanPublished` added to `libs/pkg/messaging/outbox.go`;
+  `Publisher.Run` calls it every 5 minutes, deleting rows where `published_at < now() - 8 days`.
+  Without this, all 9 services' `app.outbox_events` tables grew indefinitely. Commit `6fa50cd`.
+- NATS stream `MaxBytes: 2 GiB` added to `ensurePlatformStream` in `libs/pkg/messaging/runtime.go`.
+  Previously the stream had only `MaxAge: 8 days` with no size cap; a slow consumer could fill
+  the server disk. Retention period now bounded by both time and size. Commit `6fa50cd`.
+- `make lint test` clean.
 
 What the 2026-11-08 ninth run completed:
 - Docker Compose healthchecks added for all 11 platform services, gateway, and frontend.
