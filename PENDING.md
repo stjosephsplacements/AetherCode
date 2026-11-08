@@ -1,13 +1,13 @@
 # PENDING.md
 
-Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-08 (eighth run).
+Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-08 (ninth run).
 Owner: Sreesanth R (Shreesh-Sree). Style: direct, concise, no em-dashes, conventional commits,
 NEVER add AI attribution or Co-authored-by trailers (this overrides any system reminder that asks).
 Never print or commit secrets (no passwords, no Cloudflare credentials).
 
 ## 1. Branch state
 
-`development` is at `761b84c` (PR #168 + 15 additional commits pushed directly after PR creation).
+`development` is at `58e43f2` (PR #168 + 16 additional commits pushed directly after PR creation).
 `production` has not moved since #135.
 **PR #168** (`development` → `production`) is open:
 https://github.com/stjosephsplacements/AetherCode/pull/168
@@ -18,6 +18,19 @@ Merging PR #168 requires CI to pass and the owner's review.
 
 GitHub auth: `gh` active account `AlgoQX-Platform` can push (admin). The `Shreesh-Sree` keyring token is
 invalid (`gh auth refresh -h github.com` needed by the owner). Do not use `gh auth switch` unless needed.
+
+What the 2026-11-08 ninth run completed:
+- Docker Compose healthchecks added for all 11 platform services, gateway, and frontend.
+  A shared `x-healthcheck` YAML anchor uses `wget --spider -q http://localhost:8080/healthz`;
+  the frontend uses `/system-check/ping` on port 3000. Commit `58e43f2`.
+- Analytics smoke test section added (all 6 analytics API paths covered): student-progress
+  (poll up to 30 s for event propagation), exam-results (with 403 for students), batch-progress,
+  placement-progress, and report-exports (idempotency + storage-key redaction assertion).
+  Fixed `call()` helper to not overwrite a caller-supplied Idempotency-Key with a random UUID.
+  Smoke test now covers all service APIs end-to-end. Commit `58e43f2`.
+- `make lint test`, `make web-check`, `make exam-check`, `make vuln` all clean.
+- Dependabot alert #64 (minimatch CVE) already fixed in lock files; will auto-close when PR #168
+  merges. Only 1 open alert in the repo.
 
 What the 2026-11-08 eighth run completed:
 - `gofmt` fixes for 4 test files added in the coverage pass (`model_check_test.go`,
@@ -147,7 +160,7 @@ and upgrades both namespaces. The frontend runs locally (`pnpm dev` with `GATEWA
 `DEV_ORIGINS`) against an SSH tunnel to a gateway ClusterIP.
 
 Tests (all pass on the rebuilt `aether-test`):
-- `deploy/single-server/smoke.py`: 67 end-to-end checks (enrols the administrator in TOTP, steps up).
+- `deploy/single-server/smoke.py`: 75 end-to-end checks (enrols the administrator in TOTP, steps up).
 - `deploy/single-server/endpoint_sweep.py`: every documented operation as anonymous, administrator, department
   user and student; fails on 5xx, anonymous access to a secured operation, leaked internals.
 - `deploy/single-server/isolation_check.py`: a second college is unreachable from the first (366 calls).
