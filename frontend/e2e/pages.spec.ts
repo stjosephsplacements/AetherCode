@@ -83,7 +83,7 @@ test("platform administrator: console and college workspace", async ({ browser }
   test.setTimeout(420_000);
   const context = await browser.newContext();
   await signIn(context, adminEmail, adminPassword, adminTotpSecret);
-  await sweep(context, ["/admin", "/admin/admins", "/admin/analytics", "/admin/audit", "/admin/colleges", "/admin/incidents", "/admin/status", "/placement", "/placement/departments", "/placement/staff", "/placement/questions", "/placement/exams", "/account/password", "/account/security"]);
+  await sweep(context, ["/admin", "/admin/admins", "/admin/analytics", "/admin/audit", "/admin/colleges", "/admin/get-started", "/admin/incidents", "/admin/status", "/placement", "/placement/departments", "/placement/get-started", "/placement/staff", "/placement/questions", "/placement/exams", "/account/password", "/account/security"]);
 
   const open = await context.newPage();
   await open.goto(`/admin/open?college=${seed.tenant}&next=${encodeURIComponent("/staff")}`);
