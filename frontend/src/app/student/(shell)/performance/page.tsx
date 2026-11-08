@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { EmptyState, PageHeader } from "@/components/staff/page-header";
 import type { Attempt, AttemptResult, CandidateAssignment, Page, PracticeProgress } from "@/lib/api-types";
+import { LiveRefresh } from "@/lib/client/realtime";
 import { listAssignments } from "@/lib/server/assignments";
 import { gateway } from "@/lib/server/gateway";
 import { requireViewer } from "@/lib/server/session";
@@ -57,6 +58,7 @@ export default async function PerformancePage() {
 
   return (
     <div className="animate-enter">
+      <LiveRefresh topics={["grading"]} />
       <PageHeader title="Performance" description="Your exam scores and practice, with how consistent you have been." />
 
       <section aria-label="Summary" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
