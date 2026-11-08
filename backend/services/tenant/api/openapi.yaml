@@ -11,30 +11,38 @@ paths:
   /healthz:
     get:
       responses:
-        '200': {description: Service is alive}
+        '200': {description: Service is alive, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
   /readyz:
     get:
       responses:
-        '200': {description: Service is ready}
+        '200': {description: Service is ready, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '503': {$ref: '#/components/responses/Error'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
   /v1/tenants:
     get:
       summary: List all tenants (global resource, Class B)
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       parameters:
-        - {$ref: '#/components/parameters/Limit'}
-        - {$ref: '#/components/parameters/Cursor'}
-        - name: status
-          in: query
-          schema: {type: string, enum: [provisioning, active, suspended, closed]}
+      - {$ref: '#/components/parameters/Limit'}
+      - {$ref: '#/components/parameters/Cursor'}
+      - name: status
+        in: query
+        schema: {type: string, enum: [provisioning, active, suspended, closed]}
       responses:
         '200': {$ref: '#/components/responses/TenantPage'}
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     post:
       summary: Provision a college tenant
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       requestBody:
         required: true
         content:
@@ -46,83 +54,109 @@ paths:
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     get:
       summary: Read a tenant
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       responses:
         '200': {$ref: '#/components/responses/Tenant'}
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     patch:
       summary: Rename a college; only the fields sent change
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       requestBody:
         required: true
         content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: false
-                properties:
-                  legal_name: {type: string}
-                  display_name: {type: string}
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                legal_name: {type: string, maxLength: 1000}
+                display_name: {type: string, maxLength: 1000}
       responses:
-        '200': {description: The updated tenant}
+        '200': {description: The updated tenant, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     delete:
       summary: Soft-delete a tenant
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       requestBody:
         required: true
         content:
           application/json:
             schema: {$ref: '#/components/schemas/DeleteEntityRequest'}
       responses:
-        '204': {description: Tenant soft-deleted}
+        '204': {description: Tenant soft-deleted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/hard:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     delete:
       summary: Permanently delete a tenant
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       requestBody:
         required: true
         content:
           application/json:
             schema: {$ref: '#/components/schemas/DeleteEntityRequest'}
       responses:
-        '204': {description: Tenant permanently deleted}
+        '204': {description: Tenant permanently deleted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/placement-organizations:
     get:
       summary: List placement organizations (global resource, Class B)
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       parameters:
-        - {$ref: '#/components/parameters/Limit'}
-        - {$ref: '#/components/parameters/Cursor'}
-        - name: status
-          in: query
-          schema: {type: string, enum: [active, suspended, closed]}
+      - {$ref: '#/components/parameters/Limit'}
+      - {$ref: '#/components/parameters/Cursor'}
+      - name: status
+        in: query
+        schema: {type: string, enum: [active, suspended, closed]}
       responses:
         '200': {$ref: '#/components/responses/PlacementOrganizationPage'}
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     post:
       summary: Create a placement organization
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       requestBody:
         required: true
         content:
@@ -134,26 +168,34 @@ paths:
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/departments:
     get:
       summary: List college departments for a tenant (Class B)
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       parameters:
-        - {$ref: '#/components/parameters/TenantID'}
-        - {$ref: '#/components/parameters/Limit'}
-        - {$ref: '#/components/parameters/Cursor'}
-        - name: status
-          in: query
-          schema: {type: string, enum: [active, archived]}
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/Limit'}
+      - {$ref: '#/components/parameters/Cursor'}
+      - name: status
+        in: query
+        schema: {type: string, enum: [active, archived]}
       responses:
         '200': {$ref: '#/components/responses/DepartmentPage'}
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     post:
       summary: Create a college department
-      security: [{bearerAuth: []}]
-      parameters: [{$ref: '#/components/parameters/TenantID'}]
+      security: [bearerAuth: []]
+      parameters: [$ref: '#/components/parameters/TenantID']
       requestBody:
         required: true
         content:
@@ -165,26 +207,34 @@ paths:
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/placement-organizations/{organization_id}/departments:
     get:
       summary: List placement departments for an organization (Class B, global)
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       parameters:
-        - {$ref: '#/components/parameters/OrganizationID'}
-        - {$ref: '#/components/parameters/Limit'}
-        - {$ref: '#/components/parameters/Cursor'}
-        - name: status
-          in: query
-          schema: {type: string, enum: [active, archived]}
+      - {$ref: '#/components/parameters/OrganizationID'}
+      - {$ref: '#/components/parameters/Limit'}
+      - {$ref: '#/components/parameters/Cursor'}
+      - name: status
+        in: query
+        schema: {type: string, enum: [active, archived]}
       responses:
         '200': {$ref: '#/components/responses/DepartmentPage'}
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     post:
       summary: Create a placement department
-      security: [{bearerAuth: []}]
-      parameters: [{$ref: '#/components/parameters/OrganizationID'}]
+      security: [bearerAuth: []]
+      parameters: [$ref: '#/components/parameters/OrganizationID']
       requestBody:
         required: true
         content:
@@ -196,32 +246,40 @@ paths:
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/batches:
     get:
       summary: List batches for a tenant (Class B)
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       parameters:
-        - {$ref: '#/components/parameters/TenantID'}
-        - {$ref: '#/components/parameters/Limit'}
-        - {$ref: '#/components/parameters/Cursor'}
-        - name: status
-          in: query
-          schema: {type: string, enum: [active, archived]}
-        - name: department_id
-          in: query
-          schema: {$ref: '#/components/schemas/UUID'}
-        - name: academic_year
-          in: query
-          schema: {type: string, pattern: '^[0-9]{4}-[0-9]{4}$'}
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/Limit'}
+      - {$ref: '#/components/parameters/Cursor'}
+      - name: status
+        in: query
+        schema: {type: string, enum: [active, archived]}
+      - name: department_id
+        in: query
+        schema: {$ref: '#/components/schemas/UUID'}
+      - name: academic_year
+        in: query
+        schema: {type: string, pattern: '^[0-9]{4}-[0-9]{4}$'}
       responses:
         '200': {$ref: '#/components/responses/BatchPage'}
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     post:
       summary: Create a batch in an active college department
-      security: [{bearerAuth: []}]
-      parameters: [{$ref: '#/components/parameters/TenantID'}]
+      security: [bearerAuth: []]
+      parameters: [$ref: '#/components/parameters/TenantID']
       requestBody:
         required: true
         content:
@@ -233,11 +291,15 @@ paths:
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/retention-policy:
     put:
       summary: Set tenant retention policy within platform bounds
-      security: [{bearerAuth: []}]
-      parameters: [{$ref: '#/components/parameters/TenantID'}]
+      security: [bearerAuth: []]
+      parameters: [$ref: '#/components/parameters/TenantID']
       requestBody:
         required: true
         content:
@@ -249,11 +311,15 @@ paths:
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/legal-holds:
     post:
       summary: Place a tenant, student, assessment, or submission legal hold
-      security: [{bearerAuth: []}]
-      parameters: [{$ref: '#/components/parameters/TenantID'}]
+      security: [bearerAuth: []]
+      parameters: [$ref: '#/components/parameters/TenantID']
       requestBody:
         required: true
         content:
@@ -264,188 +330,242 @@ paths:
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/legal-holds/{hold_id}/release:
     post:
       summary: Release an active legal hold
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       parameters:
-        - $ref: '#/components/parameters/TenantID'
-        - $ref: '#/components/parameters/HoldID'
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/HoldID'
       responses:
         '200': {$ref: '#/components/responses/LegalHold'}
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/placement-organizations/{organization_id}:
     parameters:
-      - {name: organization_id, in: path, required: true, schema: {type: string, format: uuid}}
+    - {name: organization_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
     get:
       summary: Read a placement organization
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       responses:
         '200': {$ref: '#/components/responses/PlacementOrganization'}
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     patch:
       summary: Rename a placement organisation
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       requestBody:
         required: true
         content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: false
-                properties:
-                  legal_name: {type: string}
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                legal_name: {type: string, maxLength: 1000}
       responses:
-        '200': {description: The updated organisation}
+        '200': {description: The updated organisation, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     delete:
       summary: Soft-delete a placement organization
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       requestBody:
         required: true
         content:
           application/json:
             schema: {$ref: '#/components/schemas/DeleteEntityRequest'}
       responses:
-        '204': {description: Organization soft-deleted}
+        '204': {description: Organization soft-deleted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/placement-organizations/{organization_id}/hard:
     parameters:
-      - {name: organization_id, in: path, required: true, schema: {type: string, format: uuid}}
+    - {name: organization_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
     delete:
       summary: Permanently delete a placement organization
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       requestBody:
         required: true
         content:
           application/json:
             schema: {$ref: '#/components/schemas/DeleteEntityRequest'}
       responses:
-        '204': {description: Organization permanently deleted}
+        '204': {description: Organization permanently deleted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/departments/{department_id}:
     parameters:
-      - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid}}
-      - {name: department_id, in: path, required: true, schema: {type: string, format: uuid}}
+    - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
+    - {name: department_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
     patch:
       summary: Edit a department's code or name
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       requestBody:
         required: true
         content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: false
-                properties:
-                  code: {type: string}
-                  name: {type: string}
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                code: {type: string, maxLength: 1000}
+                name: {type: string, maxLength: 1000}
       responses:
-        '200': {description: The updated department}
+        '200': {description: The updated department, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     delete:
       summary: Soft-delete a department
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       requestBody:
         required: true
         content:
           application/json:
             schema: {$ref: '#/components/schemas/DeleteEntityRequest'}
       responses:
-        '204': {description: Department soft-deleted}
+        '204': {description: Department soft-deleted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/departments/{department_id}/hard:
     parameters:
-      - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid}}
-      - {name: department_id, in: path, required: true, schema: {type: string, format: uuid}}
+    - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
+    - {name: department_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
     delete:
       summary: Permanently delete a department
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       requestBody:
         required: true
         content:
           application/json:
             schema: {$ref: '#/components/schemas/DeleteEntityRequest'}
       responses:
-        '204': {description: Department permanently deleted}
+        '204': {description: Department permanently deleted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/batches/{batch_id}:
     parameters:
-      - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid}}
-      - {name: batch_id, in: path, required: true, schema: {type: string, format: uuid}}
+    - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
+    - {name: batch_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
     patch:
       summary: Edit a batch's code, name or academic year (YYYY-YYYY)
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       requestBody:
         required: true
         content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: false
-                properties:
-                  code: {type: string}
-                  name: {type: string}
-                  academic_year: {type: string}
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                code: {type: string, maxLength: 1000}
+                name: {type: string, maxLength: 1000}
+                academic_year: {type: string, maxLength: 1000}
       responses:
-        '200': {description: The updated batch}
+        '200': {description: The updated batch, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     delete:
       summary: Soft-delete a batch
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       requestBody:
         required: true
         content:
           application/json:
             schema: {$ref: '#/components/schemas/DeleteEntityRequest'}
       responses:
-        '204': {description: Batch soft-deleted}
+        '204': {description: Batch soft-deleted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/batches/{batch_id}/hard:
     parameters:
-      - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid}}
-      - {name: batch_id, in: path, required: true, schema: {type: string, format: uuid}}
+    - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
+    - {name: batch_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
     delete:
       summary: Permanently delete a batch
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       requestBody:
         required: true
         content:
           application/json:
             schema: {$ref: '#/components/schemas/DeleteEntityRequest'}
       responses:
-        '204': {description: Batch permanently deleted}
+        '204': {description: Batch permanently deleted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
         '403': {$ref: '#/components/responses/Error'}
         '404': {$ref: '#/components/responses/Error'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
 
 components:
   securitySchemes:
@@ -453,6 +573,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWS
+      description: 'Bearer JSON Web Token (JWT). Tokens are short-lived and signed per RFC 8725. Include as: Authorization: Bearer <token>.'
   parameters:
     TenantID:
       name: tenant_id
@@ -472,47 +593,193 @@ components:
     Limit:
       name: limit
       in: query
-      schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+      schema: {type: integer, minimum: 1, maximum: 100, default: 20, format: int64}
     Cursor:
       name: cursor
       in: query
-      schema: {type: string}
+      schema: {type: string, maxLength: 1000}
   responses:
     Tenant:
       description: Tenant record
       content: {application/json: {schema: {$ref: '#/components/schemas/Tenant'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     TenantPage:
       description: Keyset page of tenants
       content: {application/json: {schema: {$ref: '#/components/schemas/TenantPage'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     PlacementOrganization:
       description: Placement organization record
       content: {application/json: {schema: {$ref: '#/components/schemas/PlacementOrganization'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     PlacementOrganizationPage:
       description: Keyset page of placement organizations
       content: {application/json: {schema: {$ref: '#/components/schemas/PlacementOrganizationPage'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     Department:
       description: Department record
       content: {application/json: {schema: {$ref: '#/components/schemas/Department'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     DepartmentPage:
       description: Keyset page of departments
       content: {application/json: {schema: {$ref: '#/components/schemas/DepartmentPage'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     Batch:
       description: Batch record
       content: {application/json: {schema: {$ref: '#/components/schemas/Batch'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     BatchPage:
       description: Keyset page of batches
       content: {application/json: {schema: {$ref: '#/components/schemas/BatchPage'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     RetentionPolicy:
       description: Tenant retention policy
       content: {application/json: {schema: {$ref: '#/components/schemas/RetentionPolicy'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     LegalHold:
       description: Legal hold record
       content: {application/json: {schema: {$ref: '#/components/schemas/LegalHold'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     Error:
       description: Stable machine-readable API error
       content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+    Problem401:
+      description: Unauthorized — missing, expired, or invalid bearer token.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+    Problem500:
+      description: Internal server error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+    Problem429:
+      description: Too many requests — rate limit exceeded.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+        Retry-After:
+          $ref: '#/components/headers/Retry-After'
   schemas:
-    UUID: {type: string, format: uuid}
+    UUID: {type: string, format: uuid, maxLength: 36}
     Timestamp: {type: string, format: date-time}
     DeleteEntityRequest:
       type: object
@@ -527,7 +794,8 @@ components:
         items:
           type: array
           items: {$ref: '#/components/schemas/PlacementOrganization'}
-        next_cursor: {type: string}
+          maxItems: 200
+        next_cursor: {type: string, maxLength: 1000}
     TenantPage:
       type: object
       required: [items]
@@ -535,7 +803,8 @@ components:
         items:
           type: array
           items: {$ref: '#/components/schemas/Tenant'}
-        next_cursor: {type: string}
+          maxItems: 200
+        next_cursor: {type: string, maxLength: 1000}
     DepartmentPage:
       type: object
       required: [items]
@@ -543,7 +812,8 @@ components:
         items:
           type: array
           items: {$ref: '#/components/schemas/Department'}
-        next_cursor: {type: string}
+          maxItems: 200
+        next_cursor: {type: string, maxLength: 1000}
     BatchPage:
       type: object
       required: [items]
@@ -551,7 +821,8 @@ components:
         items:
           type: array
           items: {$ref: '#/components/schemas/Batch'}
-        next_cursor: {type: string}
+          maxItems: 200
+        next_cursor: {type: string, maxLength: 1000}
     ProvisionTenantRequest:
       type: object
       required: [slug, legal_name, display_name]
@@ -588,11 +859,11 @@ components:
       required: [academic_records_years, audit_records_years, auth_logs_days, notification_delivery_days, execution_record_days]
       additionalProperties: false
       properties:
-        academic_records_years: {type: integer, minimum: 7, maximum: 30}
-        audit_records_years: {type: integer, minimum: 7, maximum: 30}
-        auth_logs_days: {type: integer, minimum: 90, maximum: 3650}
-        notification_delivery_days: {type: integer, minimum: 30, maximum: 3650}
-        execution_record_days: {type: integer, minimum: 1, maximum: 365}
+        academic_records_years: {type: integer, minimum: 7, maximum: 30, format: int64}
+        audit_records_years: {type: integer, minimum: 7, maximum: 30, format: int64}
+        auth_logs_days: {type: integer, minimum: 90, maximum: 3650, format: int64}
+        notification_delivery_days: {type: integer, minimum: 30, maximum: 3650, format: int64}
+        execution_record_days: {type: integer, minimum: 1, maximum: 365, format: int64}
     LegalHoldRequest:
       type: object
       required: [scope, reason]
@@ -601,29 +872,29 @@ components:
         scope: {type: string, enum: [tenant, student, assessment, submission]}
         subject_id:
           oneOf:
-            - {$ref: '#/components/schemas/UUID'}
-            - {type: 'null'}
+          - {$ref: '#/components/schemas/UUID'}
+          - {type: 'null'}
         reason: {type: string, minLength: 1, maxLength: 2000}
     Tenant:
       type: object
       required: [id, slug, legal_name, display_name, status, version, created_at]
       properties:
         id: {$ref: '#/components/schemas/UUID'}
-        slug: {type: string}
-        legal_name: {type: string}
-        display_name: {type: string}
-        status: {type: string}
-        version: {type: integer, minimum: 1}
+        slug: {type: string, maxLength: 1000}
+        legal_name: {type: string, maxLength: 1000}
+        display_name: {type: string, maxLength: 1000}
+        status: {type: string, maxLength: 1000}
+        version: {type: integer, minimum: 1, format: int64}
         created_at: {$ref: '#/components/schemas/Timestamp'}
     PlacementOrganization:
       type: object
       required: [id, code, legal_name, status, version, created_at]
       properties:
         id: {$ref: '#/components/schemas/UUID'}
-        code: {type: string}
-        legal_name: {type: string}
-        status: {type: string}
-        version: {type: integer, minimum: 1}
+        code: {type: string, maxLength: 1000}
+        legal_name: {type: string, maxLength: 1000}
+        status: {type: string, maxLength: 1000}
+        version: {type: integer, minimum: 1, format: int64}
         created_at: {$ref: '#/components/schemas/Timestamp'}
     Department:
       type: object
@@ -633,10 +904,10 @@ components:
         tenant_id: {$ref: '#/components/schemas/UUID'}
         placement_organization_id: {$ref: '#/components/schemas/UUID'}
         department_type: {type: string, enum: [college, placement]}
-        code: {type: string}
-        name: {type: string}
-        status: {type: string}
-        version: {type: integer, minimum: 1}
+        code: {type: string, maxLength: 1000}
+        name: {type: string, maxLength: 1000}
+        status: {type: string, maxLength: 1000}
+        version: {type: integer, minimum: 1, format: int64}
         created_at: {$ref: '#/components/schemas/Timestamp'}
     Batch:
       type: object
@@ -645,21 +916,21 @@ components:
         id: {$ref: '#/components/schemas/UUID'}
         tenant_id: {$ref: '#/components/schemas/UUID'}
         department_id: {$ref: '#/components/schemas/UUID'}
-        code: {type: string}
-        name: {type: string}
-        academic_year: {type: string}
-        status: {type: string}
-        version: {type: integer, minimum: 1}
+        code: {type: string, maxLength: 1000}
+        name: {type: string, maxLength: 1000}
+        academic_year: {type: string, maxLength: 1000}
+        status: {type: string, maxLength: 1000}
+        version: {type: integer, minimum: 1, format: int64}
         created_at: {$ref: '#/components/schemas/Timestamp'}
     RetentionPolicy:
       allOf:
-        - {$ref: '#/components/schemas/RetentionPolicyRequest'}
-        - type: object
-          required: [tenant_id, version, updated_at]
-          properties:
-            tenant_id: {$ref: '#/components/schemas/UUID'}
-            version: {type: integer, minimum: 1}
-            updated_at: {$ref: '#/components/schemas/Timestamp'}
+      - {$ref: '#/components/schemas/RetentionPolicyRequest'}
+      - type: object
+        required: [tenant_id, version, updated_at]
+        properties:
+          tenant_id: {$ref: '#/components/schemas/UUID'}
+          version: {type: integer, minimum: 1, format: int64}
+          updated_at: {$ref: '#/components/schemas/Timestamp'}
     LegalHold:
       type: object
       required: [id, tenant_id, scope, reason, status, placed_at]
@@ -668,7 +939,7 @@ components:
         tenant_id: {$ref: '#/components/schemas/UUID'}
         scope: {type: string, enum: [tenant, student, assessment, submission]}
         subject_id: {$ref: '#/components/schemas/UUID'}
-        reason: {type: string}
+        reason: {type: string, maxLength: 1000}
         status: {type: string, enum: [active, released]}
         placed_at: {$ref: '#/components/schemas/Timestamp'}
         released_at: {$ref: '#/components/schemas/Timestamp'}
@@ -677,5 +948,48 @@ components:
       required: [code, message]
       additionalProperties: false
       properties:
-        code: {type: string}
-        message: {type: string}
+        code: {type: string, maxLength: 1000}
+        message: {type: string, maxLength: 1000}
+    Problem:
+      type: object
+      additionalProperties: false
+      required:
+      - code
+      - message
+      properties:
+        code:
+          type: string
+          maxLength: 1000
+        message:
+          type: string
+          maxLength: 1000
+  headers:
+    RateLimit-Limit:
+      description: Standard rate-limit response headers (RFC 6585 / IETF draft-ietf-httpapi-ratelimit-headers).
+      schema:
+        type: string
+        maxLength: 64
+    RateLimit-Remaining:
+      description: Standard rate-limit response headers (RFC 6585 / IETF draft-ietf-httpapi-ratelimit-headers).
+      schema:
+        type: string
+        maxLength: 64
+    RateLimit-Reset:
+      description: Standard rate-limit response headers (RFC 6585 / IETF draft-ietf-httpapi-ratelimit-headers).
+      schema:
+        type: string
+        maxLength: 64
+    Access-Control-Allow-Origin:
+      description: CORS allowed origins. The platform gateway sets this; internal services declare it for contract completeness.
+      schema:
+        type: string
+        maxLength: 256
+    Retry-After:
+      description: Number of seconds to wait before retrying after a 429 rate-limit response.
+      schema:
+        type: integer
+        minimum: 0
+servers:
+- url: https://tenant.internal.aethercode.in
+  description: AetherCode tenant service — internal platform endpoint (production)
+  x-internal: true

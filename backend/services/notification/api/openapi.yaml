@@ -7,21 +7,27 @@ info:
     and durable in-app delivery. Every business request receives a fresh
     central authorization decision and a one-transaction local RLS capability.
 servers:
-  - url: https://notification.internal.aethercode
+- url: https://notification.internal.aethercode
+  description: AetherCode notification service — internal platform endpoint (production)
+  x-internal: true
 paths:
   /healthz:
     get:
       responses:
         '200': {$ref: '#/components/responses/Operational'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
   /readyz:
     get:
       responses:
         '200': {$ref: '#/components/responses/Operational'}
         '503': {$ref: '#/components/responses/Operational'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
   /v1/tenants/{tenant_id}/me/preferences:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     get:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: List the caller's notification preferences
       responses:
         '200':
@@ -35,14 +41,28 @@ paths:
                   items:
                     type: array
                     items: {$ref: '#/components/schemas/Preference'}
+                    maxItems: 200
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/me/preferences/in-app:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     put:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: Create or optimistically update the caller's in-app preference
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
       requestBody:
         required: true
         content:
@@ -54,12 +74,16 @@ paths:
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/me/preferences/email:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     put:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: Create or optimistically update the caller's email preference
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
       requestBody:
         required: true
         content:
@@ -71,12 +95,16 @@ paths:
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/me/preferences/sms:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     put:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: Create or optimistically update the caller's SMS preference
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
       requestBody:
         required: true
         content:
@@ -88,15 +116,19 @@ paths:
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/me/notifications:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     get:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: List the caller's encrypted notification references
       parameters:
-        - name: limit
-          in: query
-          schema: {type: integer, minimum: 1, maximum: 100, default: 50}
+      - name: limit
+        in: query
+        schema: {type: integer, minimum: 1, maximum: 100, default: 50, format: int64}
       responses:
         '200':
           description: Caller-owned notification metadata
@@ -109,15 +141,29 @@ paths:
                   items:
                     type: array
                     items: {$ref: '#/components/schemas/Notification'}
+                    maxItems: 200
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/notifications:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     post:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: Schedule one encrypted notification for a recipient
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
       requestBody:
         required: true
         content:
@@ -129,14 +175,18 @@ paths:
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/notifications/{notification_id}/cancel:
     parameters:
-      - {$ref: '#/components/parameters/TenantID'}
-      - {$ref: '#/components/parameters/NotificationID'}
+    - {$ref: '#/components/parameters/TenantID'}
+    - {$ref: '#/components/parameters/NotificationID'}
     post:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: Cancel a pending notification with optimistic concurrency
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
       requestBody:
         required: true
         content:
@@ -148,12 +198,16 @@ paths:
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/notifications/{notification_id}:
     parameters:
-      - {$ref: '#/components/parameters/TenantID'}
-      - {$ref: '#/components/parameters/NotificationID'}
+    - {$ref: '#/components/parameters/TenantID'}
+    - {$ref: '#/components/parameters/NotificationID'}
     delete:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: Soft-delete a notification
       requestBody:
         required: true
@@ -166,17 +220,21 @@ paths:
               properties:
                 reason: {type: string, minLength: 1, maxLength: 500}
       responses:
-        '204': {description: Notification soft-deleted}
+        '204': {description: Notification soft-deleted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/notifications/{notification_id}/hard:
     parameters:
-      - {$ref: '#/components/parameters/TenantID'}
-      - {$ref: '#/components/parameters/NotificationID'}
+    - {$ref: '#/components/parameters/TenantID'}
+    - {$ref: '#/components/parameters/NotificationID'}
     delete:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: Permanently delete a notification
       requestBody:
         required: true
@@ -189,286 +247,410 @@ paths:
               properties:
                 reason: {type: string, minLength: 1, maxLength: 500}
       responses:
-        '204': {description: Notification permanently deleted}
+        '204': {description: Notification permanently deleted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/community/interview-experiences:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     get:
       operationId: community_experience_list
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: community experience list (ADR-0048)
       description: >-
         Any member of the college (resource community); writes bind to the signed-in person. Backed by notification.community_experience_list. Body fields, query parameters
         and path values are merged into one JSON object; path values win.
       responses:
-        '200': {description: 'A JSON object, or an object with an items list'}
-        '400': {description: A value is invalid; the message says which}
-        '403': {description: Not permitted}
-        '404': {description: Not found}
+        '200': {description: 'A JSON object, or an object with an items list', headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '400': {description: A value is invalid; the message says which, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '403': {description: Not permitted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '404': {description: Not found, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     post:
       operationId: community_experience_submit
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: community experience submit (ADR-0048)
       description: >-
         Any member of the college (resource community); writes bind to the signed-in person. Backed by notification.community_experience_submit. Body fields, query parameters
         and path values are merged into one JSON object; path values win.
       responses:
-        '201': {description: 'A JSON object, or an object with an items list'}
-        '400': {description: A value is invalid; the message says which}
-        '403': {description: Not permitted}
-        '404': {description: Not found}
+        '201': {description: 'A JSON object, or an object with an items list', headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '400': {description: A value is invalid; the message says which, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '403': {description: Not permitted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '404': {description: Not found, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/community/interview-experiences/{id}:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     delete:
       operationId: community_experience_delete_own
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: community experience delete own (ADR-0048)
       description: >-
         Any member of the college (resource community); writes bind to the signed-in person. Backed by notification.community_experience_delete_own. Body fields, query parameters
         and path values are merged into one JSON object; path values win.
       responses:
-        '200': {description: 'A JSON object, or an object with an items list'}
-        '400': {description: A value is invalid; the message says which}
-        '403': {description: Not permitted}
-        '404': {description: Not found}
+        '200': {description: 'A JSON object, or an object with an items list', headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '400': {description: A value is invalid; the message says which, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '403': {description: Not permitted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '404': {description: Not found, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/community/posts:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     get:
       operationId: community_posts_list
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: community posts list (ADR-0048)
       description: >-
         Any member of the college (resource community); writes bind to the signed-in person. Backed by notification.community_posts_list. Body fields, query parameters
         and path values are merged into one JSON object; path values win.
       responses:
-        '200': {description: 'A JSON object, or an object with an items list'}
-        '400': {description: A value is invalid; the message says which}
-        '403': {description: Not permitted}
-        '404': {description: Not found}
+        '200': {description: 'A JSON object, or an object with an items list', headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '400': {description: A value is invalid; the message says which, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '403': {description: Not permitted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '404': {description: Not found, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/community/posts/{id}:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     get:
       operationId: community_post_get
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: community post get (ADR-0048)
       description: >-
         Any member of the college (resource community); writes bind to the signed-in person. Backed by notification.community_post_get. Body fields, query parameters
         and path values are merged into one JSON object; path values win.
       responses:
-        '200': {description: 'A JSON object, or an object with an items list'}
-        '400': {description: A value is invalid; the message says which}
-        '403': {description: Not permitted}
-        '404': {description: Not found}
+        '200': {description: 'A JSON object, or an object with an items list', headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '400': {description: A value is invalid; the message says which, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '403': {description: Not permitted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '404': {description: Not found, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/community/feed:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     get:
       operationId: community_feed_list
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: community feed list (ADR-0048)
       description: >-
         Any member of the college (resource community); writes bind to the signed-in person. Backed by notification.community_feed_list. Body fields, query parameters
         and path values are merged into one JSON object; path values win.
       responses:
-        '200': {description: 'A JSON object, or an object with an items list'}
-        '400': {description: A value is invalid; the message says which}
-        '403': {description: Not permitted}
-        '404': {description: Not found}
+        '200': {description: 'A JSON object, or an object with an items list', headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '400': {description: A value is invalid; the message says which, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '403': {description: Not permitted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '404': {description: Not found, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/community/feed/{id}/bookmark:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     put:
       operationId: community_bookmark_set
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: community bookmark set (ADR-0048)
       description: >-
         Any member of the college (resource community); writes bind to the signed-in person. Backed by notification.community_bookmark_set. Body fields, query parameters
         and path values are merged into one JSON object; path values win.
       responses:
-        '200': {description: 'A JSON object, or an object with an items list'}
-        '400': {description: A value is invalid; the message says which}
-        '403': {description: Not permitted}
-        '404': {description: Not found}
+        '200': {description: 'A JSON object, or an object with an items list', headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '400': {description: A value is invalid; the message says which, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '403': {description: Not permitted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '404': {description: Not found, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/community/profile-links:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     get:
       operationId: community_links_get
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: community links get (ADR-0048)
       description: >-
         Any member of the college (resource community); writes bind to the signed-in person. Backed by notification.community_links_get. Body fields, query parameters
         and path values are merged into one JSON object; path values win.
       responses:
-        '200': {description: 'A JSON object, or an object with an items list'}
-        '400': {description: A value is invalid; the message says which}
-        '403': {description: Not permitted}
-        '404': {description: Not found}
+        '200': {description: 'A JSON object, or an object with an items list', headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '400': {description: A value is invalid; the message says which, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '403': {description: Not permitted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '404': {description: Not found, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/community/profile-links/{platform}:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     put:
       operationId: community_link_set
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: community link set (ADR-0048)
       description: >-
         Any member of the college (resource community); writes bind to the signed-in person. Backed by notification.community_link_set. Body fields, query parameters
         and path values are merged into one JSON object; path values win.
       responses:
-        '200': {description: 'A JSON object, or an object with an items list'}
-        '400': {description: A value is invalid; the message says which}
-        '403': {description: Not permitted}
-        '404': {description: Not found}
+        '200': {description: 'A JSON object, or an object with an items list', headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '400': {description: A value is invalid; the message says which, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '403': {description: Not permitted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '404': {description: Not found, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/community/tasks:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     get:
       operationId: community_tasks_list
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: community tasks list (ADR-0048)
       description: >-
         Any member of the college (resource community); writes bind to the signed-in person. Backed by notification.community_tasks_list. Body fields, query parameters
         and path values are merged into one JSON object; path values win.
       responses:
-        '200': {description: 'A JSON object, or an object with an items list'}
-        '400': {description: A value is invalid; the message says which}
-        '403': {description: Not permitted}
-        '404': {description: Not found}
+        '200': {description: 'A JSON object, or an object with an items list', headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '400': {description: A value is invalid; the message says which, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '403': {description: Not permitted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '404': {description: Not found, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     post:
       operationId: community_task_create
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: community task create (ADR-0048)
       description: >-
         Any member of the college (resource community); writes bind to the signed-in person. Backed by notification.community_task_create. Body fields, query parameters
         and path values are merged into one JSON object; path values win.
       responses:
-        '201': {description: 'A JSON object, or an object with an items list'}
-        '400': {description: A value is invalid; the message says which}
-        '403': {description: Not permitted}
-        '404': {description: Not found}
+        '201': {description: 'A JSON object, or an object with an items list', headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '400': {description: A value is invalid; the message says which, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '403': {description: Not permitted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '404': {description: Not found, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/community/tasks/{id}:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     patch:
       operationId: community_task_update
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: community task update (ADR-0048)
       description: >-
         Any member of the college (resource community); writes bind to the signed-in person. Backed by notification.community_task_update. Body fields, query parameters
         and path values are merged into one JSON object; path values win.
       responses:
-        '200': {description: 'A JSON object, or an object with an items list'}
-        '400': {description: A value is invalid; the message says which}
-        '403': {description: Not permitted}
-        '404': {description: Not found}
+        '200': {description: 'A JSON object, or an object with an items list', headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '400': {description: A value is invalid; the message says which, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '403': {description: Not permitted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '404': {description: Not found, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     delete:
       operationId: community_task_delete
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: community task delete (ADR-0048)
       description: >-
         Any member of the college (resource community); writes bind to the signed-in person. Backed by notification.community_task_delete. Body fields, query parameters
         and path values are merged into one JSON object; path values win.
       responses:
-        '200': {description: 'A JSON object, or an object with an items list'}
-        '400': {description: A value is invalid; the message says which}
-        '403': {description: Not permitted}
-        '404': {description: Not found}
+        '200': {description: 'A JSON object, or an object with an items list', headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '400': {description: A value is invalid; the message says which, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '403': {description: Not permitted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '404': {description: Not found, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/community/moderation/interview-experiences:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     get:
       operationId: community_experience_queue
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: community experience queue (ADR-0048)
       description: >-
         Staff only (resource community_moderation). Backed by notification.community_experience_queue. Body fields, query parameters
         and path values are merged into one JSON object; path values win.
       responses:
-        '200': {description: 'A JSON object, or an object with an items list'}
-        '400': {description: A value is invalid; the message says which}
-        '403': {description: Not permitted}
-        '404': {description: Not found}
+        '200': {description: 'A JSON object, or an object with an items list', headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '400': {description: A value is invalid; the message says which, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '403': {description: Not permitted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '404': {description: Not found, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/community/moderation/interview-experiences/{id}/review:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     post:
       operationId: community_experience_review
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: community experience review (ADR-0048)
       description: >-
         Staff only (resource community_moderation). Backed by notification.community_experience_review. Body fields, query parameters
         and path values are merged into one JSON object; path values win.
       responses:
-        '200': {description: 'A JSON object, or an object with an items list'}
-        '400': {description: A value is invalid; the message says which}
-        '403': {description: Not permitted}
-        '404': {description: Not found}
+        '200': {description: 'A JSON object, or an object with an items list', headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '400': {description: A value is invalid; the message says which, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '403': {description: Not permitted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '404': {description: Not found, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/community/moderation/posts:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     get:
       operationId: community_posts_manage
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: community posts manage (ADR-0048)
       description: >-
         Staff only (resource community_moderation). Backed by notification.community_posts_manage. Body fields, query parameters
         and path values are merged into one JSON object; path values win.
       responses:
-        '200': {description: 'A JSON object, or an object with an items list'}
-        '400': {description: A value is invalid; the message says which}
-        '403': {description: Not permitted}
-        '404': {description: Not found}
+        '200': {description: 'A JSON object, or an object with an items list', headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '400': {description: A value is invalid; the message says which, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '403': {description: Not permitted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '404': {description: Not found, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     put:
       operationId: community_post_save
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: community post save (ADR-0048)
       description: >-
         Staff only (resource community_moderation). Backed by notification.community_post_save. Body fields, query parameters
         and path values are merged into one JSON object; path values win.
       responses:
-        '200': {description: 'A JSON object, or an object with an items list'}
-        '400': {description: A value is invalid; the message says which}
-        '403': {description: Not permitted}
-        '404': {description: Not found}
+        '200': {description: 'A JSON object, or an object with an items list', headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '400': {description: A value is invalid; the message says which, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '403': {description: Not permitted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '404': {description: Not found, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/community/moderation/posts/{id}:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     delete:
       operationId: community_post_delete
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: community post delete (ADR-0048)
       description: >-
         Staff only (resource community_moderation). Backed by notification.community_post_delete. Body fields, query parameters
         and path values are merged into one JSON object; path values win.
       responses:
-        '200': {description: 'A JSON object, or an object with an items list'}
-        '400': {description: A value is invalid; the message says which}
-        '403': {description: Not permitted}
-        '404': {description: Not found}
+        '200': {description: 'A JSON object, or an object with an items list', headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '400': {description: A value is invalid; the message says which, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '403': {description: Not permitted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '404': {description: Not found, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/community/moderation/feed:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     put:
       operationId: community_feed_save
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: community feed save (ADR-0048)
       description: >-
         Staff only (resource community_moderation). Backed by notification.community_feed_save. Body fields, query parameters
         and path values are merged into one JSON object; path values win.
       responses:
-        '200': {description: 'A JSON object, or an object with an items list'}
-        '400': {description: A value is invalid; the message says which}
-        '403': {description: Not permitted}
-        '404': {description: Not found}
+        '200': {description: 'A JSON object, or an object with an items list', headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '400': {description: A value is invalid; the message says which, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '403': {description: Not permitted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '404': {description: Not found, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/community/moderation/feed/{id}:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     delete:
       operationId: community_feed_delete
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: community feed delete (ADR-0048)
       description: >-
         Staff only (resource community_moderation). Backed by notification.community_feed_delete. Body fields, query parameters
         and path values are merged into one JSON object; path values win.
       responses:
-        '200': {description: 'A JSON object, or an object with an items list'}
-        '400': {description: A value is invalid; the message says which}
-        '403': {description: Not permitted}
-        '404': {description: Not found}
+        '200': {description: 'A JSON object, or an object with an items list', headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '400': {description: A value is invalid; the message says which, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '403': {description: Not permitted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '404': {description: Not found, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
 components:
   securitySchemes:
-    bearerAuth: {type: http, scheme: bearer, bearerFormat: AetherCode access token}
+    bearerAuth: {type: http, scheme: bearer, bearerFormat: AetherCode access token, description: 'Bearer JSON Web Token (JWT). Tokens are short-lived and signed per RFC 8725. Include as: Authorization: Bearer <token>.'}
   parameters:
     TenantID:
       name: tenant_id
@@ -495,16 +677,90 @@ components:
       description: Caller-owned preference
       content:
         application/json: {schema: {$ref: '#/components/schemas/Preference'}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     Notification:
       description: Notification metadata and encrypted payload reference
       content:
         application/json: {schema: {$ref: '#/components/schemas/Notification'}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     Problem:
       description: Stable error response
       content:
         application/json: {schema: {$ref: '#/components/schemas/Problem'}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+    Problem401:
+      description: Unauthorized — missing, expired, or invalid bearer token.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+    Problem500:
+      description: Internal server error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+    Problem429:
+      description: Too many requests — rate limit exceeded.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+        Retry-After:
+          $ref: '#/components/headers/Retry-After'
   schemas:
-    UUID: {type: string, format: uuid}
+    UUID: {type: string, format: uuid, maxLength: 36}
     SHA256: {type: string, pattern: '^[0-9a-f]{64}$'}
     PreferenceWrite:
       type: object
@@ -512,7 +768,7 @@ components:
       additionalProperties: false
       properties:
         enabled: {type: boolean}
-        expected_version: {type: integer, minimum: 0}
+        expected_version: {type: integer, minimum: 0, format: int64}
     Preference:
       type: object
       required: [id, tenant_id, recipient_id, channel, enabled, updated_at, version]
@@ -523,17 +779,17 @@ components:
         channel: {type: string, const: in_app}
         enabled: {type: boolean}
         updated_at: {type: string, format: date-time}
-        version: {type: integer, minimum: 1}
+        version: {type: integer, minimum: 1, format: int64}
     ScheduleNotification:
       type: object
       required:
-        - recipient_id
-        - category
-        - template_code
-        - content_object_key
-        - content_checksum
-        - encryption_key_reference
-        - scheduled_at
+      - recipient_id
+      - category
+      - template_code
+      - content_object_key
+      - content_checksum
+      - encryption_key_reference
+      - scheduled_at
       additionalProperties: false
       properties:
         recipient_id: {$ref: '#/components/schemas/UUID'}
@@ -549,40 +805,40 @@ components:
         scheduled_at: {type: string, format: date-time}
         retention_subject_id:
           description: Optional Assessment or Submission aggregate covered by a legal hold.
-          allOf: [{$ref: '#/components/schemas/UUID'}]
+          allOf: [$ref: '#/components/schemas/UUID']
     CancelNotification:
       type: object
       required: [expected_version, reason]
       additionalProperties: false
       properties:
-        expected_version: {type: integer, minimum: 1}
+        expected_version: {type: integer, minimum: 1, format: int64}
         reason: {type: string, minLength: 1, maxLength: 500}
     Notification:
       type: object
       required:
-        - id
-        - tenant_id
-        - recipient_id
-        - category
-        - template_code
-        - content_object_key
-        - content_checksum
-        - encryption_key_reference
-        - lifecycle_state
-        - scheduled_at
-        - created_at
-        - retention_until
-        - legal_hold
-        - version
+      - id
+      - tenant_id
+      - recipient_id
+      - category
+      - template_code
+      - content_object_key
+      - content_checksum
+      - encryption_key_reference
+      - lifecycle_state
+      - scheduled_at
+      - created_at
+      - retention_until
+      - legal_hold
+      - version
       properties:
         id: {$ref: '#/components/schemas/UUID'}
         tenant_id: {$ref: '#/components/schemas/UUID'}
         recipient_id: {$ref: '#/components/schemas/UUID'}
         category: {type: string, enum: [exam_reminder, exam_result, system]}
-        template_code: {type: string}
-        content_object_key: {type: string}
+        template_code: {type: string, maxLength: 1000}
+        content_object_key: {type: string, maxLength: 1000}
         content_checksum: {$ref: '#/components/schemas/SHA256'}
-        encryption_key_reference: {type: string}
+        encryption_key_reference: {type: string, maxLength: 1000}
         lifecycle_state: {type: string, enum: [pending, sending, sent, partially_delivered, failed, cancelled]}
         scheduled_at: {type: string, format: date-time}
         created_at: {type: string, format: date-time}
@@ -590,10 +846,36 @@ components:
         retention_until: {type: string, format: date-time}
         legal_hold: {type: boolean}
         retention_subject_id: {$ref: '#/components/schemas/UUID'}
-        version: {type: integer, minimum: 1}
+        version: {type: integer, minimum: 1, format: int64}
     Problem:
       type: object
       required: [code, message]
       properties:
-        code: {type: string}
-        message: {type: string}
+        code: {type: string, maxLength: 1000}
+        message: {type: string, maxLength: 1000}
+  headers:
+    RateLimit-Limit:
+      description: Standard rate-limit response headers (RFC 6585 / IETF draft-ietf-httpapi-ratelimit-headers).
+      schema:
+        type: string
+        maxLength: 64
+    RateLimit-Remaining:
+      description: Standard rate-limit response headers (RFC 6585 / IETF draft-ietf-httpapi-ratelimit-headers).
+      schema:
+        type: string
+        maxLength: 64
+    RateLimit-Reset:
+      description: Standard rate-limit response headers (RFC 6585 / IETF draft-ietf-httpapi-ratelimit-headers).
+      schema:
+        type: string
+        maxLength: 64
+    Access-Control-Allow-Origin:
+      description: CORS allowed origins. The platform gateway sets this; internal services declare it for contract completeness.
+      schema:
+        type: string
+        maxLength: 256
+    Retry-After:
+      description: Number of seconds to wait before retrying after a 429 rate-limit response.
+      schema:
+        type: integer
+        minimum: 0

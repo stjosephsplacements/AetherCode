@@ -8,23 +8,29 @@ info:
     receives a fresh central authorization decision, and executes inside one
     FORCE RLS transaction.
 servers:
-  - url: https://user.internal.aethercode.in
+- url: https://user.internal.aethercode.in
+  description: AetherCode user service — internal platform endpoint (production)
+  x-internal: true
 security:
-  - bearerAuth: []
+- bearerAuth: []
 paths:
   /healthz:
     get:
       security: []
       summary: Liveness probe
       responses:
-        '200': {description: Process is alive}
+        '200': {description: Process is alive, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
   /readyz:
     get:
       security: []
       summary: Readiness probe
       responses:
-        '200': {description: Database and authorization dependencies are ready}
-        '503': {description: A required dependency is unavailable}
+        '200': {description: Database and authorization dependencies are ready, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '503': {description: A required dependency is unavailable, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
   /v1/me:
     get:
       summary: The caller's own active roles (ADR-0023)
@@ -42,7 +48,7 @@ paths:
                 additionalProperties: false
                 required: [principal_id, roles, student]
                 properties:
-                  principal_id: {type: string, format: uuid}
+                  principal_id: {type: string, format: uuid, maxLength: 36}
                   roles:
                     type: array
                     items:
@@ -52,21 +58,35 @@ paths:
                       properties:
                         role_name: {enum: [super_admin, placement_user, college_admin, department_user, mentor, student]}
                         scope_kind: {enum: [platform, college, department, batch, placement_department, self]}
-                        tenant_id: {type: string, format: uuid}
-                        scope_id: {type: string, format: uuid}
+                        tenant_id: {type: string, format: uuid, maxLength: 36}
+                        scope_id: {type: string, format: uuid, maxLength: 36}
+                    maxItems: 200
                   student:
                     oneOf:
-                      - type: 'null'
-                      - type: object
-                        additionalProperties: false
-                        required: [tenant_id]
-                        properties:
-                          tenant_id: {type: string, format: uuid}
+                    - type: 'null'
+                    - type: object
+                      additionalProperties: false
+                      required: [tenant_id]
+                      properties:
+                        tenant_id: {type: string, format: uuid, maxLength: 36}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '401': {$ref: '#/components/responses/Problem401'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/profiles/{principal_id}:
     parameters:
-      - $ref: '#/components/parameters/PrincipalID'
-      - $ref: '#/components/parameters/TenantQueryID'
+    - $ref: '#/components/parameters/PrincipalID'
+    - $ref: '#/components/parameters/TenantQueryID'
     put:
       summary: Create or update a principal profile
       requestBody:
@@ -79,15 +99,25 @@ paths:
         '400': {$ref: '#/components/responses/Problem400'}
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/profiles/{principal_id}/public:
     parameters:
-      - $ref: '#/components/parameters/PrincipalID'
-      - $ref: '#/components/parameters/TenantQueryID'
+    - $ref: '#/components/parameters/PrincipalID'
+    - $ref: '#/components/parameters/TenantQueryID'
     get:
       summary: The caller's own public profile settings (ADR-0062)
       responses:
-        '200': {description: Settings, whether or not the profile is public, content: {application/json: {schema: {$ref: '#/components/schemas/PublicProfile'}}}}
+        '200': {description: Settings, whether or not the profile is public: null, content: {application/json: {schema: {$ref: '#/components/schemas/PublicProfile'}}}, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '403': {$ref: '#/components/responses/Problem403'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     put:
       summary: Publish, change or hide the caller's public profile
       requestBody:
@@ -96,21 +126,31 @@ paths:
           application/json:
             schema: {$ref: '#/components/schemas/PublicProfile'}
       responses:
-        '200': {description: Saved, content: {application/json: {schema: {$ref: '#/components/schemas/PublicProfile'}}}}
+        '200': {description: Saved, content: {application/json: {schema: {$ref: '#/components/schemas/PublicProfile'}}}, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Problem400'}
         '403': {$ref: '#/components/responses/Problem403'}
-        '409': {description: The address is taken}
+        '409': {description: The address is taken, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/public/profiles/{slug}:
     parameters:
-      - {name: slug, in: path, required: true, schema: {type: string, pattern: '^[a-z0-9][a-z0-9-]{2,30}$'}}
+    - {name: slug, in: path, required: true, schema: {type: string, pattern: '^[a-z0-9][a-z0-9-]{2,30}$'}}
     get:
       summary: An enabled public profile. No sign-in; the gateway allows this one route anonymously.
       security: []
       responses:
-        '200': {description: The profile, content: {application/json: {schema: {$ref: '#/components/schemas/PublicProfile'}}}}
-        '404': {description: No such profile, or it is hidden}
+        '200': {description: The profile, content: {application/json: {schema: {$ref: '#/components/schemas/PublicProfile'}}}, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '404': {description: No such profile, or it is hidden: null, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/students:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     get:
       summary: List students in a tenant
       description: >-
@@ -118,17 +158,21 @@ paths:
         Batch filter matches students with an active batch affiliation for that batch.
         Department filter matches students with any active department membership for that department.
       parameters:
-        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
-        - {name: cursor, in: query, schema: {type: string}}
-        - {name: status, in: query, schema: {enum: [pending, active, inactive, withdrawn]}}
-        - {name: batch_id, in: query, schema: {$ref: '#/components/schemas/UUID'}}
-        - {name: department_id, in: query, schema: {$ref: '#/components/schemas/UUID'}}
-        - {name: enrollment_number_prefix, in: query, schema: {type: string}}
+      - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20, format: int64}}
+      - {name: cursor, in: query, schema: {type: string, maxLength: 1000}}
+      - {name: status, in: query, schema: {enum: [pending, active, inactive, withdrawn]}}
+      - {name: batch_id, in: query, schema: {$ref: '#/components/schemas/UUID'}}
+      - {name: department_id, in: query, schema: {$ref: '#/components/schemas/UUID'}}
+      - {name: enrollment_number_prefix, in: query, schema: {type: string, maxLength: 1000}}
       responses:
         '200': {$ref: '#/components/responses/StudentPage'}
         '400': {$ref: '#/components/responses/Problem400'}
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     post:
       summary: Enroll an active student with current department affiliations
       requestBody:
@@ -142,51 +186,74 @@ paths:
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '409': {$ref: '#/components/responses/Problem409'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/students/roster:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     get:
       summary: Staff console student roster with batch, departments, profile and mentors (ADR-0057)
       description: >-
         Richer than the plain student list; joins batch and department names and
         mentor assignments. Sorted and filtered server-side.
       parameters:
-        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 200, default: 50}}
-        - {name: cursor, in: query, schema: {type: string}}
-        - {name: status, in: query, schema: {enum: [pending, active, inactive, withdrawn]}}
-        - {name: batch_id, in: query, schema: {$ref: '#/components/schemas/UUID'}}
-        - {name: department_id, in: query, schema: {$ref: '#/components/schemas/UUID'}}
-        - {name: placement_department_id, in: query, schema: {$ref: '#/components/schemas/UUID'}}
-        - {name: q, in: query, schema: {type: string}, description: Free-text search on enrollment number and name}
-        - {name: sort, in: query, schema: {enum: [enrollment_number, name]}, description: Default enrollment_number}
-        - {name: order, in: query, schema: {enum: [asc, desc]}}
+      - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 200, default: 50, format: int64}}
+      - {name: cursor, in: query, schema: {type: string, maxLength: 1000}}
+      - {name: status, in: query, schema: {enum: [pending, active, inactive, withdrawn]}}
+      - {name: batch_id, in: query, schema: {$ref: '#/components/schemas/UUID'}}
+      - {name: department_id, in: query, schema: {$ref: '#/components/schemas/UUID'}}
+      - {name: placement_department_id, in: query, schema: {$ref: '#/components/schemas/UUID'}}
+      - {name: q, in: query, schema: {type: string, maxLength: 1000}, description: Free-text search on enrollment number and name}
+      - {name: sort, in: query, schema: {enum: [enrollment_number, name]}, description: Default enrollment_number}
+      - {name: order, in: query, schema: {enum: [asc, desc]}}
       responses:
         '200':
           description: Roster page
           content: {application/json: {schema: {$ref: '#/components/schemas/StudentPage'}}}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Problem400'}
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/students/{student_id}:
     patch:
       summary: Edit a student's enrolment number or admission date (YYYY-MM-DD, empty clears it)
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       requestBody:
         required: true
         content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: false
-                properties:
-                  enrollment_number: {type: string}
-                  admitted_at: {type: string}
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                enrollment_number: {type: string, maxLength: 1000}
+                admitted_at: {type: string, maxLength: 1000}
       responses:
-        '200': {description: The updated student}
+        '200': {description: The updated student, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Problem400'}
         '403': {$ref: '#/components/responses/Problem403'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     parameters:
-      - $ref: '#/components/parameters/TenantID'
-      - $ref: '#/components/parameters/StudentID'
+    - $ref: '#/components/parameters/TenantID'
+    - $ref: '#/components/parameters/StudentID'
     get:
       summary: Read a student and current department affiliations
       responses:
@@ -195,6 +262,10 @@ paths:
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     delete:
       summary: Soft-delete a student
       requestBody:
@@ -208,15 +279,19 @@ paths:
               properties:
                 reason: {type: string, minLength: 1, maxLength: 500}
       responses:
-        '204': {description: Student soft-deleted}
+        '204': {description: Student soft-deleted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Problem400'}
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/students/{student_id}/hard:
     parameters:
-      - $ref: '#/components/parameters/TenantID'
-      - $ref: '#/components/parameters/StudentID'
+    - $ref: '#/components/parameters/TenantID'
+    - $ref: '#/components/parameters/StudentID'
     delete:
       summary: Permanently delete a student
       requestBody:
@@ -230,11 +305,15 @@ paths:
               properties:
                 reason: {type: string, minLength: 1, maxLength: 500}
       responses:
-        '204': {description: Student permanently deleted}
+        '204': {description: Student permanently deleted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Problem400'}
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/role-assignments:
     get:
       summary: List role assignments
@@ -243,17 +322,21 @@ paths:
         the X-Tenant-ID header; absent header means platform-wide listing for
         callers with sufficient privilege. All query filters are optional.
       parameters:
-        - {name: X-Tenant-ID, in: header, schema: {$ref: '#/components/schemas/UUID'}}
-        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
-        - {name: cursor, in: query, schema: {type: string}}
-        - {name: principal_id, in: query, schema: {$ref: '#/components/schemas/UUID'}}
-        - {name: role_name, in: query, schema: {enum: [super_admin, placement_user, college_admin, department_user, mentor, student]}}
-        - {name: scope_kind, in: query, schema: {enum: [platform, college, department, batch, placement_department, self]}}
+      - {name: X-Tenant-ID, in: header, schema: {$ref: '#/components/schemas/UUID'}}
+      - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20, format: int64}}
+      - {name: cursor, in: query, schema: {type: string, maxLength: 1000}}
+      - {name: principal_id, in: query, schema: {$ref: '#/components/schemas/UUID'}}
+      - {name: role_name, in: query, schema: {enum: [super_admin, placement_user, college_admin, department_user, mentor, student]}}
+      - {name: scope_kind, in: query, schema: {enum: [platform, college, department, batch, placement_department, self]}}
       responses:
         '200': {$ref: '#/components/responses/RoleAssignmentPage'}
         '400': {$ref: '#/components/responses/Problem400'}
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     post:
       summary: Grant a scoped canonical role
       description: >-
@@ -270,8 +353,12 @@ paths:
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '409': {$ref: '#/components/responses/Problem409'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/role-assignments/{role_assignment_id}/revoke:
-    parameters: [{$ref: '#/components/parameters/RoleAssignmentID'}]
+    parameters: [$ref: '#/components/parameters/RoleAssignmentID']
     post:
       summary: Revoke an active role assignment
       requestBody:
@@ -285,10 +372,14 @@ paths:
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/placement-departments/{placement_department_id}/staff/{principal_id}:
     parameters:
-      - $ref: '#/components/parameters/PlacementDepartmentID'
-      - $ref: '#/components/parameters/PrincipalID'
+    - $ref: '#/components/parameters/PlacementDepartmentID'
+    - $ref: '#/components/parameters/PrincipalID'
     put:
       summary: Create or reactivate a placement-department staff membership
       requestBody:
@@ -302,26 +393,34 @@ paths:
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '409': {$ref: '#/components/responses/Problem409'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/batches/{batch_id}/mentors:
     parameters:
-      - $ref: '#/components/parameters/TenantID'
-      - $ref: '#/components/parameters/BatchID'
+    - $ref: '#/components/parameters/TenantID'
+    - $ref: '#/components/parameters/BatchID'
     get:
       summary: List mentor assignments for a batch
       description: Cursor-paginated (created_at DESC, id DESC).
       parameters:
-        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
-        - {name: cursor, in: query, schema: {type: string}}
+      - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20, format: int64}}
+      - {name: cursor, in: query, schema: {type: string, maxLength: 1000}}
       responses:
         '200': {$ref: '#/components/responses/MentorBatchAssignmentPage'}
         '400': {$ref: '#/components/responses/Problem400'}
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/batches/{batch_id}/mentors/{principal_id}:
     parameters:
-      - $ref: '#/components/parameters/TenantID'
-      - $ref: '#/components/parameters/BatchID'
-      - $ref: '#/components/parameters/PrincipalID'
+    - $ref: '#/components/parameters/TenantID'
+    - $ref: '#/components/parameters/BatchID'
+    - $ref: '#/components/parameters/PrincipalID'
     put:
       summary: Assign a mentor to an active tenant batch
       responses:
@@ -330,10 +429,14 @@ paths:
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '409': {$ref: '#/components/responses/Problem409'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/students/{student_id}/batch-affiliation:
     parameters:
-      - $ref: '#/components/parameters/TenantID'
-      - $ref: '#/components/parameters/StudentID'
+    - $ref: '#/components/parameters/TenantID'
+    - $ref: '#/components/parameters/StudentID'
     get:
       summary: Read a student's current batch affiliation and optimistic version
       responses:
@@ -342,9 +445,13 @@ paths:
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     put:
       summary: Set a student's current batch affiliation
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
       description: >-
         The expected_version is the current affiliation version returned by
         this resource's GET operation. The User
@@ -365,11 +472,15 @@ paths:
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '409': {$ref: '#/components/responses/Problem409'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/students/{student_id}/batch-affiliation/revoke:
     parameters:
-      - $ref: '#/components/parameters/TenantID'
-      - $ref: '#/components/parameters/StudentID'
-      - $ref: '#/components/parameters/IdempotencyKey'
+    - $ref: '#/components/parameters/TenantID'
+    - $ref: '#/components/parameters/StudentID'
+    - $ref: '#/components/parameters/IdempotencyKey'
     post:
       summary: Revoke a student's current batch affiliation
       description: >-
@@ -388,8 +499,12 @@ paths:
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '409': {$ref: '#/components/responses/Problem409'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/students/import:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     post:
       summary: Import students with generated passwords (ADR-0019)
       description: >-
@@ -408,14 +523,27 @@ paths:
         '201':
           description: Imported students with their one-time passwords, and skipped roll numbers
           content: {application/json: {schema: {$ref: '#/components/schemas/StudentImportResult'}}}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Problem400'}
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '409': {$ref: '#/components/responses/Problem409'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/batches/{batch_id}/passwords:
     parameters:
-      - $ref: '#/components/parameters/TenantID'
-      - $ref: '#/components/parameters/BatchID'
+    - $ref: '#/components/parameters/TenantID'
+    - $ref: '#/components/parameters/BatchID'
     post:
       summary: Reissue every password in a batch
       description: >-
@@ -425,10 +553,14 @@ paths:
         '200': {$ref: '#/components/responses/IssuedCredentials'}
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/accounts/{principal_id}/password:
     parameters:
-      - $ref: '#/components/parameters/TenantID'
-      - $ref: '#/components/parameters/PrincipalID'
+    - $ref: '#/components/parameters/TenantID'
+    - $ref: '#/components/parameters/PrincipalID'
     post:
       summary: Reset one account's password
       description: >-
@@ -439,13 +571,26 @@ paths:
         '200':
           description: The new one-time credential
           content: {application/json: {schema: {$ref: '#/components/schemas/IssuedCredential'}}}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/accounts/{principal_id}/status:
     parameters:
-      - $ref: '#/components/parameters/TenantID'
-      - $ref: '#/components/parameters/PrincipalID'
+    - $ref: '#/components/parameters/TenantID'
+    - $ref: '#/components/parameters/PrincipalID'
     put:
       summary: Enable or disable one account
       description: >-
@@ -462,13 +607,17 @@ paths:
               properties:
                 status: {enum: [active, disabled]}
       responses:
-        '204': {description: Status applied}
+        '204': {description: Status applied, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Problem400'}
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/staff:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     post:
       summary: Create a college administrator or faculty account
       description: >-
@@ -484,19 +633,32 @@ paths:
         '201':
           description: The staff credential and its role assignment
           content: {application/json: {schema: {$ref: '#/components/schemas/StaffAccount'}}}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Problem400'}
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '409': {$ref: '#/components/responses/Problem409'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/staff-audit:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     get:
       summary: College staff action audit log (ADR-0043)
       description: >-
         Reverse-chronological list of staff actions. Paginate backwards with
         ?before=<RFC 3339> timestamp. Returns at most 100 entries per call.
       parameters:
-        - {name: before, in: query, schema: {type: string, format: date-time}, description: Return entries before this RFC 3339 timestamp}
+      - {name: before, in: query, schema: {type: string, format: date-time}, description: Return entries before this RFC 3339 timestamp}
       responses:
         '200':
           description: Audit entries
@@ -506,12 +668,25 @@ paths:
                 type: object
                 required: [entries]
                 properties:
-                  entries: {type: array, items: {type: object}}
+                  entries: {type: array, items: {type: object}, maxItems: 200}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Problem400'}
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/accounts/bulk-status:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     post:
       summary: Enable or disable multiple accounts at once
       requestBody:
@@ -523,15 +698,19 @@ paths:
               additionalProperties: false
               required: [principal_ids, status]
               properties:
-                principal_ids: {type: array, items: {$ref: '#/components/schemas/UUID'}}
+                principal_ids: {type: array, items: {$ref: '#/components/schemas/UUID'}, maxItems: 200}
                 status: {enum: [active, disabled]}
       responses:
-        '204': {description: Status applied to all accounts}
+        '204': {description: Status applied to all accounts, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Problem400'}
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/accounts/bulk-password:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     post:
       summary: Reset passwords for multiple accounts at once
       requestBody:
@@ -543,14 +722,18 @@ paths:
               additionalProperties: false
               required: [principal_ids]
               properties:
-                principal_ids: {type: array, items: {$ref: '#/components/schemas/UUID'}}
+                principal_ids: {type: array, items: {$ref: '#/components/schemas/UUID'}, maxItems: 200}
       responses:
         '200': {$ref: '#/components/responses/IssuedCredentials'}
         '400': {$ref: '#/components/responses/Problem400'}
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/accounts/describe:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     post:
       summary: Describe accounts by principal IDs — sign-in name, display name and status (ADR-0043)
       requestBody:
@@ -562,7 +745,7 @@ paths:
               additionalProperties: false
               required: [principal_ids]
               properties:
-                principal_ids: {type: array, items: {$ref: '#/components/schemas/UUID'}}
+                principal_ids: {type: array, items: {$ref: '#/components/schemas/UUID'}, maxItems: 200}
       responses:
         '200':
           description: Account summaries
@@ -579,32 +762,58 @@ paths:
                       required: [principal_id]
                       properties:
                         principal_id: {$ref: '#/components/schemas/UUID'}
-                        username: {type: string}
-                        display_name: {type: string}
-                        status: {type: string}
+                        username: {type: string, maxLength: 1000}
+                        display_name: {type: string, maxLength: 1000}
+                        status: {type: string, maxLength: 1000}
+                    maxItems: 200
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Problem400'}
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/permission-catalogue:
     get:
       summary: Everything that can be granted to a person, as service.resource.verb (ADR-0055)
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       responses:
-        '200': {description: The catalogue; platform_only entries need a root administrator}
+        '200': {description: The catalogue; platform_only entries need a root administrator, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '403': {$ref: '#/components/responses/Problem403'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/staff/{principal_id}/permissions:
     parameters:
-      - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid}}
-      - {name: principal_id, in: path, required: true, schema: {type: string, format: uuid}}
+    - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
+    - {name: principal_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
     get:
       summary: A staff member's extra permissions in one college
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       responses:
-        '200': {description: The permissions}
+        '200': {description: The permissions, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '403': {$ref: '#/components/responses/Problem403'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     put:
       summary: Replace a staff member's extra permissions in one college; write and delete add the read they imply
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       requestBody:
         required: true
         content:
@@ -614,23 +823,35 @@ paths:
               additionalProperties: false
               required: [permissions]
               properties:
-                permissions: {type: array, items: {type: string}}
+                permissions: {type: array, items: {type: string, maxLength: 1000}, maxItems: 200}
       responses:
-        '200': {description: The permissions now held, with implied reads}
+        '200': {description: The permissions now held, with implied reads: null, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Problem400'}
         '403': {$ref: '#/components/responses/Problem403'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/staff/{principal_id}/permissions:
     parameters:
-      - {name: principal_id, in: path, required: true, schema: {type: string, format: uuid}}
+    - {name: principal_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
     get:
       summary: A staff member's platform-wide extra permissions (root administrators only)
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       responses:
-        '200': {description: The permissions}
+        '200': {description: The permissions, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '403': {$ref: '#/components/responses/Problem403'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     put:
       summary: Replace a staff member's platform-wide extra permissions (root administrators only)
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       requestBody:
         required: true
         content:
@@ -640,10 +861,16 @@ paths:
               additionalProperties: false
               required: [permissions]
               properties:
-                permissions: {type: array, items: {type: string}}
+                permissions: {type: array, items: {type: string, maxLength: 1000}, maxItems: 200}
       responses:
-        '200': {description: The permissions now held}
+        '200': {description: The permissions now held, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '403': {$ref: '#/components/responses/Problem403'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/permission-flags:
     get:
       summary: All named permission flags the roles engine knows about (ADR-0066)
@@ -657,11 +884,24 @@ paths:
                 type: object
                 required: [flags]
                 properties:
-                  flags: {type: array, items: {type: string}}
+                  flags: {type: array, items: {type: string, maxLength: 1000}, maxItems: 200}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/roles:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     get:
       summary: List all college-defined roles (ADR-0066)
       responses:
@@ -673,9 +913,22 @@ paths:
                 type: object
                 required: [roles]
                 properties:
-                  roles: {type: array, items: {$ref: '#/components/schemas/Role'}}
+                  roles: {type: array, items: {$ref: '#/components/schemas/Role'}, maxItems: 200}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     post:
       summary: Create a college-scoped custom role
       requestBody:
@@ -688,21 +941,34 @@ paths:
               required: [name, tier, position, permissions]
               properties:
                 name: {type: string, minLength: 1, maxLength: 120}
-                tier: {type: integer, minimum: 1}
-                position: {type: integer, minimum: 0}
-                permissions: {type: array, items: {type: string}}
+                tier: {type: integer, minimum: 1, format: int64}
+                position: {type: integer, minimum: 0, format: int64}
+                permissions: {type: array, items: {type: string, maxLength: 1000}, maxItems: 200}
       responses:
         '201':
           description: Created role
           content: {application/json: {schema: {$ref: '#/components/schemas/Role'}}}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Problem400'}
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '409': {$ref: '#/components/responses/Problem409'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/roles/{role_id}:
     parameters:
-      - $ref: '#/components/parameters/TenantID'
-      - {name: role_id, in: path, required: true, schema: {$ref: '#/components/schemas/UUID'}}
+    - $ref: '#/components/parameters/TenantID'
+    - {name: role_id, in: path, required: true, schema: {$ref: '#/components/schemas/UUID'}}
     patch:
       summary: Update a college role's name, position or permissions
       requestBody:
@@ -714,30 +980,47 @@ paths:
               additionalProperties: false
               properties:
                 name: {type: string, minLength: 1, maxLength: 120}
-                position: {type: integer, minimum: 0}
-                permissions: {type: array, items: {type: string}}
+                position: {type: integer, minimum: 0, format: int64}
+                permissions: {type: array, items: {type: string, maxLength: 1000}, maxItems: 200}
       responses:
         '200':
           description: Updated role
           content: {application/json: {schema: {$ref: '#/components/schemas/Role'}}}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Problem400'}
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     delete:
       summary: Delete a college-scoped custom role
       responses:
-        '204': {description: Role deleted}
+        '204': {description: Role deleted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/role-overwrites:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     get:
       summary: List role permission overwrites, optionally filtered by node
       parameters:
-        - {name: node_kind, in: query, schema: {type: string}}
-        - {name: node_id, in: query, schema: {$ref: '#/components/schemas/UUID'}}
+      - {name: node_kind, in: query, schema: {type: string, maxLength: 1000}}
+      - {name: node_id, in: query, schema: {$ref: '#/components/schemas/UUID'}}
       responses:
         '200':
           description: Overwrites
@@ -747,9 +1030,22 @@ paths:
                 type: object
                 required: [overwrites]
                 properties:
-                  overwrites: {type: array, items: {$ref: '#/components/schemas/RoleOverwrite'}}
+                  overwrites: {type: array, items: {$ref: '#/components/schemas/RoleOverwrite'}, maxItems: 200}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     put:
       summary: Create or replace a role permission overwrite for a node/target combination
       requestBody:
@@ -761,30 +1057,47 @@ paths:
               additionalProperties: false
               required: [node_kind, node_id, target_kind, target_id, allow, deny]
               properties:
-                node_kind: {type: string}
+                node_kind: {type: string, maxLength: 1000}
                 node_id: {$ref: '#/components/schemas/UUID'}
-                target_kind: {type: string}
+                target_kind: {type: string, maxLength: 1000}
                 target_id: {$ref: '#/components/schemas/UUID'}
-                allow: {type: array, items: {type: string}}
-                deny: {type: array, items: {type: string}}
+                allow: {type: array, items: {type: string, maxLength: 1000}, maxItems: 200}
+                deny: {type: array, items: {type: string, maxLength: 1000}, maxItems: 200}
       responses:
         '200':
           description: Saved overwrite
           content: {application/json: {schema: {$ref: '#/components/schemas/RoleOverwrite'}}}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Problem400'}
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/role-overwrites/{overwrite_id}:
     parameters:
-      - $ref: '#/components/parameters/TenantID'
-      - {name: overwrite_id, in: path, required: true, schema: {$ref: '#/components/schemas/UUID'}}
+    - $ref: '#/components/parameters/TenantID'
+    - {name: overwrite_id, in: path, required: true, schema: {$ref: '#/components/schemas/UUID'}}
     delete:
       summary: Delete a role permission overwrite
       responses:
-        '204': {description: Overwrite deleted}
+        '204': {description: Overwrite deleted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '404': {$ref: '#/components/responses/Problem404'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
 
 components:
   securitySchemes:
@@ -792,6 +1105,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: 'Bearer JSON Web Token (JWT). Tokens are short-lived and signed per RFC 8725. Include as: Authorization: Bearer <token>.'
   parameters:
     TenantID:
       name: tenant_id
@@ -845,52 +1159,220 @@ components:
             required: [accounts]
             properties:
               accounts: {type: array, items: {$ref: '#/components/schemas/IssuedCredential'}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     Profile:
       description: Profile state
       content: {application/json: {schema: {$ref: '#/components/schemas/Profile'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     Student:
       description: Student state and current department affiliations
       content: {application/json: {schema: {$ref: '#/components/schemas/Student'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     RoleAssignment:
       description: Canonical role assignment
       content: {application/json: {schema: {$ref: '#/components/schemas/RoleAssignment'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     PlacementStaffMembership:
       description: Placement staff membership
       content: {application/json: {schema: {$ref: '#/components/schemas/PlacementStaffMembership'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     MentorBatchAssignment:
       description: Mentor batch assignment
       content: {application/json: {schema: {$ref: '#/components/schemas/MentorBatchAssignment'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     StudentPage:
       description: Cursor-paginated student list
       content: {application/json: {schema: {$ref: '#/components/schemas/StudentPage'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     MentorBatchAssignmentPage:
       description: Cursor-paginated mentor batch assignment list
       content: {application/json: {schema: {$ref: '#/components/schemas/MentorBatchAssignmentPage'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     RoleAssignmentPage:
       description: Cursor-paginated role assignment list
       content: {application/json: {schema: {$ref: '#/components/schemas/RoleAssignmentPage'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     StudentBatchAffiliation:
       description: Versioned current student batch affiliation
       content: {application/json: {schema: {$ref: '#/components/schemas/StudentBatchAffiliation'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     Problem400:
       description: Invalid path, body, UUID, scope, batch projection, or expected version.
       content: {application/json: {schema: {$ref: '#/components/schemas/Problem'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     Problem401:
       description: Missing or invalid bearer identity assertion.
       content: {application/json: {schema: {$ref: '#/components/schemas/Problem'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     Problem403:
       description: Central authorization denied or the local RLS authorization projection is stale.
       content: {application/json: {schema: {$ref: '#/components/schemas/Problem'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     Problem404:
       description: Requested student or active role assignment was not found.
       content: {application/json: {schema: {$ref: '#/components/schemas/Problem'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     Problem409:
       description: Duplicate state or optimistic-version conflict.
       content: {application/json: {schema: {$ref: '#/components/schemas/Problem'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+    Problem500:
+      description: Internal server error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+    Problem429:
+      description: Too many requests — rate limit exceeded.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+        Retry-After:
+          $ref: '#/components/headers/Retry-After'
   schemas:
     UUID:
       type: string
       format: uuid
+      maxLength: 36
     Timestamp:
       type: string
       format: date-time
@@ -899,8 +1381,8 @@ components:
       additionalProperties: false
       required: [code, message]
       properties:
-        code: {type: string}
-        message: {type: string}
+        code: {type: string, maxLength: 1000}
+        message: {type: string, maxLength: 1000}
     UpsertProfile:
       type: object
       additionalProperties: false
@@ -915,10 +1397,10 @@ components:
       required: [principal_id, given_name, family_name, version, created_at, updated_at]
       properties:
         principal_id: {$ref: '#/components/schemas/UUID'}
-        given_name: {type: string}
-        family_name: {type: string}
-        preferred_name: {type: string}
-        version: {type: integer, minimum: 1}
+        given_name: {type: string, maxLength: 1000}
+        family_name: {type: string, maxLength: 1000}
+        preferred_name: {type: string, maxLength: 1000}
+        version: {type: integer, minimum: 1, format: int64}
         created_at: {$ref: '#/components/schemas/Timestamp'}
         updated_at: {$ref: '#/components/schemas/Timestamp'}
     EnrollStudent:
@@ -938,11 +1420,11 @@ components:
         id: {$ref: '#/components/schemas/UUID'}
         principal_id: {$ref: '#/components/schemas/UUID'}
         tenant_id: {$ref: '#/components/schemas/UUID'}
-        enrollment_number: {type: string}
+        enrollment_number: {type: string, maxLength: 1000}
         status: {enum: [pending, active, inactive, withdrawn]}
         college_department_id: {$ref: '#/components/schemas/UUID'}
         placement_department_id: {$ref: '#/components/schemas/UUID'}
-        version: {type: integer, minimum: 1}
+        version: {type: integer, minimum: 1, format: int64}
         created_at: {$ref: '#/components/schemas/Timestamp'}
     AssignRole:
       type: object
@@ -968,19 +1450,19 @@ components:
       properties:
         id: {$ref: '#/components/schemas/UUID'}
         principal_id: {$ref: '#/components/schemas/UUID'}
-        role_name: {type: string}
-        scope_kind: {type: string}
+        role_name: {type: string, maxLength: 1000}
+        scope_kind: {type: string, maxLength: 1000}
         tenant_id: {$ref: '#/components/schemas/UUID'}
         scope_id: {$ref: '#/components/schemas/UUID'}
         status: {enum: [active, revoked]}
         expires_at: {$ref: '#/components/schemas/Timestamp'}
-        version: {type: integer, minimum: 1}
+        version: {type: integer, minimum: 1, format: int64}
         created_at: {$ref: '#/components/schemas/Timestamp'}
         root: {type: boolean, description: 'The first super_admin, which granted itself. Its access is fixed.'}
     PublicProfile:
       type: object
       properties:
-        slug: {type: string}
+        slug: {type: string, maxLength: 1000}
         enabled: {type: boolean}
         updated_at: {$ref: '#/components/schemas/Timestamp'}
         content:
@@ -995,7 +1477,7 @@ components:
             links:
               type: array
               maxItems: 12
-              items: {type: object, properties: {platform: {type: string}, handle: {type: string}, url: {type: string}}}
+              items: {type: object, properties: {platform: {type: string, maxLength: 1000}, handle: {type: string, maxLength: 1000}, url: {type: string, maxLength: 1000}}}
     SetPlacementStaffMembership:
       type: object
       additionalProperties: false
@@ -1012,7 +1494,7 @@ components:
         placement_department_id: {$ref: '#/components/schemas/UUID'}
         status: {enum: [active, revoked]}
         expires_at: {$ref: '#/components/schemas/Timestamp'}
-        version: {type: integer, minimum: 1}
+        version: {type: integer, minimum: 1, format: int64}
     MentorBatchAssignment:
       type: object
       additionalProperties: false
@@ -1024,7 +1506,7 @@ components:
         tenant_id: {$ref: '#/components/schemas/UUID'}
         batch_id: {$ref: '#/components/schemas/UUID'}
         status: {enum: [active, ended]}
-        version: {type: integer, minimum: 1}
+        version: {type: integer, minimum: 1, format: int64}
         created_at: {$ref: '#/components/schemas/Timestamp'}
     StudentPage:
       type: object
@@ -1034,7 +1516,8 @@ components:
         items:
           type: array
           items: {$ref: '#/components/schemas/Student'}
-        next_cursor: {type: string}
+          maxItems: 200
+        next_cursor: {type: string, maxLength: 1000}
     MentorBatchAssignmentPage:
       type: object
       additionalProperties: false
@@ -1043,7 +1526,8 @@ components:
         items:
           type: array
           items: {$ref: '#/components/schemas/MentorBatchAssignment'}
-        next_cursor: {type: string}
+          maxItems: 200
+        next_cursor: {type: string, maxLength: 1000}
     RoleAssignmentPage:
       type: object
       additionalProperties: false
@@ -1052,20 +1536,21 @@ components:
         items:
           type: array
           items: {$ref: '#/components/schemas/RoleAssignment'}
-        next_cursor: {type: string}
+          maxItems: 200
+        next_cursor: {type: string, maxLength: 1000}
     SetStudentBatchAffiliation:
       type: object
       additionalProperties: false
       required: [batch_id, expected_version]
       properties:
         batch_id: {$ref: '#/components/schemas/UUID'}
-        expected_version: {type: integer, minimum: 1}
+        expected_version: {type: integer, minimum: 1, format: int64}
     EndStudentBatchAffiliation:
       type: object
       additionalProperties: false
       required: [expected_version]
       properties:
-        expected_version: {type: integer, minimum: 1}
+        expected_version: {type: integer, minimum: 1, format: int64}
     StudentBatchAffiliation:
       type: object
       additionalProperties: false
@@ -1076,8 +1561,9 @@ components:
         batch_id:
           type: [string, 'null']
           format: uuid
+          maxLength: 36
         lifecycle_state: {enum: [active, inactive]}
-        version: {type: integer, minimum: 1}
+        version: {type: integer, minimum: 1, format: int64}
         updated_at: {$ref: '#/components/schemas/Timestamp'}
     ImportStudents:
       type: object
@@ -1113,19 +1599,20 @@ components:
             properties:
               student_id: {$ref: '#/components/schemas/UUID'}
               principal_id: {$ref: '#/components/schemas/UUID'}
-              roll_number: {type: string}
-              name: {type: string}
-              username: {type: string}
+              roll_number: {type: string, maxLength: 1000}
+              name: {type: string, maxLength: 1000}
+              username: {type: string, maxLength: 1000}
               password: {type: string, format: password}
-        skipped: {type: array, items: {type: string}}
+          maxItems: 200
+        skipped: {type: array, items: {type: string, maxLength: 1000}, maxItems: 200}
     IssuedCredential:
       type: object
       additionalProperties: false
       required: [principal_id, display_name, password]
       properties:
         principal_id: {$ref: '#/components/schemas/UUID'}
-        username: {type: string}
-        display_name: {type: string}
+        username: {type: string, maxLength: 1000}
+        display_name: {type: string, maxLength: 1000}
         password: {type: string, format: password}
     CreateStaff:
       type: object
@@ -1139,11 +1626,11 @@ components:
         department_id: {$ref: '#/components/schemas/UUID'}
     StaffAccount:
       allOf:
-        - $ref: '#/components/schemas/IssuedCredential'
-        - type: object
-          required: [role_assignment]
-          properties:
-            role_assignment: {$ref: '#/components/schemas/RoleAssignment'}
+      - $ref: '#/components/schemas/IssuedCredential'
+      - type: object
+        required: [role_assignment]
+        properties:
+          role_assignment: {$ref: '#/components/schemas/RoleAssignment'}
     Role:
       type: object
       additionalProperties: false
@@ -1151,10 +1638,10 @@ components:
       properties:
         id: {$ref: '#/components/schemas/UUID'}
         tenant_id: {$ref: '#/components/schemas/UUID'}
-        name: {type: string}
-        tier: {type: integer}
-        position: {type: integer}
-        permissions: {type: array, items: {type: string}}
+        name: {type: string, maxLength: 1000}
+        tier: {type: integer, format: int64}
+        position: {type: integer, format: int64}
+        permissions: {type: array, items: {type: string, maxLength: 1000}, maxItems: 200}
     RoleOverwrite:
       type: object
       additionalProperties: false
@@ -1162,10 +1649,36 @@ components:
       properties:
         id: {$ref: '#/components/schemas/UUID'}
         tenant_id: {$ref: '#/components/schemas/UUID'}
-        node_kind: {type: string}
+        node_kind: {type: string, maxLength: 1000}
         node_id: {$ref: '#/components/schemas/UUID'}
-        target_kind: {type: string}
+        target_kind: {type: string, maxLength: 1000}
         target_id: {$ref: '#/components/schemas/UUID'}
-        allow: {type: array, items: {type: string}}
-        deny: {type: array, items: {type: string}}
+        allow: {type: array, items: {type: string, maxLength: 1000}, maxItems: 200}
+        deny: {type: array, items: {type: string, maxLength: 1000}, maxItems: 200}
         granted_by: {$ref: '#/components/schemas/UUID'}
+  headers:
+    RateLimit-Limit:
+      description: Standard rate-limit response headers (RFC 6585 / IETF draft-ietf-httpapi-ratelimit-headers).
+      schema:
+        type: string
+        maxLength: 64
+    RateLimit-Remaining:
+      description: Standard rate-limit response headers (RFC 6585 / IETF draft-ietf-httpapi-ratelimit-headers).
+      schema:
+        type: string
+        maxLength: 64
+    RateLimit-Reset:
+      description: Standard rate-limit response headers (RFC 6585 / IETF draft-ietf-httpapi-ratelimit-headers).
+      schema:
+        type: string
+        maxLength: 64
+    Access-Control-Allow-Origin:
+      description: CORS allowed origins. The platform gateway sets this; internal services declare it for contract completeness.
+      schema:
+        type: string
+        maxLength: 256
+    Retry-After:
+      description: Number of seconds to wait before retrying after a 429 rate-limit response.
+      schema:
+        type: integer
+        minimum: 0

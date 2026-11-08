@@ -9,40 +9,73 @@ paths:
       responses:
         '200':
           description: Service is alive.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
   /readyz:
     get:
       responses:
         '200':
           description: Service and required durable dependencies are ready.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '503':
           description: A required dependency is unavailable.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
   /v1/tenants/{tenant_id}/attempts:
     get:
       summary: List the calling candidate's attempts (keyset paged)
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantID'
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
-        - name: cursor
-          in: query
-          schema:
-            type: string
-        - name: exam_version_id
-          in: query
-          schema:
-            $ref: '#/components/schemas/UUID'
-        - name: lifecycle_state
-          in: query
-          schema:
-            type: string
-            enum: [created, active, submitted, grading, graded, expired, cancelled]
+      - $ref: '#/components/parameters/TenantID'
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+          format: int64
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          maxLength: 1000
+      - name: exam_version_id
+        in: query
+        schema:
+          $ref: '#/components/schemas/UUID'
+      - name: lifecycle_state
+        in: query
+        schema:
+          type: string
+          enum: [created, active, submitted, grading, graded, expired, cancelled]
       responses:
         '200':
           description: One keyset page of attempts. next_cursor is absent on the final page.
@@ -50,15 +83,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AttemptPage'
-        '400': { $ref: '#/components/responses/Problem400' }
-        '403': { $ref: '#/components/responses/Problem403' }
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        '400': {$ref: '#/components/responses/Problem400'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     post:
       summary: Start an assignment-backed candidate attempt
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantID'
-        - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -77,17 +125,32 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Attempt'
-        '400': { $ref: '#/components/responses/Problem400' }
-        '403': { $ref: '#/components/responses/Problem403' }
-        '409': { $ref: '#/components/responses/Problem409' }
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        '400': {$ref: '#/components/responses/Problem400'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '409': {$ref: '#/components/responses/Problem409'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}:
     get:
       summary: Read the caller's own attempt
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantID'
-        - $ref: '#/components/parameters/AttemptID'
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/AttemptID'
       responses:
         '200':
           description: Candidate-owned attempt.
@@ -95,16 +158,31 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Attempt'
-        '400': { $ref: '#/components/responses/Problem400' }
-        '403': { $ref: '#/components/responses/Problem403' }
-        '404': { $ref: '#/components/responses/Problem404' }
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        '400': {$ref: '#/components/responses/Problem400'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '404': {$ref: '#/components/responses/Problem404'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     delete:
       summary: Soft-delete an attempt
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantID'
-        - $ref: '#/components/parameters/AttemptID'
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/AttemptID'
       requestBody:
         required: true
         content:
@@ -114,20 +192,26 @@ paths:
               additionalProperties: false
               required: [reason]
               properties:
-                reason: { type: string, minLength: 1, maxLength: 500 }
+                reason: {type: string, minLength: 1, maxLength: 500}
       responses:
-        '204': { description: Attempt soft-deleted. }
-        '400': { $ref: '#/components/responses/Problem400' }
-        '403': { $ref: '#/components/responses/Problem403' }
-        '404': { $ref: '#/components/responses/Problem404' }
+        '204': {description: Attempt soft-deleted., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '400': {$ref: '#/components/responses/Problem400'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '404': {$ref: '#/components/responses/Problem404'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/hard:
     delete:
       summary: Permanently delete an attempt
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantID'
-        - $ref: '#/components/parameters/AttemptID'
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/AttemptID'
       requestBody:
         required: true
         content:
@@ -137,12 +221,18 @@ paths:
               additionalProperties: false
               required: [reason]
               properties:
-                reason: { type: string, minLength: 1, maxLength: 500 }
+                reason: {type: string, minLength: 1, maxLength: 500}
       responses:
-        '204': { description: Attempt permanently deleted. }
-        '400': { $ref: '#/components/responses/Problem400' }
-        '403': { $ref: '#/components/responses/Problem403' }
-        '404': { $ref: '#/components/responses/Problem404' }
+        '204': {description: Attempt permanently deleted., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '400': {$ref: '#/components/responses/Problem400'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '404': {$ref: '#/components/responses/Problem404'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/paper:
     get:
       summary: The exam paper of an attempt the caller owns (ADR-0023)
@@ -153,10 +243,10 @@ paths:
         before Assessment migration 000026 are titled "Question N" with an
         empty statement.
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantID'
-        - $ref: '#/components/parameters/AttemptID'
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/AttemptID'
       responses:
         '200':
           description: The paper.
@@ -164,65 +254,112 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Paper'
-        '400': { $ref: '#/components/responses/Problem400' }
-        '403': { $ref: '#/components/responses/Problem403' }
-        '404': { $ref: '#/components/responses/Problem404' }
-        '503': { $ref: '#/components/responses/Problem503' }
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        '400': {$ref: '#/components/responses/Problem400'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '404': {$ref: '#/components/responses/Problem404'}
+        '503': {$ref: '#/components/responses/Problem503'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/unit-results:
     get:
       summary: Candidate's per-unit breakdown for their own attempt
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantID'
-        - $ref: '#/components/parameters/AttemptID'
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/AttemptID'
       responses:
         '200':
           description: Per-unit test results for the attempt.
           content:
             application/json:
-              schema: { type: object }
-        '403': { $ref: '#/components/responses/Problem403' }
-        '404': { $ref: '#/components/responses/Problem404' }
+              schema: {type: object}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        '403': {$ref: '#/components/responses/Problem403'}
+        '404': {$ref: '#/components/responses/Problem404'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/judge-receipts:
     get:
       summary: Full per-unit judge receipts for staff (requires judge_receipts capability)
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantID'
-        - $ref: '#/components/parameters/AttemptID'
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/AttemptID'
       responses:
         '200':
           description: Full unit results with judge receipts. Requires a staff-scoped role.
           content:
             application/json:
-              schema: { type: object }
-        '403': { $ref: '#/components/responses/Problem403' }
-        '404': { $ref: '#/components/responses/Problem404' }
+              schema: {type: object}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        '403': {$ref: '#/components/responses/Problem403'}
+        '404': {$ref: '#/components/responses/Problem404'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/answers:
     get:
       summary: List answer-revision metadata for an attempt the caller owns (keyset paged)
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantID'
-        - $ref: '#/components/parameters/AttemptID'
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
-        - name: cursor
-          in: query
-          schema:
-            type: string
-        - name: exam_item_id
-          in: query
-          schema:
-            $ref: '#/components/schemas/UUID'
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/AttemptID'
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+          format: int64
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          maxLength: 1000
+      - name: exam_item_id
+        in: query
+        schema:
+          $ref: '#/components/schemas/UUID'
       responses:
         '200':
           description: One keyset page of answer revisions. next_cursor is absent on the final page.
@@ -230,22 +367,37 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AnswerRevisionPage'
-        '400': { $ref: '#/components/responses/Problem400' }
-        '403': { $ref: '#/components/responses/Problem403' }
-        '404': { $ref: '#/components/responses/Problem404' }
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        '400': {$ref: '#/components/responses/Problem400'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '404': {$ref: '#/components/responses/Problem404'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/answers/{exam_item_id}:
     put:
       summary: Append an immutable answer revision
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantID'
-        - $ref: '#/components/parameters/AttemptID'
-        - name: exam_item_id
-          in: path
-          required: true
-          schema:
-            $ref: '#/components/schemas/UUID'
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/AttemptID'
+      - name: exam_item_id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/UUID'
       requestBody:
         required: true
         content:
@@ -254,9 +406,9 @@ paths:
               type: object
               additionalProperties: false
               required:
-                - language
-                - source
-                - expected_attempt_version
+              - language
+              - source
+              - expected_attempt_version
               properties:
                 language:
                   type: string
@@ -275,6 +427,7 @@ paths:
                 expected_attempt_version:
                   type: integer
                   minimum: 1
+                  format: int64
       responses:
         '201':
           description: Immutable answer revision accepted.
@@ -282,20 +435,35 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AnswerRevision'
-        '400': { $ref: '#/components/responses/Problem400' }
-        '403': { $ref: '#/components/responses/Problem403' }
-        '404': { $ref: '#/components/responses/Problem404' }
-        '409': { $ref: '#/components/responses/Problem409' }
-        '503': { $ref: '#/components/responses/Problem503' }
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        '400': {$ref: '#/components/responses/Problem400'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '404': {$ref: '#/components/responses/Problem404'}
+        '409': {$ref: '#/components/responses/Problem409'}
+        '503': {$ref: '#/components/responses/Problem503'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/submit:
     post:
       summary: Submit an attempt and accept durable grading work
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantID'
-        - $ref: '#/components/parameters/AttemptID'
-        - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/AttemptID'
+      - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -308,6 +476,7 @@ paths:
                 expected_attempt_version:
                   type: integer
                   minimum: 1
+                  format: int64
       responses:
         '202':
           description: The attempt and its durable evaluation work were accepted.
@@ -323,10 +492,26 @@ paths:
                   evaluation_request_count:
                     type: integer
                     minimum: 0
-        '400': { $ref: '#/components/responses/Problem400' }
-        '403': { $ref: '#/components/responses/Problem403' }
-        '404': { $ref: '#/components/responses/Problem404' }
-        '409': { $ref: '#/components/responses/Problem409' }
+                    format: int64
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        '400': {$ref: '#/components/responses/Problem400'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '404': {$ref: '#/components/responses/Problem404'}
+        '409': {$ref: '#/components/responses/Problem409'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/items/{exam_item_id}/runs:
     post:
       summary: Run source against the item's sample tests (ADR-0021)
@@ -336,11 +521,11 @@ paths:
         carries a message meant for the candidate (no sample tests, the exam
         has ended, a run is still being judged).
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantID'
-        - $ref: '#/components/parameters/AttemptID'
-        - $ref: '#/components/parameters/ExamItemID'
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/AttemptID'
+      - $ref: '#/components/parameters/ExamItemID'
       requestBody:
         required: true
         content:
@@ -373,30 +558,54 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CodeRun'
-        '400': { $ref: '#/components/responses/Problem400' }
-        '403': { $ref: '#/components/responses/Problem403' }
-        '404': { $ref: '#/components/responses/Problem404' }
-        '409': { $ref: '#/components/responses/Problem409' }
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        '400': {$ref: '#/components/responses/Problem400'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '404': {$ref: '#/components/responses/Problem404'}
+        '409': {$ref: '#/components/responses/Problem409'}
         '429':
           description: Too many runs; retry after the Retry-After seconds.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Problem' }
-        '503': { $ref: '#/components/responses/Problem503' }
+              schema: {$ref: '#/components/schemas/Problem'}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+            Retry-After:
+              $ref: '#/components/headers/Retry-After'
+        '503': {$ref: '#/components/responses/Problem503'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
     get:
       summary: List the caller's runs of one item, newest first (keyset paged)
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantID'
-        - $ref: '#/components/parameters/AttemptID'
-        - $ref: '#/components/parameters/ExamItemID'
-        - name: limit
-          in: query
-          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
-        - name: cursor
-          in: query
-          schema: { type: string }
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/AttemptID'
+      - $ref: '#/components/parameters/ExamItemID'
+      - name: limit
+        in: query
+        schema: {type: integer, minimum: 1, maximum: 100, default: 20, format: int64}
+      - name: cursor
+        in: query
+        schema: {type: string, maxLength: 1000}
       responses:
         '200':
           description: One page of runs with unit counts. next_cursor is absent on the final page.
@@ -404,9 +613,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CodeRunPage'
-        '400': { $ref: '#/components/responses/Problem400' }
-        '403': { $ref: '#/components/responses/Problem403' }
-        '404': { $ref: '#/components/responses/Problem404' }
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        '400': {$ref: '#/components/responses/Problem400'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '404': {$ref: '#/components/responses/Problem404'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/items/{exam_item_id}/submissions:
     post:
       summary: Submit the item's latest saved code against all of its tests (ADR-0025)
@@ -417,11 +641,11 @@ paths:
         carries a message meant for the candidate. Each item scores its best
         evaluation when the attempt is graded.
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantID'
-        - $ref: '#/components/parameters/AttemptID'
-        - $ref: '#/components/parameters/ExamItemID'
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/AttemptID'
+      - $ref: '#/components/parameters/ExamItemID'
       responses:
         '202':
           description: The evaluation was queued for Judge.
@@ -429,24 +653,48 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ItemSubmission'
-        '400': { $ref: '#/components/responses/Problem400' }
-        '403': { $ref: '#/components/responses/Problem403' }
-        '404': { $ref: '#/components/responses/Problem404' }
-        '409': { $ref: '#/components/responses/Problem409' }
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        '400': {$ref: '#/components/responses/Problem400'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '404': {$ref: '#/components/responses/Problem404'}
+        '409': {$ref: '#/components/responses/Problem409'}
         '429':
           description: Too many runs and submissions; retry after the Retry-After seconds.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Problem' }
+              schema: {$ref: '#/components/schemas/Problem'}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+            Retry-After:
+              $ref: '#/components/headers/Retry-After'
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
     get:
       summary: The caller's evaluations of one item, newest first (at most 50)
       description: Hidden tests appear only as counts per verdict.
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantID'
-        - $ref: '#/components/parameters/AttemptID'
-        - $ref: '#/components/parameters/ExamItemID'
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/AttemptID'
+      - $ref: '#/components/parameters/ExamItemID'
       responses:
         '200':
           description: The item's evaluations.
@@ -459,22 +707,38 @@ paths:
                 properties:
                   items:
                     type: array
-                    items: { $ref: '#/components/schemas/ItemSubmission' }
-        '400': { $ref: '#/components/responses/Problem400' }
-        '403': { $ref: '#/components/responses/Problem403' }
-        '404': { $ref: '#/components/responses/Problem404' }
+                    items: {$ref: '#/components/schemas/ItemSubmission'}
+                    maxItems: 200
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        '400': {$ref: '#/components/responses/Problem400'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '404': {$ref: '#/components/responses/Problem404'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/runs/{run_id}:
     get:
       summary: Return one of the caller's runs with every sample test's input and output
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantID'
-        - $ref: '#/components/parameters/AttemptID'
-        - name: run_id
-          in: path
-          required: true
-          schema: { $ref: '#/components/schemas/UUID' }
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/AttemptID'
+      - name: run_id
+        in: path
+        required: true
+        schema: {$ref: '#/components/schemas/UUID'}
       responses:
         '200':
           description: The run. units is empty until the run has completed.
@@ -482,9 +746,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CodeRun'
-        '400': { $ref: '#/components/responses/Problem400' }
-        '403': { $ref: '#/components/responses/Problem403' }
-        '404': { $ref: '#/components/responses/Problem404' }
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        '400': {$ref: '#/components/responses/Problem400'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '404': {$ref: '#/components/responses/Problem404'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/monitor:
     get:
       summary: Live monitor of an exam version, for staff (ADR-0027)
@@ -493,26 +772,41 @@ paths:
         and the finalized or best-so-far score, plus the release state and
         announcements. Requires read on score_summaries.
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantID'
-        - $ref: '#/components/parameters/ExamVersionID'
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/ExamVersionID'
       responses:
         '200':
           description: The monitor.
           content:
             application/json:
-              schema: { type: object }
-        '403': { $ref: '#/components/responses/Problem403' }
+              schema: {type: object}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        '403': {$ref: '#/components/responses/Problem403'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/results-release:
     put:
       summary: Show or hide an exam version's results to its candidates (ADR-0027)
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantID'
-        - $ref: '#/components/parameters/ExamVersionID'
-        - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/ExamVersionID'
+      - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -522,7 +816,7 @@ paths:
               additionalProperties: false
               required: [released]
               properties:
-                released: { type: boolean }
+                released: {type: boolean}
       responses:
         '200':
           description: The release time, null when hidden.
@@ -531,8 +825,23 @@ paths:
               schema:
                 type: object
                 properties:
-                  results_released_at: { type: [string, 'null'], format: date-time }
-        '403': { $ref: '#/components/responses/Problem403' }
+                  results_released_at: {type: [string, 'null'], format: date-time}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        '403': {$ref: '#/components/responses/Problem403'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/extensions:
     post:
       summary: Add time to one in-progress attempt, or to all of them (ADR-0027)
@@ -540,11 +849,11 @@ paths:
         Without attempt_id, every attempt of the version still in progress
         gets the time. Ended attempts are never reopened; naming one is a 409.
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantID'
-        - $ref: '#/components/parameters/ExamVersionID'
-        - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/ExamVersionID'
+      - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -554,8 +863,8 @@ paths:
               additionalProperties: false
               required: [minutes]
               properties:
-                minutes: { type: integer, minimum: 1, maximum: 240 }
-                attempt_id: { $ref: '#/components/schemas/UUID' }
+                minutes: {type: integer, minimum: 1, maximum: 240, format: int64}
+                attempt_id: {$ref: '#/components/schemas/UUID'}
       responses:
         '200':
           description: How many attempts got the time.
@@ -564,19 +873,34 @@ paths:
               schema:
                 type: object
                 properties:
-                  extended_attempts: { type: integer }
-        '400': { $ref: '#/components/responses/Problem400' }
-        '403': { $ref: '#/components/responses/Problem403' }
-        '409': { $ref: '#/components/responses/Problem409' }
+                  extended_attempts: {type: integer, format: int64}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        '400': {$ref: '#/components/responses/Problem400'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '409': {$ref: '#/components/responses/Problem409'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/announcements:
     post:
       summary: Show a message to every candidate of the exam version (ADR-0027)
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantID'
-        - $ref: '#/components/parameters/ExamVersionID'
-        - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/ExamVersionID'
+      - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -586,23 +910,38 @@ paths:
               additionalProperties: false
               required: [body]
               properties:
-                body: { type: string, minLength: 1, maxLength: 2000 }
+                body: {type: string, minLength: 1, maxLength: 2000}
       responses:
         '201':
           description: The announcement.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Announcement' }
-        '400': { $ref: '#/components/responses/Problem400' }
-        '403': { $ref: '#/components/responses/Problem403' }
+              schema: {$ref: '#/components/schemas/Announcement'}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        '400': {$ref: '#/components/responses/Problem400'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/live:
     get:
       summary: The caller's current deadline and the exam's announcements (ADR-0027)
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantID'
-        - $ref: '#/components/parameters/AttemptID'
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/AttemptID'
       responses:
         '200':
           description: The live state.
@@ -611,13 +950,29 @@ paths:
               schema:
                 type: object
                 properties:
-                  lifecycle_state: { type: string }
-                  submission_deadline: { type: string, format: date-time }
+                  lifecycle_state: {type: string, maxLength: 1000}
+                  submission_deadline: {type: string, format: date-time}
                   announcements:
                     type: array
-                    items: { $ref: '#/components/schemas/Announcement' }
-        '403': { $ref: '#/components/responses/Problem403' }
-        '404': { $ref: '#/components/responses/Problem404' }
+                    items: {$ref: '#/components/schemas/Announcement'}
+                    maxItems: 200
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        '403': {$ref: '#/components/responses/Problem403'}
+        '404': {$ref: '#/components/responses/Problem404'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/result:
     get:
       summary: The caller's score, once staff release results (ADR-0027)
@@ -625,18 +980,33 @@ paths:
         {"released": false} until results are released and the attempt is
         graded; then the total and each question's best score.
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantID'
-        - $ref: '#/components/parameters/AttemptID'
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/AttemptID'
       responses:
         '200':
           description: The result.
           content:
             application/json:
-              schema: { type: object }
-        '403': { $ref: '#/components/responses/Problem403' }
-        '404': { $ref: '#/components/responses/Problem404' }
+              schema: {type: object}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        '403': {$ref: '#/components/responses/Problem403'}
+        '404': {$ref: '#/components/responses/Problem404'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/review:
     get:
       summary: Staff review of one attempt (ADR-0029)
@@ -645,18 +1015,33 @@ paths:
         the finalized score and the attempt's event log. Requires read on
         judge_receipts, which no candidate can hold.
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantID'
-        - $ref: '#/components/parameters/AttemptID'
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/AttemptID'
       responses:
         '200':
           description: The review.
           content:
             application/json:
-              schema: { type: object }
-        '403': { $ref: '#/components/responses/Problem403' }
-        '404': { $ref: '#/components/responses/Problem404' }
+              schema: {type: object}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        '403': {$ref: '#/components/responses/Problem403'}
+        '404': {$ref: '#/components/responses/Problem404'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/similarity:
     get:
       summary: Code similarity report for staff (ADR-0031)
@@ -665,27 +1050,42 @@ paths:
         unusual structure (score 0.6 to 1, at most 100 pairs). Requires read
         on judge_receipts.
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantID'
-        - $ref: '#/components/parameters/ExamVersionID'
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/ExamVersionID'
       responses:
         '200':
           description: The report.
           content:
             application/json:
-              schema: { type: array, items: { type: object } }
-        '403': { $ref: '#/components/responses/Problem403' }
+              schema: {type: array, items: {type: object}, maxItems: 200}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        '403': {$ref: '#/components/responses/Problem403'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/choices/{exam_item_id}:
     put:
       summary: Save the caller's selection for a multiple-choice item (ADR-0035)
       description: Indexes are the options' authored indexes from the paper; an empty list clears the answer.
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantID'
-        - $ref: '#/components/parameters/AttemptID'
-        - $ref: '#/components/parameters/ExamItemID'
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/AttemptID'
+      - $ref: '#/components/parameters/ExamItemID'
       requestBody:
         required: true
         content:
@@ -695,19 +1095,25 @@ paths:
               additionalProperties: false
               required: [selected]
               properties:
-                selected: { type: array, maxItems: 10, items: { type: integer, minimum: 0 } }
+                selected: {type: array, maxItems: 10, items: {type: integer, minimum: 0, format: int64}}
       responses:
-        '200': { description: The saved selection. }
-        '400': { $ref: '#/components/responses/Problem400' }
-        '409': { $ref: '#/components/responses/Problem409' }
+        '200': {description: The saved selection., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '400': {$ref: '#/components/responses/Problem400'}
+        '409': {$ref: '#/components/responses/Problem409'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/integrity:
     put:
       summary: Require fullscreen and block outside pastes for an exam (ADR-0037)
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantID'
-        - $ref: '#/components/parameters/ExamVersionID'
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/ExamVersionID'
       requestBody:
         required: true
         content:
@@ -716,60 +1122,96 @@ paths:
               type: object
               additionalProperties: false
               properties:
-                require_fullscreen: { type: boolean }
-                block_external_paste: { type: boolean }
+                require_fullscreen: {type: boolean}
+                block_external_paste: {type: boolean}
       responses:
-        '200': { description: The saved settings. }
-        '403': { $ref: '#/components/responses/Problem403' }
+        '200': {description: The saved settings., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '403': {$ref: '#/components/responses/Problem403'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/grading-queue:
     get:
       summary: Staff view of the tenant's current grading queue (ADR-0043)
       description: Requires read on score_summaries (staff-only resource).
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/TenantID'
       responses:
         '200':
           description: The grading queue.
           content:
             application/json:
-              schema: { type: object }
-        '403': { $ref: '#/components/responses/Problem403' }
+              schema: {type: object}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        '403': {$ref: '#/components/responses/Problem403'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/items/{exam_item_id}/regrade:
     post:
       summary: Re-evaluate all answers to one item on its current tests (ADR-0039)
       description: Requires write on score_summaries.
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantID'
-        - $ref: '#/components/parameters/ExamVersionID'
-        - $ref: '#/components/parameters/ExamItemID'
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/ExamVersionID'
+      - $ref: '#/components/parameters/ExamItemID'
       responses:
         '200':
           description: Regrade queued.
           content:
             application/json:
-              schema: { type: object }
-        '403': { $ref: '#/components/responses/Problem403' }
-        '404': { $ref: '#/components/responses/Problem404' }
+              schema: {type: object}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        '403': {$ref: '#/components/responses/Problem403'}
+        '404': {$ref: '#/components/responses/Problem404'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/snapshots:
     post:
       summary: Upload a webcam snapshot for the caller's attempt (ADR-0078)
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantID'
-        - $ref: '#/components/parameters/AttemptID'
-        - in: header
-          name: X-Captured-At
-          schema: { type: string, format: date-time }
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/AttemptID'
+      - in: header
+        name: X-Captured-At
+        schema: {type: string, format: date-time}
       requestBody:
         required: true
         content:
           image/jpeg:
-            schema: { type: string, format: binary }
+            schema: {type: string, format: binary}
       responses:
         '201':
           description: Snapshot stored.
@@ -778,16 +1220,31 @@ paths:
               schema:
                 type: object
                 properties:
-                  id: { type: string, format: uuid }
-        '400': { $ref: '#/components/responses/Problem400' }
-        '503': { $ref: '#/components/responses/Problem503' }
+                  id: {type: string, format: uuid, maxLength: 36}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        '400': {$ref: '#/components/responses/Problem400'}
+        '503': {$ref: '#/components/responses/Problem503'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     get:
       summary: List webcam snapshots for an attempt (VIEW_STUDENT_PII)
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantID'
-        - $ref: '#/components/parameters/AttemptID'
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/AttemptID'
       responses:
         '200':
           description: Snapshot list with presigned URLs.
@@ -798,18 +1255,34 @@ paths:
                 items:
                   type: object
                   properties:
-                    id: { type: string, format: uuid }
-                    captured_at: { type: string, format: date-time }
-                    url: { type: string, format: uri }
-        '403': { $ref: '#/components/responses/Problem403' }
+                    id: {type: string, format: uuid, maxLength: 36}
+                    captured_at: {type: string, format: date-time}
+                    url: {type: string, format: uri}
+                maxItems: 200
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        '403': {$ref: '#/components/responses/Problem403'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/events:
     post:
       summary: Record an integrity event for the caller's attempt (ADR-0037)
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/TenantID'
-        - $ref: '#/components/parameters/AttemptID'
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/AttemptID'
       requestBody:
         required: true
         content:
@@ -819,16 +1292,23 @@ paths:
               additionalProperties: false
               required: [kind]
               properties:
-                kind: { type: string, enum: [blur, paste, fullscreen_exit] }
+                kind: {type: string, enum: [blur, paste, fullscreen_exit]}
       responses:
-        '204': { description: Recorded (or ignored once the attempt ended). }
-        '400': { $ref: '#/components/responses/Problem400' }
+        '204': {description: Recorded (or ignored once the attempt ended)., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '400': {$ref: '#/components/responses/Problem400'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: 'Bearer JSON Web Token (JWT). Tokens are short-lived and signed per RFC 8725. Include as: Authorization: Bearer <token>.'
   parameters:
     TenantID:
       name: tenant_id
@@ -866,12 +1346,13 @@ components:
     Announcement:
       type: object
       properties:
-        id: { $ref: '#/components/schemas/UUID' }
-        body: { type: string }
-        created_at: { type: string, format: date-time }
+        id: {$ref: '#/components/schemas/UUID'}
+        body: {type: string, maxLength: 1000}
+        created_at: {type: string, format: date-time}
     UUID:
       type: string
       format: uuid
+      maxLength: 36
     SHA256:
       type: string
       pattern: '^[0-9a-f]{64}$'
@@ -879,59 +1360,59 @@ components:
       type: object
       additionalProperties: false
       required:
-        - id
-        - tenant_id
-        - exam_id
-        - exam_version_id
-        - candidate_id
-        - candidate_assignment_id
-        - attempt_number
-        - lifecycle_state
-        - available_from
-        - submission_deadline
-        - version
-        - created_at
+      - id
+      - tenant_id
+      - exam_id
+      - exam_version_id
+      - candidate_id
+      - candidate_assignment_id
+      - attempt_number
+      - lifecycle_state
+      - available_from
+      - submission_deadline
+      - version
+      - created_at
       properties:
-        id: { $ref: '#/components/schemas/UUID' }
-        tenant_id: { $ref: '#/components/schemas/UUID' }
-        exam_id: { $ref: '#/components/schemas/UUID' }
-        exam_version_id: { $ref: '#/components/schemas/UUID' }
-        candidate_id: { $ref: '#/components/schemas/UUID' }
-        candidate_assignment_id: { $ref: '#/components/schemas/UUID' }
-        attempt_number: { type: integer, minimum: 1 }
+        id: {$ref: '#/components/schemas/UUID'}
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+        exam_id: {$ref: '#/components/schemas/UUID'}
+        exam_version_id: {$ref: '#/components/schemas/UUID'}
+        candidate_id: {$ref: '#/components/schemas/UUID'}
+        candidate_assignment_id: {$ref: '#/components/schemas/UUID'}
+        attempt_number: {type: integer, minimum: 1, format: int64}
         lifecycle_state:
           type: string
           enum: [created, active, submitted, grading, graded, expired, cancelled]
-        available_from: { type: string, format: date-time }
-        submission_deadline: { type: string, format: date-time }
-        started_at: { type: [string, 'null'], format: date-time }
-        submitted_at: { type: [string, 'null'], format: date-time }
-        completed_at: { type: [string, 'null'], format: date-time }
-        version: { type: integer, minimum: 1 }
-        created_at: { type: string, format: date-time }
+        available_from: {type: string, format: date-time}
+        submission_deadline: {type: string, format: date-time}
+        started_at: {type: [string, 'null'], format: date-time}
+        submitted_at: {type: [string, 'null'], format: date-time}
+        completed_at: {type: [string, 'null'], format: date-time}
+        version: {type: integer, minimum: 1, format: int64}
+        created_at: {type: string, format: date-time}
     AnswerRevision:
       type: object
       additionalProperties: false
       required:
-        - id
-        - tenant_id
-        - attempt_id
-        - exam_item_id
-        - revision_number
-        - language_id
-        - created_at
-        - created_by
-        - attempt_version
+      - id
+      - tenant_id
+      - attempt_id
+      - exam_item_id
+      - revision_number
+      - language_id
+      - created_at
+      - created_by
+      - attempt_version
       properties:
-        id: { $ref: '#/components/schemas/UUID' }
-        tenant_id: { $ref: '#/components/schemas/UUID' }
-        attempt_id: { $ref: '#/components/schemas/UUID' }
-        exam_item_id: { $ref: '#/components/schemas/UUID' }
-        revision_number: { type: integer, minimum: 1 }
-        language_id: { type: string }
-        created_at: { type: string, format: date-time }
-        created_by: { $ref: '#/components/schemas/UUID' }
-        attempt_version: { type: integer, minimum: 1 }
+        id: {$ref: '#/components/schemas/UUID'}
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+        attempt_id: {$ref: '#/components/schemas/UUID'}
+        exam_item_id: {$ref: '#/components/schemas/UUID'}
+        revision_number: {type: integer, minimum: 1, format: int64}
+        language_id: {type: string, maxLength: 1000}
+        created_at: {type: string, format: date-time}
+        created_by: {$ref: '#/components/schemas/UUID'}
+        attempt_version: {type: integer, minimum: 1, format: int64}
     AttemptPage:
       type: object
       additionalProperties: false
@@ -941,8 +1422,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Attempt'
+          maxItems: 200
         next_cursor:
           type: string
+          maxLength: 1000
     AnswerRevisionPage:
       type: object
       additionalProperties: false
@@ -952,23 +1435,25 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AnswerRevision'
+          maxItems: 200
         next_cursor:
           type: string
+          maxLength: 1000
     CodeRun:
       type: object
       additionalProperties: false
       required: [id, attempt_id, exam_item_id, language_id, lifecycle_state, verdict, created_at, completed_at]
       properties:
-        id: { $ref: '#/components/schemas/UUID' }
-        attempt_id: { $ref: '#/components/schemas/UUID' }
-        exam_item_id: { $ref: '#/components/schemas/UUID' }
-        language_id: { type: string }
-        lifecycle_state: { type: string, enum: [queued, dispatched, completed, failed, cancelled] }
-        verdict: { type: [string, 'null'] }
-        passed_units: { type: integer, minimum: 0, description: Listed runs only. }
-        total_units: { type: integer, minimum: 0, description: Listed runs only. }
-        created_at: { type: string, format: date-time }
-        completed_at: { type: [string, 'null'], format: date-time }
+        id: {$ref: '#/components/schemas/UUID'}
+        attempt_id: {$ref: '#/components/schemas/UUID'}
+        exam_item_id: {$ref: '#/components/schemas/UUID'}
+        language_id: {type: string, maxLength: 1000}
+        lifecycle_state: {type: string, enum: [queued, dispatched, completed, failed, cancelled]}
+        verdict: {type: [string, 'null'], maxLength: 1000}
+        passed_units: {type: integer, minimum: 0, description: Listed runs only., format: int64}
+        total_units: {type: integer, minimum: 0, description: Listed runs only., format: int64}
+        created_at: {type: string, format: date-time}
+        completed_at: {type: [string, 'null'], format: date-time}
         units:
           type: array
           description: A fetched run only. Sample tests are not confidential, so nothing is redacted.
@@ -977,45 +1462,46 @@ components:
             additionalProperties: false
             required: [unit_number, verdict]
             properties:
-              unit_number: { type: integer, minimum: 0 }
-              verdict: { type: string }
-              stdin: { type: [string, 'null'] }
-              expected_output: { type: [string, 'null'] }
-              stdout: { type: [string, 'null'] }
-              stderr: { type: [string, 'null'] }
-              compile_output: { type: [string, 'null'] }
-              execution_time_ms: { type: [integer, 'null'] }
-              memory_kib: { type: [integer, 'null'] }
+              unit_number: {type: integer, minimum: 0, format: int64}
+              verdict: {type: string, maxLength: 1000}
+              stdin: {type: [string, 'null'], maxLength: 1000}
+              expected_output: {type: [string, 'null'], maxLength: 1000}
+              stdout: {type: [string, 'null'], maxLength: 1000}
+              stderr: {type: [string, 'null'], maxLength: 1000}
+              compile_output: {type: [string, 'null'], maxLength: 1000}
+              execution_time_ms: {type: [integer, 'null'], format: int64}
+              memory_kib: {type: [integer, 'null'], format: int64}
+          maxItems: 200
     ItemSubmission:
       type: object
       additionalProperties: false
       required: [id, origin, lifecycle_state, queued_at, completed_at, verdict, score, passed_units, total_units, verdict_counts]
       properties:
-        id: { $ref: '#/components/schemas/UUID' }
-        origin: { type: string, enum: [item_submit, final] }
-        lifecycle_state: { type: string, enum: [queued, dispatched, completed, failed, cancelled] }
-        language_id: { type: string }
-        revision_number: { type: integer, minimum: 1 }
-        queued_at: { type: string, format: date-time }
-        completed_at: { type: [string, 'null'], format: date-time }
-        verdict: { type: [string, 'null'] }
-        score: { type: [string, 'null'], description: Null until judged. }
-        maximum_score: { type: string }
-        passed_units: { type: [integer, 'null'] }
-        total_units: { type: [integer, 'null'] }
+        id: {$ref: '#/components/schemas/UUID'}
+        origin: {type: string, enum: [item_submit, final]}
+        lifecycle_state: {type: string, enum: [queued, dispatched, completed, failed, cancelled]}
+        language_id: {type: string, maxLength: 1000}
+        revision_number: {type: integer, minimum: 1, format: int64}
+        queued_at: {type: string, format: date-time}
+        completed_at: {type: [string, 'null'], format: date-time}
+        verdict: {type: [string, 'null'], maxLength: 1000}
+        score: {type: [string, 'null'], description: Null until judged., maxLength: 1000}
+        maximum_score: {type: string, maxLength: 1000}
+        passed_units: {type: [integer, 'null'], format: int64}
+        total_units: {type: [integer, 'null'], format: int64}
         verdict_counts:
           type: object
-          additionalProperties: { type: integer, minimum: 1 }
+          additionalProperties: {type: integer, minimum: 1, format: int64}
           description: Number of tests per verdict, for example {"accepted":3,"wrong_answer":1}.
     Paper:
       type: object
       additionalProperties: false
       required: [attempt_id, exam_id, title, instructions_markdown, items]
       properties:
-        attempt_id: { $ref: '#/components/schemas/UUID' }
-        exam_id: { $ref: '#/components/schemas/UUID' }
-        title: { type: string }
-        instructions_markdown: { type: string }
+        attempt_id: {$ref: '#/components/schemas/UUID'}
+        exam_id: {$ref: '#/components/schemas/UUID'}
+        title: {type: string, maxLength: 1000}
+        instructions_markdown: {type: string, maxLength: 1000}
         items:
           type: array
           items:
@@ -1023,24 +1509,25 @@ components:
             additionalProperties: false
             required: [exam_item_id, position, title, prompt_markdown, maximum_score, supported_languages, time_limit_ms, memory_limit_kib, latest_answer]
             properties:
-              exam_item_id: { $ref: '#/components/schemas/UUID' }
-              position: { type: integer, minimum: 1 }
-              title: { type: string }
-              prompt_markdown: { type: string }
-              maximum_score: { type: string }
-              supported_languages: { type: array, items: { type: string } }
-              time_limit_ms: { type: integer, minimum: 0 }
-              memory_limit_kib: { type: integer, minimum: 0 }
+              exam_item_id: {$ref: '#/components/schemas/UUID'}
+              position: {type: integer, minimum: 1, format: int64}
+              title: {type: string, maxLength: 1000}
+              prompt_markdown: {type: string, maxLength: 1000}
+              maximum_score: {type: string, maxLength: 1000}
+              supported_languages: {type: array, items: {type: string, maxLength: 1000}, maxItems: 200}
+              time_limit_ms: {type: integer, minimum: 0, format: int64}
+              memory_limit_kib: {type: integer, minimum: 0, format: int64}
               latest_answer:
                 oneOf:
-                  - type: 'null'
-                  - type: object
-                    additionalProperties: false
-                    required: [language, source, revision_number]
-                    properties:
-                      language: { type: string }
-                      source: { type: string }
-                      revision_number: { type: integer, minimum: 1 }
+                - type: 'null'
+                - type: object
+                  additionalProperties: false
+                  required: [language, source, revision_number]
+                  properties:
+                    language: {type: string, maxLength: 1000}
+                    source: {type: string, maxLength: 1000}
+                    revision_number: {type: integer, minimum: 1, format: int64}
+          maxItems: 200
     CodeRunPage:
       type: object
       additionalProperties: false
@@ -1050,38 +1537,162 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CodeRun'
+          maxItems: 200
         next_cursor:
           type: string
+          maxLength: 1000
     Problem:
       type: object
       additionalProperties: false
       required: [code, message]
       properties:
-        code: { type: string }
-        message: { type: string }
+        code: {type: string, maxLength: 1000}
+        message: {type: string, maxLength: 1000}
   responses:
     Problem400:
       description: Invalid request.
       content:
         application/json:
-          schema: { $ref: '#/components/schemas/Problem' }
+          schema: {$ref: '#/components/schemas/Problem'}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     Problem403:
       description: Authorization denied or local authorization projection is stale.
       content:
         application/json:
-          schema: { $ref: '#/components/schemas/Problem' }
+          schema: {$ref: '#/components/schemas/Problem'}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     Problem404:
       description: Candidate-owned record was not found.
       content:
         application/json:
-          schema: { $ref: '#/components/schemas/Problem' }
+          schema: {$ref: '#/components/schemas/Problem'}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     Problem409:
       description: State, deadline, idempotency, or optimistic-version conflict.
       content:
         application/json:
-          schema: { $ref: '#/components/schemas/Problem' }
+          schema: {$ref: '#/components/schemas/Problem'}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     Problem503:
       description: Candidate source storage or key management is not configured or reachable.
       content:
         application/json:
-          schema: { $ref: '#/components/schemas/Problem' }
+          schema: {$ref: '#/components/schemas/Problem'}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+    Problem401:
+      description: Unauthorized — missing, expired, or invalid bearer token.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+    Problem500:
+      description: Internal server error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+    Problem429:
+      description: Too many requests — rate limit exceeded.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+        Retry-After:
+          $ref: '#/components/headers/Retry-After'
+  headers:
+    RateLimit-Limit:
+      description: Standard rate-limit response headers (RFC 6585 / IETF draft-ietf-httpapi-ratelimit-headers).
+      schema:
+        type: string
+        maxLength: 64
+    RateLimit-Remaining:
+      description: Standard rate-limit response headers (RFC 6585 / IETF draft-ietf-httpapi-ratelimit-headers).
+      schema:
+        type: string
+        maxLength: 64
+    RateLimit-Reset:
+      description: Standard rate-limit response headers (RFC 6585 / IETF draft-ietf-httpapi-ratelimit-headers).
+      schema:
+        type: string
+        maxLength: 64
+    Access-Control-Allow-Origin:
+      description: CORS allowed origins. The platform gateway sets this; internal services declare it for contract completeness.
+      schema:
+        type: string
+        maxLength: 256
+    Retry-After:
+      description: Number of seconds to wait before retrying after a 429 rate-limit response.
+      schema:
+        type: integer
+        minimum: 0
+servers:
+- url: https://submission.internal.aethercode.in
+  description: AetherCode submission service — internal platform endpoint (production)
+  x-internal: true

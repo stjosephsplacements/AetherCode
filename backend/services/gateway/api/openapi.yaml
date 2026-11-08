@@ -10,33 +10,134 @@ paths:
   /healthz:
     get:
       responses:
-        '200': {description: Service is alive}
+        '200': {description: Service is alive, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
   /readyz:
     get:
       responses:
-        '200': {description: Service is ready}
-        '503': {description: A configured upstream or authorization dependency is unavailable}
+        '200': {description: Service is ready, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '503': {description: A configured upstream or authorization dependency is unavailable, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
   /api/{service}/{path}:
     parameters:
-      - name: service
-        in: path
-        required: true
-        schema:
-          type: string
-          enum: [identity, tenant, user, question-bank, assessment, submission, seb, notification, analytics]
-      - name: path
-        in: path
-        required: true
-        schema: {type: string}
+    - name: service
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [identity, tenant, user, question-bank, assessment, submission, seb, notification, analytics]
+    - name: path
+      in: path
+      required: true
+      schema: {type: string, maxLength: 1000}
     description: >-
       Fixed allowlisted reverse-proxy route. The service prefix is removed
       before the configured private upstream is called. Only the exact public
       Identity authentication routes may omit bearer authentication.
     get:
       responses:
-        '200': {description: Proxied service response}
-        '401': {description: Missing or invalid bearer assertion}
-        '403': {description: Secure Exam Browser validation failed}
-        '404': {description: Route or service is unavailable}
-        '429': {description: Per-instance rate limit exceeded}
-        '502': {description: Configured upstream is unavailable}
+        '200': {description: Proxied service response, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '401': {description: Missing or invalid bearer assertion, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '403': {description: Secure Exam Browser validation failed, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '404': {description: Route or service is unavailable, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '429': {description: Per-instance rate limit exceeded, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}, Retry-After: {$ref: '#/components/headers/Retry-After'}}}
+        '502': {description: Configured upstream is unavailable, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+components:
+  securitySchemes: {}
+  parameters: {}
+  schemas:
+    Problem:
+      type: object
+      additionalProperties: false
+      required:
+      - code
+      - message
+      properties:
+        code:
+          type: string
+          maxLength: 1000
+        message:
+          type: string
+          maxLength: 1000
+  responses:
+    Problem401:
+      description: Unauthorized — missing, expired, or invalid bearer token.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+    Problem500:
+      description: Internal server error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+    Problem429:
+      description: Too many requests — rate limit exceeded.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+        Retry-After:
+          $ref: '#/components/headers/Retry-After'
+  headers:
+    RateLimit-Limit:
+      description: Standard rate-limit response headers (RFC 6585 / IETF draft-ietf-httpapi-ratelimit-headers).
+      schema:
+        type: string
+        maxLength: 64
+    RateLimit-Remaining:
+      description: Standard rate-limit response headers (RFC 6585 / IETF draft-ietf-httpapi-ratelimit-headers).
+      schema:
+        type: string
+        maxLength: 64
+    RateLimit-Reset:
+      description: Standard rate-limit response headers (RFC 6585 / IETF draft-ietf-httpapi-ratelimit-headers).
+      schema:
+        type: string
+        maxLength: 64
+    Access-Control-Allow-Origin:
+      description: CORS allowed origins. The platform gateway sets this; internal services declare it for contract completeness.
+      schema:
+        type: string
+        maxLength: 256
+    Retry-After:
+      description: Number of seconds to wait before retrying after a 429 rate-limit response.
+      schema:
+        type: integer
+        minimum: 0
+servers:
+- url: https://gateway.internal.aethercode.in
+  description: AetherCode gateway service — internal platform endpoint (production)
+  x-internal: true

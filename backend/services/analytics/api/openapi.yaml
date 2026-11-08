@@ -7,113 +7,182 @@ paths:
   /healthz:
     get:
       responses:
-        '200': {description: Service is alive}
+        '200': {description: Service is alive, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
   /readyz:
     get:
       responses:
-        '200': {description: Database, authorization projection, outbox, and consumers are ready}
+        '200': {description: Database, authorization projection: null, outbox: null, and consumers are ready: null, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '503': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
   /v1/tenants/{tenant_id}/student-progress/{student_id}:
     get:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       parameters:
-        - {$ref: '#/components/parameters/TenantID'}
-        - {$ref: '#/components/parameters/StudentID'}
-        - {$ref: '#/components/parameters/Limit'}
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/StudentID'}
+      - {$ref: '#/components/parameters/Limit'}
       responses:
         '200':
           description: Event-fed question progress for the requested student.
           content:
             application/json:
-              schema: {type: array, items: {$ref: '#/components/schemas/StudentProgress'}}
+              schema: {type: array, items: {$ref: '#/components/schemas/StudentProgress'}, maxItems: 200}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exam-results:
     get:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       parameters:
-        - {$ref: '#/components/parameters/TenantID'}
-        - name: exam_version_id
-          in: query
-          required: true
-          schema: {$ref: '#/components/schemas/UUID'}
-        - {$ref: '#/components/parameters/Limit'}
+      - {$ref: '#/components/parameters/TenantID'}
+      - name: exam_version_id
+        in: query
+        required: true
+        schema: {$ref: '#/components/schemas/UUID'}
+      - {$ref: '#/components/parameters/Limit'}
       responses:
         '200':
           description: Completed attempts for one immutable exam version. limit may be up to 5000 here, so one exam fits in one page.
           content:
             application/json:
-              schema: {type: array, items: {$ref: '#/components/schemas/ExamResult'}}
+              schema: {type: array, items: {$ref: '#/components/schemas/ExamResult'}, maxItems: 200}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/batch-progress/{batch_id}:
     get:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       parameters:
-        - {$ref: '#/components/parameters/TenantID'}
-        - name: batch_id
-          in: path
-          required: true
-          schema: {$ref: '#/components/schemas/UUID'}
-        - {$ref: '#/components/parameters/Limit'}
+      - {$ref: '#/components/parameters/TenantID'}
+      - name: batch_id
+        in: path
+        required: true
+        schema: {$ref: '#/components/schemas/UUID'}
+      - {$ref: '#/components/parameters/Limit'}
       responses:
         '200':
           description: Current active User student-batch affiliations only. No affiliation event is inferred as membership; started_count comes from durable attempt-start facts for current active assignments, completed_count comes from terminal grades, and average_score uses each student's latest current-assignment grade.
           content:
             application/json:
-              schema: {type: array, items: {$ref: '#/components/schemas/BatchProgress'}}
+              schema: {type: array, items: {$ref: '#/components/schemas/BatchProgress'}, maxItems: 200}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/batch-progress/{batch_id}/by-department:
     get:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       parameters:
-        - {$ref: '#/components/parameters/TenantID'}
-        - name: batch_id
-          in: path
-          required: true
-          schema: {$ref: '#/components/schemas/UUID'}
-        - {$ref: '#/components/parameters/Limit'}
+      - {$ref: '#/components/parameters/TenantID'}
+      - name: batch_id
+        in: path
+        required: true
+        schema: {$ref: '#/components/schemas/UUID'}
+      - {$ref: '#/components/parameters/Limit'}
       responses:
         '200':
           description: Department-sliced batch progress. Same semantics as batch-progress but groups by department_id, so department-scoped staff can read only their slice. Requires migration 000019.
           content:
             application/json:
-              schema: {type: array, items: {$ref: '#/components/schemas/DepartmentBatchProgress'}}
+              schema: {type: array, items: {$ref: '#/components/schemas/DepartmentBatchProgress'}, maxItems: 200}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/placement-progress/{placement_department_id}:
     get:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       parameters:
-        - {$ref: '#/components/parameters/TenantID'}
-        - name: placement_department_id
-          in: path
-          required: true
-          schema: {$ref: '#/components/schemas/UUID'}
-        - {$ref: '#/components/parameters/Limit'}
+      - {$ref: '#/components/parameters/TenantID'}
+      - name: placement_department_id
+        in: path
+        required: true
+        schema: {$ref: '#/components/schemas/UUID'}
+      - {$ref: '#/components/parameters/Limit'}
       responses:
         '200':
           description: Latest completed attempt per currently affiliated student.
           content:
             application/json:
-              schema: {type: array, items: {$ref: '#/components/schemas/PlacementProgress'}}
+              schema: {type: array, items: {$ref: '#/components/schemas/PlacementProgress'}, maxItems: 200}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/report-exports:
     post:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       parameters:
-        - {$ref: '#/components/parameters/TenantID'}
-        - name: Idempotency-Key
-          in: header
-          required: true
-          schema: {type: string, minLength: 1, maxLength: 255}
+      - {$ref: '#/components/parameters/TenantID'}
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema: {type: string, minLength: 1, maxLength: 255}
       requestBody:
         required: true
         content:
@@ -132,36 +201,62 @@ paths:
           description: Durable export request accepted and published through the local outbox. A tenant-wide legal hold is captured before the request commits and blocks later expiry/deletion.
           content:
             application/json: {schema: {$ref: '#/components/schemas/ReportExport'}}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/report-exports/{export_id}:
     get:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       parameters:
-        - {$ref: '#/components/parameters/TenantID'}
-        - name: export_id
-          in: path
-          required: true
-          schema: {$ref: '#/components/schemas/UUID'}
+      - {$ref: '#/components/parameters/TenantID'}
+      - name: export_id
+        in: path
+        required: true
+        schema: {$ref: '#/components/schemas/UUID'}
       responses:
         '200':
           description: Current durable export state. Storage-object keys and checksums are always omitted, including for completed or legally held exports.
           content:
             application/json: {schema: {$ref: '#/components/schemas/ReportExport'}}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     delete:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       parameters:
-        - {$ref: '#/components/parameters/TenantID'}
-        - name: export_id
-          in: path
-          required: true
-          schema: {$ref: '#/components/schemas/UUID'}
+      - {$ref: '#/components/parameters/TenantID'}
+      - name: export_id
+        in: path
+        required: true
+        schema: {$ref: '#/components/schemas/UUID'}
       summary: Soft-delete a report export
       requestBody:
         required: true
@@ -174,20 +269,24 @@ paths:
               properties:
                 reason: {type: string, minLength: 1, maxLength: 500}
       responses:
-        '204': {description: Report export soft-deleted}
+        '204': {description: Report export soft-deleted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/report-exports/{export_id}/hard:
     delete:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       parameters:
-        - {$ref: '#/components/parameters/TenantID'}
-        - name: export_id
-          in: path
-          required: true
-          schema: {$ref: '#/components/schemas/UUID'}
+      - {$ref: '#/components/parameters/TenantID'}
+      - name: export_id
+        in: path
+        required: true
+        schema: {$ref: '#/components/schemas/UUID'}
       summary: Permanently delete a report export
       description: Irreversible hard delete. Blocked when a legal hold is active on the export.
       requestBody:
@@ -201,15 +300,19 @@ paths:
               properties:
                 reason: {type: string, minLength: 1, maxLength: 500}
       responses:
-        '204': {description: Report export permanently deleted}
+        '204': {description: Report export permanently deleted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
 components:
   securitySchemes:
-    bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT}
+    bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT, description: 'Bearer JSON Web Token (JWT). Tokens are short-lived and signed per RFC 8725. Include as: Authorization: Bearer <token>.'}
   parameters:
     TenantID:
       name: tenant_id
@@ -225,20 +328,76 @@ components:
       name: limit
       in: query
       required: false
-      schema: {type: integer, minimum: 1, maximum: 500, default: 100}
+      schema: {type: integer, minimum: 1, maximum: 500, default: 100, format: int64}
   responses:
     Problem:
       description: Stable application error.
       content:
         application/json: {schema: {$ref: '#/components/schemas/Problem'}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+    Problem401:
+      description: Unauthorized — missing, expired, or invalid bearer token.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+    Problem500:
+      description: Internal server error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+    Problem429:
+      description: Too many requests — rate limit exceeded.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+        Retry-After:
+          $ref: '#/components/headers/Retry-After'
   schemas:
-    UUID: {type: string, format: uuid}
+    UUID: {type: string, format: uuid, maxLength: 36}
     Problem:
       type: object
       required: [code, message]
       properties:
-        code: {type: string}
-        message: {type: string}
+        code: {type: string, maxLength: 1000}
+        message: {type: string, maxLength: 1000}
     StudentProgress:
       type: object
       required: [tenant_id, student_id, question_id, attempts_count, accepted_count, best_score, source_revision, computed_at, version]
@@ -246,9 +405,9 @@ components:
         tenant_id: {$ref: '#/components/schemas/UUID'}
         student_id: {$ref: '#/components/schemas/UUID'}
         question_id: {$ref: '#/components/schemas/UUID'}
-        attempts_count: {type: integer, minimum: 0}
-        accepted_count: {type: integer, minimum: 0}
-        best_score: {type: string}
+        attempts_count: {type: integer, minimum: 0, format: int64}
+        accepted_count: {type: integer, minimum: 0, format: int64}
+        best_score: {type: string, maxLength: 1000}
         last_attempt_at: {type: string, format: date-time}
         source_revision: {type: integer, format: int64}
         computed_at: {type: string, format: date-time}
@@ -263,10 +422,10 @@ components:
         candidate_id: {$ref: '#/components/schemas/UUID'}
         candidate_assignment_id: {$ref: '#/components/schemas/UUID'}
         attempt_id: {$ref: '#/components/schemas/UUID'}
-        attempt_number: {type: integer}
+        attempt_number: {type: integer, format: int64}
         lifecycle_state: {type: string, enum: [assigned, in_progress, graded, invalidated]}
-        score: {type: string}
-        maximum_score: {type: string}
+        score: {type: string, maxLength: 1000}
+        maximum_score: {type: string, maxLength: 1000}
         submitted_at: {type: string, format: date-time}
         graded_at: {type: string, format: date-time}
         source_revision: {type: integer, format: int64}
@@ -279,10 +438,10 @@ components:
         tenant_id: {$ref: '#/components/schemas/UUID'}
         batch_id: {$ref: '#/components/schemas/UUID'}
         exam_version_id: {$ref: '#/components/schemas/UUID'}
-        assigned_count: {type: integer, minimum: 0, description: Distinct actively affiliated students with a current active assignment.}
-        started_count: {type: integer, minimum: 0, description: Distinct actively affiliated students with a durable start fact for a current active assignment. A terminal grade is also treated as proof of a start during cross-subject delivery lag.}
-        completed_count: {type: integer, minimum: 0, description: Students with a terminal graded attempt.}
-        average_score: {type: string, description: Average latest graded score per completed student for a current assignment.}
+        assigned_count: {type: integer, minimum: 0, description: Distinct actively affiliated students with a current active assignment., format: int64}
+        started_count: {type: integer, minimum: 0, description: Distinct actively affiliated students with a durable start fact for a current active assignment. A terminal grade is also treated as proof of a start during cross-subject delivery lag., format: int64}
+        completed_count: {type: integer, minimum: 0, description: Students with a terminal graded attempt., format: int64}
+        average_score: {type: string, description: Average latest graded score per completed student for a current assignment., maxLength: 1000}
         source_revision: {type: integer, format: int64}
         computed_at: {type: string, format: date-time}
         version: {type: integer, format: int64}
@@ -294,10 +453,10 @@ components:
         batch_id: {$ref: '#/components/schemas/UUID'}
         department_id: {$ref: '#/components/schemas/UUID'}
         exam_version_id: {$ref: '#/components/schemas/UUID'}
-        assigned_count: {type: integer, minimum: 0}
-        started_count: {type: integer, minimum: 0}
-        completed_count: {type: integer, minimum: 0}
-        average_score: {type: string}
+        assigned_count: {type: integer, minimum: 0, format: int64}
+        started_count: {type: integer, minimum: 0, format: int64}
+        completed_count: {type: integer, minimum: 0, format: int64}
+        average_score: {type: string, maxLength: 1000}
         source_revision: {type: integer, format: int64}
         computed_at: {type: string, format: date-time}
         version: {type: integer, format: int64}
@@ -310,7 +469,7 @@ components:
         student_id: {$ref: '#/components/schemas/UUID'}
         home_department_id: {$ref: '#/components/schemas/UUID'}
         latest_exam_version_id: {$ref: '#/components/schemas/UUID'}
-        latest_score: {type: string}
+        latest_score: {type: string, maxLength: 1000}
         latest_activity_at: {type: string, format: date-time}
         source_revision: {type: integer, format: int64}
         computed_at: {type: string, format: date-time}
@@ -329,6 +488,7 @@ components:
           type: string
           readOnly: true
           description: Internal encrypted object reference. Always omitted from public responses.
+          maxLength: 1000
         checksum:
           type: string
           pattern: '^[0-9a-f]{64}$'
@@ -342,3 +502,33 @@ components:
           type: boolean
           description: True when an active tenant-wide legal hold preserves this export from expiry and deletion.
         version: {type: integer, format: int64}
+  headers:
+    RateLimit-Limit:
+      description: Standard rate-limit response headers (RFC 6585 / IETF draft-ietf-httpapi-ratelimit-headers).
+      schema:
+        type: string
+        maxLength: 64
+    RateLimit-Remaining:
+      description: Standard rate-limit response headers (RFC 6585 / IETF draft-ietf-httpapi-ratelimit-headers).
+      schema:
+        type: string
+        maxLength: 64
+    RateLimit-Reset:
+      description: Standard rate-limit response headers (RFC 6585 / IETF draft-ietf-httpapi-ratelimit-headers).
+      schema:
+        type: string
+        maxLength: 64
+    Access-Control-Allow-Origin:
+      description: CORS allowed origins. The platform gateway sets this; internal services declare it for contract completeness.
+      schema:
+        type: string
+        maxLength: 256
+    Retry-After:
+      description: Number of seconds to wait before retrying after a 429 rate-limit response.
+      schema:
+        type: integer
+        minimum: 0
+servers:
+- url: https://analytics.internal.aethercode.in
+  description: AetherCode analytics service — internal platform endpoint (production)
+  x-internal: true

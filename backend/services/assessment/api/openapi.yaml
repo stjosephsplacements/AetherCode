@@ -7,42 +7,54 @@ info:
     Every business request requires a bearer identity assertion and receives a
     fresh central authorization decision before a FORCE RLS transaction opens.
 servers:
-  - url: https://assessment.internal.aethercode.in
+- url: https://assessment.internal.aethercode.in
+  description: AetherCode assessment service — internal platform endpoint (production)
+  x-internal: true
 security:
-  - bearerAuth: []
+- bearerAuth: []
 paths:
   /healthz:
     get:
       security: []
       responses:
-        '200': {description: Process is alive}
+        '200': {description: Process is alive, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
   /readyz:
     get:
       security: []
       responses:
-        '200': {description: Database, authorization projection, and broker are ready}
-        '503': {description: A required dependency is unavailable}
+        '200': {description: Database, authorization projection: null, and broker are ready: null, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '503': {description: A required dependency is unavailable, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
   /v1/tenants/{tenant_id}/proctor-policies:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     get:
       summary: List proctor policies for the tenant
       description: Staff-scoped. Returns policies ordered by created_at DESC, id DESC.
       parameters:
-        - name: limit
-          in: query
-          schema: {type: integer, minimum: 1, maximum: 100, default: 20}
-        - name: cursor
-          in: query
-          schema: {type: string}
-        - name: lifecycle_state
-          in: query
-          schema: {enum: [draft, active, archived]}
+      - name: limit
+        in: query
+        schema: {type: integer, minimum: 1, maximum: 100, default: 20, format: int64}
+      - name: cursor
+        in: query
+        schema: {type: string, maxLength: 1000}
+      - name: lifecycle_state
+        in: query
+        schema: {enum: [draft, active, archived]}
       responses:
         '200': {$ref: '#/components/responses/ProctorPolicyPage'}
         default: {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     post:
       summary: Create a proctor-policy aggregate
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
       requestBody:
         required: true
         content:
@@ -56,38 +68,56 @@ paths:
       responses:
         '201': {$ref: '#/components/responses/ProctorPolicy'}
         default: {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/proctor-policies/{proctor_policy_id}:
     parameters:
-      - {$ref: '#/components/parameters/TenantID'}
-      - {$ref: '#/components/parameters/ProctorPolicyID'}
+    - {$ref: '#/components/parameters/TenantID'}
+    - {$ref: '#/components/parameters/ProctorPolicyID'}
     get:
       summary: Read a proctor-policy aggregate
       responses:
         '200': {$ref: '#/components/responses/ProctorPolicy'}
         default: {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/proctor-policies/{proctor_policy_id}/versions:
     parameters:
-      - {$ref: '#/components/parameters/TenantID'}
-      - {$ref: '#/components/parameters/ProctorPolicyID'}
+    - {$ref: '#/components/parameters/TenantID'}
+    - {$ref: '#/components/parameters/ProctorPolicyID'}
     get:
       summary: List versions of a proctor policy
       description: Staff-scoped. Returns versions ordered by version_number DESC, id DESC.
       parameters:
-        - name: limit
-          in: query
-          schema: {type: integer, minimum: 1, maximum: 100, default: 20}
-        - name: cursor
-          in: query
-          schema: {type: string}
-        - name: status
-          in: query
-          schema: {enum: [draft, published]}
+      - name: limit
+        in: query
+        schema: {type: integer, minimum: 1, maximum: 100, default: 20, format: int64}
+      - name: cursor
+        in: query
+        schema: {type: string, maxLength: 1000}
+      - name: status
+        in: query
+        schema: {enum: [draft, published]}
       responses:
         '200': {$ref: '#/components/responses/ProctorPolicyVersionPage'}
         default: {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     post:
       summary: Add the next immutable proctor-policy draft
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
       requestBody:
         required: true
         content:
@@ -97,53 +127,77 @@ paths:
               additionalProperties: false
               required: [expected_policy_version, policy]
               properties:
-                expected_policy_version: {type: integer, minimum: 1}
+                expected_policy_version: {type: integer, minimum: 1, format: int64}
                 policy: {type: object}
       responses:
         '201': {$ref: '#/components/responses/ProctorPolicyVersion'}
         default: {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/proctor-policy-versions/{proctor_policy_version_id}:
     parameters:
-      - {$ref: '#/components/parameters/TenantID'}
-      - {$ref: '#/components/parameters/ProctorPolicyVersionID'}
+    - {$ref: '#/components/parameters/TenantID'}
+    - {$ref: '#/components/parameters/ProctorPolicyVersionID'}
     get:
       summary: Read an immutable proctor-policy version snapshot
       responses:
         '200': {$ref: '#/components/responses/ProctorPolicyVersion'}
         default: {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/proctor-policy-versions/{proctor_policy_version_id}/publish:
     parameters:
-      - {$ref: '#/components/parameters/TenantID'}
-      - {$ref: '#/components/parameters/ProctorPolicyVersionID'}
+    - {$ref: '#/components/parameters/TenantID'}
+    - {$ref: '#/components/parameters/ProctorPolicyVersionID'}
     post:
       summary: Publish a draft proctor-policy version
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
       responses:
         '200': {$ref: '#/components/responses/ProctorPolicyVersion'}
         default: {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exams:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     get:
       summary: List exams for the tenant
       description: >-
         Staff-scoped. Returns non-deleted exams ordered by created_at DESC,
         id DESC. Pagination uses keyset cursors.
       parameters:
-        - name: limit
-          in: query
-          schema: {type: integer, minimum: 1, maximum: 100, default: 20}
-        - name: cursor
-          in: query
-          schema: {type: string}
-        - name: lifecycle_state
-          in: query
-          schema: {enum: [draft, published, archived]}
+      - name: limit
+        in: query
+        schema: {type: integer, minimum: 1, maximum: 100, default: 20, format: int64}
+      - name: cursor
+        in: query
+        schema: {type: string, maxLength: 1000}
+      - name: lifecycle_state
+        in: query
+        schema: {enum: [draft, published, archived]}
       responses:
         '200': {$ref: '#/components/responses/ExamPage'}
         default: {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     post:
       summary: Create an exam aggregate
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
       requestBody:
         required: true
         content:
@@ -156,18 +210,30 @@ paths:
       responses:
         '201': {$ref: '#/components/responses/Exam'}
         default: {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exams/{exam_id}:
     parameters:
-      - {$ref: '#/components/parameters/TenantID'}
-      - {$ref: '#/components/parameters/ExamID'}
+    - {$ref: '#/components/parameters/TenantID'}
+    - {$ref: '#/components/parameters/ExamID'}
     get:
       summary: Read an exam aggregate
       responses:
         '200': {$ref: '#/components/responses/Exam'}
         default: {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     patch:
       summary: Update an exam's external reference
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
       requestBody:
         required: true
         content:
@@ -182,10 +248,16 @@ paths:
       responses:
         '200': {$ref: '#/components/responses/Exam'}
         default: {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     delete:
       summary: Soft-delete an exam
       description: Sets deleted_at on the exam aggregate. Requires a reason.
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
       requestBody:
         required: true
         content:
@@ -197,16 +269,22 @@ paths:
               properties:
                 reason: {type: string, minLength: 1, maxLength: 500}
       responses:
-        '204': {description: Exam soft-deleted}
+        '204': {description: Exam soft-deleted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         default: {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exams/{exam_id}/hard:
     parameters:
-      - {$ref: '#/components/parameters/TenantID'}
-      - {$ref: '#/components/parameters/ExamID'}
+    - {$ref: '#/components/parameters/TenantID'}
+    - {$ref: '#/components/parameters/ExamID'}
     delete:
       summary: Permanently delete an exam
       description: Irreversible hard delete. Only permitted for draft exams with no candidate assignments. Requires a reason.
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
       requestBody:
         required: true
         content:
@@ -218,33 +296,45 @@ paths:
               properties:
                 reason: {type: string, minLength: 1, maxLength: 500}
       responses:
-        '204': {description: Exam permanently deleted}
+        '204': {description: Exam permanently deleted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         default: {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exams/{exam_id}/versions:
     parameters:
-      - {$ref: '#/components/parameters/TenantID'}
-      - {$ref: '#/components/parameters/ExamID'}
+    - {$ref: '#/components/parameters/TenantID'}
+    - {$ref: '#/components/parameters/ExamID'}
     get:
       summary: List versions of an exam
       description: >-
         Staff-scoped. Returns non-deleted exam versions ordered by
         version_number DESC, id DESC. Pagination uses keyset cursors.
       parameters:
-        - name: limit
-          in: query
-          schema: {type: integer, minimum: 1, maximum: 100, default: 20}
-        - name: cursor
-          in: query
-          schema: {type: string}
-        - name: status
-          in: query
-          schema: {enum: [draft, published, retired]}
+      - name: limit
+        in: query
+        schema: {type: integer, minimum: 1, maximum: 100, default: 20, format: int64}
+      - name: cursor
+        in: query
+        schema: {type: string, maxLength: 1000}
+      - name: status
+        in: query
+        schema: {enum: [draft, published, retired]}
       responses:
         '200': {$ref: '#/components/responses/ExamVersionPage'}
         default: {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     post:
       summary: Create the next draft exam version from a published proctor policy
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
       requestBody:
         required: true
         content:
@@ -253,10 +343,16 @@ paths:
       responses:
         '201': {$ref: '#/components/responses/ExamVersion'}
         default: {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/content:
     parameters:
-      - {$ref: '#/components/parameters/TenantID'}
-      - {$ref: '#/components/parameters/ExamVersionID'}
+    - {$ref: '#/components/parameters/TenantID'}
+    - {$ref: '#/components/parameters/ExamVersionID'}
     get:
       summary: The version's sections, items and assignment rules (staff exam builder)
       description: >-
@@ -277,20 +373,22 @@ paths:
                       type: object
                       properties:
                         id: {$ref: '#/components/schemas/UUID'}
-                        position: {type: integer}
-                        title: {type: string}
-                        instructions_markdown: {type: string}
+                        position: {type: integer, format: int64}
+                        title: {type: string, maxLength: 1000}
+                        instructions_markdown: {type: string, maxLength: 1000}
                         items:
                           type: array
                           items:
                             type: object
                             properties:
                               id: {$ref: '#/components/schemas/UUID'}
-                              position: {type: integer}
+                              position: {type: integer, format: int64}
                               question_id: {$ref: '#/components/schemas/UUID'}
                               question_version_id: {$ref: '#/components/schemas/UUID'}
-                              question_title: {type: [string, 'null']}
-                              maximum_score: {type: string}
+                              question_title: {type: [string, 'null'], maxLength: 1000}
+                              maximum_score: {type: string, maxLength: 1000}
+                          maxItems: 200
+                    maxItems: 200
                   assignment_rules:
                     type: array
                     items:
@@ -302,80 +400,29 @@ paths:
                         available_from: {$ref: '#/components/schemas/Timestamp'}
                         available_until: {$ref: '#/components/schemas/Timestamp'}
                         disabled_at: {type: [string, 'null'], format: date-time}
-                        assigned_candidates: {type: integer, minimum: 0}
+                        assigned_candidates: {type: integer, minimum: 0, format: int64}
+                    maxItems: 200
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         default: {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}:
     patch:
       summary: Edit a draft exam's title, instructions, window or duration
-      security: [{bearerAuth: []}]
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
-      requestBody:
-        required: true
-        content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: false
-                required: [expected_content_version]
-                properties:
-                  expected_content_version: {type: integer, format: int64}
-                  title: {type: string}
-                  instructions_markdown: {type: string}
-                  opens_at: {type: string, format: date-time}
-                  closes_at: {type: string, format: date-time}
-                  duration_seconds: {type: integer}
-      responses:
-        '204': {description: Updated}
-        '400': {$ref: '#/components/responses/Problem'}
-        '404': {$ref: '#/components/responses/Problem'}
-        '409': {$ref: '#/components/responses/Problem'}
-    parameters:
-      - {$ref: '#/components/parameters/TenantID'}
-      - {$ref: '#/components/parameters/ExamVersionID'}
-    get:
-      summary: Read an exam-version snapshot and its optimistic content version
-      responses:
-        '200': {$ref: '#/components/responses/ExamVersion'}
-        default: {$ref: '#/components/responses/Problem'}
-  /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/sections:
-    parameters:
-      - {$ref: '#/components/parameters/TenantID'}
-      - {$ref: '#/components/parameters/ExamVersionID'}
-    post:
-      summary: Add a section to a draft exam version
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: {$ref: '#/components/schemas/AddExamSection'}
-      responses:
-        '201': {$ref: '#/components/responses/ExamSection'}
-        default: {$ref: '#/components/responses/Problem'}
-  /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/sections/{section_id}/items:
-    parameters:
-      - {$ref: '#/components/parameters/TenantID'}
-      - {$ref: '#/components/parameters/ExamVersionID'}
-      - {$ref: '#/components/parameters/SectionID'}
-    post:
-      summary: Snapshot a question version into a draft exam section
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
-      description: Assessment resolves the published question version through the Question Bank and pins its immutable question ID encrypted evaluation and sample bundle references (object key, checksum, KMS key reference), and the version's time limit, memory limit and supported languages, all carried in candidate assignment snapshots. An unknown or unpublished version returns 404; an unreachable Question Bank returns 503.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: {$ref: '#/components/schemas/AddExamItem'}
-      responses:
-        '201': {$ref: '#/components/responses/ExamItem'}
-        default: {$ref: '#/components/responses/Problem'}
-  /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/publish:
-    parameters:
-      - {$ref: '#/components/parameters/TenantID'}
-      - {$ref: '#/components/parameters/ExamVersionID'}
-    post:
-      summary: Publish a complete draft exam version
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      security: [bearerAuth: []]
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
       requestBody:
         required: true
         content:
@@ -385,17 +432,114 @@ paths:
               additionalProperties: false
               required: [expected_content_version]
               properties:
-                expected_content_version: {type: integer, minimum: 1}
+                expected_content_version: {type: integer, format: int64}
+                title: {type: string, maxLength: 1000}
+                instructions_markdown: {type: string, maxLength: 1000}
+                opens_at: {type: string, format: date-time}
+                closes_at: {type: string, format: date-time}
+                duration_seconds: {type: integer, format: int64}
+      responses:
+        '204': {description: Updated, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '400': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
+    parameters:
+    - {$ref: '#/components/parameters/TenantID'}
+    - {$ref: '#/components/parameters/ExamVersionID'}
+    get:
+      summary: Read an exam-version snapshot and its optimistic content version
       responses:
         '200': {$ref: '#/components/responses/ExamVersion'}
         default: {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
+  /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/sections:
+    parameters:
+    - {$ref: '#/components/parameters/TenantID'}
+    - {$ref: '#/components/parameters/ExamVersionID'}
+    post:
+      summary: Add a section to a draft exam version
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AddExamSection'}
+      responses:
+        '201': {$ref: '#/components/responses/ExamSection'}
+        default: {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
+  /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/sections/{section_id}/items:
+    parameters:
+    - {$ref: '#/components/parameters/TenantID'}
+    - {$ref: '#/components/parameters/ExamVersionID'}
+    - {$ref: '#/components/parameters/SectionID'}
+    post:
+      summary: Snapshot a question version into a draft exam section
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
+      description: Assessment resolves the published question version through the Question Bank and pins its immutable question ID encrypted evaluation and sample bundle references (object key, checksum, KMS key reference), and the version's time limit, memory limit and supported languages, all carried in candidate assignment snapshots. An unknown or unpublished version returns 404; an unreachable Question Bank returns 503.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AddExamItem'}
+      responses:
+        '201': {$ref: '#/components/responses/ExamItem'}
+        default: {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
+  /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/publish:
+    parameters:
+    - {$ref: '#/components/parameters/TenantID'}
+    - {$ref: '#/components/parameters/ExamVersionID'}
+    post:
+      summary: Publish a complete draft exam version
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expected_content_version]
+              properties:
+                expected_content_version: {type: integer, minimum: 1, format: int64}
+      responses:
+        '200': {$ref: '#/components/responses/ExamVersion'}
+        default: {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/assignment-rules:
     parameters:
-      - {$ref: '#/components/parameters/TenantID'}
-      - {$ref: '#/components/parameters/ExamVersionID'}
+    - {$ref: '#/components/parameters/TenantID'}
+    - {$ref: '#/components/parameters/ExamVersionID'}
     post:
       summary: Create an assignment rule for a published exam version
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
       requestBody:
         required: true
         content:
@@ -404,13 +548,19 @@ paths:
       responses:
         '201': {$ref: '#/components/responses/AssignmentRule'}
         default: {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/assignment-rules/{assignment_rule_id}/candidate-assignments:
     parameters:
-      - {$ref: '#/components/parameters/TenantID'}
-      - {$ref: '#/components/parameters/AssignmentRuleID'}
+    - {$ref: '#/components/parameters/TenantID'}
+    - {$ref: '#/components/parameters/AssignmentRuleID'}
     post:
       summary: Materialize a direct student assignment
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
       description: >-
         This endpoint is intentionally limited to a student-target rule whose
         target ID equals candidate_id. Department, batch, and placement rules
@@ -429,8 +579,14 @@ paths:
       responses:
         '201': {$ref: '#/components/responses/CandidateAssignment'}
         default: {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/candidate-assignments:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     get:
       summary: List candidate assignments for the calling candidate
       description: >-
@@ -438,31 +594,43 @@ paths:
         matches the candidate_id. Pagination uses keyset cursors ordered by
         available_from DESC, id DESC.
       parameters:
-        - name: limit
-          in: query
-          schema: {type: integer, minimum: 1, maximum: 100, default: 20}
-        - name: cursor
-          in: query
-          schema: {type: string}
-        - name: lifecycle_state
-          in: query
-          schema: {enum: [assigned, revoked, started, completed, expired]}
+      - name: limit
+        in: query
+        schema: {type: integer, minimum: 1, maximum: 100, default: 20, format: int64}
+      - name: cursor
+        in: query
+        schema: {type: string, maxLength: 1000}
+      - name: lifecycle_state
+        in: query
+        schema: {enum: [assigned, revoked, started, completed, expired]}
       responses:
         '200': {$ref: '#/components/responses/CandidateAssignmentPage'}
         default: {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/candidate-assignments/{candidate_assignment_id}:
     parameters:
-      - {$ref: '#/components/parameters/TenantID'}
-      - {$ref: '#/components/parameters/CandidateAssignmentID'}
+    - {$ref: '#/components/parameters/TenantID'}
+    - {$ref: '#/components/parameters/CandidateAssignmentID'}
     get:
       summary: Read one candidate assignment
       responses:
         '200': {$ref: '#/components/responses/CandidateAssignment'}
         default: {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/candidate-assignments/{candidate_assignment_id}/revoke:
     parameters:
-      - {$ref: '#/components/parameters/TenantID'}
-      - {$ref: '#/components/parameters/CandidateAssignmentID'}
+    - {$ref: '#/components/parameters/TenantID'}
+    - {$ref: '#/components/parameters/CandidateAssignmentID'}
     post:
       summary: Revoke a candidate assignment
       description: >-
@@ -471,7 +639,7 @@ paths:
         set to revoked. Assessment owns no Submission attempt state; Submission
         applies the newer snapshot by cancelling its nonterminal attempts and
         queued or dispatched evaluations.
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
       requestBody:
         required: true
         content:
@@ -481,41 +649,53 @@ paths:
               additionalProperties: false
               required: [expected_version]
               properties:
-                expected_version: {type: integer, minimum: 1}
+                expected_version: {type: integer, minimum: 1, format: int64}
       responses:
         '200': {$ref: '#/components/responses/CandidateAssignment'}
         default: {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/sections/{section_id}:
     parameters:
-      - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid}}
-      - {name: exam_version_id, in: path, required: true, schema: {type: string, format: uuid}}
-      - {name: section_id, in: path, required: true, schema: {type: string, format: uuid}}
+    - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
+    - {name: exam_version_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
+    - {name: section_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
     patch:
       summary: Edit a draft section's title, instructions or time limit
-      security: [{bearerAuth: []}]
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      security: [bearerAuth: []]
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
       requestBody:
         required: true
         content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: false
-                required: [expected_content_version]
-                properties:
-                  expected_content_version: {type: integer, format: int64}
-                  title: {type: string}
-                  instructions_markdown: {type: string}
-                  time_limit_seconds: {type: integer}
-                  clear_time_limit: {type: boolean}
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expected_content_version]
+              properties:
+                expected_content_version: {type: integer, format: int64}
+                title: {type: string, maxLength: 1000}
+                instructions_markdown: {type: string, maxLength: 1000}
+                time_limit_seconds: {type: integer, format: int64}
+                clear_time_limit: {type: boolean}
       responses:
-        '204': {description: Updated}
+        '204': {description: Updated, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     delete:
       summary: Remove a section from a draft exam version
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
       requestBody:
         required: true
         content:
@@ -527,37 +707,49 @@ paths:
               properties:
                 expected_content_version: {type: integer, format: int64}
       responses:
-        '204': {description: Section removed}
+        '204': {description: Section removed, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         default: {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/sections/{section_id}/items/{item_id}:
     parameters:
-      - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid}}
-      - {name: exam_version_id, in: path, required: true, schema: {type: string, format: uuid}}
-      - {name: section_id, in: path, required: true, schema: {type: string, format: uuid}}
-      - {name: item_id, in: path, required: true, schema: {type: string, format: uuid}}
+    - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
+    - {name: exam_version_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
+    - {name: section_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
+    - {name: item_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
     patch:
       summary: Change the marks of a question in a draft exam
-      security: [{bearerAuth: []}]
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      security: [bearerAuth: []]
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
       requestBody:
         required: true
         content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: false
-                required: [expected_content_version, maximum_score]
-                properties:
-                  expected_content_version: {type: integer, format: int64}
-                  maximum_score: {type: string, description: Decimal, up to 4 places}
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expected_content_version, maximum_score]
+              properties:
+                expected_content_version: {type: integer, format: int64}
+                maximum_score: {type: string, description: Decimal, up to 4 places: null, maxLength: 1000}
       responses:
-        '204': {description: Updated}
+        '204': {description: Updated, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     delete:
       summary: Remove a question item from a draft exam section
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
       requestBody:
         required: true
         content:
@@ -569,13 +761,19 @@ paths:
               properties:
                 expected_content_version: {type: integer, format: int64}
       responses:
-        '204': {description: Item removed}
+        '204': {description: Item removed, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         default: {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/items/{item_id}/repin:
     parameters:
-      - {$ref: '#/components/parameters/TenantID'}
-      - {$ref: '#/components/parameters/ExamVersionID'}
-      - {name: item_id, in: path, required: true, schema: {type: string, format: uuid}}
+    - {$ref: '#/components/parameters/TenantID'}
+    - {$ref: '#/components/parameters/ExamVersionID'}
+    - {name: item_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
     post:
       summary: Repin an exam item to a corrected question version
       description: >-
@@ -601,18 +799,33 @@ paths:
                 type: object
                 required: [assignments_resent]
                 properties:
-                  assignments_resent: {type: integer, minimum: 0}
+                  assignments_resent: {type: integer, minimum: 0, format: int64}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         default: {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/assignment-rules/{assignment_rule_id}/window:
     parameters:
-      - {$ref: '#/components/parameters/TenantID'}
-      - {$ref: '#/components/parameters/AssignmentRuleID'}
+    - {$ref: '#/components/parameters/TenantID'}
+    - {$ref: '#/components/parameters/AssignmentRuleID'}
     post:
       summary: Move the close time of a published assignment rule window
       description: >-
         Extends or shortens available_until for a live assignment rule and
         propagates the change to all active candidate assignments (ADR-0040).
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
       requestBody:
         required: true
         content:
@@ -632,8 +845,23 @@ paths:
                 type: object
                 required: [assignments_moved]
                 properties:
-                  assignments_moved: {type: integer, minimum: 0}
+                  assignments_moved: {type: integer, minimum: 0, format: int64}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         default: {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
 
 components:
   securitySchemes:
@@ -641,6 +869,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: 'Bearer JSON Web Token (JWT). Tokens are short-lived and signed per RFC 8725. Include as: Authorization: Bearer <token>.'
   parameters:
     TenantID:
       name: tenant_id
@@ -691,49 +920,223 @@ components:
     ProctorPolicy:
       description: Proctor policy aggregate
       content: {application/json: {schema: {$ref: '#/components/schemas/ProctorPolicy'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     ProctorPolicyPage:
       description: Keyset page of proctor policies
       content: {application/json: {schema: {$ref: '#/components/schemas/ProctorPolicyPage'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     ProctorPolicyVersion:
       description: Immutable proctor policy snapshot
       content: {application/json: {schema: {$ref: '#/components/schemas/ProctorPolicyVersion'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     ProctorPolicyVersionPage:
       description: Keyset page of proctor policy versions
       content: {application/json: {schema: {$ref: '#/components/schemas/ProctorPolicyVersionPage'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     Exam:
       description: Exam aggregate
       content: {application/json: {schema: {$ref: '#/components/schemas/Exam'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     ExamVersion:
       description: Exam version snapshot
       content: {application/json: {schema: {$ref: '#/components/schemas/ExamVersion'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     ExamSection:
       description: Draft section snapshot
       content: {application/json: {schema: {$ref: '#/components/schemas/ExamSection'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     ExamItem:
       description: Immutable question-version selection
       content: {application/json: {schema: {$ref: '#/components/schemas/ExamItem'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     AssignmentRule:
       description: Assignment rule
       content: {application/json: {schema: {$ref: '#/components/schemas/AssignmentRule'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     CandidateAssignment:
       description: Candidate assignment
       content: {application/json: {schema: {$ref: '#/components/schemas/CandidateAssignment'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     CandidateAssignmentPage:
       description: Keyset page of candidate assignments
       content: {application/json: {schema: {$ref: '#/components/schemas/CandidateAssignmentPage'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     ExamPage:
       description: Keyset page of exams
       content: {application/json: {schema: {$ref: '#/components/schemas/ExamPage'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     ExamVersionPage:
       description: Keyset page of exam versions
       content: {application/json: {schema: {$ref: '#/components/schemas/ExamVersionPage'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     Problem:
       description: Stable application error
       content: {application/json: {schema: {$ref: '#/components/schemas/Problem'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+    Problem401:
+      description: Unauthorized — missing, expired, or invalid bearer token.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+    Problem500:
+      description: Internal server error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+    Problem429:
+      description: Too many requests — rate limit exceeded.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+        Retry-After:
+          $ref: '#/components/headers/Retry-After'
   schemas:
     UUID:
       type: string
       format: uuid
+      maxLength: 36
     Timestamp:
       type: string
       format: date-time
@@ -741,8 +1144,8 @@ components:
       type: object
       required: [code, message]
       properties:
-        code: {type: string}
-        message: {type: string}
+        code: {type: string, maxLength: 1000}
+        message: {type: string, maxLength: 1000}
     CandidateAssignmentPage:
       type: object
       required: [items]
@@ -750,7 +1153,8 @@ components:
         items:
           type: array
           items: {$ref: '#/components/schemas/CandidateAssignment'}
-        next_cursor: {type: string}
+          maxItems: 200
+        next_cursor: {type: string, maxLength: 1000}
     ExamPage:
       type: object
       required: [items]
@@ -758,7 +1162,8 @@ components:
         items:
           type: array
           items: {$ref: '#/components/schemas/Exam'}
-        next_cursor: {type: string}
+          maxItems: 200
+        next_cursor: {type: string, maxLength: 1000}
     ExamVersionPage:
       type: object
       required: [items]
@@ -766,7 +1171,8 @@ components:
         items:
           type: array
           items: {$ref: '#/components/schemas/ExamVersion'}
-        next_cursor: {type: string}
+          maxItems: 200
+        next_cursor: {type: string, maxLength: 1000}
     ProctorPolicyPage:
       type: object
       required: [items]
@@ -774,7 +1180,8 @@ components:
         items:
           type: array
           items: {$ref: '#/components/schemas/ProctorPolicy'}
-        next_cursor: {type: string}
+          maxItems: 200
+        next_cursor: {type: string, maxLength: 1000}
     ProctorPolicyVersionPage:
       type: object
       required: [items]
@@ -782,16 +1189,17 @@ components:
         items:
           type: array
           items: {$ref: '#/components/schemas/ProctorPolicyVersion'}
-        next_cursor: {type: string}
+          maxItems: 200
+        next_cursor: {type: string, maxLength: 1000}
     ProctorPolicy:
       type: object
       required: [id, tenant_id, name, lifecycle_state, version, created_at]
       properties:
         id: {$ref: '#/components/schemas/UUID'}
         tenant_id: {$ref: '#/components/schemas/UUID'}
-        name: {type: string}
+        name: {type: string, maxLength: 1000}
         lifecycle_state: {enum: [active, archived]}
-        version: {type: integer, minimum: 1}
+        version: {type: integer, minimum: 1, format: int64}
         created_at: {$ref: '#/components/schemas/Timestamp'}
     ProctorPolicyVersion:
       type: object
@@ -800,7 +1208,7 @@ components:
         id: {$ref: '#/components/schemas/UUID'}
         tenant_id: {$ref: '#/components/schemas/UUID'}
         proctor_policy_id: {$ref: '#/components/schemas/UUID'}
-        version_number: {type: integer, minimum: 1}
+        version_number: {type: integer, minimum: 1, format: int64}
         policy: {type: object}
         policy_checksum: {type: string, pattern: '^[0-9a-f]{64}$'}
         status: {enum: [draft, published, retired]}
@@ -812,9 +1220,9 @@ components:
       properties:
         id: {$ref: '#/components/schemas/UUID'}
         tenant_id: {$ref: '#/components/schemas/UUID'}
-        external_reference: {type: string}
+        external_reference: {type: string, maxLength: 1000}
         lifecycle_state: {enum: [draft, published, archived]}
-        version: {type: integer, minimum: 1}
+        version: {type: integer, minimum: 1, format: int64}
         created_at: {$ref: '#/components/schemas/Timestamp'}
         updated_at: {$ref: '#/components/schemas/Timestamp'}
     CreateExamVersion:
@@ -822,12 +1230,12 @@ components:
       additionalProperties: false
       required: [expected_exam_version, title, instructions_markdown, opens_at, closes_at, duration_seconds, proctor_policy_version_id]
       properties:
-        expected_exam_version: {type: integer, minimum: 1}
+        expected_exam_version: {type: integer, minimum: 1, format: int64}
         title: {type: string, minLength: 1, maxLength: 300}
         instructions_markdown: {type: string, minLength: 1, maxLength: 100000}
         opens_at: {$ref: '#/components/schemas/Timestamp'}
         closes_at: {$ref: '#/components/schemas/Timestamp'}
-        duration_seconds: {type: integer, minimum: 60, maximum: 43200}
+        duration_seconds: {type: integer, minimum: 60, maximum: 43200, format: int64}
         proctor_policy_version_id: {$ref: '#/components/schemas/UUID'}
     ExamVersion:
       type: object
@@ -836,14 +1244,14 @@ components:
         id: {$ref: '#/components/schemas/UUID'}
         tenant_id: {$ref: '#/components/schemas/UUID'}
         exam_id: {$ref: '#/components/schemas/UUID'}
-        version_number: {type: integer, minimum: 1}
-        content_version: {type: integer, minimum: 1}
-        attempt_limit: {type: integer, minimum: 1, maximum: 20}
-        title: {type: string}
-        instructions_markdown: {type: string}
+        version_number: {type: integer, minimum: 1, format: int64}
+        content_version: {type: integer, minimum: 1, format: int64}
+        attempt_limit: {type: integer, minimum: 1, maximum: 20, format: int64}
+        title: {type: string, maxLength: 1000}
+        instructions_markdown: {type: string, maxLength: 1000}
         opens_at: {$ref: '#/components/schemas/Timestamp'}
         closes_at: {$ref: '#/components/schemas/Timestamp'}
-        duration_seconds: {type: integer}
+        duration_seconds: {type: integer, format: int64}
         proctor_policy_version_id: {$ref: '#/components/schemas/UUID'}
         status: {enum: [draft, published, retired]}
         published_at: {$ref: '#/components/schemas/Timestamp'}
@@ -853,16 +1261,17 @@ components:
       additionalProperties: false
       required: [expected_content_version, position, title, instructions_markdown]
       properties:
-        expected_content_version: {type: integer, minimum: 1}
-        position: {type: integer, minimum: 1}
+        expected_content_version: {type: integer, minimum: 1, format: int64}
+        position: {type: integer, minimum: 1, format: int64}
         title: {type: string, minLength: 1, maxLength: 300}
         instructions_markdown: {type: string, maxLength: 100000}
-        time_limit_seconds: {type: integer, minimum: 60, maximum: 43200}
+        time_limit_seconds: {type: integer, minimum: 60, maximum: 43200, format: int64}
         draw_count:
           type: [integer, 'null']
           minimum: 1
           maximum: 100
           description: Makes the section a pool; each student gets this many of its items (ADR-0034).
+          format: int64
     ExamSection:
       type: object
       required: [id, tenant_id, exam_version_id, position, title, instructions_markdown, created_at]
@@ -870,18 +1279,18 @@ components:
         id: {$ref: '#/components/schemas/UUID'}
         tenant_id: {$ref: '#/components/schemas/UUID'}
         exam_version_id: {$ref: '#/components/schemas/UUID'}
-        position: {type: integer}
-        title: {type: string}
-        instructions_markdown: {type: string}
-        time_limit_seconds: {type: integer}
+        position: {type: integer, format: int64}
+        title: {type: string, maxLength: 1000}
+        instructions_markdown: {type: string, maxLength: 1000}
+        time_limit_seconds: {type: integer, format: int64}
         created_at: {$ref: '#/components/schemas/Timestamp'}
     AddExamItem:
       type: object
       additionalProperties: false
       required: [expected_content_version, position, question_version_id, maximum_score]
       properties:
-        expected_content_version: {type: integer, minimum: 1}
-        position: {type: integer, minimum: 1}
+        expected_content_version: {type: integer, minimum: 1, format: int64}
+        position: {type: integer, minimum: 1, format: int64}
         question_version_id: {$ref: '#/components/schemas/UUID'}
         maximum_score: {type: string, pattern: '^(?:0\.[0-9]{1,4}|[1-9][0-9]{0,7}(?:\.[0-9]{1,4})?)$'}
     ExamItem:
@@ -892,11 +1301,11 @@ components:
         tenant_id: {$ref: '#/components/schemas/UUID'}
         exam_version_id: {$ref: '#/components/schemas/UUID'}
         section_id: {$ref: '#/components/schemas/UUID'}
-        position: {type: integer}
+        position: {type: integer, format: int64}
         question_id: {$ref: '#/components/schemas/UUID'}
         question_version_id: {$ref: '#/components/schemas/UUID'}
-        maximum_score: {type: string}
-        evaluation_bundle_checksum: {type: string}
+        maximum_score: {type: string, maxLength: 1000}
+        evaluation_bundle_checksum: {type: string, maxLength: 1000}
         created_at: {$ref: '#/components/schemas/Timestamp'}
     CreateAssignmentRule:
       type: object
@@ -915,13 +1324,13 @@ components:
         id: {$ref: '#/components/schemas/UUID'}
         tenant_id: {$ref: '#/components/schemas/UUID'}
         exam_version_id: {$ref: '#/components/schemas/UUID'}
-        target_type: {type: string}
+        target_type: {type: string, maxLength: 1000}
         target_id: {$ref: '#/components/schemas/UUID'}
         available_from: {$ref: '#/components/schemas/Timestamp'}
         available_until: {$ref: '#/components/schemas/Timestamp'}
         accommodations: {type: object}
         disabled_at: {$ref: '#/components/schemas/Timestamp'}
-        version: {type: integer}
+        version: {type: integer, format: int64}
         created_at: {$ref: '#/components/schemas/Timestamp'}
     CandidateAssignment:
       type: object
@@ -933,13 +1342,39 @@ components:
         exam_version_id: {$ref: '#/components/schemas/UUID'}
         candidate_id: {$ref: '#/components/schemas/UUID'}
         exam_id: {$ref: '#/components/schemas/UUID', description: Candidate list only (ADR-0023).}
-        title: {type: string, description: The exam version's title. Candidate list only.}
-        instructions_markdown: {type: string, description: Candidate list only.}
-        duration_seconds: {type: integer, minimum: 60, maximum: 43200, description: Candidate list only.}
+        title: {type: string, description: The exam version's title. Candidate list only., maxLength: 1000}
+        instructions_markdown: {type: string, description: Candidate list only., maxLength: 1000}
+        duration_seconds: {type: integer, minimum: 60, maximum: 43200, description: Candidate list only., format: int64}
         available_from: {$ref: '#/components/schemas/Timestamp'}
         available_until: {$ref: '#/components/schemas/Timestamp'}
         lifecycle_state: {enum: [assigned, revoked, started, completed, expired]}
         assigned_at: {$ref: '#/components/schemas/Timestamp'}
         revoked_at: {$ref: '#/components/schemas/Timestamp'}
         completed_at: {$ref: '#/components/schemas/Timestamp'}
-        version: {type: integer}
+        version: {type: integer, format: int64}
+  headers:
+    RateLimit-Limit:
+      description: Standard rate-limit response headers (RFC 6585 / IETF draft-ietf-httpapi-ratelimit-headers).
+      schema:
+        type: string
+        maxLength: 64
+    RateLimit-Remaining:
+      description: Standard rate-limit response headers (RFC 6585 / IETF draft-ietf-httpapi-ratelimit-headers).
+      schema:
+        type: string
+        maxLength: 64
+    RateLimit-Reset:
+      description: Standard rate-limit response headers (RFC 6585 / IETF draft-ietf-httpapi-ratelimit-headers).
+      schema:
+        type: string
+        maxLength: 64
+    Access-Control-Allow-Origin:
+      description: CORS allowed origins. The platform gateway sets this; internal services declare it for contract completeness.
+      schema:
+        type: string
+        maxLength: 256
+    Retry-After:
+      description: Number of seconds to wait before retrying after a 429 rate-limit response.
+      schema:
+        type: integer
+        minimum: 0

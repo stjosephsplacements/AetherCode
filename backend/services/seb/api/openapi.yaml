@@ -9,41 +9,60 @@ info:
     printable Idempotency-Key. The service hashes the exact validated JSON body
     and replays only an equivalent request within its 24-hour retention window.
 servers:
-  - url: https://seb.internal.aethercode
+- url: https://seb.internal.aethercode
+  description: AetherCode seb service — internal platform endpoint (production)
+  x-internal: true
 paths:
   /healthz:
     get:
       responses:
         '200': {$ref: '#/components/responses/Operational'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
   /readyz:
     get:
       responses:
         '200': {$ref: '#/components/responses/Operational'}
         '503': {$ref: '#/components/responses/Operational'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
   /v1/tenants/{tenant_id}/configurations:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     get:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: List SEB configurations for a tenant (keyset-paginated)
       parameters:
-        - {$ref: '#/components/parameters/Limit'}
-        - {$ref: '#/components/parameters/Cursor'}
-        - name: lifecycle_state
-          in: query
-          schema: {type: string, enum: [active, retired, revoked]}
+      - {$ref: '#/components/parameters/Limit'}
+      - {$ref: '#/components/parameters/Cursor'}
+      - name: lifecycle_state
+        in: query
+        schema: {type: string, enum: [active, retired, revoked]}
       responses:
         '200':
           description: Paged configuration list
           content:
             application/json:
               schema: {$ref: '#/components/schemas/PagedConfigurations'}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     post:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: Register encrypted SEB configuration metadata
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
       requestBody:
         required: true
         content:
@@ -55,21 +74,29 @@ paths:
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/configurations/{configuration_id}:
     parameters:
-      - {$ref: '#/components/parameters/TenantID'}
-      - {$ref: '#/components/parameters/ConfigurationID'}
+    - {$ref: '#/components/parameters/TenantID'}
+    - {$ref: '#/components/parameters/ConfigurationID'}
     get:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       responses:
         '200': {$ref: '#/components/responses/Configuration'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     delete:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: Soft-delete a SEB configuration
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
       requestBody:
         required: true
         content:
@@ -81,19 +108,23 @@ paths:
               properties:
                 reason: {type: string, minLength: 1, maxLength: 500}
       responses:
-        '204': {description: Configuration soft-deleted}
+        '204': {description: Configuration soft-deleted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/configurations/{configuration_id}/hard:
     parameters:
-      - {$ref: '#/components/parameters/TenantID'}
-      - {$ref: '#/components/parameters/ConfigurationID'}
+    - {$ref: '#/components/parameters/TenantID'}
+    - {$ref: '#/components/parameters/ConfigurationID'}
     delete:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: Permanently delete a SEB configuration
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
       requestBody:
         required: true
         content:
@@ -105,17 +136,21 @@ paths:
               properties:
                 reason: {type: string, minLength: 1, maxLength: 500}
       responses:
-        '204': {description: Configuration permanently deleted}
+        '204': {description: Configuration permanently deleted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/configurations/{configuration_id}/payload:
     parameters:
-      - {$ref: '#/components/parameters/TenantID'}
-      - {$ref: '#/components/parameters/ConfigurationID'}
+    - {$ref: '#/components/parameters/TenantID'}
+    - {$ref: '#/components/parameters/ConfigurationID'}
     get:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: Download the raw decrypted SEB configuration payload
       description: >-
         Returns the raw binary SEB configuration object. Authorization requires
@@ -126,42 +161,59 @@ paths:
           content:
             application/octet-stream:
               schema: {type: string, format: binary}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/configurations/{configuration_id}/rotate:
     parameters:
-      - {$ref: '#/components/parameters/TenantID'}
-      - {$ref: '#/components/parameters/ConfigurationID'}
+    - {$ref: '#/components/parameters/TenantID'}
+    - {$ref: '#/components/parameters/ConfigurationID'}
     post:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: Retire an active configuration and atomically create its replacement
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
       requestBody:
         required: true
         content:
           application/json:
             schema:
               allOf:
-                - {$ref: '#/components/schemas/ConfigurationInput'}
-                - type: object
-                  required: [reason]
-                  properties:
-                    reason: {type: string, minLength: 1, maxLength: 500}
+              - {$ref: '#/components/schemas/ConfigurationInput'}
+              - type: object
+                required: [reason]
+                properties:
+                  reason: {type: string, minLength: 1, maxLength: 500}
       responses:
         '201': {$ref: '#/components/responses/Configuration'}
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/configurations/{configuration_id}/revoke:
     parameters:
-      - {$ref: '#/components/parameters/TenantID'}
-      - {$ref: '#/components/parameters/ConfigurationID'}
+    - {$ref: '#/components/parameters/TenantID'}
+    - {$ref: '#/components/parameters/ConfigurationID'}
     post:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: Immediately revoke an active configuration
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
       requestBody:
         required: true
         content:
@@ -177,39 +229,56 @@ paths:
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/sessions:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     get:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: List SEB sessions for the authenticated candidate (keyset-paginated)
       description: >-
         Candidate-facing. The database SECURITY DEFINER function binds rows to the
         signed actor; only the caller's own sessions are returned regardless of
         any other parameter.
       parameters:
-        - {$ref: '#/components/parameters/Limit'}
-        - {$ref: '#/components/parameters/Cursor'}
-        - name: lifecycle_state
-          in: query
-          schema: {type: string, enum: [issued, active, closed, revoked, expired]}
+      - {$ref: '#/components/parameters/Limit'}
+      - {$ref: '#/components/parameters/Cursor'}
+      - name: lifecycle_state
+        in: query
+        schema: {type: string, enum: [issued, active, closed, revoked, expired]}
       responses:
         '200':
           description: Paged session list
           content:
             application/json:
               schema: {$ref: '#/components/schemas/PagedSessions'}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     post:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: Issue one attempt-bound SEB session
       description: >-
         The raw quit token is returned only once. A completed retry with the
         same Idempotency-Key and body returns 409 rather than replaying or
         persisting that secret; retrieve authorized non-secret state through
         the session GET route.
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
       requestBody:
         required: true
         content:
@@ -227,6 +296,14 @@ paths:
           description: Issued; the quit token is returned only in this response.
           headers:
             Cache-Control: {schema: {type: string, const: no-store}}
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
           content:
             application/json:
               schema: {$ref: '#/components/schemas/IssuedSession'}
@@ -234,24 +311,32 @@ paths:
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/sessions/{session_id}:
     parameters:
-      - {$ref: '#/components/parameters/TenantID'}
-      - {$ref: '#/components/parameters/SessionID'}
+    - {$ref: '#/components/parameters/TenantID'}
+    - {$ref: '#/components/parameters/SessionID'}
     get:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       responses:
         '200': {$ref: '#/components/responses/Session'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/sessions/{session_id}/close:
     parameters:
-      - {$ref: '#/components/parameters/TenantID'}
-      - {$ref: '#/components/parameters/SessionID'}
+    - {$ref: '#/components/parameters/TenantID'}
+    - {$ref: '#/components/parameters/SessionID'}
     post:
-      security: [{bearerAuth: []}]
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      security: [bearerAuth: []]
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
       requestBody:
         required: true
         content:
@@ -260,7 +345,7 @@ paths:
               type: object
               required: [expected_version, reason]
               properties:
-                expected_version: {type: integer, minimum: 1}
+                expected_version: {type: integer, minimum: 1, format: int64}
                 reason: {type: string, minLength: 1, maxLength: 500}
       responses:
         '200': {$ref: '#/components/responses/Session'}
@@ -268,12 +353,16 @@ paths:
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/sessions/{session_id}/validate:
     parameters:
-      - {$ref: '#/components/parameters/TenantID'}
-      - {$ref: '#/components/parameters/SessionID'}
+    - {$ref: '#/components/parameters/TenantID'}
+    - {$ref: '#/components/parameters/SessionID'}
     post:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: Validate one SEB header and append its audit event
       requestBody:
         required: true
@@ -288,24 +377,37 @@ paths:
                   type: string
                   writeOnly: true
                   description: Raw value; it is hashed in memory before SQL.
+                  maxLength: 1000
                 request_fingerprint_hash: {$ref: '#/components/schemas/SHA256'}
       responses:
         '200':
           description: Validation outcome without key material.
           headers:
             Cache-Control: {schema: {type: string, const: no-store}}
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
           content:
             application/json:
               schema: {$ref: '#/components/schemas/Validation'}
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exams/{exam_id}/seb-policy:
     parameters:
-      - {$ref: '#/components/parameters/TenantID'}
-      - {$ref: '#/components/parameters/ExamID'}
+    - {$ref: '#/components/parameters/TenantID'}
+    - {$ref: '#/components/parameters/ExamID'}
     get:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: Read an exam's Safe Exam Browser lock (staff)
       responses:
         '200':
@@ -313,11 +415,24 @@ paths:
           content:
             application/json:
               schema: {$ref: '#/components/schemas/ExamPolicy'}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     put:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: Lock or unlock an exam to Safe Exam Browser (staff, ADR-0022)
       description: >-
         accepted_keys are the Browser Exam Keys and Config Keys the SEB Config
@@ -346,22 +461,35 @@ paths:
                     IP addresses or CIDR ranges (ADR-0030). When not empty,
                     candidates with an open assignment may send requests only
                     from them, whether or not the SEB lock is enabled.
-                  items: {type: string}
+                  items: {type: string, maxLength: 1000}
       responses:
         '200':
           description: The saved lock.
           content:
             application/json:
               schema: {$ref: '#/components/schemas/ExamPolicy'}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exams/{exam_id}/seb-policy/launch-file:
     parameters:
-      - {$ref: '#/components/parameters/TenantID'}
-      - {$ref: '#/components/parameters/ExamID'}
+    - {$ref: '#/components/parameters/TenantID'}
+    - {$ref: '#/components/parameters/ExamID'}
     get:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: Download the exam's .seb launch file (staff)
       description: Open it in the SEB Config Tool to read the keys to accept.
       responses:
@@ -370,12 +498,16 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '503': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/exams/{exam_id}/launch-file:
     parameters:
-      - {$ref: '#/components/parameters/TenantID'}
-      - {$ref: '#/components/parameters/ExamID'}
+    - {$ref: '#/components/parameters/TenantID'}
+    - {$ref: '#/components/parameters/ExamID'}
     get:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: Download a locked exam's .seb launch file (candidate)
       description: >-
         Only for a locked exam the bearer candidate is assigned to and whose
@@ -386,10 +518,14 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '503': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/request-checks:
-    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    parameters: [$ref: '#/components/parameters/TenantID']
     post:
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       summary: Check one request for Safe Exam Browser (Gateway only)
       description: >-
         Gateway posts the absolute URL the browser requested with the SEB
@@ -409,11 +545,20 @@ paths:
                 client_ip:
                   type: string
                   description: The client address Gateway trusts. An exam with lab networks refuses an unknown one (result network_refused).
+                  maxLength: 1000
       responses:
         '200':
           description: The check result.
           headers:
             Cache-Control: {schema: {type: string, const: no-store}}
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
           content:
             application/json:
               schema:
@@ -424,9 +569,13 @@ paths:
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
 components:
   securitySchemes:
-    bearerAuth: {type: http, scheme: bearer, bearerFormat: AetherCode access token}
+    bearerAuth: {type: http, scheme: bearer, bearerFormat: AetherCode access token, description: 'Bearer JSON Web Token (JWT). Tokens are short-lived and signed per RFC 8725. Include as: Authorization: Bearer <token>.'}
   parameters:
     TenantID:
       name: tenant_id
@@ -451,11 +600,11 @@ components:
     Limit:
       name: limit
       in: query
-      schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+      schema: {type: integer, minimum: 1, maximum: 100, default: 20, format: int64}
     Cursor:
       name: cursor
       in: query
-      schema: {type: string}
+      schema: {type: string, maxLength: 1000}
       description: Opaque keyset pagination token from a previous response's next_cursor.
     IdempotencyKey:
       name: Idempotency-Key
@@ -477,10 +626,28 @@ components:
       description: Non-secret configuration metadata
       content:
         application/json: {schema: {$ref: '#/components/schemas/Configuration'}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     Session:
       description: Non-secret session state
       content:
         application/json: {schema: {$ref: '#/components/schemas/Session'}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     LaunchFile:
       description: >-
         The .seb file: a gzipped, password-encrypted lockdown configuration
@@ -490,14 +657,78 @@ components:
         Content-Disposition: {schema: {type: string}}
         Content-Encoding: {schema: {type: string, const: identity}}
         Cache-Control: {schema: {type: string, const: no-store}}
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
       content:
         application/seb: {schema: {type: string, format: binary}}
     Problem:
       description: Stable error response
       content:
         application/json: {schema: {$ref: '#/components/schemas/Problem'}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+    Problem401:
+      description: Unauthorized — missing, expired, or invalid bearer token.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+    Problem500:
+      description: Internal server error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+    Problem429:
+      description: Too many requests — rate limit exceeded.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+        Retry-After:
+          $ref: '#/components/headers/Retry-After'
   schemas:
-    UUID: {type: string, format: uuid}
+    UUID: {type: string, format: uuid, maxLength: 36}
     SHA256: {type: string, pattern: '^[0-9a-f]{64}$'}
     ExamPolicy:
       type: object
@@ -505,13 +736,13 @@ components:
       properties:
         tenant_id: {$ref: '#/components/schemas/UUID'}
         exam_id: {$ref: '#/components/schemas/UUID'}
-        title: {type: string}
+        title: {type: string, maxLength: 1000}
         enabled: {type: boolean}
-        accepted_keys: {type: array, items: {$ref: '#/components/schemas/SHA256'}}
-        allowed_networks: {type: array, items: {type: string}}
+        accepted_keys: {type: array, items: {$ref: '#/components/schemas/SHA256'}, maxItems: 200}
+        allowed_networks: {type: array, items: {type: string, maxLength: 1000}, maxItems: 200}
         updated_by: {$ref: '#/components/schemas/UUID'}
         updated_at: {type: string, format: date-time}
-        version: {type: integer, minimum: 1}
+        version: {type: integer, minimum: 1, format: int64}
         config_key: {type: string, pattern: "^[0-9a-f]{64}$", description: Config Key of the generated launch file; present when launch files are configured}
     ConfigurationInput:
       type: object
@@ -519,7 +750,7 @@ components:
       properties:
         exam_id: {$ref: '#/components/schemas/UUID'}
         exam_version_id: {$ref: '#/components/schemas/UUID'}
-        configuration_version: {type: integer, minimum: 1}
+        configuration_version: {type: integer, minimum: 1, format: int64}
         config_object_key: {type: string, minLength: 1, maxLength: 1024}
         config_checksum: {$ref: '#/components/schemas/SHA256'}
         encryption_key_reference: {type: string, minLength: 1, maxLength: 1024}
@@ -533,10 +764,10 @@ components:
         tenant_id: {$ref: '#/components/schemas/UUID'}
         exam_id: {$ref: '#/components/schemas/UUID'}
         exam_version_id: {$ref: '#/components/schemas/UUID'}
-        configuration_version: {type: integer}
-        config_object_key: {type: string}
+        configuration_version: {type: integer, format: int64}
+        config_object_key: {type: string, maxLength: 1000}
         config_checksum: {$ref: '#/components/schemas/SHA256'}
-        encryption_key_reference: {type: string}
+        encryption_key_reference: {type: string, maxLength: 1000}
         lifecycle_state: {type: string, enum: [active, retired, revoked]}
         created_by: {$ref: '#/components/schemas/UUID'}
         created_at: {type: string, format: date-time}
@@ -554,8 +785,8 @@ components:
         activated_at: {type: string, format: date-time}
         closed_at: {type: string, format: date-time}
         expires_at: {type: string, format: date-time}
-        closed_reason: {type: string}
-        version: {type: integer, minimum: 1}
+        closed_reason: {type: string, maxLength: 1000}
+        version: {type: integer, minimum: 1, format: int64}
     IssuedSession:
       type: object
       required: [session, quit_token]
@@ -564,6 +795,7 @@ components:
         quit_token:
           type: string
           description: One-time 256-bit session secret; never persisted.
+          maxLength: 1000
     Validation:
       type: object
       required: [header_kind, validation_result, occurred_at]
@@ -578,7 +810,8 @@ components:
         items:
           type: array
           items: {$ref: '#/components/schemas/Session'}
-        next_cursor: {type: string, description: Absent on the final page.}
+          maxItems: 200
+        next_cursor: {type: string, description: Absent on the final page., maxLength: 1000}
     PagedConfigurations:
       type: object
       required: [items]
@@ -586,10 +819,37 @@ components:
         items:
           type: array
           items: {$ref: '#/components/schemas/Configuration'}
-        next_cursor: {type: string, description: Absent on the final page.}
+          maxItems: 200
+        next_cursor: {type: string, description: Absent on the final page., maxLength: 1000}
     Problem:
       type: object
       required: [code, message]
       properties:
-        code: {type: string}
-        message: {type: string}
+        code: {type: string, maxLength: 1000}
+        message: {type: string, maxLength: 1000}
+  headers:
+    RateLimit-Limit:
+      description: Standard rate-limit response headers (RFC 6585 / IETF draft-ietf-httpapi-ratelimit-headers).
+      schema:
+        type: string
+        maxLength: 64
+    RateLimit-Remaining:
+      description: Standard rate-limit response headers (RFC 6585 / IETF draft-ietf-httpapi-ratelimit-headers).
+      schema:
+        type: string
+        maxLength: 64
+    RateLimit-Reset:
+      description: Standard rate-limit response headers (RFC 6585 / IETF draft-ietf-httpapi-ratelimit-headers).
+      schema:
+        type: string
+        maxLength: 64
+    Access-Control-Allow-Origin:
+      description: CORS allowed origins. The platform gateway sets this; internal services declare it for contract completeness.
+      schema:
+        type: string
+        maxLength: 256
+    Retry-After:
+      description: Number of seconds to wait before retrying after a 429 rate-limit response.
+      schema:
+        type: integer
+        minimum: 0

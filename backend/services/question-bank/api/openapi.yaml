@@ -8,90 +8,116 @@ info:
     require an Idempotency-Key. Encrypted object references are accepted only
     on writes and are never returned by this browser-facing API.
 servers:
-  - url: /
+- url: https://question-bank.internal.aethercode.in
+  description: AetherCode question-bank service — internal platform endpoint (production)
+  x-internal: true
 security:
-  - BearerAuth: []
+- BearerAuth: []
 paths:
   /healthz:
     get:
       security: []
       responses:
-        '200': {description: Service is alive}
+        '200': {description: Service is alive, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
   /readyz:
     get:
       security: []
       responses:
-        '200': {description: Database, outbox publisher, and authorization projection are ready}
+        '200': {description: Database, outbox publisher: null, and authorization projection are ready: null, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '503': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
   /v1/questions:
     get:
       operationId: listPublishedQuestions
       parameters:
-        - name: limit
-          in: query
-          schema: {type: integer, minimum: 1, maximum: 100, default: 20}
-        - {$ref: '#/components/parameters/Cursor'}
-        - name: status
-          in: query
-          description: >-
-            draft lists the caller's own questions whose latest version is a
-            draft, and review lists drafts of any author waiting for a review,
-            oldest request first (the other filters do not apply); otherwise
-            published questions are listed.
-          schema: {type: string, enum: [published, draft, review]}
-        - name: difficulty
-          in: query
-          schema: {type: string, enum: [easy, medium, hard]}
-        - name: tag
-          in: query
-          schema: {type: string}
-        - name: language
-          in: query
-          schema: {type: string}
+      - name: limit
+        in: query
+        schema: {type: integer, minimum: 1, maximum: 100, default: 20, format: int64}
+      - {$ref: '#/components/parameters/Cursor'}
+      - name: status
+        in: query
+        description: >-
+          draft lists the caller's own questions whose latest version is a
+          draft, and review lists drafts of any author waiting for a review,
+          oldest request first (the other filters do not apply); otherwise
+          published questions are listed.
+        schema: {type: string, enum: [published, draft, review]}
+      - name: difficulty
+        in: query
+        schema: {type: string, enum: [easy, medium, hard]}
+      - name: tag
+        in: query
+        schema: {type: string, maxLength: 1000}
+      - name: language
+        in: query
+        schema: {type: string, maxLength: 1000}
       responses:
         '200':
           description: Latest published version for each active question
           content:
             application/json:
               schema: {$ref: '#/components/schemas/QuestionDetailPage'}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     post:
       operationId: createQuestion
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      parameters: [$ref: '#/components/parameters/IdempotencyKey']
       requestBody:
         required: true
         content:
           application/json:
             schema:
               allOf:
-                - type: object
-                  required: [slug]
-                  properties:
-                    slug: {type: string, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'}
-                    category_id:
-                      {$ref: '#/components/schemas/UUID', description: The category to file the question under; Uncategorised when omitted (ADR-0052).}
-                - {$ref: '#/components/schemas/VersionContentInput'}
+              - type: object
+                required: [slug]
+                properties:
+                  slug: {type: string, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'}
+                  category_id: {$ref: '#/components/schemas/UUID', description: The category to file the question under; Uncategorised when omitted (ADR-0052).}
+              - {$ref: '#/components/schemas/VersionContentInput'}
       responses:
         '201': {$ref: '#/components/responses/QuestionDetail'}
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/questions/{question_id}:
     get:
       operationId: getPublishedQuestion
-      parameters: [{$ref: '#/components/parameters/QuestionID'}]
+      parameters: [$ref: '#/components/parameters/QuestionID']
       responses:
         '200': {$ref: '#/components/responses/QuestionDetail'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     delete:
       summary: Soft-delete a question aggregate
       parameters:
-        - {$ref: '#/components/parameters/QuestionID'}
+      - {$ref: '#/components/parameters/QuestionID'}
       requestBody:
         required: true
         content:
@@ -103,16 +129,22 @@ paths:
               properties:
                 reason: {type: string, minLength: 1, maxLength: 500}
       responses:
-        '204': {description: Question soft-deleted}
+        '204': {description: Question soft-deleted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/questions/{question_id}/hard:
     delete:
       summary: Permanently delete a question aggregate
       description: Irreversible. Only permitted for questions with no published versions.
       parameters:
-        - {$ref: '#/components/parameters/QuestionID'}
+      - {$ref: '#/components/parameters/QuestionID'}
       requestBody:
         required: true
         content:
@@ -124,48 +156,67 @@ paths:
               properties:
                 reason: {type: string, minLength: 1, maxLength: 500}
       responses:
-        '204': {description: Question permanently deleted}
+        '204': {description: Question permanently deleted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/questions/{question_id}/versions:
     get:
       operationId: listQuestionVersions
       parameters:
-        - {$ref: '#/components/parameters/QuestionID'}
-        - name: limit
-          in: query
-          schema: {type: integer, minimum: 1, maximum: 100, default: 20}
-        - {$ref: '#/components/parameters/Cursor'}
-        - name: status
-          in: query
-          schema: {type: string, enum: [draft, published]}
+      - {$ref: '#/components/parameters/QuestionID'}
+      - name: limit
+        in: query
+        schema: {type: integer, minimum: 1, maximum: 100, default: 20, format: int64}
+      - {$ref: '#/components/parameters/Cursor'}
+      - name: status
+        in: query
+        schema: {type: string, enum: [draft, published]}
       responses:
         '200':
           description: All versions of the question visible to the caller
           content:
             application/json:
               schema: {$ref: '#/components/schemas/QuestionVersionPage'}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     post:
       operationId: createDraftQuestionVersion
       parameters:
-        - {$ref: '#/components/parameters/QuestionID'}
-        - {$ref: '#/components/parameters/IdempotencyKey'}
+      - {$ref: '#/components/parameters/QuestionID'}
+      - {$ref: '#/components/parameters/IdempotencyKey'}
       requestBody:
         required: true
         content:
           application/json:
             schema:
               allOf:
-                - type: object
-                  required: [expected_question_revision]
-                  properties:
-                    expected_question_revision: {type: integer, minimum: 1}
-                - {$ref: '#/components/schemas/VersionContentInput'}
+              - type: object
+                required: [expected_question_revision]
+                properties:
+                  expected_question_revision: {type: integer, minimum: 1, format: int64}
+              - {$ref: '#/components/schemas/VersionContentInput'}
       responses:
         '201': {$ref: '#/components/responses/QuestionDetail'}
         '400': {$ref: '#/components/responses/Problem'}
@@ -173,12 +224,16 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/questions/{question_id}/archive:
     post:
       operationId: archiveQuestion
       parameters:
-        - {$ref: '#/components/parameters/QuestionID'}
-        - {$ref: '#/components/parameters/IdempotencyKey'}
+      - {$ref: '#/components/parameters/QuestionID'}
+      - {$ref: '#/components/parameters/IdempotencyKey'}
       requestBody:
         required: true
         content:
@@ -187,7 +242,7 @@ paths:
               type: object
               required: [expected_question_revision]
               properties:
-                expected_question_revision: {type: integer, minimum: 1}
+                expected_question_revision: {type: integer, minimum: 1, format: int64}
       responses:
         '200': {$ref: '#/components/responses/QuestionDetail'}
         '400': {$ref: '#/components/responses/Problem'}
@@ -195,41 +250,55 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/question-versions/{question_version_id}:
     patch:
       summary: Edit a draft's title, statement, difficulty or limits; a published version is immutable
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       requestBody:
         required: true
         content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: false
-                required: [expected_question_version]
-                properties:
-                  expected_question_version: {type: integer, format: int64}
-                  title: {type: string}
-                  prompt_markdown: {type: string}
-                  difficulty: {type: string, enum: [easy, medium, hard]}
-                  time_limit_ms: {type: integer}
-                  memory_limit_kib: {type: integer}
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expected_question_version]
+              properties:
+                expected_question_version: {type: integer, format: int64}
+                title: {type: string, maxLength: 1000}
+                prompt_markdown: {type: string, maxLength: 1000}
+                difficulty: {type: string, enum: [easy, medium, hard]}
+                time_limit_ms: {type: integer, format: int64}
+                memory_limit_kib: {type: integer, format: int64}
       responses:
         '200': {$ref: '#/components/responses/QuestionVersion'}
         '400': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     get:
       operationId: getQuestionVersion
-      parameters: [{$ref: '#/components/parameters/QuestionVersionID'}]
+      parameters: [$ref: '#/components/parameters/QuestionVersionID']
       responses:
         '200': {$ref: '#/components/responses/QuestionVersion'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     delete:
       summary: Soft-delete a question version
-      parameters: [{$ref: '#/components/parameters/QuestionVersionID'}]
+      parameters: [$ref: '#/components/parameters/QuestionVersionID']
       requestBody:
         required: true
         content:
@@ -241,14 +310,20 @@ paths:
               properties:
                 reason: {type: string, minLength: 1, maxLength: 500}
       responses:
-        '204': {description: Version soft-deleted}
+        '204': {description: Version soft-deleted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/question-versions/{question_version_id}/hard:
     delete:
       summary: Permanently delete a draft question version
-      parameters: [{$ref: '#/components/parameters/QuestionVersionID'}]
+      parameters: [$ref: '#/components/parameters/QuestionVersionID']
       requestBody:
         required: true
         content:
@@ -260,10 +335,16 @@ paths:
               properties:
                 reason: {type: string, minLength: 1, maxLength: 500}
       responses:
-        '204': {description: Version permanently deleted}
+        '204': {description: Version permanently deleted, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/question-versions/{question_version_id}/tests:
     put:
       operationId: setQuestionVersionTests
@@ -273,7 +354,7 @@ paths:
         clients never handle object keys or ciphertext. The body is limited to
         1 MiB in total. Not Idempotency-Key based: a replayed request fails with
         409 because expected_question_version has moved on.
-      parameters: [{$ref: '#/components/parameters/QuestionVersionID'}]
+      parameters: [$ref: '#/components/parameters/QuestionVersionID']
       requestBody:
         required: true
         content:
@@ -283,7 +364,7 @@ paths:
               additionalProperties: false
               required: [expected_question_version, tests]
               properties:
-                expected_question_version: {type: integer, minimum: 1}
+                expected_question_version: {type: integer, minimum: 1, format: int64}
                 tests:
                   type: array
                   minItems: 2
@@ -297,7 +378,7 @@ paths:
                       input: {type: string, maxLength: 1048576}
                       expected_output: {type: string, maxLength: 1048576}
                       sample: {type: boolean, description: Students see full input and output only for sample tests.}
-                      weight: {type: integer, minimum: 1, maximum: 100, default: 1}
+                      weight: {type: integer, minimum: 1, maximum: 100, default: 1, format: int64}
       responses:
         '200': {$ref: '#/components/responses/QuestionVersion'}
         '400': {$ref: '#/components/responses/Problem'}
@@ -305,12 +386,16 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/question-versions/{question_version_id}/assets:
     post:
       operationId: addQuestionAsset
       parameters:
-        - {$ref: '#/components/parameters/QuestionVersionID'}
-        - {$ref: '#/components/parameters/IdempotencyKey'}
+      - {$ref: '#/components/parameters/QuestionVersionID'}
+      - {$ref: '#/components/parameters/IdempotencyKey'}
       requestBody:
         required: true
         content:
@@ -322,8 +407,8 @@ paths:
                 asset_kind: {type: string, enum: [attachment, starter_code, reference_solution]}
                 object_reference: {$ref: '#/components/schemas/EncryptedObjectReference'}
                 content_type: {type: string, minLength: 1, maxLength: 180}
-                byte_size: {type: integer, minimum: 1}
-                expected_question_version: {type: integer, minimum: 1}
+                byte_size: {type: integer, minimum: 1, format: int64}
+                expected_question_version: {type: integer, minimum: 1, format: int64}
       responses:
         '201': {$ref: '#/components/responses/QuestionVersion'}
         '400': {$ref: '#/components/responses/Problem'}
@@ -331,12 +416,16 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/question-versions/{question_version_id}/tags:
     put:
       operationId: replaceQuestionVersionTags
       parameters:
-        - {$ref: '#/components/parameters/QuestionVersionID'}
-        - {$ref: '#/components/parameters/IdempotencyKey'}
+      - {$ref: '#/components/parameters/QuestionVersionID'}
+      - {$ref: '#/components/parameters/IdempotencyKey'}
       requestBody:
         required: true
         content:
@@ -345,7 +434,7 @@ paths:
               type: object
               required: [expected_question_version, tags]
               properties:
-                expected_question_version: {type: integer, minimum: 1}
+                expected_question_version: {type: integer, minimum: 1, format: int64}
                 tags:
                   type: array
                   maxItems: 50
@@ -357,12 +446,16 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/question-versions/{question_version_id}/publish:
     post:
       operationId: publishQuestionVersion
       parameters:
-        - {$ref: '#/components/parameters/QuestionVersionID'}
-        - {$ref: '#/components/parameters/IdempotencyKey'}
+      - {$ref: '#/components/parameters/QuestionVersionID'}
+      - {$ref: '#/components/parameters/IdempotencyKey'}
       requestBody:
         required: true
         content:
@@ -371,7 +464,7 @@ paths:
               type: object
               required: [expected_question_version]
               properties:
-                expected_question_version: {type: integer, minimum: 1}
+                expected_question_version: {type: integer, minimum: 1, format: int64}
       responses:
         '200': {$ref: '#/components/responses/QuestionDetail'}
         '400': {$ref: '#/components/responses/Problem'}
@@ -379,12 +472,16 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/review-policy:
     get:
       summary: Whether publishing needs a review (ADR-0044)
       operationId: getReviewPolicy
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       responses:
         '200':
           description: The policy.
@@ -395,13 +492,26 @@ paths:
                 required: [require_review]
                 properties:
                   require_review: {type: boolean}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/categories:
     get:
       summary: Every category with its question count, Uncategorised last (ADR-0052)
       operationId: listCategories
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       responses:
         '200':
           description: The categories.
@@ -411,13 +521,26 @@ paths:
                 type: object
                 required: [categories]
                 properties:
-                  categories: {type: array, items: {$ref: '#/components/schemas/Category'}}
+                  categories: {type: array, items: {$ref: '#/components/schemas/Category'}, maxItems: 200}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     post:
       summary: Add a category, open to every author. A name that exists in any letter case returns the existing one.
       operationId: createCategory
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       requestBody:
         required: true
         content:
@@ -438,17 +561,30 @@ paths:
                 required: [id, name, created]
                 properties:
                   id: {$ref: '#/components/schemas/UUID'}
-                  name: {type: string}
-                  parent_id: {type: [string, 'null'], format: uuid}
+                  name: {type: string, maxLength: 1000}
+                  parent_id: {type: [string, 'null'], format: uuid, maxLength: 36}
                   created: {type: boolean}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/categories/{category_id}:
     patch:
       summary: Rename a category, move it (parent_id, null for top level), or both. Administrators only; Uncategorised is built in (ADR-0058).
       operationId: renameCategory
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       parameters: [{name: category_id, in: path, required: true, schema: {$ref: '#/components/schemas/UUID'}}]
       requestBody:
         required: true
@@ -459,24 +595,39 @@ paths:
               minProperties: 1
               properties:
                 name: {type: string, minLength: 1, maxLength: 80}
-                parent_id: {type: [string, 'null'], format: uuid, description: A top-level category with no sub-categories may only move under another top-level one; null moves to top level.}
+                parent_id: {type: [string, 'null'], format: uuid, description: A top-level category with no sub-categories may only move under another top-level one; null moves to top level., maxLength: 36}
       responses:
         '200':
           description: The updated category.
           content:
             application/json:
-              schema: {type: object, required: [id, name], properties: {id: {$ref: '#/components/schemas/UUID'}, name: {type: string}, parent_id: {type: [string, 'null'], format: uuid}}}
+              schema: {type: object, required: [id, name], properties: {id: {$ref: '#/components/schemas/UUID'}, name: {type: string, maxLength: 1000}, parent_id: {type: [string, 'null'], format: uuid, maxLength: 36}}}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     delete:
       summary: Delete (or merge) a category. Administrators only. Its questions move to move_to, or to Uncategorised. Refused (409) while it has sub-categories.
       operationId: deleteCategory
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       parameters:
-        - {name: category_id, in: path, required: true, schema: {$ref: '#/components/schemas/UUID'}}
-        - {name: move_to, in: query, required: false, schema: {$ref: '#/components/schemas/UUID'}}
+      - {name: category_id, in: path, required: true, schema: {$ref: '#/components/schemas/UUID'}}
+      - {name: move_to, in: query, required: false, schema: {$ref: '#/components/schemas/UUID'}}
       responses:
         '200':
           description: Where the questions went.
@@ -488,16 +639,31 @@ paths:
                 properties:
                   deleted: {$ref: '#/components/schemas/UUID'}
                   moved_to: {$ref: '#/components/schemas/UUID'}
-                  moved: {type: integer, minimum: 0}
+                  moved: {type: integer, minimum: 0, format: int64}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/questions/{question_id}/category:
     put:
       summary: File a question under a category, at any time, without a new version (ADR-0052)
       operationId: setQuestionCategory
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       parameters: [{name: question_id, in: path, required: true, schema: {$ref: '#/components/schemas/UUID'}}]
       requestBody:
         required: true
@@ -510,14 +676,29 @@ paths:
           content:
             application/json:
               schema: {type: object, required: [category_id], properties: {category_id: {$ref: '#/components/schemas/UUID'}}}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/questions/{question_id}/tags:
     put:
       summary: Replace a question's tags, at any time, without a new version. An empty list clears them (ADR-0052).
       operationId: setQuestionTags
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       parameters: [{name: question_id, in: path, required: true, schema: {$ref: '#/components/schemas/UUID'}}]
       requestBody:
         required: true
@@ -533,16 +714,31 @@ paths:
                 type: object
                 required: [tags]
                 properties:
-                  tags: {type: array, items: {type: object, required: [id, name], properties: {id: {$ref: '#/components/schemas/UUID'}, name: {type: string}}}}
+                  tags: {type: array, items: {type: object, required: [id, name], properties: {id: {$ref: '#/components/schemas/UUID'}, name: {type: string, maxLength: 1000}}}, maxItems: 200}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tags:
     get:
       summary: The tags in use, most used first, for suggestions
       operationId: listTags
-      security: [{bearerAuth: []}]
-      parameters: [{name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}]
+      security: [bearerAuth: []]
+      parameters: [{name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100, format: int64}}]
       responses:
         '200':
           description: The tags with how many questions carry each.
@@ -552,15 +748,30 @@ paths:
                 type: object
                 required: [tags]
                 properties:
-                  tags: {type: array, items: {type: object, required: [name, count], properties: {name: {type: string}, count: {type: integer}}}}
+                  tags: {type: array, items: {type: object, required: [name, count], properties: {name: {type: string, maxLength: 1000}, count: {type: integer, format: int64}}}, maxItems: 200}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/languages:
     get:
       summary: The languages an author may offer in a coding question (ADR-0050)
       operationId: listLanguages
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       responses:
         '200':
           description: The languages, in display order. Operators change them with QBANK_LANGUAGES.
@@ -576,11 +787,25 @@ paths:
                       type: object
                       required: [key, name, editor]
                       properties:
-                        key: {type: string, description: The Judge language key stored in supported_languages.}
-                        name: {type: string, description: What people see.}
-                        editor: {type: string, description: The code editor's syntax mode.}
+                        key: {type: string, description: The Judge language key stored in supported_languages., maxLength: 1000}
+                        name: {type: string, description: What people see., maxLength: 1000}
+                        editor: {type: string, description: The code editor's syntax mode., maxLength: 1000}
+                    maxItems: 200
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/question-versions/{question_version_id}/request-review:
     post:
       summary: Ask for a review of a draft (ADR-0044)
@@ -590,8 +815,8 @@ paths:
         member of staff than the requester.
       operationId: requestQuestionReview
       parameters:
-        - {$ref: '#/components/parameters/QuestionVersionID'}
-        - {$ref: '#/components/parameters/IdempotencyKey'}
+      - {$ref: '#/components/parameters/QuestionVersionID'}
+      - {$ref: '#/components/parameters/IdempotencyKey'}
       requestBody:
         required: true
         content:
@@ -600,8 +825,8 @@ paths:
               type: object
               required: [expected_question_version]
               properties:
-                expected_question_version: {type: integer, minimum: 1}
-                reviewer_id: {type: string, format: uuid, description: Optional; a hint for the queue, not a restriction}
+                expected_question_version: {type: integer, minimum: 1, format: int64}
+                reviewer_id: {type: string, format: uuid, description: Optional; a hint for the queue, not a restriction: null, maxLength: 36}
       responses:
         '200': {$ref: '#/components/responses/QuestionDetail'}
         '400': {$ref: '#/components/responses/Problem'}
@@ -609,6 +834,10 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/question-versions/{question_version_id}/export:
     get:
       summary: Export a question with all of its tests (ADR-0032)
@@ -617,32 +846,47 @@ paths:
         administrators can obtain. Every export is recorded. The response
         includes hidden tests in plain text.
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - name: question_version_id
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
+      - name: question_version_id
+        in: path
+        required: true
+        schema: {type: string, format: uuid, maxLength: 36}
       responses:
         '200':
           description: The question file (format aethercode.question.v1).
           content:
             application/json:
-              schema: { type: object }
-        '403': { description: Not an administrator. }
-        '404': { description: No such question version. }
-        '409': { description: The version has no tests yet. }
+              schema: {type: object}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        '403': {description: Not an administrator., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '404': {description: No such question version., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '409': {description: The version has no tests yet., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/question-versions/{question_version_id}/choices:
     put:
       summary: Make a draft multiple-choice (ADR-0035)
       description: 2 to 10 options, the indexes of the correct ones, and whether several may be chosen.
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - name: question_version_id
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
+      - name: question_version_id
+        in: path
+        required: true
+        schema: {type: string, format: uuid, maxLength: 36}
       requestBody:
         required: true
         content:
@@ -652,20 +896,26 @@ paths:
               additionalProperties: false
               required: [expected_question_version, choices, correct_choices, multiple_choice]
               properties:
-                expected_question_version: { type: integer }
-                choices: { type: array, minItems: 2, maxItems: 10, items: { type: string } }
-                correct_choices: { type: array, minItems: 1, items: { type: integer, minimum: 0 } }
-                multiple_choice: { type: boolean }
-                explanations: { type: [array, 'null'], maxItems: 10, items: { type: [string, 'null'], maxLength: 1000 }, description: Why each option is right or wrong, one entry per option (null for none). Omitting it clears the explanations. Authors see them; the exam runner never receives them (ADR-0058). }
+                expected_question_version: {type: integer, format: int64}
+                choices: {type: array, minItems: 2, maxItems: 10, items: {type: string, maxLength: 1000}}
+                correct_choices: {type: array, minItems: 1, items: {type: integer, minimum: 0, format: int64}, maxItems: 200}
+                multiple_choice: {type: boolean}
+                explanations: {type: [array, 'null'], maxItems: 10, items: {type: [string, 'null'], maxLength: 1000}, description: Why each option is right or wrong, ? one entry per option (null for none). Omitting it clears the explanations. Authors see them; the exam runner never receives them (ADR-0058). : null}
       responses:
-        '200': { description: The question version. }
-        '400': { description: Invalid options, answer or explanations. }
-        '409': { description: Stale revision or not a draft. }
+        '200': {description: The question version., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '400': {description: Invalid options, answer or explanations.: null, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '409': {description: Stale revision or not a draft., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/question-versions/{question_version_id}/templates:
     get:
       summary: Get an author's code stubs and wrappers for a version (ADR-0063)
-      security: [{bearerAuth: []}]
-      parameters: [{$ref: '#/components/parameters/QuestionVersionID'}]
+      security: [bearerAuth: []]
+      parameters: [$ref: '#/components/parameters/QuestionVersionID']
       responses:
         '200':
           description: The templates keyed by language identifier.
@@ -680,15 +930,30 @@ paths:
                     additionalProperties:
                       type: object
                       properties:
-                        starter: {type: string}
-                        prefix: {type: string}
-                        suffix: {type: string}
+                        starter: {type: string, maxLength: 1000}
+                        prefix: {type: string, maxLength: 1000}
+                        suffix: {type: string, maxLength: 1000}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     put:
       summary: Replace code templates for a draft version (ADR-0063)
-      security: [{bearerAuth: []}]
-      parameters: [{$ref: '#/components/parameters/QuestionVersionID'}]
+      security: [bearerAuth: []]
+      parameters: [$ref: '#/components/parameters/QuestionVersionID']
       requestBody:
         required: true
         content:
@@ -712,14 +977,29 @@ paths:
           content:
             application/json:
               schema: {type: object}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/question-versions/{question_version_id}/model-checks:
     post:
       summary: Run the author's reference solution on all tests of the version (ADR-0033)
-      security: [{bearerAuth: []}]
-      parameters: [{$ref: '#/components/parameters/QuestionVersionID'}]
+      security: [bearerAuth: []]
+      parameters: [$ref: '#/components/parameters/QuestionVersionID']
       requestBody:
         required: true
         content:
@@ -740,49 +1020,94 @@ paths:
                 type: object
                 required: [id]
                 properties:
-                  id: {type: string, format: uuid}
+                  id: {type: string, format: uuid, maxLength: 36}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '400': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     get:
       summary: List model checks for a question version
-      security: [{bearerAuth: []}]
-      parameters: [{$ref: '#/components/parameters/QuestionVersionID'}]
+      security: [bearerAuth: []]
+      parameters: [$ref: '#/components/parameters/QuestionVersionID']
       responses:
         '200':
           description: All model checks for this version, newest first.
           content:
             application/json:
-              schema: {type: array, items: {type: object}}
+              schema: {type: array, items: {type: object}, maxItems: 200}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/question-versions/{question_version_id}/assets/{asset_kind}:
     get:
       summary: Decrypt and return a named asset for a question version
       description: Requires read on question_versions.
-      security: [{bearerAuth: []}]
+      security: [bearerAuth: []]
       parameters:
-        - {$ref: '#/components/parameters/QuestionVersionID'}
-        - name: asset_kind
-          in: path
-          required: true
-          schema: {type: string, enum: [attachment, starter_code, reference_solution]}
+      - {$ref: '#/components/parameters/QuestionVersionID'}
+      - name: asset_kind
+        in: path
+        required: true
+        schema: {type: string, enum: [attachment, starter_code, reference_solution]}
       responses:
         '200':
           description: The asset bytes with its original content type.
           content:
             application/octet-stream:
               schema: {type: string, format: binary}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/questions/{question_id}/audience:
     put:
       summary: Use a question for tests or for practice (ADR-0041)
       description: Practice questions are visible to every student; test questions never are. Requires write on questions.
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - { name: question_id, in: path, required: true, schema: { type: string, format: uuid } }
+      - {name: question_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
       requestBody:
         required: true
         content:
@@ -792,11 +1117,17 @@ paths:
               additionalProperties: false
               required: [audience]
               properties:
-                audience: { type: string, enum: [test, practice] }
+                audience: {type: string, enum: [test, practice]}
       responses:
-        '200': { description: The new audience. }
-        '400': { description: Not test or practice. }
-        '404': { description: No such question. }
+        '200': {description: The new audience., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '400': {description: Not test or practice., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '404': {description: No such question., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/practice/questions:
     get:
       summary: The practice catalogue with the student's progress (ADR-0041)
@@ -805,43 +1136,67 @@ paths:
         difficulty, tags, and whether the caller solved or attempted it.
         Authorized as the bearer on practice_submissions in their tenant.
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - { name: tenant_id, in: path, required: true, schema: { type: string, format: uuid } }
+      - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
       responses:
-        '200': { description: An array of practice problems. }
+        '200': {description: An array of practice problems., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/practice/progress:
     get:
       summary: The student's practice totals (ADR-0041)
       description: Problems available and solved, by difficulty, submissions, accepted ones, and days with practice in the last year (IST).
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - { name: tenant_id, in: path, required: true, schema: { type: string, format: uuid } }
+      - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
       responses:
-        '200': { description: The totals. }
+        '200': {description: The totals., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/practice/questions/{question_id}:
     get:
       summary: One practice problem with its sample tests (ADR-0041)
       description: The latest published version's statement, languages, limits, tags and decrypted sample tests. Hidden tests are never returned.
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - { name: tenant_id, in: path, required: true, schema: { type: string, format: uuid } }
-        - { name: question_id, in: path, required: true, schema: { type: string, format: uuid } }
+      - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
+      - {name: question_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
       responses:
-        '200': { description: The problem. }
-        '404': { description: Not a practice problem. }
+        '200': {description: The problem., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '404': {description: Not a practice problem., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/practice/questions/{question_id}/submissions:
     get:
       summary: The student's last 20 runs and submissions on a problem (ADR-0041)
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - { name: tenant_id, in: path, required: true, schema: { type: string, format: uuid } }
-        - { name: question_id, in: path, required: true, schema: { type: string, format: uuid } }
+      - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
+      - {name: question_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
       responses:
-        '200': { description: Runs, newest first, with per-test verdicts and, for sample runs, output. }
+        '200': {description: Runs, newest first: null, with per-test verdicts and: null, for sample runs: null, output.: null, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
     post:
       summary: Run or submit code on a practice problem (ADR-0041)
       description: >-
@@ -849,10 +1204,10 @@ paths:
         every test. One job per student may be in flight and at most 12 across
         the platform, so exams keep Judge's other slots.
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - { name: tenant_id, in: path, required: true, schema: { type: string, format: uuid } }
-        - { name: question_id, in: path, required: true, schema: { type: string, format: uuid } }
+      - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
+      - {name: question_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
       requestBody:
         required: true
         content:
@@ -862,33 +1217,46 @@ paths:
               additionalProperties: false
               required: [language, mode, source]
               properties:
-                language: { type: string }
-                mode: { type: string, enum: [run, submit] }
-                source: { type: string, maxLength: 65536 }
-                input: { type: string, maxLength: 65536, description: Runs only. }
+                language: {type: string, maxLength: 1000}
+                mode: {type: string, enum: [run, submit]}
+                source: {type: string, maxLength: 65536}
+                input: {type: string, maxLength: 65536, description: Runs only.}
       responses:
-        '202': { description: 'Started: { id }; poll the run.' }
-        '400': { description: Invalid language, mode, code or input. }
-        '404': { description: Not a practice problem. }
-        '409': { description: A run is already in flight, or practice is busy. }
-        '503': { description: Judge unavailable. }
+        '202': {description: 'Started: { id }; poll the run.', headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '400': {description: Invalid language, mode: null, code or input.: null, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '404': {description: Not a practice problem., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '409': {description: A run is already in flight, or practice is busy.: null, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '503': {description: Judge unavailable., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/practice/submissions/{submission_id}:
     get:
       summary: One of the student's runs, with its code (ADR-0041)
       security:
-        - bearerAuth: []
+      - bearerAuth: []
       parameters:
-        - { name: tenant_id, in: path, required: true, schema: { type: string, format: uuid } }
-        - { name: submission_id, in: path, required: true, schema: { type: string, format: uuid } }
+      - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
+      - {name: submission_id, in: path, required: true, schema: {type: string, format: uuid, maxLength: 36}}
       responses:
-        '200': { description: The run and its source. }
-        '404': { description: Not the caller's run. }
+        '200': {description: The run and its source., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        '404': {description: Not the caller's run., headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
+        "'401'":
+          $ref: '#/components/responses/Problem401'
+        "'500'":
+          $ref: '#/components/responses/Problem500'
+        "'429'":
+          $ref: '#/components/responses/Problem429'
 components:
   securitySchemes:
     BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: 'Bearer JSON Web Token (JWT). Tokens are short-lived and signed per RFC 8725. Include as: Authorization: Bearer <token>.'
   parameters:
     IdempotencyKey:
       name: Idempotency-Key
@@ -899,7 +1267,7 @@ components:
       name: cursor
       in: query
       required: false
-      schema: {type: string}
+      schema: {type: string, maxLength: 1000}
       description: Opaque keyset cursor from the previous page's next_cursor field
     QuestionID:
       name: question_id
@@ -917,20 +1285,95 @@ components:
       content:
         application/json:
           schema: {$ref: '#/components/schemas/Problem'}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     QuestionDetail:
       description: Question and one immutable version summary
       content:
         application/json:
           schema: {$ref: '#/components/schemas/QuestionDetail'}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     QuestionVersion:
       description: Safe version metadata without encrypted object locations
       content:
         application/json:
           schema: {$ref: '#/components/schemas/QuestionVersion'}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+    Problem401:
+      description: Unauthorized — missing, expired, or invalid bearer token.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+    Problem500:
+      description: Internal server error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+    Problem429:
+      description: Too many requests — rate limit exceeded.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
+        Retry-After:
+          $ref: '#/components/headers/Retry-After'
   schemas:
     UUID:
       type: string
       format: uuid
+      maxLength: 36
     QuestionDetailPage:
       type: object
       required: [items]
@@ -938,9 +1381,11 @@ components:
         items:
           type: array
           items: {$ref: '#/components/schemas/QuestionDetail'}
+          maxItems: 200
         next_cursor:
           type: string
           description: Opaque keyset cursor; absent on the last page
+          maxLength: 1000
     QuestionVersionPage:
       type: object
       required: [items]
@@ -948,9 +1393,11 @@ components:
         items:
           type: array
           items: {$ref: '#/components/schemas/QuestionVersion'}
+          maxItems: 200
         next_cursor:
           type: string
           description: Opaque keyset cursor; absent on the last page
+          maxLength: 1000
     EncryptedObjectReference:
       type: object
       required: [object_key, checksum, encryption_key_reference]
@@ -971,8 +1418,8 @@ components:
           maxItems: 32
           uniqueItems: true
           items: {type: string, minLength: 1, maxLength: 80}
-        time_limit_ms: {type: integer, minimum: 50, maximum: 600000}
-        memory_limit_kib: {type: integer, minimum: 1024, maximum: 4194304}
+        time_limit_ms: {type: integer, minimum: 50, maximum: 600000, format: int64}
+        memory_limit_kib: {type: integer, minimum: 1024, maximum: 4194304, format: int64}
         tags:
           type: array
           maxItems: 50
@@ -982,17 +1429,17 @@ components:
       required: [id, name]
       properties:
         id: {$ref: '#/components/schemas/UUID'}
-        name: {type: string}
+        name: {type: string, maxLength: 1000}
     Question:
       type: object
       required: [id, slug, lifecycle_state, created_at, version]
       properties:
         id: {$ref: '#/components/schemas/UUID'}
-        slug: {type: string}
+        slug: {type: string, maxLength: 1000}
         lifecycle_state: {type: string, enum: [draft, published, archived]}
         created_at: {type: string, format: date-time}
         archived_at: {type: [string, 'null'], format: date-time}
-        version: {type: integer, minimum: 1}
+        version: {type: integer, minimum: 1, format: int64}
         category_id: {$ref: '#/components/schemas/UUID'}
         category: {$ref: '#/components/schemas/CategoryRef'}
     CategoryRef:
@@ -1000,40 +1447,40 @@ components:
       required: [id, name]
       properties:
         id: {$ref: '#/components/schemas/UUID'}
-        name: {type: string}
+        name: {type: string, maxLength: 1000}
     Category:
       type: object
       required: [id, name, question_count]
       properties:
         id: {$ref: '#/components/schemas/UUID'}
         name: {type: string, minLength: 1, maxLength: 80}
-        parent_id: {type: [string, 'null'], format: uuid, description: Null for a top-level category.}
-        question_count: {type: integer, minimum: 0, description: Live questions filed directly under it.}
-        question_count_total: {type: integer, minimum: 0, description: Top-level categories only; own questions plus those in its sub-categories.}
+        parent_id: {type: [string, 'null'], format: uuid, description: Null for a top-level category., maxLength: 36}
+        question_count: {type: integer, minimum: 0, description: Live questions filed directly under it., format: int64}
+        question_count_total: {type: integer, minimum: 0, description: Top-level categories only; own questions plus those in its sub-categories., format: int64}
     QuestionVersion:
       type: object
       required: [id, question_id, version_number, title, prompt_markdown, difficulty, supported_languages, time_limit_ms, memory_limit_kib, status, created_at, version, tags, sample_test_case_count, hidden_test_case_count, asset_count]
       properties:
         id: {$ref: '#/components/schemas/UUID'}
         question_id: {$ref: '#/components/schemas/UUID'}
-        version_number: {type: integer, minimum: 1}
-        title: {type: string}
-        prompt_markdown: {type: string}
+        version_number: {type: integer, minimum: 1, format: int64}
+        title: {type: string, maxLength: 1000}
+        prompt_markdown: {type: string, maxLength: 1000}
         difficulty: {type: string, enum: [easy, medium, hard]}
-        supported_languages: {type: array, items: {type: string}}
-        time_limit_ms: {type: integer}
-        memory_limit_kib: {type: integer}
+        supported_languages: {type: array, items: {type: string, maxLength: 1000}, maxItems: 200}
+        time_limit_ms: {type: integer, format: int64}
+        memory_limit_kib: {type: integer, format: int64}
         status: {type: string, enum: [draft, published, retired]}
         review_requested_at: {type: string, format: date-time}
-        review_requested_by: {type: string, format: uuid}
-        assigned_reviewer_id: {type: string, format: uuid}
+        review_requested_by: {type: string, format: uuid, maxLength: 36}
+        assigned_reviewer_id: {type: string, format: uuid, maxLength: 36}
         published_at: {type: [string, 'null'], format: date-time}
         created_at: {type: string, format: date-time}
-        version: {type: integer, minimum: 1}
-        tags: {type: array, items: {$ref: '#/components/schemas/Tag'}}
-        sample_test_case_count: {type: integer, minimum: 0}
-        hidden_test_case_count: {type: integer, minimum: 0}
-        asset_count: {type: integer, minimum: 0}
+        version: {type: integer, minimum: 1, format: int64}
+        tags: {type: array, items: {$ref: '#/components/schemas/Tag'}, maxItems: 200}
+        sample_test_case_count: {type: integer, minimum: 0, format: int64}
+        hidden_test_case_count: {type: integer, minimum: 0, format: int64}
+        asset_count: {type: integer, minimum: 0, format: int64}
     QuestionDetail:
       type: object
       required: [question, question_version]
@@ -1044,5 +1491,31 @@ components:
       type: object
       required: [code, message]
       properties:
-        code: {type: string}
-        message: {type: string}
+        code: {type: string, maxLength: 1000}
+        message: {type: string, maxLength: 1000}
+  headers:
+    RateLimit-Limit:
+      description: Standard rate-limit response headers (RFC 6585 / IETF draft-ietf-httpapi-ratelimit-headers).
+      schema:
+        type: string
+        maxLength: 64
+    RateLimit-Remaining:
+      description: Standard rate-limit response headers (RFC 6585 / IETF draft-ietf-httpapi-ratelimit-headers).
+      schema:
+        type: string
+        maxLength: 64
+    RateLimit-Reset:
+      description: Standard rate-limit response headers (RFC 6585 / IETF draft-ietf-httpapi-ratelimit-headers).
+      schema:
+        type: string
+        maxLength: 64
+    Access-Control-Allow-Origin:
+      description: CORS allowed origins. The platform gateway sets this; internal services declare it for contract completeness.
+      schema:
+        type: string
+        maxLength: 256
+    Retry-After:
+      description: Number of seconds to wait before retrying after a 429 rate-limit response.
+      schema:
+        type: integer
+        minimum: 0
