@@ -1,9 +1,9 @@
 import type { Icon } from "@phosphor-icons/react";
-import { ArrowRight, BookOpen, Briefcase, Buildings, Check, Confetti, Lock, NotePencil, Question, Stack, Users } from "@phosphor-icons/react/ssr";
+import { ArrowRight, BookOpen, Briefcase, Buildings, ChartBar, Check, Confetti, Lock, NotePencil, Question, Stack, Users } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Panel } from "@/components/ui/card";
 import { LoadError, PageHeader } from "@/components/staff/page-header";
 import { type SetupKey, setupSteps } from "@/lib/server/setup";
 import { requireStaff } from "@/lib/server/staff";
@@ -25,10 +25,9 @@ const RING = 2 * Math.PI * 34;
 
 export default async function GetStartedPage() {
   const staff = await requireStaff();
-  if (!staff.canManageAccounts) redirect("/staff");
   let steps;
   try {
-    steps = await setupSteps(staff);
+    steps = staff.canManageAccounts ? await setupSteps(staff) : [];
   } catch (error) {
     return (
       <>
@@ -37,6 +36,47 @@ export default async function GetStartedPage() {
       </>
     );
   }
+  const firstName = staff.viewer.displayName.split(" ")[0] || staff.viewer.username;
+
+  // Non-admin staff (faculty, mentors) see a simple quick-start card grid.
+  if (!staff.canManageAccounts || steps.length === 0) {
+    const FACULTY_STEPS = [
+      { icon: Question, title: "Write a question", text: "Start in the question bank. Add a prompt, tests and a model solution.", href: "/staff/questions/new", cta: "New question" },
+      { icon: BookOpen, title: "Browse questions", text: "See all published questions available for exams.", href: "/staff/questions", cta: "Question bank" },
+      { icon: NotePencil, title: "Create an exam", text: "Pick questions, set a window and duration, then assign to a batch.", href: "/staff/exams/new", cta: "New exam" },
+      { icon: ChartBar, title: "View analytics", text: "Scores, pass rates and student performance for this college.", href: "/staff/analytics", cta: "Analytics" },
+      { icon: Users, title: "Manage students", text: "Enrol, import and manage student accounts.", href: "/staff/students", cta: "Students" },
+    ];
+    return (
+      <div className="mx-auto max-w-3xl animate-enter">
+        <div className="mb-8">
+          <p className="font-[family-name:var(--font-eyebrow)] text-[10.5px] uppercase tracking-[0.14em] text-ink-subtle">Welcome</p>
+          <h1 className="mt-1 text-[26px] font-semibold leading-tight tracking-[-0.025em] text-ink">Hey {firstName}, here is where to start</h1>
+          <p className="mt-2 text-sm text-ink-muted">Quick links to the things you use most.</p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {FACULTY_STEPS.map((step) => {
+            const Icon = step.icon;
+            return (
+              <Link key={step.href} href={step.href} className="group">
+                <Panel className="flex h-full flex-col gap-3 p-5 transition-shadow group-hover:shadow-[var(--shadow-panel)]">
+                  <Icon className="size-6 text-brand" />
+                  <div>
+                    <p className="text-[15px] font-semibold text-ink">{step.title}</p>
+                    <p className="mt-1 text-[13px] leading-snug text-ink-muted">{step.text}</p>
+                  </div>
+                  <span className="mt-auto inline-flex items-center gap-1 text-[13px] font-medium text-brand">
+                    {step.cta} <ArrowRight className="size-3.5" />
+                  </span>
+                </Panel>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   const done = steps.filter((step) => step.done).length;
   const complete = done === steps.length;
   const current = steps.find((step) => !step.done && !step.blocked);

@@ -22,7 +22,7 @@ export default async function StaffLayout({ children }: { children: React.ReactN
       label: "Overview",
       items: [
         { href: "/staff", label: "Dashboard", icon: "home" },
-        ...(staff.canManageAccounts ? [{ href: "/staff/get-started", label: "Get started", icon: "start" } as const] : []),
+        { href: "/staff/get-started", label: "Get started", icon: "start" },
       ],
     },
   ];

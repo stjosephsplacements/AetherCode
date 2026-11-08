@@ -6,7 +6,13 @@ import { requireAdmin } from "@/lib/server/staff";
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const staff = await requireAdmin();
   const groups: NavGroup[] = [
-    { label: "Overview", items: [{ href: "/admin", label: "Overview", icon: "home" }] },
+    {
+      label: "Overview",
+      items: [
+        { href: "/admin", label: "Overview", icon: "home" },
+        { href: "/admin/get-started", label: "Get started", icon: "start" },
+      ],
+    },
     {
       label: "Platform",
       items: [

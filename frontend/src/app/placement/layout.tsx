@@ -9,9 +9,15 @@ export default async function PlacementLayout({ children }: { children: React.Re
   const placement = await requirePlacement();
   const groups: NavGroup[] = [
     {
-      label: "Placement",
+      label: "Overview",
       items: [
         { href: "/placement", label: "Placements", icon: "placements" },
+        { href: "/placement/get-started", label: "Get started", icon: "start" },
+      ],
+    },
+    {
+      label: "Manage",
+      items: [
         { href: "/placement/departments", label: "Departments", icon: "organisation" },
         { href: "/placement/staff", label: "Officers", icon: "accounts" },
       ],
