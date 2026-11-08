@@ -19,6 +19,12 @@ set -euo pipefail
 REPO_DIR=/data/production/AetherCode_Production_StJosephs
 REG=ghcr.io/stjosephsplacements
 
+# Environment config — overridable via env vars (CI sets these)
+NS="${DEV_K8S_NAMESPACE:-aethercode-dev}"
+PUBLIC_ORIGIN="${DEV_PUBLIC_ORIGIN:-https://dev.aethercode.stjosephsplacements.in}"
+INGRESS_HOST="${DEV_INGRESS_HOST:-dev.aethercode.stjosephsplacements.in}"
+POSTGRES_HOST="postgres-cluster-pooler.${NS}.svc.cluster.local"
+
 BUILD=false
 if [[ "${1:-}" == "--build" ]]; then BUILD=true; shift; fi
 SHA=$1; shift; SVCS=("$@")
@@ -68,29 +74,30 @@ else
   done
 fi
 
-# ── Helm upgrades (shared for both modes) ─────────────────────────────────────
+# ── Helm upgrades ─────────────────────────────────────────────────────────────
 cd "$REPO_DIR/deploy/helm"
-for NS in aethercode aether-test; do
-  helm upgrade migrations platform-migrations -n "$NS" \
-    --reset-then-reuse-values --set image.tag="$TAG" \
-    --wait --timeout 10m 2>&1 \
-    | grep -E "^STATUS|[Ee]rror" | sed "s/^/$NS migrations: /" || true
 
-  for s in "${SVCS[@]}"; do
-    EXTRA=()
-    [[ "$s" == gateway ]] && EXTRA=(--set ingress.enabled=false)
-    [[ "$s" == judge && "$NS" == aether-test ]] && EXTRA=(--set networkPolicy.egress.enabled=false)
-    helm upgrade "$s" platform-service -n "$NS" \
-      --reset-then-reuse-values -f "platform-service/values-$s.yaml" \
-      --set image.tag="$TAG" "${EXTRA[@]}" \
-      --wait --timeout 5m 2>&1 \
-      | grep -E "^STATUS|[Ee]rror" | sed "s/^/$NS $s: /" || true
-  done
+helm upgrade migrations platform-migrations -n "$NS" \
+  --install --reset-then-reuse-values \
+  --set global.postgresHost="$POSTGRES_HOST" \
+  --set global.judgeDbHost="judge-db" \
+  --set image.tag="$TAG" \
+  --wait --timeout 10m 2>&1 \
+  | grep -E "^STATUS|[Ee]rror" | sed "s/^/$NS migrations: /" || true
 
-  for s in "${SVCS[@]}"; do
-    kubectl -n "$NS" rollout status deploy/"$s" --timeout=120s 2>&1 \
-      | tail -1 | sed "s/^/$NS $s: /"
-  done
+for s in "${SVCS[@]}"; do
+  EXTRA=(--set global.publicOrigin="$PUBLIC_ORIGIN")
+  [[ "$s" == frontend ]] && EXTRA+=(--set ingress.host="$INGRESS_HOST")
+  helm upgrade "$s" platform-service -n "$NS" \
+    --install --reset-then-reuse-values -f "platform-service/values-$s.yaml" \
+    --set image.tag="$TAG" "${EXTRA[@]}" \
+    --wait --timeout 5m 2>&1 \
+    | grep -E "^STATUS|[Ee]rror" | sed "s/^/$NS $s: /" || true
+done
+
+for s in "${SVCS[@]}"; do
+  kubectl -n "$NS" rollout status deploy/"$s" --timeout=120s 2>&1 \
+    | tail -1 | sed "s/^/$NS $s: /"
 done
 
 echo "SYNC-DONE $TAG"

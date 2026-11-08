@@ -245,30 +245,35 @@ jobs:
         env:
           IMAGE_TAG: ${{ github.sha }}
           NAMESPACE: ${{ secrets.PROD_K8S_NAMESPACE }}
+          PUBLIC_ORIGIN: ${{ secrets.PROD_PUBLIC_ORIGIN }}
+          INGRESS_HOST: ${{ secrets.PROD_INGRESS_HOST }}
           SERVICES: ${{ secrets.PROD_SERVICES }}
         run: |
           set -euo pipefail
           chart=deploy/helm/platform-service
           read -ra services <<< "$SERVICES"
 
-          migration_values=$(helm get values migrations --namespace "$NAMESPACE" -o json)
-          postgres_host=$(jq -er '.global.postgresHost // .postgresHost | select(type == "string" and length > 0)' <<<"$migration_values")
-          judge_db_host=$(jq -er '.global.judgeDbHost // .judgeDbHost | select(type == "string" and length > 0)' <<<"$migration_values")
           helm upgrade migrations deploy/helm/platform-migrations \
             --namespace "$NAMESPACE" \
+            --install \
             --reset-then-reuse-values \
-            --set-string global.postgresHost="$postgres_host" \
-            --set-string global.judgeDbHost="$judge_db_host" \
+            --set global.postgresHost="postgres-cluster-pooler.$NAMESPACE.svc.cluster.local" \
+            --set global.judgeDbHost="judge-db" \
             --set image.tag="$IMAGE_TAG" \
             --wait --atomic --timeout 15m
 
           for service in "${services[@]}"; do
+            extra_args=()
+            [[ "$service" == "frontend" ]] && extra_args=(--set "ingress.host=$INGRESS_HOST")
             helm upgrade "$service" "$chart" \
               --namespace "$NAMESPACE" \
+              --install \
               --reuse-values \
               --values "deploy/helm/platform-service/values-$service.yaml" \
               --set image.tag="$IMAGE_TAG" \
+              --set global.publicOrigin="$PUBLIC_ORIGIN" \
               --set "imagePullSecrets[0].name=ghcr-creds" \
+              "${extra_args[@]}" \
               --wait --atomic --timeout 10m
           done
 
@@ -297,10 +302,10 @@ jobs:
           SERVER_HOST: ${{ secrets.DEV_SERVER_HOST }}
           SERVER_USER: ${{ secrets.DEV_SERVER_USER }}
           DEPLOY_PATH: ${{ secrets.DEV_DEPLOY_PATH }}
+          DEV_K8S_NAMESPACE: ${{ secrets.DEV_K8S_NAMESPACE }}
+          DEV_PUBLIC_ORIGIN: ${{ secrets.DEV_PUBLIC_ORIGIN }}
+          DEV_INGRESS_HOST: ${{ secrets.DEV_INGRESS_HOST }}
           SHA: ${{ github.sha }}
-          # GITHUB_TOKEN is a built-in CI secret with read:packages on GHCR.
-          # Passed to the server as GHCR_TOKEN via SSH so ctr pull authenticates
-          # without storing any credential on the server itself.
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
@@ -315,4 +320,4 @@ jobs:
             -o StrictHostKeyChecking=yes \
             -o BatchMode=yes \
             "${SERVER_USER}@${SERVER_HOST}" \
-            "GHCR_TOKEN='${GHCR_TOKEN}' bash '${DEPLOY_PATH}/deploy/dev/dev-sync.sh' '${SHA}' gateway identity tenant user question-bank assessment submission judge seb notification analytics frontend"
+            "GHCR_TOKEN='${GHCR_TOKEN}' DEV_K8S_NAMESPACE='${DEV_K8S_NAMESPACE}' DEV_PUBLIC_ORIGIN='${DEV_PUBLIC_ORIGIN}' DEV_INGRESS_HOST='${DEV_INGRESS_HOST}' bash '${DEPLOY_PATH}/deploy/dev/dev-sync.sh' '${SHA}' gateway identity tenant user question-bank assessment submission judge seb notification analytics frontend"
