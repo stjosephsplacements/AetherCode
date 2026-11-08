@@ -15,7 +15,12 @@ dependencies = [
     "pillow>=11",
     "numpy>=2",
     "mediapipe>=0.10",
+    "prisma>=0.15",
 ]
+
+[tool.prisma]
+# Generate the client into the package so it ships with the wheel.
+output = "src/proctor/prisma_client"
 
 [build-system]
 requires = ["hatchling"]

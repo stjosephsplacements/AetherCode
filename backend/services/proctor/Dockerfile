@@ -8,7 +8,10 @@ RUN pip3 install --no-cache-dir uv
 
 WORKDIR /app
 COPY pyproject.toml .
+COPY prisma/ prisma/
 RUN uv pip install --system --no-cache -e .
+# Generate the Prisma Python client at build time so no network is needed at runtime
+RUN prisma generate
 
 COPY src/ src/
 

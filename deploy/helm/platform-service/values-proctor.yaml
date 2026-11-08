@@ -1,0 +1,82 @@
+# Proctor service: GPU-accelerated webcam proctoring.
+# Runs YOLOv8x + MediaPipe on the server GPU.
+# Requires: NVIDIA GPU node + NVIDIA device plugin in cluster.
+nameOverride: proctor
+
+image:
+  repository: ghcr.io/stjosephsplacements/aethercode-proctor
+  tag: ""
+
+# Single replica — GPU is shared, not per-pod.
+# Scale via GPU parallelism inside the process (PROCTOR_WORKERS env var).
+replicaCount: 1
+
+service:
+  port: 8090
+  targetPort: 8090
+
+# No CPU/memory limits — the GPU driver manages VRAM.
+# Set requests so the scheduler knows this pod needs a GPU node.
+resources:
+  requests:
+    cpu: "2"
+    memory: "4Gi"
+    nvidia.com/gpu: "1"
+  limits:
+    nvidia.com/gpu: "1"
+
+config:
+  PROCTOR_SUBMISSION_URL: "http://submission:8080"
+  PROCTOR_MINIO_ENDPOINT: "minio:9000"
+  PROCTOR_MINIO_BUCKET: "aethercode"
+  PROCTOR_NATS_URL: "nats://nats:4222"
+  PROCTOR_NATS_SUBJECT: "proctor.analyze"
+  PROCTOR_YOLO_MODEL: "yolov8x.pt"
+  PROCTOR_CONFIDENCE_PHONE: "0.50"
+  PROCTOR_CONFIDENCE_PERSON: "0.60"
+  PROCTOR_VIOLATION_COOLDOWN_SECONDS: "30"
+
+secretEnv:
+  # Mounted from aethercode-secrets Secret.
+  - name: PROCTOR_MINIO_ACCESS_KEY
+  - name: PROCTOR_MINIO_SECRET_KEY
+  - name: PROCTOR_DATABASE_URL
+  - name: PROCTOR_DATABASE_DIRECT_URL
+
+# Node selector — only schedule on nodes with NVIDIA GPUs.
+nodeSelector:
+  nvidia.com/gpu.present: "true"
+
+tolerations:
+  - key: nvidia.com/gpu
+    operator: Exists
+    effect: NoSchedule
+
+networkPolicy:
+  allowFrom: []
+  egress:
+    enabled: true
+    nats:
+      enabled: true
+    postgres:
+      enabled: true
+    extraRules:
+      - to:
+          - podSelector:
+              matchLabels:
+                app.kubernetes.io/name: submission
+                app.kubernetes.io/part-of: aethercode
+        ports:
+          - protocol: TCP
+            port: 8080
+      - to:
+          - podSelector:
+              matchLabels:
+                app.kubernetes.io/name: minio
+        ports:
+          - protocol: TCP
+            port: 9000
+
+# No HPA — GPU pods don't scale by CPU; scale by adding GPU nodes.
+autoscaling:
+  enabled: false
