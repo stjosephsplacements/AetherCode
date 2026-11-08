@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { EmptyState, PageHeader } from "@/components/staff/page-header";
+import { EmptyState, LoadError, PageHeader } from "@/components/staff/page-header";
 import { Badge } from "@/components/ui/card";
 import type { CommunityPost } from "@/lib/api-types";
 import { communityList } from "@/lib/server/community";
@@ -14,7 +14,17 @@ export default async function BlogsPage({ searchParams }: { searchParams: Promis
   const viewer = await requireViewer();
   if (!viewer.tenantId) redirect("/student");
   const tag = (await searchParams).tag?.trim().toLowerCase();
-  const posts = await communityList<CommunityPost>(viewer.tenantId, "posts", { tag });
+  let posts;
+  try {
+    posts = await communityList<CommunityPost>(viewer.tenantId, "posts", { tag });
+  } catch (error) {
+    return (
+      <>
+        <PageHeader title="Blogs" />
+        <LoadError error={error} />
+      </>
+    );
+  }
   return (
     <div className="animate-enter">
       <PageHeader title={"Blogs"} description={"Preparation guides and announcements from your placement team."} />

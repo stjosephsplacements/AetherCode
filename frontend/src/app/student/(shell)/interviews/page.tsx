@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { RoundsEditor } from "@/components/community/rounds-editor";
 import { ActionForm, Field, Select, TextArea, TextInput } from "@/components/staff/form";
-import { EmptyState, Section, PageHeader } from "@/components/staff/page-header";
+import { EmptyState, LoadError, Section, PageHeader } from "@/components/staff/page-header";
 import { Panel } from "@/components/ui/card";
 import type { InterviewExperience } from "@/lib/api-types";
 import { communityList } from "@/lib/server/community";
@@ -16,10 +16,15 @@ export default async function InterviewsPage({ searchParams }: { searchParams: P
   const viewer = await requireViewer();
   if (!viewer.tenantId) redirect("/student");
   const company = (await searchParams).company?.trim();
-  const [shared, mine] = await Promise.all([
-    communityList<InterviewExperience>(viewer.tenantId, "interview-experiences", { company }),
-    communityList<InterviewExperience>(viewer.tenantId, "interview-experiences", { mine: true }),
-  ]);
+  let shared, mine;
+  try {
+    [shared, mine] = await Promise.all([
+      communityList<InterviewExperience>(viewer.tenantId, "interview-experiences", { company }),
+      communityList<InterviewExperience>(viewer.tenantId, "interview-experiences", { mine: true }),
+    ]);
+  } catch (error) {
+    return (<><PageHeader title="Interview experiences" /><LoadError error={error} /></>);
+  }
   const waiting = mine.filter((experience) => experience.status !== "approved");
   return (
     <div className="animate-enter">
