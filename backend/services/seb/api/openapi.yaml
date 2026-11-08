@@ -66,6 +66,69 @@ paths:
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
+    delete:
+      security: [{bearerAuth: []}]
+      summary: Soft-delete a SEB configuration
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: {type: string, minLength: 1, maxLength: 500}
+      responses:
+        '204': {description: Configuration soft-deleted}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/configurations/{configuration_id}/hard:
+    parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/ConfigurationID'}
+    delete:
+      security: [{bearerAuth: []}]
+      summary: Permanently delete a SEB configuration
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: {type: string, minLength: 1, maxLength: 500}
+      responses:
+        '204': {description: Configuration permanently deleted}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/configurations/{configuration_id}/payload:
+    parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/ConfigurationID'}
+    get:
+      security: [{bearerAuth: []}]
+      summary: Download the raw decrypted SEB configuration payload
+      description: >-
+        Returns the raw binary SEB configuration object. Authorization requires
+        a read capability on the configuration resource scoped to the tenant.
+      responses:
+        '200':
+          description: Raw SEB configuration payload
+          content:
+            application/octet-stream:
+              schema: {type: string, format: binary}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
   /v1/tenants/{tenant_id}/configurations/{configuration_id}/rotate:
     parameters:
       - {$ref: '#/components/parameters/TenantID'}

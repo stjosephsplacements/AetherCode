@@ -189,6 +189,143 @@ paths:
               schema: {$ref: '#/components/schemas/RecoveryCodes'}
         '400': {$ref: '#/components/responses/Error'}
         '401': {$ref: '#/components/responses/Error'}
+  /v1/auth/mfa/step-up:
+    post:
+      summary: Elevate an authenticated session to MFA-verified
+      description: >-
+        Accepts a TOTP code from the principal named in the bearer access token
+        and returns a new token pair whose access token carries an
+        mfa_verified_at claim.
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              additionalProperties: false
+              properties:
+                code: {type: string, pattern: '^[0-9]{6}$', writeOnly: true}
+      responses:
+        '200':
+          description: MFA-elevated token pair
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TokenPair'}
+        '401': {$ref: '#/components/responses/Error'}
+  /v1/auth/password:
+    post:
+      summary: Change password for the authenticated principal
+      description: >-
+        Requires the current password as proof. Revokes all active refresh
+        sessions after a successful change (ADR-0036).
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, new_password]
+              additionalProperties: false
+              properties:
+                current_password: {type: string, format: password, writeOnly: true}
+                new_password: {type: string, format: password, minLength: 12, writeOnly: true}
+      responses:
+        '204': {description: Password changed; all sessions revoked}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+  /v1/auth/sso/start:
+    post:
+      summary: Begin a single sign-on flow (ADR-0042)
+      description: >-
+        Returns an authorization URL, a state value, and a PKCE code verifier.
+        The caller stores state and verifier in a session and redirects the user
+        to the URL. No request body is required.
+      responses:
+        '200':
+          description: SSO start parameters; caller keeps state and verifier.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [authorization_url, state, code_verifier]
+                additionalProperties: false
+                properties:
+                  authorization_url: {type: string, format: uri}
+                  state: {type: string}
+                  code_verifier: {type: string}
+        default: {$ref: '#/components/responses/Error'}
+  /v1/auth/sso/callback:
+    post:
+      summary: Exchange the provider's authorization code for an AetherCode session
+      description: >-
+        The caller has already verified that the state returned by the provider
+        matches the one it stored, and passes the code and verifier here.
+        Rate-limited to the same bucket as /v1/auth/login.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, code_verifier]
+              additionalProperties: false
+              properties:
+                code: {type: string, minLength: 1}
+                code_verifier: {type: string, minLength: 1}
+      responses:
+        '200':
+          description: Access and refresh tokens, or an MFA challenge.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TokenPair'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '429': {$ref: '#/components/responses/Error'}
+  /v1/principals/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {$ref: '#/components/schemas/UUID'}
+    get:
+      summary: Read the authenticated principal's own record
+      description: >-
+        A principal may read only itself; the bearer subject must equal the path
+        id. Staff administration goes through the User service.
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: Principal record
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Principal'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+    delete:
+      summary: Soft-delete the authenticated principal's own account
+      description: >-
+        A principal may close only its own account; the bearer subject must
+        equal the path id. Requires a reason for the audit trail.
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              additionalProperties: false
+              properties:
+                reason: {type: string, minLength: 1, maxLength: 500}
+      responses:
+        '204': {description: Principal soft-deleted}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
   /v1/auth/mfa/totp/{factor_id}:
     delete:
       summary: Disable a TOTP factor with current-factor proof
@@ -326,6 +463,24 @@ components:
           type: array
           readOnly: true
           items: {type: string}
+    Principal:
+      type: object
+      required: [id, display_name, status, version, created_at, updated_at]
+      additionalProperties: false
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        email: {type: string, format: email}
+        username: {type: string}
+        display_name: {type: string}
+        status: {type: string, enum: [pending_verification, active, suspended, deleted]}
+        email_verified_at: {type: string, format: date-time}
+        last_authenticated_at: {type: string, format: date-time}
+        version: {type: integer, minimum: 1}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+        deleted_at: {type: string, format: date-time}
+        deleted_by: {$ref: '#/components/schemas/UUID'}
+        deletion_reason: {type: string}
     Error:
       type: object
       required: [code, message]
