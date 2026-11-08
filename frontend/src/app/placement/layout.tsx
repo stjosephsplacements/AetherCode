@@ -7,14 +7,23 @@ import { requirePlacement } from "@/lib/server/placement";
 /** The placement area: students of every college a placement department reaches. Separate from /staff, which is one college. */
 export default async function PlacementLayout({ children }: { children: React.ReactNode }) {
   const placement = await requirePlacement();
-  const groups: NavGroup[] = [{
-    label: "Placement",
-    items: [
-      { href: "/placement", label: "Placements", icon: "placements" },
-      { href: "/placement/departments", label: "Departments", icon: "organisation" },
-      { href: "/placement/staff", label: "Officers", icon: "accounts" },
-    ],
-  }];
+  const groups: NavGroup[] = [
+    {
+      label: "Placement",
+      items: [
+        { href: "/placement", label: "Placements", icon: "placements" },
+        { href: "/placement/departments", label: "Departments", icon: "organisation" },
+        { href: "/placement/staff", label: "Officers", icon: "accounts" },
+      ],
+    },
+    {
+      label: "Assess",
+      items: [
+        { href: "/placement/questions", label: "Questions", icon: "questions" },
+        { href: "/placement/exams", label: "Exams", icon: "exams" },
+      ],
+    },
+  ];
   return (
     <StaffShell
       viewer={placement.viewer}
