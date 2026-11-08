@@ -23,6 +23,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       items: [
         { href: "/placement", label: "Placements", icon: "placements" },
         { href: "/placement/departments", label: "Departments", icon: "organisation" },
+        { href: "/placement/staff", label: "Officers", icon: "accounts" },
       ],
     },
   ];
