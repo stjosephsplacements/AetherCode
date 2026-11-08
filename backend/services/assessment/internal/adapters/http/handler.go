@@ -360,6 +360,7 @@ func (handler *Handler) getExamVersionContent(writer http.ResponseWriter, reques
 		return
 	}
 	writer.Header().Set("Content-Type", "application/json")
+	writer.Header().Set("Cache-Control", "no-store")
 	writer.WriteHeader(http.StatusOK)
 	_, _ = writer.Write(content)
 }

@@ -56,8 +56,10 @@ func DecodeJSONRaw(request *http.Request, destination any) ([]byte, error) {
 }
 
 // WriteJSON serializes a response and always includes a JSON content type.
+// Cache-Control: no-store prevents proxies from caching authenticated API responses.
 func WriteJSON(writer http.ResponseWriter, status int, value any) {
 	writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+	writer.Header().Set("Cache-Control", "no-store")
 	writer.WriteHeader(status)
 	if err := json.NewEncoder(writer).Encode(value); err != nil {
 		return

@@ -35,6 +35,15 @@ func TestDecodeJSONRawReturnsExactValidatedBody(t *testing.T) {
 	}
 }
 
+func TestWriteJSONSetsNoCacheHeader(t *testing.T) {
+	t.Parallel()
+	response := httptest.NewRecorder()
+	WriteJSON(response, http.StatusOK, map[string]string{"k": "v"})
+	if got := response.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("Cache-Control = %q, want %q", got, "no-store")
+	}
+}
+
 func TestWriteErrorMapsApplicationErrors(t *testing.T) {
 	t.Parallel()
 	response := httptest.NewRecorder()
