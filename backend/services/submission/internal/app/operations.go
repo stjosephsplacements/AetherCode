@@ -1,9 +1,12 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
@@ -207,6 +210,120 @@ func (service *Service) RegradeItem(contextValue context.Context, capability cen
 		return storeErr
 	})
 	return result, err
+}
+
+// StoreSnapshot saves a webcam snapshot object key after the caller has put it
+// in MinIO. Access is gated by submission.write on attempts (the candidate's
+// own scope). Returns the new snapshot ID.
+type StoreSnapshot struct {
+	TenantID   string
+	AttemptID  string
+	CapturedAt time.Time
+	StorageKey string
+	SizeBytes  int
+}
+
+// ListSnapshots retrieves snapshot metadata for staff (gated by
+// submission.read on snapshots — VIEW_STUDENT_PII).
+type ListSnapshots struct {
+	TenantID  string
+	AttemptID string
+	Limit     int
+}
+
+// SnapshotRow is the raw repo result before presigning.
+type SnapshotRow struct {
+	ID         string
+	CapturedAt time.Time
+	StorageKey string
+}
+
+// Snapshot is the API-safe view of one webcam snapshot with a presigned URL.
+type Snapshot struct {
+	ID         string    `json:"id"`
+	CapturedAt time.Time `json:"captured_at"`
+	URL        string    `json:"url"`
+}
+
+const maxSnapshotBytes = 512 << 10 // 512 KiB
+
+// UploadSnapshot stores a JPEG image in MinIO and records its metadata.
+// data must be ≤512 KiB; capturedAt is the browser-reported capture time.
+func (service *Service) UploadSnapshot(contextValue context.Context, capability centralauthz.Capability, tenantID, attemptID string, capturedAt time.Time, data []byte) (string, error) {
+	tenantID, attemptID = normalizeUUID(tenantID), normalizeUUID(attemptID)
+	if !isUUID(tenantID) || !isUUID(attemptID) {
+		return "", apperrors.New(apperrors.CodeInvalidArgument, "tenant ID and attempt ID are required")
+	}
+	if len(data) == 0 || len(data) > maxSnapshotBytes {
+		return "", apperrors.New(apperrors.CodeInvalidArgument, fmt.Sprintf("snapshot must be between 1 and %d bytes", maxSnapshotBytes))
+	}
+	if capturedAt.IsZero() {
+		capturedAt = time.Now().UTC()
+	}
+	if service.storage == nil {
+		return "", apperrors.New(apperrors.CodeUnavailable, "snapshot storage is not configured")
+	}
+	snapshotID, err := database.NewUUIDv7()
+	if err != nil {
+		return "", fmt.Errorf("generate snapshot ID: %w", err)
+	}
+	key := fmt.Sprintf("tenants/%s/attempts/%s/snapshots/%s.jpg", tenantID, attemptID, snapshotID)
+	if err := service.storage.Put(contextValue, key, bytes.NewReader(data), int64(len(data)), "image/jpeg"); err != nil {
+		return "", fmt.Errorf("put snapshot in storage: %w", err)
+	}
+	var id string
+	txErr := service.inTenant(contextValue, capability, func(transaction pgx.Tx) error {
+		var storeErr error
+		id, storeErr = service.store.StoreSnapshot(contextValue, transaction, StoreSnapshot{
+			TenantID: tenantID, AttemptID: attemptID, CapturedAt: capturedAt,
+			StorageKey: key, SizeBytes: len(data),
+		})
+		return storeErr
+	})
+	if txErr != nil {
+		_ = service.storage.Delete(context.WithoutCancel(contextValue), key)
+		return "", txErr
+	}
+	// Best-effort: publish to proctor service for GPU inference.
+	if service.snapshotPublisher != nil && id != "" {
+		payload := fmt.Sprintf(
+			`{"snapshot_id":%q,"attempt_id":%q,"tenant_id":%q,"storage_key":%q,"captured_at":%q}`,
+			id, attemptID, tenantID, key, capturedAt.Format(time.RFC3339Nano),
+		)
+		_ = service.snapshotPublisher.PublishSnapshot(context.WithoutCancel(contextValue), "proctor.analyze", []byte(payload))
+	}
+	return id, nil
+}
+
+func (service *Service) ListSnapshots(contextValue context.Context, capability centralauthz.Capability, command ListSnapshots) ([]Snapshot, error) {
+	command.TenantID, command.AttemptID = normalizeUUID(command.TenantID), normalizeUUID(command.AttemptID)
+	if !isUUID(command.TenantID) || !isUUID(command.AttemptID) {
+		return nil, apperrors.New(apperrors.CodeInvalidArgument, "tenant ID and attempt ID are required")
+	}
+	if command.Limit <= 0 || command.Limit > 200 {
+		command.Limit = 50
+	}
+	if service.storage == nil {
+		return nil, apperrors.New(apperrors.CodeUnavailable, "snapshot storage is not configured")
+	}
+	var rows []SnapshotRow
+	err := service.inTenant(contextValue, capability, func(transaction pgx.Tx) error {
+		var storeErr error
+		rows, storeErr = service.store.ListSnapshotKeys(contextValue, transaction, command)
+		return storeErr
+	})
+	if err != nil {
+		return nil, err
+	}
+	snapshots := make([]Snapshot, 0, len(rows))
+	for _, row := range rows {
+		url, presignErr := service.storage.PresignGet(contextValue, row.StorageKey, 15*time.Minute)
+		if presignErr != nil {
+			return nil, fmt.Errorf("presign snapshot %s: %w", row.ID, presignErr)
+		}
+		snapshots = append(snapshots, Snapshot{ID: row.ID, CapturedAt: row.CapturedAt, URL: url})
+	}
+	return snapshots, nil
 }
 
 // GetGradingQueue is the college's grading queue for staff (ADR-0043).

@@ -120,6 +120,12 @@ func (validationStore) RecordIntegrityEvent(context.Context, pgx.Tx, GetAttempt,
 func (validationStore) RegradeItem(context.Context, pgx.Tx, ExamVersionCommand, string) (json.RawMessage, error) {
 	return nil, nil
 }
+func (validationStore) StoreSnapshot(context.Context, pgx.Tx, StoreSnapshot) (string, error) {
+	return "", nil
+}
+func (validationStore) ListSnapshotKeys(context.Context, pgx.Tx, ListSnapshots) ([]SnapshotRow, error) {
+	return nil, nil
+}
 func (validationStore) Ping(context.Context) error { return nil }
 
 func TestStartAttemptRejectsInvalidCommandBeforeTransaction(t *testing.T) {

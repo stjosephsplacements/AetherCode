@@ -710,6 +710,37 @@ func (repository *Postgres) RecordIntegrityEvent(contextValue context.Context, t
 	return nil
 }
 
+func (repository *Postgres) StoreSnapshot(contextValue context.Context, transaction pgx.Tx, command app.StoreSnapshot) (string, error) {
+	var id string
+	if err := transaction.QueryRow(contextValue,
+		`SELECT submission.store_snapshot($1, $2, $3, $4, $5)`,
+		command.TenantID, command.AttemptID, command.CapturedAt, command.StorageKey, command.SizeBytes,
+	).Scan(&id); err != nil {
+		return "", mapDatabaseError(err, "store snapshot")
+	}
+	return id, nil
+}
+
+func (repository *Postgres) ListSnapshotKeys(contextValue context.Context, transaction pgx.Tx, command app.ListSnapshots) ([]app.SnapshotRow, error) {
+	rows, err := transaction.Query(contextValue,
+		`SELECT id::text, captured_at, storage_key FROM submission.list_snapshots($1, $2, $3)`,
+		command.TenantID, command.AttemptID, command.Limit,
+	)
+	if err != nil {
+		return nil, mapDatabaseError(err, "list snapshot keys")
+	}
+	defer rows.Close()
+	var result []app.SnapshotRow
+	for rows.Next() {
+		var row app.SnapshotRow
+		if err := rows.Scan(&row.ID, &row.CapturedAt, &row.StorageKey); err != nil {
+			return nil, fmt.Errorf("scan snapshot row: %w", err)
+		}
+		result = append(result, row)
+	}
+	return result, rows.Err()
+}
+
 func (repository *Postgres) RegradeItem(contextValue context.Context, transaction pgx.Tx, command app.ExamVersionCommand, examItemID string) (json.RawMessage, error) {
 	return queryJSON(contextValue, transaction, "regrade exam item",
 		`SELECT submission.regrade_exam_item($1, $2, $3)`, command.TenantID, command.ExamVersionID, examItemID)

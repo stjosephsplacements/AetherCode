@@ -754,6 +754,54 @@ paths:
               schema: { type: object }
         '403': { $ref: '#/components/responses/Problem403' }
         '404': { $ref: '#/components/responses/Problem404' }
+  /v1/tenants/{tenant_id}/attempts/{attempt_id}/snapshots:
+    post:
+      summary: Upload a webcam snapshot for the caller's attempt (ADR-0078)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/AttemptID'
+        - in: header
+          name: X-Captured-At
+          schema: { type: string, format: date-time }
+      requestBody:
+        required: true
+        content:
+          image/jpeg:
+            schema: { type: string, format: binary }
+      responses:
+        '201':
+          description: Snapshot stored.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string, format: uuid }
+        '400': { $ref: '#/components/responses/Problem400' }
+        '503': { $ref: '#/components/responses/Problem503' }
+    get:
+      summary: List webcam snapshots for an attempt (VIEW_STUDENT_PII)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TenantID'
+        - $ref: '#/components/parameters/AttemptID'
+      responses:
+        '200':
+          description: Snapshot list with presigned URLs.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: string, format: uuid }
+                    captured_at: { type: string, format: date-time }
+                    url: { type: string, format: uri }
+        '403': { $ref: '#/components/responses/Problem403' }
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/events:
     post:
       summary: Record an integrity event for the caller's attempt (ADR-0037)

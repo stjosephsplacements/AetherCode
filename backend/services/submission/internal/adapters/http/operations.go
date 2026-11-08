@@ -3,7 +3,10 @@ package httpadapter
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
+	"time"
 
 	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
@@ -29,6 +32,8 @@ func (handler *Handler) registerOperations(mux *http.ServeMux) {
 	mux.HandleFunc("PUT /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/integrity", handler.setIntegrity)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/attempts/{attempt_id}/events", handler.recordIntegrityEvent)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/items/{exam_item_id}/regrade", handler.regradeItem)
+	mux.HandleFunc("POST /v1/tenants/{tenant_id}/attempts/{attempt_id}/snapshots", handler.storeSnapshot)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}/snapshots", handler.listSnapshots)
 }
 
 // regradeItem evaluates an item's answers again on its current tests (ADR-0039).
@@ -350,4 +355,77 @@ func (handler *Handler) getGradingQueue(writer http.ResponseWriter, request *htt
 	writer.Header().Set("Cache-Control", "no-store")
 	queue, err := handler.service.GetGradingQueue(request.Context(), decision.Capability, tenantID)
 	writeRaw(writer, http.StatusOK, queue, err)
+}
+
+const maxSnapshotRequestBytes = 512 << 10 // 512 KiB
+
+func (handler *Handler) storeSnapshot(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	attemptID, err := httpx.ParseUUIDPathValue(request, "attempt_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	candidateID, err := candidateResourceID(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	data, err := io.ReadAll(io.LimitReader(request.Body, maxSnapshotRequestBytes+1))
+	if err != nil {
+		httpx.WriteError(writer, fmt.Errorf("read snapshot body: %w", err))
+		return
+	}
+	if len(data) > maxSnapshotRequestBytes {
+		httpx.WriteError(writer, fmt.Errorf("snapshot exceeds 512 KiB"))
+		return
+	}
+	var capturedAt time.Time
+	if raw := request.Header.Get("X-Captured-At"); raw != "" {
+		capturedAt, _ = time.Parse(time.RFC3339, raw)
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "attempts", candidateID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	id, err := handler.service.UploadSnapshot(request.Context(), decision.Capability, tenantID, attemptID, capturedAt, data)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusCreated, map[string]string{"id": id})
+}
+
+func (handler *Handler) listSnapshots(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	attemptID, err := httpx.ParseUUIDPathValue(request, "attempt_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "snapshots", attemptID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	snapshots, err := handler.service.ListSnapshots(request.Context(), decision.Capability, app.ListSnapshots{
+		TenantID:  tenantID,
+		AttemptID: attemptID,
+		Limit:     50,
+	})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.Header().Set("Cache-Control", "no-store")
+	httpx.WriteJSON(writer, http.StatusOK, snapshots)
 }

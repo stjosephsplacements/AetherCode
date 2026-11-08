@@ -10,16 +10,21 @@ export type WebcamState =
   | { kind: "unavailable" };
 
 /**
- * Manages a webcam stream for exam proctoring. Captures periodic snapshots
- * into an in-memory ring buffer. No server upload in phase 1 (ADR-0078).
+ * Manages a webcam stream for exam proctoring (ADR-0078).
+ * Phase 2: captures periodic JPEG snapshots and uploads them to the server.
+ * tenantId + attemptId are required for upload; omit to store in memory only.
  */
-export function useWebcam(enabled: boolean, snapshotIntervalMs = 60_000) {
+export function useWebcam(
+  enabled: boolean,
+  tenantId?: string,
+  attemptId?: string,
+  snapshotIntervalMs = 60_000,
+) {
   const [state, setState] = useState<WebcamState>({ kind: "idle" });
   const streamRef = useRef<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const snapshotsRef = useRef<string[]>([]);
-  const snapshotCountRef = useRef(0);
 
   const request = useCallback(async () => {
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -54,11 +59,29 @@ export function useWebcam(enabled: boolean, snapshotIntervalMs = 60_000) {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0);
-    snapshotsRef.current = [...snapshotsRef.current.slice(-9), canvas.toDataURL("image/jpeg", 0.4)];
-    snapshotCountRef.current = snapshotsRef.current.length;
-  }, []);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.4);
+    snapshotsRef.current = [...snapshotsRef.current.slice(-9), dataUrl];
 
-  // Stop stream on unmount or when state leaves active
+    // Upload if wired to an attempt (best-effort, non-fatal)
+    if (tenantId && attemptId) {
+      const capturedAt = new Date().toISOString();
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) return;
+          void fetch(`/api/submission/v1/tenants/${tenantId}/attempts/${attemptId}/snapshots`, {
+            method: "POST",
+            headers: { "Content-Type": "image/jpeg", "X-Captured-At": capturedAt },
+            body: blob,
+            cache: "no-store",
+          }).catch(() => undefined);
+        },
+        "image/jpeg",
+        0.4,
+      );
+    }
+  }, [tenantId, attemptId]);
+
+  // Stop stream on unmount
   useEffect(() => {
     return () => {
       streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -82,10 +105,5 @@ export function useWebcam(enabled: boolean, snapshotIntervalMs = 60_000) {
     return () => clearTimeout(id);
   }, [enabled, state.kind, request]);
 
-  return {
-    state,
-    request,
-    snapshots: snapshotsRef,
-    capture,
-  };
+  return { state, request, snapshots: snapshotsRef, capture };
 }

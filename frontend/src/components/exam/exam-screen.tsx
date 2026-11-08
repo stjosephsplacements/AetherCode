@@ -79,7 +79,7 @@ export function ExamScreen({ tenantId, attemptId }: { tenantId: string; attemptI
     );
   }
   if (!loaded) return <ExamSkeleton />;
-  return <ExamWorkspace attemptPath={attemptPath} attemptId={attemptId} {...loaded} />;
+  return <ExamWorkspace attemptPath={attemptPath} attemptId={attemptId} tenantId={tenantId} {...loaded} />;
 }
 
 function ExamSkeleton() {
@@ -104,7 +104,7 @@ function ExamSkeleton() {
   );
 }
 
-function ExamWorkspace({ attemptPath, attemptId, attempt, paper }: Loaded & { attemptPath: string; attemptId: string }) {
+function ExamWorkspace({ attemptPath, attemptId, tenantId, attempt, paper }: Loaded & { attemptPath: string; attemptId: string; tenantId: string }) {
   const router = useRouter();
   const [items] = useState(() => [...paper.items].sort((a, b) => a.position - b.position));
   const itemIds = useMemo(() => items.map((item) => item.exam_item_id), [items]);
@@ -145,7 +145,7 @@ function ExamWorkspace({ attemptPath, attemptId, attempt, paper }: Loaded & { at
   const activeRun = useCustomInput ? customRun : run;
   const readOnly = answers.saveState === "closed";
   const integrity = useIntegrity(attemptPath, live.integrity.requireFullscreen, !readOnly && !ending);
-  useWebcam(live.integrity.webcamRequired && !readOnly && !ending);
+  useWebcam(live.integrity.webcamRequired && !readOnly && !ending, tenantId, attemptId);
   const itemSubmissions = submissions.byItem[currentId];
 
   const statuses = useMemo(() => {
