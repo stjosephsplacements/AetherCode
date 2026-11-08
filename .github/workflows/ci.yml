@@ -140,6 +140,9 @@ jobs:
           - service: frontend
             context: frontend
             file: frontend/Dockerfile
+          - service: proctor
+            context: backend/services/proctor
+            file: backend/services/proctor/Dockerfile
           - service: tools
             context: .
             file: deploy/single-server/Dockerfile.tools
@@ -151,23 +154,22 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Login to GitHub Container Registry
-        if: github.ref == 'refs/heads/production'
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build (and push on production)
+      - name: Build and push
         id: build
         uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.context || 'backend' }}
           file: ${{ matrix.file || format('backend/services/{0}/Dockerfile', matrix.service) }}
-          push: ${{ github.ref == 'refs/heads/production' }}
+          push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/aethercode-${{ matrix.service }}:latest
             ghcr.io/${{ github.repository_owner }}/aethercode-${{ matrix.service }}:${{ github.sha }}
+            ${{ github.ref == 'refs/heads/production' && format('ghcr.io/{0}/aethercode-{1}:latest', github.repository_owner, matrix.service) || '' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
