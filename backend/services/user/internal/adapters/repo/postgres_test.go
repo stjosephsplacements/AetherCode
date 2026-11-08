@@ -1,17 +1,12 @@
 package repo
 
 import (
-	"context"
 	"encoding/json"
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/stjosephsplacements/AetherCode/services/user/internal/app"
-	"github.com/stjosephsplacements/AetherCode/services/user/internal/domain"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 )
 
 const (
@@ -76,41 +71,6 @@ func TestStudentBatchAffiliationIdempotencyScopeIsPerActorAndOperation(t *testin
 	}
 }
 
-// testGormDB creates a test GORM database connection.
-// This is a placeholder helper that will need actual test database setup.
-func testGormDB(t *testing.T) *gorm.DB {
-	t.Skip("Integration test requires test database setup")
-	return nil
-}
-
-func TestStudentGormRepo_SoftDeleteStudent_FiltersFromQueries(t *testing.T) {
-	db := testGormDB(t)
-	repo := NewStudentGormRepo(db)
-
-	// Create student
-	s := &domain.Student{
-		ID:               uuid.New(),
-		PrincipalID:      uuid.New(),
-		TenantID:         uuid.New(),
-		EnrollmentNumber: "TEST001",
-		Status:           domain.StatusActive,
-	}
-	require.NoError(t, repo.CreateStudent(context.Background(), s))
-
-	// Soft delete
-	actor := uuid.New()
-	require.NoError(t, repo.SoftDeleteStudent(context.Background(), s.ID, actor, "Test deletion"))
-
-	// Verify not found in default queries
-	_, err := repo.GetStudentByID(context.Background(), s.ID)
-	assert.ErrorIs(t, err, domain.ErrNotFound)
-
-	// Verify accessible with IncludeDeleted
-	deleted, err := repo.GetStudentByIDIncludeDeleted(context.Background(), s.ID)
-	require.NoError(t, err)
-	assert.NotNil(t, deleted.DeletedAt)
-	assert.Equal(t, actor, *deleted.DeletedBy)
-}
 
 func TestLikePatternEscapesWhatLIKEReads(t *testing.T) {
 	t.Parallel()

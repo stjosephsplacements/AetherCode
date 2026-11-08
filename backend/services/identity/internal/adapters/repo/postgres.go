@@ -1142,7 +1142,7 @@ func (repository *Postgres) ActivateTOTP(contextValue context.Context, command a
 		return nil, fmt.Errorf("activate TOTP factor: %w", err)
 	}
 	recoveryCodes := make([]string, 0, 10)
-	for index := 0; index < 10; index++ {
+	for range 10 {
 		code, codeErr := domain.NewRecoveryCode()
 		if codeErr != nil {
 			return nil, codeErr
@@ -1595,7 +1595,6 @@ func (repository *Postgres) GetPrincipal(contextValue context.Context, principal
 }
 
 // SoftDeletePrincipal marks a principal as deleted with audit trail.
-// Uses shared database.SoftDelete function.
 func (repository *Postgres) SoftDeletePrincipal(contextValue context.Context, command app.DeletePrincipal) error {
 	transaction, err := repository.pool.BeginTx(contextValue, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
 	if err != nil {
