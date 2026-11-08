@@ -38,7 +38,7 @@ const Few = ({ labels, empty }: { labels: string[]; empty: string }) =>
   );
 
 export default async function PlacementDepartmentsPage({ searchParams }: { searchParams: Promise<{ op?: string; pp?: string }> }) {
-  const placement = await requirePlacement();
+  await requirePlacement();
   let data;
   try {
     data = await listPlacement();
