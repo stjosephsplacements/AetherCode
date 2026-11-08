@@ -38,6 +38,11 @@ TENANT_AUTHZ_SERVICES = {
     "seb", "submission", "tenant", "user",
 }
 
+# Services whose actor_tenant_authorizations table uses the legacy 'active' column name
+# rather than the renamed 'is_authorized' column. These never ran the
+# 000004_authorization_grant_snapshots migration that renamed the column.
+USES_ACTIVE_COLUMN = {"analytics", "assessment", "notification", "seb"}
+
 # Map service name → migration basename as it exists (or should exist) on disk.
 # Derive from the live migrations directory when --apply creates new files so
 # the caller doesn't have to specify the number every time.
@@ -63,9 +68,15 @@ def _event_type(service: str) -> str:
     return f"authz.grants_snapshot.resync_requested.{service}.v1"
 
 
+def _authz_col(service: str) -> str:
+    """Column name for the 'is this grant active' flag in actor_tenant_authorizations."""
+    return "active" if service in USES_ACTIVE_COLUMN else "is_authorized"
+
+
 def _up_sql_tenant(service: str) -> str:
     role = _role(service)
     event = _event_type(service)
+    col = _authz_col(service)
     return f"""\
 SET ROLE {role};
 
@@ -133,7 +144,7 @@ RETURNS boolean LANGUAGE sql VOLATILE SECURITY DEFINER SET search_path = pg_cata
           ON revision.actor_id = grant_row.actor_id AND revision.authz_revision = grant_row.authz_revision
         WHERE grant_row.actor_id = p_actor_id
           AND grant_row.authz_revision >= GREATEST(1, p_authz_revision - 5)
-          AND grant_row.is_authorized AND grant_row.grant_kind = 'platform'
+          AND grant_row.{col} AND grant_row.grant_kind = 'platform'
           AND (grant_row.expires_at IS NULL OR grant_row.expires_at > clock_timestamp())
     )
 $fn$;
@@ -148,7 +159,7 @@ RETURNS boolean LANGUAGE sql VOLATILE SECURITY DEFINER SET search_path = pg_cata
           ON revision.actor_id = grant_row.actor_id AND revision.authz_revision = grant_row.authz_revision
         WHERE grant_row.actor_id = p_actor_id
           AND grant_row.authz_revision >= GREATEST(1, p_authz_revision - 5)
-          AND grant_row.is_authorized
+          AND grant_row.{col}
           AND (grant_row.expires_at IS NULL OR grant_row.expires_at > clock_timestamp())
           AND (grant_row.grant_kind = 'platform' OR grant_row.tenant_id = p_tenant_id)
     )

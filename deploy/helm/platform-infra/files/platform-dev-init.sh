@@ -17,7 +17,9 @@ readonly -a DATABASES=(
   'seb:aether_seb:SEB_DB_PASSWORD:seb'
   'notification:aether_notification:NOTIFICATION_DB_PASSWORD:notification'
   'analytics:aether_analytics:ANALYTICS_DB_PASSWORD:analytics'
-  'proctor:aether_proctor:PROCTOR_DB_PASSWORD:proctor'
+  # proctor uses its own dedicated database (aether_proctor) managed by the
+  # proctor service's own migrations — it is NOT part of the platform Postgres
+  # cluster provisioned here.
 )
 
 create_group_role_if_missing() {
