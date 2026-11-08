@@ -7,7 +7,7 @@ Never print or commit secrets (no passwords, no Cloudflare credentials).
 
 ## 1. Branch state
 
-`development` is at `fb8ce88` (PR #168 + 12 additional commits pushed directly after PR creation).
+`development` is at `761b84c` (PR #168 + 15 additional commits pushed directly after PR creation).
 `production` has not moved since #135.
 **PR #168** (`development` → `production`) is open:
 https://github.com/stjosephsplacements/AetherCode/pull/168
@@ -28,9 +28,13 @@ What the 2026-11-08 eighth run completed:
   `pnpm.json`; without the file, a fresh install would regenerate the lock without overrides and
   re-introduce vulnerabilities (Dependabot alert #64, minimatch CVE). Commits `9a8fb6d`,
   `c0f0a38`, `fb8ce88`.
-- Confirmed: govulncheck reports 0 reachable vulnerabilities; `make fmt-check vet` clean;
-  all 111 frontend unit tests pass; all 29 exam-v1 unit tests pass; CodeQL alerts #34/#35
-  reference `production` branch code that no longer exists — will auto-close on PR merge.
+- `fix(database)`: added `MaxConnLifetime=30m` and `MaxConnIdleTime=10m` to `libs/pkg/database/pool.go`.
+  Without these, pgx holds connections forever; after a DB restart stale connections accumulate and
+  cause errors until the service restarts. Commit `761b84c`.
+- Confirmed: govulncheck reports 0 reachable vulnerabilities; `make lint fmt-check vet test
+  web-check exam-check` all clean; 111 frontend unit tests pass; 29 exam-v1 unit tests pass;
+  CodeQL alerts #34/#35 reference `production` branch code that no longer exists — will auto-close
+  on PR merge.
 - CodeQL alert dismissal requests status: #6, #7, #14 still pending owner approval (inline
   annotations already in place). #34, #35 will auto-close when PR #168 merges (the referenced
   code was removed in development). Dependabot alert #64 will close after PR merges and
