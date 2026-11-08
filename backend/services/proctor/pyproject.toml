@@ -13,9 +13,9 @@ dependencies = [
     "pydantic>=2.9",
     "pydantic-settings>=2.6",
     "pillow>=11",
-    "numpy>=2",
-    "mediapipe>=0.10",
-    "prisma>=0.15",
+    "numpy>=1.26,<2",
+    "mediapipe==0.10.20",
+    "prisma==0.15.0",
 ]
 
 [tool.prisma]

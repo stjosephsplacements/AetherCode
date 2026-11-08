@@ -64,7 +64,7 @@ RETURNS boolean LANGUAGE sql VOLATILE SECURITY DEFINER SET search_path = pg_cata
           ON revision.actor_id = grant_row.actor_id AND revision.authz_revision = grant_row.authz_revision
         WHERE grant_row.actor_id = p_actor_id
           AND grant_row.authz_revision >= GREATEST(1, p_authz_revision - 5)
-          AND grant_row.active AND grant_row.grant_kind = 'platform'
+          AND grant_row.is_authorized AND grant_row.grant_kind = 'platform'
           AND (grant_row.expires_at IS NULL OR grant_row.expires_at > clock_timestamp())
     )
 $fn$;
@@ -79,7 +79,7 @@ RETURNS boolean LANGUAGE sql VOLATILE SECURITY DEFINER SET search_path = pg_cata
           ON revision.actor_id = grant_row.actor_id AND revision.authz_revision = grant_row.authz_revision
         WHERE grant_row.actor_id = p_actor_id
           AND grant_row.authz_revision >= GREATEST(1, p_authz_revision - 5)
-          AND grant_row.active
+          AND grant_row.is_authorized
           AND (grant_row.expires_at IS NULL OR grant_row.expires_at > clock_timestamp())
           AND (grant_row.grant_kind = 'platform' OR grant_row.tenant_id = p_tenant_id)
     )

@@ -59,12 +59,12 @@ CREATE OR REPLACE FUNCTION authz.has_platform_authorization_at(
 )
 RETURNS boolean LANGUAGE sql VOLATILE SECURITY DEFINER SET search_path = pg_catalog, authz AS $fn$
     SELECT authz.authorization_projection_ready() AND EXISTS (
-        SELECT 1 FROM authz.actor_tenant_authorizations AS grant_row
+        SELECT 1 FROM authz.authorization_grants AS grant_row
         JOIN authz.principal_authorization_revisions AS revision
           ON revision.actor_id = grant_row.actor_id AND revision.authz_revision = grant_row.authz_revision
         WHERE grant_row.actor_id = p_actor_id
-          AND grant_row.authz_revision >= GREATEST(1, p_authz_revision - 5)
-          AND grant_row.active AND grant_row.grant_kind = 'platform'
+          AND revision.authz_revision >= GREATEST(1, p_authz_revision - 5)
+          AND grant_row.grant_kind = 'platform'
           AND (grant_row.expires_at IS NULL OR grant_row.expires_at > clock_timestamp())
     )
 $fn$;
@@ -74,12 +74,11 @@ CREATE OR REPLACE FUNCTION authz.has_tenant_authorization_at(
 )
 RETURNS boolean LANGUAGE sql VOLATILE SECURITY DEFINER SET search_path = pg_catalog, authz AS $fn$
     SELECT authz.authorization_projection_ready() AND p_tenant_id IS NOT NULL AND EXISTS (
-        SELECT 1 FROM authz.actor_tenant_authorizations AS grant_row
+        SELECT 1 FROM authz.authorization_grants AS grant_row
         JOIN authz.principal_authorization_revisions AS revision
           ON revision.actor_id = grant_row.actor_id AND revision.authz_revision = grant_row.authz_revision
         WHERE grant_row.actor_id = p_actor_id
-          AND grant_row.authz_revision >= GREATEST(1, p_authz_revision - 5)
-          AND grant_row.active
+          AND revision.authz_revision >= GREATEST(1, p_authz_revision - 5)
           AND (grant_row.expires_at IS NULL OR grant_row.expires_at > clock_timestamp())
           AND (grant_row.grant_kind = 'platform' OR grant_row.tenant_id = p_tenant_id)
     )
