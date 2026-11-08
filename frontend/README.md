@@ -75,27 +75,43 @@ in the same directory. The sign-in page keeps the AetherCode mark.
 
 | Route | Screen |
 |---|---|
-| `/login` | Sign-in by roll number or username |
-| `/student` | Exams open now, upcoming and past |
+| `/login` | Sign-in by roll number or username (with MFA step) |
+| `/account/password` | Change-password gate for issued passwords (ADR-0036) |
+| `/account/security` | TOTP enrolment and recovery codes |
+| `/exam/<exam>` | Safe Exam Browser start page (redirects to assignment) |
+| **Student** | |
+| `/student` | Dashboard: open exams, upcoming, practice, performance |
 | `/student/exams/<assignment>` | Lobby: window, duration, instructions, start/resume, SEB launch file |
-| `/student/attempts/<attempt>` | HackerRank-style exam screen: question rail with status, statement, Monaco editor with settings, autosave, Run code (samples or custom input), Submit code (all tests, best score counts, ADR-0025), submissions, timer warnings, End test with a per-question summary |
-| `/student/results/<attempt>` | Submission confirmation and grading status (marks wait for result release, M6) |
-| `/exam/<exam>` | Safe Exam Browser start page |
-| `/staff` | Staff landing; authoring and results screens come next in M5 |
+| `/student/attempts/<attempt>` | HackerRank-style exam screen: question rail, Monaco editor, Run/Submit, timer, autosave |
+| `/student/completed` | Finished exams and results (after result release) |
+| `/student/practice` | Practice problems by topic |
+| `/student/performance` | Streaks, practice progress, exam history |
+| `/student/profile` | Public profile and community links |
+| **Staff** | |
+| `/staff` | Staff landing with recent activity |
+| `/staff/exams` | Exam list, create, duplicate |
+| `/staff/exams/<exam>` | Exam detail: version, items, pools, settings, lockdown, publish |
+| `/staff/exams/<exam>/monitor` | Live monitor with WebSocket updates, announcements, extend time |
+| `/staff/exams/<exam>/results` | Results, CSV export, result release |
+| `/staff/exams/<exam>/similarity` | Similarity report |
+| `/staff/questions` | Question bank, authoring, model-solution checks |
+| `/staff/students` | Student roster, bulk import, individual detail |
+| `/staff/roles` | College role management with permission grids |
+| `/staff/calendar` | Exam calendar |
+| `/staff/community` | Community content moderation |
+| `/staff/audit` | Staff audit log |
+| `/staff/status` | Service health and judge queue |
+| **Admin** | |
+| `/admin` | Platform overview with college tiles |
+| `/admin/incidents` | Cross-college incident board with real-time updates |
+| `/admin/colleges` | College CRUD |
+| `/admin/admins` | Platform administrator management |
+| `/admin/analytics` | Prometheus service metrics (live polling) |
 
-## Backend contracts this UI needs
+## Backend contracts
 
-These endpoints are being added with this milestone. Until they ship, sign-in
-and the exam screen cannot run against the real stack.
-
-- `GET /user/v1/me` → `{principal_id, roles: [{role_name, scope_kind, tenant_id?, scope_id?}], student: {tenant_id, student_id, enrollment_number} | null}`
-- Candidate assignments additionally carry `exam_id`, `title`,
-  `instructions_markdown`, `duration_seconds`.
-- `GET /submission/v1/tenants/{t}/attempts/{id}/paper` →
-  `{attempt_id, exam_id, title, instructions_markdown, items: [{exam_item_id, position, title, prompt_markdown, maximum_score, supported_languages, time_limit_ms, memory_limit_kib, latest_answer: {language, source, revision_number} | null}]}`,
-  owner-only and SEB-locked like every Submission route.
-
-The shapes are in `src/lib/api-types.ts`.
+All gateway endpoints are documented in each service's `api/openapi.yaml`.
+TypeScript shapes are in `src/lib/api-types.ts`.
 
 ## Third-party licenses
 
