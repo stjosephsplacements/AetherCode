@@ -334,6 +334,16 @@ Done 2026-11-05 to 2026-11-08 (code; deployed to `aether-test`):
   model-check security chain (encrypt-before-store, hidden tests never leave MinIO), Helm resource
   limits / PDB / HPA template confirmed, credential isolation per service confirmed, backup atomic
   write pattern, `math/rand` absent from all production paths. `make lint test` clean.
+- Full production readiness deep audit (2026-11-08, fourteenth run, no code changes): verified
+  capability validation chain (`ValidateAt`: UUID format, TTL 0<t<=5s, HMAC length, clock skew),
+  practice run hidden-test isolation, readiness check completeness in all 11 services (full
+  dependency chain including NATS consumers, projection stores, judge workers), isolation check
+  auto-covers 170 tenant-scoped operations (510 cross-college calls), NATS consumer permanent vs
+  transient error handling, gateway header injection defence and WebSocket origin validation,
+  security headers at both nginx and Next.js layers, zero string-concatenated SQL, 1 MiB request
+  body bound, HTTP server timeouts, graceful SIGTERM shutdown, proto generation zero-drift,
+  dependency version consistency (Go 1.26.0, pgx 5.11.0, nats 1.55.0, grpc 1.85.0),
+  `govulncheck` 0 reachable vulnerabilities, all `nolint` suppressions justified and documented.
 
 ### Pending (2026-10-21)
 
