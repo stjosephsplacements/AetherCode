@@ -21,8 +21,8 @@ REG=ghcr.io/stjosephsplacements
 
 # Environment config — overridable via env vars (CI sets these)
 NS="${DEV_K8S_NAMESPACE:-aethercode-dev}"
-PUBLIC_ORIGIN="${DEV_PUBLIC_ORIGIN:-https://dev.aethercode.stjosephsplacements.in}"
-INGRESS_HOST="${DEV_INGRESS_HOST:-dev.aethercode.stjosephsplacements.in}"
+PUBLIC_ORIGIN="${DEV_PUBLIC_ORIGIN:-https://dev-aethercode.stjosephsplacements.in}"
+INGRESS_HOST="${DEV_INGRESS_HOST:-dev-aethercode.stjosephsplacements.in}"
 POSTGRES_HOST="postgres-cluster-pooler.${NS}.svc.cluster.local"
 
 BUILD=false
