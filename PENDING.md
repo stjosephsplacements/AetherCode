@@ -7,15 +7,31 @@ Never print or commit secrets (no passwords, no Cloudflare credentials).
 
 ## 1. Branch state
 
-`development` is at `d98bcb3`. `production` is at `8292e0d` (squash merge of PR #168 + #170).
+`development` is at `7a504ca`. `production` is at `8292e0d`.
 **PR #168 merged** (2026-11-08): security hardening, RBAC bitset, analytics migration 000019.
 **PR #170 merged** (2026-11-08): AUTHZ_ENGINE=bitset in values-user.yaml.
+**PR #171 pending**: CodeQL fix, migration 000045, proctoring ADR, Cloudflare DNS, frontend k8s deploy.
 
 The branch protection rulesets 25957417 ("Protect development and production") and 25967284
 ("Self-merge development with CI") are **active** (enforcement: active, 2026-11-08).
 
 GitHub auth: `gh` active account `AlgoQX-Platform` can push (admin). The `Shreesh-Sree` keyring token is
 invalid (`gh auth refresh -h github.com` needed by the owner). Do not use `gh auth switch` unless needed.
+
+What the 2026-11-08 twenty-third run completed:
+- **Cloudflare DNS configured**: created `aethercode.stjosephsplacements.in` and
+  `exam.stjosephsplacements.in` CNAME records pointing to the Cloudflare tunnel.
+- **Frontend deployed in k8s**: helm chart installed with ingress for
+  `aethercode.stjosephsplacements.in`, gateway publicOrigin updated.
+- **Migration 000045 applied**: dropped `users.authorization_policy_rules` (Casbin
+  table, no longer needed with RBAC bitset engine).
+- **CasDoor removed**: deleted namespace, DNS record, cleaned up identity network policy.
+  SSO not needed — identity service handles auth natively.
+- **Proctoring ADR-0078**: phased plan (client-side webcam → MinIO storage → face detection).
+  `useWebcam` hook written for phase 1 (in-memory snapshots).
+- **CodeQL annotations fixed**: moved to preceding-line format.
+- **engine-check passes**: gracefully skips Java (JDK not in sandbox).
+- Commits `4fb75df`..`7a504ca` (7 commits).
 
 What the 2026-11-08 twenty-second run completed:
 - **RBAC bitset live on campus**: `AUTHZ_ENGINE=bitset` set via kubectl + helm upgrade;
@@ -461,7 +477,7 @@ label and the ACM order was denied, owner can order an Advanced Certificate).
    sets `appArmorUnconfined` for `postgres` and `judge-db`. Image is `postgres:18.6`.
 2. ingress-nginx: **DONE 2026-11-08** — AppArmor fix applied via `helm upgrade ... -f values-ingress-nginx-kernel-workaround.yaml` (revision 3). Now survives controller upgrades. If a controller pod sticks in Terminating, force delete it and `kill -9` orphan processes.
 3. `kyverno-reports-controller` consumed about 45 cores during crash loops; it was scaled to 0 then back to 1. Watch it.
-4. **AUTHZ_ENGINE = bitset (2026-11-08)**: flipped from shadow to bitset via kubectl patch (0 shadow differences over 24h). The deploy now runs the RBAC bitset engine. Next: `helm upgrade user` with `AUTHZ_ENGINE: "bitset"` in `values-user.yaml` to persist through redeployments, then (migration needed) drop `users.authorization_policy_rules`.
+4. **AUTHZ_ENGINE = bitset (2026-11-08)**: bitset live via helm + kubectl, `authorization_policy_rules` table dropped (migration 000045). RBAC cutover fully complete.
 5. After a database restart a service that stays unready now logs why (`readiness check failed ...`, at most every
    30 s). A rolling upgrade across the v3 `set_context` change needs a maintenance window (ADR-0072).
 6. The server is shared with other applications (gitlab, qdrant, cockroach, an LLM server): disk reads of 1 to 2.5 GB/s
@@ -470,7 +486,7 @@ label and the ACM order was denied, owner can order an Advanced Certificate).
 ## 4. Platform work remaining
 
 Ask-first areas under AGENTS.md apply. In priority order:
-1. ~~**RBAC cutover (ADR-0075).**~~ **DONE 2026-11-08**: bitset live, helm values updated via PR #170. Still needed (owner approval, schema change): migration to drop `users.authorization_policy_rules` and legacy Casbin columns.
+1. ~~**RBAC cutover (ADR-0075).**~~ **DONE 2026-11-08**: bitset live, helm values updated, `authorization_policy_rules` table dropped (migration 000045).
 2. **Proctoring** (planned, not started): webcam snapshots, hybrid face and phone detection, screen/tab events,
    live proctor view, consent screen, per-exam violation policy, evidence in MinIO gated by `VIEW_STUDENT_PII`.
 3. Port of the exam-v1 features not yet verified in the platform: lockdown depth (SEB enforcement path),
