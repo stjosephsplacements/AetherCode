@@ -86,26 +86,34 @@ func NewPublisher(contextValue context.Context, url, name string, store *OutboxS
 	}, nil
 }
 
+var desiredPlatformStreamConfig = &nats.StreamConfig{
+	Name:       platformStream,
+	Subjects:   platformSubjects,
+	Retention:  nats.LimitsPolicy,
+	Storage:    nats.FileStorage,
+	Discard:    nats.DiscardOld,
+	MaxAge:     8 * 24 * time.Hour,
+	MaxBytes:   2 << 30, // 2 GiB cap; campus-scale traffic stays well below this
+	Duplicates: 2 * time.Minute,
+}
+
 func ensurePlatformStream(stream nats.JetStreamContext) error {
 	if stream == nil {
 		return fmt.Errorf("JetStream context is required")
 	}
-	if _, err := stream.StreamInfo(platformStream); err == nil {
-		return nil
-	} else if !errors.Is(err, nats.ErrStreamNotFound) {
+	info, err := stream.StreamInfo(platformStream)
+	if err != nil && !errors.Is(err, nats.ErrStreamNotFound) {
 		return fmt.Errorf("read platform event stream: %w", err)
 	}
-	_, err := stream.AddStream(&nats.StreamConfig{
-		Name:       platformStream,
-		Subjects:   platformSubjects,
-		Retention:  nats.LimitsPolicy,
-		Storage:    nats.FileStorage,
-		Discard:    nats.DiscardOld,
-		MaxAge:     8 * 24 * time.Hour,
-		MaxBytes:   2 << 30, // 2 GiB cap; campus-scale traffic stays well below this
-		Duplicates: 2 * time.Minute,
-	})
-	if err != nil && !errors.Is(err, nats.ErrStreamNameAlreadyInUse) {
+	if info != nil {
+		// Stream already exists; update its config so MaxBytes and other limits
+		// are applied to existing deployments, not only fresh ones.
+		if _, err := stream.UpdateStream(desiredPlatformStreamConfig); err != nil {
+			return fmt.Errorf("update platform event stream: %w", err)
+		}
+		return nil
+	}
+	if _, err := stream.AddStream(desiredPlatformStreamConfig); err != nil && !errors.Is(err, nats.ErrStreamNameAlreadyInUse) {
 		return fmt.Errorf("create platform event stream: %w", err)
 	}
 	return nil
