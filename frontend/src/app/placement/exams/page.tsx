@@ -32,7 +32,7 @@ export default async function PlacementExamsPage() {
     <>
       <PageHeader
         title="Exams"
-        description="All exams across colleges. Placement exams can be assigned to students from any department through their placement track."
+        description="Exams across all colleges. Placement exams assign to students via their placement track."
       />
 
       <h2 className="mb-3 text-[15px] font-semibold tracking-[-0.01em] text-ink">Published ({published.length})</h2>

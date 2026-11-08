@@ -30,7 +30,7 @@ export default async function PlacementQuestionsPage() {
     <>
       <PageHeader
         title="Questions"
-        description="The shared question bank. Questions created by any college appear here. Placement exams draw from this pool."
+        description="Questions shared by all colleges. Browse what's available for placement exams."
       />
       <h2 className="mb-3 text-[15px] font-semibold tracking-[-0.01em] text-ink">Test questions ({tests.length})</h2>
       {tests.length > 0 && (

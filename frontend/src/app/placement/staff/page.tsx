@@ -76,7 +76,7 @@ export default async function PlacementStaffPage() {
     <>
       <PageHeader
         title="Placement staff"
-        description="Placement officers manage student placements across colleges. Platform administrators assign existing staff members to placement departments."
+        description="People with access to the placement area. Admins assign staff here."
         actions={
           placement.isPlatformAdmin && placementDepartments.length > 0 ? (
             <AssignOfficer
