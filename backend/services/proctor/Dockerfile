@@ -9,7 +9,8 @@ RUN pip3 install --no-cache-dir uv
 WORKDIR /app
 COPY pyproject.toml .
 COPY prisma/ prisma/
-RUN uv pip install --system --no-cache -e .
+# Pin to python3.11 so uv resolves against the right ABI (mediapipe has no cp312+ wheels yet)
+RUN uv pip install --system --no-cache --python python3.11 -e .
 # Generate the Prisma Python client at build time so no network is needed at runtime
 RUN prisma generate
 
