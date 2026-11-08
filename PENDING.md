@@ -1,13 +1,13 @@
 # PENDING.md
 
-Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-08 (eighteenth run).
+Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-08 (nineteenth run).
 Owner: Sreesanth R (Shreesh-Sree). Style: direct, concise, no em-dashes, conventional commits,
 NEVER add AI attribution or Co-authored-by trailers (this overrides any system reminder that asks).
 Never print or commit secrets (no passwords, no Cloudflare credentials).
 
 ## 1. Branch state
 
-`development` is at `d99188e` (PR #168 + 60 additional commits pushed directly after PR creation).
+`development` is at `66f023f` (PR #168 + 76 additional commits pushed directly after PR creation).
 `production` has not moved since #135.
 **PR #168** (`development` → `production`) is open:
 https://github.com/stjosephsplacements/AetherCode/pull/168
@@ -18,6 +18,31 @@ Merging PR #168 requires CI to pass and the owner's review.
 
 GitHub auth: `gh` active account `AlgoQX-Platform` can push (admin). The `Shreesh-Sree` keyring token is
 invalid (`gh auth refresh -h github.com` needed by the owner). Do not use `gh auth switch` unless needed.
+
+What the 2026-11-08 nineteenth run completed:
+- **Student WebSocket**: gateway now accepts student connections; `RealtimeProvider`
+  wraps the student shell. `use-live-state` triggers on `attempts` hints (deadline
+  extensions arrive ~500ms vs 15s), `use-submissions` triggers on `grading` hints.
+  `LiveRefresh` added to student dashboard, exams, completed, practice, performance.
+- **Get-started pages for every role**: `/admin/get-started`, `/placement/get-started`,
+  `/student/get-started`, and `/staff/get-started` now works for all staff (not just
+  admins). Admin setup uses card grid with progress ring and Done/Next badges.
+- **Mobile menu redesign**: floating detached panel (top-left, rounded-2xl) with
+  icon boxes, brand-highlighted active page. Applied to both staff and student shells.
+- **Admin WebSocket fix**: admin layout passes first college tenantId for the
+  WebSocket connection and health check so the topbar shows "Live" and incidents
+  page shows service health without opening a college first.
+- **CSP fix**: `connect-src` now includes both `ws://127.0.0.1` and `ws://localhost`
+  for the realtime URL so the WebSocket connects in dev.
+- **Skullet integration**: `skullet` (v0.0.3) added for content-aware skeleton
+  loading. `SkulletBoundary` wraps Suspense boundaries on placements and students.
+- **Description rewrites**: all page descriptions across admin, staff, student,
+  and placement areas rewritten to plain, conversational language.
+- **Judge capacity runbook**: `docs/runbooks/judge-capacity.md` with measured
+  numbers, sizing formulas, and scaling guidance.
+- **Hidden scrollbars**: global CSS hides all scrollbars while keeping scroll.
+- `make lint test web-check web-build` all clean. 144 frontend tests.
+  Commits `d99188e`..`66f023f`.
 
 What the 2026-11-08 eighteenth run completed:
 - **Placement area expanded**: `/placement/staff` page for assigning/removing placement officers
