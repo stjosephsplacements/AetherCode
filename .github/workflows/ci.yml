@@ -244,17 +244,18 @@ jobs:
       - name: Run migrations and deploy production images
         env:
           IMAGE_TAG: ${{ github.sha }}
+          NAMESPACE: ${{ secrets.PROD_K8S_NAMESPACE }}
+          SERVICES: ${{ secrets.PROD_SERVICES }}
         run: |
           set -euo pipefail
-          namespace=aethercode
           chart=deploy/helm/platform-service
-          services=(gateway identity tenant user question-bank assessment submission judge seb notification analytics frontend)
+          read -ra services <<< "$SERVICES"
 
-          migration_values=$(helm get values migrations --namespace "$namespace" -o json)
+          migration_values=$(helm get values migrations --namespace "$NAMESPACE" -o json)
           postgres_host=$(jq -er '.global.postgresHost // .postgresHost | select(type == "string" and length > 0)' <<<"$migration_values")
           judge_db_host=$(jq -er '.global.judgeDbHost // .judgeDbHost | select(type == "string" and length > 0)' <<<"$migration_values")
           helm upgrade migrations deploy/helm/platform-migrations \
-            --namespace "$namespace" \
+            --namespace "$NAMESPACE" \
             --reset-then-reuse-values \
             --set-string global.postgresHost="$postgres_host" \
             --set-string global.judgeDbHost="$judge_db_host" \
@@ -263,7 +264,7 @@ jobs:
 
           for service in "${services[@]}"; do
             helm upgrade "$service" "$chart" \
-              --namespace "$namespace" \
+              --namespace "$NAMESPACE" \
               --reuse-values \
               --values "deploy/helm/platform-service/values-$service.yaml" \
               --set image.tag="$IMAGE_TAG" \
@@ -273,7 +274,9 @@ jobs:
 
       - name: Show production workload status
         if: always()
-        run: kubectl get deployments,pods -n aethercode
+        env:
+          NAMESPACE: ${{ secrets.PROD_K8S_NAMESPACE }}
+        run: kubectl get deployments,pods -n "$NAMESPACE"
 
   deploy-dev:
     needs:
