@@ -2,21 +2,27 @@
 # Live-dev deploy: dev-sync.sh <sha> [service ...]
 #
 # Two modes:
-#   CI mode (default):  images were already built and pushed to GHCR by CI.
-#                       Just pulls and does helm upgrade — typically < 2 min.
+#   CI mode (default):  images were built and pushed to GHCR by CI.
+#                       Pulls pre-built images and runs helm upgrade. ~2 min.
 #   Local mode (--build): builds on the server from /tmp/aether-dev-src.tgz.
-#                         Use only when CI is not available or for hotfixes.
+#                         Use only when CI is unavailable or for urgent hotfixes.
 #
-# Usage:
+# Prereqs on the server (one-time setup):
+#   /etc/rancher/k3s/registries.yaml must contain GHCR credentials — run:
+#     sudo bash /data/production/AetherCode_Production_StJosephs/deploy/dev/setup-ghcr-auth.sh
+#
+# Usage (run from anywhere on the server):
 #   dev-sync.sh <sha> [service ...]           # pull pre-built images from GHCR
-#   dev-sync.sh --build <sha> [service ...]   # build on server (slow)
+#   dev-sync.sh --build <sha> [service ...]   # build on server (slow fallback)
 set -euo pipefail
+
+REPO_DIR=/data/production/AetherCode_Production_StJosephs
+REG=ghcr.io/stjosephsplacements
 
 BUILD=false
 if [[ "${1:-}" == "--build" ]]; then BUILD=true; shift; fi
 SHA=$1; shift; SVCS=("$@")
-REG=ghcr.io/stjosephsplacements
-TAG=$SHA   # CI tags images with the commit SHA directly
+TAG=$SHA
 
 if $BUILD; then
   # ── Local build (slow path) ────────────────────────────────────────────────
@@ -32,7 +38,7 @@ if $BUILD; then
       > ~/aether-dev-logs-$1.log 2>&1 \
     && buildah push "$img" "oci-archive:/tmp/aether-$1.tar:$img" \
       >> ~/aether-dev-logs-$1.log 2>&1 \
-    && sudo -n ctr -n k8s.io images import "/tmp/aether-$1.tar" \
+    && sudo ctr -n k8s.io images import "/tmp/aether-$1.tar" \
       >> ~/aether-dev-logs-$1.log 2>&1 \
     && echo "built $1" \
     || { echo "BUILD FAIL $1"; cat ~/aether-dev-logs-$1.log; exit 1; }
@@ -44,28 +50,24 @@ if $BUILD; then
     for s in "${SVCS[@]}"; do echo "$s backend backend/services/$s/Dockerfile"; done
   } | xargs -P 3 -L1 bash -c 'build "$@"' _
 
-  cd deploy/helm
 else
   # ── CI fast path: pull pre-built images from GHCR ─────────────────────────
   echo "Pulling $TAG from GHCR…"
   for s in "${SVCS[@]}" tools; do
     img="$REG/aethercode-$s:$TAG"
-    sudo -n ctr -n k8s.io images pull "$img" \
-    && echo "pulled $s" \
-    || { echo "PULL FAIL $s — did CI finish? Try --build for a local build."; exit 1; }
+    sudo ctr -n k8s.io images pull "$img" \
+    && echo "  pulled $s" \
+    || { echo "PULL FAIL $s — is CI done? Try: dev-sync.sh --build $SHA ${SVCS[*]}"; exit 1; }
   done
-
-  # Find the helm chart directory regardless of cwd
-  HELM_DIR="$(dirname "$0")/../helm"
-  cd "$HELM_DIR"
 fi
 
-# ── Helm upgrades (same for both modes) ──────────────────────────────────────
+# ── Helm upgrades (shared for both modes) ─────────────────────────────────────
+cd "$REPO_DIR/deploy/helm"
 for NS in aethercode aether-test; do
   helm upgrade migrations platform-migrations -n "$NS" \
     --reset-then-reuse-values --set image.tag="$TAG" \
     --wait --timeout 10m 2>&1 \
-    | grep -E "^STATUS|Error|error" | sed "s/^/$NS migrations: /" || true
+    | grep -E "^STATUS|[Ee]rror" | sed "s/^/$NS migrations: /" || true
 
   for s in "${SVCS[@]}"; do
     EXTRA=()
@@ -75,7 +77,7 @@ for NS in aethercode aether-test; do
       --reset-then-reuse-values -f "platform-service/values-$s.yaml" \
       --set image.tag="$TAG" "${EXTRA[@]}" \
       --wait --timeout 5m 2>&1 \
-      | grep -E "^STATUS|Error|error" | sed "s/^/$NS $s: /" || true
+      | grep -E "^STATUS|[Ee]rror" | sed "s/^/$NS $s: /" || true
   done
 
   for s in "${SVCS[@]}"; do
