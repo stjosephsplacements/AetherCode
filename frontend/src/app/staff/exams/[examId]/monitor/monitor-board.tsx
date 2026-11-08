@@ -2,17 +2,15 @@
 
 import { Megaphone, Timer } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useActionState, useEffect } from "react";
+import { useActionState } from "react";
 import { EmptyState, Section, Table } from "@/components/staff/page-header";
 import { ActionForm, Checkbox, Field, FormMessage, SubmitButton, TextArea, TextInput, initialActionState } from "@/components/staff/form";
 import { Badge, Panel } from "@/components/ui/card";
 import type { ExamMonitor, MonitorCandidate } from "@/lib/api-types";
+import { LiveRefresh } from "@/lib/client/realtime";
 import { formatCountdown, useNow } from "@/lib/client/use-now";
 import { formatDateTime, formatScoreText, formatTime } from "@/lib/utils";
 import { extendTime, postAnnouncement, setIntegrity, setResultsRelease } from "./actions";
-
-const REFRESH_MS = 15_000;
 
 type Tone = "neutral" | "success" | "warning" | "danger" | "brand";
 type Status = { label: string; tone: Tone; inProgress: boolean };
@@ -56,12 +54,7 @@ export function MonitorBoard({
   monitor: ExamMonitor;
   rollNumber: Record<string, string>;
 }) {
-  const router = useRouter();
   const now = useNow(1000);
-  useEffect(() => {
-    const timer = setInterval(() => router.refresh(), REFRESH_MS);
-    return () => clearInterval(timer);
-  }, [router]);
 
   const rows = monitor.candidates
     .map((candidate) => ({ candidate, roll: rollNumber[candidate.candidate_id] ?? candidate.candidate_id.slice(0, 8), status: candidateStatus(candidate, now) }))
@@ -81,6 +74,7 @@ export function MonitorBoard({
 
   return (
     <>
+      <LiveRefresh topics={["attempts", "grading"]} fallbackSeconds={15} />
       <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
           ["Assigned", counts.assigned],

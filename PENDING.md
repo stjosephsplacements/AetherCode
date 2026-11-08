@@ -340,8 +340,10 @@ Ask-first areas under AGENTS.md apply. In priority order:
 2. **Proctoring** (planned, not started): webcam snapshots, hybrid face and phone detection, screen/tab events,
    live proctor view, consent screen, per-exam violation policy, evidence in MinIO gated by `VIEW_STUDENT_PII`.
 3. Port of the exam-v1 features not yet verified in the platform: lockdown depth (SEB enforcement path),
-   live monitor real-time updates, similarity report (pages open without errors; lockdown and similarity
-   need a running SEB + engine to verify). CSV export now has a browser spec (`results-export.spec.ts`).
+   ~~live monitor real-time updates~~ (done: `MonitorBoard` uses `LiveRefresh` over the gateway
+   WebSocket instead of 15 s polling; falls back to 15 s when offline), similarity report (pages
+   open without errors; lockdown and similarity need a running SEB + engine to verify). CSV export
+   now has a browser spec (`results-export.spec.ts`).
 4. ~~Browser tests still missing.~~ All listed flows now have specs: exam authoring (`exam-authoring.spec.ts`),
    extra time (`extra-time.spec.ts`), results CSV export (`results-export.spec.ts`), community moderation
    (`community.spec.ts`). Already had: MFA step-up (`stepup.spec.ts`), MCQ wizard (`authoring.spec.ts`),

@@ -344,6 +344,12 @@ Done 2026-11-05 to 2026-11-08 (code; deployed to `aether-test`):
   body bound, HTTP server timeouts, graceful SIGTERM shutdown, proto generation zero-drift,
   dependency version consistency (Go 1.26.0, pgx 5.11.0, nats 1.55.0, grpc 1.85.0),
   `govulncheck` 0 reachable vulnerabilities, all `nolint` suppressions justified and documented.
+- Live monitor real-time WebSocket (2026-11-08, fifteenth run): `MonitorBoard` replaced its
+  15-second `setInterval(router.refresh())` polling with `LiveRefresh` over the existing gateway
+  WebSocket. The monitor now re-renders from the server within ~750 ms of any `attempts` or
+  `grading` event (student starts, submits, gets graded) instead of waiting up to 15 seconds.
+  Falls back to 15-second polling when the WebSocket is down. No backend changes needed — the
+  gateway hub already published these events.
 
 ### Pending (2026-10-21)
 
