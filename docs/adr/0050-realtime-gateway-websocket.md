@@ -31,9 +31,9 @@ expires; the client reconnects with the refreshed cookie.
 
 **Authorization is the user service's.** The token names only a principal, so on
 connect the gateway calls the user service's `GET /v1/me` with the caller's own
-token. Only staff may connect. A connection is scoped to one tenant the caller
-holds a staff role in (any tenant for a platform administrator), and only
-college and platform administrators receive service health.
+token. Any authenticated user (staff or student) may connect. A connection is
+scoped to one tenant the caller belongs to, and only college and platform
+administrators receive service health.
 
 **Messages are hints, never data.** An event of an allowlisted type for the
 connection's tenant becomes `{"type":"changed","topic":...,"id":...}`; payloads
