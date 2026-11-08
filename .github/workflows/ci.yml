@@ -30,6 +30,8 @@ jobs:
         run: |
           set -euo pipefail
           for dir in backend/libs/pkg backend/libs/proto backend/services/*/; do
+            # Skip non-Go service directories (e.g. proctor which is Python)
+            [[ -f "${dir}go.mod" ]] || continue
             (cd "$dir" && GOWORK=off go mod tidy && GOWORK=off go build ./...)
           done
           git diff --exit-code -- '*.mod' '*.sum'
