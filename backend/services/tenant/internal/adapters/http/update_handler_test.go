@@ -46,17 +46,6 @@ func TestUpdateTenantRejectsNonJSONBody(t *testing.T) {
 	}
 }
 
-func TestUpdatePlacementOrganizationRejectsInvalidOrgID(t *testing.T) {
-	t.Parallel()
-	handler := &Handler{}
-	recorder := httptest.NewRecorder()
-	handler.updatePlacementOrganization(recorder, httptest.NewRequest(http.MethodPatch,
-		"/v1/placement-organizations/not-a-uuid", strings.NewReader(`{"legal_name":"X"}`)))
-	if recorder.Code == http.StatusOK {
-		t.Fatalf("updatePlacementOrganization accepted invalid UUID, got %d", recorder.Code)
-	}
-}
-
 func TestUpdateDepartmentRejectsInvalidTenantOrDepartmentID(t *testing.T) {
 	t.Parallel()
 	for _, testCase := range []struct {

@@ -103,100 +103,6 @@ func (handler *Handler) getTenant(writer http.ResponseWriter, request *http.Requ
 	httpx.WriteJSON(writer, http.StatusOK, tenant)
 }
 
-type placementOrganizationRequest struct {
-	Code      string `json:"code"`
-	LegalName string `json:"legal_name"`
-}
-
-func (handler *Handler) createPlacementOrganization(writer http.ResponseWriter, request *http.Request) {
-	var body placementOrganizationRequest
-	if err := httpx.DecodeJSON(request, &body); err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	id, err := database.NewUUIDv7()
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "placement_organizations", id, "")
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	organization, err := handler.service.CreatePlacementOrganization(request.Context(), decision.Capability, app.CreatePlacementOrganization{ID: id, Code: body.Code, LegalName: body.LegalName})
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	httpx.WriteJSON(writer, http.StatusCreated, organization)
-}
-
-func (handler *Handler) getPlacementOrganization(writer http.ResponseWriter, request *http.Request) {
-	organizationID, err := httpx.ParseUUIDPathValue(request, "organization_id")
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "placement_organizations", organizationID, "")
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	organization, err := handler.service.GetPlacementOrganization(request.Context(), decision.Capability, organizationID)
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	httpx.WriteJSON(writer, http.StatusOK, organization)
-}
-
-func (handler *Handler) deletePlacementOrganization(writer http.ResponseWriter, request *http.Request) {
-	organizationID, err := httpx.ParseUUIDPathValue(request, "organization_id")
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	var body deleteEntityRequest
-	if err := httpx.DecodeJSON(request, &body); err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "delete", "placement_organizations", organizationID, "")
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	if err := handler.service.DeletePlacementOrganization(request.Context(), decision.Capability, app.DeleteEntity{ID: organizationID, ActorID: decision.PrincipalID, Reason: body.Reason}); err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	writer.WriteHeader(http.StatusNoContent)
-}
-
-func (handler *Handler) hardDeletePlacementOrganization(writer http.ResponseWriter, request *http.Request) {
-	organizationID, err := httpx.ParseUUIDPathValue(request, "organization_id")
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	var body deleteEntityRequest
-	if err := httpx.DecodeJSON(request, &body); err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "delete", "placement_organizations", organizationID, "")
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	if err := handler.service.HardDeletePlacementOrganization(request.Context(), decision.Capability, app.DeleteEntity{ID: organizationID, ActorID: decision.PrincipalID, Reason: body.Reason}); err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	writer.WriteHeader(http.StatusNoContent)
-}
-
 type departmentRequest struct {
 	Code string `json:"code"`
 	Name string `json:"name"`
@@ -224,35 +130,6 @@ func (handler *Handler) createCollegeDepartment(writer http.ResponseWriter, requ
 		return
 	}
 	department, err := handler.service.CreateCollegeDepartment(request.Context(), decision.Capability, app.CreateCollegeDepartment{ID: id, TenantID: tenantID, Code: body.Code, Name: body.Name})
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	httpx.WriteJSON(writer, http.StatusCreated, department)
-}
-
-func (handler *Handler) createPlacementDepartment(writer http.ResponseWriter, request *http.Request) {
-	organizationID, err := httpx.ParseUUIDPathValue(request, "organization_id")
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	var body departmentRequest
-	if err := httpx.DecodeJSON(request, &body); err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	id, err := database.NewUUIDv7()
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "placement_organizations", organizationID, "")
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
-	}
-	department, err := handler.service.CreatePlacementDepartment(request.Context(), decision.Capability, app.CreatePlacementDepartment{ID: id, PlacementOrganizationID: organizationID, Code: body.Code, Name: body.Name})
 	if err != nil {
 		httpx.WriteError(writer, err)
 		return
