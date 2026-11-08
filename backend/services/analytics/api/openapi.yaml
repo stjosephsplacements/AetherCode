@@ -67,6 +67,25 @@ paths:
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
+  /v1/tenants/{tenant_id}/batch-progress/{batch_id}/by-department:
+    get:
+      security: [{bearerAuth: []}]
+      parameters:
+        - {$ref: '#/components/parameters/TenantID'}
+        - name: batch_id
+          in: path
+          required: true
+          schema: {$ref: '#/components/schemas/UUID'}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200':
+          description: Department-sliced batch progress. Same semantics as batch-progress but groups by department_id, so department-scoped staff can read only their slice. Requires migration 000019.
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: '#/components/schemas/DepartmentBatchProgress'}}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
   /v1/tenants/{tenant_id}/placement-progress/{placement_department_id}:
     get:
       security: [{bearerAuth: []}]
@@ -211,6 +230,21 @@ components:
         started_count: {type: integer, minimum: 0, description: Distinct actively affiliated students with a durable start fact for a current active assignment. A terminal grade is also treated as proof of a start during cross-subject delivery lag.}
         completed_count: {type: integer, minimum: 0, description: Students with a terminal graded attempt.}
         average_score: {type: string, description: Average latest graded score per completed student for a current assignment.}
+        source_revision: {type: integer, format: int64}
+        computed_at: {type: string, format: date-time}
+        version: {type: integer, format: int64}
+    DepartmentBatchProgress:
+      type: object
+      required: [tenant_id, batch_id, department_id, exam_version_id, assigned_count, started_count, completed_count, source_revision, computed_at, version]
+      properties:
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+        batch_id: {$ref: '#/components/schemas/UUID'}
+        department_id: {$ref: '#/components/schemas/UUID'}
+        exam_version_id: {$ref: '#/components/schemas/UUID'}
+        assigned_count: {type: integer, minimum: 0}
+        started_count: {type: integer, minimum: 0}
+        completed_count: {type: integer, minimum: 0}
+        average_score: {type: string}
         source_revision: {type: integer, format: int64}
         computed_at: {type: string, format: date-time}
         version: {type: integer, format: int64}

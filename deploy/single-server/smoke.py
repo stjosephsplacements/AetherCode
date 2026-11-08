@@ -654,6 +654,11 @@ assert batch_progress, f"FAIL no batch-progress rows for batch {batch['id']}"
 assert any(r["exam_version_id"] == exam_version["id"] and r["completed_count"] >= 1 for r in batch_progress), batch_progress
 ok("batch progress shows at least one completed attempt for the smoke exam")
 
+_, dept_batch_progress, _ = call("GET", f"{analytics}/batch-progress/{batch['id']}/by-department", token=faculty, expect=200)
+assert isinstance(dept_batch_progress, list), dept_batch_progress
+assert any(r["exam_version_id"] == exam_version["id"] and r["completed_count"] >= 1 for r in dept_batch_progress), dept_batch_progress
+ok("department batch progress shows at least one completed attempt for the smoke exam")
+
 _, placement_progress, _ = call("GET", f"{analytics}/placement-progress/{placement['id']}", token=faculty, expect=200)
 assert isinstance(placement_progress, list), placement_progress
 ok("placement progress endpoint returns a list (may be empty before placement exam graded)")
