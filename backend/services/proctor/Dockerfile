@@ -2,6 +2,7 @@ FROM nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3.11 python3.11-dev python3-pip libgl1 libglib2.0-0 \
+    libatomic1 \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip3 install --no-cache-dir uv
