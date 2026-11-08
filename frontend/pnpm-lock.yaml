@@ -232,6 +232,9 @@ importers:
       server-only:
         specifier: 0.0.1
         version: 0.0.1
+      skullet:
+        specifier: ^0.0.3
+        version: 0.0.3(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       sonner:
         specifier: 2.0.8
         version: 2.0.8(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -3548,6 +3551,23 @@ packages:
   side-channel@1.1.1:
     resolution: {integrity: sha512-6x6dK6zJdpTzF4sQeNYxwtvBzf6Eg4GtlesS94HOvTudUeyK2WXAaIfmDgsyslYrRBeFIlsi54AYsFGUuhmvrQ==}
     engines: {node: '>= 0.4'}
+
+  skullet@0.0.3:
+    resolution: {integrity: sha512-YPKHasYQxuZTQ6Tf6ap61lseIjdAklQlScg48HMKJW/AiGg8HaVdbfzg5XW/j6OdRuJbITpwsG5vJ8LAapmMJA==}
+    peerDependencies:
+      react: '>=18'
+      react-dom: '>=18'
+      svelte: '>=5'
+      vue: '>=3'
+    peerDependenciesMeta:
+      react:
+        optional: true
+      react-dom:
+        optional: true
+      svelte:
+        optional: true
+      vue:
+        optional: true
 
   sonner@2.0.8:
     resolution: {integrity: sha512-UM/ByIoFra8yzV75n1o0Puu0bw5U/9UNnDacrJNspekBewIfsQ3D6ez1nvlWpt7aTsO6rujQtifBpycwIivqlg==}
@@ -7604,6 +7624,11 @@ snapshots:
       side-channel-list: 1.0.1
       side-channel-map: 1.0.1
       side-channel-weakmap: 1.0.2
+
+  skullet@0.0.3(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
+    optionalDependencies:
+      react: 19.3.1
+      react-dom: 19.3.1(react@19.3.1)
 
   sonner@2.0.8(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
     dependencies:

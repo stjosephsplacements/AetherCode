@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Suspense } from "react";
 import { EmptyState, LoadError, PageHeader } from "@/components/staff/page-header";
+import { SkulletSuspense } from "@/components/skullet-suspense";
 import { departmentLabel, listBatches, listDepartments, listPlacement } from "@/lib/server/directory";
 import { inColleges } from "@/lib/server/colleges";
 import { describeAccounts } from "@/lib/server/people";
@@ -10,7 +10,6 @@ import { collegesFor, requireStaff } from "@/lib/server/staff";
 import { listRoster } from "@/lib/server/students";
 import { EnrolDialog, ImportDialog } from "./panels";
 import { Roster, type StudentRow } from "./roster";
-import { RosterSkeleton } from "./skeleton";
 
 export const metadata: Metadata = { title: "Students" };
 
@@ -23,9 +22,9 @@ export default async function StudentsPage() {
         title="Students"
         description="Add students one by one or import a spreadsheet. Manage passwords and accounts."
       />
-      <Suspense fallback={<RosterSkeleton />}>
+      <SkulletSuspense id="students" label="Loading students">
         <StudentsContent staff={staff} />
-      </Suspense>
+      </SkulletSuspense>
     </>
   );
 }

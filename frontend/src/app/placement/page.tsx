@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { LoadError, PageHeader } from "@/components/staff/page-header";
+import { SkulletSuspense } from "@/components/skullet-suspense";
 import { departmentLabel, listBatches, listDepartments, listPlacement } from "@/lib/server/directory";
 import { inColleges } from "@/lib/server/colleges";
 import { type PlacementContext, requirePlacement } from "@/lib/server/placement";
@@ -18,9 +18,9 @@ export default async function PlacementsPage() {
         title="Placements"
         description="See which students are in each placement track. Filter by college, department or batch."
       />
-      <Suspense fallback={<PlacementsSkeleton />}>
+      <SkulletSuspense id="placements" label="Loading placements">
         <PlacementsContent placement={placement} />
-      </Suspense>
+      </SkulletSuspense>
     </div>
   );
 }
@@ -83,21 +83,3 @@ async function PlacementsContent({ placement: access }: { placement: PlacementCo
   );
 }
 
-/** The page's bands while the data loads, so nothing moves when it arrives. */
-function PlacementsSkeleton() {
-  return (
-    <div className="space-y-8" aria-busy="true" aria-label="Loading placements">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {Array.from({ length: 4 }, (_, index) => (
-          <div key={index} className="h-[118px] animate-pulse rounded-[var(--radius-surface)] border border-line bg-surface" />
-        ))}
-      </div>
-      <div className="h-8 w-80 animate-pulse rounded-full bg-hover" />
-      <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
-        {Array.from({ length: 3 }, (_, index) => (
-          <div key={index} className="h-52 animate-pulse rounded-[var(--radius-surface)] border border-line bg-surface" />
-        ))}
-      </div>
-    </div>
-  );
-}

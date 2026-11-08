@@ -1,11 +1,9 @@
-import { PageHeader } from "@/components/staff/page-header";
-import { RosterSkeleton } from "./skeleton";
+import { LogoLoader } from "@/components/ui/logo-loader";
 
 export default function StudentsLoading() {
   return (
-    <>
-      <PageHeader title="Students" />
-      <RosterSkeleton />
-    </>
+    <div className="flex h-[60vh] w-full items-center justify-center">
+      <LogoLoader size={56} />
+    </div>
   );
 }
