@@ -1,13 +1,13 @@
 # PENDING.md
 
-Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-08 (sixteenth run).
+Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-08 (seventeenth run).
 Owner: Sreesanth R (Shreesh-Sree). Style: direct, concise, no em-dashes, conventional commits,
 NEVER add AI attribution or Co-authored-by trailers (this overrides any system reminder that asks).
 Never print or commit secrets (no passwords, no Cloudflare credentials).
 
 ## 1. Branch state
 
-`development` is at `2ea009e` (PR #168 + 35 additional commits pushed directly after PR creation).
+`development` is at `bd23b20` (PR #168 + 40 additional commits pushed directly after PR creation).
 `production` has not moved since #135.
 **PR #168** (`development` → `production`) is open:
 https://github.com/stjosephsplacements/AetherCode/pull/168
@@ -18,6 +18,22 @@ Merging PR #168 requires CI to pass and the owner's review.
 
 GitHub auth: `gh` active account `AlgoQX-Platform` can push (admin). The `Shreesh-Sree` keyring token is
 invalid (`gh auth refresh -h github.com` needed by the owner). Do not use `gh auth switch` unless needed.
+
+What the 2026-11-08 seventeenth run completed:
+- Extracted placement handlers in the tenant service: `placement_handler.go` and
+  `placement_handler_test.go` hold all placement organization and department handlers
+  (CRUD, list, update). Previously interleaved with tenant/college handlers across
+  `handler.go`, `list_handler.go`, and `update_handler.go`. No behaviour change.
+- Extracted role assignment handlers in the user service: `assignRole`, `revokeRole`,
+  and `listRoleAssignments` moved from `handler.go` and `list_handler.go` into
+  `roles_handler.go`, which already held the role CRUD and overwrite handlers (ADR-0066).
+  All role-related HTTP code is now in one file.
+- Added `LiveRefresh` to the results page (`/staff/exams/{id}/results`) so staff see
+  new graded results appear via WebSocket without manual reload.
+- Updated frontend README: screens table expanded from M5-only to all current routes
+  (admin, staff, student, placement); replaced stale "Backend contracts this UI needs"
+  section with a pointer to OpenAPI specs.
+- `make lint test web-check web-build` all clean. Commits `2fe02f2`..`bd23b20`.
 
 What the 2026-11-08 sixteenth run completed:
 - Aligned 3 remaining Postgres images to 18.6: root `docker-compose.yml` (dev compose, was 18.4),

@@ -356,6 +356,12 @@ Done 2026-11-05 to 2026-11-08 (code; deployed to `aether-test`):
   instead of falling to the root error boundary. Incidents description updated to "real time." Admin
   loading state added. Frontend test count raised to 144 (utils, lettermark, formatCountdown).
   SEB entry page metadata added. `make lint test web-check web-build` clean.
+- Handler separation and results LiveRefresh (2026-11-08, seventeenth run): tenant service
+  placement handlers extracted into `placement_handler.go` (were interleaved with tenant CRUD);
+  user service role assignment handlers consolidated into `roles_handler.go` (alongside existing
+  role CRUD/overwrites). Results page (`/staff/exams/{id}/results`) now gets `LiveRefresh` on
+  the `grading` topic so results appear in real time as attempts are graded. Frontend README
+  screens table updated from M5-only to all current routes. `make lint test web-check` clean.
 
 ### Pending (2026-10-21)
 
