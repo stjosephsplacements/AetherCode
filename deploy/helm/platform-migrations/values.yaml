@@ -15,7 +15,7 @@ imagePullSecrets: []
 global:
   postgresHost: postgres
   judgeDbHost: judge-db
-postgresImage: postgres:18.4
+postgresImage: postgres:18.6
 
 # Judge engine whose languages are enabled in judge.language_mappings: aethercode.
 judgeEngine: aethercode
