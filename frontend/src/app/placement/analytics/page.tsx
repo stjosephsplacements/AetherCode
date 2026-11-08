@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ChartBar } from "@phosphor-icons/react/ssr";
 import { LoadError, PageHeader } from "@/components/staff/page-header";
+import { Tile } from "@/components/staff/tile";
 import { listDepartments, listBatches, listPlacement } from "@/lib/server/directory";
 import { inColleges } from "@/lib/server/colleges";
 import { requirePlacement } from "@/lib/server/placement";
@@ -65,19 +66,16 @@ export default async function PlacementAnalyticsPage() {
 
       {/* Summary */}
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-[var(--radius-surface)] border border-line bg-surface p-5">
-          <p className="text-[13px] text-ink-muted">Total students</p>
-          <p className="mt-1 font-mono text-[2rem] font-semibold text-ink">{total}</p>
-        </div>
-        <div className="rounded-[var(--radius-surface)] border border-line bg-surface p-5">
-          <p className="text-[13px] text-ink-muted">Placed</p>
-          <p className="mt-1 font-mono text-[2rem] font-semibold text-success">{assigned}</p>
-        </div>
-        <div className="rounded-[var(--radius-surface)] border border-line bg-surface p-5">
-          <p className="text-[13px] text-ink-muted">Not yet placed</p>
-          <p className="mt-1 font-mono text-[2rem] font-semibold text-ink-muted">{total - assigned}</p>
+        <Tile label="Total students">
+          <p className="font-mono text-[2rem] font-semibold text-ink">{total}</p>
+        </Tile>
+        <Tile label="Placed">
+          <p className="font-mono text-[2rem] font-semibold text-success">{assigned}</p>
+        </Tile>
+        <Tile label="Not yet placed">
+          <p className="font-mono text-[2rem] font-semibold text-ink-muted">{total - assigned}</p>
           <p className="mt-1 text-[13px] text-ink-subtle">{percent(assigned, total)}% placed</p>
-        </div>
+        </Tile>
       </div>
 
       {/* Per org / track breakdown */}

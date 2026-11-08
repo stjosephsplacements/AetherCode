@@ -24,7 +24,6 @@ export function useWebcam(
   const streamRef = useRef<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const snapshotsRef = useRef<string[]>([]);
 
   const request = useCallback(async () => {
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -59,9 +58,6 @@ export function useWebcam(
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.4);
-    snapshotsRef.current = [...snapshotsRef.current.slice(-9), dataUrl];
-
     // Upload if wired to an attempt (best-effort, non-fatal)
     if (tenantId && attemptId) {
       const capturedAt = new Date().toISOString();
@@ -105,5 +101,5 @@ export function useWebcam(
     return () => clearTimeout(id);
   }, [enabled, state.kind, request]);
 
-  return { state, request, snapshots: snapshotsRef, capture };
+  return { state, request, capture };
 }
