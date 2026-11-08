@@ -172,10 +172,14 @@ func (handler *Handler) enrollStudent(writer http.ResponseWriter, request *http.
 		httpx.WriteError(writer, err)
 		return
 	}
-	placementDepartmentID, err := httpx.ParseUUIDValue(body.PlacementDepartmentID, "placement_department_id")
-	if err != nil {
-		httpx.WriteError(writer, err)
-		return
+	// placement_department_id is optional — skip placement assignment when empty
+	var placementDepartmentID string
+	if strings.TrimSpace(body.PlacementDepartmentID) != "" {
+		placementDepartmentID, err = httpx.ParseUUIDValue(body.PlacementDepartmentID, "placement_department_id")
+		if err != nil {
+			httpx.WriteError(writer, err)
+			return
+		}
 	}
 	studentID, err := database.NewUUIDv7()
 	if err != nil {

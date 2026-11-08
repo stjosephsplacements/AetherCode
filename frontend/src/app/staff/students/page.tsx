@@ -87,7 +87,8 @@ async function StudentsContent({ staff }: { staff: Awaited<ReturnType<typeof req
     });
   });
 
-  const why = placements.length === 0 ? (placement.readable ? "Create a placement department first" : "Ask a platform administrator to create a placement department") : undefined;
+  // placement_department_id is now optional — never block enrolment on missing placements
+  const why = undefined;
 
   const dialogs = batches.length > 0 && (
     <>
