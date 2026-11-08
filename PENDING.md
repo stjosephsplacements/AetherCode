@@ -7,7 +7,7 @@ Never print or commit secrets (no passwords, no Cloudflare credentials).
 
 ## 1. Branch state
 
-`development` is at `bd23b20` (PR #168 + 40 additional commits pushed directly after PR creation).
+`development` is at `06fb1a8` (PR #168 + 45 additional commits pushed directly after PR creation).
 `production` has not moved since #135.
 **PR #168** (`development` → `production`) is open:
 https://github.com/stjosephsplacements/AetherCode/pull/168
@@ -33,7 +33,13 @@ What the 2026-11-08 seventeenth run completed:
 - Updated frontend README: screens table expanded from M5-only to all current routes
   (admin, staff, student, placement); replaced stale "Backend contracts this UI needs"
   section with a pointer to OpenAPI specs.
-- `make lint test web-check web-build` all clean. Commits `2fe02f2`..`bd23b20`.
+- Moved placement department management from `/staff/departments` (was a tab) to
+  `/placement/departments` — its own page with its own actions and navigation entry.
+  The college-level `/staff/departments` page now shows only academic departments and
+  batches. Fixed stale links in `placements-filter.tsx` and `setup.ts`.
+- Full API endpoint documentation: `docs/API.md` (482 lines) covers every endpoint
+  from all 9 public services, generated from their OpenAPI specs.
+- `make lint test web-check web-build` all clean. Commits `2fe02f2`..`06fb1a8`.
 
 What the 2026-11-08 sixteenth run completed:
 - Aligned 3 remaining Postgres images to 18.6: root `docker-compose.yml` (dev compose, was 18.4),
