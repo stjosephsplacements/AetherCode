@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { EmptyState, LoadError, PageHeader } from "@/components/staff/page-header";
-import { SkulletSuspense } from "@/components/skullet-suspense";
+import { SkulletBoundary } from "@/components/skullet-suspense";
 import { departmentLabel, listBatches, listDepartments, listPlacement } from "@/lib/server/directory";
 import { inColleges } from "@/lib/server/colleges";
 import { describeAccounts } from "@/lib/server/people";
@@ -22,9 +22,9 @@ export default async function StudentsPage() {
         title="Students"
         description="Add students one by one or import a spreadsheet. Manage passwords and accounts."
       />
-      <SkulletSuspense id="students" label="Loading students">
+      <SkulletBoundary id="students" label="Loading students">
         <StudentsContent staff={staff} />
-      </SkulletSuspense>
+      </SkulletBoundary>
     </>
   );
 }

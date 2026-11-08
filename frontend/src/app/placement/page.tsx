@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { LoadError, PageHeader } from "@/components/staff/page-header";
-import { SkulletSuspense } from "@/components/skullet-suspense";
+import { SkulletBoundary } from "@/components/skullet-suspense";
 import { departmentLabel, listBatches, listDepartments, listPlacement } from "@/lib/server/directory";
 import { inColleges } from "@/lib/server/colleges";
 import { type PlacementContext, requirePlacement } from "@/lib/server/placement";
@@ -18,9 +18,9 @@ export default async function PlacementsPage() {
         title="Placements"
         description="See which students are in each placement track. Filter by college, department or batch."
       />
-      <SkulletSuspense id="placements" label="Loading placements">
+      <SkulletBoundary id="placements" label="Loading placements">
         <PlacementsContent placement={placement} />
-      </SkulletSuspense>
+      </SkulletBoundary>
     </div>
   );
 }

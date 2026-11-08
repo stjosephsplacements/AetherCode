@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode } from "react";
-import { SkeletonSuspense, SkulletProvider } from "skullet/react";
+import { Skeleton, SkeletonSuspense, SkulletProvider } from "skullet/react";
 
 const THEME = {
   light: { base: "#e8e4df", highlight: "#f0ebe3" },
@@ -10,23 +10,45 @@ const THEME = {
 };
 
 /** Wraps a Suspense boundary with skullet's content-aware skeleton. */
-export function SkulletSuspense({
+export function SkulletBoundary({
   children,
   skeleton,
   id,
   label,
 }: {
   children: ReactNode;
-  /** Sample content to measure for the skeleton shape. */
   skeleton?: ReactNode;
   id?: string;
   label?: string;
 }) {
   return (
-    <SkulletProvider theme={THEME}>
+    <SkulletProvider theme={THEME} mode="system">
       <SkeletonSuspense id={id} label={label} skeleton={skeleton}>
         {children}
       </SkeletonSuspense>
+    </SkulletProvider>
+  );
+}
+
+/** Client-side skullet Skeleton for data that loads after mount. */
+export function SkulletLoading<T>({
+  data,
+  sample,
+  id,
+  label,
+  children,
+}: {
+  data: T | null | undefined;
+  sample: T;
+  id?: string;
+  label?: string;
+  children: (data: T) => ReactNode;
+}) {
+  return (
+    <SkulletProvider theme={THEME} mode="system">
+      <Skeleton data={data} sample={sample} id={id} label={label}>
+        {children}
+      </Skeleton>
     </SkulletProvider>
   );
 }
