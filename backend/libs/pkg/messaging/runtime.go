@@ -102,6 +102,7 @@ func ensurePlatformStream(stream nats.JetStreamContext) error {
 		Storage:    nats.FileStorage,
 		Discard:    nats.DiscardOld,
 		MaxAge:     8 * 24 * time.Hour,
+		MaxBytes:   2 << 30, // 2 GiB cap; campus-scale traffic stays well below this
 		Duplicates: 2 * time.Minute,
 	})
 	if err != nil && !errors.Is(err, nats.ErrStreamNameAlreadyInUse) {
@@ -109,6 +110,10 @@ func ensurePlatformStream(stream nats.JetStreamContext) error {
 	}
 	return nil
 }
+
+// outboxRetention matches the platform stream MaxAge so published rows are
+// never kept longer than the events are replayable from JetStream.
+const outboxRetention = 8 * 24 * time.Hour
 
 // Run publishes until context cancellation. It logs a retryable failure but
 // keeps the service alive because the outbox preserves every unsent event.
@@ -119,6 +124,8 @@ func (publisher *Publisher) Run(contextValue context.Context) {
 	defer publisher.connection.Close()
 	ticker := time.NewTicker(publisher.interval)
 	defer ticker.Stop()
+	cleanTicker := time.NewTicker(5 * time.Minute)
+	defer cleanTicker.Stop()
 	for {
 		if err := publisher.publishOnce(contextValue); err != nil {
 			publisher.lastFailure.Store(err.Error())
@@ -129,6 +136,10 @@ func (publisher *Publisher) Run(contextValue context.Context) {
 		select {
 		case <-contextValue.Done():
 			return
+		case <-cleanTicker.C:
+			if err := publisher.store.CleanPublished(contextValue, outboxRetention); err != nil {
+				publisher.logger.Warn("outbox cleanup failed", "error", err)
+			}
 		case <-ticker.C:
 		}
 	}
