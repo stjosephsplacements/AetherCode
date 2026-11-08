@@ -103,7 +103,7 @@ type me struct {
 var errForbidden = errors.New("forbidden")
 
 // authorize verifies the token, then asks the user service for the caller's roles.
-// Only staff connect; health is for college and platform administrators.
+// Staff and students connect; health is for college and platform administrators.
 func (server *Server) authorize(ctx context.Context, token, tenant string) (scope, error) {
 	claims, err := server.config.Verifier.Verify(token, server.config.Now().UTC())
 	if err != nil {
@@ -133,19 +133,21 @@ func (server *Server) authorize(ctx context.Context, token, tenant string) (scop
 		return scope{}, err
 	}
 	result := scope{principal: claims.Subject, tenant: tenant, expires: time.Unix(claims.ExpiresAt, 0)}
-	staff := false
+	authorized := false
 	for _, role := range caller.Roles {
 		switch {
 		case role.RoleName == "super_admin":
-			staff, result.health = true, true
-		case role.RoleName == "student" || role.TenantID != tenant:
+			authorized, result.health = true, true
+		case role.TenantID != tenant:
+		case role.RoleName == "student":
+			authorized = true
 		case role.RoleName == "college_admin":
-			staff, result.health = true, true
+			authorized, result.health = true, true
 		default:
-			staff = true
+			authorized = true
 		}
 	}
-	if !staff {
+	if !authorized {
 		return scope{}, errForbidden
 	}
 	return result, nil
