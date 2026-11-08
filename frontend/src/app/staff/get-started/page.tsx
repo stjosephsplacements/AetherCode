@@ -1,5 +1,5 @@
 import type { Icon } from "@phosphor-icons/react";
-import { ArrowRight, BookOpen, Briefcase, Buildings, ChartBar, Check, Confetti, Lock, NotePencil, Question, Stack, Users } from "@phosphor-icons/react/ssr";
+import { ArrowRight, BookOpen, Briefcase, Buildings, ChartBar, Check, Confetti, Lock, NotePencil, Sparkle, Stack, Users } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -15,13 +15,20 @@ const META: Record<SetupKey, { icon: Icon; minutes: string; cta: string }> = {
   college: { icon: Buildings, minutes: "1 min", cta: "Create college" },
   department: { icon: Stack, minutes: "2 min", cta: "Add department" },
   batch: { icon: Stack, minutes: "1 min", cta: "Add batch" },
-  placement: { icon: Briefcase, minutes: "2 min", cta: "Add placement department" },
+  placement: { icon: Briefcase, minutes: "2 min", cta: "Add placement" },
   students: { icon: Users, minutes: "5 min", cta: "Enrol students" },
   questions: { icon: BookOpen, minutes: "10 min", cta: "Write questions" },
   exam: { icon: NotePencil, minutes: "3 min", cta: "Schedule exam" },
 };
 
-const RING = 2 * Math.PI * 34;
+const FACULTY_STEPS = [
+  { icon: BookOpen, title: "Browse questions", text: "All published questions available for exams.", href: "/staff/questions", cta: "Open" },
+  { icon: NotePencil, title: "Create an exam", text: "Pick questions, set a window and assign to a batch.", href: "/staff/exams/new", cta: "New exam" },
+  { icon: ChartBar, title: "Analytics", text: "Scores and student performance.", href: "/staff/analytics", cta: "Open" },
+  { icon: Users, title: "Students", text: "Enrol, import and manage accounts.", href: "/staff/students", cta: "Open" },
+];
+
+const RING = 2 * Math.PI * 40;
 
 export default async function GetStartedPage() {
   const staff = await requireStaff();
@@ -36,43 +43,47 @@ export default async function GetStartedPage() {
       </>
     );
   }
+
   const firstName = staff.viewer.displayName.split(" ")[0] || staff.viewer.username;
 
-  // Non-admin staff (faculty, mentors) see a simple quick-start card grid.
   if (!staff.canManageAccounts || steps.length === 0) {
-    const FACULTY_STEPS = [
-      { icon: Question, title: "Write a question", text: "Start in the question bank. Add a prompt, tests and a model solution.", href: "/staff/questions/new", cta: "New question" },
-      { icon: BookOpen, title: "Browse questions", text: "See all published questions available for exams.", href: "/staff/questions", cta: "Question bank" },
-      { icon: NotePencil, title: "Create an exam", text: "Pick questions, set a window and duration, then assign to a batch.", href: "/staff/exams/new", cta: "New exam" },
-      { icon: ChartBar, title: "View analytics", text: "Scores, pass rates and student performance for this college.", href: "/staff/analytics", cta: "Analytics" },
-      { icon: Users, title: "Manage students", text: "Enrol, import and manage student accounts.", href: "/staff/students", cta: "Students" },
-    ];
     return (
-      <div className="mx-auto max-w-3xl animate-enter">
-        <div className="mb-8">
-          <p className="font-[family-name:var(--font-eyebrow)] text-[10.5px] uppercase tracking-[0.14em] text-ink-subtle">Welcome</p>
-          <h1 className="mt-1 text-[26px] font-semibold leading-tight tracking-[-0.025em] text-ink">Hey {firstName}, here is where to start</h1>
-          <p className="mt-2 text-sm text-ink-muted">Quick links to the things you use most.</p>
+      <div className="mx-auto max-w-4xl animate-enter">
+        <div className="mb-8 flex items-start gap-4">
+          <div className="grid size-12 place-items-center rounded-2xl bg-brand-soft">
+            <Sparkle className="size-6 text-brand" />
+          </div>
+          <div>
+            <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-ink-subtle">Welcome back</p>
+            <h1 className="text-[24px] font-semibold tracking-[-0.02em] text-ink">{firstName}</h1>
+          </div>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
-          {FACULTY_STEPS.map((step) => {
+          {FACULTY_STEPS.map((step, i) => {
             const Icon = step.icon;
             return (
               <Link key={step.href} href={step.href} className="group">
-                <Panel className="flex h-full flex-col gap-3 p-5 transition-shadow group-hover:shadow-[var(--shadow-panel)]">
-                  <Icon className="size-6 text-brand" />
-                  <div>
-                    <p className="text-[15px] font-semibold text-ink">{step.title}</p>
-                    <p className="mt-1 text-[13px] leading-snug text-ink-muted">{step.text}</p>
+                <div
+                  className="flex h-full items-center gap-4 rounded-[var(--radius-surface)] border border-line bg-surface px-5 py-4 transition-all duration-150 group-hover:border-brand/30 group-hover:bg-hover"
+                  style={{ animationDelay: `${i * 50}ms` }}
+                >
+                  <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-hover transition-colors group-hover:bg-brand-soft">
+                    <Icon className="size-5 text-ink-muted transition-colors group-hover:text-brand" />
                   </div>
-                  <span className="mt-auto inline-flex items-center gap-1 text-[13px] font-medium text-brand">
-                    {step.cta} <ArrowRight className="size-3.5" />
-                  </span>
-                </Panel>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[14.5px] font-medium text-ink">{step.title}</p>
+                    <p className="text-[12.5px] text-ink-subtle">{step.text}</p>
+                  </div>
+                  <ArrowRight className="size-4 shrink-0 text-ink-subtle transition-all duration-150 group-hover:translate-x-0.5 group-hover:text-brand" />
+                </div>
               </Link>
             );
           })}
         </div>
+        <Link href="/staff/help" className="mt-4 inline-flex items-center gap-2 text-[13px] text-ink-muted transition-colors hover:text-ink">
+          <span>Read the guides</span>
+          <ArrowRight className="size-3.5" />
+        </Link>
       </div>
     );
   }
@@ -83,53 +94,98 @@ export default async function GetStartedPage() {
   const percent = steps.length ? Math.round((done / steps.length) * 100) : 0;
 
   return (
-    <div className="mx-auto max-w-3xl animate-enter">
-      <div className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-center">
+    <div className="mx-auto max-w-4xl animate-enter">
+      {/* Hero: progress summary */}
+      <div className="mb-8 flex flex-col gap-5 rounded-[var(--radius-surface)] border border-line bg-surface p-6 sm:flex-row sm:items-center sm:gap-8">
+        {/* Ring */}
         <div className="relative size-24 shrink-0">
-          <svg viewBox="0 0 80 80" className="size-24 -rotate-90" role="img" aria-label={`${percent}% complete`}>
-            <circle cx="40" cy="40" r="34" fill="none" strokeWidth="6" className="stroke-line" />
-            <circle cx="40" cy="40" r="34" fill="none" strokeWidth="6" strokeLinecap="round" className="stroke-brand transition-[stroke-dashoffset] duration-700" strokeDasharray={RING} strokeDashoffset={RING * (1 - done / Math.max(steps.length, 1))} />
+          <svg viewBox="0 0 100 100" className="size-24 -rotate-90">
+            <circle cx="50" cy="50" r="40" fill="none" strokeWidth="7" className="stroke-line" />
+            <circle
+              cx="50" cy="50" r="40" fill="none" strokeWidth="7"
+              strokeLinecap="round"
+              className="stroke-brand transition-[stroke-dashoffset] duration-700"
+              strokeDasharray={RING}
+              strokeDashoffset={RING * (1 - done / Math.max(steps.length, 1))}
+            />
           </svg>
-          <span className="absolute inset-0 grid place-items-center text-xl font-semibold tabular-nums text-ink">{percent}%</span>
+          <span className="absolute inset-0 grid place-items-center font-mono text-[18px] font-bold tabular-nums text-ink">{percent}<span className="text-[11px] text-ink-muted">%</span></span>
         </div>
-        <div>
-          <p className="font-[family-name:var(--font-eyebrow)] text-[10.5px] uppercase tracking-[0.14em] text-ink-subtle">Setup</p>
-          <h1 className="mt-1 text-[26px] font-semibold leading-tight tracking-[-0.025em] text-ink">{complete ? "All set" : `${done} of ${steps.length} done`}</h1>
-          <p className="mt-1.5 text-sm text-ink-muted">{complete ? "Everything is in place. Add more from any page." : "Work through these in order. Each step unlocks the next."}</p>
+        {/* Text */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            {complete ? <Confetti className="size-5 text-brand" /> : <Sparkle className="size-5 text-brand" />}
+            <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-ink-subtle">{complete ? "Complete" : `${done} of ${steps.length} done`}</p>
+          </div>
+          <h1 className="mt-1 text-[22px] font-semibold tracking-[-0.02em] text-ink">
+            {complete ? `All set, ${firstName}` : `Setting up, ${firstName}`}
+          </h1>
+          <p className="mt-1 text-[13.5px] text-ink-muted">
+            {complete ? "Everything is in place." : "Work through these in order — each step unlocks the next."}
+          </p>
+          {current && (
+            <Button asChild size="sm" className="mt-3">
+              <Link href={current.href}>
+                {META[current.key].cta}
+                <ArrowRight />
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
 
+      {/* Steps grid */}
       <div className="grid gap-3 sm:grid-cols-2">
-        {steps.map((step) => {
+        {steps.map((step, index) => {
           const { icon: Icon, cta } = META[step.key];
           const now = step === current;
           return (
-            <Link key={step.key} href={step.href} className={cn("group", step.blocked && "pointer-events-none opacity-50")}>
-              <Panel className={cn("flex h-full flex-col gap-3 p-5 transition-shadow group-hover:shadow-[var(--shadow-panel)]", now && "ring-2 ring-brand/30")}>
-                <div className="flex items-center justify-between">
-                  {step.done ? <Check className="size-6 text-brand" /> : step.blocked ? <Lock className="size-5 text-ink-subtle" /> : <Icon className="size-6 text-brand" />}
-                  {step.done && <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[11px] font-medium text-brand">Done</span>}
-                  {now && <span className="rounded-full bg-brand px-2 py-0.5 text-[11px] font-medium text-brand-ink">Next</span>}
+            <Link
+              key={step.key}
+              href={step.href}
+              className={cn("group", step.blocked && "pointer-events-none")}
+            >
+              <div className={cn(
+                "flex h-full items-start gap-4 rounded-[var(--radius-surface)] border px-5 py-4 transition-all duration-150",
+                now ? "border-brand/40 bg-brand-soft/20 group-hover:bg-brand-soft/30" : "border-line bg-surface group-hover:border-brand/20 group-hover:bg-hover",
+                step.blocked && "opacity-40",
+              )}>
+                <div className={cn(
+                  "mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg transition-colors",
+                  step.done ? "bg-brand text-brand-ink" : now ? "bg-brand-soft" : "bg-hover group-hover:bg-brand-soft",
+                )}>
+                  {step.done ? (
+                    <Check className="size-4" />
+                  ) : step.blocked ? (
+                    <Lock className="size-3.5 text-ink-subtle" />
+                  ) : (
+                    <Icon className={cn("size-4", now ? "text-brand" : "text-ink-muted group-hover:text-brand")} />
+                  )}
                 </div>
-                <div>
-                  <p className="text-[15px] font-semibold text-ink">{step.title}</p>
-                  <p className="mt-1 text-[13px] leading-snug text-ink-muted">{step.text}</p>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className={cn("text-[14.5px] font-medium", step.done ? "text-ink" : now ? "text-ink" : "text-ink")}>{step.title}</p>
+                    {step.done && <span className="shrink-0 rounded-full bg-brand-soft px-2 py-0.5 font-mono text-[10px] font-bold text-brand">Done</span>}
+                    {now && !step.done && <span className="shrink-0 rounded-full bg-brand px-2 py-0.5 font-mono text-[10px] font-bold text-brand-ink">Next</span>}
+                  </div>
+                  <p className="mt-0.5 text-[12.5px] text-ink-subtle">{step.text}</p>
+                  {!step.blocked && (
+                    <span className="mt-2 inline-flex items-center gap-1 text-[12.5px] font-medium text-brand">
+                      {step.done ? "Open" : cta}
+                      <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
+                    </span>
+                  )}
                 </div>
-                {!step.blocked && (
-                  <span className="mt-auto inline-flex items-center gap-1 text-[13px] font-medium text-brand">
-                    {step.done ? "Open" : cta} <ArrowRight className="size-3.5" />
-                  </span>
-                )}
-              </Panel>
+              </div>
             </Link>
           );
         })}
       </div>
 
       {complete && (
-        <p className="mt-6 flex items-center gap-2 text-sm text-ink-muted">
+        <p className="mt-6 flex items-center gap-2 text-[13px] text-ink-muted">
           <Confetti className="size-4 text-brand" />
-          Next: invite staff from Staff accounts, or open the Dashboard to watch exams live.
+          Go to Dashboard to watch exams live, or invite staff from Staff accounts.
         </p>
       )}
     </div>
