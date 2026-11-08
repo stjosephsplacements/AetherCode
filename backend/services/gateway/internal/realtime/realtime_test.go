@@ -179,7 +179,6 @@ func TestSocketRefusesBadCallers(t *testing.T) {
 		{"other site", "faculty", "https://evil.example", tenantA, http.StatusForbidden},
 		{"no session", "", "https://exam.example.edu", tenantA, http.StatusUnauthorized},
 		{"bad token", "forged", "https://exam.example.edu", tenantA, http.StatusForbidden},
-		{"student", "student", "https://exam.example.edu", tenantA, http.StatusForbidden},
 		{"other tenant", "faculty", "https://exam.example.edu", tenantB, http.StatusForbidden},
 	}
 	for _, test := range cases {
@@ -192,6 +191,15 @@ func TestSocketRefusesBadCallers(t *testing.T) {
 			t.Fatalf("%s: got %d, want %d", test.name, status, test.status)
 		}
 	}
+}
+
+func TestSocketAcceptsStudents(t *testing.T) {
+	server, _ := fixture(t, time.Now().Add(time.Hour))
+	conn, _, err := dial(t, server.URL, "student", "https://exam.example.edu", tenantA)
+	if err != nil {
+		t.Fatalf("student connection rejected: %v", err)
+	}
+	_ = conn.CloseNow()
 }
 
 func read(t *testing.T, conn *websocket.Conn) map[string]any {
