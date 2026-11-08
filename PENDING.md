@@ -21,13 +21,21 @@ invalid (`gh auth refresh -h github.com` needed by the owner). Do not use `gh au
 
 What the 2026-11-08 sixth run completed:
 - Pushed 13 unpushed commits from prior runs (including CodeQL fix `13218b7`) to `origin/development`.
-  PR #168 head updated: was `81c8b84`, now `fe315a0`.
+  PR #168 head updated: was `81c8b84`, now `a77abde`.
 - feat(web): Liquid Glass design iteration (`ee91613`) — new LiquidGlass SVG-filter component,
   ASCII dissolve theme transition (respects prefers-reduced-motion), warm parchment light theme
   (#f0ebe3 canvas, #1a1535 ink, #b83d04 brand), glow backdrop on ExamPreview, deleted unused
   drafts.ts/drafts.test.ts. 111 frontend unit tests pass.
 - fix(deps): minimatch CVE-2026-118764 (`fe315a0`) — pnpm workspace override forces minimatch
   >=11.0.1 (resolves to 11.0.5). Dependabot alert #64 will close after CI re-scans.
+- fix(security): CodeQL suppression for exam-flow.spec.ts proxy helper (`a77abde`).
+  All 10 required status checks pass on PR #168. The separate `CodeQL` PR check (not in required
+  checks) shows FAILURE due to 3 open security alerts (#6, #7, #14) with pending dismissal
+  requests that need owner approval in GitHub Security → Code Scanning → Alerts. Alerts:
+    - #6: go/weak-sensitive-data-hashing in token.go:28 — false positive (32-byte crypto/rand token)
+    - #7: go/weak-sensitive-data-hashing in launchfile.go:55 — false positive (SEB protocol SHA-256)
+    - #14: js/file-access-to-http in exam-flow.spec.ts:28 — false positive (Playwright URL proxy)
+  Inline // codeql[...] annotations added to all three. Dismissal requests submitted via API.
 
 What the 2026-11-08 fifth run completed:
 - PR #168 (`development` → `production`) created — 105 commits, full summary in the PR description.
