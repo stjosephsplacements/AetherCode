@@ -61,7 +61,7 @@ export default async function GetStartedPage() {
             const num = String(i + 1).padStart(2, "0");
             const last = i === FACULTY_STEPS.length - 1;
             return (
-              <li key={step.href} className="flex gap-5" style={{ animationDelay: `${i * 60}ms` }}>
+              <li key={step.href} className="flex gap-5" style={{ animationDelay: `${i * 60}ms`, animation: "var(--animate-enter)" }}>
                 {/* Number + connector */}
                 <div className="flex flex-col items-center">
                   <div className="grid size-10 shrink-0 place-items-center rounded-full border-2 border-line bg-surface">
@@ -138,7 +138,7 @@ export default async function GetStartedPage() {
           const now = step === current;
           const last = i === steps.length - 1;
           return (
-            <li key={step.key} className="flex gap-4">
+            <li key={step.key} className="flex gap-4" style={{ animationDelay: `${i * 50}ms`, animation: "var(--animate-enter)" }}>
               {/* Timeline spine */}
               <div className="flex flex-col items-center">
                 <div className={cn(
