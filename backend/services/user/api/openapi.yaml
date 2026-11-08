@@ -142,6 +142,30 @@ paths:
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '409': {$ref: '#/components/responses/Problem409'}
+  /v1/tenants/{tenant_id}/students/roster:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    get:
+      summary: Staff console student roster with batch, departments, profile and mentors (ADR-0057)
+      description: >-
+        Richer than the plain student list; joins batch and department names and
+        mentor assignments. Sorted and filtered server-side.
+      parameters:
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 200, default: 50}}
+        - {name: cursor, in: query, schema: {type: string}}
+        - {name: status, in: query, schema: {enum: [pending, active, inactive, withdrawn]}}
+        - {name: batch_id, in: query, schema: {$ref: '#/components/schemas/UUID'}}
+        - {name: department_id, in: query, schema: {$ref: '#/components/schemas/UUID'}}
+        - {name: placement_department_id, in: query, schema: {$ref: '#/components/schemas/UUID'}}
+        - {name: q, in: query, schema: {type: string}, description: Free-text search on enrollment number and name}
+        - {name: sort, in: query, schema: {enum: [enrollment_number, name]}, description: Default enrollment_number}
+        - {name: order, in: query, schema: {enum: [asc, desc]}}
+      responses:
+        '200':
+          description: Roster page
+          content: {application/json: {schema: {$ref: '#/components/schemas/StudentPage'}}}
+        '400': {$ref: '#/components/responses/Problem400'}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
   /v1/tenants/{tenant_id}/students/{student_id}:
     patch:
       summary: Edit a student's enrolment number or admission date (YYYY-MM-DD, empty clears it)
@@ -167,6 +191,46 @@ paths:
       summary: Read a student and current department affiliations
       responses:
         '200': {$ref: '#/components/responses/Student'}
+        '400': {$ref: '#/components/responses/Problem400'}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '404': {$ref: '#/components/responses/Problem404'}
+    delete:
+      summary: Soft-delete a student
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: {type: string, minLength: 1, maxLength: 500}
+      responses:
+        '204': {description: Student soft-deleted}
+        '400': {$ref: '#/components/responses/Problem400'}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '404': {$ref: '#/components/responses/Problem404'}
+  /v1/tenants/{tenant_id}/students/{student_id}/hard:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/StudentID'
+    delete:
+      summary: Permanently delete a student
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: {type: string, minLength: 1, maxLength: 500}
+      responses:
+        '204': {description: Student permanently deleted}
         '400': {$ref: '#/components/responses/Problem400'}
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
@@ -424,6 +488,103 @@ paths:
         '401': {$ref: '#/components/responses/Problem401'}
         '403': {$ref: '#/components/responses/Problem403'}
         '409': {$ref: '#/components/responses/Problem409'}
+  /v1/tenants/{tenant_id}/staff-audit:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    get:
+      summary: College staff action audit log (ADR-0043)
+      description: >-
+        Reverse-chronological list of staff actions. Paginate backwards with
+        ?before=<RFC 3339> timestamp. Returns at most 100 entries per call.
+      parameters:
+        - {name: before, in: query, schema: {type: string, format: date-time}, description: Return entries before this RFC 3339 timestamp}
+      responses:
+        '200':
+          description: Audit entries
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [entries]
+                properties:
+                  entries: {type: array, items: {type: object}}
+        '400': {$ref: '#/components/responses/Problem400'}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
+  /v1/tenants/{tenant_id}/accounts/bulk-status:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    post:
+      summary: Enable or disable multiple accounts at once
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [principal_ids, status]
+              properties:
+                principal_ids: {type: array, items: {$ref: '#/components/schemas/UUID'}}
+                status: {enum: [active, disabled]}
+      responses:
+        '204': {description: Status applied to all accounts}
+        '400': {$ref: '#/components/responses/Problem400'}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
+  /v1/tenants/{tenant_id}/accounts/bulk-password:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    post:
+      summary: Reset passwords for multiple accounts at once
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [principal_ids]
+              properties:
+                principal_ids: {type: array, items: {$ref: '#/components/schemas/UUID'}}
+      responses:
+        '200': {$ref: '#/components/responses/IssuedCredentials'}
+        '400': {$ref: '#/components/responses/Problem400'}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
+  /v1/tenants/{tenant_id}/accounts/describe:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    post:
+      summary: Describe accounts by principal IDs — sign-in name, display name and status (ADR-0043)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [principal_ids]
+              properties:
+                principal_ids: {type: array, items: {$ref: '#/components/schemas/UUID'}}
+      responses:
+        '200':
+          description: Account summaries
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [accounts]
+                properties:
+                  accounts:
+                    type: array
+                    items:
+                      type: object
+                      required: [principal_id]
+                      properties:
+                        principal_id: {$ref: '#/components/schemas/UUID'}
+                        username: {type: string}
+                        display_name: {type: string}
+                        status: {type: string}
+        '400': {$ref: '#/components/responses/Problem400'}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
   /v1/permission-catalogue:
     get:
       summary: Everything that can be granted to a person, as service.resource.verb (ADR-0055)
@@ -483,6 +644,147 @@ paths:
       responses:
         '200': {description: The permissions now held}
         '403': {$ref: '#/components/responses/Problem403'}
+  /v1/permission-flags:
+    get:
+      summary: All named permission flags the roles engine knows about (ADR-0066)
+      description: Used by the UI to populate role-creation forms. Requires roles feature.
+      responses:
+        '200':
+          description: Permission flags
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [flags]
+                properties:
+                  flags: {type: array, items: {type: string}}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
+  /v1/tenants/{tenant_id}/roles:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    get:
+      summary: List all college-defined roles (ADR-0066)
+      responses:
+        '200':
+          description: College roles
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [roles]
+                properties:
+                  roles: {type: array, items: {$ref: '#/components/schemas/Role'}}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
+    post:
+      summary: Create a college-scoped custom role
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name, tier, position, permissions]
+              properties:
+                name: {type: string, minLength: 1, maxLength: 120}
+                tier: {type: integer, minimum: 1}
+                position: {type: integer, minimum: 0}
+                permissions: {type: array, items: {type: string}}
+      responses:
+        '201':
+          description: Created role
+          content: {application/json: {schema: {$ref: '#/components/schemas/Role'}}}
+        '400': {$ref: '#/components/responses/Problem400'}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '409': {$ref: '#/components/responses/Problem409'}
+  /v1/tenants/{tenant_id}/roles/{role_id}:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - {name: role_id, in: path, required: true, schema: {$ref: '#/components/schemas/UUID'}}
+    patch:
+      summary: Update a college role's name, position or permissions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                name: {type: string, minLength: 1, maxLength: 120}
+                position: {type: integer, minimum: 0}
+                permissions: {type: array, items: {type: string}}
+      responses:
+        '200':
+          description: Updated role
+          content: {application/json: {schema: {$ref: '#/components/schemas/Role'}}}
+        '400': {$ref: '#/components/responses/Problem400'}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '404': {$ref: '#/components/responses/Problem404'}
+    delete:
+      summary: Delete a college-scoped custom role
+      responses:
+        '204': {description: Role deleted}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '404': {$ref: '#/components/responses/Problem404'}
+  /v1/tenants/{tenant_id}/role-overwrites:
+    parameters: [{$ref: '#/components/parameters/TenantID'}]
+    get:
+      summary: List role permission overwrites, optionally filtered by node
+      parameters:
+        - {name: node_kind, in: query, schema: {type: string}}
+        - {name: node_id, in: query, schema: {$ref: '#/components/schemas/UUID'}}
+      responses:
+        '200':
+          description: Overwrites
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [overwrites]
+                properties:
+                  overwrites: {type: array, items: {$ref: '#/components/schemas/RoleOverwrite'}}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
+    put:
+      summary: Create or replace a role permission overwrite for a node/target combination
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [node_kind, node_id, target_kind, target_id, allow, deny]
+              properties:
+                node_kind: {type: string}
+                node_id: {$ref: '#/components/schemas/UUID'}
+                target_kind: {type: string}
+                target_id: {$ref: '#/components/schemas/UUID'}
+                allow: {type: array, items: {type: string}}
+                deny: {type: array, items: {type: string}}
+      responses:
+        '200':
+          description: Saved overwrite
+          content: {application/json: {schema: {$ref: '#/components/schemas/RoleOverwrite'}}}
+        '400': {$ref: '#/components/responses/Problem400'}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
+  /v1/tenants/{tenant_id}/role-overwrites/{overwrite_id}:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - {name: overwrite_id, in: path, required: true, schema: {$ref: '#/components/schemas/UUID'}}
+    delete:
+      summary: Delete a role permission overwrite
+      responses:
+        '204': {description: Overwrite deleted}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '404': {$ref: '#/components/responses/Problem404'}
 
 components:
   securitySchemes:
@@ -842,3 +1144,28 @@ components:
           required: [role_assignment]
           properties:
             role_assignment: {$ref: '#/components/schemas/RoleAssignment'}
+    Role:
+      type: object
+      additionalProperties: false
+      required: [id, tenant_id, name, tier, position, permissions]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+        name: {type: string}
+        tier: {type: integer}
+        position: {type: integer}
+        permissions: {type: array, items: {type: string}}
+    RoleOverwrite:
+      type: object
+      additionalProperties: false
+      required: [id, tenant_id, node_kind, node_id, target_kind, target_id, allow, deny]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+        node_kind: {type: string}
+        node_id: {$ref: '#/components/schemas/UUID'}
+        target_kind: {type: string}
+        target_id: {$ref: '#/components/schemas/UUID'}
+        allow: {type: array, items: {type: string}}
+        deny: {type: array, items: {type: string}}
+        granted_by: {$ref: '#/components/schemas/UUID'}
