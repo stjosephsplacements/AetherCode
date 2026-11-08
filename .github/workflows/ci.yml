@@ -290,6 +290,10 @@ jobs:
       - name: Deploy to development server
         env:
           SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.DEV_SSH_KNOWN_HOSTS }}
+          SERVER_HOST: ${{ secrets.DEV_SERVER_HOST }}
+          SERVER_USER: ${{ secrets.DEV_SERVER_USER }}
+          DEPLOY_PATH: ${{ secrets.DEV_DEPLOY_PATH }}
           SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
@@ -297,14 +301,11 @@ jobs:
           chmod 700 "$HOME/.ssh"
           printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/id_deploy"
           chmod 600 "$HOME/.ssh/id_deploy"
-          cat >> "$HOME/.ssh/known_hosts" << 'EOF'
-          115.247.189.246 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIG8YRUU/fs6ehbc89EZHseiP92ZDB3m+YvT1KA1IgtMN
-          115.247.189.246 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBI1YApd9y/tgQhMNH+cnbEA4OKO/S2mbzBBXpOcU1nH9yJ+dWy6zEElgbCg5tUzHHCPXNdIhGMKeuFAtZlxzoDk=
-          EOF
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
           chmod 600 "$HOME/.ssh/known_hosts"
           ssh \
             -i "$HOME/.ssh/id_deploy" \
             -o StrictHostKeyChecking=yes \
             -o BatchMode=yes \
-            aethercode@115.247.189.246 \
-            "cd /data/production/AetherCode_Production_StJosephs && bash deploy/dev/dev-sync.sh '$SHA' gateway identity tenant user question-bank assessment submission judge seb notification analytics frontend"
+            "${SERVER_USER}@${SERVER_HOST}" \
+            "cd '${DEPLOY_PATH}' && bash deploy/dev/dev-sync.sh '${SHA}' gateway identity tenant user question-bank assessment submission judge seb notification analytics frontend"
