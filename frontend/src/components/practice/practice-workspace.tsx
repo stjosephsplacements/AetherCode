@@ -20,6 +20,7 @@ import { EditorSettingsMenu } from "@/components/exam/editor-settings-menu";
 import { RunConsole, type RunState } from "@/components/exam/run-console";
 import type { CodeRun, PracticeQuestion, PracticeRun } from "@/lib/api-types";
 import { api } from "@/lib/client/api";
+import { useRealtime } from "@/lib/client/realtime";
 import { cn, formatDateTime, languageName } from "@/lib/utils";
 
 const CodeEditor = dynamic(() => import("@/components/exam/code-editor").then((module) => module.CodeEditor), {
@@ -80,6 +81,15 @@ function readDraft(questionId: string, language: string): string {
 export function PracticeWorkspace({ tenantId, question }: { tenantId: string; question: PracticeQuestion }) {
   const base = `/question-bank/v1/tenants/${tenantId}/practice`;
   const settings = useEditorSettings();
+  const { subscribe } = useRealtime();
+  // Resolved by a grading hint to wake up a sleeping poll immediately.
+  const gradingWake = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    const stop = subscribe((message) => {
+      if (message.topic === "grading") gradingWake.current?.();
+    });
+    return stop;
+  }, [subscribe]);
   // A function-only problem offers the languages it has a stub for.
   const stubbed = Object.keys(question.starters ?? {});
   const languages = stubbed.length > 0 ? question.languages.filter((key) => stubbed.includes(key)) : question.languages;
@@ -128,13 +138,17 @@ export function PracticeWorkspace({ tenantId, question }: { tenantId: string; qu
     };
   }, [fetchHistory]);
 
-  /** Starts a job and polls it until Judge finishes. */
+  /** Starts a job and polls it until Judge finishes. A grading hint wakes the sleep early. */
   const execute = useCallback(
     async (mode: "run" | "submit", custom: boolean): Promise<PracticeRun> => {
       const body = custom ? { language, source, mode, input } : { language, source, mode };
       const { id } = await api<{ id: string }>(`${base}/questions/${question.question_id}/submissions`, { method: "POST", body });
       for (let poll = 0; poll < 120; poll++) {
-        await new Promise((resolve) => setTimeout(resolve, poll < 5 ? 700 : 1500));
+        await new Promise<void>((resolve) => {
+          const timer = setTimeout(resolve, poll < 5 ? 700 : 1500);
+          gradingWake.current = () => { clearTimeout(timer); resolve(); };
+        });
+        gradingWake.current = null;
         const result = await api<PracticeRun>(`${base}/submissions/${id}`);
         if (result.lifecycle_state !== "queued") return result;
       }

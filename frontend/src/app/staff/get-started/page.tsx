@@ -1,10 +1,10 @@
 import type { Icon } from "@phosphor-icons/react";
-import { ArrowRight, BookOpen, Briefcase, Buildings, ChartBar, Check, Confetti, Lock, NotePencil, Sparkle, Stack, Users } from "@phosphor-icons/react/ssr";
+import { ArrowRight, BookOpen, Briefcase, Buildings, ChartBar, Check, Confetti, Lock, NotePencil, Stack, Users } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Panel } from "@/components/ui/card";
 import { LoadError, PageHeader } from "@/components/staff/page-header";
+import { Ring } from "@/components/student/ring";
 import { type SetupKey, setupSteps } from "@/lib/server/setup";
 import { requireStaff } from "@/lib/server/staff";
 import { cn } from "@/lib/utils";
@@ -28,8 +28,6 @@ const FACULTY_STEPS = [
   { icon: Users, title: "Students", text: "Enrol, import and manage accounts.", href: "/staff/students", cta: "Open" },
 ];
 
-const RING = 2 * Math.PI * 40;
-
 export default async function GetStartedPage() {
   const staff = await requireStaff();
   let steps;
@@ -48,39 +46,49 @@ export default async function GetStartedPage() {
 
   if (!staff.canManageAccounts || steps.length === 0) {
     return (
-      <div className="mx-auto max-w-4xl animate-enter">
-        <div className="mb-8 flex items-start gap-4">
-          <div className="grid size-12 place-items-center rounded-2xl bg-brand-soft">
-            <Sparkle className="size-6 text-brand" />
-          </div>
-          <div>
-            <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-ink-subtle">Welcome back</p>
-            <h1 className="text-[24px] font-semibold tracking-[-0.02em] text-ink">{firstName}</h1>
-          </div>
+      <div className="mx-auto max-w-3xl animate-enter">
+        {/* Poster-sky hero */}
+        <div className="mb-8 overflow-hidden rounded-3xl p-8" style={{ background: "var(--poster-sky)" }}>
+          <p className="font-[family-name:var(--font-eyebrow)] text-[10.5px] uppercase tracking-[0.16em] text-white/60">Welcome back</p>
+          <h1 className="mt-2 text-[32px] font-semibold leading-tight tracking-[-0.03em] text-white">{firstName}</h1>
+          <p className="mt-1.5 text-[14px] text-white/70">Here is what you can do today.</p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
+
+        {/* Numbered vertical list */}
+        <ol className="space-y-0">
           {FACULTY_STEPS.map((step, i) => {
             const Icon = step.icon;
+            const num = String(i + 1).padStart(2, "0");
+            const last = i === FACULTY_STEPS.length - 1;
             return (
-              <Link key={step.href} href={step.href} className="group">
-                <div
-                  className="flex h-full items-center gap-4 rounded-[var(--radius-surface)] border border-line bg-surface px-5 py-4 transition-all duration-150 group-hover:border-brand/30 group-hover:bg-hover"
-                  style={{ animationDelay: `${i * 50}ms` }}
-                >
-                  <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-hover transition-colors group-hover:bg-brand-soft">
-                    <Icon className="size-5 text-ink-muted transition-colors group-hover:text-brand" />
+              <li key={step.href} className="flex gap-5" style={{ animationDelay: `${i * 60}ms` }}>
+                {/* Number + connector */}
+                <div className="flex flex-col items-center">
+                  <div className="grid size-10 shrink-0 place-items-center rounded-full border-2 border-line bg-surface">
+                    <span className="font-[family-name:var(--font-eyebrow)] text-[11px] font-bold text-ink-muted">{num}</span>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[14.5px] font-medium text-ink">{step.title}</p>
-                    <p className="text-[12.5px] text-ink-subtle">{step.text}</p>
-                  </div>
-                  <ArrowRight className="size-4 shrink-0 text-ink-subtle transition-all duration-150 group-hover:translate-x-0.5 group-hover:text-brand" />
+                  {!last && <div className="my-1 w-px flex-1 border-l border-dashed border-line" />}
                 </div>
-              </Link>
+                {/* Card */}
+                <Link href={step.href} className="group mb-4 min-w-0 flex-1">
+                  <div className="flex items-center gap-4 rounded-2xl border border-line bg-surface px-5 py-4 transition-all duration-150 group-hover:border-brand/30 group-hover:bg-hover">
+                    <div className="liquid-glass grid size-10 shrink-0 place-items-center rounded-xl transition-colors group-hover:bg-brand-soft">
+                      <Icon className="size-5 text-ink-muted transition-colors group-hover:text-brand" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[14.5px] font-medium text-ink">{step.title}</p>
+                      <p className="text-[12.5px] text-ink-subtle">{step.text}</p>
+                    </div>
+                    <span className="shrink-0 text-[12.5px] font-medium text-brand opacity-0 transition-opacity group-hover:opacity-100">{step.cta}</span>
+                    <ArrowRight className="size-4 shrink-0 text-ink-subtle transition-all group-hover:translate-x-0.5 group-hover:text-brand" />
+                  </div>
+                </Link>
+              </li>
             );
           })}
-        </div>
-        <Link href="/staff/help" className="mt-4 inline-flex items-center gap-2 text-[13px] text-ink-muted transition-colors hover:text-ink">
+        </ol>
+
+        <Link href="/staff/help" className="mt-2 inline-flex items-center gap-2 text-[13px] text-ink-muted transition-colors hover:text-ink">
           <span>Read the guides</span>
           <ArrowRight className="size-3.5" />
         </Link>
@@ -94,96 +102,97 @@ export default async function GetStartedPage() {
   const percent = steps.length ? Math.round((done / steps.length) * 100) : 0;
 
   return (
-    <div className="mx-auto max-w-4xl animate-enter">
-      {/* Hero: progress summary */}
-      <div className="mb-8 flex flex-col gap-5 rounded-[var(--radius-surface)] border border-line bg-surface p-6 sm:flex-row sm:items-center sm:gap-8">
-        {/* Ring */}
-        <div className="relative size-24 shrink-0">
-          <svg viewBox="0 0 100 100" className="size-24 -rotate-90">
-            <circle cx="50" cy="50" r="40" fill="none" strokeWidth="7" className="stroke-line" />
-            <circle
-              cx="50" cy="50" r="40" fill="none" strokeWidth="7"
-              strokeLinecap="round"
-              className="stroke-brand transition-[stroke-dashoffset] duration-700"
-              strokeDasharray={RING}
-              strokeDashoffset={RING * (1 - done / Math.max(steps.length, 1))}
-            />
-          </svg>
-          <span className="absolute inset-0 grid place-items-center font-mono text-[18px] font-bold tabular-nums text-ink">{percent}<span className="text-[11px] text-ink-muted">%</span></span>
-        </div>
-        {/* Text */}
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            {complete ? <Confetti className="size-5 text-brand" /> : <Sparkle className="size-5 text-brand" />}
-            <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-ink-subtle">{complete ? "Complete" : `${done} of ${steps.length} done`}</p>
+    <div className="mx-auto max-w-3xl animate-enter">
+      {/* Poster-sky hero with Ring */}
+      <div className="mb-8 overflow-hidden rounded-3xl p-8" style={{ background: "var(--poster-sky)" }}>
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-8">
+          <Ring value={done} max={steps.length} size={88} stroke={8} barClass="stroke-white" trackClass="stroke-white/20">
+            <span className="font-[family-name:var(--font-eyebrow)] text-[16px] font-bold text-white">{percent}<span className="text-[10px] text-white/70">%</span></span>
+          </Ring>
+          <div className="min-w-0 flex-1">
+            <p className="font-[family-name:var(--font-eyebrow)] text-[10.5px] uppercase tracking-[0.16em] text-white/60">
+              {complete ? "Complete" : `${done} of ${steps.length} done`}
+            </p>
+            <h1 className="mt-1.5 text-[28px] font-semibold leading-tight tracking-[-0.025em] text-white">
+              {complete ? `All set, ${firstName}` : `Setting up, ${firstName}`}
+            </h1>
+            <p className="mt-1 text-[13.5px] text-white/70">
+              {complete ? "Everything is in place. Go run some exams." : "Work through these in order — each one unlocks the next."}
+            </p>
+            {current && (
+              <Button asChild size="sm" variant="secondary" className="mt-4 border-white/20 bg-white/15 text-white hover:bg-white/25">
+                <Link href={current.href}>
+                  {META[current.key].cta}
+                  <ArrowRight />
+                </Link>
+              </Button>
+            )}
           </div>
-          <h1 className="mt-1 text-[22px] font-semibold tracking-[-0.02em] text-ink">
-            {complete ? `All set, ${firstName}` : `Setting up, ${firstName}`}
-          </h1>
-          <p className="mt-1 text-[13.5px] text-ink-muted">
-            {complete ? "Everything is in place." : "Work through these in order — each step unlocks the next."}
-          </p>
-          {current && (
-            <Button asChild size="sm" className="mt-3">
-              <Link href={current.href}>
-                {META[current.key].cta}
-                <ArrowRight />
-              </Link>
-            </Button>
-          )}
         </div>
       </div>
 
-      {/* Steps grid */}
-      <div className="grid gap-3 sm:grid-cols-2">
-        {steps.map((step, index) => {
+      {/* Vertical timeline */}
+      <ol className="space-y-0">
+        {steps.map((step, i) => {
           const { icon: Icon, cta } = META[step.key];
           const now = step === current;
+          const last = i === steps.length - 1;
           return (
-            <Link
-              key={step.key}
-              href={step.href}
-              className={cn("group", step.blocked && "pointer-events-none")}
-            >
-              <div className={cn(
-                "flex h-full items-start gap-4 rounded-[var(--radius-surface)] border px-5 py-4 transition-all duration-150",
-                now ? "border-brand/40 bg-brand-soft/20 group-hover:bg-brand-soft/30" : "border-line bg-surface group-hover:border-brand/20 group-hover:bg-hover",
-                step.blocked && "opacity-40",
-              )}>
+            <li key={step.key} className="flex gap-4">
+              {/* Timeline spine */}
+              <div className="flex flex-col items-center">
                 <div className={cn(
-                  "mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg transition-colors",
-                  step.done ? "bg-brand text-brand-ink" : now ? "bg-brand-soft" : "bg-hover group-hover:bg-brand-soft",
+                  "grid size-9 shrink-0 place-items-center rounded-full border-2 transition-colors",
+                  step.done ? "border-brand bg-brand text-brand-ink" : now ? "border-brand bg-brand-soft" : "border-line bg-surface",
                 )}>
                   {step.done ? (
                     <Check className="size-4" />
                   ) : step.blocked ? (
                     <Lock className="size-3.5 text-ink-subtle" />
                   ) : (
-                    <Icon className={cn("size-4", now ? "text-brand" : "text-ink-muted group-hover:text-brand")} />
+                    <Icon className={cn("size-4", now ? "text-brand" : "text-ink-muted")} />
                   )}
                 </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className={cn("text-[14.5px] font-medium", step.done ? "text-ink" : now ? "text-ink" : "text-ink")}>{step.title}</p>
-                    {step.done && <span className="shrink-0 rounded-full bg-brand-soft px-2 py-0.5 font-mono text-[10px] font-bold text-brand">Done</span>}
-                    {now && !step.done && <span className="shrink-0 rounded-full bg-brand px-2 py-0.5 font-mono text-[10px] font-bold text-brand-ink">Next</span>}
-                  </div>
-                  <p className="mt-0.5 text-[12.5px] text-ink-subtle">{step.text}</p>
-                  {!step.blocked && (
-                    <span className="mt-2 inline-flex items-center gap-1 text-[12.5px] font-medium text-brand">
-                      {step.done ? "Open" : cta}
-                      <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
-                    </span>
-                  )}
-                </div>
+                {!last && <div className="my-1 w-px flex-1 border-l border-dashed border-line" />}
               </div>
-            </Link>
+              {/* Step card */}
+              <Link
+                href={step.href}
+                className={cn("group mb-4 min-w-0 flex-1", step.blocked && "pointer-events-none")}
+              >
+                <div className={cn(
+                  "liquid-glass flex h-full items-start gap-4 rounded-2xl border px-5 py-4 transition-all duration-150",
+                  now ? "border-brand/40 group-hover:bg-brand-soft/10" : "border-line group-hover:border-brand/20",
+                  step.blocked && "opacity-40",
+                )}>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-[14.5px] font-semibold text-ink">{step.title}</p>
+                      {step.done && (
+                        <span className="rounded-full bg-brand px-2.5 py-0.5 font-[family-name:var(--font-eyebrow)] text-[9px] uppercase tracking-wider text-brand-ink">Done</span>
+                      )}
+                      {now && !step.done && (
+                        <span className="rounded-full bg-brand/15 px-2.5 py-0.5 font-[family-name:var(--font-eyebrow)] text-[9px] uppercase tracking-wider text-brand">Next</span>
+                      )}
+                    </div>
+                    <p className="mt-0.5 text-[12.5px] text-ink-subtle">{step.text}</p>
+                    {!step.blocked && (
+                      <span className="mt-2 inline-flex items-center gap-1 text-[12.5px] font-medium text-brand">
+                        {step.done ? "Open" : cta}
+                        <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
+                      </span>
+                    )}
+                  </div>
+                  <span className="shrink-0 font-[family-name:var(--font-eyebrow)] text-[10px] text-ink-subtle">{META[step.key].minutes}</span>
+                </div>
+              </Link>
+            </li>
           );
         })}
-      </div>
+      </ol>
 
       {complete && (
-        <p className="mt-6 flex items-center gap-2 text-[13px] text-ink-muted">
+        <p className="mt-2 flex items-center gap-2 text-[13px] text-ink-muted">
           <Confetti className="size-4 text-brand" />
           Go to Dashboard to watch exams live, or invite staff from Staff accounts.
         </p>

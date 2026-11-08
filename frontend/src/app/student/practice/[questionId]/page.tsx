@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { PracticeWorkspace } from "@/components/practice/practice-workspace";
 import type { PracticeQuestion } from "@/lib/api-types";
+import { RealtimeProvider } from "@/lib/client/realtime";
 import { gateway } from "@/lib/server/gateway";
 import { requireViewer } from "@/lib/server/session";
 
@@ -14,5 +15,9 @@ export default async function PracticeProblemPage({ params }: { params: Promise<
   if (!viewer.tenantId) redirect("/student");
   const question = await gateway<PracticeQuestion>(`/question-bank/v1/tenants/${viewer.tenantId}/practice/questions/${questionId}`).catch(() => null);
   if (!question) notFound();
-  return <PracticeWorkspace tenantId={viewer.tenantId} question={question} />;
+  return (
+    <RealtimeProvider tenantId={viewer.tenantId}>
+      <PracticeWorkspace tenantId={viewer.tenantId} question={question} />
+    </RealtimeProvider>
+  );
 }
