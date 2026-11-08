@@ -196,7 +196,7 @@ func run(contextValue context.Context) error {
 				return err
 			}
 			if err := resyncProjection.Ready(readinessContext); err != nil {
-				return err
+				logger.Warn("authorization projection resync incomplete (non-blocking)", "error", err)
 			}
 			for _, consumer := range []*messaging.PullConsumer{
 				snapshotConsumer, resyncSnapshotConsumer, resyncCompletedConsumer,
