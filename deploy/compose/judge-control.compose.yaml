@@ -2,7 +2,7 @@ name: aether-judge-control
 
 services:
   postgres:
-    image: postgres:18.4-bookworm@sha256:1961f96e6029a02c3812d7cb329a3b03a3ac2bb067058dec17b0f5596aca9296
+    image: postgres:18.6
     environment:
       POSTGRES_DB: ${JUDGE_CONTROL_DATABASE_NAME:-aether_judge_wrapper}
       POSTGRES_USER: ${JUDGE_CONTROL_BOOTSTRAP_USER:?set JUDGE_CONTROL_BOOTSTRAP_USER in a local env file}

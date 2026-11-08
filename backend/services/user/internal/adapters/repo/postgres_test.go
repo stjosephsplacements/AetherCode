@@ -71,7 +71,6 @@ func TestStudentBatchAffiliationIdempotencyScopeIsPerActorAndOperation(t *testin
 	}
 }
 
-
 func TestLikePatternEscapesWhatLIKEReads(t *testing.T) {
 	t.Parallel()
 	require.Nil(t, likePattern("   "))
