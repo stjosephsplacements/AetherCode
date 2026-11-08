@@ -35,7 +35,7 @@ profile. The current status is maintained in [roadmap.md](roadmap.md).
 
 ## Operational documentation
 
-- [Platform PostgreSQL HA runbook](../deploy/runbooks/platform-postgres-ha.md)
+- [Platform PostgreSQL HA runbook](runbooks/platform-postgres-ha.md)
   — the required three-node, synchronous-replication, node-failure, and PITR
   checks.
 - [Judge control-plane operations](runbooks/judge-control-operations.md) —

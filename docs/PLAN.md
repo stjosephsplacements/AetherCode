@@ -92,7 +92,7 @@ first release. A single-node deployment is not an accepted production topology.
 
 The current CloudNativePG chart is render-gated on certificate and
 India-resident backup inputs; its node-loss and restore acceptance exercises
-are in [`deploy/runbooks/platform-postgres-ha.md`](../deploy/runbooks/platform-postgres-ha.md).
+are in [`docs/runbooks/platform-postgres-ha.md`](runbooks/platform-postgres-ha.md).
 
 ---
 

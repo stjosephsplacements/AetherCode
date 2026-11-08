@@ -33,7 +33,7 @@ the script neither generates nor stores a secret.
 The platform HA chart is deliberately render-gated on client certificates and
 India-resident encrypted backup inputs. A successful render or install is not
 HA acceptance: the node-failure and PITR exercises in
-[the platform PostgreSQL runbook](../deploy/runbooks/platform-postgres-ha.md) are
+[the platform PostgreSQL runbook](runbooks/platform-postgres-ha.md) are
 required before promotion.
 
 
