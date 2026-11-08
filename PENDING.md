@@ -7,7 +7,7 @@ Never print or commit secrets (no passwords, no Cloudflare credentials).
 
 ## 1. Branch state
 
-`development` is at `8362e7f` (PR #168 + 30 additional commits pushed directly after PR creation).
+`development` is at `2750c51` (PR #168 + 31 additional commits pushed directly after PR creation).
 `production` has not moved since #135.
 **PR #168** (`development` → `production`) is open:
 https://github.com/stjosephsplacements/AetherCode/pull/168
@@ -18,6 +18,37 @@ Merging PR #168 requires CI to pass and the owner's review.
 
 GitHub auth: `gh` active account `AlgoQX-Platform` can push (admin). The `Shreesh-Sree` keyring token is
 invalid (`gh auth refresh -h github.com` needed by the owner). Do not use `gh auth switch` unless needed.
+
+What the 2026-11-08 thirteenth run completed:
+- Removed dead `StudentGormRepo` from `services/user` (`student_gorm.go`, `student_gorm_test.go`).
+  This struct was implemented as an ADR-0013 soft-delete demonstration but never wired into the
+  server — the user service uses pgx exclusively (`Postgres.SoftDeleteStudent`/`HardDeleteStudent`).
+  The dead file pulled `gorm.io/gorm` in as a **direct** dependency of the user module; it now
+  becomes `// indirect` (inherited via `libs/pkg/database`). Removed the skipped GORM integration
+  test from `postgres_test.go`, dropped the `gorm:"index"` struct tag from `domain/student.go`,
+  and fixed the misleading "Uses shared database.SoftDelete function" comment in identity's
+  `SoftDeletePrincipal` (it uses raw pgx). Applied `rangeint` modernisation in identity's MFA
+  recovery-code loop (`for index := 0; index < 10; index++` → `for range 10`).
+  `make lint test` clean: 127 user tests pass, all other packages unchanged. Commit `2750c51`.
+- Completed broad production readiness audit:
+  - Verified all 9 service OpenAPI specs complete (zero symmetric diff between handler routes and
+    spec operations) — done in twelfth run, confirmed clean.
+  - Verified rate limiters: gateway (per-principal, fallback IP), identity (login/register/password-
+    reset), submission (start-attempt/run-code). `clientIP()` uses nginx-overwritten
+    `X-Forwarded-For`; gateway strips and rewrites it so clients cannot spoof.
+  - Verified judge fairness key (`TenantFairnessKey`) limits per-tenant code execution admission,
+    preventing one college from starving another.
+  - Verified `WithTenantTx` / `WithTenantGormTx` usage: every user-facing mutating operation goes
+    through the database-owned `authz.set_context` security-definer call. Raw `BeginTx` calls are
+    limited to projection workers, judge (separate isolated DB), and auth operations.
+  - Verified model-check security: source encrypted before storage; hidden test bundles never leave
+    MinIO unencrypted; judge decrypts in sandbox; `FairnessKey` groups model checks separately
+    from candidate runs.
+  - Verified Helm resource limits (all services), PDB (`minAvailable: 1`), and HPA template all
+    present. Credential isolation confirmed: each service receives only its own DB URL.
+  - Verified backup.sh atomic write pattern (`.partial` temp → rename), GORM softdelete lib
+    functions have `validateTableName` guard preventing SQL injection in dynamic table names.
+  - All Go modules use `go 1.26.0`; no `math/rand` in production paths; all `crypto/rand` usage.
 
 What the 2026-11-08 twelfth run completed:
 - OpenAPI spec completeness: every HTTP handler operation across all 9 platform services

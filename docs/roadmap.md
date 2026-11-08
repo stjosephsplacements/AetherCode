@@ -323,6 +323,18 @@ Done 2026-11-05 to 2026-11-08 (code; deployed to `aether-test`):
   seb (3 ops: config payload, deletes), notification (4 ops: preference PUT, notification deletes),
   analytics (2 ops: report-export deletes). `make lint test` clean.
 
+- Dead code and dependency hygiene (2026-11-08, thirteenth run): removed `StudentGormRepo` from
+  `services/user` — implemented as an ADR-0013 demonstration but never wired; was the sole reason
+  `gorm.io/gorm` appeared as a direct dependency of the user module. Removed dead GORM test from
+  `postgres_test.go`, `gorm:"index"` tag from `domain/student.go`, and a misleading comment in
+  identity. Applied `rangeint` modernisation in identity's MFA recovery-code loop. Broad production
+  readiness audit completed: rate limiter coverage verified (gateway/identity/submission), judge
+  fairness key (per-tenant admission limiting), `WithTenantTx` / `authz.set_context` coverage
+  (all user-facing mutations gated; raw `BeginTx` only in projection workers and identity auth),
+  model-check security chain (encrypt-before-store, hidden tests never leave MinIO), Helm resource
+  limits / PDB / HPA template confirmed, credential isolation per service confirmed, backup atomic
+  write pattern, `math/rand` absent from all production paths. `make lint test` clean.
+
 ### Pending (2026-10-21)
 
 Needs the owner:
