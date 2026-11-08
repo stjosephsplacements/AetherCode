@@ -24,7 +24,7 @@ async function newPage(browser: Browser): Promise<Page> {
     const origin = new URL(test.info().project.use.baseURL!).origin;
     await context.route(`${origin}/**`, async (route) => {
       const url = new URL(route.request().url());
-      const response = await route.fetch({ url: upstream + url.pathname + url.search, maxRedirects: 0,
+      const response = await route.fetch({ url: upstream + url.pathname + url.search, maxRedirects: 0, // codeql[js/file-access-to-http] - url.pathname is a URL path component, not a filesystem path; this is Playwright's proxy routing helper
         headers: { ...route.request().headers(), host: url.host, "x-forwarded-proto": "https" } });
       await route.fulfill({ response });
     });
