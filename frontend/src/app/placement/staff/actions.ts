@@ -41,3 +41,16 @@ export async function removePlacementOfficer(_previous: ActionState, form: FormD
   revalidatePath("/placement/staff");
   return { error: null, message: "Placement officer removed." };
 }
+
+export async function removeOfficerById(assignmentId: string): Promise<ActionState> {
+  const placement = await requirePlacement();
+  if (!placement.isPlatformAdmin) return { error: "Only platform administrators remove placement officers." };
+  if (!assignmentId) return { error: "Assignment not found." };
+  try {
+    await gateway(`/user/v1/role-assignments/${assignmentId}/revoke`, { method: "POST", body: {} });
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+  revalidatePath("/placement/staff");
+  return { error: null, message: "Placement officer removed." };
+}

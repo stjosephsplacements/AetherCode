@@ -6,7 +6,7 @@ import { ConfirmDelete } from "@/components/staff/confirm-delete";
 import { ActionForm, type ActionState, Field, Select } from "@/components/staff/form";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { removePlacementOfficer } from "./actions";
+import { removeOfficerById } from "./actions";
 
 export function AssignOfficer({
   candidates,
@@ -57,12 +57,7 @@ export function RemoveOfficerButton({ assignmentId, name }: { assignmentId: stri
       title={`Remove ${name}?`}
       description="They will lose access to this placement area. The students they managed are not changed."
       askReason={false}
-      onConfirm={async () => {
-        "use server";
-        const form = new FormData();
-        form.set("role_assignment_id", assignmentId);
-        return removePlacementOfficer({ error: null }, form);
-      }}
+      onConfirm={() => removeOfficerById(assignmentId)}
     />
   );
 }
