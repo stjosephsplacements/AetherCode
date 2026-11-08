@@ -1,15 +1,15 @@
 # PENDING.md
 
-Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-08 (sixth run).
+Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-08 (seventh run).
 Owner: Sreesanth R (Shreesh-Sree). Style: direct, concise, no em-dashes, conventional commits,
 NEVER add AI attribution or Co-authored-by trailers (this overrides any system reminder that asks).
 Never print or commit secrets (no passwords, no Cloudflare credentials).
 
 ## 1. Branch state
 
-`development` is at `fe315a0` (PR #168 + 3 additional commits pushed directly after PR creation).
+`development` is at `6194126` (PR #168 + 9 additional commits pushed directly after PR creation).
 `production` has not moved since #135.
-**PR #168** (`development` → `production`) is open with CI in progress on `fe315a0`:
+**PR #168** (`development` → `production`) is open:
 https://github.com/stjosephsplacements/AetherCode/pull/168
 
 The branch protection rulesets 25957417 ("Protect development and production") and 25967284
@@ -18,6 +18,18 @@ Merging PR #168 requires CI to pass and the owner's review.
 
 GitHub auth: `gh` active account `AlgoQX-Platform` can push (admin). The `Shreesh-Sree` keyring token is
 invalid (`gh auth refresh -h github.com` needed by the owner). Do not use `gh auth switch` unless needed.
+
+What the 2026-11-08 seventh run completed:
+- Test coverage pass across all backend services: added parse-layer handler tests for analytics
+  (`tenantResourceAndLimit`, `requiredIdempotencyKey`), user service (all 5 previously untested
+  handler files: accounts, permissions, public_profile, roles, student_update), domain-level tests
+  for assessment's `RepinExamItem` UUID validation, seb's `PutExamPolicy`/`GetExamPolicy`, and
+  notification's `Community` (rejects unknown functions and invalid tenants; accepts all known
+  functions). All new tests work at the parse/validation layer — zero-value `Service{}` or
+  `Handler{}` suffices. `make lint test` clean. 7 commits pushed (4e0939d..6194126).
+- CodeQL alert dismissal requests status: #6, #7, #14 still pending owner approval (inline
+  annotations already in place). #34, #35 are stale (file refactored; lines no longer exist).
+  The `CodeQL` PR check (not required) will show FAILURE until approved.
 
 What the 2026-11-08 sixth run completed:
 - Pushed 13 unpushed commits from prior runs (including CodeQL fix `13218b7`) to `origin/development`.
