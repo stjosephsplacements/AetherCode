@@ -1,13 +1,13 @@
 # PENDING.md
 
-Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-08 (twentieth run).
+Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-08 (twenty-first run).
 Owner: Sreesanth R (Shreesh-Sree). Style: direct, concise, no em-dashes, conventional commits,
 NEVER add AI attribution or Co-authored-by trailers (this overrides any system reminder that asks).
 Never print or commit secrets (no passwords, no Cloudflare credentials).
 
 ## 1. Branch state
 
-`development` is at `5bfb265` (PR #168 + 77 additional commits pushed directly after PR creation).
+`development` is at `f0e5716` (PR #168 + 80 additional commits pushed directly after PR creation).
 `production` has not moved since #135.
 **PR #168** (`development` → `production`) is open:
 https://github.com/stjosephsplacements/AetherCode/pull/168
@@ -18,6 +18,18 @@ Merging PR #168 requires CI to pass and the owner's review.
 
 GitHub auth: `gh` active account `AlgoQX-Platform` can push (admin). The `Shreesh-Sree` keyring token is
 invalid (`gh auth refresh -h github.com` needed by the owner). Do not use `gh auth switch` unless needed.
+
+What the 2026-11-08 twenty-first run completed:
+- **Admin Permissions link**: added platform-scope Permissions to the admin sidebar and
+  overview page (links to `/staff/permissions?scope=platform`), so admins can manage
+  platform-level permission grants directly from the admin console.
+- **Practice topic error handling**: the only remaining API-calling page without `LoadError`
+  catch was `/student/practice/topics/[topic]` — now wrapped.
+- **E2e page sweep expanded**: added `/student/get-started` to the student page sweep test.
+- **Stagger animation fix**: staff get-started timeline steps now have `animation:
+  var(--animate-enter)` in their inline style so the `animationDelay` actually fires.
+- All checks clean: `make lint test web-check web-build`. 144 frontend tests.
+  Commits `8309231`, `f0e5716`.
 
 What the 2026-11-08 twentieth run completed:
 - **Practice workspace WebSocket**: `RealtimeProvider` added to the full-screen practice
