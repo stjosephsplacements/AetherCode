@@ -1,13 +1,13 @@
 # PENDING.md
 
-Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-08 (eleventh run).
+Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-08 (twelfth run).
 Owner: Sreesanth R (Shreesh-Sree). Style: direct, concise, no em-dashes, conventional commits,
 NEVER add AI attribution or Co-authored-by trailers (this overrides any system reminder that asks).
 Never print or commit secrets (no passwords, no Cloudflare credentials).
 
 ## 1. Branch state
 
-`development` is at `0bb4d5b` (PR #168 + 23 additional commits pushed directly after PR creation).
+`development` is at `8362e7f` (PR #168 + 30 additional commits pushed directly after PR creation).
 `production` has not moved since #135.
 **PR #168** (`development` → `production`) is open:
 https://github.com/stjosephsplacements/AetherCode/pull/168
@@ -18,6 +18,23 @@ Merging PR #168 requires CI to pass and the owner's review.
 
 GitHub auth: `gh` active account `AlgoQX-Platform` can push (admin). The `Shreesh-Sree` keyring token is
 invalid (`gh auth refresh -h github.com` needed by the owner). Do not use `gh auth switch` unless needed.
+
+What the 2026-11-08 twelfth run completed:
+- OpenAPI spec completeness: every HTTP handler operation across all 9 platform services
+  (analytics, assessment, identity, notification, question-bank, seb, submission, tenant,
+  user) is now documented in its service's `api/openapi.yaml`. Previously 67 operations
+  were registered in handlers but absent from the spec, meaning `endpoint_sweep.py` never
+  exercised them and spec-driven consumers had an incomplete view. Additions include: all
+  GET/PATCH/DELETE variations on exam, proctor-policy, and assignment aggregates in
+  assessment; SSO start/callback, MFA step-up, and change-password in identity; soft and
+  hard deletes for notifications and preferences PUT in notification; regrade, judge-receipts,
+  unit-results, and grading-queue in submission; model-checks, templates, asset download,
+  and soft/hard deletes in question-bank; configuration payload download and deletes in seb;
+  placement-organization list/get/deletes and batch/department deletes in tenant; roles,
+  role-overwrites, accounts bulk operations, staff-audit, and student roster/delete in user.
+  6 commits (`6c88be0`–`8362e7f`).
+- `make lint test` clean; all YAML specs parse correctly; symmetric diff of routes vs spec
+  operations is now 0 across all services.
 
 What the 2026-11-08 eleventh run completed:
 - `Cache-Control: no-store` centralised in `httpx.WriteJSON` so analytics, assessment, tenant,

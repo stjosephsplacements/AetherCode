@@ -310,6 +310,19 @@ Done 2026-11-05 to 2026-11-08 (code; deployed to `aether-test`):
   `docker-compose.yml` and `platform-migrations/values.yaml` (was 18.4; `platform-infra` already
   used 18.6). `make lint test web-check` clean.
 
+- OpenAPI spec completeness (2026-11-08, twelfth run): 67 handler operations were registered but
+  missing from their service's `api/openapi.yaml`, meaning `endpoint_sweep.py` never exercised
+  them. All 9 service specs are now fully aligned with their HTTP handlers — symmetric diff is 0
+  across analytics, assessment, identity, notification, question-bank, seb, submission, tenant, and
+  user. Notable additions: assessment (12 ops: GET/PATCH/DELETE exam, proctor-policy
+  get/list/list-versions, section/item delete, repin, move-window), identity (6 ops: SSO, MFA
+  step-up, change-password, get/delete principal), user (15 ops: roles, role-overwrites, account
+  bulk ops, staff-audit, student roster/delete), tenant (10 ops: placement-org CRUD, entity hard
+  deletes), submission (6 ops: attempt delete/hard, judge-receipts, unit-results, regrade,
+  grading-queue), question-bank (9 ops: model-checks, templates, asset download, soft/hard deletes),
+  seb (3 ops: config payload, deletes), notification (4 ops: preference PUT, notification deletes),
+  analytics (2 ops: report-export deletes). `make lint test` clean.
+
 ### Pending (2026-10-21)
 
 Needs the owner:
