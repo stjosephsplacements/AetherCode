@@ -52,6 +52,14 @@ func (store *Store) Ping(contextValue context.Context) error {
 	return nil
 }
 
+// Inbox returns the inbox store so callers can wire it as a consumer cleaner.
+func (store *Store) Inbox() *messaging.InboxStore {
+	if store == nil {
+		return nil
+	}
+	return store.inbox
+}
+
 // assignmentItem decodes every field Assessment emits and Submission stores. The
 // key references and sample bundle are null for items pinned before Assessment
 // migration 000020, and the limits and languages for those before 000024.

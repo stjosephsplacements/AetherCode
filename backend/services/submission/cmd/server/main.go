@@ -272,6 +272,7 @@ func run(contextValue context.Context) error {
 		if consumerErr != nil {
 			return consumerErr
 		}
+		assignmentConsumer.WithInboxCleaner(projectionStore.Inbox())
 		judgeCompletionConsumer, consumerErr := messaging.NewPullConsumer(
 			contextValue, messagingRuntime.URL, serviceConfig.Name+"-judge-completion",
 			"submission_judge_completed_v1", projection.JudgeCompletedEventType, logger, projectionStore.ApplyJudgeCompletion,

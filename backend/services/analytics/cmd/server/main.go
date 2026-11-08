@@ -161,7 +161,8 @@ func run(contextValue context.Context) error {
 			return resyncCompletedConsumerErr
 		}
 		consumers := []*messaging.PullConsumer{snapshotConsumer, resyncSnapshotConsumer, resyncCompletedConsumer}
-		for _, specification := range []struct {
+		inboxCleaner := reportProjection.Inbox()
+		for i, specification := range []struct {
 			durable string
 			subject string
 			handler messaging.EventHandler
@@ -186,6 +187,10 @@ func run(contextValue context.Context) error {
 			)
 			if consumerErr != nil {
 				return consumerErr
+			}
+			// One consumer runs the inbox cleanup; others share the same table.
+			if i == 0 && inboxCleaner != nil {
+				consumer.WithInboxCleaner(inboxCleaner)
 			}
 			consumers = append(consumers, consumer)
 		}

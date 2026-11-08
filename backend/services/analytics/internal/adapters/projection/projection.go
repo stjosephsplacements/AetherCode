@@ -64,6 +64,14 @@ func (store *Store) Ping(ctx context.Context) error {
 	return nil
 }
 
+// Inbox returns the inbox store so callers can wire it as a consumer cleaner.
+func (store *Store) Inbox() *messaging.InboxStore {
+	if store == nil {
+		return nil
+	}
+	return store.inbox
+}
+
 type studentEnrolled struct {
 	StudentID             string `json:"student_id"`
 	PrincipalID           string `json:"principal_id"`

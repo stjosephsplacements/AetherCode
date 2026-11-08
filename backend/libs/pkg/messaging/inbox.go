@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -29,6 +30,27 @@ func NewInboxStore(pool *pgxpool.Pool, table string) (*InboxStore, error) {
 		return nil, fmt.Errorf("inbox table must be a qualified lowercase identifier")
 	}
 	return &InboxStore{pool: pool, table: table}, nil
+}
+
+// CleanProcessed deletes processed rows older than retention. The inbox dedup
+// window only needs to cover the broker's redelivery window (8 days), so rows
+// beyond that can be safely removed.
+func (store *InboxStore) CleanProcessed(contextValue context.Context, retention time.Duration) error {
+	if store == nil || store.pool == nil {
+		return fmt.Errorf("inbox store is not initialized")
+	}
+	if retention <= 0 {
+		return fmt.Errorf("inbox retention must be positive")
+	}
+	_, err := store.pool.Exec(contextValue, fmt.Sprintf(`
+		DELETE FROM %s
+		WHERE processed_at IS NOT NULL
+		  AND processed_at < clock_timestamp() - $1::interval
+	`, store.table), retention.String())
+	if err != nil {
+		return fmt.Errorf("clean processed inbox messages: %w", err)
+	}
+	return nil
 }
 
 // Process calls apply only for the first successful delivery of an event to a

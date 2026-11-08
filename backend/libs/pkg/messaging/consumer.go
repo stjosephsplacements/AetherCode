@@ -40,6 +40,12 @@ func Permanent(err error) error {
 	return PermanentError{Err: err}
 }
 
+// InboxCleaner is called periodically by PullConsumer.Run to remove old
+// processed inbox rows. InboxStore.CleanProcessed satisfies this interface.
+type InboxCleaner interface {
+	CleanProcessed(context.Context, time.Duration) error
+}
+
 // PullConsumer is a crash-safe JetStream consumer for one versioned event
 // subject. A durable name identifies the logical projection, so replicas may
 // take over delivery without replaying side effects outside their inbox.
@@ -50,9 +56,19 @@ type PullConsumer struct {
 	handler       EventHandler
 	logger        *slog.Logger
 	batchSize     int
+	cleaner       InboxCleaner
 	failureMu     sync.Mutex
 	lastFailure   string
 	retrySequence uint64
+}
+
+// WithInboxCleaner registers a periodic cleanup for the inbox table. Call
+// before Run to activate the 5-minute cleanup ticker.
+func (consumer *PullConsumer) WithInboxCleaner(cleaner InboxCleaner) *PullConsumer {
+	if consumer != nil {
+		consumer.cleaner = cleaner
+	}
+	return consumer
 }
 
 // NewPullConsumer creates or binds a durable explicit-ack consumer. It starts
@@ -110,6 +126,13 @@ func (consumer *PullConsumer) Run(contextValue context.Context) {
 		return
 	}
 	defer consumer.connection.Close()
+	var cleanTicker *time.Ticker
+	var cleanC <-chan time.Time
+	if consumer.cleaner != nil {
+		cleanTicker = time.NewTicker(5 * time.Minute)
+		defer cleanTicker.Stop()
+		cleanC = cleanTicker.C
+	}
 	for {
 		if err := contextValue.Err(); err != nil {
 			return
@@ -119,6 +142,13 @@ func (consumer *PullConsumer) Run(contextValue context.Context) {
 		cancel()
 		if err != nil {
 			if contextValue.Err() != nil || isEmptyFetch(err) {
+				select {
+				case <-cleanC:
+					if cleanErr := consumer.cleaner.CleanProcessed(contextValue, outboxRetention); cleanErr != nil {
+						consumer.logger.Warn("inbox cleanup failed", "error", cleanErr)
+					}
+				default:
+				}
 				continue
 			}
 			consumer.recordFailure("fetch durable event", err)
@@ -126,6 +156,13 @@ func (consumer *PullConsumer) Run(contextValue context.Context) {
 		}
 		for _, message := range messages {
 			consumer.handleMessage(contextValue, message)
+		}
+		select {
+		case <-cleanC:
+			if cleanErr := consumer.cleaner.CleanProcessed(contextValue, outboxRetention); cleanErr != nil {
+				consumer.logger.Warn("inbox cleanup failed", "error", cleanErr)
+			}
+		default:
 		}
 	}
 }
