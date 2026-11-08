@@ -18,6 +18,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         { href: "/admin/audit", label: "Audit log", icon: "audit" },
       ],
     },
+    {
+      label: "Placement",
+      items: [
+        { href: "/placement", label: "Placements", icon: "placements" },
+        { href: "/placement/departments", label: "Departments", icon: "organisation" },
+      ],
+    },
   ];
   return (
     <StaffShell viewer={staff.viewer} tenantId={staff.tenantId} groups={groups} home="/admin">

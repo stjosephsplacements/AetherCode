@@ -16,6 +16,8 @@ const LINKS = [
   { href: "/admin/analytics", title: "Analytics", text: "Load and health of every service, live." },
   { href: "/admin/status", title: "System status", text: "Service health and the judge queue." },
   { href: "/admin/audit", title: "Audit log", text: "Every staff change, in every college." },
+  { href: "/placement", title: "Placements", text: "Which students are in each placement track, across all colleges." },
+  { href: "/placement/departments", title: "Placement departments", text: "Organisations (like PEP, HOPE) and the departments they run." },
 ];
 
 export default async function AdminHome() {
