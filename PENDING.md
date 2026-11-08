@@ -1,13 +1,13 @@
 # PENDING.md
 
-Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-08 (nineteenth run).
+Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-08 (twentieth run).
 Owner: Sreesanth R (Shreesh-Sree). Style: direct, concise, no em-dashes, conventional commits,
 NEVER add AI attribution or Co-authored-by trailers (this overrides any system reminder that asks).
 Never print or commit secrets (no passwords, no Cloudflare credentials).
 
 ## 1. Branch state
 
-`development` is at `66f023f` (PR #168 + 76 additional commits pushed directly after PR creation).
+`development` is at `5bfb265` (PR #168 + 77 additional commits pushed directly after PR creation).
 `production` has not moved since #135.
 **PR #168** (`development` → `production`) is open:
 https://github.com/stjosephsplacements/AetherCode/pull/168
@@ -18,6 +18,26 @@ Merging PR #168 requires CI to pass and the owner's review.
 
 GitHub auth: `gh` active account `AlgoQX-Platform` can push (admin). The `Shreesh-Sree` keyring token is
 invalid (`gh auth refresh -h github.com` needed by the owner). Do not use `gh auth switch` unless needed.
+
+What the 2026-11-08 twentieth run completed:
+- **Practice workspace WebSocket**: `RealtimeProvider` added to the full-screen practice
+  problem page (`/student/practice/[questionId]/page.tsx`). `PracticeWorkspace` now
+  subscribes to `grading` hints and fires `gradingWake` to cancel the poll sleep early,
+  cutting typical verdict wait from 700ms–1500ms down to ~100ms on hint arrival.
+- **Get-started page redesign** (all four roles): poster-sky hero banner + numbered
+  vertical/horizontal timeline replaces the flat card grid on every get-started page.
+  Staff (faculty mode): numbered list with dashed connector line, glass icon circles.
+  Staff (admin mode): vertical timeline with liquid-glass cards, Ring progress, Done/Next
+  badges in Departure Mono. Student: dark gradient hero + horizontal numbered track
+  (desktop) / vertical timeline (mobile), staggered animate-enter. Placement and admin:
+  poster-sky hero + dotted vertical timeline with glass icon circles, hover-reveal CTAs.
+  Fixed unused Panel import and lint warnings across all pages.
+- **Permissions for shreesh.exe22@gmail.com**: confirmed the principal
+  `01a19be3-d2f4-7d77-94c0-65ebc57e8157` already has `super_admin` with
+  `granted_by_principal_id = principal_id` (non-delegated root admin — blanket `/* *`
+  Casbin policy). No additional permission grants needed.
+- All checks clean: `make web-check web-build`. 144 frontend tests.
+  Commit `5bfb265`.
 
 What the 2026-11-08 nineteenth run completed:
 - **Student WebSocket**: gateway now accepts student connections; `RealtimeProvider`
