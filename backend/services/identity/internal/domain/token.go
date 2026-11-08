@@ -25,7 +25,7 @@ func NewOpaqueToken() (string, error) {
 // HashToken returns the fixed-length database representation of an opaque
 // bearer token; token plaintext is never persisted.
 func HashToken(token string) [sha256.Size]byte { //nolint:gosec // 32-byte random token, not a password
-	return sha256.Sum256([]byte(token)) // lgtm[go/weak-sensitive-data-hashing]
+	return sha256.Sum256([]byte(token)) // codeql[go/weak-sensitive-data-hashing] - token is 32 bytes of crypto/rand output, not a user password; SHA-256 is correct here
 }
 
 // DeriveDeliveryToken deterministically creates a one-time email delivery
