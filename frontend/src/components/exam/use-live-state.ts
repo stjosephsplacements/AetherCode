@@ -17,7 +17,7 @@ const FALLBACK_MS = 30_000;
 export function useLiveState(attemptPath: string, initialDeadline: string) {
   const [deadline, setDeadline] = useState(initialDeadline);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [integrity, setIntegrity] = useState({ requireFullscreen: false, blockExternalPaste: false });
+  const [integrity, setIntegrity] = useState({ requireFullscreen: false, blockExternalPaste: false, webcamRequired: false });
   const seen = useRef<Set<string> | null>(null);
   const { status, subscribe } = useRealtime();
 
@@ -38,9 +38,9 @@ export function useLiveState(attemptPath: string, initialDeadline: string) {
       seen.current = new Set(live.announcements.map((note) => note.id));
       setAnnouncements(live.announcements);
       setIntegrity((current) =>
-        current.requireFullscreen === live.require_fullscreen && current.blockExternalPaste === live.block_external_paste
+        current.requireFullscreen === live.require_fullscreen && current.blockExternalPaste === live.block_external_paste && current.webcamRequired === live.webcam_required
           ? current
-          : { requireFullscreen: live.require_fullscreen, blockExternalPaste: live.block_external_paste },
+          : { requireFullscreen: live.require_fullscreen, blockExternalPaste: live.block_external_paste, webcamRequired: live.webcam_required },
       );
     }
     void poll();

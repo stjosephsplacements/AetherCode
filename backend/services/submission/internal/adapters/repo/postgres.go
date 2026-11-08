@@ -695,8 +695,8 @@ func (repository *Postgres) SaveChoice(contextValue context.Context, transaction
 }
 
 func (repository *Postgres) SetIntegrity(contextValue context.Context, transaction pgx.Tx, command app.SetIntegrity) error {
-	if _, err := transaction.Exec(contextValue, `SELECT submission.set_exam_integrity($1, $2, $3, $4)`,
-		command.TenantID, command.ExamVersionID, command.RequireFullscreen, command.BlockExternalPaste); err != nil {
+	if _, err := transaction.Exec(contextValue, `SELECT submission.set_exam_integrity($1, $2, $3, $4, $5)`,
+		command.TenantID, command.ExamVersionID, command.RequireFullscreen, command.BlockExternalPaste, command.WebcamRequired); err != nil {
 		return mapDatabaseError(err, "set exam integrity")
 	}
 	return nil

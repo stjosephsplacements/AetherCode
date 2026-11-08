@@ -50,6 +50,7 @@ func (handler *Handler) regradeItem(writer http.ResponseWriter, request *http.Re
 type integrityRequest struct {
 	RequireFullscreen  bool `json:"require_fullscreen"`
 	BlockExternalPaste bool `json:"block_external_paste"`
+	WebcamRequired     bool `json:"webcam_required"`
 }
 
 func (handler *Handler) setIntegrity(writer http.ResponseWriter, request *http.Request) {
@@ -64,7 +65,7 @@ func (handler *Handler) setIntegrity(writer http.ResponseWriter, request *http.R
 		return
 	}
 	if err := handler.service.SetIntegrity(request.Context(), capability, app.SetIntegrity{
-		ExamVersionCommand: command, RequireFullscreen: body.RequireFullscreen, BlockExternalPaste: body.BlockExternalPaste,
+		ExamVersionCommand: command, RequireFullscreen: body.RequireFullscreen, BlockExternalPaste: body.BlockExternalPaste, WebcamRequired: body.WebcamRequired,
 	}); err != nil {
 		httpx.WriteError(writer, err)
 		return

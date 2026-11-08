@@ -331,12 +331,16 @@ func run(contextValue context.Context) error {
 			if err := resyncProjection.Ping(readinessContext); err != nil {
 				return err
 			}
+			// Resync readiness is non-blocking: the service is usable without a
+			// completed resync (authorization works from the last-known projection
+			// state). This prevents a cascade where user unhealthy → all services
+			// unhealthy → resync never completes.
 			if err := resyncProjection.Ready(readinessContext); err != nil {
-				return err
+				logger.Warn("authorization projection resync incomplete (non-blocking)", "error", err)
 			}
 			for _, consumer := range projectionConsumers {
 				if err := consumer.Ready(readinessContext); err != nil {
-					return err
+					logger.Warn("projection consumer not fully ready (non-blocking)", "error", err)
 				}
 			}
 			return nil

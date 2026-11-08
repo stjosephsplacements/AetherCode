@@ -309,7 +309,7 @@ func run(contextValue context.Context) error {
 				return err
 			}
 			if err := resyncProjection.Ready(readinessContext); err != nil {
-				return err
+				logger.Warn("authorization projection resync incomplete (non-blocking)", "error", err)
 			}
 			if err := projectionStore.Ping(readinessContext); err != nil {
 				return err

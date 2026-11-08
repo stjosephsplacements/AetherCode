@@ -166,6 +166,7 @@ type SetIntegrity struct {
 	ExamVersionCommand
 	RequireFullscreen  bool
 	BlockExternalPaste bool
+	WebcamRequired     bool
 }
 
 func (service *Service) SetIntegrity(contextValue context.Context, capability centralauthz.Capability, command SetIntegrity) error {

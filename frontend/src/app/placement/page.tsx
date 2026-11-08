@@ -78,7 +78,7 @@ async function PlacementsContent({ placement: access }: { placement: PlacementCo
   return (
     <>
       {unreachable.length > 0 && <p role="alert" className="text-sm text-warning">Could not load: {unreachable.join(", ")}.</p>}
-      <PlacementsBoard rows={rows} orgs={orgs} readable={placement.readable} batches={batches} departments={departments} several={several} truncated={rows.length >= 5000} />
+      <PlacementsBoard rows={rows} orgs={orgs} readable={placement.readable} batches={batches} departments={departments} several={several} truncated={rows.length >= 5000} canViewPII={access.canViewPII} />
     </>
   );
 }

@@ -32,6 +32,7 @@ import { type SaveState, useAnswers } from "./use-answers";
 import { useIntegrity } from "./use-integrity";
 import { useLiveState } from "./use-live-state";
 import { bestScore, isJudging, useSubmissions } from "./use-submissions";
+import { useWebcam } from "./use-webcam";
 
 const CodeEditor = dynamic(() => import("./code-editor").then((module) => module.CodeEditor), {
   ssr: false,
@@ -144,6 +145,7 @@ function ExamWorkspace({ attemptPath, attemptId, attempt, paper }: Loaded & { at
   const activeRun = useCustomInput ? customRun : run;
   const readOnly = answers.saveState === "closed";
   const integrity = useIntegrity(attemptPath, live.integrity.requireFullscreen, !readOnly && !ending);
+  useWebcam(live.integrity.webcamRequired && !readOnly && !ending);
   const itemSubmissions = submissions.byItem[currentId];
 
   const statuses = useMemo(() => {

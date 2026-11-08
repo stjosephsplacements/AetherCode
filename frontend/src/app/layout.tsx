@@ -51,6 +51,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     // The font variables sit on <html> because the theme's --font-* tokens are
     // declared on :root and resolve there.
     <html lang="en" data-theme={theme} className={`${geist.variable} ${geistMono.variable} ${chakraPetch.variable}`}>
+      <head>
+        <link rel="preconnect" href="https://www.googletagmanager.com" />
+        <link rel="preconnect" href="https://analytics-aethercode.stjosephsplacements.in" />
+      </head>
       <body className="antialiased">
         {/* Google Analytics (G-HQ6HC7XJL0) */}
         <Script
