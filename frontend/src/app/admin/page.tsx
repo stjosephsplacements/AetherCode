@@ -13,6 +13,7 @@ const LINKS = [
   { href: "/admin/incidents", title: "Incidents", text: "What needs attention now, and emergency controls for open exams." },
   { href: "/admin/colleges", title: "Colleges", text: "Add, edit and remove the colleges on this platform." },
   { href: "/admin/admins", title: "Administrators", text: "Who holds platform-wide access, and what they may do." },
+  { href: "/staff/permissions?scope=platform", title: "Permissions", text: "Grant extra permissions to staff beyond what their role allows." },
   { href: "/admin/analytics", title: "Analytics", text: "Load and health of every service, live." },
   { href: "/admin/status", title: "System status", text: "Service health and the judge queue." },
   { href: "/admin/audit", title: "Audit log", text: "Every staff change, in every college." },

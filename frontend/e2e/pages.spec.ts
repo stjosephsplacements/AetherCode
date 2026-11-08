@@ -119,7 +119,7 @@ test("student: dashboard, exams, practice, results and profile", async ({ browse
   const context = await browser.newContext();
   await signIn(context, seed.roll, studentPassword);
   await sweep(context, [
-    "/student", "/student/blogs", "/student/completed", "/student/contests", "/student/exams", "/student/hackathons", "/student/help",
+    "/student", "/student/blogs", "/student/completed", "/student/contests", "/student/exams", "/student/get-started", "/student/hackathons", "/student/help",
     "/student/interviews", "/student/open-source", "/student/performance", "/student/practice", "/student/profile",
     "/student/resume", "/student/scheduled", "/student/tasks", "/account/password", "/account/security",
   ]);

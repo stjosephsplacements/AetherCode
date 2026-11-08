@@ -2,7 +2,7 @@ import { ArrowLeft } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { PageHeader } from "@/components/staff/page-header";
+import { LoadError, PageHeader } from "@/components/staff/page-header";
 import type { PracticeProblem } from "@/lib/api-types";
 import { gateway } from "@/lib/server/gateway";
 import { requireViewer } from "@/lib/server/session";
@@ -14,7 +14,12 @@ export default async function TopicPage({ params }: { params: Promise<{ topic: s
   const topic = decodeURIComponent((await params).topic);
   const viewer = await requireViewer();
   if (!viewer.tenantId) redirect("/student");
-  const all = await gateway<PracticeProblem[]>(`/question-bank/v1/tenants/${viewer.tenantId}/practice/questions`);
+  let all: PracticeProblem[];
+  try {
+    all = await gateway<PracticeProblem[]>(`/question-bank/v1/tenants/${viewer.tenantId}/practice/questions`);
+  } catch (error) {
+    return <LoadError error={error} />;
+  }
   const problems = topic === "all" ? all : all.filter((problem) => (problem.tags.length ? problem.tags.includes(topic) : topic === "general"));
   const title = topic === "all" ? "All problems" : topic.replace(/-/g, " ").replace(/^./, (c) => c.toUpperCase());
   return (
