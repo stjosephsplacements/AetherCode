@@ -14,7 +14,7 @@ import (
 func (repository *Postgres) ExistingEnrollmentNumbers(contextValue context.Context, transaction pgx.Tx, command app.StudentImport, numbers []string) ([]string, error) {
 	rows, err := transaction.Query(contextValue, `
 		SELECT users.existing_enrollment_numbers($1, $2, $3, $4, $5::text[])
-	`, command.TenantID, command.BatchID, command.CollegeDepartmentID, command.PlacementDepartmentID, numbers)
+	`, command.TenantID, command.BatchID, command.CollegeDepartmentID, nullableText(command.PlacementDepartmentID), numbers)
 	if err != nil {
 		return nil, mapWriteError(err, "student import targets are invalid")
 	}
@@ -36,7 +36,7 @@ func (repository *Postgres) ImportStudents(contextValue context.Context, transac
 		SELECT out_student_id::text, out_principal_id::text, out_enrollment_number,
 		       out_student_version, out_affiliation_version, out_created_at
 		FROM users.import_students($1, $2, $3, $4, $5, $6::uuid[], $7::text[])
-	`, command.TenantID, command.BatchID, command.CollegeDepartmentID, command.PlacementDepartmentID,
+	`, command.TenantID, command.BatchID, command.CollegeDepartmentID, nullableText(command.PlacementDepartmentID),
 		actorID, principalIDs, numbers)
 	if err != nil {
 		return nil, mapWriteError(err, "students could not be imported")

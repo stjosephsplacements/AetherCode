@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/authzprojection"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/buildinfo"
@@ -153,6 +154,13 @@ func run(contextValue context.Context) error {
 			return publisherErr
 		}
 		go publisher.Run(contextValue)
+
+		proctorConn, proctorConnErr := messaging.Connect(contextValue, messagingRuntime.URL, "submission-proctor")
+		if proctorConnErr != nil {
+			return fmt.Errorf("connect to NATS for proctor: %w", proctorConnErr)
+		}
+		defer proctorConn.Close()
+		submissionService.WithSnapshotPublisher(&natsSnapshotPublisher{conn: proctorConn})
 
 		if judgeCompletionRuntime.Enabled {
 			adapterDatabaseConfig, adapterConfigErr := config.LoadDatabase("SUBMISSION_JUDGE_ADAPTER")
@@ -411,4 +419,10 @@ func run(contextValue context.Context) error {
 		return err
 	}
 	return httpx.Serve(contextValue, serviceConfig, logger, telemetry.HTTPMiddleware("submission", handler))
+}
+
+type natsSnapshotPublisher struct{ conn *nats.Conn }
+
+func (p *natsSnapshotPublisher) PublishSnapshot(_ context.Context, subject string, payload []byte) error {
+	return p.conn.Publish(subject, payload)
 }
