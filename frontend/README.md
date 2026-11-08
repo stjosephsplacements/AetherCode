@@ -107,6 +107,12 @@ in the same directory. The sign-in page keeps the AetherCode mark.
 | `/admin/colleges` | College CRUD |
 | `/admin/admins` | Platform administrator management |
 | `/admin/analytics` | Prometheus service metrics (live polling) |
+| **Placement** | |
+| `/placement` | Placements dashboard: students by track across colleges |
+| `/placement/departments` | Placement organisation and department CRUD (PEP, HOPE, ELITE) |
+| `/placement/staff` | Assign and manage placement officers |
+| `/placement/questions` | Shared question bank (read-only for placement staff) |
+| `/placement/exams` | Cross-college exam listing |
 
 ## Backend contracts
 
