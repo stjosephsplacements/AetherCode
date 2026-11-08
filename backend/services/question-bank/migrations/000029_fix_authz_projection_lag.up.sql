@@ -1,10 +1,7 @@
 SET ROLE aether_question_bank_owner;
 
--- Fix cascading 503 on service restart (ADR-0078 follow-up).
--- 1. begin_authorization_projection_resync: preserve projection_ready on warm
---    restarts (completed_at IS NOT NULL means a prior resync succeeded).
--- 2. has_platform_authorization_at / has_tenant_authorization_at: allow a
---    5-revision lag window so services stay operational during projection sync.
+-- Fix cascading 503 on service restart.
+-- question-bank uses actor_global_authorizations (not actor_tenant_authorizations).
 
 CREATE OR REPLACE FUNCTION authz.begin_authorization_projection_resync(
     p_request_event_id uuid, p_resync_id uuid, p_target_service text, p_reason text
@@ -45,33 +42,17 @@ BEGIN
 END
 $function$;
 
-CREATE OR REPLACE FUNCTION authz.has_platform_authorization_at(
-    p_actor_id uuid, p_authz_revision bigint
+CREATE OR REPLACE FUNCTION authz.has_global_authorization_at(
+    p_actor_id uuid, p_authz_revision bigint, p_require_write boolean
 )
 RETURNS boolean LANGUAGE sql VOLATILE SECURITY DEFINER SET search_path = pg_catalog, authz AS $function$
     SELECT authz.authorization_projection_ready() AND EXISTS (
-        SELECT 1 FROM authz.actor_tenant_authorizations AS grant_row
-        JOIN authz.principal_authorization_revisions AS revision
-          ON revision.actor_id = grant_row.actor_id AND revision.authz_revision = grant_row.authz_revision
-        WHERE grant_row.actor_id = p_actor_id
-          AND grant_row.authz_revision >= GREATEST(1, p_authz_revision - 5)
-          AND grant_row.is_authorized AND grant_row.grant_kind = 'platform'
-          AND (grant_row.expires_at IS NULL OR grant_row.expires_at > clock_timestamp())
-    )
-$function$;
-
-CREATE OR REPLACE FUNCTION authz.has_tenant_authorization_at(
-    p_actor_id uuid, p_tenant_id uuid, p_authz_revision bigint
-)
-RETURNS boolean LANGUAGE sql VOLATILE SECURITY DEFINER SET search_path = pg_catalog, authz AS $function$
-    SELECT authz.authorization_projection_ready() AND p_tenant_id IS NOT NULL AND EXISTS (
-        SELECT 1 FROM authz.actor_tenant_authorizations AS grant_row
-        JOIN authz.principal_authorization_revisions AS revision
-          ON revision.actor_id = grant_row.actor_id AND revision.authz_revision = grant_row.authz_revision
-        WHERE grant_row.actor_id = p_actor_id
-          AND grant_row.authz_revision >= GREATEST(1, p_authz_revision - 5)
-          AND grant_row.is_authorized
-          AND (grant_row.expires_at IS NULL OR grant_row.expires_at > clock_timestamp())
-          AND (grant_row.grant_kind = 'platform' OR grant_row.tenant_id = p_tenant_id)
+        SELECT 1 FROM authz.actor_global_authorizations AS authorization_row
+        WHERE authorization_row.actor_id = p_actor_id
+          AND authorization_row.authz_revision >= GREATEST(1, p_authz_revision - 5)
+          AND authorization_row.active
+          AND (authorization_row.expires_at IS NULL OR authorization_row.expires_at > clock_timestamp())
+          AND CASE WHEN p_require_write THEN authorization_row.can_write
+                   ELSE authorization_row.can_read OR authorization_row.can_write END
     )
 $function$;
