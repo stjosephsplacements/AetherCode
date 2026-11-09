@@ -23,7 +23,7 @@
     "@monaco-editor/react": "^4.7.0",
     "katex": "0.19.1",
     "monaco-editor": "^0.57.0",
-    "next": "16.4.3",
+    "next": "16.4.5",
     "nodemailer": "^10.3.1",
     "papaparse": "5.7.0",
     "postgres": "3.4.9",
@@ -37,15 +37,15 @@
     "zod": "4.6.7"
   },
   "devDependencies": {
-    "@playwright/test": "1.64.1",
-    "@tailwindcss/postcss": "4.3.3",
+    "@playwright/test": "1.65.0",
+    "@tailwindcss/postcss": "4.3.4",
     "@types/node": "24.19.2",
     "@types/nodemailer": "^8.0.2",
     "@types/papaparse": "5.5.2",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "exceljs": "4.4.0",
-    "tailwindcss": "4.3.3",
+    "tailwindcss": "4.3.4",
     "typescript": "5.9.3"
   }
 }
