@@ -41,13 +41,12 @@ func (store fakeStore) Ping(context.Context) error { return store.err }
 func TestAuthorizeIssuesAudienceBoundCapabilityForCurrentPolicy(t *testing.T) {
 	t.Parallel()
 	keyring := testKeyring(t)
-	service, err := NewService(fakeStore{snapshot: Snapshot{
+	service, err := NewService(fakeStore{snapshot: withBits(Snapshot{
 		Revision: 7,
 		Assignments: []Assignment{{
 			Role: centralauthz.RoleCollegeAdmin, ScopeKind: "college", TenantID: testTenant, ScopeID: testTenant,
 		}},
-		PolicyRules: []centralauthz.PolicyRule{{PType: "p", Values: []string{"college_admin", "college", "/attempts/:id", "read"}}},
-	}}, keyring, nil, false)
+	}, "submission.attempts.read")}, keyring, nil, false)
 	if err != nil {
 		t.Fatalf("NewService() error = %v", err)
 	}
@@ -202,7 +201,7 @@ func TestAuthorizeAllowsPlacementStaffToWriteStudentBatchAffiliations(t *testing
 	if err != nil {
 		t.Fatalf("ParseKeyring() error = %v", err)
 	}
-	service, err := NewService(fakeStore{snapshot: Snapshot{
+	service, err := NewService(fakeStore{snapshot: withBits(Snapshot{
 		Revision: 9,
 		Assignments: []Assignment{{
 			Role: centralauthz.RolePlacementUser, ScopeKind: "placement_department",
@@ -210,10 +209,7 @@ func TestAuthorizeAllowsPlacementStaffToWriteStudentBatchAffiliations(t *testing
 		}},
 		TargetStudentPlacementScopes: map[string]struct{}{testPlacement: {}},
 		PlacementStaffScopes:         map[string]struct{}{testPlacement: {}},
-		PolicyRules: []centralauthz.PolicyRule{{
-			PType: "p", Values: []string{"placement_user", "placement_department", "/student_batch_affiliations/:id", "write"},
-		}},
-	}}, keyring, nil, false)
+	}, "user.student_batch_affiliations.write")}, keyring, nil, false)
 	if err != nil {
 		t.Fatalf("NewService() error = %v", err)
 	}
@@ -463,11 +459,10 @@ func TestStudentsPractiseOnlyAsThemselvesWithTheirTenant(t *testing.T) {
 		t.Fatalf("ParseKeyring() error = %v", err)
 	}
 	student := Assignment{Role: centralauthz.RoleStudent, ScopeKind: "self", TenantID: testTenant, ScopeID: testPrincipal}
-	service, err := NewService(fakeStore{snapshot: Snapshot{
+	service, err := NewService(fakeStore{snapshot: withBits(Snapshot{
 		Revision:    3,
 		Assignments: []Assignment{student},
-		PolicyRules: []centralauthz.PolicyRule{{PType: "p", Values: []string{"student", "self", "/practice_submissions/:id", "write"}}},
-	}}, keyring, nil, false)
+	}, "question-bank.practice_submissions.write")}, keyring, nil, false)
 	if err != nil {
 		t.Fatalf("NewService() error = %v", err)
 	}
@@ -515,10 +510,9 @@ func TestDeletesAreAuthorisedAuditedAndIssuedAsWrites(t *testing.T) {
 	}
 	var recorded []StaffAction
 	faculty := Assignment{Role: centralauthz.RoleDepartmentUser, ScopeKind: "department", TenantID: testTenant, ScopeID: testPrincipal}
-	service, err := NewService(fakeStore{snapshot: Snapshot{
+	service, err := NewService(fakeStore{snapshot: withBits(Snapshot{
 		Revision: 2, Assignments: []Assignment{faculty},
-		PolicyRules: []centralauthz.PolicyRule{{PType: "p", Values: []string{"department_user", "department", "/*", "*"}}},
-	}, audit: &recorded}, keyring, nil, false)
+	}, "ADMINISTRATOR"), audit: &recorded}, keyring, nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -565,12 +559,8 @@ func TestStaffWritesAreAudited(t *testing.T) {
 	t.Parallel()
 	keyring := testKeyring(t)
 	var recorded []StaffAction
-	newService := func(assignment Assignment, rules ...[]string) *Service {
-		policy := make([]centralauthz.PolicyRule, 0, len(rules))
-		for _, values := range rules {
-			policy = append(policy, centralauthz.PolicyRule{PType: "p", Values: values})
-		}
-		service, err := NewService(fakeStore{snapshot: Snapshot{Revision: 2, Assignments: []Assignment{assignment}, PolicyRules: policy}, audit: &recorded}, keyring, nil, false)
+	newService := func(assignment Assignment, flags ...string) *Service {
+		service, err := NewService(fakeStore{snapshot: withBits(Snapshot{Revision: 2, Assignments: []Assignment{assignment}}, flags...), audit: &recorded}, keyring, nil, false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -580,7 +570,7 @@ func TestStaffWritesAreAudited(t *testing.T) {
 		ResourceType: "attempt_events", ResourceID: "exam-version-1", TargetService: "submission"}
 
 	faculty := newService(Assignment{Role: centralauthz.RoleDepartmentUser, ScopeKind: "department", TenantID: testTenant, ScopeID: testPrincipal},
-		[]string{"department_user", "department", "/*", "*"})
+		"ADMINISTRATOR")
 	if decision, err := faculty.Authorize(context.Background(), request); err != nil || !decision.Allowed {
 		t.Fatalf("faculty write = %#v, %v", decision, err)
 	}
@@ -590,7 +580,7 @@ func TestStaffWritesAreAudited(t *testing.T) {
 		t.Fatal(err)
 	}
 	student := newService(Assignment{Role: centralauthz.RoleStudent, ScopeKind: "self", TenantID: testTenant, ScopeID: testPrincipal},
-		[]string{"student", "self", "/attempts/:id", "write"})
+		"submission.attempts.write")
 	own := request
 	own.ResourceType, own.ResourceID = "attempts", testPrincipal
 	if _, err := student.Authorize(context.Background(), own); err != nil {
@@ -614,14 +604,10 @@ func TestStudentsUseCommunityContentButNeverModeration(t *testing.T) {
 		t.Fatalf("ParseKeyring() error = %v", err)
 	}
 	student := Assignment{Role: centralauthz.RoleStudent, ScopeKind: "self", TenantID: testTenant, ScopeID: testPrincipal}
-	service, err := NewService(fakeStore{snapshot: Snapshot{
+	service, err := NewService(fakeStore{snapshot: withBits(Snapshot{
 		Revision:    3,
 		Assignments: []Assignment{student},
-		PolicyRules: []centralauthz.PolicyRule{
-			{PType: "p", Values: []string{"student", "self", "/community/:id", "read"}},
-			{PType: "p", Values: []string{"student", "self", "/community/:id", "write"}},
-		},
-	}}, keyring, nil, false)
+	}, "notification.community.read", "notification.community.write")}, keyring, nil, false)
 	if err != nil {
 		t.Fatalf("NewService() error = %v", err)
 	}
@@ -659,14 +645,13 @@ func TestGrantsAddToARolesAccess(t *testing.T) {
 		t.Fatalf("ParseKeyring() error = %v", err)
 	}
 	mentor := Assignment{Role: centralauthz.RoleMentor, ScopeKind: "batch", TenantID: testTenant, ScopeID: testPrincipal}
-	rules := []centralauthz.PolicyRule{{PType: "p", Values: []string{"mentor", "batch", "/*", "read"}}}
 	other := "018f4b0d-08f8-7c09-9ba7-efdf9c22aaaa"
 	request := func(action, resource string) Request {
 		return Request{PrincipalID: testPrincipal, TenantID: testTenant, RequestID: testRequestID, Action: action,
 			ResourceType: resource, ResourceID: "018f4b0d-08f8-7c09-9ba7-efdf9c229001", TargetService: "assessment"}
 	}
 	authorize := func(assignments []Assignment, grants []Grant, req Request) bool {
-		service, err := NewService(fakeStore{snapshot: Snapshot{Revision: 2, Assignments: assignments, PolicyRules: rules, Grants: grants}}, keyring, nil, false)
+		service, err := NewService(fakeStore{snapshot: withBits(Snapshot{Revision: 2, Assignments: assignments, Grants: grants}, "assessment.exams.read", "assessment.exam_items.read")}, keyring, nil, false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -756,7 +741,7 @@ func TestGlobalRoleAssignmentListRequiresPlatformScope(t *testing.T) {
 		{name: "college", role: "college_admin", scope: "college", tenant: testTenant, allowed: false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			service, err := NewService(fakeStore{snapshot: Snapshot{Revision: 1, Assignments: []Assignment{{Role: centralauthz.Role(tc.role), ScopeKind: tc.scope, TenantID: tc.tenant, ScopeID: tc.tenant}}, PolicyRules: []centralauthz.PolicyRule{{PType: "p", Values: []string{tc.role, tc.scope, "/role_assignments/:id", "read"}}}}}, keyring, nil, false)
+			service, err := NewService(fakeStore{snapshot: withBits(Snapshot{Revision: 1, Assignments: []Assignment{{Role: centralauthz.Role(tc.role), ScopeKind: tc.scope, TenantID: tc.tenant, ScopeID: tc.tenant}}}, "user.role_assignments.read")}, keyring, nil, false)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -788,7 +773,7 @@ func TestPermissionEditorWriteIsLimitedToAdministrators(t *testing.T) {
 		{name: "platform placement user", role: "placement_user", scope: "platform", allowed: false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			service, err := NewService(fakeStore{snapshot: Snapshot{Revision: 1, Assignments: []Assignment{{Role: tc.role, ScopeKind: tc.scope, TenantID: tc.tenant, ScopeID: tc.tenant}}, Grants: []Grant{{ScopeKind: "college", TenantID: tc.tenant, Permission: "user.permission_grants.write"}}, PolicyRules: []centralauthz.PolicyRule{{PType: "p", Values: []string{string(tc.role), tc.scope, "/*", "*"}}}}}, keyring, nil, false)
+			service, err := NewService(fakeStore{snapshot: withBits(Snapshot{Revision: 1, Assignments: []Assignment{{Role: tc.role, ScopeKind: tc.scope, TenantID: tc.tenant, ScopeID: tc.tenant}}, Grants: []Grant{{ScopeKind: "college", TenantID: tc.tenant, Permission: "user.permission_grants.write"}}}, "ADMINISTRATOR")}, keyring, nil, false)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -812,7 +797,6 @@ func TestDelegatedSuperAdminHoldsOnlyItsGrants(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rules := []centralauthz.PolicyRule{{PType: "p", Values: []string{"super_admin", "platform", "/*", "*"}}}
 	read := []Grant{{ScopeKind: "platform", Permission: "submission.attempts.read"}}
 	cases := []struct {
 		name      string
@@ -834,12 +818,11 @@ func TestDelegatedSuperAdminHoldsOnlyItsGrants(t *testing.T) {
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			service, err := NewService(fakeStore{snapshot: Snapshot{
+			service, err := NewService(fakeStore{snapshot: withBits(Snapshot{
 				Revision:    3,
 				Assignments: []Assignment{{Role: centralauthz.RoleSuperAdmin, ScopeKind: "platform", Delegated: test.delegated}},
-				PolicyRules: rules,
 				Grants:      test.grants,
-			}}, keyring, nil, false)
+			}, "ADMINISTRATOR")}, keyring, nil, false)
 			if err != nil {
 				t.Fatal(err)
 			}

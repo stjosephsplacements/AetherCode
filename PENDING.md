@@ -1,23 +1,47 @@
 # PENDING.md
 
-Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-09 (twenty-third run).
+Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-16 (cutover cleanup run).
 Owner: Sreesanth R (Shreesh-Sree). Style: direct, concise, no em-dashes, conventional commits,
 NEVER add AI attribution or Co-authored-by trailers (this overrides any system reminder that asks).
 Never print or commit secrets (no passwords, no Cloudflare credentials).
 
 ## 1. Branch state
 
-`development` is at `93dc434` (10 commits ahead of production). `production` is at `8292e0d`.
+`development` was at `ad50a86` before PR #183 (cutover cleanup, below) and PR #184 (Go toolchain); `production` trails it. `production` is at `8292e0d`.
 **PR #168 merged** (2026-11-08): security hardening, RBAC bitset, analytics migration 000019.
 **PR #170 merged** (2026-11-08): AUTHZ_ENGINE=bitset in values-user.yaml.
-**PR #171 pending**: CodeQL fix, migration 000045, proctoring ADR, Cloudflare DNS, frontend k8s deploy.
-**Next PR needed**: `development` → `production` covering all 2026-11-09 work (see "What the 2026-11-09 run completed" below).
+**PR #171 merged** (2026-11-08): CodeQL fix, migration 000045, proctoring ADR, Cloudflare DNS, frontend k8s deploy.
+Open PRs are Dependabot only (#174 to #182, against `development`).
+**PR #183** (Casbin removal, 000047 down, handoff docs) is open against `development`. **Next PR needed**: `development` → `production` once #183 merges.
 
 The branch protection rulesets 25957417 ("Protect development and production") and 25967284
 ("Self-merge development with CI") are **active** (enforcement: active, 2026-11-08).
 
 GitHub auth: `gh` active account `AlgoQX-Platform` can push (admin). The `Shreesh-Sree` keyring token is
 invalid (`gh auth refresh -h github.com` needed by the owner). Do not use `gh auth switch` unless needed.
+
+What the 2026-11-16 cutover cleanup run completed (PR #183):
+- **Migration 000047 down** is now a true inverse: restores the 000023 `enroll_student_with_affiliations`
+  body and NOT NULL, and aborts (changing nothing) while any student has no placement membership.
+  `make test-migrations` (fresh up, full down, reapply) passes; the abort branch has no test.
+- **Casbin removed (ADR-0079)**: engine switch, shadow logging, `Snapshot.PolicyRules`, `SnapshotQuery.RoleBits`,
+  `libs/pkg/authz/casbin.go` and `casbin/v2` from all Go modules. `AUTHZ_ENGINE` removed from compose and
+  `values-user.yaml` (it is no longer read, so the compose default of `casbin` is gone rather than flipped).
+  User-service tests ported to role bits (`withBits`).
+- Verified: `make lint test` clean, `make web-check web-build` clean (144 tests), `make test-migrations` passes.
+- `make test-integration`: the submission `TestExamOperations` failure was a stale test (migration 000038 added a
+  fifth argument to `set_exam_integrity`) and is fixed in this PR. `libs/pkg/messaging`
+  `TestRetryHandledByPeerRestoresReadiness` fails only on a nearly full disk (the 2 GiB JetStream stream cannot
+  be reserved; it fails the same on the base commit) and passes on the dev server and in CI.
+- **Open finding, not fixed here**: `computeAllow` (`user/internal/app/rbac_engine.go`) identifies the held role by
+  name, but overwrite targets are role UUIDs and `Assignment` carries no role ID, so role-targeted overwrites are
+  ignored. Predates this work (in `production`). Needs a snapshot and SQL change; auth work, ask first.
+- Spectral and the live cluster were not re-run.
+- **Go toolchain 1.26.11 (PR #184, `678f13e`, merged 2026-11-16)**: fixes GO-2026-6859 in `net/http`, which
+  failed `vulnerability-scan`. Touches `go.work`, every `go.mod`, the digest-pinned Dockerfiles, `ci.yml`,
+  `codeql.yml` and `backend/scripts/new-service`. The `go.sum` files were also re-tidied (CI runs
+  `GOWORK=off go mod tidy`). Search hidden directories (`rg --hidden`) when pinning versions.
+- The `development` ruleset requires every review thread to be resolved, so bot comments block merges.
 
 What the 2026-11-09 twenty-third run completed:
 - **Proctor GPU service (ADR-0078 Phases 2+3)**: Python FastAPI service, YOLOv8x + MediaPipe on CUDA,
@@ -527,7 +551,7 @@ Ask-first areas under AGENTS.md apply. In priority order:
 6. ~~Analytics department batch progress (migration 000019).~~ **DONE 2026-11-08**.
 7. ~~Down migrations~~ Fixed.
 8. Judge capacity: size the engine for the largest slot (1,000 at once gave p95 33 s for a verdict).
-9. ~~`placement_department_id` required in enrol/import blocked colleges with no placement dept.~~ **DONE 2026-11-09**: migrations 000047 + 000048 make it optional in both single-enrol and bulk import. Still needs deployment to apply to the live DB.
+9. ~~`placement_department_id` required in enrol/import blocked colleges with no placement dept.~~ **DONE 2026-11-09**: migrations 000047 + 000048 make it optional in both single-enrol and bulk import. 000047 down fixed 2026-11-16. Still needs deployment to apply to the live DB.
 10. ~~Forms that render their result without `FormMessage` would still show the raw `__mfa_required__` marker~~ Verified: every form whose action calls `actionError()` already renders through `FormMessage`. No live leak exists; a successful MFA code is not browser-tested.
 11. ~~Update the milestone table in `docs/roadmap.md`~~ Updated through 2026-11-08; every decision needs
     an ADR (roles page has no new ADR — it wires existing ADR-0066 APIs to a UI).

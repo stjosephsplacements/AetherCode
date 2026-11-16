@@ -62,8 +62,8 @@ func TestTenant_SoftDelete(t *testing.T) {
 	})
 }
 
-// Hard delete authorization is enforced by the Casbin central authorization service
-// (via AuthorizeHTTP with action "delete"), not at the domain entity level.
+// Hard delete is authorized by the database boundary (the hard-delete function and
+// its restricted EXECUTE grant), not at the domain entity level.
 
 func TestDepartment_SoftDelete(t *testing.T) {
 	deptID := uuid.New()

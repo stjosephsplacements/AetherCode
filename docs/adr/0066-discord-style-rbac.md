@@ -1,6 +1,6 @@
 # ADR-0066: Discord-style roles with Gold, Silver and Bronze tiers
 
-- Status: accepted (implementation in progress; supersedes 0055 and 0061 once the contract migration ships)
+- Status: accepted (the `AUTHZ_ENGINE` cutover plan is superseded by ADR-0079; implementation in progress; supersedes 0055 and 0061 once the contract migration ships)
 - Date: 2026-11-03
 
 ## Context

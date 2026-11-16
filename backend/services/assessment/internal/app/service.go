@@ -946,7 +946,7 @@ func (service *Service) DeleteExam(ctx context.Context, capability centralauthz.
 }
 
 // HardDeleteExam permanently removes an exam (SuperAdmin only).
-// Authorization is enforced by the Casbin AuthorizeHTTP call at the handler layer.
+// Authorization is enforced by the AuthorizeHTTP call at the handler layer.
 func (service *Service) HardDeleteExam(ctx context.Context, capability centralauthz.Capability, command DeleteExam) error {
 	command.ID, command.TenantID = normalizeID(command.ID), normalizeID(command.TenantID)
 	command.ActorID = normalizeID(command.ActorID)

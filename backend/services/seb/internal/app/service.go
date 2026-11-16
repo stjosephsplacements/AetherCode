@@ -641,7 +641,7 @@ func (service *Service) ListConfigurations(contextValue context.Context, capabil
 }
 
 // HardDeleteConfiguration permanently removes a configuration (SuperAdmin only).
-// Authorization is enforced by the Casbin AuthorizeHTTP call at the handler layer.
+// Authorization is enforced by the AuthorizeHTTP call at the handler layer.
 func (service *Service) HardDeleteConfiguration(ctx context.Context, capability centralauthz.Capability, command DeleteConfiguration) error {
 	command.ID, command.TenantID = strings.ToLower(strings.TrimSpace(command.ID)), strings.ToLower(strings.TrimSpace(command.TenantID))
 	command.ActorID = strings.ToLower(strings.TrimSpace(command.ActorID))
