@@ -13,7 +13,7 @@ production, 0 behind). `production` is at `8292e0d`.
 **PR #170 merged** (2026-11-08): AUTHZ_ENGINE=bitset in values-user.yaml.
 **PR #171 merged** (2026-11-08): CodeQL fix, migration 000045, proctoring ADR, Cloudflare DNS, frontend k8s deploy.
 Open PRs are Dependabot only (#174 to #182, against `development`).
-**Next PR needed**: `development` → `production` covering everything since #171, including the cleanup below.
+**PR #183** (Casbin removal, 000047 down, handoff docs) is open against `development`. **Next PR needed**: `development` → `production` once #183 merges.
 
 The branch protection rulesets 25957417 ("Protect development and production") and 25967284
 ("Self-merge development with CI") are **active** (enforcement: active, 2026-11-08).
@@ -35,6 +35,11 @@ What the 2026-11-16 cutover cleanup run completed (uncommitted until the owner a
   `TestExamOperations` (`submission.set_exam_integrity(unknown, unknown, boolean, boolean)` does not exist;
   migration 000032 defines a `(uuid, uuid, boolean, boolean)` signature). Not yet diagnosed. `make` exits 0 anyway.
 - Spectral and the live cluster were not re-run.
+- **Go toolchain 1.26.11 (PR #184, `678f13e`, merged 2026-11-16)**: fixes GO-2026-6859 in `net/http`, which
+  failed `vulnerability-scan`. Touches `go.work`, every `go.mod`, the digest-pinned Dockerfiles, `ci.yml`,
+  `codeql.yml` and `backend/scripts/new-service`. The `go.sum` files were also re-tidied (CI runs
+  `GOWORK=off go mod tidy`). Search hidden directories (`rg --hidden`) when pinning versions.
+- The `development` ruleset requires every review thread to be resolved, so bot comments block merges.
 
 What the 2026-11-09 twenty-third run completed:
 - **Proctor GPU service (ADR-0078 Phases 2+3)**: Python FastAPI service, YOLOv8x + MediaPipe on CUDA,
