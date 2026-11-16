@@ -6,7 +6,7 @@ toolchain go1.26.11
 
 require (
 	github.com/google/uuid v1.6.0
-	github.com/jackc/pgx/v5 v5.12.0
+	github.com/jackc/pgx/v5 v5.13.0
 	github.com/rabbitmq/amqp091-go v1.16.0
 	github.com/stjosephsplacements/AetherCode/libs/pkg v0.0.0
 	github.com/stjosephsplacements/AetherCode/libs/proto v0.0.0
