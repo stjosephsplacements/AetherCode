@@ -81,7 +81,7 @@ export default function SecurityPage() {
           body: (
             <ul>
               <li>Passwords are hashed with Argon2id. Sessions use short-lived tokens that rotate.</li>
-              <li>Roles (administrator, faculty, mentor, placement officer, student) are scoped to a college, department or batch and checked with a Casbin policy on every request.</li>
+              <li>Roles (administrator, faculty, mentor, placement officer, student) are scoped to a college, department or batch and checked against the permissions of the person&apos;s role on every request.</li>
               <li>Each service presents a signed capability before its database will act, so a compromised service can&apos;t reach data it doesn&apos;t own.</li>
               <li>Staff actions are written to an audit log kept for 400 days.</li>
             </ul>

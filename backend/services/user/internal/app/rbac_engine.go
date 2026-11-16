@@ -1,37 +1,8 @@
 package app
 
 import (
-	"log/slog"
-	"strings"
-
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/rbac"
 )
-
-// Engine selects which model decides a request (ADR-0066). Shadow decides with Casbin and logs
-// every request where the role bit sets would have decided differently.
-type Engine string
-
-const (
-	EngineCasbin Engine = "casbin"
-	EngineShadow Engine = "shadow"
-	EngineBitset Engine = "bitset"
-)
-
-// ParseEngine reads AUTHZ_ENGINE; an empty value is Casbin.
-func ParseEngine(value string) (Engine, bool) {
-	switch Engine(strings.ToLower(strings.TrimSpace(value))) {
-	case "", EngineCasbin:
-		return EngineCasbin, true
-	case EngineShadow:
-		return EngineShadow, true
-	case EngineBitset:
-		return EngineBitset, true
-	}
-	return "", false
-}
-
-// usesRoleBits reports whether snapshots must carry the role bit sets.
-func (engine Engine) usesRoleBits() bool { return engine == EngineShadow || engine == EngineBitset }
 
 // metaFlags are the registry keys the resolver treats specially (migration 000039).
 const (
@@ -131,13 +102,4 @@ func permsAllow(flags map[string]int, effective rbac.Perms, request Request) boo
 		return has(base + request.Action)
 	}
 	return false
-}
-
-// logShadowDifference records a request the two models decided differently, so the role bit sets can
-// be corrected before the cutover. It carries no personal data beyond the opaque principal ID.
-func logShadowDifference(request Request, assignment Assignment, casbin, bits bool) {
-	slog.Warn("authz shadow difference",
-		"principal", request.PrincipalID, "role", assignment.Role, "scope_kind", assignment.ScopeKind,
-		"service", request.TargetService, "resource", request.ResourceType, "action", request.Action,
-		"casbin", casbin, "bitset", bits)
 }

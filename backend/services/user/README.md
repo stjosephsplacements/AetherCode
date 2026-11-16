@@ -62,15 +62,14 @@ from those two roles carry `"authoring": true` in `authz.grants_snapshot.v1`.
 `users.role_assignments` is the source for the Golden/Silver/Bronze scope
 model. It stores role, scope kind, optional tenant, scope UUID, lifecycle, and
 granting principal. `users.placement_department_memberships` supplies the
-explicit relationship required for placement access. Casbin policy rows live in
-`users.authorization_policy_rules`, while `users.authz_revisions` is the
+explicit relationship required for placement access. `users.authz_revisions` is the
 monotonically increasing revision returned by `authz/v1.Authorize`.
 
 The private `authz/v1.Authorize` gRPC implementation:
 
 1. Reads the subject's current revision and active role assignments through the
    dedicated `aether_user_authz_reader` credential.
-2. Evaluates active Casbin rules plus tenant/department/batch scope and
+2. Evaluates role bit sets plus tenant/department/batch scope and
    placement department membership; access to a cross-college student must be
    derived from that student's current placement membership.
 3. Returns allow/deny, the resolved tenant/resource scope, and the exact
@@ -179,14 +178,12 @@ permissions the actor lacks, unless administrator) and managed-role immutability
 the application role. A custom role is assigned with `role_name: custom` and a `role_id`. Elevated flags
 will additionally need recent MFA once identity carries `mfa_verified_at`.
 
-### Engine switch (`AUTHZ_ENGINE`)
+### Decision model
 
-`casbin` (default) decides from the Casbin policy as before. `shadow` still decides with Casbin and logs
-`authz shadow difference` (principal, role, service, resource, action, both answers) wherever the role
-bit sets would have decided differently; it needs migration 000039. `bitset` decides from the role bits.
-Run `shadow` against real traffic until the log is quiet, then switch. A delegated super admin keeps
-its grants-only behaviour in every mode. Placement users with platform scope and no placement-department
-membership are expected to differ: the new model requires the membership.
+Every decision comes from the role bit sets (ADR-0066, ADR-0075, ADR-0079). The Casbin engine, the
+`shadow` comparison and the `AUTHZ_ENGINE` switch were removed after the campus cutover; the service
+ignores that variable. A delegated super admin keeps its grants-only behaviour. Placement users with
+platform scope and no placement-department membership are denied: the model requires the membership.
 
 ## Soft Delete Behavior
 

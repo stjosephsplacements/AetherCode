@@ -389,7 +389,7 @@ func (service *Service) DeleteReportExportByID(ctx context.Context, capability c
 }
 
 // HardDeleteReportExportByID permanently removes a report export (SuperAdmin only).
-// Authorization is enforced by the Casbin AuthorizeHTTP call at the handler layer.
+// Authorization is enforced by the AuthorizeHTTP call at the handler layer.
 func (service *Service) HardDeleteReportExportByID(ctx context.Context, capability centralauthz.Capability, command DeleteReportExport) error {
 	command.ID = strings.ToLower(strings.TrimSpace(command.ID))
 	command.TenantID = strings.ToLower(strings.TrimSpace(command.TenantID))

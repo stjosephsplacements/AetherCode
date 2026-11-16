@@ -14,7 +14,6 @@ import (
 
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/authn"
 	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
-	"github.com/stjosephsplacements/AetherCode/services/user/internal/app"
 )
 
 // Runtime controls the canonical authorization gRPC listener and its signing
@@ -30,8 +29,6 @@ type Runtime struct {
 	IdentityIntrospection     IdentityIntrospectionRuntime
 	RequireMTLS               bool
 	Keyring                   *centralauthz.Keyring
-	// Engine is AUTHZ_ENGINE: casbin (default), shadow (Casbin decides, differences are logged) or bitset (ADR-0066).
-	Engine app.Engine
 }
 
 // IdentityIntrospectionRuntime supplies the one-request, no-cache session
@@ -109,11 +106,6 @@ func Load(environment string) (Runtime, error) {
 		return Runtime{}, err
 	}
 	runtime.Keyring = keyring
-	engine, ok := app.ParseEngine(value("AUTHZ_ENGINE", ""))
-	if !ok {
-		return Runtime{}, fmt.Errorf("AUTHZ_ENGINE must be casbin, shadow or bitset")
-	}
-	runtime.Engine = engine
 	return runtime, nil
 }
 

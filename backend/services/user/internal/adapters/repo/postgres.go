@@ -96,23 +96,13 @@ func (repository *Postgres) Snapshot(contextValue context.Context, query app.Sna
 		return app.Snapshot{}, fmt.Errorf("read authorization revision: %w", err)
 	}
 
-	assignmentQuery := `
-		SELECT role_name, scope_kind, COALESCE(tenant_id::text, ''), COALESCE(scope_id::text, ''),
-		       role_name = 'super_admin' AND scope_kind = 'platform' AND granted_by_principal_id <> principal_id,
-		       ''
-		FROM users.active_role_assignments
-		WHERE principal_id = $1
-		ORDER BY role_name, scope_kind, tenant_id NULLS FIRST, scope_id NULLS FIRST`
-	if query.RoleBits {
-		flags, flagErr := repository.flagIndexes(contextValue)
-		if flagErr != nil {
-			return app.Snapshot{}, flagErr
-		}
-		snapshot.Flags = flags
-		snapshot.ResolverFlags = resolverFlags(flags)
-		assignmentQuery = roleBitsAssignmentQuery
+	flags, err := repository.flagIndexes(contextValue)
+	if err != nil {
+		return app.Snapshot{}, err
 	}
-	assignments, err := transaction.Query(contextValue, assignmentQuery, query.PrincipalID)
+	snapshot.Flags = flags
+	snapshot.ResolverFlags = resolverFlags(flags)
+	assignments, err := transaction.Query(contextValue, roleBitsAssignmentQuery, query.PrincipalID)
 	if err != nil {
 		return app.Snapshot{}, fmt.Errorf("read active role assignments: %w", err)
 	}
@@ -139,7 +129,7 @@ func (repository *Postgres) Snapshot(contextValue context.Context, query app.Sna
 	}
 	assignments.Close()
 
-	if query.RoleBits && query.TenantID != "" {
+	if query.TenantID != "" {
 		if err := loadOverwritesAndEveryone(contextValue, transaction, query.TenantID, &snapshot); err != nil {
 			return app.Snapshot{}, err
 		}
@@ -168,9 +158,6 @@ func (repository *Postgres) Snapshot(contextValue context.Context, query app.Sna
 		return app.Snapshot{}, fmt.Errorf("iterate active placement staff memberships: %w", err)
 	}
 	staffScopes.Close()
-
-	// Casbin policy rules table was dropped (migration 000045) after the RBAC
-	// bitset engine became the only decision path. RoleBits is always true now.
 
 	if (query.ResourceType == "students" || query.ResourceType == "student_batch_affiliations") && query.TenantID != "" {
 		placementScopes, queryErr := transaction.Query(contextValue, `

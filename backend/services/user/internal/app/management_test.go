@@ -208,7 +208,7 @@ func TestHardDeleteStudent_RequiresSuperAdminRole(t *testing.T) {
 	t.Parallel()
 	service := &ManagementService{pool: &pgxpool.Pool{}, store: uncalledManagementStore{}}
 
-	// Role authorization (super_admin check) is enforced by Casbin via AuthorizeHTTP(action="delete").
+	// Role authorization (super_admin check) is enforced by the central service via AuthorizeHTTP(action="delete").
 	// Missing reason should still fail input validation.
 	err := service.HardDeleteStudent(context.Background(), centralauthz.Capability{}, DeleteStudent{
 		ID:      managementStudentID,

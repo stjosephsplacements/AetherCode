@@ -4,7 +4,7 @@ Details of the Go platform that the [README](../README.md) only summarises: the 
 
 ## Security and database model
 
-The User service is the canonical Casbin-backed authorization decision service.
+The User service is the canonical role-bit authorization decision service.
 Its private mTLS `authz/v1.Authorize` API issues a fresh, five-second,
 database-audience-bound HMAC capability for each allowed request. A target
 database validates that capability in `authz.set_context`, binds it to the

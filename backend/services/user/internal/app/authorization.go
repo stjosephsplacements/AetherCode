@@ -80,7 +80,6 @@ func (assignment Assignment) isRoot() bool {
 type Snapshot struct {
 	Revision                     int64
 	Assignments                  []Assignment
-	PolicyRules                  []centralauthz.PolicyRule
 	TargetStudentPlacementScopes map[string]struct{}
 	PlacementStaffScopes         map[string]struct{}
 	OwnedCandidateAssignments    map[string]struct{}
@@ -126,8 +125,6 @@ type SnapshotQuery struct {
 	TenantID     string
 	ResourceType string
 	ResourceID   string
-	// RoleBits asks for the role bit sets and the flag registry (shadow and bitset engines).
-	RoleBits bool
 }
 
 // Decision is returned to the gRPC adapter. Capabilities are issued only for
@@ -249,21 +246,14 @@ func resourceSet(values ...string) map[string]struct{} {
 	return resources
 }
 
-// Service evaluates canonical Casbin policy for every decision, then signs a
+// Service evaluates the role bit sets for every decision, then signs a
 // five-second database capability for the target service.
 type Service struct {
 	store                     Store
 	keyring                   *centralauthz.Keyring
 	identityAssertionVerifier IdentityAssertionVerifier
 	requireIdentityAssertion  bool
-	engine                    Engine
 	now                       func() time.Time
-}
-
-// WithEngine selects the authorization model; the default is Casbin.
-func (service *Service) WithEngine(engine Engine) *Service {
-	service.engine = engine
-	return service
 }
 
 func NewService(
@@ -308,7 +298,6 @@ func (service *Service) Authorize(contextValue context.Context, request Request)
 		TenantID:     validated.TenantID,
 		ResourceType: validated.ResourceType,
 		ResourceID:   validated.ResourceID,
-		RoleBits:     service.engine.usesRoleBits(),
 	})
 	if err != nil {
 		return Decision{}, fmt.Errorf("load canonical authorization snapshot: %w", err)
@@ -319,10 +308,6 @@ func (service *Service) Authorize(contextValue context.Context, request Request)
 	}
 	decision := Decision{DecisionID: decisionID, AuthzRevision: snapshot.Revision}
 	if snapshot.Revision <= 0 || len(snapshot.Assignments) == 0 {
-		return decision, nil
-	}
-	// PolicyRules are not fetched in bitset mode; deny only when Casbin is the authoritative engine.
-	if !service.engine.usesRoleBits() && len(snapshot.PolicyRules) == 0 {
 		return decision, nil
 	}
 	// Permission changes can confer access. Limit them to root and the
@@ -343,11 +328,6 @@ func (service *Service) Authorize(contextValue context.Context, request Request)
 		}
 	}
 
-	engine, err := centralauthz.NewEngineFromRules(snapshot.PolicyRules)
-	if err != nil {
-		return Decision{}, fmt.Errorf("load canonical Casbin policy: %w", err)
-	}
-	casbinResource := "/" + validated.ResourceType + "/" + validated.ResourceID
 	matchingScopes := make([]Scope, 0, len(snapshot.Assignments))
 	for _, assignment := range snapshot.Assignments {
 		if !assignmentApplies(
@@ -363,19 +343,7 @@ func (service *Service) Authorize(contextValue context.Context, request Request)
 				continue
 			}
 		}
-		allowed, enforceErr := engine.Authorize(assignment.Role, assignment.ScopeKind, casbinResource, validated.Action)
-		if enforceErr != nil {
-			return Decision{}, fmt.Errorf("evaluate canonical Casbin policy: %w", enforceErr)
-		}
-		if service.engine.usesRoleBits() {
-			bits := computeAllow(snapshot, assignment, validated)
-			if bits != allowed {
-				logShadowDifference(validated, assignment, allowed, bits)
-			}
-			if service.engine == EngineBitset {
-				allowed = bits
-			}
-		}
+		allowed := computeAllow(snapshot, assignment, validated)
 		if allowed {
 			matchingScopes = append(matchingScopes, Scope{Kind: assignment.ScopeKind, ID: assignment.ScopeID})
 		}
@@ -529,7 +497,7 @@ func assignmentApplies(
 			return false
 		}
 		// Roles and overwrites belong to college administrators, and to custom roles that hold the
-		// permission (the role bits decide; Casbin has no rule for a custom role).
+		// permission (the role bits decide).
 		if (request.ResourceType == "roles" || request.ResourceType == "role_overwrites") &&
 			assignment.Role != centralauthz.RoleCollegeAdmin && assignment.Role != centralauthz.RoleCustom {
 			return false

@@ -99,7 +99,7 @@ func TestStudent_IsDeleted(t *testing.T) {
 	}
 }
 
-// Hard delete authorization is enforced by the Casbin central authorization service
+// Hard delete authorization is enforced by the central authorization service
 // (via AuthorizeHTTP with action "delete"), not at the domain entity level.
 
 // Helper function for pointer to time

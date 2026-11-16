@@ -17,7 +17,6 @@ The Go toolchain was raised to `go1.26.11` on 2026-11-16 to fix GO-2026-6859
 | Barman Cloud CNPG-I | `0.13.0` |
 | pgx | `v5.10.0` |
 | golang-migrate | `v4.19.1` |
-| Casbin | `v2.135.0` |
 | NATS Go client | `v1.52.0` |
 | RabbitMQ Go client | `amqp091-go v1.13.0` |
 | Buf CLI | `v1.72.0` |
