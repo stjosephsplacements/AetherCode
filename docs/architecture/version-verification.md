@@ -6,7 +6,7 @@ on 2026-07-24; renew the check before upgrading any dependency.
 
 | Component | Initial pin |
 |---|---|
-| Go toolchain | `go1.26.5` |
+| Go toolchain | `go1.26.11` |
 | PostgreSQL | `18.4` |
 | CloudNativePG | `1.30.x` |
 | CloudNativePG PostgreSQL operand | `18.4-system-trixie` (`sha256:9287ce030c6f3ce822e383b019ae4aaf1e8370bff3b39f9c51dc10d69dc97219`) |

@@ -32,7 +32,7 @@ module ${module}
 
 go 1.26.0
 
-toolchain go1.26.5
+toolchain go1.26.11
 
 require github.com/stjosephsplacements/AetherCode/libs/pkg v0.0.0
 
@@ -63,7 +63,7 @@ func main() {
 EOF
 
 cat >"${directory}/Dockerfile" <<EOF
-ARG GO_BUILDER_IMAGE=golang:1.26.5@sha256:3aff6657219a4d9c14e27fb1d8976c49c29fddb70ba835014f477e1c70636647
+ARG GO_BUILDER_IMAGE=golang:1.26.11@sha256:f6946db66567acc1497655237e58f06ec3a57478a5e0d67fca29d2ffcf2ea136
 FROM \${GO_BUILDER_IMAGE} AS build
 ARG SERVICE=${service}
 WORKDIR /src
