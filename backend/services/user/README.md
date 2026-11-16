@@ -182,8 +182,7 @@ will additionally need recent MFA once identity carries `mfa_verified_at`.
 
 Every decision comes from the role bit sets (ADR-0066, ADR-0075, ADR-0079). The Casbin engine, the
 `shadow` comparison and the `AUTHZ_ENGINE` switch were removed after the campus cutover; the service
-ignores that variable. A delegated super admin keeps its grants-only behaviour. Placement users with
-platform scope and no placement-department membership are denied: the model requires the membership.
+ignores that variable. A delegated super admin keeps its grants-only behaviour.
 
 ## Soft Delete Behavior
 

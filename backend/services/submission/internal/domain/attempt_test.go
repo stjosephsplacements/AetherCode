@@ -104,8 +104,8 @@ func TestAttempt_IsDeleted(t *testing.T) {
 	}
 }
 
-// Hard delete authorization is enforced by the central authorization service
-// (via AuthorizeHTTP with action "delete"), not at the domain entity level.
+// Hard delete is authorized by the database boundary (the hard-delete function and
+// its restricted EXECUTE grant), not at the domain entity level.
 
 // Helper function for pointer to time
 func ptrTime(t time.Time) *time.Time {

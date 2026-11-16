@@ -2,7 +2,7 @@
 
 - Status: accepted
 - Date: 2026-11-16
-- Supersedes: the `AUTHZ_ENGINE=casbin|shadow|bitset` cutover plan in ADR-0066 and ADR-0075
+- Supersedes: the `AUTHZ_ENGINE=casbin|shadow|bitset` cutover plan in ADR-0066 and ADR-0075 (their rollout sections are marked superseded)
 
 ## Context
 
@@ -15,7 +15,8 @@ single-server deployment that kept the default would have been unusable.
 
 ## Decision
 
-- The user service decides from role bit sets only (`computeAllow`). `Engine`, `ParseEngine`,
+- The user service decides from role bit sets (`computeAllow`) plus the additive per-person grants of ADR-0055,
+  which remain a second authorization input. No other engine decides. `Engine`, `ParseEngine`,
   `WithEngine`, the shadow logging, `Snapshot.PolicyRules` and `SnapshotQuery.RoleBits` are removed;
   snapshots always carry the bit sets and the flag registry.
 - `libs/pkg/authz` keeps the role names (`role.go`); `casbin.go` is deleted.

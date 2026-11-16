@@ -63,8 +63,8 @@ func TestQuestion_SoftDelete(t *testing.T) {
 	})
 }
 
-// Hard delete authorization is enforced by the central authorization service
-// (via AuthorizeHTTP with action "delete"), not at the domain entity level.
+// Hard delete is authorized by the database boundary (the hard-delete function and
+// its restricted EXECUTE grant), not at the domain entity level.
 
 func TestQuestionVersion_SoftDelete(t *testing.T) {
 	versionID := uuid.New()
@@ -122,5 +122,5 @@ func TestQuestionVersion_SoftDelete(t *testing.T) {
 	})
 }
 
-// Hard delete authorization is enforced by the central authorization service
-// (via AuthorizeHTTP with action "delete"), not at the domain entity level.
+// Hard delete is authorized by the database boundary (the hard-delete function and
+// its restricted EXECUTE grant), not at the domain entity level.

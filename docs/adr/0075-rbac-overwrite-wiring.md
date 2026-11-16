@@ -1,6 +1,6 @@
 # ADR-0075: Wire rbac.Compute into the authorize path
 
-- Status: accepted
+- Status: accepted (the `AUTHZ_ENGINE` cutover steps are superseded by ADR-0079)
 - Date: 2026-11-08
 - Supersedes: the overwrite resolution part of ADR-0066
 

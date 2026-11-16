@@ -7,8 +7,7 @@ Never print or commit secrets (no passwords, no Cloudflare credentials).
 
 ## 1. Branch state
 
-`development` is at `ad50a86` plus the uncommitted cutover-cleanup changes below (31 commits ahead of
-production, 0 behind). `production` is at `8292e0d`.
+`development` was at `ad50a86` before PR #183 (cutover cleanup, below) and PR #184 (Go toolchain); `production` trails it. `production` is at `8292e0d`.
 **PR #168 merged** (2026-11-08): security hardening, RBAC bitset, analytics migration 000019.
 **PR #170 merged** (2026-11-08): AUTHZ_ENGINE=bitset in values-user.yaml.
 **PR #171 merged** (2026-11-08): CodeQL fix, migration 000045, proctoring ADR, Cloudflare DNS, frontend k8s deploy.
@@ -21,7 +20,7 @@ The branch protection rulesets 25957417 ("Protect development and production") a
 GitHub auth: `gh` active account `AlgoQX-Platform` can push (admin). The `Shreesh-Sree` keyring token is
 invalid (`gh auth refresh -h github.com` needed by the owner). Do not use `gh auth switch` unless needed.
 
-What the 2026-11-16 cutover cleanup run completed (uncommitted until the owner asks):
+What the 2026-11-16 cutover cleanup run completed (PR #183):
 - **Migration 000047 down** is now a true inverse: restores the 000023 `enroll_student_with_affiliations`
   body and NOT NULL, and aborts (changing nothing) while any student has no placement membership.
   `make test-migrations` (fresh up, full down, reapply) passes; the abort branch has no test.
@@ -30,10 +29,13 @@ What the 2026-11-16 cutover cleanup run completed (uncommitted until the owner a
   `values-user.yaml` (it is no longer read, so the compose default of `casbin` is gone rather than flipped).
   User-service tests ported to role bits (`withBits`).
 - Verified: `make lint test` clean, `make web-check web-build` clean (144 tests), `make test-migrations` passes.
-- `make test-integration` shows two failures in code this run did not touch: `libs/pkg/messaging`
-  `TestRetryHandledByPeerRestoresReadiness` (EOF from the container) and `services/submission/.../repo`
-  `TestExamOperations` (`submission.set_exam_integrity(unknown, unknown, boolean, boolean)` does not exist;
-  migration 000032 defines a `(uuid, uuid, boolean, boolean)` signature). Not yet diagnosed. `make` exits 0 anyway.
+- `make test-integration`: the submission `TestExamOperations` failure was a stale test (migration 000038 added a
+  fifth argument to `set_exam_integrity`) and is fixed in this PR. `libs/pkg/messaging`
+  `TestRetryHandledByPeerRestoresReadiness` fails only on a nearly full disk (the 2 GiB JetStream stream cannot
+  be reserved; it fails the same on the base commit) and passes on the dev server and in CI.
+- **Open finding, not fixed here**: `computeAllow` (`user/internal/app/rbac_engine.go`) identifies the held role by
+  name, but overwrite targets are role UUIDs and `Assignment` carries no role ID, so role-targeted overwrites are
+  ignored. Predates this work (in `production`). Needs a snapshot and SQL change; auth work, ask first.
 - Spectral and the live cluster were not re-run.
 - **Go toolchain 1.26.11 (PR #184, `678f13e`, merged 2026-11-16)**: fixes GO-2026-6859 in `net/http`, which
   failed `vulnerability-scan`. Touches `go.work`, every `go.mod`, the digest-pinned Dockerfiles, `ci.yml`,
