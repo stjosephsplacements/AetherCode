@@ -1,7 +1,7 @@
 # Operational tools for the single-server stack: database migrations, first
 # administrator bootstrap, authorization-key rotation and out-of-band
 # password-reset delivery, plus every service's migrations. Built from the repository root.
-ARG GO_BUILDER_IMAGE=golang:1.26.10@sha256:672c944cfd07599b5f1bb179869270cdc94c6254e41db4d431259693cb286b82
+ARG GO_BUILDER_IMAGE=golang:1.26.11@sha256:f6946db66567acc1497655237e58f06ec3a57478a5e0d67fca29d2ffcf2ea136
 FROM ${GO_BUILDER_IMAGE} AS build
 WORKDIR /src
 COPY backend/libs/pkg ./libs/pkg
