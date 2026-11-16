@@ -50,7 +50,7 @@ reworking the core.
 
 | Layer | Choice | Target version | Notes |
 |---|---|---|---|
-| Backend services | Go | `1.26.5` | Go workspaces (`go.work`) monorepo |
+| Backend services | Go | `1.26.11` | Go workspaces (`go.work`) monorepo |
 | Sync inter-service | gRPC + Protobuf | `1.82.1` / `1.36.11` | Contracts in `backend/libs/proto` |
 | Platform event bus | NATS JetStream | `2.14.3` | Domain events, at-least-once |
 | Judge queue/broker | RabbitMQ | `4.3.3` | **Isolated** to the Judge wrapper |
