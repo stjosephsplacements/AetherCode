@@ -10,7 +10,7 @@ import (
 )
 
 var testFlagIndexes = map[string]int{
-	"ADMINISTRATOR": 0, "VIEW_SCOPE": 1,
+	"ADMINISTRATOR": 0, "VIEW_SCOPE": 1, "VIEW_STUDENT_PII": 7,
 	"submission.attempts.read": 16, "submission.attempts.write": 17, "submission.attempts.delete": 18,
 }
 
@@ -172,6 +172,12 @@ func TestPermsAllow(t *testing.T) {
 		{"no view scope", bitsFor("submission.attempts.read"), read, false},
 		{"delete flag", bitsFor("VIEW_SCOPE", "submission.attempts.delete"), remove, true},
 		{"unknown action denied", bitsFor("VIEW_SCOPE", "submission.attempts.read"), Request{TargetService: "submission", ResourceType: "attempts", Action: "list"}, false},
+		{"pii reads proctor evidence", bitsFor("VIEW_SCOPE", "VIEW_STUDENT_PII"), Request{TargetService: "submission", ResourceType: "proctor_evidence", Action: "read"}, true},
+		{"pii reads snapshots", bitsFor("VIEW_SCOPE", "VIEW_STUDENT_PII"), Request{TargetService: "submission", ResourceType: "snapshots", Action: "read"}, true},
+		{"pii needs view scope", bitsFor("VIEW_STUDENT_PII"), Request{TargetService: "submission", ResourceType: "proctor_evidence", Action: "read"}, false},
+		{"pii does not write evidence", bitsFor("VIEW_SCOPE", "VIEW_STUDENT_PII"), Request{TargetService: "submission", ResourceType: "proctor_evidence", Action: "write"}, false},
+		{"pii does not read attempts", bitsFor("VIEW_SCOPE", "VIEW_STUDENT_PII"), read, false},
+		{"evidence denied without pii", bitsFor("VIEW_SCOPE", "submission.attempts.read"), Request{TargetService: "submission", ResourceType: "proctor_evidence", Action: "read"}, false},
 	}
 	for _, tc := range cases {
 		if got := permsAllow(testFlagIndexes, tc.perms, tc.req); got != tc.want {

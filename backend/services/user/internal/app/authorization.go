@@ -115,9 +115,13 @@ type StaffAction struct {
 	ResourceType  string
 	ResourceID    string
 	Allowed       bool
-	// Action is "write" or "delete" (ADR-0053).
+	// Action is "write", "delete" (ADR-0053) or AuditProctorEvidenceExported.
 	Action string
 }
+
+// AuditProctorEvidenceExported is the audit verb for retrieving an attempt's
+// proctor evidence (ADR-0080).
+const AuditProctorEvidenceExported = "proctor.evidence.exported"
 
 // SnapshotQuery narrows relationship checks needed for placement scopes.
 type SnapshotQuery struct {
@@ -222,7 +226,7 @@ var routes = map[string]route{
 	},
 	"submission": {
 		Audience: "aether_submission", ActionPrefix: "submission", ResourcePrefix: "submission",
-		Resources: resourceSet("attempts", "answer_revisions", "evaluation_requests", "judge_receipts", "score_summaries", "attempt_events"),
+		Resources: resourceSet("attempts", "answer_revisions", "evaluation_requests", "judge_receipts", "score_summaries", "attempt_events", "snapshots", "proctor_evidence"),
 	},
 	"seb": {
 		Audience: "aether_seb", ActionPrefix: "seb", ResourcePrefix: "seb",
@@ -587,7 +591,10 @@ func uniqueScopes(scopes []Scope) []Scope {
 // Recording is best effort: an audit failure is logged, never turned into a
 // denied exam action.
 func (service *Service) auditStaffWrite(contextValue context.Context, request Request, assignments []Assignment, allowed bool) {
-	if request.Action != "write" && request.Action != "delete" {
+	action := request.Action
+	if request.TargetService == "submission" && request.ResourceType == "proctor_evidence" && request.Action == "read" {
+		action = AuditProctorEvidenceExported
+	} else if request.Action != "write" && request.Action != "delete" {
 		return
 	}
 	staff := false
@@ -599,7 +606,7 @@ func (service *Service) auditStaffWrite(contextValue context.Context, request Re
 	}
 	if err := service.store.RecordStaffAction(contextValue, StaffAction{
 		PrincipalID: request.PrincipalID, TenantID: request.TenantID, TargetService: request.TargetService,
-		ResourceType: request.ResourceType, ResourceID: request.ResourceID, Allowed: allowed, Action: request.Action,
+		ResourceType: request.ResourceType, ResourceID: request.ResourceID, Allowed: allowed, Action: action,
 	}); err != nil {
 		slog.Warn("record staff action", "error", err, "principal_id", request.PrincipalID)
 	}
