@@ -15,7 +15,7 @@ submission (NATS proctor.analyze) → proctor → MinIO (fetch JPEG)
 
 Violation kinds: `phone_detected`, `multiple_faces`, `face_missing`, `gaze_away`.
 
-A per-attempt, per-kind cooldown (default 30 s, DB-backed) prevents event floods.
+A per-attempt, per-kind cooldown (default 30 s) prevents event floods. With `PROCTOR_REDIS_URL` set it is one atomic Redis `SET proctor:cooldown:{attempt}:{kind} 1 NX EX {seconds}`, so replicas cannot double-count; without it, or if Redis errors, the database check runs and replicas can race.
 The `processed_snapshots` table provides idempotency across restarts.
 
 ## Requirements
@@ -36,6 +36,7 @@ All vars are prefixed `PROCTOR_` via pydantic-settings.
 | `PROCTOR_MINIO_ACCESS_KEY` | **yes** | MinIO access key |
 | `PROCTOR_MINIO_SECRET_KEY` | **yes** | MinIO secret key |
 | `PROCTOR_MINIO_BUCKET` | no | Bucket name (default `aethercode`) |
+| `PROCTOR_REDIS_URL` | no | Redis URL for the shared cooldown (empty = database check) |
 | `PROCTOR_NATS_URL` | no | NATS URL (default `nats://nats:4222`) |
 | `PROCTOR_NATS_SUBJECT` | no | Subject to subscribe (default `proctor.analyze`) |
 | `PROCTOR_YOLO_MODEL` | no | Model path (default `yolov8x.pt`) |

@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -193,6 +194,61 @@ func TestExamPeakLatency(t *testing.T) {
 			return transaction.QueryRow(ctx, `SELECT submission.list_attempts($1, 11, NULL, NULL, NULL, NULL)`, unitTenantID).Scan(&page)
 		})
 	})
+
+	// Open loop: requests arrive on a fixed schedule whatever the database is doing, as candidates do,
+	// so there is no queue of waiting callers to inflate the numbers. Response time runs from the
+	// scheduled send time (not from when a free goroutine got to it), which corrects coordinated
+	// omission; service time is the call alone. AETHER_PERF_RATES overrides "500,1000" (requests/s).
+	rates := []int{500, 1000}
+	if raw := os.Getenv("AETHER_PERF_RATES"); raw != "" {
+		rates = nil
+		for _, field := range strings.Split(raw, ",") {
+			rate, err := strconv.Atoi(strings.TrimSpace(field))
+			require.NoError(t, err)
+			rates = append(rates, rate)
+		}
+	}
+	for _, rate := range rates {
+		const seconds = 10
+		total := rate * seconds
+		response, service := make([]time.Duration, total), make([]time.Duration, total)
+		var failures atomic.Int64
+		var wg sync.WaitGroup
+		start := time.Now().Add(100 * time.Millisecond)
+		for i := 0; i < total; i++ {
+			intended := start.Add(time.Duration(i) * time.Second / time.Duration(rate))
+			wg.Add(1)
+			go func(i int, person candidate) {
+				defer wg.Done()
+				time.Sleep(time.Until(intended))
+				began := time.Now()
+				err := signedCall(person, func(transaction pgx.Tx) error {
+					_, err := transaction.Exec(ctx, `SELECT submission.store_snapshot($1, $2, clock_timestamp() + make_interval(secs => $3), 'k', 1000)`,
+						unitTenantID, person.attempt, float64(i))
+					return err
+				})
+				done := time.Now()
+				if err != nil {
+					failures.Add(1)
+				}
+				service[i], response[i] = done.Sub(began), done.Sub(intended)
+			}(i, people[i%len(people)])
+		}
+		wg.Wait()
+		require.Zero(t, failures.Load(), "requests failed at %d/s", rate)
+		report := func(kind string, samples []time.Duration) (p50, p95, p99 time.Duration) {
+			sort.Slice(samples, func(a, b int) bool { return samples[a] < samples[b] })
+			at := func(q float64) time.Duration { return samples[int(float64(len(samples)-1)*q)] }
+			t.Logf("open-loop %4d/s %-8s n=%d p50=%v p75=%v p90=%v p95=%v p99=%v max=%v", rate, kind, total,
+				at(.50), at(.75), at(.90), at(.95), at(.99), samples[len(samples)-1])
+			return at(.50), at(.95), at(.99)
+		}
+		report("service", service)
+		p50, p95, p99 := report("response", response)
+		require.Less(t, p50, 2*time.Millisecond, "p50 at %d/s", rate)
+		require.Less(t, p95, 10*time.Millisecond, "p95 at %d/s", rate)
+		require.Less(t, p99, 20*time.Millisecond, "p99 at %d/s", rate)
+	}
 
 	// The plans behind them, with buffers, so heap fetches and scans are visible.
 	explain := func(name, query string, args ...any) string {

@@ -51,6 +51,10 @@ secretEnv:
 env:
   - name: USER_DATABASE_URL
     value: "postgres://aether_user_app:$(USERS_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_users?sslmode={{ .Values.global.postgresSSLMode }}"
+  - name: USER_DB_MAX_CONNS
+    value: "20"
+  - name: USER_DB_MIN_CONNS
+    value: "4"
   - name: USER_AUTHZ_DATABASE_URL
     value: "postgres://aether_user_authz_reader:$(USERS_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_users?sslmode={{ .Values.global.postgresSSLMode }}"
   - name: USER_PROJECTION_DATABASE_URL
