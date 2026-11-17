@@ -242,7 +242,7 @@ var routes = map[string]route{
 	},
 	"analytics": {
 		Audience: "aether_analytics", ActionPrefix: "analytics", ResourcePrefix: "analytics",
-		Resources: resourceSet("event_facts", "student_progress_rollups", "batch_progress_rollups", "exam_result_rollups", "placement_student_rollups", "report_exports"),
+		Resources: resourceSet("event_facts", "student_progress_rollups", "batch_progress_rollups", "batch_progress_department_rollups", "exam_result_rollups", "placement_student_rollups", "report_exports"),
 	},
 }
 
