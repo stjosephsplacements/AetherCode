@@ -47,10 +47,9 @@ func TestAuthzExpiryHoldsWithoutPurge(t *testing.T) {
 	err = setContext(capability, "0 seconds", "4 seconds")
 	refused(t, err)
 
-	// A capability whose lifetime has passed is refused even when its replay row was never purged.
-	_, err = pool.Exec(ctx, `INSERT INTO authz.consumed_capabilities (capability_id, expires_at) VALUES ($1, clock_timestamp() - interval '1 minute')`, uuid.New())
-	require.NoError(t, err)
-	err = setContext(uuid.New(), "-10 seconds", "4 seconds")
+	// Presented again after its lifetime has passed, the same capability is refused by its timestamps
+	// whether or not its replay row was purged.
+	err = setContext(capability, "-10 seconds", "4 seconds")
 	refused(t, err)
 
 	// An expired context row that is still in the table grants nothing.

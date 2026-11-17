@@ -7,18 +7,21 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/testutil/integration"
 	"github.com/stretchr/testify/require"
 )
 
 // TestExamPeakLatency is the database half of the exam-peak benchmark (run with AETHER_PERF=1,
 // it is skipped otherwise). It seeds a campus-sized exam and drives the hottest write, the
-// webcam snapshot, from many concurrent candidates through the real signed-context path, then
+// webcam snapshot, from many concurrent candidates through a post-validation approximation of the signed-context path, then
 // prints the plans of the hot lookups. Numbers are for comparing changes on one machine, not an
 // SLA: the gateway, the authorization decision and the network sit outside this test.
 func TestExamPeakLatency(t *testing.T) {
@@ -34,17 +37,25 @@ func TestExamPeakLatency(t *testing.T) {
 	require.NoError(t, err)
 	for _, statement := range []string{
 		`CREATE TEMP TABLE bench_candidates AS
-		   SELECT gen_random_uuid() AS candidate_id, gen_random_uuid() AS attempt_id, n FROM generate_series(1, ` + fmt.Sprint(candidates) + `) AS n`,
+		   SELECT gen_random_uuid() AS candidate_id, gen_random_uuid() AS attempt_id, gen_random_uuid() AS assignment_id, n FROM generate_series(1, ` + fmt.Sprint(candidates) + `) AS n`,
 		`INSERT INTO authz.actor_tenant_authorizations (actor_id, tenant_id, authz_revision, is_authorized, grant_kind, grant_source_id)
 		   SELECT candidate_id, '` + unitTenantID + `', 1, true, 'tenant', '` + unitTenantID + `' FROM bench_candidates`,
 		`INSERT INTO authz.principal_authorization_revisions (actor_id, authz_revision) SELECT candidate_id, 1 FROM bench_candidates`,
 		`UPDATE authz.authorization_projection_resync_state
 		   SET projection_ready = true, active_resync_id = gen_random_uuid(), completion_event_id = gen_random_uuid(),
 		       expected_snapshot_count = 0, expected_manifest_sha256 = decode(repeat('00', 32), 'hex') WHERE singleton = true`,
+		// Project each assignment through the real routine, with a policy, so get_attempt_proctor_policy returns its normal row.
+		`SELECT submission.apply_assignment_snapshot(gen_random_uuid(), '` + unitTenantID + `', assignment_id, candidate_id,
+		       '018f4b0d-08f8-7c09-9ba7-efdf9c340a01', '018f4b0d-08f8-7c09-9ba7-efdf9c340a02',
+		       clock_timestamp() - interval '1 hour', clock_timestamp() + interval '2 hours', 1::smallint, 'active', 1, '[` + executableItem("018f4b0d-08f8-7c09-9ba7-efdf9c340a03") + `]'::jsonb, NULL, NULL, NULL)
+		   FROM bench_candidates`,
+		`SELECT submission.set_assignment_proctor_policy('` + unitTenantID + `', assignment_id,
+		       (SELECT version FROM submission.assignment_projections WHERE candidate_assignment_id = bench_candidates.assignment_id), '{"max_violations":3}')
+		   FROM bench_candidates`,
 		`INSERT INTO submission.attempts (id, tenant_id, exam_id, exam_version_id, candidate_id, candidate_assignment_id,
 		       attempt_number, lifecycle_state, available_from, started_at, submission_deadline)
 		   SELECT attempt_id, '` + unitTenantID + `', '018f4b0d-08f8-7c09-9ba7-efdf9c340a01', '018f4b0d-08f8-7c09-9ba7-efdf9c340a02',
-		          candidate_id, gen_random_uuid(), 1, 'active', clock_timestamp(), clock_timestamp(), clock_timestamp() + interval '2 hours'
+		          candidate_id, assignment_id, 1, 'active', clock_timestamp(), clock_timestamp(), clock_timestamp() + interval '2 hours'
 		   FROM bench_candidates`,
 		`INSERT INTO submission.attempt_snapshots (tenant_id, attempt_id, captured_at, storage_key, size_bytes)
 		   SELECT '` + unitTenantID + `', attempt_id, clock_timestamp() - make_interval(secs => f * 5), 'k', 1000
@@ -115,7 +126,7 @@ func TestExamPeakLatency(t *testing.T) {
 		}
 	}
 	t.Logf("variant: %q", variant)
-	// Same statements as authz.set_context after the HMAC check: purge, consume, open the context.
+	// A post-validation approximation of authz.set_context (the HMAC and projection checks are not run): the same statements after them, purge, consume, open the context.
 	_, err = pool.Exec(ctx, `
 		CREATE FUNCTION public.bench_set_context(p_actor uuid, p_tenant uuid, p_purge text) RETURNS void
 		LANGUAGE plpgsql AS $f$
@@ -131,8 +142,23 @@ func TestExamPeakLatency(t *testing.T) {
 		    PERFORM set_config('app.authz_context_id', ctx::text, true);
 		END $f$`)
 	require.NoError(t, err)
+	// The request pool has a fixed size, so results do not depend on this machine's core count
+	// (pgxpool defaults to one connection per core). AETHER_PERF_CONNS overrides the default of 8.
+	size := 8
+	if raw := os.Getenv("AETHER_PERF_CONNS"); raw != "" {
+		var err error
+		size, err = strconv.Atoi(raw)
+		require.NoError(t, err)
+	}
+	requestConfig, err := pgxpool.ParseConfig(integration.PoolDSN(pool))
+	require.NoError(t, err)
+	requestConfig.MaxConns = int32(size)
+	requests, err := pgxpool.NewWithConfig(ctx, requestConfig)
+	require.NoError(t, err)
+	defer requests.Close()
+	t.Logf("request pool: %d connections", size)
 	signedCall := func(person candidate, fn func(pgx.Tx) error) error {
-		transaction, err := pool.Begin(ctx)
+		transaction, err := requests.Begin(ctx)
 		if err != nil {
 			return err
 		}
