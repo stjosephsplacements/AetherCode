@@ -49,6 +49,7 @@ BEGIN
           ON projection.tenant_id = attempt.tenant_id
          AND projection.candidate_assignment_id = attempt.candidate_assignment_id
         WHERE attempt.tenant_id = p_tenant_id AND attempt.id = p_attempt_id
+          AND attempt.candidate_id = authz.current_context_actor_id()
     );
 END
 $function$;

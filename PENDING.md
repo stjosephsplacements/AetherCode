@@ -544,7 +544,7 @@ Ask-first areas under AGENTS.md apply. In priority order:
    `proctor.analyze`; the proctor service counts counted violations and publishes `proctor.violation.threshold` to
    JetStream; submission consumes it and submits the attempt (`submit_attempt_for_violation`, 000041). Evidence
    export `GET .../attempts/{a}/proctor-evidence` is gated by `VIEW_STUDENT_PII` (or ADMINISTRATOR) in the User
-   service and audited as `proctor.evidence.exported` (user 000049; submission 000042 for `list_snapshots`).
+   service and audited as `proctor.evidence.exported` (user 000049; submission 000042 for `list_snapshots`). Submission 000044 closes an IDOR: `store_snapshot` now requires the caller's own attempt.
    Deploy: apply Submission and the User migrations and roll Submission out first, then Assessment 000040; set
    `PROCTOR_INTERNAL_TOKEN`, `SUBMISSION_PROCTOR_URL`, `SUBMISSION_PROCTOR_TOKEN`; the platform stream gains
    `proctor.>`. Remaining: no frontend policy editor; the GPU service and the JetStream publish were not run

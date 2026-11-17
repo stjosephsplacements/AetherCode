@@ -97,3 +97,22 @@ func TestAssignmentProctorPolicyIsProjectedAndReadByTheCandidate(t *testing.T) {
 	_, err := pool.Exec(ctx, `SELECT submission.set_assignment_proctor_policy($1, $2, $3, '[]'::jsonb)`, unitTenantID, fixture.AssignmentID, version)
 	require.Error(t, err, "a policy must be a JSON object")
 }
+
+func TestStoreSnapshotRequiresTheCallersOwnAttempt(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	pool := startSubmissionDatabase(ctx, t)
+	mine := seedAssignedAttempt(ctx, t, pool, "active", executableItem(newID(t)))
+	theirs := seedAssignedAttempt(ctx, t, pool, "active", executableItem(newID(t)))
+	authorizeActorsInTenant(ctx, t, pool, mine.CandidateID)
+
+	store := func(attemptID string) error {
+		var err error
+		asCandidate(ctx, t, pool, mine.CandidateID, func(transaction pgx.Tx) {
+			_, err = transaction.Exec(ctx, `SELECT submission.store_snapshot($1, $2, clock_timestamp(), 'k', 100)`, unitTenantID, attemptID)
+		})
+		return err
+	}
+	require.NoError(t, store(mine.AttemptID))
+	require.Error(t, store(theirs.AttemptID), "frames for another candidate's attempt are refused")
+}

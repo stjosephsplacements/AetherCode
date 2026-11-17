@@ -79,4 +79,5 @@ authorization decision, allowed or denied.
   delivered.
 - The migration 000049 down removes `proctor.evidence.exported` audit rows and
   leaves the registry flags, which the append-only trigger protects.
+- Submission migration 000044 makes `store_snapshot` require the caller's own attempt; it only checked the tenant-level write context, so a candidate could add frames to another candidate's attempt. `get_attempt_proctor_policy` has the same check.
 - There is no frontend policy editor yet.
