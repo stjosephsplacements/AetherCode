@@ -22,7 +22,13 @@ var piiResources = map[string]map[string]bool{
 	"analytics.talent_cards":      {"read": true, "write": true, "delete": true},
 }
 
+// piiGated is true for every verb on a PII resource; piiAllowed names the verbs VIEW_STUDENT_PII opens.
 func piiGated(request Request) bool {
+	_, gated := piiResources[request.TargetService+"."+request.ResourceType]
+	return gated
+}
+
+func piiAllowed(request Request) bool {
 	return piiResources[request.TargetService+"."+request.ResourceType][request.Action]
 }
 
@@ -44,8 +50,8 @@ func bitsAllow(flags map[string]int, assignment Assignment, request Request) boo
 		return false
 	}
 	if piiGated(request) {
-		// Only VIEW_STUDENT_PII (or ADMINISTRATOR) opens these; a resource flag never does.
-		return has(flagViewStudentPII)
+		// Only VIEW_STUDENT_PII (or ADMINISTRATOR) opens these, for the listed verbs; a resource flag never does.
+		return piiAllowed(request) && has(flagViewStudentPII)
 	}
 	base := request.TargetService + "." + request.ResourceType + "."
 	switch request.Action {
@@ -115,8 +121,8 @@ func permsAllow(flags map[string]int, effective rbac.Perms, request Request) boo
 		return false
 	}
 	if piiGated(request) {
-		// Only VIEW_STUDENT_PII (or ADMINISTRATOR) opens these; a resource flag never does.
-		return has(flagViewStudentPII)
+		// Only VIEW_STUDENT_PII (or ADMINISTRATOR) opens these, for the listed verbs; a resource flag never does.
+		return piiAllowed(request) && has(flagViewStudentPII)
 	}
 	base := request.TargetService + "." + request.ResourceType + "."
 	switch request.Action {

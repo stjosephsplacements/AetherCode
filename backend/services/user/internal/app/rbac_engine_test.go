@@ -267,4 +267,9 @@ func TestResourceFlagDoesNotOpenPIIResources(t *testing.T) {
 	if !permsAllow(flags, rbac.Perms{}.With(1).With(2), request) {
 		t.Fatal("VIEW_STUDENT_PII with VIEW_SCOPE must open evidence")
 	}
+	request.Action = "write"
+	flags["submission.proctor_evidence.write"] = 4
+	if permsAllow(flags, rbac.Perms{}.With(1).With(2).With(4), request) {
+		t.Fatal("evidence has no write verb, with or without the flag")
+	}
 }

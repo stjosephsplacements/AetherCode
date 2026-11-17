@@ -152,7 +152,7 @@ func TestStoreSnapshotLocksTheAttemptAgainstConcurrentSubmit(t *testing.T) {
 		defer func() { _ = competing.Rollback(ctx) }()
 		_, err = competing.Exec(ctx, `SET LOCAL lock_timeout = '300ms'`)
 		require.NoError(t, err)
-		_, err = competing.Exec(ctx, `UPDATE submission.attempts SET lifecycle_state = 'cancelled', completed_at = clock_timestamp() WHERE id = $1`, fixture.AttemptID)
+		_, err = competing.Exec(ctx, `SELECT submission.submit_attempt_for_violation($1::uuid, $2::uuid, 'proctor_violation_threshold_breach')`, unitTenantID, fixture.AttemptID)
 		var pgErr *pgconn.PgError
 		require.ErrorAs(t, err, &pgErr)
 		require.Equal(t, "55P03", pgErr.Code, "the submit must wait on the frame's row lock")
