@@ -67,3 +67,23 @@ func (repository *Postgres) CandidateExamTitle(ctx context.Context, transaction 
 	}
 	return *title, nil
 }
+
+func (repository *Postgres) IssueLaunchTicket(ctx context.Context, transaction pgx.Tx, tenantID, examID string, tokenHash []byte) (bool, error) {
+	var issued bool
+	if err := transaction.QueryRow(ctx, `SELECT seb.issue_launch_ticket($1, $2, $3)`, tenantID, examID, tokenHash).Scan(&issued); err != nil {
+		return false, mapWriteError(err, "SEB launch ticket request is invalid")
+	}
+	return issued, nil
+}
+
+// ConsumeLaunchTicket runs outside a tenant transaction: the ticket is the credential.
+func (repository *Postgres) ConsumeLaunchTicket(ctx context.Context, db app.Queryer, tenantID, examID string, tokenHash []byte) (string, error) {
+	var title *string
+	if err := db.QueryRow(ctx, `SELECT seb.consume_launch_ticket($1, $2, $3)`, tenantID, examID, tokenHash).Scan(&title); err != nil {
+		return "", mapWriteError(err, "SEB launch ticket is invalid")
+	}
+	if title == nil {
+		return "", nil
+	}
+	return *title, nil
+}

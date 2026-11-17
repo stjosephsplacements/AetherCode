@@ -89,6 +89,17 @@ func (handler *Handler) getCandidateLaunchFile(writer http.ResponseWriter, reque
 		httpx.WriteError(writer, err)
 		return
 	}
+	// Safe Exam Browser fetches a sebs:// link with no session, so a ticket from
+	// issueLaunchTicket stands in for the bearer, once.
+	if ticket := request.URL.Query().Get("ticket"); ticket != "" {
+		file, err := handler.service.TicketLaunchFile(request.Context(), tenantID, examID, ticket)
+		if err != nil {
+			httpx.WriteError(writer, err)
+			return
+		}
+		writeLaunchFile(writer, file)
+		return
+	}
 	decision, err := handler.authorizer.AuthorizeSelfHTTP(request.Context(), request, "read", "sessions", tenantID)
 	if err != nil {
 		httpx.WriteError(writer, err)
@@ -100,6 +111,28 @@ func (handler *Handler) getCandidateLaunchFile(writer http.ResponseWriter, reque
 		return
 	}
 	writeLaunchFile(writer, file)
+}
+
+// issueLaunchTicket mints the one-time ticket behind the one-click sebs:// launch. It is
+// candidate-self, and the database checks the candidate holds an open assignment to the exam.
+func (handler *Handler) issueLaunchTicket(writer http.ResponseWriter, request *http.Request) {
+	tenantID, examID, err := tenantAndResourceID(request, "exam_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeSelfHTTP(request.Context(), request, "read", "sessions", tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	ticket, err := handler.service.IssueLaunchTicket(request.Context(), decision.Capability, tenantID, examID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.Header().Set("Cache-Control", "no-store")
+	httpx.WriteJSON(writer, http.StatusCreated, map[string]any{"ticket": ticket, "expires_in": int(app.LaunchTicketTTL.Seconds())})
 }
 
 // writeLaunchFile sends the .seb file as the exam app does: the file is

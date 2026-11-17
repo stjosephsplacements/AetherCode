@@ -28,6 +28,7 @@ type fakeSEBService struct {
 	sessionResult       app.Session
 	issuedResult        app.IssuedSession
 	mutationCalls       int
+	ticketUsed          string
 	payloadResult       []byte
 	payloadErr          error
 	payloadReady        bool
@@ -101,6 +102,13 @@ func (service *fakeSEBService) StaffLaunchFile(context.Context, centralauthz.Cap
 	return service.launchFile, nil
 }
 func (service *fakeSEBService) CandidateLaunchFile(context.Context, centralauthz.Capability, string, string) (app.LaunchFile, error) {
+	return service.launchFile, nil
+}
+func (service *fakeSEBService) IssueLaunchTicket(context.Context, centralauthz.Capability, string, string) (string, error) {
+	return "issued-ticket", nil
+}
+func (service *fakeSEBService) TicketLaunchFile(_ context.Context, _, _, ticket string) (app.LaunchFile, error) {
+	service.ticketUsed = ticket
 	return service.launchFile, nil
 }
 func (service *fakeSEBService) CheckExamRequest(_ context.Context, _ centralauthz.Capability, command app.CheckExamRequest) (string, error) {
