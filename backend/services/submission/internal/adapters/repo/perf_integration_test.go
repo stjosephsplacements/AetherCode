@@ -99,9 +99,15 @@ func TestExamPeakLatency(t *testing.T) {
 	}
 
 	// Variant switches isolate where the per-request cost sits: AETHER_PERF_VARIANT is a comma list of
-	// "nopurge" (skip the two purge calls set_context runs on every request) and "unlogged".
+	// "eager" (both purges on every request, as before migration 000048), "nopurge" and "unlogged".
+	// The default is what set_context does now: purge for about 1% of requests.
 	variant := os.Getenv("AETHER_PERF_VARIANT")
-	purge := !strings.Contains(variant, "nopurge")
+	purge := "lazy"
+	if strings.Contains(variant, "eager") {
+		purge = "eager"
+	} else if strings.Contains(variant, "nopurge") {
+		purge = "none"
+	}
 	if strings.Contains(variant, "unlogged") {
 		for _, table := range []string{"authz.request_contexts", "authz.consumed_capabilities"} {
 			_, err := pool.Exec(ctx, "ALTER TABLE "+table+" SET UNLOGGED")
@@ -111,11 +117,12 @@ func TestExamPeakLatency(t *testing.T) {
 	t.Logf("variant: %q", variant)
 	// Same statements as authz.set_context after the HMAC check: purge, consume, open the context.
 	_, err = pool.Exec(ctx, `
-		CREATE FUNCTION public.bench_set_context(p_actor uuid, p_tenant uuid, p_purge boolean) RETURNS void
+		CREATE FUNCTION public.bench_set_context(p_actor uuid, p_tenant uuid, p_purge text) RETURNS void
 		LANGUAGE plpgsql AS $f$
 		DECLARE cap uuid := gen_random_uuid(); ctx uuid := gen_random_uuid();
 		BEGIN
-		    IF p_purge THEN PERFORM authz.purge_expired_contexts(); PERFORM authz.purge_expired_capabilities(); END IF;
+		    IF p_purge = 'eager' THEN PERFORM authz.purge_expired_contexts(); PERFORM authz.purge_expired_capabilities();
+		    ELSIF p_purge = 'lazy' AND random() < 0.01 THEN PERFORM authz.purge_expired_contexts(500); PERFORM authz.purge_expired_capabilities(500); END IF;
 		    INSERT INTO authz.consumed_capabilities (capability_id, expires_at) VALUES (cap, clock_timestamp() + interval '4 seconds');
 		    INSERT INTO authz.request_contexts (context_id, capability_id, backend_pid, transaction_id, actor_id, tenant_id,
 		         authz_revision, action, resource, issued_at, expires_at)
