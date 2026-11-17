@@ -100,6 +100,7 @@ type Store interface {
 	RegradeItem(context.Context, pgx.Tx, ExamVersionCommand, string) (json.RawMessage, error)
 	RecordIntegrityEvent(context.Context, pgx.Tx, GetAttempt, string) error
 	StoreSnapshot(context.Context, pgx.Tx, StoreSnapshot) (string, error)
+	GetAttemptProctorPolicy(ctx context.Context, tx pgx.Tx, tenantID, attemptID string) (json.RawMessage, error)
 	ListSnapshotKeys(context.Context, pgx.Tx, ListSnapshots) ([]SnapshotRow, error)
 	Ping(context.Context) error
 }
@@ -280,6 +281,7 @@ type Service struct {
 	storage           storage.Object
 	kms               kms.KeyManager
 	snapshotPublisher SnapshotPublisher // optional; nil = proctoring off
+	violationReader   ViolationReader   // optional; nil = evidence export off
 }
 
 // NewService creates a new Submission service. storage and kms may both be

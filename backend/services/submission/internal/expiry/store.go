@@ -76,3 +76,18 @@ func (store *Store) ExpireOverdue(contextValue context.Context, limit int) (int,
 	}
 	return expired, nil
 }
+
+// SubmitForViolation submits one open attempt after a proctor threshold
+// breach. It reports false when the attempt was already closed.
+func (store *Store) SubmitForViolation(contextValue context.Context, attemptID, reason string) (bool, error) {
+	if store == nil || store.pool == nil {
+		return false, fmt.Errorf("submission expiry store is not initialized")
+	}
+	var submitted bool
+	if err := store.pool.QueryRow(contextValue, `
+		SELECT submission.submit_attempt_for_violation($1::uuid, $2)
+	`, attemptID, reason).Scan(&submitted); err != nil {
+		return false, fmt.Errorf("submit attempt for proctor violations: %w", err)
+	}
+	return submitted, nil
+}

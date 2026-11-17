@@ -22,7 +22,7 @@ const platformStream = "AETHERCODE_EVENTS"
 // the outbox.
 var platformSubjects = []string{
 	"analytics.>", "assessment.>", "authz.>", "execution.>", "identity.>", "judge.>",
-	"notification.>", "qbank.>", "seb.>", "submission.>", "tenant.>", "user.>",
+	"notification.>", "proctor.>", "qbank.>", "seb.>", "submission.>", "tenant.>", "user.>",
 }
 
 // Runtime holds the broker setting shared by platform services. Production

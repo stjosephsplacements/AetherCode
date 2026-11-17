@@ -29,8 +29,10 @@ import (
 	httpadapter "github.com/stjosephsplacements/AetherCode/services/submission/internal/adapters/http"
 	"github.com/stjosephsplacements/AetherCode/services/submission/internal/adapters/judgecompletion"
 	"github.com/stjosephsplacements/AetherCode/services/submission/internal/adapters/judgedispatch"
+	"github.com/stjosephsplacements/AetherCode/services/submission/internal/adapters/proctorclient"
 	"github.com/stjosephsplacements/AetherCode/services/submission/internal/adapters/projection"
 	"github.com/stjosephsplacements/AetherCode/services/submission/internal/adapters/repo"
+	"github.com/stjosephsplacements/AetherCode/services/submission/internal/adapters/violation"
 	"github.com/stjosephsplacements/AetherCode/services/submission/internal/app"
 	submissionconfig "github.com/stjosephsplacements/AetherCode/services/submission/internal/config"
 	"github.com/stjosephsplacements/AetherCode/services/submission/internal/expiry"
@@ -370,6 +372,16 @@ func run(contextValue context.Context) error {
 		if expiryRoleErr := expiryStore.Ping(contextValue); expiryRoleErr != nil {
 			return expiryRoleErr
 		}
+		if messagingRuntime.URL != "" {
+			violationConsumer, violationConsumerErr := messaging.NewPullConsumer(
+				contextValue, messagingRuntime.URL, serviceConfig.Name+"-proctor-violation",
+				"submission_proctor_violation_v1", violation.EventType, logger, violation.Handler(expiryStore, logger),
+			)
+			if violationConsumerErr != nil {
+				return violationConsumerErr
+			}
+			go violationConsumer.Run(contextValue)
+		}
 		var expiryRunnerErr error
 		expiryRunner, expiryRunnerErr = expiry.NewRunner(expiryStore, expiryRuntime, logger)
 		if expiryRunnerErr != nil {
@@ -413,6 +425,13 @@ func run(contextValue context.Context) error {
 	})
 	if err != nil {
 		return err
+	}
+	if proctorURL := os.Getenv("SUBMISSION_PROCTOR_URL"); proctorURL != "" {
+		proctorReader, proctorReaderErr := proctorclient.New(proctorURL, os.Getenv("SUBMISSION_PROCTOR_TOKEN"), 10*time.Second)
+		if proctorReaderErr != nil {
+			return fmt.Errorf("configure proctor evidence reader: %w", proctorReaderErr)
+		}
+		submissionService.WithViolationReader(proctorReader)
 	}
 	handler, err := httpadapter.NewHandler(serviceConfig.Name, submissionService, readiness, authorizer, startAttemptLimiter, runCodeLimiter)
 	if err != nil {
