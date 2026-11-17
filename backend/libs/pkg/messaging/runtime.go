@@ -19,10 +19,12 @@ const platformStream = "AETHERCODE_EVENTS"
 // type such as "identity.principal.registered.v1"). JetStream refuses an
 // acknowledged stream on ">" or any wildcard overlapping its own "$JS" API, so
 // a new domain must be added here; until then its publishes fail and stay in
-// the outbox.
+// the outbox. proctor is listed as proctor.violation.> only: the proctor service
+// reads per-frame proctor.analyze messages from core NATS, and a stream on
+// proctor.> would store every one of them.
 var platformSubjects = []string{
 	"analytics.>", "assessment.>", "authz.>", "execution.>", "identity.>", "judge.>",
-	"notification.>", "proctor.>", "qbank.>", "seb.>", "submission.>", "tenant.>", "user.>",
+	"notification.>", "proctor.violation.>", "qbank.>", "seb.>", "submission.>", "tenant.>", "user.>",
 }
 
 // Runtime holds the broker setting shared by platform services. Production

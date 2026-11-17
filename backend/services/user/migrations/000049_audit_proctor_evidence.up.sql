@@ -17,7 +17,9 @@ ON CONFLICT DO NOTHING;
 ALTER TABLE users.staff_audit DROP CONSTRAINT staff_audit_action_check;
 ALTER TABLE users.staff_audit
     ADD CONSTRAINT staff_audit_action_check CHECK (action IN ('write', 'delete', 'proctor.evidence.exported')) NOT VALID;
--- Validated separately: it holds only a SHARE UPDATE EXCLUSIVE lock, so audit inserts continue.
+-- Validated as a separate step so the scan itself runs under a lighter lock; the
+-- ACCESS EXCLUSIVE lock taken by DROP CONSTRAINT above is held until this migration
+-- commits, so run it while audit writes are quiet.
 ALTER TABLE users.staff_audit VALIDATE CONSTRAINT staff_audit_action_check;
 
 CREATE OR REPLACE FUNCTION users.record_staff_action(

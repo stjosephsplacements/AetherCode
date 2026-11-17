@@ -34,7 +34,8 @@ type Permission struct {
 }
 
 // platformOnlyResources are never delegated by a college administrator: they act
-// across colleges, or hand out access.
+// across colleges, hand out access, or expose student images and conduct records
+// (the last two are opened by VIEW_STUDENT_PII, not by a resource flag).
 var platformOnlyResources = map[string]struct{}{
 	"tenant.tenants": {}, "tenant.placement_organizations": {}, "tenant.provisioning_requests": {},
 	"question-bank.category_management": {}, "question-bank.question_exports": {},

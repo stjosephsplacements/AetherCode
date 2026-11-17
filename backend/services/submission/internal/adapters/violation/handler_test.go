@@ -12,18 +12,22 @@ import (
 )
 
 type fakeSubmitter struct {
-	attemptID, reason string
-	err               error
+	tenantID, attemptID, reason string
+	err                         error
 }
 
-func (fake *fakeSubmitter) SubmitForViolation(_ context.Context, attemptID, reason string) (bool, error) {
-	fake.attemptID, fake.reason = attemptID, reason
+func (fake *fakeSubmitter) SubmitForViolation(_ context.Context, tenantID, attemptID, reason string) (bool, error) {
+	fake.tenantID, fake.attemptID, fake.reason = tenantID, attemptID, reason
 	return fake.err == nil, fake.err
 }
 
 func TestHandler(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	const attempt = "0190a0a0-0000-7000-8000-000000000001"
+	const (
+		attempt = "0190a0a0-0000-7000-8000-000000000001"
+		tenant  = "0190a0a0-0000-7000-8000-0000000000aa"
+		other   = "0190a0a0-0000-7000-8000-0000000000bb"
+	)
 	tests := []struct {
 		name      string
 		payload   string
@@ -32,17 +36,17 @@ func TestHandler(t *testing.T) {
 		wantErr   bool
 		submitted bool
 	}{
-		{"submits", `{"tenant_id":"t1","attempt_id":"` + attempt + `","violation_count":5}`, nil, false, false, true},
-		{"tenant mismatch", `{"tenant_id":"t2","attempt_id":"` + attempt + `","violation_count":5}`, nil, true, true, false},
+		{"submits", `{"tenant_id":"` + tenant + `","attempt_id":"` + attempt + `","violation_count":5}`, nil, false, false, true},
+		{"tenant mismatch", `{"tenant_id":"` + other + `","attempt_id":"` + attempt + `","violation_count":5}`, nil, true, true, false},
 		{"bad json", `[]`, nil, true, true, false},
-		{"bad attempt id", `{"tenant_id":"t1","attempt_id":"x","violation_count":5}`, nil, true, true, false},
-		{"zero count", `{"tenant_id":"t1","attempt_id":"` + attempt + `","violation_count":0}`, nil, true, true, false},
-		{"database failure is retried", `{"tenant_id":"t1","attempt_id":"` + attempt + `","violation_count":5}`, errors.New("down"), false, true, true},
+		{"bad attempt id", `{"tenant_id":"` + tenant + `","attempt_id":"x","violation_count":5}`, nil, true, true, false},
+		{"zero count", `{"tenant_id":"` + tenant + `","attempt_id":"` + attempt + `","violation_count":0}`, nil, true, true, false},
+		{"database failure is retried", `{"tenant_id":"` + tenant + `","attempt_id":"` + attempt + `","violation_count":5}`, errors.New("down"), false, true, true},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			fake := &fakeSubmitter{err: test.err}
-			err := Handler(fake, logger)(context.Background(), messaging.Event{TenantID: "t1", Payload: json.RawMessage(test.payload)})
+			err := Handler(fake, logger)(context.Background(), messaging.Event{TenantID: tenant, Payload: json.RawMessage(test.payload)})
 			if (err != nil) != test.wantErr {
 				t.Fatalf("error = %v, wantErr %v", err, test.wantErr)
 			}

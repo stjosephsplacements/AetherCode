@@ -158,10 +158,12 @@ _attempt_locks: dict[str, asyncio.Lock] = {}
 
 async def _process(event: SnapshotEvent) -> None:
     lock = _attempt_locks.setdefault(event.attempt_id, asyncio.Lock())
-    async with lock:
-        await _process_locked(event)
-    if not lock.locked() and not getattr(lock, "_waiters", None):
-        _attempt_locks.pop(event.attempt_id, None)
+    try:
+        async with lock:
+            await _process_locked(event)
+    finally:
+        if not lock.locked() and not getattr(lock, "_waiters", None):
+            _attempt_locks.pop(event.attempt_id, None)
 
 
 async def _process_locked(event: SnapshotEvent) -> None:
@@ -188,12 +190,8 @@ async def _process_locked(event: SnapshotEvent) -> None:
         event.snapshot_id, elapsed, len(raw_violations),
     )
 
-    if not raw_violations:
-        return
-
     policy = event.policy or ProctorPolicy()
     cooldown = policy.cooldown(settings.violation_cooldown_seconds)
-    stored = False
     for v in raw_violations:
         if not await _is_cooled_down(event.attempt_id, v["kind"], cooldown):
             continue
@@ -207,7 +205,6 @@ async def _process_locked(event: SnapshotEvent) -> None:
             confidence=v["confidence"],
             details=v.get("details", ""),
         )
-        stored = True
 
         # Post integrity event to submission service (best-effort)
         try:
@@ -221,15 +218,16 @@ async def _process_locked(event: SnapshotEvent) -> None:
         except Exception as exc:
             logger.warning("Failed to post violation %s: %s", v["kind"], exc)
 
-    if stored:
-        await _publish_if_breached(event, policy)
+    # Checked on every analysed frame, not only after a new violation: a publish
+    # that failed earlier is retried by the next frame (the message id dedups).
+    await _publish_if_breached(event, policy)
 
 
 async def _publish_if_breached(event: SnapshotEvent, policy: ProctorPolicy) -> None:
     """Count the attempt's cumulative violations and report a breach to JetStream.
 
-    Submission closes the attempt idempotently, so publishing on every count at
-    or above the maximum is safe and retries a lost breach on the next violation.
+    Submission closes the attempt idempotently, so publishing on every frame once
+    the count is at or above the maximum is safe and retries a lost breach.
     """
     assert _db is not None and _nc is not None
     if not (policy.enabled and policy.auto_submit_on_breach and policy.max_violations):
