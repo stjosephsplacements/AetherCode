@@ -333,3 +333,12 @@ func TestParseAssignmentSnapshotPaper(t *testing.T) {
 		})
 	}
 }
+
+func TestValidPolicy(t *testing.T) {
+	t.Parallel()
+	for policy, want := range map[string]bool{"": true, "null": true, `{}`: true, `{"enabled":true}`: true, `[]`: false, `"x"`: false, `5`: false} {
+		if got := validPolicy(json.RawMessage(policy)); got != want {
+			t.Errorf("validPolicy(%q) = %v, want %v", policy, got, want)
+		}
+	}
+}

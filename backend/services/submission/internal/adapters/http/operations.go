@@ -34,6 +34,7 @@ func (handler *Handler) registerOperations(mux *http.ServeMux) {
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/items/{exam_item_id}/regrade", handler.regradeItem)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/attempts/{attempt_id}/snapshots", handler.storeSnapshot)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}/snapshots", handler.listSnapshots)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}/proctor-evidence", handler.getProctorEvidence)
 }
 
 // regradeItem evaluates an item's answers again on its current tests (ADR-0039).
@@ -426,4 +427,31 @@ func (handler *Handler) listSnapshots(writer http.ResponseWriter, request *http.
 	}
 	writer.Header().Set("Cache-Control", "no-store")
 	httpx.WriteJSON(writer, http.StatusOK, snapshots)
+}
+
+func (handler *Handler) getProctorEvidence(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	attemptID, err := httpx.ParseUUIDPathValue(request, "attempt_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	// A distinct resource: it needs its own grant (ADR-0080), so holding the
+	// snapshot-thumbnail permission never implies the full evidence export.
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "proctor_evidence", attemptID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	evidence, err := handler.service.GetProctorEvidence(request.Context(), decision.Capability, tenantID, attemptID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.Header().Set("Cache-Control", "no-store")
+	httpx.WriteJSON(writer, http.StatusOK, evidence)
 }

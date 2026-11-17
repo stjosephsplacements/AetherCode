@@ -109,6 +109,9 @@ type assignmentSnapshot struct {
 	LifecycleState       string           `json:"lifecycle_state"`
 	Version              int64            `json:"version"`
 	Items                []assignmentItem `json:"items"`
+	// ProctorPolicy is the exam version's proctor policy body (ADR-0080); absent
+	// or null when none is configured.
+	ProctorPolicy json.RawMessage `json:"proctor_policy"`
 }
 
 // ApplyAssignmentSnapshot atomically materializes an Assessment-owned,
@@ -140,7 +143,17 @@ func (store *Store) ApplyAssignmentSnapshot(contextValue context.Context, event 
 		if err != nil {
 			return projectionError(err, "apply assessment assignment snapshot")
 		}
-		_ = applied // A stale source snapshot is an idempotent no-op.
+		if !applied { // A stale source snapshot is an idempotent no-op.
+			return nil
+		}
+		var policy any
+		if len(payload.ProctorPolicy) > 0 && string(payload.ProctorPolicy) != "null" {
+			policy = string(payload.ProctorPolicy)
+		}
+		if _, err := transaction.Exec(applyContext, `SELECT submission.set_assignment_proctor_policy($1, $2, $3, $4::jsonb)`,
+			payload.TenantID, payload.CandidateAssignmentID, payload.Version, policy); err != nil {
+			return projectionError(err, "apply assessment proctor policy")
+		}
 		return nil
 	})
 	if err != nil {
@@ -228,7 +241,7 @@ func parseAssignmentSnapshot(event messaging.Event) (assignmentSnapshot, error) 
 		(payload.DurationSeconds != nil && (*payload.DurationSeconds < 60 || *payload.DurationSeconds > 43200)) ||
 		(payload.LifecycleState != "active" && payload.LifecycleState != "revoked") ||
 		(payload.LifecycleState == "active" && len(payload.Items) == 0) ||
-		!validText(payload.Title, 300) || !validText(payload.InstructionsMarkdown, 0) {
+		!validText(payload.Title, 300) || !validText(payload.InstructionsMarkdown, 0) || !validPolicy(payload.ProctorPolicy) {
 		return assignmentSnapshot{}, fmt.Errorf("assessment assignment snapshot fields are invalid")
 	}
 	seenItems := make(map[string]struct{}, len(payload.Items))
@@ -397,4 +410,15 @@ func validChoices(item assignmentItem) bool {
 		}
 	}
 	return true
+}
+
+// validPolicy accepts an absent policy, JSON null or a JSON object. Assessment
+// caps the compact body at 64 KiB; the snapshot carries PostgreSQL's jsonb text,
+// which adds spaces, so the cap here is twice that.
+func validPolicy(raw json.RawMessage) bool {
+	if len(raw) == 0 || string(raw) == "null" {
+		return true
+	}
+	var object map[string]json.RawMessage
+	return len(raw) <= 128<<10 && json.Unmarshal(raw, &object) == nil && object != nil
 }
