@@ -2,6 +2,7 @@ import { ArrowLeft, ChartBar, DownloadSimple, Eye, Pulse } from "@phosphor-icons
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ActionForm, Checkbox, Field, Select, TextArea, TextInput } from "@/components/staff/form";
+import { QuestionPicker } from "./question-picker";
 import { EmptyState, LoadError, PageHeader, Section, Table } from "@/components/staff/page-header";
 import { ConfirmDelete } from "@/components/staff/confirm-delete";
 import { EditDialog } from "@/components/staff/edit-dialog";
@@ -264,16 +265,15 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
                       </Select>
                     </Field>
                   )}
-                  <div className="grid grid-cols-[1fr_7rem] gap-3">
-                    <Field label="Published question" htmlFor="add-question">
-                      <Select id="add-question" name="question_version_id" required>
-                        {questions.map(({ question_version: question }) => (
-                          <option key={question.id} value={question.id}>
-                            {question.title} ({question.difficulty})
-                          </option>
-                        ))}
-                      </Select>
-                    </Field>
+                  <div className="grid grid-cols-[1fr_7rem] items-start gap-3">
+                    <QuestionPicker
+                      questions={questions.map(({ question_version: question }) => ({
+                        id: question.id,
+                        title: question.title,
+                        difficulty: question.difficulty,
+                        tags: (question.tags ?? []).map((entry) => entry.name),
+                      }))}
+                    />
                     <Field label="Marks" htmlFor="add-marks">
                       <TextInput id="add-marks" name="maximum_score" type="number" min={1} max={1000} defaultValue={10} required />
                     </Field>

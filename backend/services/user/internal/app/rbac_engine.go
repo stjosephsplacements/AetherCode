@@ -13,13 +13,17 @@ const (
 	flagViewStudentPII = "VIEW_STUDENT_PII"
 )
 
-// piiReadResources are the resources a VIEW_STUDENT_PII holder may read. Their
-// resource flags are registered platform-only, so VIEW_STUDENT_PII is the only
-// way below ADMINISTRATOR to reach them.
-var piiReadResources = map[string]bool{"submission.snapshots": true, "submission.proctor_evidence": true}
+// piiResources are opened by VIEW_STUDENT_PII (with VIEW_SCOPE) for the listed actions. Their
+// resource flags are registered platform-only, so VIEW_STUDENT_PII is the only way below
+// ADMINISTRATOR to reach them.
+var piiResources = map[string]map[string]bool{
+	"submission.snapshots":        {"read": true},
+	"submission.proctor_evidence": {"read": true},
+	"analytics.talent_cards":      {"read": true, "write": true, "delete": true},
+}
 
-func piiRead(request Request) bool {
-	return request.Action == "read" && piiReadResources[request.TargetService+"."+request.ResourceType]
+func piiGated(request Request) bool {
+	return piiResources[request.TargetService+"."+request.ResourceType][request.Action]
 }
 
 // bitsAllow decides one request for one assignment from the role's permission bits: the role must
@@ -39,7 +43,7 @@ func bitsAllow(flags map[string]int, assignment Assignment, request Request) boo
 	if !has(flagViewScope) {
 		return false
 	}
-	if piiRead(request) && has(flagViewStudentPII) {
+	if piiGated(request) && has(flagViewStudentPII) {
 		return true
 	}
 	base := request.TargetService + "." + request.ResourceType + "."
@@ -109,7 +113,7 @@ func permsAllow(flags map[string]int, effective rbac.Perms, request Request) boo
 	if !has(flagViewScope) {
 		return false
 	}
-	if piiRead(request) && has(flagViewStudentPII) {
+	if piiGated(request) && has(flagViewStudentPII) {
 		return true
 	}
 	base := request.TargetService + "." + request.ResourceType + "."

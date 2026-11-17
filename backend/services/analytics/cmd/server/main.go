@@ -23,6 +23,7 @@ import (
 	"github.com/stjosephsplacements/AetherCode/services/analytics/internal/adapters/projection"
 	"github.com/stjosephsplacements/AetherCode/services/analytics/internal/adapters/repo"
 	"github.com/stjosephsplacements/AetherCode/services/analytics/internal/app"
+	"github.com/stjosephsplacements/AetherCode/services/analytics/internal/talentcard"
 )
 
 func main() {
@@ -233,7 +234,21 @@ func run(contextValue context.Context) error {
 			return nil
 		}
 	}
-	handler, err := httpadapter.NewHandler(serviceConfig.Name, analyticsService, readiness, authorizer)
+	var handlerOptions []httpadapter.Option
+	if key := os.Getenv("TALENT_CARD_SIGNING_KEY"); key != "" {
+		signer, signerErr := talentcard.NewSigner(key)
+		if signerErr != nil {
+			return signerErr
+		}
+		talentCards, cardsErr := app.NewTalentCards(pool, signer)
+		if cardsErr != nil {
+			return cardsErr
+		}
+		handlerOptions = append(handlerOptions, httpadapter.WithTalentCards(talentCards))
+	} else {
+		logger.Warn("talent cards are off: TALENT_CARD_SIGNING_KEY is not set")
+	}
+	handler, err := httpadapter.NewHandler(serviceConfig.Name, analyticsService, readiness, authorizer, handlerOptions...)
 	if err != nil {
 		return err
 	}

@@ -24,6 +24,8 @@ import (
 const (
 	AssignmentSnapshotEventType = "assessment.candidate_assignment.snapshot.v1"
 	JudgeCompletedEventType     = "judge.completed.v1"
+	// ProctorViolationRecordedEventType is published by the proctor service (ADR-0081).
+	ProctorViolationRecordedEventType = "proctor.violation.recorded"
 )
 
 type Store struct {
@@ -421,4 +423,37 @@ func validPolicy(raw json.RawMessage) bool {
 	}
 	var object map[string]json.RawMessage
 	return len(raw) <= 128<<10 && json.Unmarshal(raw, &object) == nil && object != nil
+}
+
+type proctorViolation struct {
+	TenantID   string    `json:"tenant_id"`
+	AttemptID  string    `json:"attempt_id"`
+	Kind       string    `json:"kind"`
+	DetectedAt time.Time `json:"detected_at"`
+}
+
+// ApplyProctorViolation counts one stored proctor violation for the live grid.
+// The inbox makes a redelivered event count once.
+func (store *Store) ApplyProctorViolation(contextValue context.Context, event messaging.Event) error {
+	var payload proctorViolation
+	if event.Type != ProctorViolationRecordedEventType || event.SchemaVersion != 1 {
+		return messaging.Permanent(fmt.Errorf("unsupported proctor violation event"))
+	}
+	if err := decodePayload(event.Payload, &payload); err != nil {
+		return messaging.Permanent(fmt.Errorf("decode proctor violation: %w", err))
+	}
+	if !sameUUID(payload.TenantID, event.TenantID) || !validUUID(event.ID) || !validUUID(payload.AttemptID) ||
+		payload.DetectedAt.IsZero() || len(payload.Kind) < 1 || len(payload.Kind) > 64 {
+		return messaging.Permanent(fmt.Errorf("proctor violation fields are invalid"))
+	}
+	_, err := store.inbox.Process(contextValue, "submission_proctor_violation_recorded_v1", event, func(
+		applyContext context.Context, transaction pgx.Tx, _ messaging.Event,
+	) error {
+		if _, err := transaction.Exec(applyContext, `SELECT submission.record_attempt_violation($1, $2, $3, $4)`,
+			payload.TenantID, payload.AttemptID, payload.Kind, payload.DetectedAt.UTC()); err != nil {
+			return projectionError(err, "record proctor violation")
+		}
+		return nil
+	})
+	return err
 }

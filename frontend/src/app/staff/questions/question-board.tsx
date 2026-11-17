@@ -1,5 +1,6 @@
 "use client";
 
+import { companiesIn, companyName, isCompanyTag, matchesCompany } from "@/lib/companies";
 import { CaretRight, MagnifyingGlass, X } from "@phosphor-icons/react/ssr";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -53,6 +54,7 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
   const [query, setQuery] = useState("");
   const [difficulty, setDifficulty] = useState("all");
   const [tag, setTag] = useState("all");
+  const [company, setCompany] = useState("all");
   // The open folder lives in the address (?folder=<category id>), so Back closes it and a link opens it.
   const params = useSearchParams();
   const folder = params.get("folder");
@@ -65,11 +67,13 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
 
   const needle = query.trim().toLowerCase();
   const base = lists[tab];
-  const tagNames = [...new Set(base.flatMap((row) => row.tags))].sort();
+  const tagNames = [...new Set(base.flatMap((row) => row.tags))].filter((entry) => !isCompanyTag(entry)).sort();
+  const companyNames = companiesIn(base.map((row) => row.tags));
   const rows = base.filter(
     (row) =>
       (difficulty === "all" || row.difficulty === difficulty) &&
       (tag === "all" || row.tags.includes(tag)) &&
+      matchesCompany(row.tags, company) &&
       (!needle || row.title.toLowerCase().includes(needle) || row.slug.includes(needle) || row.tags.some((entry) => entry.includes(needle))),
   );
   // An older question bank has no categories; its questions sit in one "Uncategorised" folder, as the backfill files them.
@@ -80,7 +84,7 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
     const deep = [...entry.rows, ...flat.filter((child) => child.parent_id === entry.id).flatMap((child) => child.rows)];
     return { ...entry, deep, children: flat.filter((child) => child.parent_id === entry.id), levels: { easy: deep.filter((row) => row.difficulty === "easy").length, medium: deep.filter((row) => row.difficulty === "medium").length, hard: deep.filter((row) => row.difficulty === "hard").length } };
   });
-  const filtering = Boolean(needle) || difficulty !== "all" || tag !== "all";
+  const filtering = Boolean(needle) || difficulty !== "all" || tag !== "all" || company !== "all";
   const open = folders.find((entry) => (entry.id || UNCATEGORISED) === folder) ?? null;
   const parentOfOpen = open?.parent_id ? folders.find((entry) => entry.id === open.parent_id) : undefined;
   const topFolders = folders.filter((entry) => !entry.parent_id);
@@ -132,6 +136,16 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
             </button>
           )}
         </div>
+        {companyNames.length > 0 && (
+          <Select aria-label="Company" size="sm" className="w-44 capitalize" value={company} onValueChange={setCompany}>
+            <option value="all">Any company</option>
+            {companyNames.map((entry) => (
+              <option key={entry} value={entry}>
+                {companyName(entry)}
+              </option>
+            ))}
+          </Select>
+        )}
         {tagNames.length > 0 && (
           <Select aria-label="Tag" size="sm" className="w-44" value={tag} onValueChange={setTag}>
             <option value="all">Any tag</option>

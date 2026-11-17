@@ -124,6 +124,10 @@ func (validationStore) GetAttemptProctorPolicy(context.Context, pgx.Tx, string, 
 	panic("GetAttemptProctorPolicy not expected")
 }
 
+func (validationStore) ProctorGrid(context.Context, pgx.Tx, ExamVersionCommand) ([]GridRow, error) {
+	panic("ProctorGrid not expected")
+}
+
 func (validationStore) StoreSnapshot(context.Context, pgx.Tx, StoreSnapshot) (string, error) {
 	return "", nil
 }

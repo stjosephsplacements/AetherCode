@@ -101,6 +101,7 @@ type Store interface {
 	RecordIntegrityEvent(context.Context, pgx.Tx, GetAttempt, string) error
 	StoreSnapshot(context.Context, pgx.Tx, StoreSnapshot) (string, error)
 	GetAttemptProctorPolicy(ctx context.Context, tx pgx.Tx, tenantID, attemptID string) (json.RawMessage, error)
+	ProctorGrid(ctx context.Context, tx pgx.Tx, command ExamVersionCommand) ([]GridRow, error)
 	ListSnapshotKeys(context.Context, pgx.Tx, ListSnapshots) ([]SnapshotRow, error)
 	Ping(context.Context) error
 }
