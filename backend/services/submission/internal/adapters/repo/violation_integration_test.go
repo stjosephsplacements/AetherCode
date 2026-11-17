@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -130,5 +131,30 @@ func TestStoreSnapshotRequiresTheCallersOwnAttempt(t *testing.T) {
 		_, insertErr := transaction.Exec(ctx, `INSERT INTO submission.attempt_snapshots (tenant_id, attempt_id, captured_at, storage_key, size_bytes)
 			VALUES ($1, $2, clock_timestamp(), 'k', 10)`, unitTenantID, theirs.AttemptID)
 		require.Error(t, insertErr, "the app role has no direct access to the snapshot table")
+	})
+}
+
+// A frame in flight holds the attempt row, so a concurrent submit waits for it instead of
+// closing the attempt between the open check and the insert.
+func TestStoreSnapshotLocksTheAttemptAgainstConcurrentSubmit(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	pool := startSubmissionDatabase(ctx, t)
+	fixture := seedAssignedAttempt(ctx, t, pool, "active", executableItem(newID(t)))
+	authorizeActorsInTenant(ctx, t, pool, fixture.CandidateID)
+
+	asCandidate(ctx, t, pool, fixture.CandidateID, func(transaction pgx.Tx) {
+		_, err := transaction.Exec(ctx, `SELECT submission.store_snapshot($1, $2, clock_timestamp(), 'k', 100)`, unitTenantID, fixture.AttemptID)
+		require.NoError(t, err)
+
+		competing, err := pool.Begin(ctx)
+		require.NoError(t, err)
+		defer func() { _ = competing.Rollback(ctx) }()
+		_, err = competing.Exec(ctx, `SET LOCAL lock_timeout = '300ms'`)
+		require.NoError(t, err)
+		_, err = competing.Exec(ctx, `UPDATE submission.attempts SET lifecycle_state = 'cancelled', completed_at = clock_timestamp() WHERE id = $1`, fixture.AttemptID)
+		var pgErr *pgconn.PgError
+		require.ErrorAs(t, err, &pgErr)
+		require.Equal(t, "55P03", pgErr.Code, "the submit must wait on the frame's row lock")
 	})
 }

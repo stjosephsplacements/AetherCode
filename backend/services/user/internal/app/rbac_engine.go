@@ -43,8 +43,9 @@ func bitsAllow(flags map[string]int, assignment Assignment, request Request) boo
 	if !has(flagViewScope) {
 		return false
 	}
-	if piiGated(request) && has(flagViewStudentPII) {
-		return true
+	if piiGated(request) {
+		// Only VIEW_STUDENT_PII (or ADMINISTRATOR) opens these; a resource flag never does.
+		return has(flagViewStudentPII)
 	}
 	base := request.TargetService + "." + request.ResourceType + "."
 	switch request.Action {
@@ -113,8 +114,9 @@ func permsAllow(flags map[string]int, effective rbac.Perms, request Request) boo
 	if !has(flagViewScope) {
 		return false
 	}
-	if piiGated(request) && has(flagViewStudentPII) {
-		return true
+	if piiGated(request) {
+		// Only VIEW_STUDENT_PII (or ADMINISTRATOR) opens these; a resource flag never does.
+		return has(flagViewStudentPII)
 	}
 	base := request.TargetService + "." + request.ResourceType + "."
 	switch request.Action {

@@ -104,6 +104,9 @@ var catalogueKeys = func() map[string]Permission {
 // grantAllows reports whether any grant covers this request. Write and delete
 // grants cover reads of the same resource; a delete grant does not cover writes.
 func grantAllows(grants []Grant, request Request, staffAuthoring bool) (Scope, bool) {
+	if piiGated(request) {
+		return Scope{}, false // a grant never replaces VIEW_STUDENT_PII
+	}
 	base := request.TargetService + "." + request.ResourceType + "."
 	for _, grant := range grants {
 		if !strings.HasPrefix(grant.Permission, base) {

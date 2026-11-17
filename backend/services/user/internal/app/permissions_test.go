@@ -22,3 +22,20 @@ func TestPIIEvidenceResourcesStayPlatformOnly(t *testing.T) {
 		}
 	}
 }
+
+// A grant or resource flag for a PII resource must not stand in for VIEW_STUDENT_PII.
+func TestGrantNeverOpensPIIResources(t *testing.T) {
+	t.Parallel()
+	grants := []Grant{{ScopeKind: "platform", Permission: "submission.proctor_evidence.read"}, {ScopeKind: "platform", Permission: "analytics.talent_cards.write"}}
+	for _, request := range []Request{
+		{TargetService: "submission", ResourceType: "proctor_evidence", Action: "read"},
+		{TargetService: "analytics", ResourceType: "talent_cards", Action: "write"},
+	} {
+		if _, ok := grantAllows(grants, request, false); ok {
+			t.Errorf("grant opened %s.%s.%s without VIEW_STUDENT_PII", request.TargetService, request.ResourceType, request.Action)
+		}
+	}
+	if _, ok := grantAllows([]Grant{{ScopeKind: "platform", Permission: "submission.attempts.read"}}, Request{TargetService: "submission", ResourceType: "attempts", Action: "read"}, false); !ok {
+		t.Error("ordinary grants must keep working")
+	}
+}

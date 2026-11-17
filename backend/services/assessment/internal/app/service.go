@@ -516,6 +516,16 @@ func (service *Service) PublishProctorPolicyVersion(ctx context.Context, capabil
 			ProctorPolicyVersionID string `json:"proctor_policy_version_id"`
 		}{command.ProctorPolicyVersionID}, httpStatusOK,
 		func(transaction pgx.Tx) (ProctorPolicyVersion, error) {
+			// A draft written before validateProctorPolicy existed must not reach students unchecked.
+			draft, err := service.store.GetProctorPolicyVersion(ctx, transaction, command.ProctorPolicyVersionID, command.TenantID)
+			if err != nil {
+				return ProctorPolicyVersion{}, err
+			}
+			if draft.Status == "draft" {
+				if err := validateProctorPolicy(draft.Policy); err != nil {
+					return ProctorPolicyVersion{}, invalid(err.Error())
+				}
+			}
 			return service.store.PublishProctorPolicyVersion(ctx, transaction, command)
 		},
 	)

@@ -256,3 +256,15 @@ func TestComputeAllow(t *testing.T) {
 		}
 	})
 }
+
+func TestResourceFlagDoesNotOpenPIIResources(t *testing.T) {
+	t.Parallel()
+	flags := map[string]int{flagViewScope: 1, flagViewStudentPII: 2, "submission.proctor_evidence.read": 3}
+	request := Request{TargetService: "submission", ResourceType: "proctor_evidence", Action: "read"}
+	if permsAllow(flags, rbac.Perms{}.With(1).With(3), request) {
+		t.Fatal("resource flag opened evidence without VIEW_STUDENT_PII")
+	}
+	if !permsAllow(flags, rbac.Perms{}.With(1).With(2), request) {
+		t.Fatal("VIEW_STUDENT_PII with VIEW_SCOPE must open evidence")
+	}
+}
