@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     # Format: postgresql://user:password@host:port/dbname?sslmode=prefer
     # In Kubernetes this is injected from the aethercode-secrets Secret.
     database_url: str
+    # Bearer token submission presents on GET /violations. Empty disables the
+    # endpoint (fail closed).
+    internal_token: str = ""
 
     class Config:
         env_prefix = "PROCTOR_"

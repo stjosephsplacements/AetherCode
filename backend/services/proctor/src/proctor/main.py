@@ -16,20 +16,24 @@ Database (Prisma):
 Run `prisma generate` to regenerate the Python client after schema changes.
 """
 import asyncio
+import hmac
 import logging
 import time
+import uuid
+from collections import OrderedDict
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 
 import httpx
 import nats
-from fastapi import FastAPI
+from fastapi import FastAPI, Header, HTTPException, Query
 from minio import Minio
 from prisma import Prisma
 
 from .config import settings
 from .detector import Detector
 from .models import AnalysisResult, SnapshotEvent, Violation
+from .policy import THRESHOLD_SUBJECT, ProctorPolicy, threshold_event
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
 logger = logging.getLogger("proctor")
@@ -107,10 +111,10 @@ async def _mark_processed(snapshot_id: str) -> None:
     )
 
 
-async def _is_cooled_down(attempt_id: str, kind: str) -> bool:
+async def _is_cooled_down(attempt_id: str, kind: str, cooldown_seconds: int) -> bool:
     """Return True if enough time has passed since the last violation of this kind."""
     assert _db is not None
-    cutoff = datetime.now(timezone.utc) - timedelta(seconds=settings.violation_cooldown_seconds)
+    cutoff = datetime.now(timezone.utc) - timedelta(seconds=cooldown_seconds)
     recent = await _db.violation.find_first(
         where={
             "attemptId": attempt_id,
@@ -148,7 +152,39 @@ def _fetch_jpeg(key: str) -> bytes:
         response.close()
 
 
+# The last policy seen per attempt. A frame sent without one (Submission could not
+# read it that time) still uses the policy of earlier frames, so a lost breach
+# publish is retried. Bounded; oldest attempts are dropped first.
+_policy_cache: "OrderedDict[str, ProctorPolicy]" = OrderedDict()
+_POLICY_CACHE_MAX = 4096
+
+
+def _effective_policy(event: SnapshotEvent) -> ProctorPolicy:
+    if event.policy is not None:
+        _policy_cache[event.attempt_id] = event.policy
+        _policy_cache.move_to_end(event.attempt_id)
+        while len(_policy_cache) > _POLICY_CACHE_MAX:
+            _policy_cache.popitem(last=False)
+        return event.policy
+    return _policy_cache.get(event.attempt_id) or ProctorPolicy()
+
+
+# Serialises the cooldown check and insert for one attempt inside this process.
+# Replicas still race; a database constraint would be needed to close that.
+_attempt_locks: dict[str, asyncio.Lock] = {}
+
+
 async def _process(event: SnapshotEvent) -> None:
+    lock = _attempt_locks.setdefault(event.attempt_id, asyncio.Lock())
+    try:
+        async with lock:
+            await _process_locked(event)
+    finally:
+        if not lock.locked() and not getattr(lock, "_waiters", None):
+            _attempt_locks.pop(event.attempt_id, None)
+
+
+async def _process_locked(event: SnapshotEvent) -> None:
     assert _detector is not None and _http is not None
 
     if await _already_processed(event.snapshot_id):
@@ -172,11 +208,10 @@ async def _process(event: SnapshotEvent) -> None:
         event.snapshot_id, elapsed, len(raw_violations),
     )
 
-    if not raw_violations:
-        return
-
+    policy = _effective_policy(event)
+    cooldown = policy.cooldown(settings.violation_cooldown_seconds)
     for v in raw_violations:
-        if not await _is_cooled_down(event.attempt_id, v["kind"]):
+        if not await _is_cooled_down(event.attempt_id, v["kind"], cooldown):
             continue
 
         # Persist violation to DB first (idempotent on re-delivery)
@@ -200,6 +235,75 @@ async def _process(event: SnapshotEvent) -> None:
             logger.info("Posted %s violation for attempt %s", v["kind"], event.attempt_id)
         except Exception as exc:
             logger.warning("Failed to post violation %s: %s", v["kind"], exc)
+
+    # Checked on every analysed frame, not only after a new violation: a publish
+    # that failed earlier is retried by the next frame (the message id dedups).
+    await _publish_if_breached(event, policy)
+
+
+async def _publish_if_breached(event: SnapshotEvent, policy: ProctorPolicy) -> None:
+    """Count the attempt's cumulative violations and report a breach to JetStream.
+
+    Submission closes the attempt idempotently, so publishing on every frame once
+    the count is at or above the maximum is safe and retries a lost breach.
+    """
+    assert _db is not None and _nc is not None
+    if not (policy.enabled and policy.auto_submit_on_breach and policy.max_violations):
+        return
+    where: dict = {"attemptId": event.attempt_id, "tenantId": event.tenant_id}
+    kinds = policy.counted_kinds()
+    if kinds:
+        where["kind"] = {"in": kinds}
+    count = await _db.violation.count(where=where)
+    if not policy.breached(count):
+        return
+    msg_id, data = threshold_event(event.tenant_id, event.attempt_id, count, policy.max_violations)
+    try:
+        await _nc.jetstream().publish(THRESHOLD_SUBJECT, data, headers={"Nats-Msg-Id": msg_id})
+        logger.warning("Attempt %s breached %d violations (count %d)", event.attempt_id, policy.max_violations, count)
+    except Exception as exc:
+        logger.error("Failed to publish violation threshold for attempt %s: %s", event.attempt_id, exc)
+
+
+_MAX_VIOLATIONS = 1000
+
+
+def _valid_uuid(value: str) -> bool:
+    try:
+        uuid.UUID(value)
+    except ValueError:
+        return False
+    return True
+
+
+@app.get("/violations")
+async def violations(
+    attempt_id: str = Query(),
+    tenant_id: str = Query(),
+    authorization: str = Header(default=""),
+) -> dict:
+    """Internal read for submission's evidence export; fails closed without a token."""
+    assert _db is not None
+    if not settings.internal_token:
+        raise HTTPException(status_code=503, detail="violation reads are not configured")
+    if not hmac.compare_digest(authorization.encode(), f"Bearer {settings.internal_token}".encode()):
+        raise HTTPException(status_code=401, detail="unauthorized")
+    if not (_valid_uuid(attempt_id) and _valid_uuid(tenant_id)):
+        raise HTTPException(status_code=422, detail="attempt_id and tenant_id must be UUIDs")
+    # Newest first so a long attempt keeps its latest violations; one extra row
+    # tells the caller the list was cut.
+    rows = await _db.violation.find_many(
+        where={"attemptId": attempt_id, "tenantId": tenant_id},
+        order={"detectedAt": "desc"},
+        take=_MAX_VIOLATIONS + 1,
+    )
+    truncated = len(rows) > _MAX_VIOLATIONS
+    rows = list(reversed(rows[:_MAX_VIOLATIONS]))
+    return {"truncated": truncated, "violations": [
+        {"id": r.id, "snapshot_id": r.snapshotId, "kind": r.kind, "confidence": r.confidence,
+         "details": r.details, "detected_at": r.detectedAt.isoformat()}
+        for r in rows
+    ]}
 
 
 @app.get("/healthz")

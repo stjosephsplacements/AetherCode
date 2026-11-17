@@ -115,9 +115,13 @@ type StaffAction struct {
 	ResourceType  string
 	ResourceID    string
 	Allowed       bool
-	// Action is "write" or "delete" (ADR-0053).
+	// Action is "write", "delete" (ADR-0053) or AuditProctorEvidenceExported.
 	Action string
 }
+
+// AuditProctorEvidenceExported is the audit verb for retrieving an attempt's
+// proctor evidence (ADR-0080).
+const AuditProctorEvidenceExported = "proctor.evidence.exported"
 
 // SnapshotQuery narrows relationship checks needed for placement scopes.
 type SnapshotQuery struct {
@@ -173,6 +177,10 @@ var mfaElevatedOperations = map[string]map[string]struct{}{
 	"role_overwrites":   {"write": {}, "delete": {}},
 	"question_exports":  {"read": {}},
 	"accounts":          {"write": {}},
+	// Student webcam images and the proctor evidence export: VIEW_STUDENT_PII is an
+	// elevated flag (ADR-0066), so reading them needs a recent MFA check too.
+	"snapshots":        {"read": {}},
+	"proctor_evidence": {"read": {}},
 }
 
 func requiresMFAStepUp(resourceType, action string) bool {
@@ -222,7 +230,7 @@ var routes = map[string]route{
 	},
 	"submission": {
 		Audience: "aether_submission", ActionPrefix: "submission", ResourcePrefix: "submission",
-		Resources: resourceSet("attempts", "answer_revisions", "evaluation_requests", "judge_receipts", "score_summaries", "attempt_events"),
+		Resources: resourceSet("attempts", "answer_revisions", "evaluation_requests", "judge_receipts", "score_summaries", "attempt_events", "snapshots", "proctor_evidence"),
 	},
 	"seb": {
 		Audience: "aether_seb", ActionPrefix: "seb", ResourcePrefix: "seb",
@@ -323,7 +331,7 @@ func (service *Service) Authorize(contextValue context.Context, request Request)
 			}
 		}
 		if !permitted {
-			service.auditStaffWrite(contextValue, validated, snapshot.Assignments, false)
+			_ = service.auditStaffWrite(contextValue, validated, snapshot.Assignments, false)
 			return decision, nil
 		}
 	}
@@ -353,19 +361,25 @@ func (service *Service) Authorize(contextValue context.Context, request Request)
 			matchingScopes = append(matchingScopes, scope)
 		}
 	}
-	service.auditStaffWrite(contextValue, validated, snapshot.Assignments, len(matchingScopes) > 0)
+	// A read refused for a stale MFA check is audited as not allowed, never as granted.
+	mfaStale := false
+	if len(matchingScopes) > 0 && service.requireIdentityAssertion && requiresMFAStepUp(validated.ResourceType, validated.Action) {
+		mfaStale = identity.MFAVerifiedAt == nil || service.now().Sub(*identity.MFAVerifiedAt) > mfaStepUpMaxAge
+	}
+	granted := len(matchingScopes) > 0 && !mfaStale
+	auditErr := service.auditStaffWrite(contextValue, validated, snapshot.Assignments, granted)
+	if auditErr != nil && granted && isPIIEvidenceRead(validated) {
+		// Student images are not released without a record of who asked.
+		return Decision{}, fmt.Errorf("record proctor evidence access: %w", auditErr)
+	}
 	if len(matchingScopes) == 0 {
 		return decision, nil
 	}
+	if mfaStale {
+		return Decision{}, MFARequiredError{}
+	}
 	decision.Allowed = true
 	decision.Scopes = uniqueScopes(matchingScopes)
-
-	if service.requireIdentityAssertion && requiresMFAStepUp(validated.ResourceType, validated.Action) {
-		now := service.now()
-		if identity.MFAVerifiedAt == nil || now.Sub(*identity.MFAVerifiedAt) > mfaStepUpMaxAge {
-			return Decision{}, MFARequiredError{}
-		}
-	}
 
 	// A delete is a write as far as the databases go: their policies and functions accept
 	// <service>.write. The audit log below keeps the real verb (ADR-0053).
@@ -582,27 +596,44 @@ func uniqueScopes(scopes []Scope) []Scope {
 	return unique
 }
 
+// isPIIEvidenceRead is a read of student webcam images or the proctor evidence
+// export, both audited as proctor.evidence.exported (ADR-0080).
+func isPIIEvidenceRead(request Request) bool {
+	return request.TargetService == "submission" && request.Action == "read" &&
+		(request.ResourceType == "proctor_evidence" || request.ResourceType == "snapshots")
+}
+
 // auditStaffWrite records a write or delete decision for anyone holding a staff
-// role (ADR-0043, ADR-0053). Students' own writes are not staff actions.
-// Recording is best effort: an audit failure is logged, never turned into a
-// denied exam action.
-func (service *Service) auditStaffWrite(contextValue context.Context, request Request, assignments []Assignment, allowed bool) {
-	if request.Action != "write" && request.Action != "delete" {
-		return
+// role (ADR-0043, ADR-0053), and every staff read of student webcam evidence,
+// allowed or denied. Students' own actions are not staff actions. The error is
+// returned so the caller can refuse evidence reads it could not record; for
+// writes a failure is logged and never turns into a denied exam action.
+func (service *Service) auditStaffWrite(contextValue context.Context, request Request, assignments []Assignment, allowed bool) error {
+	action := request.Action
+	evidence := isPIIEvidenceRead(request)
+	if evidence {
+		action = AuditProctorEvidenceExported
+	} else if request.Action != "write" && request.Action != "delete" {
+		return nil
 	}
 	staff := false
 	for _, assignment := range assignments {
 		staff = staff || assignment.ScopeKind != "self"
 	}
 	if !staff {
-		return
+		return nil
 	}
-	if err := service.store.RecordStaffAction(contextValue, StaffAction{
+	err := service.store.RecordStaffAction(contextValue, StaffAction{
 		PrincipalID: request.PrincipalID, TenantID: request.TenantID, TargetService: request.TargetService,
-		ResourceType: request.ResourceType, ResourceID: request.ResourceID, Allowed: allowed, Action: request.Action,
-	}); err != nil {
+		ResourceType: request.ResourceType, ResourceID: request.ResourceID, Allowed: allowed, Action: action,
+	})
+	if err != nil {
 		slog.Warn("record staff action", "error", err, "principal_id", request.PrincipalID)
+		if evidence {
+			return err
+		}
 	}
+	return nil
 }
 
 // capabilityNodes lists the department, batch and placement-department nodes a capability is

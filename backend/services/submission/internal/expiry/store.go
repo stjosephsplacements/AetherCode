@@ -28,7 +28,7 @@ func (store *Store) Ping(contextValue context.Context) error {
 		return fmt.Errorf("submission expiry store is not initialized")
 	}
 	var user string
-	var privileged, canExecute, directTableAccess bool
+	var privileged, canExecute, canSubmitForViolation, directTableAccess bool
 	err := store.pool.QueryRow(contextValue, `
 		SELECT
 			current_user,
@@ -36,6 +36,11 @@ func (store *Store) Ping(contextValue context.Context) error {
 			has_function_privilege(
 				current_user,
 				'submission.expire_overdue_attempts(integer)',
+				'EXECUTE'
+			),
+			has_function_privilege(
+				current_user,
+				'submission.submit_attempt_for_violation(uuid,uuid,text)',
 				'EXECUTE'
 			),
 			EXISTS (
@@ -51,11 +56,11 @@ func (store *Store) Ping(contextValue context.Context) error {
 					  OR has_table_privilege(current_user, relation.oid, 'DELETE')
 				  )
 			)
-	`).Scan(&user, &privileged, &canExecute, &directTableAccess)
+	`).Scan(&user, &privileged, &canExecute, &canSubmitForViolation, &directTableAccess)
 	if err != nil {
 		return fmt.Errorf("verify submission expiry database role: %w", err)
 	}
-	if user != expiryRole || privileged || !canExecute || directTableAccess {
+	if user != expiryRole || privileged || !canExecute || !canSubmitForViolation || directTableAccess {
 		return fmt.Errorf("submission expiry database role is not least-privilege")
 	}
 	return nil
@@ -75,4 +80,19 @@ func (store *Store) ExpireOverdue(contextValue context.Context, limit int) (int,
 		return 0, fmt.Errorf("expire overdue submission attempts: %w", err)
 	}
 	return expired, nil
+}
+
+// SubmitForViolation submits one open attempt after a proctor threshold
+// breach. It reports false when the attempt was already closed.
+func (store *Store) SubmitForViolation(contextValue context.Context, tenantID, attemptID, reason string) (bool, error) {
+	if store == nil || store.pool == nil {
+		return false, fmt.Errorf("submission expiry store is not initialized")
+	}
+	var submitted bool
+	if err := store.pool.QueryRow(contextValue, `
+		SELECT submission.submit_attempt_for_violation($1::uuid, $2::uuid, $3)
+	`, tenantID, attemptID, reason).Scan(&submitted); err != nil {
+		return false, fmt.Errorf("submit attempt for proctor violations: %w", err)
+	}
+	return submitted, nil
 }
