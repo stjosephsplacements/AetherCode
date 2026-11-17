@@ -20,6 +20,8 @@ metadata:
 spec:
   instances: 1
   imageName: ghcr.io/cloudnative-pg/postgresql:18.6
+  inheritedMetadata:      # the service charts' egress policies select PostgreSQL by these labels
+    labels: {app.kubernetes.io/name: postgres, app.kubernetes.io/part-of: aethercode}
   podSecurityContext:
     appArmorProfile: {type: Unconfined}
   storage:

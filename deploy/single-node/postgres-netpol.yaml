@@ -1,0 +1,25 @@
+# The platform-infra chart denies all ingress in the namespace and, with its own PostgreSQL
+# disabled, adds no rule for the CloudNativePG pod. This lets the platform's pods and jobs
+# reach PostgreSQL, and the CNPG operator reach its status endpoint (port 8000).
+#   kubectl -n aethercode-dev apply -f deploy/single-node/postgres-netpol.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: postgres-from-platform}
+spec:
+  podSelector:
+    matchLabels: {cnpg.io/cluster: postgres-cluster}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: {app.kubernetes.io/part-of: aethercode}
+      ports: [{protocol: TCP, port: 5432}]
+    - from:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: cnpg-system}
+      ports:
+        - {protocol: TCP, port: 5432}
+        - {protocol: TCP, port: 8000}
+    - from:
+        - podSelector:
+            matchLabels: {cnpg.io/cluster: postgres-cluster}
