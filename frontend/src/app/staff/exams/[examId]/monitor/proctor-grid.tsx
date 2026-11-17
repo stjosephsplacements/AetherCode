@@ -51,9 +51,11 @@ export function ProctorGrid({
       } catch (error) {
         if (controller.signal.aborted) return;
         setProblem(
-          error instanceof APIError && error.status === 403
-            ? "Viewing the camera grid needs the student personal data permission."
-            : "The camera grid could not be loaded. It will retry.",
+          error instanceof APIError && error.code === "mfa_required"
+            ? "Confirm your authenticator code again to keep viewing the camera grid. It is re-checked every five minutes."
+            : error instanceof APIError && error.status === 403
+              ? "Viewing the camera grid needs the student personal data permission."
+              : "The camera grid could not be loaded. It will retry.",
         );
       }
     };
