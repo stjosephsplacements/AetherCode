@@ -402,6 +402,14 @@ func (repository *Postgres) AssignMentorBatch(contextValue context.Context, tran
 	if !found {
 		return app.MentorBatchAssignment{}, apperrors.New(apperrors.CodeInvalidArgument, "batch projection is missing or does not belong to the tenant")
 	}
+	var holdsRole bool
+	if err := transaction.QueryRow(contextValue, `SELECT users.principal_has_tenant_role($1, $2)`,
+		command.TenantID, command.MentorPrincipalID).Scan(&holdsRole); err != nil {
+		return app.MentorBatchAssignment{}, mapWriteError(err, "mentor role check failed")
+	}
+	if !holdsRole {
+		return app.MentorBatchAssignment{}, apperrors.New(apperrors.CodeInvalidArgument, "mentor holds no active role in the batch's college")
+	}
 	var assignment app.MentorBatchAssignment
 	err := transaction.QueryRow(contextValue, `
 		INSERT INTO users.mentor_batch_assignments (

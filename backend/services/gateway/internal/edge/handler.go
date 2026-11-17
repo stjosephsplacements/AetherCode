@@ -192,7 +192,8 @@ func (handler *Handler) ServeHTTP(writer http.ResponseWriter, request *http.Requ
 	}
 
 	public := (matched.service == "identity" && isPublicIdentityRoute(request.Method, matched.forwardedPath)) ||
-		(matched.service == "user" && isPublicProfileRoute(request.Method, matched.forwardedPath))
+		(matched.service == "user" && isPublicProfileRoute(request.Method, matched.forwardedPath)) ||
+		(matched.service == "analytics" && isPublicTalentCardRoute(request.Method, matched.forwardedPath))
 	assertion := ""
 	principalID := ""
 	if !public {
@@ -296,6 +297,14 @@ var publicProfilePattern = regexp.MustCompile(`^/v1/public/profiles/[a-z0-9][a-z
 
 func isPublicProfileRoute(method, forwardedPath string) bool {
 	return method == http.MethodGet && publicProfilePattern.MatchString(forwardedPath)
+}
+
+// publicTalentCardPattern is the other anonymous read: a recruiter verifying a talent
+// card token (ADR-0081). The token is a v1 signed token; Analytics checks the signature.
+var publicTalentCardPattern = regexp.MustCompile(`^/v1/public/talent-cards/v1\.[A-Za-z0-9_-]{1,1000}\.[A-Za-z0-9_-]{1,128}$`)
+
+func isPublicTalentCardRoute(method, forwardedPath string) bool {
+	return method == http.MethodGet && publicTalentCardPattern.MatchString(forwardedPath)
 }
 
 func isPublicIdentityRoute(method, forwardedPath string) bool {

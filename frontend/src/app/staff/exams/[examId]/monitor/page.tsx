@@ -9,6 +9,7 @@ import { requireCollege } from "@/lib/server/staff";
 import { listAllStudents } from "@/lib/server/students";
 import { formatWindow } from "@/lib/utils";
 import { MonitorBoard } from "./monitor-board";
+import { ProctorGrid } from "./proctor-grid";
 
 export const metadata: Metadata = { title: "Live monitor" };
 
@@ -43,6 +44,7 @@ export default async function MonitorPage({ params }: { params: Promise<{ examId
       </Link>
       <PageHeader title="Live monitor" description={`${formatWindow(version.opens_at, version.closes_at)}. Updates in real time.`} />
       <MonitorBoard examId={examId} versionId={version.id} monitor={monitor} rollNumber={rollNumber} />
+      <ProctorGrid tenantId={staff.tenantId} versionId={version.id} rollNumber={rollNumber} />
     </>
   );
 }

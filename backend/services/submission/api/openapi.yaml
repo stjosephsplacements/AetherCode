@@ -1339,6 +1339,55 @@ paths:
           $ref: '#/components/responses/Problem503'
         '429':
           $ref: '#/components/responses/Problem429'
+  /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/proctor-grid:
+    get:
+      summary: Live proctor grid of active attempts with snapshots and violation severity (ADR-0081, VIEW_STUDENT_PII)
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/ExamVersionID'
+      responses:
+        '200':
+          description: Up to 200 active attempts, noisiest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 200
+                items:
+                  type: object
+                  required: [attempt_id, candidate_id, violation_total, violation_kinds, severity]
+                  properties:
+                    attempt_id: {type: string, format: uuid, maxLength: 36}
+                    candidate_id: {type: string, format: uuid, maxLength: 36}
+                    started_at: {type: string, format: date-time, maxLength: 35}
+                    snapshot_id: {type: string, format: uuid, maxLength: 36}
+                    captured_at: {type: string, format: date-time, maxLength: 35}
+                    snapshot_url: {type: string, format: uri, maxLength: 2048}
+                    violation_total: {type: integer, minimum: 0, maximum: 100000}
+                    violation_kinds:
+                      type: object
+                      additionalProperties: {type: integer, minimum: 1, maximum: 100000}
+                    severity: {enum: [green, amber, red]}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        '403': {$ref: '#/components/responses/Problem403'}
+        '401':
+          $ref: '#/components/responses/Problem401'
+        '500':
+          $ref: '#/components/responses/Problem500'
+        '503':
+          $ref: '#/components/responses/Problem503'
+        '429':
+          $ref: '#/components/responses/Problem429'
   /v1/tenants/{tenant_id}/attempts/{attempt_id}/events:
     post:
       summary: Record an integrity event for the caller's attempt (ADR-0037)
