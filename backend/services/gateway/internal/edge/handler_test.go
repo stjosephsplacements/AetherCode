@@ -367,3 +367,25 @@ func TestTalentCardVerificationIsTheOnlyAnonymousAnalyticsRoute(t *testing.T) {
 		}
 	}
 }
+
+func TestLaunchFileIsAnonymousOnlyWithAWellFormedTicket(t *testing.T) {
+	t.Parallel()
+	path := "/v1/tenants/018f4b0d-08f8-7c09-9ba7-efdf9c223001/exams/018f4b0d-08f8-7c09-9ba7-efdf9c223002/launch-file"
+	ticket := strings.Repeat("A", 43)
+	for _, test := range []struct {
+		method, path, ticket string
+		want                 bool
+	}{
+		{http.MethodGet, path, ticket, true},
+		{http.MethodGet, path, "", false},
+		{http.MethodGet, path, ticket + "A", false},
+		{http.MethodGet, path, "short", false},
+		{http.MethodPost, path, ticket, false},
+		{http.MethodGet, path + "/x", ticket, false},
+		{http.MethodGet, strings.Replace(path, "launch-file", "seb-policy/launch-file", 1), ticket, false},
+	} {
+		if got := isPublicLaunchFileRoute(test.method, test.path, test.ticket); got != test.want {
+			t.Errorf("isPublicLaunchFileRoute(%s %s ticket=%q) = %v, want %v", test.method, test.path, test.ticket, got, test.want)
+		}
+	}
+}

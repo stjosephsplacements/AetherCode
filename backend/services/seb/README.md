@@ -41,6 +41,14 @@ snapshot before a signed RLS transaction begins.
   `GET /v1/tenants/{tenant_id}/exams/{exam_id}/launch-file` for an exam they are
   assigned to; staff download `.../seb-policy/launch-file` to read the keys
   in the SEB Config Tool.
+- One-click launch (`sebs://`): Safe Exam Browser fetches the link itself with no
+  session, so a candidate first `POST .../exams/{exam_id}/launch-ticket` and gets a
+  256-bit single-use ticket (60 seconds; only its SHA-256 is stored, `seb.launch_tickets`,
+  migration 000017). `GET .../launch-file?ticket=...` then needs no bearer: Gateway lets
+  that one route through anonymously when the ticket is well formed, and
+  `seb.consume_launch_ticket` spends it atomically, bound to the tenant and exam it was
+  issued for. The `.seb` start URL is `SEB_LAUNCH_BASE_URL/exam/<exam_id>`, which is also
+  what the Config Key is computed from.
 
 The complete REST contract is in [api/openapi.yaml](api/openapi.yaml).
 
