@@ -46,6 +46,10 @@ secretEnv:
 env:
   - name: SUBMISSION_DATABASE_URL
     value: "postgres://aether_submission_app:$(SUBMISSION_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_submission?sslmode={{ .Values.global.postgresSSLMode }}"
+  - name: SUBMISSION_DB_MAX_CONNS
+    value: "20"
+  - name: SUBMISSION_DB_MIN_CONNS
+    value: "4"
   - name: SUBMISSION_PROJECTION_DATABASE_URL
     value: "postgres://aether_submission_projection_worker:$(SUBMISSION_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_submission?sslmode={{ .Values.global.postgresSSLMode }}"
   - name: SUBMISSION_EXPIRY_DATABASE_URL
