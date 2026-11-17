@@ -22,18 +22,6 @@ func bitsFor(keys ...string) rbac.Perms {
 	return p
 }
 
-func TestParseEngine(t *testing.T) {
-	t.Parallel()
-	for value, want := range map[string]Engine{"": EngineCasbin, "casbin": EngineCasbin, " Shadow ": EngineShadow, "BITSET": EngineBitset} {
-		if got, ok := ParseEngine(value); !ok || got != want {
-			t.Errorf("ParseEngine(%q) = %q, %v", value, got, ok)
-		}
-	}
-	if _, ok := ParseEngine("both"); ok {
-		t.Error("an unknown engine was accepted")
-	}
-}
-
 func TestBitsAllow(t *testing.T) {
 	t.Parallel()
 	read := Request{TargetService: "submission", ResourceType: "attempts", Action: "read"}
@@ -78,46 +66,57 @@ var testResolverFlags = rbac.Flags{
 	WriteImpliesRead: map[int]int{testFlagIndexes["submission.attempts.write"]: testFlagIndexes["submission.attempts.read"]},
 }
 
-func snapshotWith(assignment Assignment, casbinAllows bool) Snapshot {
-	rules := []centralauthz.PolicyRule{{PType: "p", Values: []string{"college_admin", "college", "/attempts/:id", "read"}}}
-	if !casbinAllows {
-		rules = []centralauthz.PolicyRule{{PType: "p", Values: []string{"college_admin", "college", "/other/:id", "read"}}}
+// withBits turns a snapshot into a role-bit snapshot: every assignment holds VIEW_SCOPE plus the
+// named flags, and "ADMINISTRATOR" grants everything.
+func withBits(snapshot Snapshot, keys ...string) Snapshot {
+	flags := map[string]int{"ADMINISTRATOR": 0, "VIEW_SCOPE": 1}
+	perms := rbac.Perms{}.With(flags["VIEW_SCOPE"])
+	for _, key := range keys {
+		if _, known := flags[key]; !known {
+			flags[key] = len(flags) + 14
+		}
+		perms = perms.With(flags[key])
 	}
-	return Snapshot{
-		Revision: 3, Assignments: []Assignment{assignment}, PolicyRules: rules,
-		Flags: testFlagIndexes, ResolverFlags: testResolverFlags,
-		EveryoneRoleID: "aaaaaaaa-0000-0000-0000-000000000001",
-		EveryonePerms:  bitsFor("VIEW_SCOPE"),
+	assignments := make([]Assignment, len(snapshot.Assignments))
+	for i, assignment := range snapshot.Assignments {
+		assignment.Perms, assignment.HasPerms = perms, true
+		assignments[i] = assignment
 	}
+	snapshot.Assignments = assignments
+	snapshot.Flags = flags
+	snapshot.ResolverFlags = rbac.Flags{Administrator: flags["ADMINISTRATOR"], ViewScope: flags["VIEW_SCOPE"]}
+	snapshot.EveryoneRoleID = "aaaaaaaa-0000-0000-0000-000000000001"
+	snapshot.EveryonePerms = rbac.Perms{}.With(flags["VIEW_SCOPE"])
+	return snapshot
 }
 
-func TestEnginesDecideFromTheirOwnModel(t *testing.T) {
+func TestAuthorizeDecidesFromRoleBits(t *testing.T) {
 	t.Parallel()
 	request := Request{PrincipalID: testPrincipal, TenantID: testTenant, RequestID: testRequestID, Action: "read", ResourceType: "attempts", ResourceID: "a-1", TargetService: "submission"}
 	base := Assignment{Role: centralauthz.RoleCollegeAdmin, ScopeKind: "college", TenantID: testTenant, ScopeID: testTenant}
-	withBits := base
-	withBits.Perms, withBits.HasPerms = bitsFor("VIEW_SCOPE", "submission.attempts.read"), true
+	withPerms := base
+	withPerms.Perms, withPerms.HasPerms = bitsFor("VIEW_SCOPE", "submission.attempts.read"), true
 
 	cases := []struct {
-		name         string
-		engine       Engine
-		assignment   Assignment
-		casbinAllows bool
-		want         bool
+		name       string
+		assignment Assignment
+		want       bool
 	}{
-		{"casbin allows, bits absent", EngineCasbin, base, true, true},
-		{"shadow follows Casbin when bits disagree", EngineShadow, base, true, true},
-		{"shadow follows Casbin when it denies", EngineShadow, withBits, false, false},
-		{"bitset follows the bits", EngineBitset, withBits, false, true},
-		{"bitset denies without role bits", EngineBitset, base, true, false},
+		{"allows what the role bits grant", withPerms, true},
+		{"denies without role bits", base, false},
 	}
 	for _, tc := range cases {
-		service, err := NewService(fakeStore{snapshot: snapshotWith(tc.assignment, tc.casbinAllows)}, testKeyring(t), nil, false)
+		service, err := NewService(fakeStore{snapshot: Snapshot{
+			Revision: 3, Assignments: []Assignment{tc.assignment},
+			Flags: testFlagIndexes, ResolverFlags: testResolverFlags,
+			EveryoneRoleID: "aaaaaaaa-0000-0000-0000-000000000001",
+			EveryonePerms:  bitsFor("VIEW_SCOPE"),
+		}}, testKeyring(t), nil, false)
 		if err != nil {
 			t.Fatal(err)
 		}
 		service.now = func() time.Time { return time.Date(2026, 7, 24, 12, 0, 0, 0, time.UTC) }
-		decision, err := service.WithEngine(tc.engine).Authorize(context.Background(), request)
+		decision, err := service.Authorize(context.Background(), request)
 		if err != nil {
 			t.Fatalf("%s: %v", tc.name, err)
 		}
@@ -248,63 +247,4 @@ func TestComputeAllow(t *testing.T) {
 			t.Error("expected department-scoped assignment to allow read")
 		}
 	})
-}
-
-// TestBitsetEngineDoesNotRequirePolicyRules confirms that EngineBitset allows a decision
-// when PolicyRules is empty — the early-exit guard must not fire in bitset mode.
-func TestBitsetEngineDoesNotRequirePolicyRules(t *testing.T) {
-	t.Parallel()
-	withBits := Assignment{
-		Role: centralauthz.RoleCollegeAdmin, ScopeKind: "college", TenantID: testTenant, ScopeID: testTenant,
-	}
-	withBits.Perms, withBits.HasPerms = bitsFor("VIEW_SCOPE", "submission.attempts.read"), true
-	snapshot := Snapshot{
-		Revision:    1,
-		Assignments: []Assignment{withBits},
-		// PolicyRules intentionally empty — bitset does not need them.
-		Flags: testFlagIndexes, ResolverFlags: testResolverFlags,
-	}
-	service, err := NewService(fakeStore{snapshot: snapshot}, testKeyring(t), nil, false)
-	if err != nil {
-		t.Fatalf("NewService() error = %v", err)
-	}
-	service.now = func() time.Time { return time.Date(2026, 7, 24, 12, 0, 0, 0, time.UTC) }
-	request := Request{
-		PrincipalID: testPrincipal, TenantID: testTenant, RequestID: testRequestID,
-		Action: "read", ResourceType: "attempts", ResourceID: "a-1", TargetService: "submission",
-	}
-	decision, err := service.WithEngine(EngineBitset).Authorize(context.Background(), request)
-	if err != nil {
-		t.Fatalf("Authorize() error = %v", err)
-	}
-	if !decision.Allowed {
-		t.Error("EngineBitset must allow when role bits grant the permission, even with no PolicyRules")
-	}
-}
-
-// TestCasbinEngineStillDeniesWithoutPolicyRules confirms that the casbin early-exit
-// guard is preserved: an empty PolicyRules list is a deny for casbin/shadow modes.
-func TestCasbinEngineStillDeniesWithoutPolicyRules(t *testing.T) {
-	t.Parallel()
-	assignment := Assignment{Role: centralauthz.RoleCollegeAdmin, ScopeKind: "college", TenantID: testTenant, ScopeID: testTenant}
-	snapshot := Snapshot{
-		Revision:    1,
-		Assignments: []Assignment{assignment},
-		// No PolicyRules — casbin cannot decide; deny is the safe default.
-	}
-	service, err := NewService(fakeStore{snapshot: snapshot}, testKeyring(t), nil, false)
-	if err != nil {
-		t.Fatalf("NewService() error = %v", err)
-	}
-	request := Request{
-		PrincipalID: testPrincipal, TenantID: testTenant, RequestID: testRequestID,
-		Action: "read", ResourceType: "attempts", ResourceID: "a-1", TargetService: "submission",
-	}
-	decision, err := service.Authorize(context.Background(), request)
-	if err != nil {
-		t.Fatalf("Authorize() error = %v", err)
-	}
-	if decision.Allowed {
-		t.Error("EngineCasbin must deny when PolicyRules is empty")
-	}
 }

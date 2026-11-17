@@ -79,7 +79,7 @@ release checklist.
 **Develop locally**
 
 ```sh
-# prerequisites: Go 1.26.10, Node 24 with pnpm 12, Docker
+# prerequisites: Go 1.26.11, Node 24 with pnpm 12, Docker
 make dev-up                 # PostgreSQL and NATS for the platform profile
 make build test             # all Go modules
 make web-check web-build    # the web UI: typecheck, lint, tests, build

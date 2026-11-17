@@ -50,7 +50,7 @@ reworking the core.
 
 | Layer | Choice | Target version | Notes |
 |---|---|---|---|
-| Backend services | Go | `1.26.5` | Go workspaces (`go.work`) monorepo |
+| Backend services | Go | `1.26.11` | Go workspaces (`go.work`) monorepo |
 | Sync inter-service | gRPC + Protobuf | `1.82.1` / `1.36.11` | Contracts in `backend/libs/proto` |
 | Platform event bus | NATS JetStream | `2.14.3` | Domain events, at-least-once |
 | Judge queue/broker | RabbitMQ | `4.3.3` | **Isolated** to the Judge wrapper |
@@ -92,7 +92,7 @@ first release. A single-node deployment is not an accepted production topology.
 
 The current CloudNativePG chart is render-gated on certificate and
 India-resident backup inputs; its node-loss and restore acceptance exercises
-are in [`deploy/runbooks/platform-postgres-ha.md`](../deploy/runbooks/platform-postgres-ha.md).
+are in [`docs/runbooks/platform-postgres-ha.md`](runbooks/platform-postgres-ha.md).
 
 ---
 

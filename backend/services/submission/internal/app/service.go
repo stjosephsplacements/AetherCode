@@ -99,6 +99,8 @@ type Store interface {
 	SetIntegrity(context.Context, pgx.Tx, SetIntegrity) error
 	RegradeItem(context.Context, pgx.Tx, ExamVersionCommand, string) (json.RawMessage, error)
 	RecordIntegrityEvent(context.Context, pgx.Tx, GetAttempt, string) error
+	StoreSnapshot(context.Context, pgx.Tx, StoreSnapshot) (string, error)
+	ListSnapshotKeys(context.Context, pgx.Tx, ListSnapshots) ([]SnapshotRow, error)
 	Ping(context.Context) error
 }
 
@@ -263,13 +265,21 @@ type SubmitResult struct {
 	EvaluationRequestCount int     `json:"evaluation_request_count"`
 }
 
+// SnapshotPublisher is an optional interface for publishing snapshot-stored
+// events to NATS after a webcam frame is saved. Implemented by the runtime
+// wiring in cmd/server; nil disables the publish (GPU proctoring won't run).
+type SnapshotPublisher interface {
+	PublishSnapshot(ctx context.Context, subject string, payload []byte) error
+}
+
 // Service owns validation, ID generation, and the one-transaction boundary for
 // all candidate-facing Submission operations.
 type Service struct {
-	pool    *pgxpool.Pool
-	store   Store
-	storage storage.Object
-	kms     kms.KeyManager
+	pool              *pgxpool.Pool
+	store             Store
+	storage           storage.Object
+	kms               kms.KeyManager
+	snapshotPublisher SnapshotPublisher // optional; nil = proctoring off
 }
 
 // NewService creates a new Submission service. storage and kms may both be
@@ -279,6 +289,12 @@ func NewService(pool *pgxpool.Pool, store Store, storage storage.Object, kms kms
 		return nil, fmt.Errorf("submission database pool and store are required")
 	}
 	return &Service{pool: pool, store: store, storage: storage, kms: kms}, nil
+}
+
+// WithSnapshotPublisher enables GPU proctoring by wiring a NATS publisher.
+// Call after NewService before serving traffic.
+func (service *Service) WithSnapshotPublisher(p SnapshotPublisher) {
+	service.snapshotPublisher = p
 }
 
 func (service *Service) StartAttempt(contextValue context.Context, capability centralauthz.Capability, command StartAttempt) (Attempt, error) {

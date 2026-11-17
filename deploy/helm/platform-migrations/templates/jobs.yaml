@@ -1,4 +1,4 @@
-{{- $platformSecrets := list "IDENTITY_DB_PASSWORD" "TENANT_DB_PASSWORD" "USERS_DB_PASSWORD" "QBANK_DB_PASSWORD" "ASSESSMENT_DB_PASSWORD" "SUBMISSION_DB_PASSWORD" "SEB_DB_PASSWORD" "NOTIFICATION_DB_PASSWORD" "ANALYTICS_DB_PASSWORD" "AUTHZ_CAPABILITY_KEYS" }}
+{{- $platformSecrets := list "IDENTITY_DB_PASSWORD" "TENANT_DB_PASSWORD" "USERS_DB_PASSWORD" "QBANK_DB_PASSWORD" "ASSESSMENT_DB_PASSWORD" "SUBMISSION_DB_PASSWORD" "SEB_DB_PASSWORD" "NOTIFICATION_DB_PASSWORD" "ANALYTICS_DB_PASSWORD" "PROCTOR_DB_PASSWORD" "AUTHZ_CAPABILITY_KEYS" }}
 {{- $hardened := dict "allowPrivilegeEscalation" false "readOnlyRootFilesystem" true "capabilities" (dict "drop" (list "ALL")) }}
 
 apiVersion: batch/v1
@@ -30,6 +30,40 @@ spec:
             {{- range $platformSecrets }}
             {{- include "migrations.secretEnv" (dict "name" . "secret" $.Values.secretName) | nindent 12 }}
             {{- end }}
+          securityContext:
+            {{- toYaml $hardened | nindent 12 }}
+---
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: proctor-migrate
+  labels:
+    {{- include "migrations.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "2"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: 30
+  template:
+    metadata:
+      labels:
+        {{- include "migrations.labels" . | nindent 8 }}
+        app.kubernetes.io/name: proctor-migrate
+    spec:
+      {{- include "migrations.podSpec" . | nindent 6 }}
+      containers:
+        - name: migrate
+          image: {{ include "migrations.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - exec migrate --source file:///migrations/proctor --direction up --database-url "postgres://aether_proctor_migrator:${PROCTOR_DB_PASSWORD}@{{ .Values.global.postgresHost }}:5432/aether_proctor?sslmode=disable"
+          env:
+            - name: PGHOST
+              value: {{ .Values.global.postgresHost | quote }}
+            {{- include "migrations.secretEnv" (dict "name" "PROCTOR_DB_PASSWORD" "secret" .Values.secretName) | nindent 12 }}
           securityContext:
             {{- toYaml $hardened | nindent 12 }}
 ---

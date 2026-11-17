@@ -78,3 +78,4 @@ Each decision is a numbered file; new ones start from [the template](0000-templa
 | [0072](0072-security-hardening-node-scoping-mfa-egress.md) | Security hardening: node scoping, MFA step-up, egress (accepted) |
 | [0073](0073-projection-consumers-tolerate-additive-fields.md) | Projection consumers tolerate additive fields (accepted) |
 | [0074](0074-database-pods-and-apparmor-signals.md) | Database pods run without the default AppArmor profile on hosts that deny signals (accepted) |
+| [0079](0079-remove-casbin-engine.md) | Remove the Casbin engine; role bit sets are the decision model (accepted) |

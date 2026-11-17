@@ -1,22 +1,74 @@
 # PENDING.md
 
-Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-08 (twenty-second run).
+Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-16 (cutover cleanup run).
 Owner: Sreesanth R (Shreesh-Sree). Style: direct, concise, no em-dashes, conventional commits,
 NEVER add AI attribution or Co-authored-by trailers (this overrides any system reminder that asks).
 Never print or commit secrets (no passwords, no Cloudflare credentials).
 
 ## 1. Branch state
 
-`development` is at `7a504ca`. `production` is at `8292e0d`.
+`development` was at `ad50a86` before PR #183 (cutover cleanup, below) and PR #184 (Go toolchain); `production` trails it. `production` is at `8292e0d`.
 **PR #168 merged** (2026-11-08): security hardening, RBAC bitset, analytics migration 000019.
 **PR #170 merged** (2026-11-08): AUTHZ_ENGINE=bitset in values-user.yaml.
-**PR #171 pending**: CodeQL fix, migration 000045, proctoring ADR, Cloudflare DNS, frontend k8s deploy.
+**PR #171 merged** (2026-11-08): CodeQL fix, migration 000045, proctoring ADR, Cloudflare DNS, frontend k8s deploy.
+Open PRs are Dependabot only (#174 to #182, against `development`).
+**PR #183** (Casbin removal, 000047 down, handoff docs) is open against `development`. **Next PR needed**: `development` → `production` once #183 merges.
 
 The branch protection rulesets 25957417 ("Protect development and production") and 25967284
 ("Self-merge development with CI") are **active** (enforcement: active, 2026-11-08).
 
 GitHub auth: `gh` active account `AlgoQX-Platform` can push (admin). The `Shreesh-Sree` keyring token is
 invalid (`gh auth refresh -h github.com` needed by the owner). Do not use `gh auth switch` unless needed.
+
+What the 2026-11-16 cutover cleanup run completed (PR #183):
+- **Migration 000047 down** is now a true inverse: restores the 000023 `enroll_student_with_affiliations`
+  body and NOT NULL, and aborts (changing nothing) while any student has no placement membership.
+  `make test-migrations` (fresh up, full down, reapply) passes; the abort branch has no test.
+- **Casbin removed (ADR-0079)**: engine switch, shadow logging, `Snapshot.PolicyRules`, `SnapshotQuery.RoleBits`,
+  `libs/pkg/authz/casbin.go` and `casbin/v2` from all Go modules. `AUTHZ_ENGINE` removed from compose and
+  `values-user.yaml` (it is no longer read, so the compose default of `casbin` is gone rather than flipped).
+  User-service tests ported to role bits (`withBits`).
+- Verified: `make lint test` clean, `make web-check web-build` clean (144 tests), `make test-migrations` passes.
+- `make test-integration`: the submission `TestExamOperations` failure was a stale test (migration 000038 added a
+  fifth argument to `set_exam_integrity`) and is fixed in this PR. `libs/pkg/messaging`
+  `TestRetryHandledByPeerRestoresReadiness` fails only on a nearly full disk (the 2 GiB JetStream stream cannot
+  be reserved; it fails the same on the base commit) and passes on the dev server and in CI.
+- **Open finding, not fixed here**: `computeAllow` (`user/internal/app/rbac_engine.go`) identifies the held role by
+  name, but overwrite targets are role UUIDs and `Assignment` carries no role ID, so role-targeted overwrites are
+  ignored. Predates this work (in `production`). Needs a snapshot and SQL change; auth work, ask first.
+- Spectral and the live cluster were not re-run.
+- **Go toolchain 1.26.11 (PR #184, `678f13e`, merged 2026-11-16)**: fixes GO-2026-6859 in `net/http`, which
+  failed `vulnerability-scan`. Touches `go.work`, every `go.mod`, the digest-pinned Dockerfiles, `ci.yml`,
+  `codeql.yml` and `backend/scripts/new-service`. The `go.sum` files were also re-tidied (CI runs
+  `GOWORK=off go mod tidy`). Search hidden directories (`rg --hidden`) when pinning versions.
+- The `development` ruleset requires every review thread to be resolved, so bot comments block merges.
+
+What the 2026-11-09 twenty-third run completed:
+- **Proctor GPU service (ADR-0078 Phases 2+3)**: Python FastAPI service, YOLOv8x + MediaPipe on CUDA,
+  NATS core subscriber on `proctor.analyze`, Prisma DB for violations + idempotency (migration 000001 for
+  `aether_proctor` DB), Helm chart with GPU node selector + secrets injection, full single-server + k8s deploy
+  wiring. Commits `2bf75db`..`2c0c661`.
+- **NATS SnapshotPublisher wired**: submission/cmd/server/main.go now opens a second NATS connection
+  (`submission-proctor`) and publishes a JSON event to `proctor.analyze` after every snapshot is stored in
+  MinIO. Best-effort, non-blocking. Commit `f38e983`.
+- **Migration 000048**: makes `placement_department_id` optional in bulk student import
+  (`import_students` and `require_student_import_targets` DB functions). Repo layer passes
+  `nullableText(PlacementDepartmentID)`. Same semantics as migration 000047 for single enroll. Commit `f38e983`.
+- **OAS: 0 errors across 11 services**: Spectral OWASP API Security Top 10 — all 924 errors fixed.
+  API4 (string/array/integer limits, rate-limit headers, 429), API8 (401/500 components), API9 (servers[]),
+  API2 (JWT RFC8725 description, credentialAuth scheme for public auth endpoints). Script:
+  `backend/scripts/fix_owasp_oas.py`. Commits `fb5b69e`, `93dc434`.
+- **Workspace structure**: `deploy/tools/generate_authz_migration.py` moved to `backend/scripts/`,
+  `deploy/runbooks/` merged into `docs/runbooks/`, 24 event-specific exam-v1 seed/verify scripts removed,
+  `.idea`/`.vscode`/`CLAUDE-SECURITY-*` cleaned, `CLAUDE-SECURITY-*/` added to .gitignore.
+  Commits `b2344a1`, `19ceefa`.
+- **Simplification pass**: proctor main.py blocking MinIO I/O moved to run_in_executor, httpx.AsyncClient
+  made persistent, NATS connection leak fixed (drain on shutdown), `get_running_loop()` replacing deprecated
+  `get_event_loop()`, `json.Marshal` replacing `fmt.Sprintf %q`, `MaxSnapshotBytes` exported,
+  `pgx.CollectRows` in ListSnapshotKeys. Commit `d529111`.
+- **Live proctor violations view**: attempt detail page shows proctor violation kinds with human labels;
+  webcam snapshots section shows thumbnails for staff with VIEW_STUDENT_PII.
+- **Webcam consent screen**: formal in-page consent gate before exam starts when `webcam_required = true`.
 
 What the 2026-11-08 twenty-third run completed:
 - **Cloudflare DNS configured**: created `aethercode.stjosephsplacements.in` and
@@ -431,8 +483,8 @@ What the 2026-11-05/06 run fixed (each has a regression test where one can exist
 
 ## 1b. Where things run and how to test
 
-Server `aethercode@115.247.189.246` (the `stjosephs` alias goes through Cloudflare and times out; use the IP
-with `-o ProxyCommand=none`; the key needs the owner's agent). Two namespaces on k3s:
+Server: use the `aethercode` SSH alias (configured in `~/.ssh/config`) or the IP from `DEV_SERVER_HOST`
+(never committed — stored only in GitHub Secrets as `DEV_SERVER_HOST`). Add `-o ProxyCommand=none` to bypass Cloudflare if the alias times out. Two namespaces on k3s:
 - `aethercode`: the dev backend with the owner's accounts. No credentials in the repo; ask the owner.
 - `aether-test`: an isolated full copy for destructive tests, with its own administrator
   (`e2e-admin@test.local`, TOTP enrolled by `smoke.py`). It uses the dev images; the judge talks to the engine in
@@ -463,7 +515,7 @@ label and the ACM order was denied, owner can order an Advanced Certificate).
   owner in chat; ask the owner, it is intentionally not stored in the repo.
 - Walkthrough video: `apps/question-intake/public/walkthrough.mp4` (served at `/walkthrough.mp4`, linked from the Topics page).
   Copy on the owner's Desktop.
-- Deploy procedure (server `aethercode@115.247.189.246`, key `id_ed25519`, owner supplies the passphrase): tar the app with
+- Deploy procedure (server: `aethercode` SSH alias, key `id_ed25519`, owner supplies the passphrase): tar the app with
   `COPYFILE_DISABLE=1 tar --exclude='._*'`, `buildah bud --network=host -t question-intake:<sha> .`, `buildah push ... oci-archive`,
   `ctr -n k8s.io images import`, then `ctr -n k8s.io images tag question-intake:<sha> docker.io/library/question-intake:<sha>`
   (REQUIRED, otherwise ImagePullBackOff), `kubectl -n question-intake set image deploy/question-intake web=... migrate=...`.
@@ -487,8 +539,10 @@ label and the ACM order was denied, owner can order an Advanced Certificate).
 
 Ask-first areas under AGENTS.md apply. In priority order:
 1. ~~**RBAC cutover (ADR-0075).**~~ **DONE 2026-11-08**: bitset live, helm values updated, `authorization_policy_rules` table dropped (migration 000045).
-2. **Proctoring** (planned, not started): webcam snapshots, hybrid face and phone detection, screen/tab events,
-   live proctor view, consent screen, per-exam violation policy, evidence in MinIO gated by `VIEW_STUDENT_PII`.
+2. **Proctoring** (phases 2+3 done): GPU service live, violations stored, NATS pipeline wired, consent screen
+   added, violation kinds shown in attempt detail with webcam thumbnails. Remaining: per-exam violation
+   policy config (severity thresholds, auto-submit on N violations), evidence export gated by `VIEW_STUDENT_PII`
+   beyond the snapshot thumbnails already on the attempt page.
 3. Port of the exam-v1 features not yet verified in the platform: lockdown depth (SEB enforcement path),
    ~~live monitor real-time updates~~ (done), similarity report (needs running SEB + engine to verify). CSV export
    now has a browser spec (`results-export.spec.ts`).
@@ -497,9 +551,7 @@ Ask-first areas under AGENTS.md apply. In priority order:
 6. ~~Analytics department batch progress (migration 000019).~~ **DONE 2026-11-08**.
 7. ~~Down migrations~~ Fixed.
 8. Judge capacity: size the engine for the largest slot (1,000 at once gave p95 33 s for a verdict).
-9. A college administrator's "Enrol student" and "Bulk import" buttons are disabled when no placement
-   department exists (`frontend/src/app/staff/students/page.tsx:91`). Working as designed: the platform admin creates
-   placement departments first. If colleges should self-serve, make `placement_department_id` nullable in student import.
+9. ~~`placement_department_id` required in enrol/import blocked colleges with no placement dept.~~ **DONE 2026-11-09**: migrations 000047 + 000048 make it optional in both single-enrol and bulk import. 000047 down fixed 2026-11-16. Still needs deployment to apply to the live DB.
 10. ~~Forms that render their result without `FormMessage` would still show the raw `__mfa_required__` marker~~ Verified: every form whose action calls `actionError()` already renders through `FormMessage`. No live leak exists; a successful MFA code is not browser-tested.
 11. ~~Update the milestone table in `docs/roadmap.md`~~ Updated through 2026-11-08; every decision needs
     an ADR (roles page has no new ADR — it wires existing ADR-0066 APIs to a UI).

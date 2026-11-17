@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7.0.0
         with:
-          go-version: '1.26.10'
+          go-version: '1.26.11'
           cache-dependency-path: |
             backend/libs/pkg/go.sum
             backend/services/*/go.sum
@@ -30,6 +30,8 @@ jobs:
         run: |
           set -euo pipefail
           for dir in backend/libs/pkg backend/libs/proto backend/services/*/; do
+            # Skip non-Go service directories (e.g. proctor which is Python)
+            [[ -f "${dir}go.mod" ]] || continue
             (cd "$dir" && GOWORK=off go mod tidy && GOWORK=off go build ./...)
           done
           git diff --exit-code -- '*.mod' '*.sum'
@@ -65,7 +67,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7.0.0
         with:
-          go-version: '1.26.10'
+          go-version: '1.26.11'
           cache-dependency-path: |
             backend/libs/pkg/go.sum
             backend/services/*/go.sum
@@ -78,7 +80,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7.0.0
         with:
-          go-version: '1.26.10'
+          go-version: '1.26.11'
           cache-dependency-path: backend/libs/pkg/go.sum
       - run: make test-migrations
       - name: Validate Soft Delete Implementation
@@ -90,7 +92,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7.0.0
         with:
-          go-version: '1.26.10'
+          go-version: '1.26.11'
           cache-dependency-path: backend/libs/pkg/go.sum
       - run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
       - run: go install github.com/bufbuild/buf/cmd/buf@v1.72.0
@@ -105,7 +107,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7.0.0
         with:
-          go-version: '1.26.10'
+          go-version: '1.26.11'
           cache-dependency-path: |
             backend/libs/pkg/go.sum
             backend/services/*/go.sum
@@ -140,6 +142,9 @@ jobs:
           - service: frontend
             context: frontend
             file: frontend/Dockerfile
+          - service: proctor
+            context: backend/services/proctor
+            file: backend/services/proctor/Dockerfile
           - service: tools
             context: .
             file: deploy/single-server/Dockerfile.tools
@@ -151,23 +156,22 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Login to GitHub Container Registry
-        if: github.ref == 'refs/heads/production'
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build (and push on production)
+      - name: Build and push
         id: build
         uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.context || 'backend' }}
           file: ${{ matrix.file || format('backend/services/{0}/Dockerfile', matrix.service) }}
-          push: ${{ github.ref == 'refs/heads/production' }}
+          push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/aethercode-${{ matrix.service }}:latest
             ghcr.io/${{ github.repository_owner }}/aethercode-${{ matrix.service }}:${{ github.sha }}
+            ${{ github.ref == 'refs/heads/production' && format('ghcr.io/{0}/aethercode-{1}:latest', github.repository_owner, matrix.service) || '' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
@@ -242,33 +246,80 @@ jobs:
       - name: Run migrations and deploy production images
         env:
           IMAGE_TAG: ${{ github.sha }}
+          NAMESPACE: ${{ secrets.PROD_K8S_NAMESPACE }}
+          PUBLIC_ORIGIN: ${{ secrets.PROD_PUBLIC_ORIGIN }}
+          INGRESS_HOST: ${{ secrets.PROD_INGRESS_HOST }}
+          SERVICES: ${{ secrets.PROD_SERVICES }}
         run: |
           set -euo pipefail
-          namespace=aethercode
           chart=deploy/helm/platform-service
-          services=(gateway identity tenant user question-bank assessment submission judge seb notification analytics frontend)
+          read -ra services <<< "$SERVICES"
 
-          migration_values=$(helm get values migrations --namespace "$namespace" -o json)
-          postgres_host=$(jq -er '.global.postgresHost // .postgresHost | select(type == "string" and length > 0)' <<<"$migration_values")
-          judge_db_host=$(jq -er '.global.judgeDbHost // .judgeDbHost | select(type == "string" and length > 0)' <<<"$migration_values")
           helm upgrade migrations deploy/helm/platform-migrations \
-            --namespace "$namespace" \
+            --namespace "$NAMESPACE" \
+            --install \
             --reset-then-reuse-values \
-            --set-string global.postgresHost="$postgres_host" \
-            --set-string global.judgeDbHost="$judge_db_host" \
+            --set global.postgresHost="postgres-cluster-pooler.$NAMESPACE.svc.cluster.local" \
+            --set global.judgeDbHost="judge-db" \
             --set image.tag="$IMAGE_TAG" \
             --wait --atomic --timeout 15m
 
           for service in "${services[@]}"; do
+            extra_args=()
+            [[ "$service" == "frontend" ]] && extra_args=(--set "ingress.host=$INGRESS_HOST")
             helm upgrade "$service" "$chart" \
-              --namespace "$namespace" \
+              --namespace "$NAMESPACE" \
+              --install \
               --reuse-values \
               --values "deploy/helm/platform-service/values-$service.yaml" \
               --set image.tag="$IMAGE_TAG" \
+              --set global.publicOrigin="$PUBLIC_ORIGIN" \
               --set "imagePullSecrets[0].name=ghcr-creds" \
+              "${extra_args[@]}" \
               --wait --atomic --timeout 10m
           done
 
       - name: Show production workload status
         if: always()
-        run: kubectl get deployments,pods -n aethercode
+        env:
+          NAMESPACE: ${{ secrets.PROD_K8S_NAMESPACE }}
+        run: kubectl get deployments,pods -n "$NAMESPACE"
+
+  deploy-dev:
+    needs:
+      - build-test
+      - web
+      - build-images
+    if: github.event_name == 'push' && github.ref == 'refs/heads/development'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: development
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Deploy to development server
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.DEV_SSH_KNOWN_HOSTS }}
+          SERVER_HOST: ${{ secrets.DEV_SERVER_HOST }}
+          SERVER_USER: ${{ secrets.DEV_SERVER_USER }}
+          DEPLOY_PATH: ${{ secrets.DEV_DEPLOY_PATH }}
+          DEV_K8S_NAMESPACE: ${{ secrets.DEV_K8S_NAMESPACE }}
+          DEV_PUBLIC_ORIGIN: ${{ secrets.DEV_PUBLIC_ORIGIN }}
+          DEV_INGRESS_HOST: ${{ secrets.DEV_INGRESS_HOST }}
+          SHA: ${{ github.sha }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.ssh"
+          chmod 700 "$HOME/.ssh"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/id_deploy"
+          chmod 600 "$HOME/.ssh/id_deploy"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+          ssh \
+            -i "$HOME/.ssh/id_deploy" \
+            -o StrictHostKeyChecking=yes \
+            -o BatchMode=yes \
+            "${SERVER_USER}@${SERVER_HOST}" \
+            "GHCR_TOKEN='${GHCR_TOKEN}' DEV_K8S_NAMESPACE='${DEV_K8S_NAMESPACE}' DEV_PUBLIC_ORIGIN='${DEV_PUBLIC_ORIGIN}' DEV_INGRESS_HOST='${DEV_INGRESS_HOST}' bash '${DEPLOY_PATH}/deploy/dev/dev-sync.sh' '${SHA}' gateway identity tenant user question-bank assessment submission judge seb notification analytics frontend"

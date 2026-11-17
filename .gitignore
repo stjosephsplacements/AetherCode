@@ -39,6 +39,7 @@ secrets/
 .claude/
 .superpowers/
 .remember/
+CLAUDE-SECURITY-*/
 
 # Dropped files — non-code artifacts that must not be committed
 *.pdf

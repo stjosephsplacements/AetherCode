@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LoadError, PageHeader, Section } from "@/components/staff/page-header";
 import { Badge, Panel } from "@/components/ui/card";
-import type { AttemptReview } from "@/lib/api-types";
+import type { AttemptReview, Snapshot } from "@/lib/api-types";
 import { gateway } from "@/lib/server/gateway";
 import { requireCollege } from "@/lib/server/staff";
 import { listAllStudents } from "@/lib/server/students";
@@ -28,7 +28,15 @@ function describe(event: AttemptReview["events"][number]): string {
     case "submission.attempt.cancelled.v1":
       return "Attempt cancelled";
     case "submission.attempt.integrity.v1":
-      return { blur: "Left the exam window", paste: "Tried to paste from outside the exam (blocked)", fullscreen_exit: "Left fullscreen" }[String(payload.kind)] ?? "Integrity event";
+      return ({
+        blur: "Left the exam window",
+        paste: "Tried to paste from outside the exam (blocked)",
+        fullscreen_exit: "Left fullscreen",
+        phone_detected: "Phone detected (GPU)",
+        multiple_faces: "Multiple people in frame",
+        face_missing: "No face in frame",
+        gaze_away: "Looking away from screen",
+      } as Record<string, string>)[String(payload.kind)] ?? "Integrity event";
     default:
       return event.event_type.replace(/^submission\./, "").replace(/\.v\d+$/, "").replaceAll(/[._]/g, " ");
   }
@@ -39,11 +47,12 @@ export default async function AttemptPage({ params }: { params: Promise<{ examId
   const { examId, attemptId } = await params;
   let data;
   try {
-    const [review, students] = await Promise.all([
+    const [review, students, snapshots] = await Promise.all([
       gateway<AttemptReview>(`/submission/v1/tenants/${staff.tenantId}/attempts/${attemptId}/review`),
       listAllStudents(staff.tenantId),
+      gateway<Snapshot[]>(`/submission/v1/tenants/${staff.tenantId}/attempts/${attemptId}/snapshots`).catch(() => [] as Snapshot[]),
     ]);
-    data = { review, roll: students.find((student) => student.principal_id === review.attempt.candidate_id)?.enrollment_number };
+    data = { review, roll: students.find((student) => student.principal_id === review.attempt.candidate_id)?.enrollment_number, snapshots };
   } catch (error) {
     return (
       <>
@@ -52,7 +61,7 @@ export default async function AttemptPage({ params }: { params: Promise<{ examId
       </>
     );
   }
-  const { review, roll } = data;
+  const { review, roll, snapshots } = data;
   const { attempt } = review;
 
   return (
@@ -111,6 +120,18 @@ export default async function AttemptPage({ params }: { params: Promise<{ examId
           )}
         </Section>
       ))}
+
+      {snapshots.length > 0 && (
+        <Section title="Webcam snapshots">
+          <div className="flex flex-wrap gap-2">
+            {snapshots.map((snap) => (
+              <a key={snap.id} href={snap.url} target="_blank" rel="noopener noreferrer">
+                <img src={snap.url} width={120} height={90} title={snap.captured_at} alt={`Snapshot at ${snap.captured_at}`} className="rounded border border-line object-cover" />
+              </a>
+            ))}
+          </div>
+        </Section>
+      )}
 
       <Section title="Activity">
         <ol className="space-y-1.5 text-sm">

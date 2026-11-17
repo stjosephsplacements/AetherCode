@@ -3,12 +3,12 @@
 #   deploy/dev/frontend-dev.sh [namespace] [public origin]
 # namespace: aethercode (the dev backend, default) or aether-test (the isolated copy used for tests).
 # It opens an SSH tunnel to the namespace's gateway on 127.0.0.1:18080, then starts `pnpm dev` on
-# http://localhost:3000. The server's key must be loaded in your agent. The `stjosephs` ssh alias goes
-# through Cloudflare and times out, so this uses the address directly.
+# http://localhost:3000. The server's key must be loaded in your agent.
+# Server address from DEV_SERVER_HOST env var (set in your shell or .env.local), or use the `aethercode` SSH alias.
 set -euo pipefail
 namespace="${1:-aethercode}"
 origin="${2:-http://localhost:3000}"
-host="aethercode@115.247.189.246"
+host="aethercode@${DEV_SERVER_HOST:-aethercode}"
 ssh_options=(-o ProxyCommand=none -o BatchMode=yes)
 
 gateway_ip="$(ssh "${ssh_options[@]}" "$host" "kubectl -n $namespace get svc gateway -o jsonpath='{.spec.clusterIP}'")"

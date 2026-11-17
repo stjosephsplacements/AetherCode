@@ -16,7 +16,7 @@ flowchart TB
         subgraph AuthAndOrg["Identity & Tenancy"]
             Identity["Identity Service<br/>(AuthN, MFA, Tokens)"]
             Tenant["Tenant Service<br/>(Colleges & Depts)"]
-            UserSvc["User & RBAC Service<br/>(Casbin Medallion AuthZ)"]
+            UserSvc["User & RBAC Service<br/>(Role-bit Medallion AuthZ)"]
         end
 
         subgraph Assessments["Questions & Exams"]

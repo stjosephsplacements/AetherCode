@@ -41,7 +41,7 @@ echo "  labels: {app.kubernetes.io/part-of: aethercode}"
 echo "type: Opaque"
 echo "stringData:"
 echo "  POSTGRES_SUPERUSER_PASSWORD: $(hex)"
-for db in IDENTITY TENANT USERS QBANK ASSESSMENT SUBMISSION SEB NOTIFICATION ANALYTICS JUDGE; do
+for db in IDENTITY TENANT USERS QBANK ASSESSMENT SUBMISSION SEB NOTIFICATION ANALYTICS PROCTOR JUDGE; do
   echo "  ${db}_DB_PASSWORD: $(hex)"
 done
 echo "  JUDGE_RABBITMQ_PASSWORD: $(hex)"

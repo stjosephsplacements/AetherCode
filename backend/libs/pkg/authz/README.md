@@ -1,8 +1,8 @@
 # authz
 
 The canonical User authorization service loads typed role/scope bindings and
-active Casbin policy rows for every decision. This package provides the Casbin
-model, five-second HMAC capability envelope, and a no-cache gRPC client used by
+role bit sets for every decision. This package provides the role names, the
+five-second HMAC capability envelope, and a no-cache gRPC client used by
 protected services before they begin a local RLS transaction.
 
 The capability canonical form exactly matches `authz.set_context` in each

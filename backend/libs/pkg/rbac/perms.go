@@ -1,7 +1,7 @@
 // Package rbac is the Discord-style role and permission model (ADR-0066): permission
 // bit sets, role rank and hierarchy, and the overwrite resolution algorithm. It is pure
-// computation with no storage, so the user service, its database triggers' tests and the
-// shadow comparison against Casbin all share one definition.
+// computation with no storage, so the user service and its database triggers' tests share
+// one definition.
 package rbac
 
 import (

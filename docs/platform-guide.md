@@ -4,7 +4,7 @@ Details of the Go platform that the [README](../README.md) only summarises: the 
 
 ## Security and database model
 
-The User service is the canonical Casbin-backed authorization decision service.
+The User service is the canonical role-bit authorization decision service.
 Its private mTLS `authz/v1.Authorize` API issues a fresh, five-second,
 database-audience-bound HMAC capability for each allowed request. A target
 database validates that capability in `authz.set_context`, binds it to the
@@ -33,7 +33,7 @@ the script neither generates nor stores a secret.
 The platform HA chart is deliberately render-gated on client certificates and
 India-resident encrypted backup inputs. A successful render or install is not
 HA acceptance: the node-failure and PITR exercises in
-[the platform PostgreSQL runbook](../deploy/runbooks/platform-postgres-ha.md) are
+[the platform PostgreSQL runbook](runbooks/platform-postgres-ha.md) are
 required before promotion.
 
 

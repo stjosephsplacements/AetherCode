@@ -139,7 +139,7 @@ func TestExamOperations(t *testing.T) {
 
 	t.Run("integrity settings reach the exam screen and events become flags", func(t *testing.T) {
 		require.NoError(t, staff("submission.write", "submission.attempt_events", func(transaction pgx.Tx) error {
-			_, err := transaction.Exec(ctx, `SELECT submission.set_exam_integrity($1, $2, true, true)`, unitTenantID, versionID)
+			_, err := transaction.Exec(ctx, `SELECT submission.set_exam_integrity($1, $2, true, true, false)`, unitTenantID, versionID)
 			return err
 		}))
 		var live struct {

@@ -582,8 +582,20 @@ SELECT
 }
 
 assert_user_batch_affiliation_policies() {
-  local state
+  local table_exists
+  # Migration 000045 drops authorization_policy_rules (ADR-0075 RBAC bitset cutover).
+  # Once that migration has been applied the Casbin table no longer exists, so
+  # the policy-row assertions below are vacuously satisfied and we skip them.
+  table_exists="$(database_psql aether_users --tuples-only --no-align --command "
+SELECT EXISTS (
+  SELECT 1 FROM information_schema.tables
+  WHERE table_schema = 'users' AND table_name = 'authorization_policy_rules'
+);")"
+  if [[ "$table_exists" != 't' ]]; then
+    return 0  # table dropped by 000045 — assertions no longer apply
+  fi
 
+  local state
   # These rules were added after the submission self rules. Keep both sets in
   # the verifier because a reused UUID would make a rollback of the batch
   # migration silently delete unrelated attempt authorization policy.

@@ -410,6 +410,9 @@ export type AttemptResult =
       }[];
     };
 
+/** GET /submission/v1/tenants/{t}/attempts/{a}/snapshots: webcam snapshot with presigned URL (VIEW_STUDENT_PII). */
+export type Snapshot = { id: string; captured_at: string; url: string };
+
 /** GET /submission/v1/tenants/{t}/attempts/{a}/review: the staff view of one attempt (ADR-0029). */
 export type AttemptReview = {
   attempt: {
