@@ -46,7 +46,7 @@ export const MAX_TAGS = 50;
 export const MAX_TAG_LENGTH = 80;
 
 /** A tag as the question bank stores it: lower case, no padding, words joined by hyphens. */
-export const normalizeTag = (raw: string): string => raw.trim().toLowerCase().replace(/[\s_]+/g, "-").replace(/[^\p{L}\p{N}+#.-]/gu, "").replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, MAX_TAG_LENGTH);
+export const normalizeTag = (raw: string): string => raw.trim().toLowerCase().replace(/[\s_]+/g, "-").replace(/[^\p{L}\p{N}+#.:-]/gu, "").replace(/-+/g, "-").replace(/:-/g, ":").replace(/^-|-$/g, "").slice(0, MAX_TAG_LENGTH);
 
 /** The tags with duplicates and empty ones removed, in the order given. */
 export const cleanTags = (tags: string[]): string[] => [...new Set(tags.map(normalizeTag).filter(Boolean))].slice(0, MAX_TAGS);
