@@ -2,6 +2,8 @@ SET ROLE aether_user_owner;
 
 DROP FUNCTION IF EXISTS users.principal_has_tenant_role(uuid, uuid);
 
+SET LOCAL users.allow_managed_change = 'on';
+
 UPDATE users.roles
 SET permissions = permissions & ~users.flag_bits(ARRAY[
     'analytics.batch_progress_department_rollups.read',

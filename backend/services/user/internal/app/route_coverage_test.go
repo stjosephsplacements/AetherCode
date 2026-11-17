@@ -24,7 +24,7 @@ func TestEveryAuthorizedHandlerResourceIsInTheRouteTable(t *testing.T) {
 			return walkErr
 		})
 		if err != nil {
-			continue // a route target without a service directory in this checkout
+			t.Fatalf("walk route target %s: %v", service, err)
 		}
 		for _, file := range files {
 			content, readErr := os.ReadFile(file)

@@ -11,6 +11,8 @@ INSERT INTO users.permission_flags (key, bit_index, kind, elevated, platform_onl
     ('analytics.batch_progress_department_rollups.delete', 207, 'resource', false, false)
 ON CONFLICT DO NOTHING;
 
+SET LOCAL users.allow_managed_change = 'on';
+
 UPDATE users.roles
 SET permissions = permissions | users.flag_bits(ARRAY[
     'analytics.batch_progress_department_rollups.read',
@@ -39,6 +41,7 @@ BEGIN
         WHERE assignment.tenant_id = p_tenant_id
           AND assignment.principal_id = p_principal_id
           AND assignment.status = 'active'
+          AND assignment.deleted_at IS NULL
           AND assignment.role_name <> 'student'
           AND (assignment.expires_at IS NULL OR assignment.expires_at > clock_timestamp())
     );
