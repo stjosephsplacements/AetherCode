@@ -71,9 +71,8 @@ authorization decision, allowed or denied.
 
 - Nothing auto-submits until an exam's policy version sets `enabled`,
   `auto_submit_on_breach` and `max_violations`.
-- Rollout order: deploy Submission (it accepts `proctor_policy`) before applying
-  Assessment migration 000040, or the assignment snapshot is rejected as invalid.
-  Existing assignments carry no policy until Assessment re-emits their snapshot
+- Rollout order is free: the projection decoder ignores unknown fields, so an older
+  Submission drops `proctor_policy` and loses nothing else. Existing assignments carry no policy until Assessment re-emits their snapshot
   (a move of the window or a repin does).
 - The audit entry is written when access is granted, not when the response is
   delivered.

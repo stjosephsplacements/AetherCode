@@ -412,11 +412,13 @@ func validChoices(item assignmentItem) bool {
 	return true
 }
 
-// validPolicy accepts an absent policy, JSON null or a JSON object of at most 64 KiB.
+// validPolicy accepts an absent policy, JSON null or a JSON object. Assessment
+// caps the compact body at 64 KiB; the snapshot carries PostgreSQL's jsonb text,
+// which adds spaces, so the cap here is twice that.
 func validPolicy(raw json.RawMessage) bool {
 	if len(raw) == 0 || string(raw) == "null" {
 		return true
 	}
 	var object map[string]json.RawMessage
-	return len(raw) <= 64<<10 && json.Unmarshal(raw, &object) == nil && object != nil
+	return len(raw) <= 128<<10 && json.Unmarshal(raw, &object) == nil && object != nil
 }

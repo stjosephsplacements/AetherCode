@@ -1,6 +1,6 @@
 -- The exam's proctor policy travels with the candidate assignment snapshot
--- (ADR-0080) so Submission can hand it to the proctor service. NULL when the
--- exam version has none. Consumers must accept the field before this is applied.
+-- (ADR-0080) so Submission can hand it to the proctor service. Every exam
+-- version has a policy version; its body may carry no proctoring keys.
 SET ROLE aether_assessment_owner;
 
 CREATE OR REPLACE FUNCTION assessment.enqueue_candidate_assignment_snapshot(

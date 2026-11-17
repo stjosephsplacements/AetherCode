@@ -12,11 +12,12 @@ import (
 func TestGetProctorEvidenceRejectsBadInputAndMissingReader(t *testing.T) {
 	service := &Service{}
 	const id = "0190a0a0-0000-7000-8000-000000000001"
-	if _, err := service.GetProctorEvidence(context.Background(), centralauthz.Capability{}, "x", id); err == nil {
-		t.Fatal("expected an invalid-argument error")
-	}
-	_, err := service.GetProctorEvidence(context.Background(), centralauthz.Capability{}, id, id)
 	var appErr *apperrors.Error
+	_, err := service.GetProctorEvidence(context.Background(), centralauthz.Capability{}, "x", id)
+	if !errors.As(err, &appErr) || appErr.Code != apperrors.CodeInvalidArgument {
+		t.Fatalf("error = %v, want invalid argument for a malformed tenant ID", err)
+	}
+	_, err = service.GetProctorEvidence(context.Background(), centralauthz.Capability{}, id, id)
 	if !errors.As(err, &appErr) || appErr.Code != apperrors.CodeUnavailable {
 		t.Fatalf("error = %v, want unavailable without a reader", err)
 	}

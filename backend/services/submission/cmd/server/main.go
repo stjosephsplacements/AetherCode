@@ -355,6 +355,7 @@ func run(contextValue context.Context) error {
 		return err
 	}
 	var expiryRunner *expiry.Runner
+	var violationConsumer *messaging.PullConsumer
 	if expiryRuntime.Enabled {
 		expiryDatabaseConfig, expiryConfigErr := config.LoadDatabase("SUBMISSION_EXPIRY")
 		if expiryConfigErr != nil {
@@ -372,8 +373,11 @@ func run(contextValue context.Context) error {
 		if expiryRoleErr := expiryStore.Ping(contextValue); expiryRoleErr != nil {
 			return expiryRoleErr
 		}
-		if messagingRuntime.URL != "" {
-			violationConsumer, violationConsumerErr := messaging.NewPullConsumer(
+		if messagingRuntime.URL == "" {
+			logger.Warn("proctor violation auto-submit is off: no NATS URL")
+		} else {
+			var violationConsumerErr error
+			violationConsumer, violationConsumerErr = messaging.NewPullConsumer(
 				contextValue, messagingRuntime.URL, serviceConfig.Name+"-proctor-violation",
 				"submission_proctor_violation_v1", violation.EventType, logger, violation.Handler(expiryStore, logger),
 			)
@@ -391,12 +395,19 @@ func run(contextValue context.Context) error {
 			return fmt.Errorf("initial attempt expiry cycle: %w", expiryOnceErr)
 		}
 		go expiryRunner.Run(contextValue)
+	} else {
+		logger.Warn("proctor violation auto-submit is off: the expiry worker is disabled")
 	}
 
 	priorReadiness := readiness
 	readiness = func(readinessContext context.Context) error {
 		if err := priorReadiness(readinessContext); err != nil {
 			return err
+		}
+		if violationConsumer != nil {
+			if err := violationConsumer.Ready(readinessContext); err != nil {
+				return err
+			}
 		}
 		if expiryRunner != nil {
 			return expiryRunner.Ready(readinessContext)

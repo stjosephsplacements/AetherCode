@@ -17,6 +17,8 @@ func TestValidateProctorPolicy(t *testing.T) {
 		{"max too large", `{"max_violations":1001}`, true},
 		{"auto submit without max", `{"auto_submit_on_breach":true}`, true},
 		{"unknown kind", `{"counted_violation_kinds":["LOOKING_UP"]}`, true},
+		{"mis-cased key", `{"Auto_Submit_On_Breach":true}`, true},
+		{"explicit null", `{"max_violations":null}`, true},
 		{"wrong type", `{"max_violations":"5"}`, true},
 	}
 	for _, test := range tests {

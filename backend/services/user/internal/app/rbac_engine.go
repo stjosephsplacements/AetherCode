@@ -13,8 +13,9 @@ const (
 	flagViewStudentPII = "VIEW_STUDENT_PII"
 )
 
-// piiReadResources are the resources a VIEW_STUDENT_PII holder may read. No
-// per-resource flag exists for them.
+// piiReadResources are the resources a VIEW_STUDENT_PII holder may read. Their
+// resource flags are registered platform-only, so VIEW_STUDENT_PII is the only
+// way below ADMINISTRATOR to reach them.
 var piiReadResources = map[string]bool{"submission.snapshots": true, "submission.proctor_evidence": true}
 
 func piiRead(request Request) bool {

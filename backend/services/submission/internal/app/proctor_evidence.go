@@ -19,16 +19,26 @@ type Violation struct {
 	DetectedAt time.Time `json:"detected_at"`
 }
 
+// ViolationList is an attempt's violations, oldest first. Truncated is set when
+// the proctor service cut the list to its newest entries.
+type ViolationList struct {
+	Violations []Violation
+	Truncated  bool
+}
+
 // ViolationReader reads an attempt's violations from the proctor service.
 type ViolationReader interface {
-	Violations(ctx context.Context, tenantID, attemptID string) ([]Violation, error)
+	Violations(ctx context.Context, tenantID, attemptID string) (ViolationList, error)
 }
 
 // ProctorEvidence bundles an attempt's violations with its webcam snapshots.
 type ProctorEvidence struct {
 	AttemptID  string      `json:"attempt_id"`
 	Violations []Violation `json:"violations"`
-	Snapshots  []Snapshot  `json:"snapshots"`
+	// Truncated flags a list cut to the newest entries: violations beyond 1000,
+	// or snapshots beyond the 200 the database lists.
+	Truncated bool       `json:"truncated"`
+	Snapshots []Snapshot `json:"snapshots"`
 }
 
 // WithViolationReader enables the evidence export. Call before serving traffic.
@@ -54,5 +64,6 @@ func (service *Service) GetProctorEvidence(contextValue context.Context, capabil
 	if err != nil {
 		return ProctorEvidence{}, fmt.Errorf("read proctor violations: %w", err)
 	}
-	return ProctorEvidence{AttemptID: attemptID, Violations: violations, Snapshots: snapshots}, nil
+	return ProctorEvidence{AttemptID: attemptID, Violations: violations.Violations, Snapshots: snapshots,
+		Truncated: violations.Truncated || len(snapshots) == 200}, nil
 }

@@ -28,7 +28,7 @@ func (store *Store) Ping(contextValue context.Context) error {
 		return fmt.Errorf("submission expiry store is not initialized")
 	}
 	var user string
-	var privileged, canExecute, directTableAccess bool
+	var privileged, canExecute, canSubmitForViolation, directTableAccess bool
 	err := store.pool.QueryRow(contextValue, `
 		SELECT
 			current_user,
@@ -36,6 +36,11 @@ func (store *Store) Ping(contextValue context.Context) error {
 			has_function_privilege(
 				current_user,
 				'submission.expire_overdue_attempts(integer)',
+				'EXECUTE'
+			),
+			has_function_privilege(
+				current_user,
+				'submission.submit_attempt_for_violation(uuid,text)',
 				'EXECUTE'
 			),
 			EXISTS (
@@ -51,11 +56,11 @@ func (store *Store) Ping(contextValue context.Context) error {
 					  OR has_table_privilege(current_user, relation.oid, 'DELETE')
 				  )
 			)
-	`).Scan(&user, &privileged, &canExecute, &directTableAccess)
+	`).Scan(&user, &privileged, &canExecute, &canSubmitForViolation, &directTableAccess)
 	if err != nil {
 		return fmt.Errorf("verify submission expiry database role: %w", err)
 	}
-	if user != expiryRole || privileged || !canExecute || directTableAccess {
+	if user != expiryRole || privileged || !canExecute || !canSubmitForViolation || directTableAccess {
 		return fmt.Errorf("submission expiry database role is not least-privilege")
 	}
 	return nil

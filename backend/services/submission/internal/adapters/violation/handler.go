@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/google/uuid"
 
@@ -27,6 +28,7 @@ type Submitter interface {
 }
 
 type breach struct {
+	TenantID       string `json:"tenant_id"`
 	AttemptID      string `json:"attempt_id"`
 	ViolationCount int    `json:"violation_count"`
 }
@@ -38,7 +40,7 @@ func Handler(submitter Submitter, logger *slog.Logger) messaging.EventHandler {
 		if err := json.Unmarshal(event.Payload, &payload); err != nil {
 			return messaging.Permanent(fmt.Errorf("decode violation threshold payload: %w", err))
 		}
-		if _, err := uuid.Parse(payload.AttemptID); err != nil || payload.ViolationCount < 1 {
+		if _, err := uuid.Parse(payload.AttemptID); err != nil || payload.ViolationCount < 1 || !strings.EqualFold(payload.TenantID, event.TenantID) {
 			return messaging.Permanent(fmt.Errorf("violation threshold payload is invalid"))
 		}
 		submitted, err := submitter.SubmitForViolation(ctx, payload.AttemptID, Reason)

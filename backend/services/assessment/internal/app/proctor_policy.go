@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // proctorViolationKinds are the policy names for the kinds the proctor service
@@ -25,7 +26,25 @@ type proctorPolicy struct {
 	CountedViolationKinds    []string `json:"counted_violation_kinds"`
 }
 
+// proctorPolicyKeys are matched exactly by the proctor service, while
+// encoding/json would also accept other letter cases or an explicit null.
+var proctorPolicyKeys = []string{"enabled", "violation_cooldown_seconds", "max_violations", "auto_submit_on_breach", "counted_violation_kinds"}
+
 func validateProctorPolicy(raw json.RawMessage) error {
+	var keys map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &keys); err != nil {
+		return fmt.Errorf("decode proctor policy: %w", err)
+	}
+	for key, value := range keys {
+		for _, known := range proctorPolicyKeys {
+			if key != known && strings.EqualFold(key, known) {
+				return fmt.Errorf("policy key %q must be written %q", key, known)
+			}
+			if key == known && string(bytes.TrimSpace(value)) == "null" {
+				return fmt.Errorf("%s must not be null", known)
+			}
+		}
+	}
 	var policy proctorPolicy
 	if err := json.NewDecoder(bytes.NewReader(raw)).Decode(&policy); err != nil {
 		return fmt.Errorf("decode proctor policy: %w", err)

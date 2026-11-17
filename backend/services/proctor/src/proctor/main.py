@@ -151,7 +151,20 @@ def _fetch_jpeg(key: str) -> bytes:
         response.close()
 
 
+# Serialises the cooldown check and insert for one attempt inside this process.
+# Replicas still race; a database constraint would be needed to close that.
+_attempt_locks: dict[str, asyncio.Lock] = {}
+
+
 async def _process(event: SnapshotEvent) -> None:
+    lock = _attempt_locks.setdefault(event.attempt_id, asyncio.Lock())
+    async with lock:
+        await _process_locked(event)
+    if not lock.locked() and not getattr(lock, "_waiters", None):
+        _attempt_locks.pop(event.attempt_id, None)
+
+
+async def _process_locked(event: SnapshotEvent) -> None:
     assert _detector is not None and _http is not None
 
     if await _already_processed(event.snapshot_id):
@@ -236,6 +249,9 @@ async def _publish_if_breached(event: SnapshotEvent, policy: ProctorPolicy) -> N
         logger.error("Failed to publish violation threshold for attempt %s: %s", event.attempt_id, exc)
 
 
+_MAX_VIOLATIONS = 1000
+
+
 def _valid_uuid(value: str) -> bool:
     try:
         uuid.UUID(value)
@@ -258,12 +274,16 @@ async def violations(
         raise HTTPException(status_code=401, detail="unauthorized")
     if not (_valid_uuid(attempt_id) and _valid_uuid(tenant_id)):
         raise HTTPException(status_code=422, detail="attempt_id and tenant_id must be UUIDs")
+    # Newest first so a long attempt keeps its latest violations; one extra row
+    # tells the caller the list was cut.
     rows = await _db.violation.find_many(
         where={"attemptId": attempt_id, "tenantId": tenant_id},
-        order={"detectedAt": "asc"},
-        take=1000,
+        order={"detectedAt": "desc"},
+        take=_MAX_VIOLATIONS + 1,
     )
-    return {"violations": [
+    truncated = len(rows) > _MAX_VIOLATIONS
+    rows = list(reversed(rows[:_MAX_VIOLATIONS]))
+    return {"truncated": truncated, "violations": [
         {"id": r.id, "snapshot_id": r.snapshotId, "kind": r.kind, "confidence": r.confidence,
          "details": r.details, "detected_at": r.detectedAt.isoformat()}
         for r in rows

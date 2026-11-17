@@ -35,33 +35,40 @@ func New(baseURL, token string, timeout time.Duration) (*Client, error) {
 	if token == "" || timeout <= 0 {
 		return nil, fmt.Errorf("proctor token and timeout are required")
 	}
-	return &Client{base: base, token: token, http: &http.Client{Timeout: timeout}}, nil
+	// The bearer token must go only to the configured host: no redirects, no proxy.
+	httpClient := &http.Client{
+		Timeout:       timeout,
+		Transport:     &http.Transport{Proxy: nil},
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
+	return &Client{base: base, token: token, http: httpClient}, nil
 }
 
-func (client *Client) Violations(ctx context.Context, tenantID, attemptID string) ([]app.Violation, error) {
+func (client *Client) Violations(ctx context.Context, tenantID, attemptID string) (app.ViolationList, error) {
 	target := client.base.JoinPath("violations")
 	target.RawQuery = url.Values{"tenant_id": {tenantID}, "attempt_id": {attemptID}}.Encode()
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, target.String(), nil)
 	if err != nil {
-		return nil, fmt.Errorf("build proctor request: %w", err)
+		return app.ViolationList{}, fmt.Errorf("build proctor request: %w", err)
 	}
 	request.Header.Set("Authorization", "Bearer "+client.token)
 	response, err := client.http.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("call proctor service: %w", err)
+		return app.ViolationList{}, fmt.Errorf("call proctor service: %w", err)
 	}
 	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("proctor service returned status %d", response.StatusCode)
+		return app.ViolationList{}, fmt.Errorf("proctor service returned status %d", response.StatusCode)
 	}
 	var body struct {
+		Truncated  bool            `json:"truncated"`
 		Violations []app.Violation `json:"violations"`
 	}
 	if err := json.NewDecoder(io.LimitReader(response.Body, maxResponseBytes)).Decode(&body); err != nil {
-		return nil, fmt.Errorf("decode proctor response: %w", err)
+		return app.ViolationList{}, fmt.Errorf("decode proctor response: %w", err)
 	}
 	if body.Violations == nil {
 		body.Violations = []app.Violation{}
 	}
-	return body.Violations, nil
+	return app.ViolationList{Violations: body.Violations, Truncated: body.Truncated}, nil
 }

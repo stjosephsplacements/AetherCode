@@ -23,7 +23,7 @@ func TestViolations(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, err := client.Violations(context.Background(), "t", "a")
-	if err != nil || len(got) != 1 || got[0].Kind != "face_missing" {
+	if err != nil || len(got.Violations) != 1 || got.Violations[0].Kind != "face_missing" {
 		t.Fatalf("Violations = %+v, %v", got, err)
 	}
 	bad, _ := New(server.URL, "wrong", time.Second)

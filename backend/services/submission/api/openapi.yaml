@@ -1295,9 +1295,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [attempt_id, violations, snapshots]
+                required: [attempt_id, violations, truncated, snapshots]
                 properties:
                   attempt_id: {type: string, format: uuid, maxLength: 36}
+                  truncated: {type: boolean, description: Set when violations or snapshots were cut to the newest entries.}
                   violations:
                     type: array
                     maxItems: 1000

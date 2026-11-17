@@ -6,7 +6,8 @@ SET ROLE aether_user_owner;
 DELETE FROM users.staff_audit WHERE action = 'proctor.evidence.exported';
 ALTER TABLE users.staff_audit DROP CONSTRAINT staff_audit_action_check;
 ALTER TABLE users.staff_audit
-    ADD CONSTRAINT staff_audit_action_check CHECK (action IN ('write', 'delete'));
+    ADD CONSTRAINT staff_audit_action_check CHECK (action IN ('write', 'delete')) NOT VALID;
+ALTER TABLE users.staff_audit VALIDATE CONSTRAINT staff_audit_action_check;
 
 CREATE OR REPLACE FUNCTION users.record_staff_action(
     p_principal_id uuid, p_tenant_id uuid, p_target_service text, p_resource_type text, p_resource_id text, p_allowed boolean, p_action text

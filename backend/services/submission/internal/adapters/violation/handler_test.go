@@ -32,16 +32,17 @@ func TestHandler(t *testing.T) {
 		wantErr   bool
 		submitted bool
 	}{
-		{"submits", `{"attempt_id":"` + attempt + `","violation_count":5}`, nil, false, false, true},
+		{"submits", `{"tenant_id":"t1","attempt_id":"` + attempt + `","violation_count":5}`, nil, false, false, true},
+		{"tenant mismatch", `{"tenant_id":"t2","attempt_id":"` + attempt + `","violation_count":5}`, nil, true, true, false},
 		{"bad json", `[]`, nil, true, true, false},
-		{"bad attempt id", `{"attempt_id":"x","violation_count":5}`, nil, true, true, false},
-		{"zero count", `{"attempt_id":"` + attempt + `","violation_count":0}`, nil, true, true, false},
-		{"database failure is retried", `{"attempt_id":"` + attempt + `","violation_count":5}`, errors.New("down"), false, true, true},
+		{"bad attempt id", `{"tenant_id":"t1","attempt_id":"x","violation_count":5}`, nil, true, true, false},
+		{"zero count", `{"tenant_id":"t1","attempt_id":"` + attempt + `","violation_count":0}`, nil, true, true, false},
+		{"database failure is retried", `{"tenant_id":"t1","attempt_id":"` + attempt + `","violation_count":5}`, errors.New("down"), false, true, true},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			fake := &fakeSubmitter{err: test.err}
-			err := Handler(fake, logger)(context.Background(), messaging.Event{Payload: json.RawMessage(test.payload)})
+			err := Handler(fake, logger)(context.Background(), messaging.Event{TenantID: "t1", Payload: json.RawMessage(test.payload)})
 			if (err != nil) != test.wantErr {
 				t.Fatalf("error = %v, wantErr %v", err, test.wantErr)
 			}
