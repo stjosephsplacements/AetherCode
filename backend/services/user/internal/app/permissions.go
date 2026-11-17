@@ -34,13 +34,12 @@ type Permission struct {
 }
 
 // platformOnlyResources are never delegated by a college administrator: they act
-// across colleges, hand out access, or expose student images and conduct records
-// (the last two are opened by VIEW_STUDENT_PII, not by a resource flag).
+// across colleges or hand out access. Student images and conduct records are opened
+// by VIEW_STUDENT_PII and live in piiResources instead.
 var platformOnlyResources = map[string]struct{}{
 	"tenant.tenants": {}, "tenant.placement_organizations": {}, "tenant.provisioning_requests": {},
 	"question-bank.category_management": {}, "question-bank.question_exports": {},
 	"user.permission_grants": {}, "user.role_assignments": {},
-	"submission.snapshots": {}, "submission.proctor_evidence": {}, "analytics.talent_cards": {},
 }
 
 // unlistedResources are internal or belong to the person themselves, so the editor does not offer them.
@@ -61,6 +60,9 @@ func PermissionCatalogue() []Permission {
 			key := service + "." + resource
 			if _, skip := unlistedResources[key]; skip {
 				continue
+			}
+			if _, pii := piiResources[key]; pii {
+				continue // opened only by VIEW_STUDENT_PII, so never offered as a grant
 			}
 			_, platformOnly := platformOnlyResources[key]
 			for _, verb := range grantVerbs {
@@ -104,6 +106,9 @@ var catalogueKeys = func() map[string]Permission {
 // grantAllows reports whether any grant covers this request. Write and delete
 // grants cover reads of the same resource; a delete grant does not cover writes.
 func grantAllows(grants []Grant, request Request, staffAuthoring bool) (Scope, bool) {
+	if piiGated(request) {
+		return Scope{}, false // a grant never replaces VIEW_STUDENT_PII
+	}
 	base := request.TargetService + "." + request.ResourceType + "."
 	for _, grant := range grants {
 		if !strings.HasPrefix(grant.Permission, base) {
