@@ -25,6 +25,10 @@ secretEnv:
 env:
   - name: TENANT_DATABASE_URL
     value: "postgres://aether_tenant_app:$(TENANT_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_tenant?sslmode={{ .Values.global.postgresSSLMode }}"
+  - name: TENANT_DB_MAX_CONNS
+    value: "8"
+  - name: TENANT_DB_MIN_CONNS
+    value: "2"
   - name: TENANT_PROJECTION_DATABASE_URL
     value: "postgres://aether_tenant_projection_worker:$(TENANT_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_tenant?sslmode={{ .Values.global.postgresSSLMode }}"
 
