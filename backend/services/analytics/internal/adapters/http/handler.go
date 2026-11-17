@@ -18,13 +18,26 @@ import (
 type Handler struct {
 	service    *app.Service
 	authorizer *httpauth.Authorizer
+	talent     *app.TalentCards
 }
 
-func NewHandler(serviceName string, service *app.Service, readiness httpx.ReadinessFunc, authorizer *httpauth.Authorizer) (http.Handler, error) {
+// Option adds an optional capability to the Handler.
+type Option func(*Handler)
+
+// WithTalentCards enables the talent card routes (ADR-0081); without a signing
+// key they are not registered.
+func WithTalentCards(cards *app.TalentCards) Option {
+	return func(handler *Handler) { handler.talent = cards }
+}
+
+func NewHandler(serviceName string, service *app.Service, readiness httpx.ReadinessFunc, authorizer *httpauth.Authorizer, options ...Option) (http.Handler, error) {
 	if service == nil || authorizer == nil {
 		return nil, fmt.Errorf("analytics service and authorizer are required")
 	}
 	handler := &Handler{service: service, authorizer: authorizer}
+	for _, option := range options {
+		option(handler)
+	}
 	mux := httpx.NewOperationalMux(serviceName, readiness)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/student-progress/{student_id}", handler.listStudentProgress)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/exam-results", handler.listExamResults)
@@ -35,6 +48,13 @@ func NewHandler(serviceName string, service *app.Service, readiness httpx.Readin
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/report-exports/{export_id}", handler.getReportExport)
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/report-exports/{export_id}", handler.deleteReportExport)
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/report-exports/{export_id}/hard", handler.hardDeleteReportExport)
+	if handler.talent != nil {
+		mux.HandleFunc("GET /v1/tenants/{tenant_id}/students/{student_id}/talent-card-consent", handler.getTalentCardConsent)
+		mux.HandleFunc("PUT /v1/tenants/{tenant_id}/students/{student_id}/talent-card-consent", handler.setTalentCardConsent)
+		mux.HandleFunc("POST /v1/tenants/{tenant_id}/students/{student_id}/talent-cards", handler.issueTalentCard)
+		mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/talent-cards/{card_id}", handler.revokeTalentCard)
+		mux.HandleFunc("GET /v1/public/talent-cards/{token}", handler.verifyTalentCard)
+	}
 	return mux, nil
 }
 

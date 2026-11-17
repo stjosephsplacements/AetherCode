@@ -139,3 +139,39 @@ A card is a signed, expiring claim set. Verification needs no login.
 The consent table therefore also holds `share_contact_info` and
 `blind_evaluation` choices, and the claims omit contact data when the former is
 false.
+
+## Implementation notes (what Milestone A shipped, and where it differs from the draft)
+
+- **Talent card** (Analytics migration 000021; User migration 000051):
+  - The consent table holds `granted`, `share_contact_info` and `blind_evaluation` (no
+    `include_name`). Withdrawing consent revokes the student's cards.
+  - `analytics.talent_cards` stores id, student, issuer, dates and revocation only; the
+    `claims_sha256` column of the draft is dropped, because the signature over the token
+    is the integrity check and Analytics keeps no copy of the claims.
+  - Analytics holds scores, not names. The issuer supplies display name, college,
+    department and optional contact fields in the issue request, and the signature binds
+    them to the figures. The issuer is trusted for these labels; the figures come from
+    the gold projections.
+  - Figures: median per-exam rank in the college cohort (top X percent), accepted share
+    of finished evaluations (cancelled and internal errors ignored), and a speed index.
+    The index is the average share of the attempt window left unused at submission. The
+    window is assignment open to close, not each exam's own duration, so it is an
+    approximation until the duration is projected. Language and per-test-case figures wait
+    for the Submission event change.
+  - `POST /students/{s}/talent-cards` needs `VIEW_STUDENT_PII` (and recent MFA); a student
+    manages their own consent through the new `talent_card_consents` resource, which joins
+    the Student role. Placement-department-scoped staff are not yet recognised for these
+    routes, so issuing is for college staff holding the permission.
+  - `GET /v1/public/talent-cards/{token}` is the one anonymous Analytics route. The gateway
+    allows only that pattern. It checks the signature (key `TALENT_CARD_SIGNING_KEY`, an
+    Ed25519 seed, with no fallback to the identity keyring), the expiry, and then validity in
+    the database. Per-caller rate limiting is the edge's job and is not added here.
+  - Not built: the issue and verify screens and the QR image (the frontend draws the QR from
+    the verify URL), and the language breakdown.
+- **Live proctor grid** (Submission migration 000046): as designed. Severity is computed in
+  `GridSeverity`; the grid read needs `proctor_evidence`, so it is audited and needs recent
+  MFA like the export.
+- **Company packs**: a `company:<name>` tag. The only backend rule needed was none; the
+  frontend tag normaliser now keeps the colon. The question board and the exam builder's
+  add-question form filter by company.
+- **Cadence detection** is not in this change; it waits for the client capture channel.

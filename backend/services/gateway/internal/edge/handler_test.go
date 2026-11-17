@@ -348,3 +348,22 @@ func TestHandlerAllowsOnlyPublicProfileReadsAnonymously(t *testing.T) {
 		t.Fatalf("upstream calls = %v, verifier calls = %d; want one anonymous call", paths, verifier.calls.Load())
 	}
 }
+
+func TestTalentCardVerificationIsTheOnlyAnonymousAnalyticsRoute(t *testing.T) {
+	t.Parallel()
+	token := "v1.eyJraWQiOiJhIn0.c2ln"
+	for _, test := range []struct {
+		method, path string
+		want         bool
+	}{
+		{http.MethodGet, "/v1/public/talent-cards/" + token, true},
+		{http.MethodPost, "/v1/public/talent-cards/" + token, false},
+		{http.MethodGet, "/v1/public/talent-cards/v2.a.b", false},
+		{http.MethodGet, "/v1/public/talent-cards/" + token + "/x", false},
+		{http.MethodGet, "/v1/tenants/t/exam-results", false},
+	} {
+		if got := isPublicTalentCardRoute(test.method, test.path); got != test.want {
+			t.Errorf("isPublicTalentCardRoute(%s %s) = %v, want %v", test.method, test.path, got, test.want)
+		}
+	}
+}

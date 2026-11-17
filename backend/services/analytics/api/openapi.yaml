@@ -310,6 +310,162 @@ paths:
           $ref: '#/components/responses/Problem500'
         '429':
           $ref: '#/components/responses/Problem429'
+  /v1/tenants/{tenant_id}/students/{student_id}/talent-card-consent:
+    get:
+      summary: The student's own talent card choice (ADR-0081)
+      security: [bearerAuth: []]
+      parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/StudentID'}
+      responses:
+        '200':
+          description: Nothing is agreed until the student acts.
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/TalentCardConsent'}}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '412': {$ref: '#/components/responses/Problem'}
+        '500':
+          $ref: '#/components/responses/Problem500'
+        '429':
+          $ref: '#/components/responses/Problem429'
+    put:
+      summary: Agree to, change or withdraw talent cards; withdrawing revokes every card already issued
+      security: [bearerAuth: []]
+      parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/StudentID'}
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/TalentCardConsent'}}
+      responses:
+        '200':
+          description: The choice now in force.
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/TalentCardConsent'}}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '412': {$ref: '#/components/responses/Problem'}
+        '500':
+          $ref: '#/components/responses/Problem500'
+        '429':
+          $ref: '#/components/responses/Problem429'
+  /v1/tenants/{tenant_id}/students/{student_id}/talent-cards:
+    post:
+      summary: Issue a signed talent card for a student who agreed (VIEW_STUDENT_PII)
+      security: [bearerAuth: []]
+      parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - {$ref: '#/components/parameters/StudentID'}
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/TalentCardIdentity'}}
+      responses:
+        '201':
+          description: The card's token, the only copy; Analytics keeps only its validity.
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/IssuedTalentCard'}}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '412': {$ref: '#/components/responses/Problem'}
+        '500':
+          $ref: '#/components/responses/Problem500'
+        '429':
+          $ref: '#/components/responses/Problem429'
+  /v1/tenants/{tenant_id}/talent-cards/{card_id}:
+    delete:
+      summary: Revoke a talent card at once (VIEW_STUDENT_PII)
+      security: [bearerAuth: []]
+      parameters:
+      - {$ref: '#/components/parameters/TenantID'}
+      - name: card_id
+        in: path
+        required: true
+        schema: {$ref: '#/components/schemas/UUID'}
+      responses:
+        '204':
+          description: Revoked.
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '412': {$ref: '#/components/responses/Problem'}
+        '500':
+          $ref: '#/components/responses/Problem500'
+        '429':
+          $ref: '#/components/responses/Problem429'
+  /v1/public/talent-cards/{token}:
+    get:
+      summary: Verify a talent card token without signing in (the gateway lets only this route through anonymously)
+      security: []
+      parameters:
+      - name: token
+        in: path
+        required: true
+        schema: {type: string, minLength: 20, maxLength: 1200, pattern: '^v1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$'}
+      responses:
+        '200':
+          description: The signed claims of a card that is unexpired, unrevoked and still consented to.
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/TalentCardClaims'}}
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/Access-Control-Allow-Origin'
+        '404': {$ref: '#/components/responses/Problem'}
+        '500':
+          $ref: '#/components/responses/Problem500'
+        '429':
+          $ref: '#/components/responses/Problem429'
 components:
   securitySchemes:
     bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT, description: 'Bearer JSON Web Token (JWT). Tokens are short-lived and signed per RFC8725. Include as: Authorization: Bearer <token>.'}
@@ -391,6 +547,50 @@ components:
         Retry-After:
           $ref: '#/components/headers/Retry-After'
   schemas:
+    TalentCardConsent:
+      type: object
+      required: [granted, share_contact_info, blind_evaluation]
+      properties:
+        granted: {type: boolean}
+        share_contact_info: {type: boolean, description: Roll number, email and phone appear on the card only when true.}
+        blind_evaluation: {type: boolean, description: Hides name, college and department.}
+    TalentCardIdentity:
+      type: object
+      required: [display_name]
+      description: What the issuer attests; the signature binds it to the figures.
+      properties:
+        display_name: {type: string, minLength: 1, maxLength: 120}
+        college: {type: string, maxLength: 120}
+        department: {type: string, maxLength: 120}
+        roll_number: {type: string, maxLength: 40}
+        email: {type: string, maxLength: 254}
+        phone: {type: string, maxLength: 20}
+    IssuedTalentCard:
+      type: object
+      required: [id, token, expires_at]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        token: {type: string, maxLength: 1200}
+        expires_at: {type: string, format: date-time, maxLength: 35}
+    TalentCardClaims:
+      type: object
+      required: [kid, card_id, iat, exp, exam_count, evaluations]
+      properties:
+        kid: {type: string, maxLength: 16}
+        card_id: {$ref: '#/components/schemas/UUID'}
+        iat: {type: integer, format: int64, minimum: 0, maximum: 4102444800}
+        exp: {type: integer, format: int64, minimum: 0, maximum: 4102444800}
+        name: {type: string, maxLength: 120}
+        college: {type: string, maxLength: 120}
+        department: {type: string, maxLength: 120}
+        roll_number: {type: string, maxLength: 40}
+        email: {type: string, maxLength: 254}
+        phone: {type: string, maxLength: 20}
+        exam_count: {type: integer, minimum: 0, maximum: 100000}
+        top_percent: {type: integer, minimum: 1, maximum: 100, description: Median per-exam rank in the college cohort, top X percent.}
+        accuracy: {type: number, minimum: 0, maximum: 1, description: Share of finished evaluations that were accepted.}
+        evaluations: {type: integer, minimum: 0, maximum: 10000000}
+        speed_index: {type: integer, minimum: 0, maximum: 100, description: Average share of the attempt window left unused at submission.}
     UUID: {type: string, format: uuid, maxLength: 36}
     Problem:
       type: object

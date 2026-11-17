@@ -242,7 +242,7 @@ var routes = map[string]route{
 	},
 	"analytics": {
 		Audience: "aether_analytics", ActionPrefix: "analytics", ResourcePrefix: "analytics",
-		Resources: resourceSet("event_facts", "student_progress_rollups", "batch_progress_rollups", "batch_progress_department_rollups", "exam_result_rollups", "placement_student_rollups", "report_exports"),
+		Resources: resourceSet("event_facts", "student_progress_rollups", "batch_progress_rollups", "batch_progress_department_rollups", "exam_result_rollups", "placement_student_rollups", "report_exports", "talent_cards", "talent_card_consents"),
 	},
 }
 
@@ -550,7 +550,7 @@ func assignmentApplies(
 			// assignment/attempt to authz.current_context_actor_id() in its own
 			// database procedure; this avoids a cross-service direct lookup.
 			return request.ResourceID == assignment.ScopeID
-		case "recipient_preferences", "notifications", "community":
+		case "recipient_preferences", "notifications", "community", "talent_card_consents":
 			// Notification's /me routes use the bearer subject as resource ID and
 			// bind reads/writes to authz.current_context_actor_id() locally. This
 			// prevents a self policy from becoming access to another recipient's
