@@ -361,23 +361,25 @@ func (service *Service) Authorize(contextValue context.Context, request Request)
 			matchingScopes = append(matchingScopes, scope)
 		}
 	}
-	auditErr := service.auditStaffWrite(contextValue, validated, snapshot.Assignments, len(matchingScopes) > 0)
-	if auditErr != nil && len(matchingScopes) > 0 && isPIIEvidenceRead(validated) {
+	// A read refused for a stale MFA check is audited as not allowed, never as granted.
+	mfaStale := false
+	if len(matchingScopes) > 0 && service.requireIdentityAssertion && requiresMFAStepUp(validated.ResourceType, validated.Action) {
+		mfaStale = identity.MFAVerifiedAt == nil || service.now().Sub(*identity.MFAVerifiedAt) > mfaStepUpMaxAge
+	}
+	granted := len(matchingScopes) > 0 && !mfaStale
+	auditErr := service.auditStaffWrite(contextValue, validated, snapshot.Assignments, granted)
+	if auditErr != nil && granted && isPIIEvidenceRead(validated) {
 		// Student images are not released without a record of who asked.
 		return Decision{}, fmt.Errorf("record proctor evidence access: %w", auditErr)
 	}
 	if len(matchingScopes) == 0 {
 		return decision, nil
 	}
+	if mfaStale {
+		return Decision{}, MFARequiredError{}
+	}
 	decision.Allowed = true
 	decision.Scopes = uniqueScopes(matchingScopes)
-
-	if service.requireIdentityAssertion && requiresMFAStepUp(validated.ResourceType, validated.Action) {
-		now := service.now()
-		if identity.MFAVerifiedAt == nil || now.Sub(*identity.MFAVerifiedAt) > mfaStepUpMaxAge {
-			return Decision{}, MFARequiredError{}
-		}
-	}
 
 	// A delete is a write as far as the databases go: their policies and functions accept
 	// <service>.write. The audit log below keeps the real verb (ADR-0053).

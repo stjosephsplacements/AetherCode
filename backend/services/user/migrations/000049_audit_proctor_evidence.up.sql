@@ -15,12 +15,10 @@ INSERT INTO users.permission_flags (key, bit_index, kind, elevated, platform_onl
 ON CONFLICT DO NOTHING;
 
 ALTER TABLE users.staff_audit DROP CONSTRAINT staff_audit_action_check;
+-- The constraint is replaced inside this migration's transaction: audit inserts wait
+-- on the table lock until it commits, so apply it while staff writes are quiet.
 ALTER TABLE users.staff_audit
-    ADD CONSTRAINT staff_audit_action_check CHECK (action IN ('write', 'delete', 'proctor.evidence.exported')) NOT VALID;
--- Validated as a separate step so the scan itself runs under a lighter lock; the
--- ACCESS EXCLUSIVE lock taken by DROP CONSTRAINT above is held until this migration
--- commits, so run it while audit writes are quiet.
-ALTER TABLE users.staff_audit VALIDATE CONSTRAINT staff_audit_action_check;
+    ADD CONSTRAINT staff_audit_action_check CHECK (action IN ('write', 'delete', 'proctor.evidence.exported'));
 
 CREATE OR REPLACE FUNCTION users.record_staff_action(
     p_principal_id uuid, p_tenant_id uuid, p_target_service text, p_resource_type text, p_resource_id text, p_allowed boolean, p_action text

@@ -20,6 +20,7 @@ import hmac
 import logging
 import time
 import uuid
+from collections import OrderedDict
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 
@@ -151,6 +152,23 @@ def _fetch_jpeg(key: str) -> bytes:
         response.close()
 
 
+# The last policy seen per attempt. A frame sent without one (Submission could not
+# read it that time) still uses the policy of earlier frames, so a lost breach
+# publish is retried. Bounded; oldest attempts are dropped first.
+_policy_cache: "OrderedDict[str, ProctorPolicy]" = OrderedDict()
+_POLICY_CACHE_MAX = 4096
+
+
+def _effective_policy(event: SnapshotEvent) -> ProctorPolicy:
+    if event.policy is not None:
+        _policy_cache[event.attempt_id] = event.policy
+        _policy_cache.move_to_end(event.attempt_id)
+        while len(_policy_cache) > _POLICY_CACHE_MAX:
+            _policy_cache.popitem(last=False)
+        return event.policy
+    return _policy_cache.get(event.attempt_id) or ProctorPolicy()
+
+
 # Serialises the cooldown check and insert for one attempt inside this process.
 # Replicas still race; a database constraint would be needed to close that.
 _attempt_locks: dict[str, asyncio.Lock] = {}
@@ -190,7 +208,7 @@ async def _process_locked(event: SnapshotEvent) -> None:
         event.snapshot_id, elapsed, len(raw_violations),
     )
 
-    policy = event.policy or ProctorPolicy()
+    policy = _effective_policy(event)
     cooldown = policy.cooldown(settings.violation_cooldown_seconds)
     for v in raw_violations:
         if not await _is_cooled_down(event.attempt_id, v["kind"], cooldown):

@@ -57,6 +57,9 @@ func TestHandler(t *testing.T) {
 			if (fake.attemptID != "") != test.submitted {
 				t.Fatalf("submitter called = %v, want %v", fake.attemptID != "", test.submitted)
 			}
+			if test.submitted && fake.tenantID != tenant {
+				t.Fatalf("tenant = %q, want %q", fake.tenantID, tenant)
+			}
 			if test.submitted && fake.reason != Reason {
 				t.Fatalf("reason = %q", fake.reason)
 			}

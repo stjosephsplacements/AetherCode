@@ -332,7 +332,7 @@ window's close. Answers and submits are accepted until
 `submission_deadline + submission.answer_grace()` (15 seconds), so the last
 save a browser sends as time runs out still lands.
 
-The same least-privilege role also executes `submission.submit_attempt_for_violation(attempt_id, reason)`
+The same least-privilege role also executes `submission.submit_attempt_for_violation(tenant_id, attempt_id, reason)`
 (ADR-0080), which a JetStream consumer calls when the proctor service reports that an attempt breached its
 exam's violation limit. It takes the event's tenant, submits that one open attempt as time-up does (an attempt
 with no answers is marked `expired`, as at time-up), is idempotent, and the role still has no table access; `Ping` audits the grant on both functions. The consumer runs only while the expiry worker is

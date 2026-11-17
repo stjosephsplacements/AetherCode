@@ -908,3 +908,26 @@ func TestProctorEvidenceReadFailsClosedWithoutAudit(t *testing.T) {
 		t.Fatal("student evidence reads must require a recent MFA check")
 	}
 }
+
+func TestStaleMFAEvidenceReadIsAuditedAsRefused(t *testing.T) {
+	t.Parallel()
+	keyring := testKeyring(t)
+	var recorded []StaffAction
+	faculty := Assignment{Role: centralauthz.RoleCustom, ScopeKind: "department", TenantID: testTenant, ScopeID: testPrincipal}
+	verifier := fakeIdentityAssertionVerifier{identity: VerifiedIdentity{PrincipalID: testPrincipal}}
+	service, err := NewService(fakeStore{snapshot: withBits(Snapshot{Revision: 2, Assignments: []Assignment{faculty}}, "VIEW_STUDENT_PII"), audit: &recorded}, keyring, verifier, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := Request{PrincipalID: testPrincipal, TenantID: testTenant, RequestID: testRequestID, Action: "read",
+		ResourceType: "proctor_evidence", ResourceID: "018f4b0d-08f8-7c09-9ba7-efdf9c229001", TargetService: "submission",
+		IdentityAssertion: "signed-identity-assertion"}
+	_, err = service.Authorize(context.Background(), request)
+	var mfa MFARequiredError
+	if !errors.As(err, &mfa) {
+		t.Fatalf("Authorize() error = %v, want MFARequiredError", err)
+	}
+	if len(recorded) != 1 || recorded[0].Allowed {
+		t.Fatalf("audit = %#v, want one entry recorded as not allowed", recorded)
+	}
+}
