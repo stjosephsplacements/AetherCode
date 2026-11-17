@@ -1,6 +1,6 @@
 # ADR-0081: Placement and integrity, Milestone A
 
-- Status: proposed (draft for review; no code written)
+- Status: accepted (decisions below confirmed by the owner 2026-11-17)
 - Date: 2026-11-17
 
 ## Context
@@ -121,12 +121,21 @@ A card is a signed, expiring claim set. Verification needs no login.
 - The proctor to Submission event adds a second consumer and a projection to
   keep healthy; it joins readiness as ADR-0080's consumer did.
 
-## Open decisions for the owner
+## Decisions (confirmed)
 
-1. Is Analytics the right owner of card issuance, or should placement tooling
-   live with the Tenant service's placement organizations?
-2. Card contents and consent: may the name be included, and may a card show
-   cohort percentiles that reveal cohort size?
-3. Key custody: reuse the identity keyring, or a separate key so a card key
-   leak cannot sign sessions?
-4. Is cadence advisory only, as proposed?
+1. **Analytics owns card issuance.**
+2. **Card contents.** A recruiter with the token sees the student's name,
+   college and department, cohort percentile (top X%), language proficiencies,
+   problem accuracy and a code speed index. A drive that requires blind
+   evaluation can hide the name and the college and department. Roll number,
+   email and phone are never shown unless the student ticks
+   `share_contact_info` at consent time.
+3. **Dedicated signing key.** `TALENT_CARD_SIGNING_KEY` (Ed25519), separate
+   from the identity keyring, so a card key leak cannot sign sessions and
+   session revocation does not invalidate cards.
+4. **Cadence is advisory only.** It flags an attempt for staff review. It never
+   auto-submits and never counts toward the ADR-0080 breach limit.
+
+The consent table therefore also holds `share_contact_info` and
+`blind_evaluation` choices, and the claims omit contact data when the former is
+false.
