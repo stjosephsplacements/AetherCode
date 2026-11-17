@@ -7,6 +7,20 @@ image:
 
 replicaCount: 2
 
+resources:
+  requests:
+    cpu: 1000m
+    memory: 1Gi
+  limits:
+    cpu: 3000m
+    memory: 2Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+
 tls:
   enabled: true
   secretName: aethercode-tls-assessment
@@ -30,8 +44,16 @@ secretEnv:
 env:
   - name: ASSESSMENT_DATABASE_URL
     value: "postgres://aether_assessment_app:$(ASSESSMENT_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_assessment?sslmode={{ .Values.global.postgresSSLMode }}"
+  - name: ASSESSMENT_DB_MAX_CONNS
+    value: "8"
+  - name: ASSESSMENT_DB_MIN_CONNS
+    value: "2"
   - name: ASSESSMENT_PROJECTION_DATABASE_URL
     value: "postgres://aether_assessment_projection_worker:$(ASSESSMENT_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_assessment?sslmode={{ .Values.global.postgresSSLMode }}"
+  - name: ASSESSMENT_PROJECTION_DB_MAX_CONNS
+    value: "2"
+  - name: ASSESSMENT_PROJECTION_DB_MIN_CONNS
+    value: "1"
 
 networkPolicy:
   allowFrom:

@@ -44,8 +44,16 @@ secretEnv:
 env:
   - name: IDENTITY_DATABASE_URL
     value: "postgres://aether_identity_app:$(IDENTITY_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_identity?sslmode={{ .Values.global.postgresSSLMode }}"
+  - name: IDENTITY_DB_MAX_CONNS
+    value: "8"
+  - name: IDENTITY_DB_MIN_CONNS
+    value: "2"
   - name: IDENTITY_PROJECTION_DATABASE_URL
     value: "postgres://aether_identity_projection_worker:$(IDENTITY_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_identity?sslmode={{ .Values.global.postgresSSLMode }}"
+  - name: IDENTITY_PROJECTION_DB_MAX_CONNS
+    value: "2"
+  - name: IDENTITY_PROJECTION_DB_MIN_CONNS
+    value: "1"
 
 networkPolicy:
   allowFrom:
@@ -77,8 +85,8 @@ sso:
 # about 0.3 s per account, so a 500-student import could not finish. Say the CPU limit explicitly.
 resources:
   requests:
-    cpu: "1"
+    cpu: 500m
     memory: 512Mi
   limits:
-    cpu: "8"
-    memory: 2Gi
+    cpu: 2000m
+    memory: 1Gi

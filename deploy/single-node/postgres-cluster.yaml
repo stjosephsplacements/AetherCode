@@ -1,0 +1,39 @@
+# CloudNativePG cluster for the single campus server (k3s, one node). The production
+# chart in deploy/helm/platform-postgres-ha assumes three hosts and cannot schedule here.
+#
+# io_method: sync and huge_pages: off match the clusters that start on this node
+# (production, placement-*). Without them the initdb job hangs at "Configuring new
+# PostgreSQL instance" and the cluster stays in "Setting up primary".
+#
+# These are the production sizes (16/24 CPU, 24/32Gi, max_connections 500). Development
+# runs the same manifest with 2/4 CPU, 4/8Gi, shared_buffers 2GB, max_connections 200 and
+# a 20Gi volume, so it does not hold 16 cores of the shared server.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: postgres-cluster
+  labels:
+    app.kubernetes.io/part-of: aethercode
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:18.6
+  storage:
+    storageClass: local-production # Retain: deleting the Cluster never deletes the data
+    size: 50Gi
+  resources:
+    requests: {cpu: "16", memory: 24Gi}
+    limits: {cpu: "24", memory: 32Gi}
+  postgresql:
+    parameters:
+      shared_buffers: 16GB
+      effective_cache_size: 24GB
+      work_mem: 32MB
+      maintenance_work_mem: 1GB
+      max_connections: "500"
+      checkpoint_completion_target: "0.9"
+      max_wal_size: 4GB
+      random_page_cost: "1.1"
+      effective_io_concurrency: "200"
+      io_method: sync
+      huge_pages: "off"
+      log_min_duration_statement: "1000"

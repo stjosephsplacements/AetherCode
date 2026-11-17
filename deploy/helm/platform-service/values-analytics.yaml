@@ -7,6 +7,14 @@ image:
 
 replicaCount: 2
 
+resources:
+  requests:
+    cpu: 1000m
+    memory: 1Gi
+  limits:
+    cpu: 3000m
+    memory: 2Gi
+
 tls:
   enabled: true
   secretName: aethercode-tls-analytics
@@ -25,8 +33,16 @@ secretEnv:
 env:
   - name: ANALYTICS_DATABASE_URL
     value: "postgres://aether_analytics_app:$(ANALYTICS_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_analytics?sslmode={{ .Values.global.postgresSSLMode }}"
+  - name: ANALYTICS_DB_MAX_CONNS
+    value: "8"
+  - name: ANALYTICS_DB_MIN_CONNS
+    value: "2"
   - name: ANALYTICS_PROJECTION_DATABASE_URL
     value: "postgres://aether_analytics_projection_worker:$(ANALYTICS_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_analytics?sslmode={{ .Values.global.postgresSSLMode }}"
+  - name: ANALYTICS_PROJECTION_DB_MAX_CONNS
+    value: "2"
+  - name: ANALYTICS_PROJECTION_DB_MIN_CONNS
+    value: "1"
 
 networkPolicy:
   allowFrom:
