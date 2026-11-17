@@ -16,20 +16,23 @@ Database (Prisma):
 Run `prisma generate` to regenerate the Python client after schema changes.
 """
 import asyncio
+import hmac
 import logging
 import time
+import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 
 import httpx
 import nats
-from fastapi import FastAPI
+from fastapi import FastAPI, Header, HTTPException, Query
 from minio import Minio
 from prisma import Prisma
 
 from .config import settings
 from .detector import Detector
 from .models import AnalysisResult, SnapshotEvent, Violation
+from .policy import THRESHOLD_SUBJECT, ProctorPolicy, threshold_event
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
 logger = logging.getLogger("proctor")
@@ -107,10 +110,10 @@ async def _mark_processed(snapshot_id: str) -> None:
     )
 
 
-async def _is_cooled_down(attempt_id: str, kind: str) -> bool:
+async def _is_cooled_down(attempt_id: str, kind: str, cooldown_seconds: int) -> bool:
     """Return True if enough time has passed since the last violation of this kind."""
     assert _db is not None
-    cutoff = datetime.now(timezone.utc) - timedelta(seconds=settings.violation_cooldown_seconds)
+    cutoff = datetime.now(timezone.utc) - timedelta(seconds=cooldown_seconds)
     recent = await _db.violation.find_first(
         where={
             "attemptId": attempt_id,
@@ -175,8 +178,11 @@ async def _process(event: SnapshotEvent) -> None:
     if not raw_violations:
         return
 
+    policy = event.policy or ProctorPolicy()
+    cooldown = policy.cooldown(settings.violation_cooldown_seconds)
+    stored = False
     for v in raw_violations:
-        if not await _is_cooled_down(event.attempt_id, v["kind"]):
+        if not await _is_cooled_down(event.attempt_id, v["kind"], cooldown):
             continue
 
         # Persist violation to DB first (idempotent on re-delivery)
@@ -188,6 +194,7 @@ async def _process(event: SnapshotEvent) -> None:
             confidence=v["confidence"],
             details=v.get("details", ""),
         )
+        stored = True
 
         # Post integrity event to submission service (best-effort)
         try:
@@ -200,6 +207,67 @@ async def _process(event: SnapshotEvent) -> None:
             logger.info("Posted %s violation for attempt %s", v["kind"], event.attempt_id)
         except Exception as exc:
             logger.warning("Failed to post violation %s: %s", v["kind"], exc)
+
+    if stored:
+        await _publish_if_breached(event, policy)
+
+
+async def _publish_if_breached(event: SnapshotEvent, policy: ProctorPolicy) -> None:
+    """Count the attempt's cumulative violations and report a breach to JetStream.
+
+    Submission closes the attempt idempotently, so publishing on every count at
+    or above the maximum is safe and retries a lost breach on the next violation.
+    """
+    assert _db is not None and _nc is not None
+    if not (policy.enabled and policy.auto_submit_on_breach and policy.max_violations):
+        return
+    where: dict = {"attemptId": event.attempt_id, "tenantId": event.tenant_id}
+    kinds = policy.counted_kinds()
+    if kinds:
+        where["kind"] = {"in": kinds}
+    count = await _db.violation.count(where=where)
+    if not policy.breached(count):
+        return
+    msg_id, data = threshold_event(event.tenant_id, event.attempt_id, count, policy.max_violations)
+    try:
+        await _nc.jetstream().publish(THRESHOLD_SUBJECT, data, headers={"Nats-Msg-Id": msg_id})
+        logger.warning("Attempt %s breached %d violations (count %d)", event.attempt_id, policy.max_violations, count)
+    except Exception as exc:
+        logger.error("Failed to publish violation threshold for attempt %s: %s", event.attempt_id, exc)
+
+
+def _valid_uuid(value: str) -> bool:
+    try:
+        uuid.UUID(value)
+    except ValueError:
+        return False
+    return True
+
+
+@app.get("/violations")
+async def violations(
+    attempt_id: str = Query(),
+    tenant_id: str = Query(),
+    authorization: str = Header(default=""),
+) -> dict:
+    """Internal read for submission's evidence export; fails closed without a token."""
+    assert _db is not None
+    if not settings.internal_token:
+        raise HTTPException(status_code=503, detail="violation reads are not configured")
+    if not hmac.compare_digest(authorization.encode(), f"Bearer {settings.internal_token}".encode()):
+        raise HTTPException(status_code=401, detail="unauthorized")
+    if not (_valid_uuid(attempt_id) and _valid_uuid(tenant_id)):
+        raise HTTPException(status_code=422, detail="attempt_id and tenant_id must be UUIDs")
+    rows = await _db.violation.find_many(
+        where={"attemptId": attempt_id, "tenantId": tenant_id},
+        order={"detectedAt": "asc"},
+        take=1000,
+    )
+    return {"violations": [
+        {"id": r.id, "snapshot_id": r.snapshotId, "kind": r.kind, "confidence": r.confidence,
+         "details": r.details, "detected_at": r.detectedAt.isoformat()}
+        for r in rows
+    ]}
 
 
 @app.get("/healthz")
