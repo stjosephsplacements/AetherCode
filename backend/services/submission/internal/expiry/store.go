@@ -40,7 +40,7 @@ func (store *Store) Ping(contextValue context.Context) error {
 			),
 			has_function_privilege(
 				current_user,
-				'submission.submit_attempt_for_violation(uuid,text)',
+				'submission.submit_attempt_for_violation(uuid,uuid,text)',
 				'EXECUTE'
 			),
 			EXISTS (
@@ -84,14 +84,14 @@ func (store *Store) ExpireOverdue(contextValue context.Context, limit int) (int,
 
 // SubmitForViolation submits one open attempt after a proctor threshold
 // breach. It reports false when the attempt was already closed.
-func (store *Store) SubmitForViolation(contextValue context.Context, attemptID, reason string) (bool, error) {
+func (store *Store) SubmitForViolation(contextValue context.Context, tenantID, attemptID, reason string) (bool, error) {
 	if store == nil || store.pool == nil {
 		return false, fmt.Errorf("submission expiry store is not initialized")
 	}
 	var submitted bool
 	if err := store.pool.QueryRow(contextValue, `
-		SELECT submission.submit_attempt_for_violation($1::uuid, $2)
-	`, attemptID, reason).Scan(&submitted); err != nil {
+		SELECT submission.submit_attempt_for_violation($1::uuid, $2::uuid, $3)
+	`, tenantID, attemptID, reason).Scan(&submitted); err != nil {
 		return false, fmt.Errorf("submit attempt for proctor violations: %w", err)
 	}
 	return submitted, nil

@@ -42,13 +42,15 @@ The proctor service never calls assessment.
 JetStream (a `messaging.Event` envelope; `Nats-Msg-Id` is derived from
 `attempt_id` and the count, so retries are deduplicated). Submission consumes it
 (`internal/adapters/violation`) and calls
-`submission.submit_attempt_for_violation(attempt_id, reason)` (migration
-000041), a SECURITY DEFINER sibling of `expire_overdue_attempts` that submits
-the one open attempt with reason `proctor_violation_threshold_breach`. It
+`submission.submit_attempt_for_violation(tenant_id, attempt_id, reason)` (migrations
+000041 and 000045), a SECURITY DEFINER sibling of `expire_overdue_attempts` that
+submits the one open attempt of that tenant with reason
+`proctor_violation_threshold_breach`. An open attempt with no answers is marked
+`expired` instead, as at time-up, and its payload keeps the documented fields. It
 returns false for an attempt that is no longer open, so redelivery is harmless
 without an inbox. The consumer runs on the existing least-privilege expiry role,
 which gains EXECUTE on the function and still has no table access. The platform
-stream gains the `proctor.>` subject.
+stream gains the `proctor.violation.>` subject (not `proctor.>`: per-frame `proctor.analyze` messages travel on core NATS and a stream on that subject would store them).
 
 **Evidence export**: the proctor service serves `GET /violations?attempt_id&tenant_id`
 behind a bearer token (`PROCTOR_INTERNAL_TOKEN`; unset disables it). Submission
@@ -79,4 +81,12 @@ authorization decision, allowed or denied.
 - The migration 000049 down removes `proctor.evidence.exported` audit rows and
   leaves the registry flags, which the append-only trigger protects.
 - Submission migration 000044 makes `store_snapshot` require the caller's own attempt; it only checked the tenant-level write context, so a candidate could add frames to another candidate's attempt. `get_attempt_proctor_policy` has the same check.
+- Reading student images is elevated: the User service requires a recent MFA check
+  for snapshots and the evidence export, and refuses the read when the audit entry
+  cannot be written. A long exam therefore asks the invigilator to re-verify MFA
+  every five minutes to keep the camera grid.
+- The breach is re-checked on every analysed frame, so a failed publish is retried
+  by the next frame; an attempt that sends no further frame is not retried.
+- Submission migration 000045 revokes the app role's direct access to
+  `attempt_snapshots`, so `store_snapshot` is the only way in.
 - There is no frontend policy editor yet.

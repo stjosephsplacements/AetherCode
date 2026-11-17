@@ -5,6 +5,7 @@ package repo_test
 import (
 	"context"
 	"encoding/json"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"testing"
 
@@ -30,8 +31,8 @@ func TestSubmitAttemptForViolation(t *testing.T) {
 
 	submit := func(attemptID string) bool {
 		var done bool
-		require.NoError(t, pool.QueryRow(ctx, `SELECT submission.submit_attempt_for_violation($1::uuid, 'proctor_violation_threshold_breach')`,
-			attemptID).Scan(&done))
+		require.NoError(t, pool.QueryRow(ctx, `SELECT submission.submit_attempt_for_violation($1::uuid, $2::uuid, 'proctor_violation_threshold_breach')`,
+			unitTenantID, attemptID).Scan(&done))
 		return done
 	}
 
@@ -55,11 +56,16 @@ func TestSubmitAttemptForViolation(t *testing.T) {
 
 	require.False(t, submit(answered.AttemptID), "an attempt that is no longer open is left alone")
 
+	var foreign bool
+	require.NoError(t, pool.QueryRow(ctx, `SELECT submission.submit_attempt_for_violation($1::uuid, $2::uuid, 'proctor_violation_threshold_breach')`,
+		uuid.NewString(), empty.AttemptID).Scan(&foreign))
+	require.False(t, foreign, "a breach from another tenant cannot close the attempt")
+
 	require.True(t, submit(empty.AttemptID))
 	require.NoError(t, pool.QueryRow(ctx, `SELECT lifecycle_state FROM submission.attempts WHERE id = $1`, empty.AttemptID).Scan(&state))
 	require.Equal(t, "expired", state, "an attempt with no answer has nothing to grade")
 
-	_, err = pool.Exec(ctx, `SELECT submission.submit_attempt_for_violation($1::uuid, '')`, answered.AttemptID)
+	_, err = pool.Exec(ctx, `SELECT submission.submit_attempt_for_violation($1::uuid, $2::uuid, '')`, unitTenantID, answered.AttemptID)
 	require.Error(t, err, "a reason is required")
 }
 
@@ -115,4 +121,14 @@ func TestStoreSnapshotRequiresTheCallersOwnAttempt(t *testing.T) {
 	}
 	require.NoError(t, store(mine.AttemptID))
 	require.Error(t, store(theirs.AttemptID), "frames for another candidate's attempt are refused")
+
+	_, err := pool.Exec(ctx, `UPDATE submission.attempts SET lifecycle_state = 'cancelled', completed_at = clock_timestamp() WHERE id = $1`, mine.AttemptID)
+	require.NoError(t, err)
+	require.Error(t, store(mine.AttemptID), "frames for a closed attempt are refused")
+
+	asCandidate(ctx, t, pool, mine.CandidateID, func(transaction pgx.Tx) {
+		_, insertErr := transaction.Exec(ctx, `INSERT INTO submission.attempt_snapshots (tenant_id, attempt_id, captured_at, storage_key, size_bytes)
+			VALUES ($1, $2, clock_timestamp(), 'k', 10)`, unitTenantID, theirs.AttemptID)
+		require.Error(t, insertErr, "the app role has no direct access to the snapshot table")
+	})
 }

@@ -30,9 +30,9 @@ func TestOutboxAndInboxStoreRejectUnsafeTableNames(t *testing.T) {
 
 func TestPlatformSubjectsAvoidJetStreamAPI(t *testing.T) {
 	for _, subject := range platformSubjects {
-		token, rest, ok := strings.Cut(subject, ".")
-		if !ok || rest != ">" || token == "" || strings.ContainsAny(token, "*>$") {
-			t.Fatalf("subject %q must be a literal domain followed by .>", subject)
+		prefix, found := strings.CutSuffix(subject, ".>")
+		if !found || prefix == "" || strings.HasPrefix(prefix, ".") || strings.Contains(prefix, "..") || strings.ContainsAny(prefix, "*>$") {
+			t.Fatalf("subject %q must be a literal dotted prefix followed by .>", subject)
 		}
 	}
 }

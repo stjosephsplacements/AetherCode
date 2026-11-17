@@ -541,13 +541,13 @@ Ask-first areas under AGENTS.md apply. In priority order:
 1. ~~**RBAC cutover (ADR-0075).**~~ **DONE 2026-11-08**: bitset live, helm values updated, `authorization_policy_rules` table dropped (migration 000045).
 2. **Proctoring** (ADR-0080, PR from `feat/proctor-policy-evidence`, not deployed): policy body validated in
    assessment and projected to submission (assessment 000040, submission 000043); each webcam frame carries it on
-   `proctor.analyze`; the proctor service counts counted violations and publishes `proctor.violation.threshold` to
+   `proctor.analyze`; the proctor service counts the violations that pass the per-kind cooldown and publishes `proctor.violation.threshold` to
    JetStream; submission consumes it and submits the attempt (`submit_attempt_for_violation`, 000041). Evidence
    export `GET .../attempts/{a}/proctor-evidence` is gated by `VIEW_STUDENT_PII` (or ADMINISTRATOR) in the User
    service and audited as `proctor.evidence.exported` (user 000049; submission 000042 for `list_snapshots`). Submission 000044 closes an IDOR: `store_snapshot` now requires the caller's own attempt.
    Deploy: apply Submission and the User migrations and Assessment 000040 can go in any order (older Submission ignores the field); set
    `PROCTOR_INTERNAL_TOKEN`, `SUBMISSION_PROCTOR_URL`, `SUBMISSION_PROCTOR_TOKEN`; the platform stream gains
-   `proctor.>`. Remaining: no frontend policy editor; the GPU service and the JetStream publish were not run
+   `proctor.violation.>`. Remaining: no frontend policy editor; the GPU service and the JetStream publish were not run
    against a live NATS and GPU; `libs/pkg/messaging` `TestRetryHandledByPeerRestoresReadiness` fails on the
    baseline too. Known gaps from review: the Python policy tests (`backend/services/proctor/tests`) are not in `make test` or CI; the per-attempt cooldown lock is in-process, so two proctor replicas can still double-count a kind (needs a DB constraint); a list of more than 200 snapshots is flagged `truncated`, not paged. Earlier note that attempt detail shows violation kinds is not backed by any frontend type.
 3. Port of the exam-v1 features not yet verified in the platform: lockdown depth (SEB enforcement path),

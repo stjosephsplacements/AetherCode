@@ -24,7 +24,7 @@ const (
 // Submitter closes one open attempt and reports whether it did. It is
 // idempotent, so redelivery needs no inbox.
 type Submitter interface {
-	SubmitForViolation(ctx context.Context, attemptID, reason string) (bool, error)
+	SubmitForViolation(ctx context.Context, tenantID, attemptID, reason string) (bool, error)
 }
 
 type breach struct {
@@ -40,10 +40,10 @@ func Handler(submitter Submitter, logger *slog.Logger) messaging.EventHandler {
 		if err := json.Unmarshal(event.Payload, &payload); err != nil {
 			return messaging.Permanent(fmt.Errorf("decode violation threshold payload: %w", err))
 		}
-		if _, err := uuid.Parse(payload.AttemptID); err != nil || payload.ViolationCount < 1 || !strings.EqualFold(payload.TenantID, event.TenantID) {
+		if _, err := uuid.Parse(payload.TenantID); err != nil || !isUUID(payload.AttemptID) || payload.ViolationCount < 1 || !strings.EqualFold(payload.TenantID, event.TenantID) {
 			return messaging.Permanent(fmt.Errorf("violation threshold payload is invalid"))
 		}
-		submitted, err := submitter.SubmitForViolation(ctx, payload.AttemptID, Reason)
+		submitted, err := submitter.SubmitForViolation(ctx, payload.TenantID, payload.AttemptID, Reason)
 		if err != nil {
 			return fmt.Errorf("submit attempt %s for violations: %w", payload.AttemptID, err)
 		}
@@ -51,4 +51,9 @@ func Handler(submitter Submitter, logger *slog.Logger) messaging.EventHandler {
 			"attempt_id", payload.AttemptID, "violation_count", payload.ViolationCount, "submitted", submitted)
 		return nil
 	}
+}
+
+func isUUID(value string) bool {
+	_, err := uuid.Parse(value)
+	return err == nil
 }
