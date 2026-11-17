@@ -34,3 +34,15 @@ def test_threshold_event_is_deterministic_envelope():
     assert id_a == id_b != threshold_event("t", "a", 6, 5)[0]
     event = json.loads(data)
     assert event["type"] == "proctor.violation.threshold" and event["payload"]["violation_count"] == 5
+
+
+def test_violation_recorded_event_uses_the_row_id():
+    from datetime import datetime, timezone
+
+    from proctor.policy import violation_recorded_event
+
+    when = datetime(2026, 11, 17, tzinfo=timezone.utc)
+    msg_id, data = violation_recorded_event("t", "a", "v1", "phone_detected", when)
+    event = json.loads(data)
+    assert msg_id == event["id"] == "v1" and event["type"] == "proctor.violation.recorded"
+    assert event["payload"]["kind"] == "phone_detected" and event["tenant_id"] == "t"

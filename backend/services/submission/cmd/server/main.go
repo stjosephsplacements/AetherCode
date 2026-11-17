@@ -290,6 +290,15 @@ func run(contextValue context.Context) error {
 		if consumerErr != nil {
 			return consumerErr
 		}
+		proctorViolationConsumer, consumerErr := messaging.NewPullConsumer(
+			contextValue, messagingRuntime.URL, serviceConfig.Name+"-proctor-violation-recorded",
+			"submission_proctor_violation_recorded_v1", projection.ProctorViolationRecordedEventType, logger, projectionStore.ApplyProctorViolation,
+		)
+		if consumerErr != nil {
+			return consumerErr
+		}
+		proctorViolationConsumer.WithInboxCleaner(projectionStore.Inbox())
+		go proctorViolationConsumer.Run(contextValue)
 		go authzSnapshotConsumer.Run(contextValue)
 		go resyncSnapshotConsumer.Run(contextValue)
 		go resyncCompletedConsumer.Run(contextValue)
@@ -344,6 +353,9 @@ func run(contextValue context.Context) error {
 				return err
 			}
 			if err := assignmentConsumer.Ready(readinessContext); err != nil {
+				return err
+			}
+			if err := proctorViolationConsumer.Ready(readinessContext); err != nil {
 				return err
 			}
 			return judgeCompletionConsumer.Ready(readinessContext)

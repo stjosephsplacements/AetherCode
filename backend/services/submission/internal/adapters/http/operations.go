@@ -35,6 +35,7 @@ func (handler *Handler) registerOperations(mux *http.ServeMux) {
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/attempts/{attempt_id}/snapshots", handler.storeSnapshot)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}/snapshots", handler.listSnapshots)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}/proctor-evidence", handler.getProctorEvidence)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/proctor-grid", handler.getProctorGrid)
 }
 
 // regradeItem evaluates an item's answers again on its current tests (ADR-0039).
@@ -454,4 +455,21 @@ func (handler *Handler) getProctorEvidence(writer http.ResponseWriter, request *
 	}
 	writer.Header().Set("Cache-Control", "no-store")
 	httpx.WriteJSON(writer, http.StatusOK, evidence)
+}
+
+// getProctorGrid is the invigilator's live grid. It reads student images, so it
+// needs proctor_evidence (VIEW_STUDENT_PII) and is audited like the export.
+func (handler *Handler) getProctorGrid(writer http.ResponseWriter, request *http.Request) {
+	command, capability, err := handler.authorizeExamVersion(request, "read", "proctor_evidence")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	tiles, err := handler.service.GetProctorGrid(request.Context(), capability, command)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.Header().Set("Cache-Control", "no-store")
+	httpx.WriteJSON(writer, http.StatusOK, tiles)
 }
