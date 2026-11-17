@@ -39,6 +39,7 @@ var platformOnlyResources = map[string]struct{}{
 	"tenant.tenants": {}, "tenant.placement_organizations": {}, "tenant.provisioning_requests": {},
 	"question-bank.category_management": {}, "question-bank.question_exports": {},
 	"user.permission_grants": {}, "user.role_assignments": {},
+	"submission.snapshots": {}, "submission.proctor_evidence": {},
 }
 
 // unlistedResources are internal or belong to the person themselves, so the editor does not offer them.

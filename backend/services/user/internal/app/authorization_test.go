@@ -852,3 +852,32 @@ func TestCapabilityNodesBroadScopeWins(t *testing.T) {
 		t.Fatalf("no scopes must be unrestricted, got %v", got)
 	}
 }
+
+// ADR-0080: VIEW_STUDENT_PII, not ADMINISTRATOR, opens proctor evidence, and
+// every retrieval is audited, allowed or denied.
+func TestProctorEvidenceNeedsStudentPIIAndIsAudited(t *testing.T) {
+	t.Parallel()
+	keyring := testKeyring(t)
+	var recorded []StaffAction
+	faculty := Assignment{Role: centralauthz.RoleCustom, ScopeKind: "department", TenantID: testTenant, ScopeID: testPrincipal}
+	request := Request{PrincipalID: testPrincipal, TenantID: testTenant, RequestID: testRequestID, Action: "read",
+		ResourceType: "proctor_evidence", ResourceID: "018f4b0d-08f8-7c09-9ba7-efdf9c229001", TargetService: "submission"}
+	for _, test := range []struct {
+		name  string
+		flags []string
+		want  bool
+	}{{"holder", []string{"VIEW_STUDENT_PII"}, true}, {"without the flag", nil, false}} {
+		service, err := NewService(fakeStore{snapshot: withBits(Snapshot{Revision: 2, Assignments: []Assignment{faculty}}, test.flags...), audit: &recorded}, keyring, nil, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		recorded = nil
+		decision, err := service.Authorize(context.Background(), request)
+		if err != nil || decision.Allowed != test.want {
+			t.Fatalf("%s: Authorize() = %#v, %v; want allowed=%v", test.name, decision, err, test.want)
+		}
+		if len(recorded) != 1 || recorded[0].Action != AuditProctorEvidenceExported || recorded[0].Allowed != test.want {
+			t.Fatalf("%s: audit = %#v, want one %s entry", test.name, recorded, AuditProctorEvidenceExported)
+		}
+	}
+}
