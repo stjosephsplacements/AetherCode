@@ -721,6 +721,14 @@ func (repository *Postgres) StoreSnapshot(contextValue context.Context, transact
 	return id, nil
 }
 
+func (repository *Postgres) GetAttemptProctorPolicy(contextValue context.Context, transaction pgx.Tx, tenantID, attemptID string) (json.RawMessage, error) {
+	var policy []byte
+	if err := transaction.QueryRow(contextValue, `SELECT submission.get_attempt_proctor_policy($1, $2)`, tenantID, attemptID).Scan(&policy); err != nil {
+		return nil, mapDatabaseError(err, "get attempt proctor policy")
+	}
+	return policy, nil
+}
+
 func (repository *Postgres) ListSnapshotKeys(contextValue context.Context, transaction pgx.Tx, command app.ListSnapshots) ([]app.SnapshotRow, error) {
 	rows, err := transaction.Query(contextValue,
 		`SELECT id::text, captured_at, storage_key FROM submission.list_snapshots($1, $2, $3)`,

@@ -489,6 +489,9 @@ func (service *Service) CreateProctorPolicyVersion(ctx context.Context, capabili
 	if err != nil || !validID(command.ID) || !validID(command.TenantID) || !validID(command.ProctorPolicyID) || command.ExpectedPolicyVersion <= 0 {
 		return ProctorPolicyVersion{}, invalid("proctor policy version fields are invalid")
 	}
+	if err := validateProctorPolicy(policy); err != nil {
+		return ProctorPolicyVersion{}, invalid(err.Error())
+	}
 	command.Policy, command.PolicyChecksum = policy, checksum
 	return runWrite(service, ctx, capability, command.TenantID, "assessment.proctor_policy_version.create", command.IdempotencyKey,
 		struct {

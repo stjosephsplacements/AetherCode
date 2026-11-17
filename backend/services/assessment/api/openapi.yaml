@@ -1202,6 +1202,19 @@ components:
         lifecycle_state: {enum: [active, archived]}
         version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
         created_at: {$ref: '#/components/schemas/Timestamp'}
+    ProctorPolicyBody:
+      type: object
+      additionalProperties: true
+      description: Unknown keys such as seb_required are kept for existing versions. auto_submit_on_breach requires max_violations. An omitted or empty counted_violation_kinds counts every kind; enabled defaults to false.
+      properties:
+        enabled: {type: boolean}
+        violation_cooldown_seconds: {type: integer, minimum: 1, maximum: 3600}
+        max_violations: {type: integer, minimum: 1, maximum: 1000}
+        auto_submit_on_breach: {type: boolean}
+        counted_violation_kinds:
+          type: array
+          maxItems: 8
+          items: {enum: [MULTIPLE_FACES, NO_FACE, PROHIBITED_DEVICE, GAZE_AWAY, multiple_faces, face_missing, phone_detected, gaze_away]}
     ProctorPolicyVersion:
       type: object
       required: [id, tenant_id, proctor_policy_id, version_number, policy, policy_checksum, status, created_at]
@@ -1210,7 +1223,7 @@ components:
         tenant_id: {$ref: '#/components/schemas/UUID'}
         proctor_policy_id: {$ref: '#/components/schemas/UUID'}
         version_number: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
-        policy: {type: object}
+        policy: {$ref: '#/components/schemas/ProctorPolicyBody'}
         policy_checksum: {type: string, pattern: '^[0-9a-f]{64}$', maxLength: 1000}
         status: {enum: [draft, published, retired]}
         published_at: {$ref: '#/components/schemas/Timestamp'}

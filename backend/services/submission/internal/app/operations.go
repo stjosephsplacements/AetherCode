@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -273,13 +274,30 @@ func (service *Service) UploadSnapshot(contextValue context.Context, capability 
 		return "", fmt.Errorf("put snapshot in storage: %w", err)
 	}
 	var id string
+	var policy json.RawMessage
 	txErr := service.inTenant(contextValue, capability, func(transaction pgx.Tx) error {
 		var storeErr error
 		id, storeErr = service.store.StoreSnapshot(contextValue, transaction, StoreSnapshot{
 			TenantID: tenantID, AttemptID: attemptID, CapturedAt: capturedAt,
 			StorageKey: key, SizeBytes: len(data),
 		})
-		return storeErr
+		if storeErr != nil {
+			return storeErr
+		}
+		// The capability is single-use, so the policy is read in this transaction. A
+		// savepoint keeps a failed lookup from failing the upload; the frame is then
+		// analysed without a policy, which only disables auto-submit for it.
+		savepoint, beginErr := transaction.Begin(contextValue)
+		if beginErr != nil {
+			return beginErr
+		}
+		var policyErr error
+		if policy, policyErr = service.store.GetAttemptProctorPolicy(contextValue, savepoint, tenantID, attemptID); policyErr != nil {
+			slog.WarnContext(contextValue, "read proctor policy for snapshot", "attempt_id", attemptID, "error", policyErr)
+			policy = nil
+			return savepoint.Rollback(contextValue)
+		}
+		return savepoint.Commit(contextValue)
 	})
 	if txErr != nil {
 		_ = service.storage.Delete(context.WithoutCancel(contextValue), key)
@@ -293,10 +311,16 @@ func (service *Service) UploadSnapshot(contextValue context.Context, capability 
 			TenantID   string `json:"tenant_id"`
 			StorageKey string `json:"storage_key"`
 			CapturedAt string `json:"captured_at"`
+			// Policy is the exam's proctor policy; omitted when none is set or the
+			// lookup fails, which only disables auto-submit for this frame.
+			Policy json.RawMessage `json:"policy,omitempty"`
+		}
+		if string(policy) == "null" {
+			policy = nil
 		}
 		payload, _ := json.Marshal(proctorEvent{
 			SnapshotID: id, AttemptID: attemptID, TenantID: tenantID,
-			StorageKey: key, CapturedAt: capturedAt.Format(time.RFC3339Nano),
+			StorageKey: key, CapturedAt: capturedAt.Format(time.RFC3339Nano), Policy: policy,
 		})
 		_ = service.snapshotPublisher.PublishSnapshot(context.WithoutCancel(contextValue), "proctor.analyze", payload)
 	}
