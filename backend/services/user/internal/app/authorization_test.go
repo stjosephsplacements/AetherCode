@@ -904,6 +904,9 @@ func TestProctorEvidenceReadFailsClosedWithoutAudit(t *testing.T) {
 	if decision, err := service.Authorize(context.Background(), request); err == nil || decision.Allowed {
 		t.Fatalf("Authorize() = %#v, %v; want a refusal when the audit entry cannot be written", decision, err)
 	}
+	if !requiresMFAStepUp("talent_cards", "write") || !requiresMFAStepUp("talent_cards", "delete") {
+		t.Fatal("issuing or revoking a talent card must require a recent MFA check")
+	}
 	if !requiresMFAStepUp("proctor_evidence", "read") || !requiresMFAStepUp("snapshots", "read") {
 		t.Fatal("student evidence reads must require a recent MFA check")
 	}

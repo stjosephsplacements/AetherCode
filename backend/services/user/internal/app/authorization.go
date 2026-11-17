@@ -181,6 +181,8 @@ var mfaElevatedOperations = map[string]map[string]struct{}{
 	// elevated flag (ADR-0066), so reading them needs a recent MFA check too.
 	"snapshots":        {"read": {}},
 	"proctor_evidence": {"read": {}},
+	// A talent card releases a student's results to a recruiter.
+	"talent_cards": {"write": {}, "delete": {}},
 }
 
 func requiresMFAStepUp(resourceType, action string) bool {
