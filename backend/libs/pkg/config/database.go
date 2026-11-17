@@ -26,7 +26,7 @@ func LoadDatabase(prefix string) (Database, error) {
 		return Database{}, fmt.Errorf("%s_DATABASE_URL is required", prefix)
 	}
 
-	maxConns, err := parsePositiveInt32(value(prefix+"_DB_MAX_CONNS", "20"))
+	maxConns, err := parsePositiveInt32(value(prefix+"_DB_MAX_CONNS", "8"))
 	if err != nil {
 		return Database{}, fmt.Errorf("%s_DB_MAX_CONNS: %w", prefix, err)
 	}
