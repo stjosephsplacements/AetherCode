@@ -729,6 +729,27 @@ func (repository *Postgres) GetAttemptProctorPolicy(contextValue context.Context
 	return policy, nil
 }
 
+func (repository *Postgres) ProctorGrid(contextValue context.Context, transaction pgx.Tx, command app.ExamVersionCommand) ([]app.GridRow, error) {
+	rows, err := transaction.Query(contextValue, `
+		SELECT attempt_id::text, candidate_id::text, started_at, snapshot_id::text, captured_at, storage_key,
+		       violation_total, violation_kinds, max_violations
+		FROM submission.proctor_grid($1, $2, 200)`, command.TenantID, command.ExamVersionID)
+	if err != nil {
+		return nil, mapDatabaseError(err, "read proctor grid")
+	}
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (app.GridRow, error) {
+		var grid app.GridRow
+		var kinds []byte
+		if err := row.Scan(&grid.AttemptID, &grid.CandidateID, &grid.StartedAt, &grid.SnapshotID, &grid.CapturedAt,
+			&grid.StorageKey, &grid.ViolationTotal, &kinds, &grid.MaxViolations); err != nil {
+			return grid, err
+		}
+		var decodeErr error
+		grid.ViolationKinds, decodeErr = app.DecodeKinds(kinds)
+		return grid, decodeErr
+	})
+}
+
 func (repository *Postgres) ListSnapshotKeys(contextValue context.Context, transaction pgx.Tx, command app.ListSnapshots) ([]app.SnapshotRow, error) {
 	rows, err := transaction.Query(contextValue,
 		`SELECT id::text, captured_at, storage_key FROM submission.list_snapshots($1, $2, $3)`,

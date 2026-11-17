@@ -54,3 +54,6 @@ hackerrank.env
 # Generated credentials and student data must never be committed
 *-passwords.csv
 apps/exam-v1/scripts/*.csv
+
+__pycache__/
+*.pyc

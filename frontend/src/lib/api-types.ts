@@ -586,3 +586,18 @@ export type PlatformName = "leetcode" | "github" | "codeforces" | "codechef" | "
 export type ProfileLink = { platform: PlatformName; handle: string };
 
 export type PersonalTask = { id: string; title: string; due_at: string | null; done: boolean };
+
+export type ProctorGridSeverity = "green" | "amber" | "red";
+
+/** One active attempt on the invigilator's camera grid (needs the student-PII permission). */
+export type ProctorGridTile = {
+  attempt_id: string;
+  candidate_id: string;
+  started_at?: string;
+  snapshot_id?: string;
+  captured_at?: string;
+  snapshot_url?: string;
+  violation_total: number;
+  violation_kinds: Record<string, number>;
+  severity: ProctorGridSeverity;
+};

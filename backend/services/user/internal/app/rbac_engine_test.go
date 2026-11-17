@@ -176,6 +176,8 @@ func TestPermsAllow(t *testing.T) {
 		{"pii reads snapshots", bitsFor("VIEW_SCOPE", "VIEW_STUDENT_PII"), Request{TargetService: "submission", ResourceType: "snapshots", Action: "read"}, true},
 		{"pii needs view scope", bitsFor("VIEW_STUDENT_PII"), Request{TargetService: "submission", ResourceType: "proctor_evidence", Action: "read"}, false},
 		{"pii does not write evidence", bitsFor("VIEW_SCOPE", "VIEW_STUDENT_PII"), Request{TargetService: "submission", ResourceType: "proctor_evidence", Action: "write"}, false},
+		{"pii writes talent cards", bitsFor("VIEW_SCOPE", "VIEW_STUDENT_PII"), Request{TargetService: "analytics", ResourceType: "talent_cards", Action: "write"}, true},
+		{"talent cards need pii", bitsFor("VIEW_SCOPE"), Request{TargetService: "analytics", ResourceType: "talent_cards", Action: "write"}, false},
 		{"pii does not read attempts", bitsFor("VIEW_SCOPE", "VIEW_STUDENT_PII"), read, false},
 		{"evidence denied without pii", bitsFor("VIEW_SCOPE", "submission.attempts.read"), Request{TargetService: "submission", ResourceType: "proctor_evidence", Action: "read"}, false},
 	}

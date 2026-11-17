@@ -33,7 +33,8 @@ from prisma import Prisma
 from .config import settings
 from .detector import Detector
 from .models import AnalysisResult, SnapshotEvent, Violation
-from .policy import THRESHOLD_SUBJECT, ProctorPolicy, threshold_event
+from .policy import (RECORDED_SUBJECT, THRESHOLD_SUBJECT, ProctorPolicy, threshold_event,
+                     violation_recorded_event)
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
 logger = logging.getLogger("proctor")
@@ -128,9 +129,9 @@ async def _is_cooled_down(attempt_id: str, kind: str, cooldown_seconds: int) -> 
 
 async def _store_violation(
     tenant_id: str, attempt_id: str, snapshot_id: str, kind: str, confidence: float, details: str
-) -> None:
+):
     assert _db is not None
-    await _db.violation.create(
+    return await _db.violation.create(
         data={
             "tenantId": tenant_id,
             "attemptId": attempt_id,
@@ -215,7 +216,7 @@ async def _process_locked(event: SnapshotEvent) -> None:
             continue
 
         # Persist violation to DB first (idempotent on re-delivery)
-        await _store_violation(
+        row = await _store_violation(
             tenant_id=event.tenant_id,
             attempt_id=event.attempt_id,
             snapshot_id=event.snapshot_id,
@@ -223,6 +224,7 @@ async def _process_locked(event: SnapshotEvent) -> None:
             confidence=v["confidence"],
             details=v.get("details", ""),
         )
+        await _publish_recorded(event, row)
 
         # Post integrity event to submission service (best-effort)
         try:
@@ -239,6 +241,17 @@ async def _process_locked(event: SnapshotEvent) -> None:
     # Checked on every analysed frame, not only after a new violation: a publish
     # that failed earlier is retried by the next frame (the message id dedups).
     await _publish_if_breached(event, policy)
+
+
+async def _publish_recorded(event: SnapshotEvent, row) -> None:
+    """Tell Submission about a stored violation for the live grid; best effort,
+    because the violation is already persisted."""
+    assert _nc is not None
+    msg_id, data = violation_recorded_event(event.tenant_id, event.attempt_id, row.id, row.kind, row.detectedAt)
+    try:
+        await _nc.jetstream().publish(RECORDED_SUBJECT, data, headers={"Nats-Msg-Id": msg_id})
+    except Exception as exc:
+        logger.warning("Failed to publish violation %s: %s", row.id, exc)
 
 
 async def _publish_if_breached(event: SnapshotEvent, policy: ProctorPolicy) -> None:

@@ -68,3 +68,27 @@ def threshold_event(tenant_id: str, attempt_id: str, count: int, max_violations:
                     "violation_count": count, "max_violations": max_violations},
     }
     return event_id, json.dumps(event).encode()
+
+
+RECORDED_SUBJECT = "proctor.violation.recorded"
+
+
+def violation_recorded_event(tenant_id: str, attempt_id: str, violation_id: str, kind: str,
+                             detected_at: datetime) -> tuple[str, bytes]:
+    """Return (Nats-Msg-Id, messaging.Event JSON) for one stored violation.
+
+    The id is the violation row's id, so a retry is deduplicated and Submission's
+    inbox counts the violation once.
+    """
+    event = {
+        "id": violation_id,
+        "type": RECORDED_SUBJECT,
+        "schema_version": 1,
+        "aggregate_type": "attempt",
+        "aggregate_id": attempt_id,
+        "tenant_id": tenant_id,
+        "occurred_at": detected_at.isoformat(),
+        "payload": {"tenant_id": tenant_id, "attempt_id": attempt_id, "kind": kind,
+                    "detected_at": detected_at.isoformat()},
+    }
+    return violation_id, json.dumps(event).encode()
