@@ -29,9 +29,6 @@ tls:
   enabled: true
   secretName: aethercode-tls-user
 
-headlessService:
-  enabled: true
-
 config:
   SERVICE_NAME: "user"
   AUTHZ_CLIENT_TLS_CA_FILE: "/certs/ca.crt"

@@ -20,10 +20,6 @@ global:
   engineUrl: http://engine:5100
   mtlsTrustDomain: spiffe://aethercode.local
 
-# A headless Service (<name>-headless) listing every pod, for gRPC clients that balance over all of them.
-headlessService:
-  enabled: false
-
 replicaCount: 2
 
 image:
