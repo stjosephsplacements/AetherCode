@@ -1,6 +1,7 @@
 """GPU inference pipeline using YOLOv8x + MediaPipe FaceMesh."""
 import io
 import logging
+import threading
 import time
 from pathlib import Path
 
@@ -15,13 +16,15 @@ _PHONE = 67
 
 
 class Detector:
-    """Loads models once; analyze() is safe to call from multiple threads via executor."""
+    """Loads models once. analyze() may be called from any thread: an internal lock serialises it, because the
+    YOLO predictor and the single FaceMesh instance keep per-call state."""
 
     def __init__(self, model_path: str = "yolov8x.pt", conf_person: float = 0.60, conf_phone: float = 0.50) -> None:
         from ultralytics import YOLO
 
         self._yolo = YOLO(model_path)
         self._yolo.to("cuda")
+        self._lock = threading.Lock()
         self._conf_person = conf_person
         self._conf_phone = conf_phone
         logger.info("YOLOv8x loaded on CUDA")
@@ -39,7 +42,11 @@ class Detector:
             self._face_mesh = None
 
     def analyze(self, jpeg_bytes: bytes) -> list[dict]:
-        """Return a list of violation dicts. Thread-safe (model inference is stateless)."""
+        """Return a list of violation dicts. Calls are serialised, so concurrent snapshots cannot mix state."""
+        with self._lock:
+            return self._analyze_locked(jpeg_bytes)
+
+    def _analyze_locked(self, jpeg_bytes: bytes) -> list[dict]:
         t0 = time.monotonic()
         img_pil = Image.open(io.BytesIO(jpeg_bytes)).convert("RGB")
         img_np = np.array(img_pil)
@@ -67,22 +74,25 @@ class Detector:
                 "details": "cell phone detected by YOLOv8x",
             })
 
-        # ── MediaPipe: gaze deviation ─────────────────────────────────────────
-        if self._face_mesh and len(persons) == 1 and not violations:
-            gaze = self._check_gaze(img_np)
-            if gaze:
-                violations.append(gaze)
+        # ── MediaPipe: a visible body without a visible face, and gaze deviation ─
+        # Gaze runs whenever exactly one person is present, so a phone in the frame does not hide it.
+        # Both checks need exactly one person, so the face mesh is skipped for empty and crowded frames.
+        if self._face_mesh and len(persons) == 1:
+            mesh = self._face_mesh.process(img_np)
+            if not mesh.multi_face_landmarks:
+                violations.append({"kind": "face_missing", "confidence": 0.80,
+                                   "details": "person in frame but no face found (covered or out of frame)"})
+            else:
+                gaze = self._check_gaze(mesh, img_np.shape[1], img_np.shape[0])
+                if gaze:
+                    violations.append(gaze)
 
         elapsed_ms = int((time.monotonic() - t0) * 1000)
         logger.debug("analyze() finished in %dms, %d violation(s)", elapsed_ms, len(violations))
         return violations
 
-    def _check_gaze(self, img_np: np.ndarray) -> dict | None:
-        """Return a gaze_away violation if the iris is too far from center, else None."""
-        import mediapipe as mp
-
-        h, w = img_np.shape[:2]
-        res = self._face_mesh.process(img_np)
+    def _check_gaze(self, res, w: int, h: int) -> dict | None:
+        """Return a gaze_away violation if the iris is too far from center, else None. `res` is a FaceMesh result."""
         if not res.multi_face_landmarks:
             return None
 

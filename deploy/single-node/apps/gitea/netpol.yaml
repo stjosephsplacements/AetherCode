@@ -1,0 +1,40 @@
+# Gitea accepts connections only from Traefik (the web UI behind Cloudflare Access), the CI runner namespace
+# (checkout and job API) and Prometheus. Everything else in the cluster is denied.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: gitea-ingress
+  namespace: gitea
+spec:
+  podSelector: {matchLabels: {app.kubernetes.io/name: gitea}}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: traefik}}
+          podSelector: {matchLabels: {app.kubernetes.io/name: traefik}}
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: gitea-runner}}
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: monitoring}}
+          podSelector: {matchLabels: {app.kubernetes.io/name: prometheus}}
+      ports: [{port: 3000, protocol: TCP}]
+---
+# An alert if Gitea or its runner disappears.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: gitea
+  namespace: gitea
+  labels: {release: kube-prometheus}
+spec:
+  groups:
+    - name: gitea
+      rules:
+        - alert: GiteaDown
+          expr: absent(up{job=~".*gitea.*"} == 1)
+          for: 5m
+          labels: {severity: warning}
+          annotations: {summary: "Gitea has not been scrapeable for 5 minutes"}
+        - alert: GiteaRunnerDown
+          expr: absent(kube_pod_status_ready{namespace="gitea-runner",condition="true"} == 1)
+          for: 10m
+          labels: {severity: warning}
+          annotations: {summary: "The Gitea CI runner pod is not ready"}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -25,6 +26,8 @@ type GridRow struct {
 	ViolationTotal int
 	ViolationKinds map[string]int
 	MaxViolations  *int
+	// CountedKinds are the policy names whose violations count toward the limit; empty means every kind.
+	CountedKinds []string
 }
 
 // GridTile is one active attempt on the invigilator's grid.
@@ -38,6 +41,40 @@ type GridTile struct {
 	ViolationTotal int            `json:"violation_total"`
 	ViolationKinds map[string]int `json:"violation_kinds"`
 	Severity       string         `json:"severity"`
+}
+
+// policyToDetector maps the policy's kind names to the detector kinds stored in the counts
+// (proctor's policy.py holds the same table).
+var policyToDetector = map[string]string{
+	"NO_FACE":           "face_missing",
+	"MULTIPLE_FACES":    "multiple_faces",
+	"PROHIBITED_DEVICE": "phone_detected",
+	"GAZE_AWAY":         "gaze_away",
+}
+
+// detectorKinds are the kinds the proctor stores in the counts.
+var detectorKinds = []string{"face_missing", "multiple_faces", "phone_detected", "gaze_away"}
+
+// CountedTotal is the number of violations that count toward the limit: only the policy's counted kinds
+// when it names any, otherwise all of them.
+func CountedTotal(total int, kinds map[string]int, countedPolicyKinds []string) int {
+	// A policy may list a kind by its policy name or by its detector name, and may list both; count each detector once.
+	detectors := map[string]struct{}{}
+	for _, name := range countedPolicyKinds {
+		if detector, ok := policyToDetector[name]; ok {
+			detectors[detector] = struct{}{}
+		} else if slices.Contains(detectorKinds, name) {
+			detectors[name] = struct{}{}
+		}
+	}
+	if len(detectors) == 0 {
+		return total
+	}
+	counted := 0
+	for detector := range detectors {
+		counted += kinds[detector]
+	}
+	return counted
 }
 
 // GridSeverity is red at the exam's limit, amber from half of it or on a
@@ -78,7 +115,8 @@ func (service *Service) GetProctorGrid(contextValue context.Context, capability 
 		tile := GridTile{
 			AttemptID: row.AttemptID, CandidateID: row.CandidateID, StartedAt: row.StartedAt,
 			SnapshotID: row.SnapshotID, CapturedAt: row.CapturedAt, ViolationTotal: row.ViolationTotal,
-			ViolationKinds: row.ViolationKinds, Severity: GridSeverity(row.ViolationTotal, row.ViolationKinds, row.MaxViolations),
+			ViolationKinds: row.ViolationKinds,
+			Severity:       GridSeverity(CountedTotal(row.ViolationTotal, row.ViolationKinds, row.CountedKinds), row.ViolationKinds, row.MaxViolations),
 		}
 		if tile.ViolationKinds == nil {
 			tile.ViolationKinds = map[string]int{}

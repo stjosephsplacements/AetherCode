@@ -31,10 +31,12 @@ jobs:
           set -euo pipefail
           for dir in backend/libs/pkg backend/libs/proto backend/services/*/; do
             # Skip non-Go service directories (e.g. proctor which is Python)
-            [[ -f "${dir}go.mod" ]] || continue
+            [[ -f "${dir%/}/go.mod" ]] || continue
             (cd "$dir" && GOWORK=off go mod tidy && GOWORK=off go build ./...)
           done
           git diff --exit-code -- '*.mod' '*.sum'
+      - name: Generated authz migrations match their template
+        run: python3 backend/scripts/generate_authz_migration.py --verify
       - run: (cd backend && go work sync)
       - run: make build
       - run: make test
@@ -252,6 +254,10 @@ jobs:
           SERVICES: ${{ secrets.PROD_SERVICES }}
         run: |
           set -euo pipefail
+          test -n "$NAMESPACE" || { echo "PROD_K8S_NAMESPACE is not set" >&2; exit 1; }
+          test -n "$PUBLIC_ORIGIN" || { echo "PROD_PUBLIC_ORIGIN is not set" >&2; exit 1; }
+          test -n "$INGRESS_HOST" || { echo "PROD_INGRESS_HOST is not set" >&2; exit 1; }
+          test -n "$SERVICES" || { echo "PROD_SERVICES is not set" >&2; exit 1; }
           chart=deploy/helm/platform-service
           read -ra services <<< "$SERVICES"
 
@@ -294,6 +300,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     environment: development
+    permissions:
+      contents: read
+      packages: read     # the token is used to pull the private images from GHCR
     steps:
       - uses: actions/checkout@v7
 

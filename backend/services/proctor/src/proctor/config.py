@@ -4,8 +4,8 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     submission_url: str = "http://submission:8080"
     minio_endpoint: str = "minio:9000"
-    minio_access_key: str = ""
-    minio_secret_key: str = ""
+    minio_access_key: str   # required, like database_url: a missing secret must stop the service at start-up
+    minio_secret_key: str
     minio_bucket: str = "aethercode"
     nats_url: str = "nats://nats:4222"
     # Subject that submission service publishes after storing a snapshot.

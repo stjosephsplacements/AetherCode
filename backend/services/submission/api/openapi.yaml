@@ -1250,6 +1250,10 @@ paths:
       parameters:
       - $ref: '#/components/parameters/TenantID'
       - $ref: '#/components/parameters/AttemptID'
+      - in: query
+        name: limit
+        description: How many of the newest snapshots to return. Default 50, at most 200.
+        schema: {type: integer, minimum: 1, maximum: 200}
       responses:
         '200':
           description: Snapshot list with presigned URLs.
@@ -1615,7 +1619,7 @@ components:
         attempt_id: {$ref: '#/components/schemas/UUID'}
         exam_id: {$ref: '#/components/schemas/UUID'}
         title: {type: string, maxLength: 1000}
-        instructions_markdown: {type: string, maxLength: 1000}
+        instructions_markdown: {type: string, maxLength: 200000}
         items:
           type: array
           items:
@@ -1626,7 +1630,7 @@ components:
               exam_item_id: {$ref: '#/components/schemas/UUID'}
               position: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
               title: {type: string, maxLength: 1000}
-              prompt_markdown: {type: string, maxLength: 1000}
+              prompt_markdown: {type: string, maxLength: 200000}
               maximum_score: {type: string, maxLength: 1000}
               supported_languages: {type: array, items: {type: string, maxLength: 1000}, maxItems: 200}
               time_limit_ms: {type: integer, minimum: 0, format: int64, maximum: 2147483647}
@@ -1639,7 +1643,7 @@ components:
                   required: [language, source, revision_number]
                   properties:
                     language: {type: string, maxLength: 1000}
-                    source: {type: string, maxLength: 1000}
+                    source: {type: string, maxLength: 65536}
                     revision_number: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
           maxItems: 200
     CodeRunPage:

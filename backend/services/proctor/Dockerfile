@@ -17,12 +17,16 @@ RUN prisma generate
 
 COPY src/ src/
 
+# Bake the YOLO weights in: the pod has a read-only root filesystem and no internet access at runtime.
+# Ultralytics saves the download into the working directory, so this leaves /app/yolov8x.pt.
+RUN python3.11 -c "from ultralytics import YOLO; YOLO('yolov8x.pt')" && test -s /app/yolov8x.pt
+
 ENV PYTHONUNBUFFERED=1 NVIDIA_VISIBLE_DEVICES=all NVIDIA_DRIVER_CAPABILITIES=compute,utility
 
 # Non-root for security
 RUN useradd -r -u 1001 proctor
 USER proctor
 
-HEALTHCHECK --interval=30s --timeout=5s CMD python3 -c "import httpx; httpx.get('http://localhost:8090/healthz').raise_for_status()"
+HEALTHCHECK --interval=30s --timeout=5s CMD python3.11 -c "import httpx; httpx.get('http://localhost:8090/healthz').raise_for_status()"
 
 CMD ["uvicorn", "proctor.main:app", "--host", "0.0.0.0", "--port", "8090", "--workers", "1"]

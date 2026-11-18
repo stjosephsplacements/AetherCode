@@ -11,6 +11,9 @@ helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version }}
     secretKeyRef:
       name: {{ .secret }}
       key: {{ default .name .key }}
+      {{- if .optional }}
+      optional: true
+      {{- end }}
 {{- end }}
 
 {{/* The restricted pod security context shared by the images that tolerate it. */}}

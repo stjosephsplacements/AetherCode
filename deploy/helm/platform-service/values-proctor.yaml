@@ -15,14 +15,16 @@ service:
   port: 8090
   targetPort: 8090
 
-# No CPU/memory limits — the GPU driver manages VRAM.
-# Set requests so the scheduler knows this pod needs a GPU node.
+# The GPU driver manages VRAM; CPU and memory limits stay because the cluster policy requires them, and the
+# chart default limits (500m, 512Mi) would sit below these requests, so they are replaced explicitly.
 resources:
   requests:
     cpu: "2"
     memory: "4Gi"
     nvidia.com/gpu: "1"
   limits:
+    cpu: "8"
+    memory: "16Gi"
     nvidia.com/gpu: "1"
 
 config:
@@ -31,7 +33,7 @@ config:
   PROCTOR_MINIO_BUCKET: "aethercode"
   PROCTOR_NATS_URL: "nats://nats:4222"
   PROCTOR_NATS_SUBJECT: "proctor.analyze"
-  PROCTOR_YOLO_MODEL: "yolov8x.pt"
+  PROCTOR_YOLO_MODEL: "/app/yolov8x.pt"   # baked into the image: the pod has no internet access
   PROCTOR_CONFIDENCE_PHONE: "0.50"
   PROCTOR_CONFIDENCE_PERSON: "0.60"
   PROCTOR_VIOLATION_COOLDOWN_SECONDS: "30"
@@ -44,9 +46,9 @@ secretEnv:
 
 env:
   - name: PROCTOR_DATABASE_URL
-    value: "postgres://aether_proctor_app:$(PROCTOR_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_proctor?sslmode={{ .Values.global.postgresSSLMode }}"
+    value: "postgres://aether_proctor_app:$(PROCTOR_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_proctor?sslmode={{ .Values.global.postgresSSLMode }}&schema=proctor"
   - name: PROCTOR_DATABASE_DIRECT_URL
-    value: "postgres://aether_proctor_app:$(PROCTOR_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_proctor?sslmode={{ .Values.global.postgresSSLMode }}"
+    value: "postgres://aether_proctor_app:$(PROCTOR_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_proctor?sslmode={{ .Values.global.postgresSSLMode }}&schema=proctor"
 
 # Node selector — only schedule on nodes with NVIDIA GPUs.
 nodeSelector:

@@ -26,6 +26,7 @@ INGRESS_HOST="${DEV_INGRESS_HOST:-dev-aethercode.stjosephsplacements.in}"
 POSTGRES_HOST="postgres-cluster-pooler.${NS}.svc.cluster.local"
 
 BUILD=false
+CHART_DIR="$REPO_DIR/deploy/helm"
 if [[ "${1:-}" == "--build" ]]; then BUILD=true; shift; fi
 SHA=$1; shift; SVCS=("$@")
 TAG=$SHA
@@ -36,6 +37,7 @@ if $BUILD; then
   tar -xzf /tmp/aether-dev-src.tgz -C ~/aether-dev
   chmod -R o+rX ~/aether-dev
   cd ~/aether-dev
+  CHART_DIR="$PWD/deploy/helm"      # the charts must match the source the images were built from
 
   build() { # name context dockerfile
     local img="$REG/aethercode-$1:$TAG"
@@ -75,24 +77,34 @@ else
 fi
 
 # ── Helm upgrades ─────────────────────────────────────────────────────────────
-cd "$REPO_DIR/deploy/helm"
+cd "$CHART_DIR"
 
-helm upgrade migrations platform-migrations -n "$NS" \
+# helm_step <label> <helm args...>: print the status lines, and stop the whole sync if helm fails
+helm_step() {
+  local label=$1 out; shift
+  if out=$(helm "$@" 2>&1); then
+    grep -E "^STATUS|[Ee]rror" <<<"$out" | sed "s/^/$label: /" || true
+  else
+    tail -20 <<<"$out" | sed "s/^/$label: /" >&2
+    echo "SYNC FAILED: helm upgrade $label" >&2
+    exit 1
+  fi
+}
+
+helm_step "$NS migrations" upgrade migrations platform-migrations -n "$NS" \
   --install --reset-then-reuse-values \
   --set global.postgresHost="$POSTGRES_HOST" \
   --set global.judgeDbHost="judge-db" \
   --set image.tag="$TAG" \
-  --wait --timeout 10m 2>&1 \
-  | grep -E "^STATUS|[Ee]rror" | sed "s/^/$NS migrations: /" || true
+  --wait --timeout 10m
 
 for s in "${SVCS[@]}"; do
   EXTRA=(--set global.publicOrigin="$PUBLIC_ORIGIN")
   [[ "$s" == frontend ]] && EXTRA+=(--set ingress.host="$INGRESS_HOST")
-  helm upgrade "$s" platform-service -n "$NS" \
+  helm_step "$NS $s" upgrade "$s" platform-service -n "$NS" \
     --install --reset-then-reuse-values -f "platform-service/values-$s.yaml" \
     --set image.tag="$TAG" "${EXTRA[@]}" \
-    --wait --timeout 5m 2>&1 \
-    | grep -E "^STATUS|[Ee]rror" | sed "s/^/$NS $s: /" || true
+    --wait --timeout 5m
 done
 
 for s in "${SVCS[@]}"; do

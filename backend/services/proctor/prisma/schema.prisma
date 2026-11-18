@@ -2,7 +2,8 @@
 // Connects to aether_proctor (created by migrations/000001_initial.up.sql).
 //
 // Run: prisma generate    — regenerates the Python client after schema changes
-// Tables live in the proctor schema (not public), so @@map uses "proctor.tablename".
+// Tables live in the proctor schema (not public). PROCTOR_DATABASE_URL must therefore end in ?schema=proctor (Prisma's
+// default-schema parameter); @@map names are the plain table names, never "proctor.table" (that is one quoted identifier).
 
 generator client {
   provider             = "prisma-client-py"
@@ -32,7 +33,7 @@ model Violation {
 
   @@index([attemptId, kind, detectedAt(sort: Desc)], name: "violation_cooldown_idx")
   @@index([tenantId, attemptId, detectedAt(sort: Desc)], name: "violation_attempt_idx")
-  @@map("proctor.violations")
+  @@map("violations")
 }
 
 /// Tracks which snapshots have been analyzed to avoid double-processing.
@@ -41,5 +42,5 @@ model ProcessedSnapshot {
   processedAt DateTime @default(now()) @map("processed_at")
 
   @@index([processedAt], name: "processed_snapshot_age_idx")
-  @@map("proctor.processed_snapshots")
+  @@map("processed_snapshots")
 }

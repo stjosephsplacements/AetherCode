@@ -4,7 +4,7 @@ import Link from "next/link";
 import { LoadError, PageHeader, Section } from "@/components/staff/page-header";
 import { Badge, Panel } from "@/components/ui/card";
 import type { AttemptReview, Snapshot } from "@/lib/api-types";
-import { gateway } from "@/lib/server/gateway";
+import { GatewayError, gateway } from "@/lib/server/gateway";
 import { requireCollege } from "@/lib/server/staff";
 import { listAllStudents } from "@/lib/server/students";
 import { formatDateTime, formatScoreText, formatTime, languageName } from "@/lib/utils";
@@ -42,6 +42,9 @@ function describe(event: AttemptReview["events"][number]): string {
   }
 }
 
+/** The most snapshots the API returns for one attempt. */
+const SNAPSHOT_LIMIT = 200;
+
 export default async function AttemptPage({ params }: { params: Promise<{ examId: string; attemptId: string }> }) {
   const staff = await requireCollege();
   const { examId, attemptId } = await params;
@@ -50,7 +53,13 @@ export default async function AttemptPage({ params }: { params: Promise<{ examId
     const [review, students, snapshots] = await Promise.all([
       gateway<AttemptReview>(`/submission/v1/tenants/${staff.tenantId}/attempts/${attemptId}/review`),
       listAllStudents(staff.tenantId),
-      gateway<Snapshot[]>(`/submission/v1/tenants/${staff.tenantId}/attempts/${attemptId}/snapshots`).catch(() => [] as Snapshot[]),
+      // Webcam evidence is behind VIEW_STUDENT_PII: no permission (403) means no section, any other failure is shown.
+      gateway<Snapshot[]>(`/submission/v1/tenants/${staff.tenantId}/attempts/${attemptId}/snapshots?limit=${SNAPSHOT_LIMIT}`).catch(
+        (error: unknown) => {
+          if (error instanceof GatewayError && error.status === 403) return null;
+          throw error;
+        },
+      ),
     ]);
     data = { review, roll: students.find((student) => student.principal_id === review.attempt.candidate_id)?.enrollment_number, snapshots };
   } catch (error) {
@@ -121,8 +130,11 @@ export default async function AttemptPage({ params }: { params: Promise<{ examId
         </Section>
       ))}
 
-      {snapshots.length > 0 && (
+      {snapshots !== null && snapshots.length > 0 && (
         <Section title="Webcam snapshots">
+          {snapshots.length >= SNAPSHOT_LIMIT && (
+            <p className="mb-2 text-sm text-ink-muted">Showing the newest {SNAPSHOT_LIMIT} pictures; earlier ones are not listed.</p>
+          )}
           <div className="flex flex-wrap gap-2">
             {snapshots.map((snap) => (
               <a key={snap.id} href={snap.url} target="_blank" rel="noopener noreferrer">

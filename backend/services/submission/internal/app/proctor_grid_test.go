@@ -26,3 +26,25 @@ func TestGridSeverity(t *testing.T) {
 		}
 	}
 }
+
+func TestCountedTotal(t *testing.T) {
+	t.Parallel()
+	kinds := map[string]int{"face_missing": 3, "gaze_away": 4, "phone_detected": 1}
+	for _, test := range []struct {
+		name    string
+		counted []string
+		want    int
+	}{
+		{"no named kinds counts everything", nil, 8},
+		{"unknown names count everything", []string{"SOMETHING_ELSE"}, 8},
+		{"one named kind", []string{"NO_FACE"}, 3},
+		{"two named kinds", []string{"NO_FACE", "PROHIBITED_DEVICE"}, 4},
+		{"a named kind with no violations", []string{"MULTIPLE_FACES"}, 0},
+		{"a detector name counts like its policy name", []string{"phone_detected"}, 1},
+		{"an alias and its detector name count once", []string{"NO_FACE", "face_missing"}, 3},
+	} {
+		if got := CountedTotal(8, kinds, test.counted); got != test.want {
+			t.Errorf("%s: counted = %d, want %d", test.name, got, test.want)
+		}
+	}
+}

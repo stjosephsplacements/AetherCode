@@ -38,6 +38,8 @@ func (handler *Handler) setTalentCardConsent(writer http.ResponseWriter, request
 		httpx.WriteError(writer, err)
 		return
 	}
+	// Contact sharing needs the card itself to be agreed to; store and echo the same value.
+	body.ShareContactInfo = body.ShareContactInfo && body.Granted
 	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "talent_card_consents", studentID, tenantID)
 	if err != nil {
 		httpx.WriteError(writer, err)

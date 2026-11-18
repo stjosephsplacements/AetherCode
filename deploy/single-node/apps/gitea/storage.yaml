@@ -1,0 +1,21 @@
+# Gitea's data (repositories, LFS, packages, indexes) lives in /data/production/gitea/data. The repositories are pull
+# mirrors that can be cloned again from GitHub, and Gitea's database (users, tokens, Actions history) is in the nightly
+# database dumps, so only its config directory is in the host backup; add data/git if a repository ever exists only here.
+apiVersion: v1
+kind: PersistentVolume
+metadata: {name: gitea-data}
+spec:
+  capacity: {storage: 500Gi}
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  hostPath: {path: /data/production/gitea/data, type: DirectoryOrCreate}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: {name: gitea-data, namespace: gitea}
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: ""
+  volumeName: gitea-data
+  resources: {requests: {storage: 500Gi}}

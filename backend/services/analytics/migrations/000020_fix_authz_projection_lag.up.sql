@@ -62,6 +62,7 @@ RETURNS boolean LANGUAGE sql VOLATILE SECURITY DEFINER SET search_path = pg_cata
         SELECT 1 FROM authz.actor_tenant_authorizations AS grant_row
         JOIN authz.principal_authorization_revisions AS revision
           ON revision.actor_id = grant_row.actor_id AND revision.authz_revision = grant_row.authz_revision
+         AND revision.snapshot_applied
         WHERE grant_row.actor_id = p_actor_id
           AND grant_row.authz_revision >= GREATEST(1, p_authz_revision - 5)
           AND grant_row.is_authorized AND grant_row.grant_kind = 'platform'
@@ -77,6 +78,7 @@ RETURNS boolean LANGUAGE sql VOLATILE SECURITY DEFINER SET search_path = pg_cata
         SELECT 1 FROM authz.actor_tenant_authorizations AS grant_row
         JOIN authz.principal_authorization_revisions AS revision
           ON revision.actor_id = grant_row.actor_id AND revision.authz_revision = grant_row.authz_revision
+         AND revision.snapshot_applied
         WHERE grant_row.actor_id = p_actor_id
           AND grant_row.authz_revision >= GREATEST(1, p_authz_revision - 5)
           AND grant_row.is_authorized
