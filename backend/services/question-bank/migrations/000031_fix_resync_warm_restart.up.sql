@@ -23,6 +23,8 @@ BEGIN
     SELECT projection_ready AND (completed_at IS NOT NULL) INTO was_ready
     FROM authz.authorization_projection_resync_state WHERE singleton FOR UPDATE;
     IF NOT FOUND THEN RAISE EXCEPTION 'authorization projection resync state is missing'; END IF;
+    -- Taken after the row lock: a completion that commits while this call waited must not look newer than the request.
+    event_occurred_at := clock_timestamp();
     DELETE FROM authz.authorization_projection_resync_items WHERE resync_id <> p_resync_id;
     UPDATE authz.authorization_projection_resync_state
     SET active_resync_id = p_resync_id, request_event_id = p_request_event_id,

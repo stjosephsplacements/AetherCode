@@ -549,13 +549,11 @@ func recordResyncCompletion(
 	if err != nil {
 		return fmt.Errorf("read authorization resync completion state: %w", err)
 	}
-	if completionBelongsToCurrentResync(existingCount != nil, requestedAt, completedAt) {
-		if *existingCount != completion.SnapshotCount || !equalBytes(existingManifest, completion.ManifestSHA) {
-			return fmt.Errorf("authorization resync completion conflicts with the recorded manifest")
-		}
-		if existingEventID != eventID {
-			return fmt.Errorf("authorization resync completion was replayed with a different event ID")
-		}
+	sameContent := existingCount != nil && *existingCount == completion.SnapshotCount && equalBytes(existingManifest, completion.ManifestSHA)
+	switch classifyCompletion(existingCount != nil, requestedAt, completedAt, sameContent, existingEventID == eventID) {
+	case completionConflict:
+		return fmt.Errorf("authorization resync completion conflicts with the recorded manifest")
+	case completionReplay:
 		return nil
 	}
 	if _, err := transaction.Exec(contextValue, `
@@ -570,6 +568,32 @@ func recordResyncCompletion(
 		return fmt.Errorf("record authorization resync completion: %w", err)
 	}
 	return nil
+}
+
+type completionAction int
+
+const (
+	recordCompletion   completionAction = iota // store this completion
+	completionReplay                           // the same event again: nothing to do
+	completionConflict                         // a different manifest for the current resync: refuse
+)
+
+// classifyCompletion decides what to do with a completion event. Only a recorded completion that belongs to the
+// current resync can conflict with it. One with identical content under another event ID is harmless (it changes no
+// grants), and that also covers the narrow case where the request timestamp was taken just before a completion
+// committed, so the stored completion looks current when it is not.
+func classifyCompletion(hasCompletion bool, requestedAt, completedAt *time.Time, sameContent, sameEvent bool) completionAction {
+	if !completionBelongsToCurrentResync(hasCompletion, requestedAt, completedAt) {
+		return recordCompletion
+	}
+	switch {
+	case !sameContent:
+		return completionConflict
+	case sameEvent:
+		return completionReplay
+	default:
+		return recordCompletion
+	}
 }
 
 // completionBelongsToCurrentResync reports whether the stored completion was recorded for the active resync. A warm
