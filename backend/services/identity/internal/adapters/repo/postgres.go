@@ -1212,7 +1212,7 @@ func (repository *Postgres) DisableTOTP(contextValue context.Context, command ap
 	}
 	if _, err := transaction.Exec(contextValue, `
 		UPDATE identity.mfa_factors
-		SET status = 'disabled', version = version + 1
+		SET status = 'disabled', verified_at = NULL, version = version + 1
 		WHERE id = $1 AND status = 'active'
 	`, factor.ID); err != nil {
 		return fmt.Errorf("disable TOTP factor: %w", err)

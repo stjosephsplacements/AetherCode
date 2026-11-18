@@ -4,8 +4,14 @@ package repo_test
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha1"
+	"encoding/base32"
+	"encoding/binary"
+	"fmt"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -293,4 +299,50 @@ func TestIssuedPasswordMustBeChanged(t *testing.T) {
 	_, err = repository.SetPasswords(ctx, []app.PasswordAssignment{{PrincipalID: student.PrincipalID, PasswordHash: issued}}, audit)
 	require.NoError(t, err)
 	require.True(t, login("Issued234567").PasswordChangeRequired, "a reissued password must be replaced again")
+}
+
+// A disabled factor must satisfy mfa_factors' check that only active factors are verified, so disabling clears
+// verified_at. It used to fail with a constraint violation (HTTP 500), leaving the factor active.
+func TestDisableTOTPFactor(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	pool := migratedPool(ctx, t)
+	repository, err := repo.NewPostgres(pool, map[string][]byte{"k": make([]byte, 32)}, "k")
+	require.NoError(t, err)
+
+	hash, err := domain.HashPassword("Generated2345")
+	require.NoError(t, err)
+	account := app.NewAccount{PrincipalID: uuid.NewString(), Username: "mfa.user", DisplayName: "MFA User", PasswordHash: hash}
+	require.NoError(t, repository.ProvisionAccounts(ctx, []app.NewAccount{account}, app.AccountAudit{ActorID: uuid.NewString(), RequestID: uuid.NewString()}))
+
+	secret, err := domain.NewTOTPSecret()
+	require.NoError(t, err)
+	factorID := uuid.NewString()
+	require.NoError(t, repository.BeginTOTP(ctx, app.TOTPEnrollment{FactorID: factorID, PrincipalID: account.PrincipalID, Label: "phone", Secret: secret}))
+	_, err = repository.ActivateTOTP(ctx, app.TOTPActivation{PrincipalID: account.PrincipalID, FactorID: factorID, Code: totpAt(t, secret, time.Now())})
+	require.NoError(t, err)
+
+	// The activation code is spent; the next 30-second slice is still inside the accepted window.
+	require.NoError(t, repository.DisableTOTP(ctx, app.TOTPDisable{PrincipalID: account.PrincipalID, FactorID: factorID, Code: totpAt(t, secret, time.Now().Add(30*time.Second))}))
+
+	var status string
+	var verified bool
+	require.NoError(t, pool.QueryRow(ctx, `SELECT status, verified_at IS NOT NULL FROM identity.mfa_factors WHERE id = $1`, factorID).Scan(&status, &verified))
+	require.Equal(t, "disabled", status)
+	require.False(t, verified)
+}
+
+// totpAt is RFC 6238 (SHA-1, 6 digits, 30 seconds) for the slice containing at.
+func totpAt(t *testing.T, secret string, at time.Time) string {
+	t.Helper()
+	key, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(strings.ToUpper(strings.TrimRight(secret, "=")))
+	require.NoError(t, err)
+	var counter [8]byte
+	binary.BigEndian.PutUint64(counter[:], uint64(at.Unix()/30))
+	mac := hmac.New(sha1.New, key)
+	mac.Write(counter[:])
+	sum := mac.Sum(nil)
+	offset := sum[len(sum)-1] & 0x0f
+	value := (binary.BigEndian.Uint32(sum[offset:offset+4]) & 0x7fffffff) % 1000000
+	return fmt.Sprintf("%06d", value)
 }
