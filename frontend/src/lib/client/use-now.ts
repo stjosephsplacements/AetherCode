@@ -1,13 +1,21 @@
 "use client";
 
-import { useCallback, useSyncExternalStore } from "react";
-import { serverNow } from "./api";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
+import { serverNow, syncServerClock } from "./api";
+
+let clockSynced = false;
 
 /**
  * The current time on the server's clock (not the laptop's), advancing every `intervalMs`. Null during server
  * rendering and hydration, so server and browser render the same markup.
  */
 export function useNow(intervalMs = 1000): number | null {
+  // A PC whose clock is wrong would otherwise see every exam as closed until some API call corrected it.
+  useEffect(() => {
+    if (clockSynced) return;
+    clockSynced = true;
+    void syncServerClock();
+  }, []);
   const subscribe = useCallback(
     (tick: () => void) => {
       const timer = setInterval(tick, intervalMs);
