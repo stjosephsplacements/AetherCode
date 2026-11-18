@@ -66,6 +66,12 @@ the volume are the safety net, so configure a real backup destination before pro
 Both clusters (`aethercode-dev` 2/4 CPU, `aethercode-prod` 16/24 CPU; the dev cluster's 2 CPU request is outside the 93.5 CPU production budget above) are running from this manifest. It needs
 the `aethercode-postgres` AppArmor profile loaded on the node, or the initdb job hangs; see ADR-0082.
 
+Backups: the cluster archives WAL continuously and takes a daily base backup (02:00) to the shared
+MinIO bucket `aethercode-pg-backups` (`dev/` and `prod/`, 14 day retention), with a user limited to
+that bucket. A test backup on dev completed. They live on the same server, so they cover mistakes,
+not the loss of the machine. The installed CloudNativePG 1.30.1 warns that this built-in Barman support is removed in 1.31: move to the
+Barman Cloud plugin before upgrading past 1.30. Files: `postgres-backup.yaml`, `minio-backup-netpol.yaml`.
+
 ## GPU
 
 Both GPUs carry host LLM processes (GPU 0: ollama 18 GB; GPU 1: unsloth llama-server 50 GB of

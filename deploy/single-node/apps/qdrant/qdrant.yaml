@@ -1,0 +1,57 @@
+# Qdrant for the Chronos_3GPP project (user sjce_ece), moved from a loose process on the host.
+# Data lives in /data/production/qdrant/{storage,snapshots}. The ports are published on the host's
+# loopback only (hostIP 127.0.0.1), so the project keeps using localhost:6333 and nothing is
+# reachable from the LAN or the internet. There is deliberately no Service: Qdrant has no authentication,
+# so no other pod may reach it.
+# Restore a snapshot: put it in /data/production/qdrant/snapshots/<collection>/ and
+#   PUT /collections/<collection>/snapshots/recover {"location":"file:///qdrant/snapshots/<collection>/<file>"}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: qdrant
+  labels: {app.kubernetes.io/part-of: production-apps}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qdrant
+  namespace: qdrant
+  labels: {app.kubernetes.io/name: qdrant, app.kubernetes.io/part-of: production-apps}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}      # two pods must never open the same storage directory
+  selector: {matchLabels: {app.kubernetes.io/name: qdrant}}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: qdrant, app.kubernetes.io/part-of: production-apps}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: qdrant
+          image: docker.io/qdrant/qdrant:v1.19.1
+          ports:
+            - {name: http, containerPort: 6333, hostPort: 6333, hostIP: 127.0.0.1}
+            - {name: grpc, containerPort: 6334, hostPort: 6334, hostIP: 127.0.0.1}
+          env:
+            - {name: QDRANT__SERVICE__GRPC_TIMEOUT_SEC, value: "300"}
+          resources:
+            requests: {cpu: "2", memory: 28Gi}
+            limits: {cpu: "16", memory: 40Gi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          readinessProbe: {httpGet: {path: /readyz, port: http}, periodSeconds: 10, failureThreshold: 30}
+          livenessProbe: {httpGet: {path: /livez, port: http}, periodSeconds: 20, failureThreshold: 6}
+          volumeMounts:
+            - {name: storage, mountPath: /qdrant/storage}
+            - {name: snapshots, mountPath: /qdrant/snapshots}
+      volumes:
+        - name: storage
+          hostPath: {path: /data/production/qdrant/storage, type: Directory}
+        - name: snapshots
+          hostPath: {path: /data/production/qdrant/snapshots, type: Directory}

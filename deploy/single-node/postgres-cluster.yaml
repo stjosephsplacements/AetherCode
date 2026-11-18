@@ -24,6 +24,16 @@ spec:
     labels: {app.kubernetes.io/name: postgres, app.kubernetes.io/part-of: aethercode}
   podSecurityContext:
     appArmorProfile: {type: Localhost, localhostProfile: aethercode-postgres}
+  backup:               # base backups and WAL archive in the shared MinIO; dev overrides the path (postgres-backup-dev-patch.yaml)
+    retentionPolicy: 14d
+    barmanObjectStore:  # deprecated: removed in CloudNativePG 1.31, migrate to the Barman Cloud plugin first
+      destinationPath: s3://aethercode-pg-backups/prod
+      endpointURL: http://minio-api.minio.svc.cluster.local:9000
+      s3Credentials:
+        accessKeyId: {name: cnpg-backup-s3, key: ACCESS_KEY_ID}
+        secretAccessKey: {name: cnpg-backup-s3, key: ACCESS_SECRET_KEY}
+      wal: {compression: gzip}
+      data: {compression: gzip}
   storage:
     storageClass: local-production # Retain: deleting the Cluster never deletes the data
     size: 50Gi
