@@ -24,6 +24,7 @@ readonly -a PLATFORM_DATABASES=(
   "seb:aether_seb:aether_seb_migrator:aether_seb_owner:aether_seb_app"
   "notification:aether_notification:aether_notification_migrator:aether_notification_owner:aether_notification_app"
   "analytics:aether_analytics:aether_analytics_migrator:aether_analytics_owner:aether_analytics_app"
+  "proctor:aether_proctor:aether_proctor_migrator:aether_proctor_owner:aether_proctor_app"
 )
 
 readonly -a PLATFORM_CONNECT_IDENTITIES=(
@@ -36,6 +37,7 @@ readonly -a PLATFORM_CONNECT_IDENTITIES=(
   "aether_seb:aether_seb_migrator:aether_seb_app:aether_seb_authz_reader:aether_seb_projection_worker"
   "aether_notification:aether_notification_migrator:aether_notification_app:aether_notification_authz_reader:aether_notification_projection_worker:aether_notification_retention_worker"
   "aether_analytics:aether_analytics_migrator:aether_analytics_app:aether_analytics_authz_reader:aether_analytics_projection_worker"
+  "aether_proctor:aether_proctor_migrator:aether_proctor_app:aether_proctor_authz_reader:aether_proctor_projection_worker"
 )
 
 container_started=false
@@ -119,6 +121,7 @@ start_postgres() {
     --env "SEB_DB_PASSWORD=${SERVICE_PASSWORD}" \
     --env "NOTIFICATION_DB_PASSWORD=${SERVICE_PASSWORD}" \
     --env "ANALYTICS_DB_PASSWORD=${SERVICE_PASSWORD}" \
+    --env "PROCTOR_DB_PASSWORD=${SERVICE_PASSWORD}" \
     --volume "${REPOSITORY_ROOT}/deploy/database/platform/dev-init.sh:/docker-entrypoint-initdb.d/00-aethercode-roles.sh:ro" \
     --volume "${REPOSITORY_ROOT}/deploy/database/platform/grant-connect.sql:/bootstrap/platform-grant-connect.sql:ro" \
     --volume "${REPOSITORY_ROOT}/deploy/database/judge-control/roles.sql:/bootstrap/judge-roles.sql:ro" \
@@ -1176,7 +1179,8 @@ main() {
   restart_postgres
   for entry in "${PLATFORM_DATABASES[@]}"; do
     IFS=':' read -r service database migrator owner application <<<"$entry"
-    assert_capability_replay_schema "$database"
+    # The proctor database has no authz schema: it is not a capability-checked service.
+    [[ "$service" == proctor ]] || assert_capability_replay_schema "$database"
   done
   assert_superuser_rejected
 

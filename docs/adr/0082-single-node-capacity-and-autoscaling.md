@@ -1,6 +1,6 @@
 # ADR-0082: Capacity budget, autoscaling and pools for the single campus server
 
-- Status: accepted (owner approved the plan 2026-11-17); database fix still open
+- Status: accepted (owner approved the plan 2026-11-17); database clusters running
 - Date: 2026-11-17
 
 ## Context
@@ -27,9 +27,12 @@ connections, and the production Postgres chart assumed three hosts.
 - One database instance has no failover. A backup destination is required before production.
 - Connections are about 96% of `max_connections = 500` at full scale; PgBouncer comes before
   any increase.
-- Open: fresh CloudNativePG clusters on this node hang at "Configuring new PostgreSQL instance"
-  (and, with `io_method: sync`, at the checkpoint before shutdown). The checkpoint backend waits
-  on `IPC:CheckpointStart` while the checkpointer idles, and the autovacuum launcher reports
-  "autovacuum worker took too long to start": signals to PostgreSQL helper processes appear to be
-  lost. It is not the backup stanza, the sizes, the namespace, the disk, or the spec (a copy of
-  the healthy `placement-db` spec hangs too). Existing clusters keep working. Not yet resolved.
+- Resolved: fresh CloudNativePG clusters hung at initdb on this node because, under the default
+  AppArmor profile, PostgreSQL 18's processes lose the signals they send each other (a checkpoint
+  ran only when its 5 minute timer fired and the job never finished). Setting
+  `podSecurityContext.appArmorProfile` to a custom Localhost profile, `aethercode-postgres`
+  (`deploy/single-node/apparmor/`, containerd's default with signals allowed), fixes it: a
+  fresh cluster was healthy in 30 seconds, and the profile runs in enforce mode. It replaces
+  the `Unconfined` setting first used here. The profile must be loaded on the node before the
+  cluster starts. Ruled out on the way: the backup stanza, sizes, namespace, disk, THP settings, the
+  image's Debian base, and PostgreSQL minor version.
