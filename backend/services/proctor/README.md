@@ -30,8 +30,8 @@ All vars are prefixed `PROCTOR_` via pydantic-settings.
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `PROCTOR_DATABASE_URL` | **yes** | Prisma connection URL, ending in `?schema=proctor` (`postgresql://user:pass@host/db?schema=proctor`): the tables are in the `proctor` schema |
-| `PROCTOR_DATABASE_DIRECT_URL` | **yes** | Direct (non-pooled) URL for migrations, also ending in `?schema=proctor` |
+| `PROCTOR_DATABASE_URL` | **yes** | Prisma connection URL, carrying the query parameter `schema=proctor` (`postgresql://user:pass@host/db?schema=proctor`; join it with `&` when the URL already has a query such as `sslmode`): the tables are in the `proctor` schema |
+| `PROCTOR_DATABASE_DIRECT_URL` | **yes** | Direct (non-pooled) URL for migrations, also carrying `schema=proctor` |
 | `PROCTOR_MINIO_ENDPOINT` | no | MinIO host:port (default `minio:9000`) |
 | `PROCTOR_MINIO_ACCESS_KEY` | **yes** | MinIO access key |
 | `PROCTOR_MINIO_SECRET_KEY` | **yes** | MinIO secret key |
@@ -74,4 +74,4 @@ prisma db push         # apply schema to dev DB (use migrations in prod)
 |----------|-------------|
 | `GET /healthz` | Liveness check (returns model_loaded, db_connected) |
 | `POST /analyze` | Direct HTTP trigger (smoke testing without NATS) |
-| `GET /violations` | Violations for an attempt, for Submission only: requires `Authorization: Bearer $PROCTOR_INTERNAL_TOKEN`, 503 when the token is unset |
+| `GET /violations?tenant_id=<uuid>&attempt_id=<uuid>` | Violations for an attempt (both parameters required), for Submission only: requires `Authorization: Bearer $PROCTOR_INTERNAL_TOKEN`, 503 when the token is unset |

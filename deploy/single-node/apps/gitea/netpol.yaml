@@ -11,8 +11,10 @@ spec:
   ingress:
     - from:
         - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: traefik}}
+          podSelector: {matchLabels: {app.kubernetes.io/name: traefik}}
         - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: gitea-runner}}
         - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: monitoring}}
+          podSelector: {matchLabels: {app.kubernetes.io/name: prometheus}}
       ports: [{port: 3000, protocol: TCP}]
 ---
 # An alert if Gitea or its runner disappears.

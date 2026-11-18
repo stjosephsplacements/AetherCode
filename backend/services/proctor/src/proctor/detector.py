@@ -76,13 +76,13 @@ class Detector:
 
         # ── MediaPipe: a visible body without a visible face, and gaze deviation ─
         # Gaze runs whenever exactly one person is present, so a phone in the frame does not hide it.
-        if self._face_mesh and persons:
+        # Both checks need exactly one person, so the face mesh is skipped for empty and crowded frames.
+        if self._face_mesh and len(persons) == 1:
             mesh = self._face_mesh.process(img_np)
             if not mesh.multi_face_landmarks:
-                if len(persons) == 1:
-                    violations.append({"kind": "face_missing", "confidence": 0.80,
-                                       "details": "person in frame but no face found (covered or out of frame)"})
-            elif len(persons) == 1:
+                violations.append({"kind": "face_missing", "confidence": 0.80,
+                                   "details": "person in frame but no face found (covered or out of frame)"})
+            else:
                 gaze = self._check_gaze(mesh, img_np.shape[1], img_np.shape[0])
                 if gaze:
                     violations.append(gaze)

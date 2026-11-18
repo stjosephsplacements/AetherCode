@@ -434,7 +434,7 @@ func (handler *Handler) listSnapshots(writer http.ResponseWriter, request *http.
 			httpx.WriteError(writer, apperrors.New(apperrors.CodeInvalidArgument, "limit must be a positive number"))
 			return
 		}
-		limit = parsed
+		limit = min(parsed, 200)
 	}
 	snapshots, err := handler.service.ListSnapshots(request.Context(), decision.Capability, app.ListSnapshots{
 		TenantID:  tenantID,

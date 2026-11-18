@@ -100,7 +100,7 @@ The full request/response contract is in [api/openapi.yaml](api/openapi.yaml).
 
 | Subject | Required fields used by Analytics |
 |---|---|
-| `user.student.enrolled.v1` | tenant, student, college department, placement department |
+| `user.student.enrolled.v1` | tenant, student, college department, placement department (null when the student has none) |
 | `user.student_batch_affiliation.snapshot.v1` | tenant, student, current batch or inactive state, monotonic version |
 | `assessment.exam_item.created.v1` | tenant, exam item, question, question version |
 | `assessment.candidate_assignment.snapshot.v1` | immutable candidate/exam snapshot and item manifest |

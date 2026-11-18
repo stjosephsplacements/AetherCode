@@ -199,20 +199,22 @@ func (cards *TalentCards) Verify(ctx context.Context, token string) (talentcard.
 	if _, parseErr := uuid.Parse(claims.CardID); parseErr != nil {
 		return talentcard.Claims{}, notValid
 	}
-	var valid bool
-	if err := cards.pool.QueryRow(ctx, `SELECT analytics.talent_card_is_valid($1::uuid)`, claims.CardID).Scan(&valid); err != nil {
-		return talentcard.Claims{}, fmt.Errorf("check talent card: %w", err)
-	}
-	if !valid {
-		return talentcard.Claims{}, notValid
-	}
 	// The token was signed with the contact details the student agreed to share at the time; honour a later change.
 	var sharesContact bool
 	if err := cards.pool.QueryRow(ctx, `SELECT analytics.talent_card_shares_contact($1::uuid)`, claims.CardID).Scan(&sharesContact); err != nil {
 		return talentcard.Claims{}, fmt.Errorf("check talent card contact consent: %w", err)
 	}
 	if !sharesContact {
-		claims.Email, claims.Phone = "", ""
+		claims.Email, claims.Phone, claims.RollNumber = "", "", ""
+	}
+
+	// Checked last, so a revocation that lands while the consent is being read still refuses the card.
+	var valid bool
+	if err := cards.pool.QueryRow(ctx, `SELECT analytics.talent_card_is_valid($1::uuid)`, claims.CardID).Scan(&valid); err != nil {
+		return talentcard.Claims{}, fmt.Errorf("check talent card: %w", err)
+	}
+	if !valid {
+		return talentcard.Claims{}, notValid
 	}
 	return claims, nil
 }

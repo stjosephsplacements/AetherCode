@@ -1,5 +1,5 @@
 # Gitea 1.27.0 (chart 12.7.0): a CI and review mirror of the GitHub repository, run on the campus server.
-#   helm upgrade --install gitea gitea-charts/gitea --version 12.7.0 -n gitea -f values.yaml
+#   helm upgrade --install gitea gitea-charts/gitea --version 12.7.0 -n gitea --create-namespace -f values.yaml
 # Secrets are Kubernetes Secrets created on the server: gitea-db (password) and gitea-admin.
 image: {tag: 1.27.0, rootless: true}
 strategy: {type: Recreate}              # one pod owns the data directory

@@ -79,7 +79,7 @@ Each decision is a numbered file; new ones start from [the template](0000-templa
 | [0073](0073-projection-consumers-tolerate-additive-fields.md) | Projection consumers tolerate additive fields (accepted) |
 | [0074](0074-database-pods-and-apparmor-signals.md) | Database pods run without the default AppArmor profile on hosts that deny signals (accepted) |
 | [0075](0075-rbac-overwrite-wiring.md) | Wire rbac.Compute into the authorize path (accepted) |
-| [0076](0076-ingress-nginx-apparmor-signals.md) | ingress-nginx controller runs without the default AppArmor profile on hosts that deny signals (accepted) |
+| [0076](0076-ingress-nginx-apparmor-signals.md) | ingress-nginx controller runs without the default AppArmor profile on hosts that deny signals (superseded by 0083) |
 | [0077](0077-batch-progress-department-rollup.md) | Department-sliced batch progress rollup as a separate table (accepted) |
 | [0078](0078-proctoring-foundation.md) | Exam proctoring foundation (accepted) |
 | [0079](0079-remove-casbin-engine.md) | Remove the Casbin engine; role bit sets are the decision model (accepted) |

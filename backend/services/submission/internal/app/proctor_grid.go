@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -51,19 +52,27 @@ var policyToDetector = map[string]string{
 	"GAZE_AWAY":         "gaze_away",
 }
 
+// detectorKinds are the kinds the proctor stores in the counts.
+var detectorKinds = []string{"face_missing", "multiple_faces", "phone_detected", "gaze_away"}
+
 // CountedTotal is the number of violations that count toward the limit: only the policy's counted kinds
 // when it names any, otherwise all of them.
 func CountedTotal(total int, kinds map[string]int, countedPolicyKinds []string) int {
-	counted := 0
-	named := false
+	// A policy may list a kind by its policy name or by its detector name, and may list both; count each detector once.
+	detectors := map[string]struct{}{}
 	for _, name := range countedPolicyKinds {
 		if detector, ok := policyToDetector[name]; ok {
-			named = true
-			counted += kinds[detector]
+			detectors[detector] = struct{}{}
+		} else if slices.Contains(detectorKinds, name) {
+			detectors[name] = struct{}{}
 		}
 	}
-	if !named {
+	if len(detectors) == 0 {
 		return total
+	}
+	counted := 0
+	for detector := range detectors {
+		counted += kinds[detector]
 	}
 	return counted
 }

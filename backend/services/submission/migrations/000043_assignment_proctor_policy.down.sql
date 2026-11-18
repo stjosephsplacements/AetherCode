@@ -1,5 +1,8 @@
 SET ROLE aether_submission_owner;
 
+-- Block new attempts from starting between the check and the drop.
+LOCK TABLE submission.attempts IN SHARE ROW EXCLUSIVE MODE;
+
 -- Dropping the policy mid-exam would stop violation auto-submit for open attempts: refuse until they have drained.
 DO $$
 BEGIN

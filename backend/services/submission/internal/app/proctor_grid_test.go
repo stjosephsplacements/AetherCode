@@ -40,6 +40,8 @@ func TestCountedTotal(t *testing.T) {
 		{"one named kind", []string{"NO_FACE"}, 3},
 		{"two named kinds", []string{"NO_FACE", "PROHIBITED_DEVICE"}, 4},
 		{"a named kind with no violations", []string{"MULTIPLE_FACES"}, 0},
+		{"a detector name counts like its policy name", []string{"phone_detected"}, 1},
+		{"an alias and its detector name count once", []string{"NO_FACE", "face_missing"}, 3},
 	} {
 		if got := CountedTotal(8, kinds, test.counted); got != test.want {
 			t.Errorf("%s: counted = %d, want %d", test.name, got, test.want)

@@ -34,6 +34,11 @@ spec:
           command: ["dockerd"]
           args: ["--host=unix:///run/docker/docker.sock", "--storage-driver=overlay2"]
           securityContext: {privileged: true}
+          # Ready only once dockerd answers, so the first queued job never meets a dead socket.
+          readinessProbe:
+            exec: {command: ["docker", "-H", "unix:///run/docker/docker.sock", "info"]}
+            periodSeconds: 5
+            failureThreshold: 24
           resources:
             requests: {cpu: "2", memory: 4Gi}
             limits: {cpu: "24", memory: 64Gi}
@@ -74,3 +79,28 @@ spec:
   podSelector: {}
   policyTypes: [Ingress]
   ingress: []
+---
+# The runner and its job containers may reach DNS, Gitea and the public internet (registries, package mirrors), but not
+# the rest of the cluster, the node's own addresses or the LAN: a compromised workflow cannot walk to the Kubernetes API,
+# the databases or other applications.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: runner-egress
+  namespace: gitea-runner
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: kube-system}}
+          podSelector: {matchLabels: {k8s-app: kube-dns}}
+      ports: [{port: 53, protocol: UDP}, {port: 53, protocol: TCP}]
+    - to:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: gitea}}
+          podSelector: {matchLabels: {app.kubernetes.io/name: gitea}}
+      ports: [{port: 3000, protocol: TCP}]
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, 115.247.189.246/32]

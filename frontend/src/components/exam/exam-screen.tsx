@@ -153,7 +153,7 @@ function ExamWorkspace({ attemptPath, attemptId, tenantId, attempt, paper }: Loa
   const webcam = useWebcam(live.integrity.webcamRequired && webcamConsentGiven && !readOnly && !ending, tenantId, attemptId);
   // The exam requires a camera: a denied or missing one blocks the screen until the student fixes it (ADR-0078).
   const cameraBlocked = live.integrity.webcamRequired && webcamConsentGiven && !readOnly && !ending &&
-    (webcam.state.kind === "denied" || webcam.state.kind === "unavailable");
+    webcam.state.kind !== "active";
   const itemSubmissions = submissions.byItem[currentId];
 
   const statuses = useMemo(() => {
@@ -332,19 +332,23 @@ function ExamWorkspace({ attemptPath, attemptId, tenantId, attempt, paper }: Loa
       )}
 
       {cameraBlocked && (
-        <div role="dialog" aria-modal="true" className="fixed inset-0 z-40 grid place-items-center bg-canvas px-4">
+        <div role="dialog" aria-modal="true" aria-labelledby="camera-required-title" className="fixed inset-0 z-40 grid place-items-center bg-canvas px-4">
           <div className="max-w-md text-center">
-            <h2 className="display text-[2rem] text-ink">Camera required</h2>
+            <h2 id="camera-required-title" className="display text-[2rem] text-ink">Camera required</h2>
             <p className="mt-3 text-[15px] text-ink-muted">
               {webcam.state.kind === "denied"
                 ? "Camera access was blocked. Allow the camera for this site in your browser settings, then try again."
-                : "No camera was found. Connect one, or ask your invigilator for help."}{" "}
+                : webcam.state.kind === "unavailable"
+                  ? "No working camera was found, or it was disconnected. Connect one, or ask your invigilator for help."
+                  : "Checking your camera..."}{" "}
               Your timer keeps running:{" "}
               <strong className="font-mono text-ink">{remaining === null ? "--:--" : formatCountdown(remaining)}</strong> left.
             </p>
-            <Button className="mt-8" size="lg" onClick={() => void webcam.request()}>
-              Try again
-            </Button>
+            {(webcam.state.kind === "denied" || webcam.state.kind === "unavailable") && (
+              <Button className="mt-8" size="lg" onClick={() => void webcam.request()}>
+                Try again
+              </Button>
+            )}
           </div>
         </div>
       )}

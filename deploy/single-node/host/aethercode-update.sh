@@ -55,7 +55,8 @@ for entry in "${RELEASES[@]}"; do
   current=$("${HELM[@]}" list -n "$namespace" -o json | jq -r --arg r "$release" '.[]|select(.name==$r)|.chart|sub("^.*-(?=v?[0-9]+\\.)";"")') # chart version
   [[ -n "$current" ]] || { log "$release: not installed, skipped"; continue; }
   major="${current#v}"; major="${major%%.*}"
-  latest=$("${HELM[@]}" search repo "$chart" --versions -o json | jq -r --arg m "$major" '[.[]|select((.version|sub("^v";"")|split(".")[0])==$m)]|first|.version // empty')
+  versions=$("${HELM[@]}" search repo "$chart" --versions -o json) || { fail "$release: helm search --versions for $chart failed"; continue; }
+  latest=$(jq -r --arg m "$major" '[.[]|select((.version|sub("^v";"")|split(".")[0])==$m)]|first|.version // empty' <<<"$versions")
   newest=$("${HELM[@]}" search repo "$chart" -o json | jq -r 'first|.version // empty')
   # an empty search means the repository or the API failed, which must not look like "already current"
   [[ -n "$newest" ]] || { fail "$release: helm search for $chart returned nothing"; continue; }
@@ -108,7 +109,8 @@ agent=/data/production/portainer-agent
 if [[ -f "$agent/compose.yaml" ]]; then
   want=$(k3s kubectl -n portainer get deploy portainer -o jsonpath='{.spec.template.spec.containers[0].image}' | sed 's/.*://')
   if grep -q "portainer/agent:$want" "$agent/compose.yaml"; then log "portainer_agent: matches server $want"
-  elif [[ -n "${DRY_RUN:-}" ]]; then log "portainer_agent: would move to $want"
+  elif [[ -n "${DRY_RUN:-}" ]]; then
+    docker manifest inspect "portainer/agent:$want" >/dev/null 2>&1 && log "portainer_agent: would move to $want" || fail "portainer_agent: tag $want does not exist"
   else
     # pull first, so a failed pull leaves compose.yaml untouched and the next run tries again
     docker pull -q "portainer/agent:$want" >>"$REPORT" 2>&1 || { fail "portainer_agent pull of $want"; want=""; }

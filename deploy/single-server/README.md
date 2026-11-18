@@ -240,8 +240,9 @@ you add them, `migrate-all.sh` skips proctor with a message and everything else 
 
 1. Add `PROCTOR_DB_PASSWORD=<new random value>` to `.env` (and to `aethercode-secrets` on Kubernetes installs, before
    upgrading the infra chart; the chart treats the key as optional).
-2. Run `deploy/database/platform/dev-init.sh` against the running server as the PostgreSQL superuser: it is idempotent and
-   creates `aether_proctor` and its roles.
+2. Run the script inside the PostgreSQL container, which mounts it and gets the passwords from `.env`; it is idempotent
+   and creates `aether_proctor` and its roles:
+   `docker compose exec -T postgres bash /docker-entrypoint-initdb.d/00-aethercode-roles.sh`
 3. Run the `migrate` service again.
 
 ### Release checklist for the 2026-10-21 batch

@@ -35,7 +35,7 @@ GLOBAL_AUTHZ_SERVICES = {"question-bank"}
 # question-bank only gets has_global_authorization_at.
 # Services whose principal_authorization_revisions has snapshot_applied: a grant only counts once the snapshot that wrote
 # it has been applied, so the has_*_authorization_at functions must keep that condition in the revision join.
-SNAPSHOT_GUARDED_SERVICES = {"analytics", "seb"}
+SNAPSHOT_GUARDED_SERVICES = {"analytics", "notification", "seb"}
 
 TENANT_AUTHZ_SERVICES = {
     "analytics", "assessment", "identity", "notification",

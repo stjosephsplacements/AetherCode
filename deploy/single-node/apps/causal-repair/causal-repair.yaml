@@ -159,5 +159,5 @@ spec:
   podSelector: {matchLabels: {app.kubernetes.io/name: viewer}}
   policyTypes: [Ingress]
   ingress:
-    - from: [{namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: traefik}}}]
+    - from: [{namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: traefik}}, podSelector: {matchLabels: {app.kubernetes.io/name: traefik}}}]
       ports: [{port: 8078, protocol: TCP}]
