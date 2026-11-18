@@ -49,6 +49,7 @@ func TestLoadLaunchSettingsAllowVMDefaultsToFalseAndRejectsNonBooleans(t *testin
 	}
 	t.Setenv("SEB_LAUNCH_BASE_URL", "https://exam.example.edu")
 	t.Setenv("SEB_LAUNCH_PASSWORD", hex.EncodeToString(key))
+	t.Setenv("SEB_ALLOW_VM", "")
 	if settings, err := loadLaunchSettings(); err != nil || settings.AllowVM {
 		t.Fatalf("unset SEB_ALLOW_VM = %v, %v; want false", settings.AllowVM, err)
 	}

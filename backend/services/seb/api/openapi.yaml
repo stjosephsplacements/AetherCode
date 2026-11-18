@@ -513,8 +513,9 @@ paths:
         Only for a locked exam the bearer candidate is assigned to and whose
         window has not closed; anything else is 404. With a `ticket` from
         launch-ticket the bearer is not needed (Safe Exam Browser fetching a
-        sebs:// link has none): the ticket is spent by this request, and a
-        wrong, spent or expired one is 401.
+        sebs:// link has none): the first request must come within 60 seconds of
+        the ticket's issue, and the ticket then works again for 120 seconds from that first request (Safe Exam
+        Browser downloads the link a second time after the exam password is typed). A wrong or expired one is 401.
       parameters:
       - name: ticket
         in: query
@@ -536,9 +537,9 @@ paths:
     - {$ref: '#/components/parameters/ExamID'}
     post:
       security: [bearerAuth: []]
-      summary: Mint a single-use ticket for the one-click sebs:// launch (candidate)
+      summary: Mint a ticket for the one-click sebs:// launch (candidate)
       description: >-
-        Valid for 60 seconds and one launch-file download; a new ticket replaces
+        Its first launch-file download must come within 60 seconds, and it works again for 120 seconds after that; a new ticket replaces
         the candidate's earlier one for the exam. Only the ticket's hash is
         stored. Needs an open assignment to a locked exam, else 404.
       responses:

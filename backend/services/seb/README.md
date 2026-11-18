@@ -44,7 +44,7 @@ snapshot before a signed RLS transaction begins.
 - One-click launch (`sebs://`): Safe Exam Browser fetches the link itself with no
   session, so a candidate first `POST .../exams/{exam_id}/launch-ticket` and gets a
   256-bit ticket (the first download within 60 seconds, then re-downloads for 120 more, ADR-0084; only its SHA-256 is stored, `seb.launch_tickets`,
-  migration 000017). `GET .../launch-file?ticket=...` then needs no bearer: Gateway lets
+  migrations 000017 and 000019). `GET .../launch-file?ticket=...` then needs no bearer: Gateway lets
   that one route through anonymously when the ticket is well formed, and
   `seb.consume_launch_ticket` checks it atomically, bound to the tenant and exam it was
   issued for. The `.seb` start URL is `SEB_LAUNCH_BASE_URL/exam/<exam_id>`, which is also

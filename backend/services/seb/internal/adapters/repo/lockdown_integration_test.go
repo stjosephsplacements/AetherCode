@@ -368,6 +368,13 @@ func TestLaunchTicket(t *testing.T) {
 	if title := consume(examID, digest("one")); title == nil || *title != "Mid term" {
 		t.Fatalf("first use = %v", title)
 	}
+	var window float64
+	if err := pool.QueryRow(ctx, `SELECT extract(epoch FROM expires_at - consumed_at) FROM seb.launch_tickets WHERE token_hash = $1`, digest("one")).Scan(&window); err != nil {
+		t.Fatal(err)
+	}
+	if window < 119 || window > 121 {
+		t.Errorf("the re-download window after the first use is %.0f seconds, want 120", window)
+	}
 	// SEB downloads the link again after the exam password is typed, so the ticket works again...
 	if title := consume(examID, digest("one")); title == nil || *title != "Mid term" {
 		t.Errorf("the re-download SEB makes after the password prompt was refused: %v", title)
