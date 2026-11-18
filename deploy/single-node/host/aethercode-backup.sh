@@ -41,8 +41,11 @@ for entry in "${CLUSTERS[@]}"; do
   out="$DEST/$ns-$cluster"
   mkdir -p "$out"
   "${KUBECTL[@]}" -n "$ns" exec "$pod" -c postgres -- pg_dumpall -U postgres --globals-only >"$out/globals.sql"
-  mapfile -t databases < <("${KUBECTL[@]}" -n "$ns" exec "$pod" -c postgres -- \
-    psql -U postgres -Atc "select datname from pg_database where not datistemplate and datname <> 'postgres'")
+  # captured in a checked substitution: mapfile < <(...) would hide a failed query and skip every dump
+  names="$("${KUBECTL[@]}" -n "$ns" exec "$pod" -c postgres -- \
+    psql -U postgres -Atc "select datname from pg_database where not datistemplate and datname <> 'postgres'")" \
+    || fail "cannot list databases of $ns/$cluster"
+  mapfile -t databases <<<"$names"
   for database in "${databases[@]}"; do
     # The dump is checked with pg_restore inside the pod and streamed out only if it is readable
     # (pg_restore --list over `kubectl exec -i` stdin hangs). An unreadable dump leaves an empty file.

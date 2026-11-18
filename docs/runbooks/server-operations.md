@@ -10,14 +10,15 @@ Scripts live in `deploy/single-node/host/` and are installed in `/usr/local/bin/
 Where app files live: `/data/production/<app>/` (compose file, `.env`, config, data).
 
 ## Update rules
-- Runs the backup first and stops if the cluster is not healthy.
+- Pre-flight gates: the node must be Ready and the backup must succeed, otherwise nothing is updated and `UPDATE_FAILED` is written. Pods that are
+  already not ready do not stop the run; the count is recorded and the run fails if it grows after the update.
 - Helm apps (cert-manager, traefik, loki, promtail, velero, portainer, kube-prometheus-stack, kyverno) move to the newest chart of the
   same major version with `--atomic`; a failed upgrade rolls back by itself. A newer major is only reported.
 - Docker apps (`/data/production/{crawl4ai,searxng,chromium,portainer-agent}`) pull the new image, must pass a health check, and
   roll back to the previous image if not. Webmin follows its latest GitHub release.
 - Never touched: AetherCode, placement, algoqx, PostgreSQL and the CloudNativePG operator, MinIO, k3s, the kernel. OS packages are
   left to `unattended-upgrades` (security only), because a general apt upgrade restarts docker and containerd and every pod with them.
-- `DRY_RUN=1 /usr/local/bin/aethercode-update.sh` reports what would change and changes nothing.
+- `DRY_RUN=1 /usr/local/bin/aethercode-update.sh` pulls the images (running containers are untouched) and reports what would change.
 
 ## When it fails
 Read the newest file in `/data/backups/updates/`. Helm rollbacks are automatic; check `helm history <release> -n <ns>`. A Docker app
