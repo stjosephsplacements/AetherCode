@@ -16,6 +16,7 @@ dependencies = [
     "numpy>=1.26,<2",
     "mediapipe==0.10.20",
     "prisma==0.15.0",
+    "redis>=5.2",
 ]
 
 [tool.prisma]

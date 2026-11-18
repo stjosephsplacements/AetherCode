@@ -17,9 +17,7 @@ readonly -a DATABASES=(
   'seb:aether_seb:SEB_DB_PASSWORD:seb'
   'notification:aether_notification:NOTIFICATION_DB_PASSWORD:notification'
   'analytics:aether_analytics:ANALYTICS_DB_PASSWORD:analytics'
-  # proctor uses its own dedicated database (aether_proctor) managed by the
-  # proctor service's own migrations — it is NOT part of the platform Postgres
-  # cluster provisioned here.
+  'proctor:aether_proctor:PROCTOR_DB_PASSWORD:proctor'
 )
 
 create_group_role_if_missing() {
@@ -47,7 +45,13 @@ SQL
 
 for entry in "${DATABASES[@]}"; do
   IFS=':' read -r service database password_variable role_prefix <<<"$entry"
-  password="${!password_variable:?missing ${password_variable}}"
+  password="${!password_variable:-}"
+  if [[ -z "$password" ]]; then
+    # proctor was added after the first release: an older Secret has no password for it, so skip it
+    # instead of failing the provisioning of every other database
+    if [[ "$service" == proctor ]]; then echo "skipping proctor: ${password_variable} is not set" >&2; continue; fi
+    echo "missing ${password_variable}" >&2; exit 1
+  fi
   owner="aether_${role_prefix}_owner"
   migrator="aether_${role_prefix}_migrator"
   application="aether_${role_prefix}_app"

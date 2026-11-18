@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, CircleNotch, DownloadSimple, ShieldCheck } from "@phosphor-icons/react/ssr";
+import { ArrowRight, CircleNotch, RocketLaunch, ShieldCheck } from "@phosphor-icons/react/ssr";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { HonorCode } from "@/components/exam/honor-code";
@@ -9,6 +9,7 @@ import type { Attempt, CandidateAssignment, Page } from "@/lib/api-types";
 import { APIError, api } from "@/lib/client/api";
 import { formatCountdown, useNow } from "@/lib/client/use-now";
 import { uuid } from "@/lib/client/uuid";
+import { sebLaunchURL } from "@/lib/seb-launch";
 
 type Status = { kind: "idle" } | { kind: "starting" } | { kind: "seb" } | { kind: "error"; message: string };
 
@@ -18,6 +19,8 @@ export function StartExam({ assignment, signature }: { assignment: CandidateAssi
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [resumeId, setResumeId] = useState<string | null>(null);
   const [honorOpen, setHonorOpen] = useState(false);
+  const [launching, setLaunching] = useState(false);
+  const [launchError, setLaunchError] = useState<string | null>(null);
   // One key per page visit: a double click or a retry starts one attempt, not two.
   const idempotencyKey = useRef(uuid());
   const attempts = `/submission/v1/tenants/${assignment.tenant_id}/attempts`;
@@ -55,6 +58,22 @@ export function StartExam({ assignment, signature }: { assignment: CandidateAssi
     }
   }
 
+  // The ticket is single-use and lasts a minute, so it is minted on click, never on render.
+  async function launchSEB() {
+    setLaunching(true);
+    setLaunchError(null);
+    try {
+      const { ticket } = await api<{ ticket: string }>(`/seb/v1/tenants/${assignment.tenant_id}/exams/${assignment.exam_id}/launch-ticket`, {
+        method: "POST",
+      });
+      window.location.href = sebLaunchURL(window.location.origin, assignment.tenant_id, assignment.exam_id, ticket);
+    } catch (error) {
+      setLaunchError(error instanceof Error ? error.message : "Safe Exam Browser could not be launched.");
+    } finally {
+      setLaunching(false);
+    }
+  }
+
   if (status.kind === "seb") {
     return (
       <div className="mt-8 rounded-[var(--radius-surface)] border border-line bg-surface p-5 shadow-[var(--shadow-panel)] sm:p-6">
@@ -63,15 +82,28 @@ export function StartExam({ assignment, signature }: { assignment: CandidateAssi
           <div>
             <h2 className="text-[15px] font-semibold text-ink">Open this exam in Safe Exam Browser</h2>
             <p className="mt-1 text-sm leading-relaxed text-ink-muted">
-              This exam only runs inside Safe Exam Browser. Download the launch file and open it. Safe Exam Browser starts the exam and
-              asks you to sign in again.
+              This exam only runs inside Safe Exam Browser. Launch it from here: Safe Exam Browser opens, starts the exam and asks you to
+              sign in again. It must already be installed on this computer.
             </p>
-            <Button asChild variant="secondary" className="mt-4">
-              <a href={`/api/seb/v1/tenants/${assignment.tenant_id}/exams/${assignment.exam_id}/launch-file`} download>
-                <DownloadSimple />
-                Download launch file
-              </a>
+            <Button className="mt-4" onClick={() => void launchSEB()} disabled={launching}>
+              {launching ? <CircleNotch className="animate-spin" /> : <RocketLaunch />}
+              Launch Safe Exam Browser
             </Button>
+            {launchError && (
+              <p role="alert" className="mt-2 text-sm text-danger">
+                {launchError}
+              </p>
+            )}
+            <p className="mt-3 text-sm text-ink-muted">
+              Having trouble?{" "}
+              <a
+                className="underline underline-offset-2"
+                href={`/api/seb/v1/tenants/${assignment.tenant_id}/exams/${assignment.exam_id}/launch-file`}
+                download
+              >
+                Download config file directly
+              </a>
+            </p>
           </div>
         </div>
       </div>

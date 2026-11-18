@@ -1,0 +1,106 @@
+# Gitea Actions runner: act_runner with a Docker-in-Docker sidecar, in its own namespace.
+# SECURITY: the DinD container is privileged (that is how a container can run containers), so a workflow
+# can escape to the host. Only attach this runner to repositories whose workflow files you trust: here, the
+# mirror of the private AetherCode repository. Never register it for public or untrusted repositories.
+# CPU and memory are capped so CI cannot starve production; image layers live in /data/production/gitea/runner
+# (the root disk is small). The registration token comes from
+#   kubectl -n gitea exec deploy/gitea -- gitea actions generate-runner-token
+# stored as Secret gitea-runner-registration (key token) in the gitea-runner namespace.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gitea-runner
+  labels: {app.kubernetes.io/part-of: production-apps}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: act-runner
+  namespace: gitea-runner
+  labels: {app.kubernetes.io/name: act-runner, app.kubernetes.io/part-of: production-apps}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app.kubernetes.io/name: act-runner}}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: act-runner, app.kubernetes.io/part-of: production-apps}
+    spec:
+      containers:
+        - name: dind
+          image: docker.io/library/docker:27-dind
+          # dockerd directly, bypassing the image entrypoint: that one also opens an unauthenticated tcp://0.0.0.0:2375,
+          # which would hand root-equivalent Docker access to every pod that can reach this one.
+          command: ["dockerd"]
+          args: ["--host=unix:///run/docker/docker.sock", "--storage-driver=overlay2"]
+          securityContext: {privileged: true}
+          # Ready only once dockerd answers, so the first queued job never meets a dead socket.
+          readinessProbe:
+            exec: {command: ["docker", "-H", "unix:///run/docker/docker.sock", "info"]}
+            periodSeconds: 5
+            failureThreshold: 24
+          resources:
+            requests: {cpu: "2", memory: 4Gi}
+            limits: {cpu: "24", memory: 64Gi}
+          volumeMounts:
+            - {name: docker-socket, mountPath: /run/docker}
+            - {name: docker-graph, mountPath: /var/lib/docker}
+        - name: runner
+          image: docker.io/gitea/act_runner:0.2.13
+          env:
+            - {name: GITEA_INSTANCE_URL, value: "http://gitea-http.gitea.svc.cluster.local:3000"}
+            - name: GITEA_RUNNER_REGISTRATION_TOKEN
+              valueFrom: {secretKeyRef: {name: gitea-runner-registration, key: token}}
+            - {name: GITEA_RUNNER_NAME, value: campus-server}
+            - {name: GITEA_RUNNER_LABELS, value: "ubuntu-24.04:docker://ghcr.io/catthehacker/ubuntu:act-24.04,ubuntu-latest:docker://ghcr.io/catthehacker/ubuntu:act-24.04"}
+            - {name: DOCKER_HOST, value: "unix:///run/docker/docker.sock"}
+          securityContext: {allowPrivilegeEscalation: false}
+          resources:
+            requests: {cpu: 250m, memory: 256Mi}
+            limits: {cpu: "2", memory: 2Gi}
+          volumeMounts:
+            - {name: docker-socket, mountPath: /run/docker}
+            - {name: runner-data, mountPath: /data}
+      volumes:
+        - name: docker-socket
+          emptyDir: {}
+        - name: docker-graph
+          hostPath: {path: /data/production/gitea/runner/docker, type: DirectoryOrCreate}
+        - name: runner-data
+          hostPath: {path: /data/production/gitea/runner/data, type: DirectoryOrCreate}
+---
+# Nothing may connect to the runner pod; it only makes outbound calls (to Gitea, to registries).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: runner-no-ingress
+  namespace: gitea-runner
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+  ingress: []
+---
+# The runner and its job containers may reach DNS, Gitea and the public internet (registries, package mirrors), but not
+# the rest of the cluster, the node's own addresses or the LAN: a compromised workflow cannot walk to the Kubernetes API,
+# the databases or other applications.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: runner-egress
+  namespace: gitea-runner
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: kube-system}}
+          podSelector: {matchLabels: {k8s-app: kube-dns}}
+      ports: [{port: 53, protocol: UDP}, {port: 53, protocol: TCP}]
+    - to:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: gitea}}
+          podSelector: {matchLabels: {app.kubernetes.io/name: gitea}}
+      ports: [{port: 3000, protocol: TCP}]
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, 115.247.189.246/32]

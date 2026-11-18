@@ -7,6 +7,14 @@ image:
 
 replicaCount: 2
 
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+  limits:
+    cpu: 2000m
+    memory: 1Gi
+
 tls:
   enabled: true
   secretName: aethercode-tls-notification
@@ -26,10 +34,22 @@ secretEnv:
 env:
   - name: NOTIFICATION_DATABASE_URL
     value: "postgres://aether_notification_app:$(NOTIFICATION_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_notification?sslmode={{ .Values.global.postgresSSLMode }}"
+  - name: NOTIFICATION_DB_MAX_CONNS
+    value: "8"
+  - name: NOTIFICATION_DB_MIN_CONNS
+    value: "2"
   - name: NOTIFICATION_PROJECTION_DATABASE_URL
     value: "postgres://aether_notification_projection_worker:$(NOTIFICATION_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_notification?sslmode={{ .Values.global.postgresSSLMode }}"
+  - name: NOTIFICATION_PROJECTION_DB_MAX_CONNS
+    value: "2"
+  - name: NOTIFICATION_PROJECTION_DB_MIN_CONNS
+    value: "1"
   - name: NOTIFICATION_RETENTION_DATABASE_URL
     value: "postgres://aether_notification_retention_worker:$(NOTIFICATION_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_notification?sslmode={{ .Values.global.postgresSSLMode }}"
+  - name: NOTIFICATION_RETENTION_DB_MAX_CONNS
+    value: "2"
+  - name: NOTIFICATION_RETENTION_DB_MIN_CONNS
+    value: "1"
 
 networkPolicy:
   allowFrom:

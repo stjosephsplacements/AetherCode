@@ -232,6 +232,19 @@ docker compose up -d seb                  # accepts Gateway's client_ip (ADR-003
 docker compose up -d                      # everything else, User included
 ```
 
+### Adding the proctor database to an existing install
+
+`proctor` arrived after the first release. A server installed before it has no `PROCTOR_DB_PASSWORD` in `.env` and no
+`aether_proctor` database or roles, because `dev-init.sh` only runs when the PostgreSQL volume is first created.
+Compose requires `PROCTOR_DB_PASSWORD`, so `docker compose` commands fail until it is set; do this first:
+
+1. Add `PROCTOR_DB_PASSWORD=<new random value>` to `.env` (and to `aethercode-secrets` on Kubernetes installs, before
+   upgrading the infra chart; the chart treats the key as optional).
+2. Run the script inside the PostgreSQL container. The running container was created before the new variable existed,
+   so pass it in explicitly; the script is idempotent and creates `aether_proctor` and its roles:
+   `docker compose exec -T -e PROCTOR_DB_PASSWORD="$(grep '^PROCTOR_DB_PASSWORD=' .env | cut -d= -f2-)" postgres bash /docker-entrypoint-initdb.d/00-aethercode-roles.sh`
+3. Run the `migrate` service again.
+
 ### Release checklist for the 2026-10-21 batch
 
 1. **Back up first**, and confirm the dump restores (`backup.sh`; see Backups).

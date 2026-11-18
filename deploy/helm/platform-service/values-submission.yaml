@@ -9,11 +9,17 @@ replicaCount: 2
 
 resources:
   requests:
-    cpu: 250m
-    memory: 256Mi
+    cpu: 2000m
+    memory: 2Gi
   limits:
-    cpu: 1
-    memory: 768Mi
+    cpu: 6000m
+    memory: 4Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 12
+  targetCPUUtilizationPercentage: 70
 
 tls:
   enabled: true
@@ -46,12 +52,28 @@ secretEnv:
 env:
   - name: SUBMISSION_DATABASE_URL
     value: "postgres://aether_submission_app:$(SUBMISSION_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_submission?sslmode={{ .Values.global.postgresSSLMode }}"
+  - name: SUBMISSION_DB_MAX_CONNS
+    value: "8"
+  - name: SUBMISSION_DB_MIN_CONNS
+    value: "2"
   - name: SUBMISSION_PROJECTION_DATABASE_URL
     value: "postgres://aether_submission_projection_worker:$(SUBMISSION_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_submission?sslmode={{ .Values.global.postgresSSLMode }}"
+  - name: SUBMISSION_PROJECTION_DB_MAX_CONNS
+    value: "2"
+  - name: SUBMISSION_PROJECTION_DB_MIN_CONNS
+    value: "1"
   - name: SUBMISSION_EXPIRY_DATABASE_URL
     value: "postgres://aether_submission_expiry_worker:$(SUBMISSION_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_submission?sslmode={{ .Values.global.postgresSSLMode }}"
+  - name: SUBMISSION_EXPIRY_DB_MAX_CONNS
+    value: "2"
+  - name: SUBMISSION_EXPIRY_DB_MIN_CONNS
+    value: "1"
   - name: SUBMISSION_JUDGE_ADAPTER_DATABASE_URL
     value: "postgres://aether_submission_judge_adapter:$(SUBMISSION_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_submission?sslmode={{ .Values.global.postgresSSLMode }}"
+  - name: SUBMISSION_JUDGE_ADAPTER_DB_MAX_CONNS
+    value: "2"
+  - name: SUBMISSION_JUDGE_ADAPTER_DB_MIN_CONNS
+    value: "1"
   - name: SUBMISSION_STORAGE_ENDPOINT
     value: "{{ .Values.global.minioEndpoint }}"
   - name: SUBMISSION_STORAGE_ACCESS_KEY

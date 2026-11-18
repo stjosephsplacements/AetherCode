@@ -78,4 +78,12 @@ Each decision is a numbered file; new ones start from [the template](0000-templa
 | [0072](0072-security-hardening-node-scoping-mfa-egress.md) | Security hardening: node scoping, MFA step-up, egress (accepted) |
 | [0073](0073-projection-consumers-tolerate-additive-fields.md) | Projection consumers tolerate additive fields (accepted) |
 | [0074](0074-database-pods-and-apparmor-signals.md) | Database pods run without the default AppArmor profile on hosts that deny signals (accepted) |
+| [0075](0075-rbac-overwrite-wiring.md) | Wire rbac.Compute into the authorize path (accepted) |
+| [0076](0076-ingress-nginx-apparmor-signals.md) | ingress-nginx controller runs without the default AppArmor profile on hosts that deny signals (superseded by 0083) |
+| [0077](0077-batch-progress-department-rollup.md) | Department-sliced batch progress rollup as a separate table (accepted) |
+| [0078](0078-proctoring-foundation.md) | Exam proctoring foundation (accepted) |
 | [0079](0079-remove-casbin-engine.md) | Remove the Casbin engine; role bit sets are the decision model (accepted) |
+| [0080](0080-proctor-violation-policy-and-auto-submit.md) | Proctor violation policy, auto-submit and evidence export (accepted) |
+| [0081](0081-placement-and-integrity-milestone-a.md) | Placement and integrity, Milestone A (accepted) |
+| [0082](0082-single-node-capacity-and-autoscaling.md) | Capacity budget, autoscaling and pools for the single campus server (accepted) |
+| [0083](0083-traefik-replaces-ingress-nginx.md) | Traefik replaces ingress-nginx (accepted) |

@@ -33,6 +33,10 @@ GLOBAL_AUTHZ_SERVICES = {"question-bank"}
 
 # Services that receive both has_platform_authorization_at and has_tenant_authorization_at.
 # question-bank only gets has_global_authorization_at.
+# Services whose principal_authorization_revisions has snapshot_applied: a grant only counts once the snapshot that wrote
+# it has been applied, so the has_*_authorization_at functions must keep that condition in the revision join.
+SNAPSHOT_GUARDED_SERVICES = {"analytics", "notification", "seb"}
+
 TENANT_AUTHZ_SERVICES = {
     "analytics", "assessment", "identity", "notification",
     "seb", "submission", "tenant", "user",
@@ -70,6 +74,7 @@ def _event_type(service: str) -> str:
 
 def _up_sql_tenant(service: str) -> str:
     role = _role(service)
+    snapshot_guard = "\n         AND revision.snapshot_applied" if service in SNAPSHOT_GUARDED_SERVICES else ""
     event = _event_type(service)
     return f"""\
 SET ROLE {role};
@@ -135,7 +140,7 @@ RETURNS boolean LANGUAGE sql VOLATILE SECURITY DEFINER SET search_path = pg_cata
     SELECT authz.authorization_projection_ready() AND EXISTS (
         SELECT 1 FROM authz.actor_tenant_authorizations AS grant_row
         JOIN authz.principal_authorization_revisions AS revision
-          ON revision.actor_id = grant_row.actor_id AND revision.authz_revision = grant_row.authz_revision
+          ON revision.actor_id = grant_row.actor_id AND revision.authz_revision = grant_row.authz_revision{snapshot_guard}
         WHERE grant_row.actor_id = p_actor_id
           AND grant_row.authz_revision >= GREATEST(1, p_authz_revision - 5)
           AND grant_row.is_authorized AND grant_row.grant_kind = 'platform'
@@ -150,7 +155,7 @@ RETURNS boolean LANGUAGE sql VOLATILE SECURITY DEFINER SET search_path = pg_cata
     SELECT authz.authorization_projection_ready() AND p_tenant_id IS NOT NULL AND EXISTS (
         SELECT 1 FROM authz.actor_tenant_authorizations AS grant_row
         JOIN authz.principal_authorization_revisions AS revision
-          ON revision.actor_id = grant_row.actor_id AND revision.authz_revision = grant_row.authz_revision
+          ON revision.actor_id = grant_row.actor_id AND revision.authz_revision = grant_row.authz_revision{snapshot_guard}
         WHERE grant_row.actor_id = p_actor_id
           AND grant_row.authz_revision >= GREATEST(1, p_authz_revision - 5)
           AND grant_row.is_authorized
@@ -164,6 +169,7 @@ $fn$;
 def _up_sql_tenant_grants(service: str) -> str:
     """Template for services that use authorization_grants table (assessment)."""
     role = _role(service)
+    snapshot_guard = "\n         AND revision.snapshot_applied" if service in SNAPSHOT_GUARDED_SERVICES else ""
     event = _event_type(service)
     return f"""\
 SET ROLE {role};
@@ -229,7 +235,7 @@ RETURNS boolean LANGUAGE sql VOLATILE SECURITY DEFINER SET search_path = pg_cata
     SELECT authz.authorization_projection_ready() AND EXISTS (
         SELECT 1 FROM authz.authorization_grants AS grant_row
         JOIN authz.principal_authorization_revisions AS revision
-          ON revision.actor_id = grant_row.actor_id AND revision.authz_revision = grant_row.authz_revision
+          ON revision.actor_id = grant_row.actor_id AND revision.authz_revision = grant_row.authz_revision{snapshot_guard}
         WHERE grant_row.actor_id = p_actor_id
           AND revision.authz_revision >= GREATEST(1, p_authz_revision - 5)
           AND grant_row.grant_kind = 'platform'
@@ -244,7 +250,7 @@ RETURNS boolean LANGUAGE sql VOLATILE SECURITY DEFINER SET search_path = pg_cata
     SELECT authz.authorization_projection_ready() AND p_tenant_id IS NOT NULL AND EXISTS (
         SELECT 1 FROM authz.authorization_grants AS grant_row
         JOIN authz.principal_authorization_revisions AS revision
-          ON revision.actor_id = grant_row.actor_id AND revision.authz_revision = grant_row.authz_revision
+          ON revision.actor_id = grant_row.actor_id AND revision.authz_revision = grant_row.authz_revision{snapshot_guard}
         WHERE grant_row.actor_id = p_actor_id
           AND revision.authz_revision >= GREATEST(1, p_authz_revision - 5)
           AND (grant_row.expires_at IS NULL OR grant_row.expires_at > clock_timestamp())

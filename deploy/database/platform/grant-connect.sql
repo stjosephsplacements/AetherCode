@@ -51,6 +51,10 @@ BEGIN
                 ('aether_analytics'::text, ARRAY[
                     'aether_analytics_migrator', 'aether_analytics_app',
                     'aether_analytics_authz_reader', 'aether_analytics_projection_worker'
+                ]::text[]),
+                ('aether_proctor'::text, ARRAY[
+                    'aether_proctor_migrator', 'aether_proctor_app',
+                    'aether_proctor_authz_reader', 'aether_proctor_projection_worker'
                 ]::text[])
         ) AS required(database_name, target_roles)
     LOOP
@@ -85,6 +89,6 @@ FROM pg_database
 WHERE datname IN (
     'aether_identity', 'aether_tenant', 'aether_users', 'aether_qbank',
     'aether_assessment', 'aether_submission', 'aether_seb',
-    'aether_notification', 'aether_analytics'
+    'aether_notification', 'aether_analytics', 'aether_proctor'
 )
 ORDER BY datname;

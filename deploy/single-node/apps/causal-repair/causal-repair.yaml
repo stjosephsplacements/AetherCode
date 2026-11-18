@@ -1,0 +1,163 @@
+# causal-repair: a read-only viewer for an anomaly-detection integration pack, plus the MongoDB and
+# Redis that its (currently idle) pipeline worker uses. Moved from loose processes on the host.
+# The viewer's Ingress is open to nobody directly: its hostname only exists behind the Cloudflare tunnel and a
+# Cloudflare Access policy (the two owner emails), and Traefik admits only Cloudflare and cluster sources.
+# Data stays where it was, under /data/production/causal-repair/. The image is built from
+# /data/production/causal-repair/image/ (see Dockerfile) and imported into k3s, so imagePullPolicy is Never.
+#
+# The viewer is two containers in one pod: `viewer` (server.py on 127.0.0.1:8077) and `front`, a
+# GET/HEAD-only proxy on :8078 that is the only thing the Service exposes. MongoDB and Redis are
+# published on the host's loopback only (27017, 16379), as before, with no Service and no
+# in-cluster access (enforced by the NetworkPolicy at the end).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: causal-repair
+  labels: {app.kubernetes.io/part-of: production-apps}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: viewer
+  namespace: causal-repair
+  labels: {app.kubernetes.io/name: viewer, app.kubernetes.io/part-of: production-apps}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app.kubernetes.io/name: viewer}}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: viewer, app.kubernetes.io/part-of: production-apps}
+    spec:
+      securityContext: {runAsNonRoot: true, runAsUser: 1001, runAsGroup: 1001, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: viewer
+          image: docker.io/library/causal-repair-viewer:1
+          imagePullPolicy: Never
+          command: ["python", "/srv/app/server.py", "8077"]
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {cpu: "1", memory: 256Mi}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+        - name: front
+          image: docker.io/library/causal-repair-viewer:1
+          imagePullPolicy: Never
+          command: ["python", "/srv/readonly_front.py", "8078"]
+          ports: [{name: http, containerPort: 8078}]
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {cpu: "1", memory: 256Mi}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          readinessProbe: {httpGet: {path: /, port: http}, periodSeconds: 10}
+          livenessProbe: {httpGet: {path: /, port: http}, periodSeconds: 30}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: viewer
+  namespace: causal-repair
+spec:
+  selector: {app.kubernetes.io/name: viewer}
+  ports: [{name: http, port: 8078, targetPort: http}]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: viewer
+  namespace: causal-repair
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: causal-repair.stjosephsplacements.in
+      http:
+        paths:
+          - {path: /, pathType: Prefix, backend: {service: {name: viewer, port: {name: http}}}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb
+  namespace: causal-repair
+  labels: {app.kubernetes.io/name: mongodb, app.kubernetes.io/part-of: production-apps}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}      # one mongod per data directory
+  selector: {matchLabels: {app.kubernetes.io/name: mongodb}}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: mongodb, app.kubernetes.io/part-of: production-apps}
+    spec:
+      securityContext: {runAsNonRoot: true, runAsUser: 1001, runAsGroup: 1001, fsGroup: 1001, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: mongodb
+          image: docker.io/library/mongo:8.0.4
+          args: ["mongod", "--bind_ip_all", "--port", "27017", "--dbpath", "/data/db", "--wiredTigerCacheSizeGB", "1"]
+          ports: [{name: mongo, containerPort: 27017, hostPort: 27017, hostIP: 127.0.0.1}]
+          resources:
+            requests: {cpu: 100m, memory: 1536Mi}
+            limits: {cpu: "4", memory: 3Gi}
+          securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}
+          readinessProbe: {tcpSocket: {port: mongo}, periodSeconds: 10, failureThreshold: 12}
+          livenessProbe: {tcpSocket: {port: mongo}, periodSeconds: 30}
+          volumeMounts: [{name: data, mountPath: /data/db}]
+      volumes:
+        - name: data
+          hostPath: {path: /data/production/causal-repair/webapp/mongodata, type: Directory}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: causal-repair
+  labels: {app.kubernetes.io/name: redis, app.kubernetes.io/part-of: production-apps}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app.kubernetes.io/name: redis}}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: redis, app.kubernetes.io/part-of: production-apps}
+    spec:
+      securityContext: {runAsNonRoot: true, runAsUser: 1001, runAsGroup: 1001, fsGroup: 1001, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: redis
+          image: docker.io/library/redis:8.0.5
+          args: ["--port", "6379", "--dir", "/data", "--appendonly", "yes"]
+          ports: [{name: redis, containerPort: 6379, hostPort: 16379, hostIP: 127.0.0.1}]
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {cpu: "2", memory: 1Gi}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          readinessProbe: {exec: {command: [redis-cli, ping]}, periodSeconds: 10}
+          livenessProbe: {exec: {command: [redis-cli, ping]}, periodSeconds: 20}
+          volumeMounts: [{name: data, mountPath: /data}]
+      volumes:
+        - name: data
+          hostPath: {path: /data/production/causal-repair/webapp/redisdata, type: Directory}
+---
+# MongoDB and Redis have no authentication and nothing in the cluster uses them: admit no pod. The host's
+# loopback hostPorts (27017, 16379) are not affected by this policy.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: data-stores-no-ingress
+  namespace: causal-repair
+spec:
+  podSelector:
+    matchExpressions:
+      - {key: app.kubernetes.io/name, operator: In, values: [mongodb, redis]}
+  policyTypes: [Ingress]
+  ingress: []
+---
+# The viewer sits behind Cloudflare Access at the edge, so inside the cluster only Traefik (which the tunnel
+# feeds) may reach it; other pods cannot go around the Access policy.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: viewer-from-traefik
+  namespace: causal-repair
+spec:
+  podSelector: {matchLabels: {app.kubernetes.io/name: viewer}}
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: traefik}}, podSelector: {matchLabels: {app.kubernetes.io/name: traefik}}}]
+      ports: [{port: 8078, protocol: TCP}]

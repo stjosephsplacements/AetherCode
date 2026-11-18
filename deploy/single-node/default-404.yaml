@@ -1,0 +1,118 @@
+# Branded 404 for every hostname no Ingress serves (the Cloudflare wildcard sends them all to
+# Traefik). A lowest-priority catch-all Ingress points at a tiny Caddy that answers 404 with
+# this page. Real services keep their own 404s.
+#   kubectl apply -f deploy/single-node/default-404.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata: {name: default-404, namespace: traefik}
+data:
+  Caddyfile: |
+    {
+      admin off
+      auto_https off
+    }
+    :8080 {
+      root * /srv
+      header Cache-Control "no-store"
+      handle /healthz {
+        respond "ok" 200
+      }
+      handle_errors {
+        rewrite * /404.html
+        file_server
+      }
+      error 404
+    }
+  404.html: |
+    <!doctype html>
+    <html lang="en">
+    <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex">
+    <title>Page not found</title>
+    <style>
+      :root { --bg:#f6f7f9; --fg:#14181f; --muted:#5b6472; --card:#fff; --line:#dfe3ea; --accent:#2457d6; }
+      @media (prefers-color-scheme: dark) {
+        :root { --bg:#0e1116; --fg:#e8ebf0; --muted:#98a1b0; --card:#161a21; --line:#262c36; --accent:#7ea2ff; }
+      }
+      * { box-sizing: border-box; }
+      body { margin:0; min-height:100vh; display:grid; place-items:center; padding:16px;
+             background:var(--bg); color:var(--fg);
+             font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+      main { width:100%; max-width:30rem; background:var(--card); border:1px solid var(--line);
+             border-radius:12px; padding:2rem 1.5rem; text-align:center; }
+      .code { font-size:4rem; font-weight:700; letter-spacing:.04em; line-height:1; color:var(--accent); }
+      h1 { margin:.75rem 0 .5rem; font-size:1.35rem; }
+      p { margin:0 0 1.25rem; color:var(--muted); }
+      a { display:inline-block; padding:.6rem 1.1rem; border-radius:8px; background:var(--accent);
+          color:#fff; text-decoration:none; font-weight:600; }
+      @media (prefers-color-scheme: dark) { a { color:#0e1116; } }
+      a:focus-visible { outline:3px solid var(--fg); outline-offset:2px; }
+    </style>
+    </head>
+    <body>
+    <main>
+      <div class="code" aria-hidden="true">404</div>
+      <h1>Page not found</h1>
+      <p>This address isn't served here. Check the link, or go back to the home page.</p>
+      <a href="https://stjosephsplacements.in">Go to the home page</a>
+    </main>
+    </body>
+    </html>
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: default-404, namespace: traefik}
+spec:
+  replicas: 2
+  selector: {matchLabels: {app: default-404}}
+  template:
+    metadata: {labels: {app: default-404}}
+    spec:
+      containers:
+        - name: caddy
+          image: caddy:2.11.9-alpine
+          args: ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
+          ports: [{containerPort: 8080, name: http}]
+          readinessProbe: {httpGet: {path: /healthz, port: http}, periodSeconds: 10}
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {cpu: 200m, memory: 64Mi}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: site, mountPath: /srv/404.html, subPath: 404.html, readOnly: true}
+            - {name: site, mountPath: /etc/caddy/Caddyfile, subPath: Caddyfile, readOnly: true}
+            - {name: data, mountPath: /data}
+            - {name: data, mountPath: /config}
+      volumes:
+        - {name: site, configMap: {name: default-404}}
+        - {name: data, emptyDir: {}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: default-404, namespace: traefik}
+spec:
+  selector: {app: default-404}
+  ports: [{name: http, port: 80, targetPort: http}]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: default-404
+  namespace: traefik
+  annotations:
+    traefik.ingress.kubernetes.io/router.priority: "1"
+spec:
+  ingressClassName: traefik
+  defaultBackend:
+    service: {name: default-404, port: {name: http}}
+  rules:
+    - http:
+        paths:
+          - {path: /, pathType: Prefix, backend: {service: {name: default-404, port: {name: http}}}}

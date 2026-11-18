@@ -234,6 +234,8 @@ services:
       AUTHZ_CLIENT_TLS_CERT_FILE: /certs/user.crt
       AUTHZ_CLIENT_TLS_KEY_FILE: /certs/user.key
       USER_DATABASE_URL: postgres://aether_user_app:${USERS_DB_PASSWORD}@postgres:5432/aether_users?sslmode=disable
+      USER_DB_MAX_CONNS: "20"
+      USER_DB_MIN_CONNS: "4"
       USER_AUTHZ_DATABASE_URL: postgres://aether_user_authz_reader:${USERS_DB_PASSWORD}@postgres:5432/aether_users?sslmode=disable
       USER_PROJECTION_DATABASE_URL: postgres://aether_user_projection_worker:${USERS_DB_PASSWORD}@postgres:5432/aether_users?sslmode=disable
       AUTHZ_GRPC_ADDR: 0.0.0.0:9443
@@ -260,6 +262,8 @@ services:
       AUTHZ_CLIENT_TLS_CERT_FILE: /certs/tenant.crt
       AUTHZ_CLIENT_TLS_KEY_FILE: /certs/tenant.key
       TENANT_DATABASE_URL: postgres://aether_tenant_app:${TENANT_DB_PASSWORD}@postgres:5432/aether_tenant?sslmode=disable
+      TENANT_DB_MAX_CONNS: "8"
+      TENANT_DB_MIN_CONNS: "2"
       TENANT_PROJECTION_DATABASE_URL: postgres://aether_tenant_projection_worker:${TENANT_DB_PASSWORD}@postgres:5432/aether_tenant?sslmode=disable
     build: { context: ../../backend, dockerfile: services/tenant/Dockerfile }
 
@@ -315,6 +319,8 @@ services:
       AUTHZ_CLIENT_TLS_CERT_FILE: /certs/submission.crt
       AUTHZ_CLIENT_TLS_KEY_FILE: /certs/submission.key
       SUBMISSION_DATABASE_URL: postgres://aether_submission_app:${SUBMISSION_DB_PASSWORD}@postgres:5432/aether_submission?sslmode=disable
+      SUBMISSION_DB_MAX_CONNS: "20"
+      SUBMISSION_DB_MIN_CONNS: "4"
       SUBMISSION_PROJECTION_DATABASE_URL: postgres://aether_submission_projection_worker:${SUBMISSION_DB_PASSWORD}@postgres:5432/aether_submission?sslmode=disable
       SUBMISSION_EXPIRY_ENABLED: "true"
       # Time-up submits a student's saved code; poll often so it lands soon after the 15 s grace.
@@ -346,6 +352,8 @@ services:
       AUTHZ_CLIENT_TLS_CERT_FILE: /certs/seb.crt
       AUTHZ_CLIENT_TLS_KEY_FILE: /certs/seb.key
       SEB_DATABASE_URL: postgres://aether_seb_app:${SEB_DB_PASSWORD}@postgres:5432/aether_seb?sslmode=disable
+      SEB_DB_MAX_CONNS: "8"
+      SEB_DB_MIN_CONNS: "2"
       SEB_PROJECTION_DATABASE_URL: postgres://aether_seb_projection_worker:${SEB_DB_PASSWORD}@postgres:5432/aether_seb?sslmode=disable
       SEB_STORAGE_ENDPOINT: minio:9000
       SEB_STORAGE_ACCESS_KEY: ${MINIO_ROOT_USER}
@@ -366,6 +374,8 @@ services:
       AUTHZ_CLIENT_TLS_CERT_FILE: /certs/notification.crt
       AUTHZ_CLIENT_TLS_KEY_FILE: /certs/notification.key
       NOTIFICATION_DATABASE_URL: postgres://aether_notification_app:${NOTIFICATION_DB_PASSWORD}@postgres:5432/aether_notification?sslmode=disable
+      NOTIFICATION_DB_MAX_CONNS: "8"
+      NOTIFICATION_DB_MIN_CONNS: "2"
       NOTIFICATION_PROJECTION_DATABASE_URL: postgres://aether_notification_projection_worker:${NOTIFICATION_DB_PASSWORD}@postgres:5432/aether_notification?sslmode=disable
       NOTIFICATION_RETENTION_ENABLED: "true"
       NOTIFICATION_RETENTION_DATABASE_URL: postgres://aether_notification_retention_worker:${NOTIFICATION_DB_PASSWORD}@postgres:5432/aether_notification?sslmode=disable
@@ -419,7 +429,7 @@ services:
         condition: service_healthy
 
   proctor:
-    build: { context: ../../backend, dockerfile: services/proctor/Dockerfile }
+    build: { context: ../../backend/services/proctor, dockerfile: Dockerfile }
     restart: always
     environment:
       PROCTOR_SUBMISSION_URL: http://submission:8080
@@ -428,8 +438,8 @@ services:
       PROCTOR_MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
       PROCTOR_MINIO_BUCKET: aethercode
       PROCTOR_NATS_URL: nats://nats:4222
-      PROCTOR_DATABASE_URL: postgres://aether_proctor_app:${PROCTOR_DB_PASSWORD:?run setup.sh first}@postgres:5432/aether_proctor?sslmode=disable
-      PROCTOR_DATABASE_DIRECT_URL: postgres://aether_proctor_app:${PROCTOR_DB_PASSWORD}@postgres:5432/aether_proctor?sslmode=disable
+      PROCTOR_DATABASE_URL: postgres://aether_proctor_app:${PROCTOR_DB_PASSWORD:?run setup.sh first}@postgres:5432/aether_proctor?sslmode=disable&schema=proctor
+      PROCTOR_DATABASE_DIRECT_URL: postgres://aether_proctor_app:${PROCTOR_DB_PASSWORD}@postgres:5432/aether_proctor?sslmode=disable&schema=proctor
     healthcheck:
       test: ["CMD-SHELL", "python3 -c \"import httpx; httpx.get('http://localhost:8090/healthz').raise_for_status()\""]
       interval: 30s

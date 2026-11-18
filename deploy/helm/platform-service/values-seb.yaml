@@ -7,6 +7,14 @@ image:
 
 replicaCount: 2
 
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+  limits:
+    cpu: 2000m
+    memory: 1Gi
+
 tls:
   enabled: true
   secretName: aethercode-tls-seb
@@ -30,8 +38,16 @@ secretEnv:
 env:
   - name: SEB_DATABASE_URL
     value: "postgres://aether_seb_app:$(SEB_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_seb?sslmode={{ .Values.global.postgresSSLMode }}"
+  - name: SEB_DB_MAX_CONNS
+    value: "8"
+  - name: SEB_DB_MIN_CONNS
+    value: "2"
   - name: SEB_PROJECTION_DATABASE_URL
     value: "postgres://aether_seb_projection_worker:$(SEB_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_seb?sslmode={{ .Values.global.postgresSSLMode }}"
+  - name: SEB_PROJECTION_DB_MAX_CONNS
+    value: "2"
+  - name: SEB_PROJECTION_DB_MIN_CONNS
+    value: "1"
   - name: SEB_STORAGE_ENDPOINT
     value: "{{ .Values.global.minioEndpoint }}"
   - name: SEB_STORAGE_ACCESS_KEY

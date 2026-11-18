@@ -1,0 +1,13 @@
+# Lets the CloudNativePG pods of the two environments reach MinIO for backups (minio has a default-deny policy).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: allow-cnpg-backups, namespace: minio}
+spec:
+  podSelector: {matchLabels: {app: minio}}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchExpressions: [{key: kubernetes.io/metadata.name, operator: In, values: [aethercode-dev, aethercode-prod]}]
+          podSelector: {matchLabels: {cnpg.io/cluster: postgres-cluster}}
+      ports: [{port: 9000, protocol: TCP}]

@@ -44,6 +44,8 @@ type service interface {
 	GetExamPolicy(context.Context, centralauthz.Capability, string, string) (app.ExamPolicy, error)
 	StaffLaunchFile(context.Context, centralauthz.Capability, string, string) (app.LaunchFile, error)
 	CandidateLaunchFile(context.Context, centralauthz.Capability, string, string) (app.LaunchFile, error)
+	IssueLaunchTicket(context.Context, centralauthz.Capability, string, string) (string, error)
+	TicketLaunchFile(ctx context.Context, tenantID, examID, ticket string) (app.LaunchFile, error)
 	CheckExamRequest(context.Context, centralauthz.Capability, app.CheckExamRequest) (string, error)
 }
 
@@ -75,6 +77,7 @@ func NewHandler(serviceName string, service service, readiness httpx.ReadinessFu
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/exams/{exam_id}/seb-policy", handler.getExamPolicy)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/exams/{exam_id}/seb-policy/launch-file", handler.getStaffLaunchFile)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/exams/{exam_id}/launch-file", handler.getCandidateLaunchFile)
+	mux.HandleFunc("POST /v1/tenants/{tenant_id}/exams/{exam_id}/launch-ticket", handler.issueLaunchTicket)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/request-checks", handler.checkRequest)
 	return mux, nil
 }

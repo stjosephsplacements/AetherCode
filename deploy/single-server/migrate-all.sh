@@ -19,5 +19,11 @@ run submission    aether_submission   aether_submission_migrator    SUBMISSION_D
 run seb           aether_seb          aether_seb_migrator           SEB_DB_PASSWORD
 run notification  aether_notification aether_notification_migrator  NOTIFICATION_DB_PASSWORD
 run analytics     aether_analytics    aether_analytics_migrator     ANALYTICS_DB_PASSWORD
-run proctor       aether_proctor      aether_proctor_migrator       PROCTOR_DB_PASSWORD
+# proctor arrived after the first release: an install made before it has no password or database for it
+# (see "Upgrades" in README.md), so it is skipped with a message instead of failing the whole job.
+if [ -n "${PROCTOR_DB_PASSWORD:-}" ]; then
+  run proctor     aether_proctor      aether_proctor_migrator       PROCTOR_DB_PASSWORD
+else
+  echo "skipping proctor: PROCTOR_DB_PASSWORD is not set; follow the proctor step in deploy/single-server/README.md (Upgrades)"
+fi
 echo "all platform migrations applied"

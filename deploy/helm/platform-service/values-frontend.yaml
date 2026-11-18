@@ -74,11 +74,17 @@ readinessProbe:
 
 resources:
   requests:
-    cpu: 250m
-    memory: 256Mi
+    cpu: 1000m
+    memory: 1Gi
   limits:
-    cpu: "1"
-    memory: 768Mi
+    cpu: 3000m
+    memory: 2Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 8
+  targetCPUUtilizationPercentage: 70
 
 ingress:
   enabled: true
@@ -90,7 +96,7 @@ ingress:
 networkPolicy:
   allowFrom: []
   # The ingress controller's namespace; change it if yours differs.
-  allowFromNamespaces: [ingress-nginx]
+  allowFromNamespaces: [traefik]
   egress:
     enabled: true
     dnsNamespaceLabels:

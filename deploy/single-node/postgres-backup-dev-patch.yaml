@@ -1,0 +1,7 @@
+# Dev and prod both run a cluster called postgres-cluster, so they must not share a backup path.
+# postgres-cluster.yaml targets .../prod; apply this on aethercode-dev after it:
+#   kubectl -n aethercode-dev patch cluster postgres-cluster --type merge --patch-file postgres-backup-dev-patch.yaml
+spec:
+  backup:
+    barmanObjectStore:
+      destinationPath: s3://aethercode-pg-backups/dev

@@ -150,7 +150,10 @@ function ExamWorkspace({ attemptPath, attemptId, tenantId, attempt, paper }: Loa
     catch { return false; }
   });
   const integrity = useIntegrity(attemptPath, live.integrity.requireFullscreen, !readOnly && !ending);
-  useWebcam(live.integrity.webcamRequired && webcamConsentGiven && !readOnly && !ending, tenantId, attemptId);
+  const webcam = useWebcam(live.integrity.webcamRequired && webcamConsentGiven && !readOnly && !ending, tenantId, attemptId);
+  // The exam requires a camera: a denied or missing one blocks the screen until the student fixes it (ADR-0078).
+  const cameraBlocked = live.integrity.webcamRequired && webcamConsentGiven && !readOnly && !ending &&
+    webcam.state.kind !== "active";
   const itemSubmissions = submissions.byItem[currentId];
 
   const statuses = useMemo(() => {
@@ -328,6 +331,34 @@ function ExamWorkspace({ attemptPath, attemptId, tenantId, attempt, paper }: Loa
         </div>
       )}
 
+      {cameraBlocked && (
+        <div role="dialog" aria-modal="true" aria-labelledby="camera-required-title" className="fixed inset-0 z-40 grid place-items-center bg-canvas px-4">
+          <div className="max-w-md text-center">
+            <h2 id="camera-required-title" className="display text-[2rem] text-ink">Camera required</h2>
+            <p className="mt-3 text-[15px] text-ink-muted">
+              {webcam.state.kind === "denied"
+                ? "Camera access was blocked. Allow the camera for this site in your browser settings, then try again."
+                : webcam.state.kind === "unavailable"
+                  ? "No working camera was found, or it was disconnected. Connect one, or ask your invigilator for help."
+                  : "Checking your camera..."}{" "}
+              Your timer keeps running:{" "}
+              <strong className="font-mono text-ink">{remaining === null ? "--:--" : formatCountdown(remaining)}</strong> left.
+            </p>
+            {(webcam.state.kind === "denied" || webcam.state.kind === "unavailable") && (
+              <Button className="mt-8" size="lg" onClick={() => void webcam.request()}>
+                Try again
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {webcam.uploadsFailing && !cameraBlocked && (
+        <div role="status" className="border-b bg-brand-soft px-4 py-2 text-sm text-brand-soft-ink">
+          Your camera pictures are not reaching the invigilator. Check your connection; the exam continues.
+        </div>
+      )}
+
       {latestNote && latestNote.id !== dismissed && (
         <div role="status" className="flex items-start gap-3 border-b bg-brand-soft px-4 py-2 text-sm text-brand-soft-ink">
           <Megaphone className="mt-0.5 size-4 shrink-0" />
@@ -350,7 +381,7 @@ function ExamWorkspace({ attemptPath, attemptId, tenantId, attempt, paper }: Loa
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 lg:flex-row lg:overflow-hidden">
         <QuestionRail items={items} currentId={currentId} statuses={statuses} onSelect={selectQuestion} />
 
-        <div ref={row} className={cn("flex min-h-0 min-w-0 flex-1 flex-col gap-3 lg:flex-row", layout.swap && "lg:flex-row-reverse")}>
+        <div ref={row} inert={cameraBlocked || integrity.needsFullscreen || (live.integrity.webcamRequired && !webcamConsentGiven)} className={cn("flex min-h-0 min-w-0 flex-1 flex-col gap-3 lg:flex-row", layout.swap && "lg:flex-row-reverse")}>
         {statementOpen && !layout.focus && (
           <>
           <section aria-label="Question" className="flex min-h-[260px] min-w-0 flex-col overflow-hidden rounded-3xl border border-line bg-surface shadow-[var(--shadow-panel)] lg:min-h-0" style={{ flexBasis: `${layout.problemPct}%` }}>

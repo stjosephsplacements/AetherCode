@@ -2,6 +2,9 @@ package app
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"net/netip"
 	"net/url"
 	"slices"
@@ -90,6 +93,13 @@ type LockdownStore interface {
 	GetExamPolicy(context.Context, pgx.Tx, string, string) (ExamPolicy, error)
 	CheckExamRequest(context.Context, pgx.Tx, CheckExamRequest) (string, error)
 	CandidateExamTitle(context.Context, pgx.Tx, string, string) (string, error)
+	IssueLaunchTicket(ctx context.Context, tx pgx.Tx, tenantID, examID string, tokenHash []byte) (bool, error)
+	ConsumeLaunchTicket(ctx context.Context, db Queryer, tenantID, examID string, tokenHash []byte) (string, error)
+}
+
+// Queryer is the one pgx method the anonymous ticket path needs, so it runs without a tenant transaction.
+type Queryer interface {
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
 
 func (service *Service) PutExamPolicy(ctx context.Context, capability centralauthz.Capability, command PutExamPolicy) (ExamPolicy, error) {
@@ -201,6 +211,81 @@ func (service *Service) CandidateLaunchFile(ctx context.Context, capability cent
 	})
 	if err != nil {
 		return LaunchFile{}, err
+	}
+	return service.launchFile(examID, title)
+}
+
+// LaunchTicketTTL is how long a ticket opens the launch-file URL (enforced by the database).
+const LaunchTicketTTL = 60 * time.Second
+
+// launchTicketLength is the base64url length of 32 random bytes.
+const launchTicketLength = 43
+
+func hashLaunchTicket(ticket string) ([]byte, bool) {
+	raw, err := base64.RawURLEncoding.DecodeString(ticket)
+	if err != nil || len(ticket) != launchTicketLength {
+		return nil, false
+	}
+	digest := sha256.Sum256(raw)
+	return digest[:], true
+}
+
+func (service *Service) launchConfigured() error {
+	if service.launch.BaseURL == "" || service.launch.Password == "" {
+		return apperrors.New(apperrors.CodeUnavailable, "SEB launch files are not configured")
+	}
+	return nil
+}
+
+// IssueLaunchTicket mints a single-use ticket for the signed candidate's open exam. Only its
+// hash is stored, so the raw value is returned once.
+func (service *Service) IssueLaunchTicket(ctx context.Context, capability centralauthz.Capability, tenantID, examID string) (string, error) {
+	if !isUUID(tenantID) || !isUUID(examID) {
+		return "", invalid("tenant and exam IDs are required")
+	}
+	if err := service.launchConfigured(); err != nil {
+		return "", err
+	}
+	raw := make([]byte, 32)
+	if _, err := rand.Read(raw); err != nil {
+		return "", err
+	}
+	ticket := base64.RawURLEncoding.EncodeToString(raw)
+	hash, _ := hashLaunchTicket(ticket)
+	err := database.WithTenantTx(ctx, service.pool, capability, func(transaction pgx.Tx) error {
+		issued, err := service.lockdown.IssueLaunchTicket(ctx, transaction, tenantID, examID, hash)
+		if err == nil && !issued {
+			return apperrors.New(apperrors.CodeNotFound, "no Safe Exam Browser exam is open for you here")
+		}
+		return err
+	})
+	if err != nil {
+		return "", err
+	}
+	return ticket, nil
+}
+
+// TicketLaunchFile serves the launch file to whoever holds an unspent, unexpired ticket for this
+// exam, and spends it. A malformed, wrong, spent or expired ticket is one indistinguishable error.
+func (service *Service) TicketLaunchFile(ctx context.Context, tenantID, examID, ticket string) (LaunchFile, error) {
+	if !isUUID(tenantID) || !isUUID(examID) {
+		return LaunchFile{}, invalid("tenant and exam IDs are required")
+	}
+	// Checked first so a misconfigured server does not burn the candidate's ticket.
+	if err := service.launchConfigured(); err != nil {
+		return LaunchFile{}, err
+	}
+	denied := apperrors.New(apperrors.CodeUnauthorized, "the launch link is invalid, expired or already used")
+	hash, ok := hashLaunchTicket(ticket)
+	if !ok {
+		return LaunchFile{}, denied
+	}
+	title, err := service.lockdown.ConsumeLaunchTicket(ctx, service.pool, tenantID, examID, hash)
+	if err != nil {
+		return LaunchFile{}, err
+	}
+	if title == "" {
+		return LaunchFile{}, denied
 	}
 	return service.launchFile(examID, title)
 }

@@ -9,7 +9,7 @@ Architecture:
     integrity events back to the submission service.
 
 Database (Prisma):
-  - Cooldown check: last violation of (attempt_id, kind) within cooldown window
+  - Cooldown: Redis SET NX EX per (attempt_id, kind) when configured, else the last violation within the window
   - Idempotency: ProcessedSnapshot table prevents re-analyzing the same frame
   - All violations are persisted for audit / replay
 
@@ -29,8 +29,10 @@ import nats
 from fastapi import FastAPI, Header, HTTPException, Query
 from minio import Minio
 from prisma import Prisma
+from redis.asyncio import Redis
 
 from .config import settings
+from .cooldown import claim as claim_cooldown, release as release_cooldown
 from .detector import Detector
 from .models import AnalysisResult, SnapshotEvent, Violation
 from .policy import (RECORDED_SUBJECT, THRESHOLD_SUBJECT, ProctorPolicy, threshold_event,
@@ -44,11 +46,12 @@ _minio: Minio | None = None
 _db: Prisma | None = None
 _nc: nats.aio.client.Client | None = None
 _http: httpx.AsyncClient | None = None
+_redis: Redis | None = None
 
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
-    global _detector, _minio, _db, _nc, _http
+    global _detector, _minio, _db, _nc, _http, _redis
 
     logger.info("Connecting to Prisma DB…")
     _db = Prisma()
@@ -70,6 +73,8 @@ async def lifespan(application: FastAPI):
     )
 
     _http = httpx.AsyncClient(base_url=settings.submission_url, timeout=10)
+    if settings.redis_url:
+        _redis = Redis.from_url(settings.redis_url, socket_timeout=0.2, socket_connect_timeout=0.5)
 
     logger.info("Starting NATS consumer on %s", settings.nats_subject)
     _nc = await nats.connect(settings.nats_url)
@@ -79,6 +84,8 @@ async def lifespan(application: FastAPI):
     logger.info("Proctor shutting down")
     await _nc.drain()
     await _http.aclose()
+    if _redis is not None:
+        await _redis.aclose()
     await _db.disconnect()
 
 
@@ -171,7 +178,7 @@ def _effective_policy(event: SnapshotEvent) -> ProctorPolicy:
 
 
 # Serialises the cooldown check and insert for one attempt inside this process.
-# Replicas still race; a database constraint would be needed to close that.
+# Replicas are serialised by the Redis claim in proctor.cooldown when PROCTOR_REDIS_URL is set; without it they can race.
 _attempt_locks: dict[str, asyncio.Lock] = {}
 
 
@@ -201,7 +208,6 @@ async def _process_locked(event: SnapshotEvent) -> None:
         return
 
     raw_violations = await loop.run_in_executor(None, _detector.analyze, jpeg)
-    await _mark_processed(event.snapshot_id)
 
     elapsed = int((time.monotonic() - t0) * 1000)
     logger.info(
@@ -211,36 +217,40 @@ async def _process_locked(event: SnapshotEvent) -> None:
 
     policy = _effective_policy(event)
     cooldown = policy.cooldown(settings.violation_cooldown_seconds)
+    store_failure: Exception | None = None
     for v in raw_violations:
-        if not await _is_cooled_down(event.attempt_id, v["kind"], cooldown):
+        kind = v["kind"]
+        if not await claim_cooldown(
+            _redis, event.attempt_id, kind, cooldown, lambda kind=kind: _is_cooled_down(event.attempt_id, kind, cooldown)
+        ):
             continue
 
         # Persist violation to DB first (idempotent on re-delivery)
-        row = await _store_violation(
-            tenant_id=event.tenant_id,
-            attempt_id=event.attempt_id,
-            snapshot_id=event.snapshot_id,
-            kind=v["kind"],
-            confidence=v["confidence"],
-            details=v.get("details", ""),
-        )
-        await _publish_recorded(event, row)
-
-        # Post integrity event to submission service (best-effort)
         try:
-            r = await _http.post(
-                f"/v1/tenants/{event.tenant_id}/attempts/{event.attempt_id}/events",
-                json={"kind": v["kind"]},
-                headers={"X-Internal-Proctor": "true"},
+            row = await _store_violation(
+                tenant_id=event.tenant_id,
+                attempt_id=event.attempt_id,
+                snapshot_id=event.snapshot_id,
+                kind=kind,
+                confidence=v["confidence"],
+                details=v.get("details", ""),
             )
-            r.raise_for_status()
-            logger.info("Posted %s violation for attempt %s", v["kind"], event.attempt_id)
         except Exception as exc:
-            logger.warning("Failed to post violation %s: %s", v["kind"], exc)
+            # Keep this violation retryable, but do not lose the others in the frame or skip the breach check.
+            logger.error("Cannot store %s violation for snapshot %s: %s", kind, event.snapshot_id, exc)
+            await release_cooldown(_redis, event.attempt_id, kind)
+            store_failure = exc
+            continue
+        await _publish_recorded(event, row)
 
     # Checked on every analysed frame, not only after a new violation: a publish
     # that failed earlier is retried by the next frame (the message id dedups).
     await _publish_if_breached(event, policy)
+
+    # Only now is the snapshot done: a failure above leaves it unmarked so a redelivery retries the violations.
+    if store_failure is not None:
+        raise store_failure
+    await _mark_processed(event.snapshot_id)
 
 
 async def _publish_recorded(event: SnapshotEvent, row) -> None:

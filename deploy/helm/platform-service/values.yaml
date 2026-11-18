@@ -110,6 +110,18 @@ autoscaling:
   minReplicas: 2
   maxReplicas: 10
   targetCPUUtilizationPercentage: 70
+  # Exam traffic arrives in bursts: scale up at once, scale down only after five quiet minutes.
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      selectPolicy: Max
+      policies:
+        - {type: Percent, value: 100, periodSeconds: 15}
+        - {type: Pods, value: 4, periodSeconds: 15}
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - {type: Percent, value: 50, periodSeconds: 60}
 
 podDisruptionBudget:
   enabled: true

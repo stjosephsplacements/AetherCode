@@ -73,23 +73,30 @@ func (store *Store) Inbox() *messaging.InboxStore {
 }
 
 type studentEnrolled struct {
-	StudentID             string `json:"student_id"`
-	PrincipalID           string `json:"principal_id"`
-	TenantID              string `json:"tenant_id"`
-	CollegeDepartmentID   string `json:"college_department_id"`
-	PlacementDepartmentID string `json:"placement_department_id"`
+	StudentID           string `json:"student_id"`
+	PrincipalID         string `json:"principal_id"`
+	TenantID            string `json:"tenant_id"`
+	CollegeDepartmentID string `json:"college_department_id"`
+	// PlacementDepartmentID is null for a student enrolled without a placement department.
+	PlacementDepartmentID *string `json:"placement_department_id"`
 }
 
 func (store *Store) ApplyStudentEnrolled(ctx context.Context, event messaging.Event) error {
 	var payload studentEnrolled
 	if err := decodeEvent(event, StudentEnrolledEventType, &payload); err != nil ||
 		!sameUUID(payload.TenantID, event.TenantID) || !validUUID(payload.StudentID) ||
-		!validUUID(payload.PrincipalID) || !validUUID(payload.CollegeDepartmentID) || !validUUID(payload.PlacementDepartmentID) {
+		!validUUID(payload.PrincipalID) || !validUUID(payload.CollegeDepartmentID) ||
+		(payload.PlacementDepartmentID != nil && !validUUID(*payload.PlacementDepartmentID)) {
 		return permanent("student enrollment event is invalid", err)
 	}
 	return store.process(ctx, "analytics_student_enrolled_v1", event, func(tx pgx.Tx) error {
 		if err := store.recordEventFact(ctx, tx, event); err != nil {
 			return err
+		}
+		if payload.PlacementDepartmentID == nil {
+			// The affiliation and placement-rollup tables are keyed by placement department: a student with none
+			// has nothing to project here until one is assigned.
+			return nil
 		}
 		_, err := tx.Exec(ctx, `
 			INSERT INTO analytics.student_affiliation_projections (
@@ -103,7 +110,7 @@ func (store *Store) ApplyStudentEnrolled(ctx context.Context, event messaging.Ev
 				source_occurred_at = EXCLUDED.source_occurred_at,
 				updated_at = clock_timestamp()
 			WHERE EXCLUDED.source_occurred_at >= analytics.student_affiliation_projections.source_occurred_at
-		`, payload.TenantID, payload.StudentID, payload.CollegeDepartmentID, payload.PlacementDepartmentID,
+		`, payload.TenantID, payload.StudentID, payload.CollegeDepartmentID, *payload.PlacementDepartmentID,
 			event.ID, event.OccurredAt.UTC())
 		if err != nil {
 			return projectionError(err, "upsert student affiliation")

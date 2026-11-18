@@ -193,7 +193,8 @@ func (handler *Handler) ServeHTTP(writer http.ResponseWriter, request *http.Requ
 
 	public := (matched.service == "identity" && isPublicIdentityRoute(request.Method, matched.forwardedPath)) ||
 		(matched.service == "user" && isPublicProfileRoute(request.Method, matched.forwardedPath)) ||
-		(matched.service == "analytics" && isPublicTalentCardRoute(request.Method, matched.forwardedPath))
+		(matched.service == "analytics" && isPublicTalentCardRoute(request.Method, matched.forwardedPath)) ||
+		(matched.service == "seb" && isPublicLaunchFileRoute(request.Method, matched.forwardedPath, request.URL.Query().Get("ticket")))
 	assertion := ""
 	principalID := ""
 	if !public {
@@ -301,10 +302,26 @@ func isPublicProfileRoute(method, forwardedPath string) bool {
 
 // publicTalentCardPattern is the other anonymous read: a recruiter verifying a talent
 // card token (ADR-0081). The token is a v1 signed token; Analytics checks the signature.
-var publicTalentCardPattern = regexp.MustCompile(`^/v1/public/talent-cards/v1\.[A-Za-z0-9_-]{1,1000}\.[A-Za-z0-9_-]{1,128}$`)
+var publicTalentCardPattern = regexp.MustCompile(`^/v1/public/talent-cards/v1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{1,128}$`)
+
+// maxPublicTalentCardPath bounds the claims segment (Go's regexp cannot repeat more than 1000 times). A card's claims
+// are a few hundred bytes of JSON at most, base64url encoded; this leaves room for the longest identity fields.
+const maxPublicTalentCardPath = 4096
 
 func isPublicTalentCardRoute(method, forwardedPath string) bool {
-	return method == http.MethodGet && publicTalentCardPattern.MatchString(forwardedPath)
+	return method == http.MethodGet && len(forwardedPath) <= maxPublicTalentCardPath && publicTalentCardPattern.MatchString(forwardedPath)
+}
+
+// publicLaunchFilePattern is the one anonymous SEB route: Safe Exam Browser fetching a sebs://
+// link has no session, so a one-time launch ticket in the query stands in for the bearer. The SEB
+// service spends the ticket; without a well-formed one the request needs a bearer like any other.
+var (
+	publicLaunchFilePattern = regexp.MustCompile(`^/v1/tenants/[0-9a-fA-F-]{36}/exams/[0-9a-fA-F-]{36}/launch-file$`)
+	launchTicketPattern     = regexp.MustCompile(`^[A-Za-z0-9_-]{43}$`)
+)
+
+func isPublicLaunchFileRoute(method, forwardedPath, ticket string) bool {
+	return method == http.MethodGet && publicLaunchFilePattern.MatchString(forwardedPath) && launchTicketPattern.MatchString(ticket)
 }
 
 func isPublicIdentityRoute(method, forwardedPath string) bool {
@@ -380,16 +397,23 @@ func (handler *Handler) clientIP(request *http.Request) (string, error) {
 	if len(parts) == 0 || len(parts) > 16 {
 		return "", errors.New("invalid forwarded-for chain")
 	}
-	client := net.ParseIP(strings.TrimSpace(parts[0]))
-	if client == nil {
-		return "", errors.New("invalid forwarded-for source")
-	}
-	for _, part := range parts {
-		if net.ParseIP(strings.TrimSpace(part)) == nil {
+	chain := make([]net.IP, len(parts))
+	for index, part := range parts {
+		chain[index] = net.ParseIP(strings.TrimSpace(part))
+		if chain[index] == nil {
 			return "", errors.New("invalid forwarded-for chain")
 		}
 	}
-	return client.String(), nil
+	// The client is the rightmost address that none of our own proxies added. Everything to the left of it is
+	// whatever the client chose to send (Cloudflare appends to an existing header instead of replacing it), so
+	// reading the leftmost entry would let a student outside the lab claim a lab address (ADR-0030).
+	// shortcut: loopback counts as a proxy hop because cloudflared runs on the node; drop it if that changes.
+	for index := len(chain) - 1; index >= 0; index-- {
+		if !chain[index].IsLoopback() && !handler.isTrustedProxy(chain[index]) {
+			return chain[index].String(), nil
+		}
+	}
+	return chain[0].String(), nil // every hop is internal: an in-cluster caller
 }
 
 func parseIPFromRemoteAddr(remoteAddress string) (net.IP, error) {

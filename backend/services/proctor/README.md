@@ -15,7 +15,7 @@ submission (NATS proctor.analyze) → proctor → MinIO (fetch JPEG)
 
 Violation kinds: `phone_detected`, `multiple_faces`, `face_missing`, `gaze_away`.
 
-A per-attempt, per-kind cooldown (default 30 s, DB-backed) prevents event floods.
+A per-attempt, per-kind cooldown (default 30 s) prevents event floods. With `PROCTOR_REDIS_URL` set it is one atomic Redis `SET proctor:cooldown:{attempt}:{kind} 1 NX EX {seconds}`, so replicas cannot double-count; without it, or if Redis errors, the database check runs and replicas can race.
 The `processed_snapshots` table provides idempotency across restarts.
 
 ## Requirements
@@ -30,12 +30,13 @@ All vars are prefixed `PROCTOR_` via pydantic-settings.
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `PROCTOR_DATABASE_URL` | **yes** | Prisma connection URL (`postgresql://user:pass@host/db`) |
-| `PROCTOR_DATABASE_DIRECT_URL` | **yes** | Direct (non-pooled) URL for migrations |
+| `PROCTOR_DATABASE_URL` | **yes** | Prisma connection URL, carrying the query parameter `schema=proctor` (`postgresql://user:pass@host/db?schema=proctor`; join it with `&` when the URL already has a query such as `sslmode`): the tables are in the `proctor` schema |
+| `PROCTOR_DATABASE_DIRECT_URL` | **yes** | Direct (non-pooled) URL for migrations, also carrying `schema=proctor` |
 | `PROCTOR_MINIO_ENDPOINT` | no | MinIO host:port (default `minio:9000`) |
 | `PROCTOR_MINIO_ACCESS_KEY` | **yes** | MinIO access key |
 | `PROCTOR_MINIO_SECRET_KEY` | **yes** | MinIO secret key |
 | `PROCTOR_MINIO_BUCKET` | no | Bucket name (default `aethercode`) |
+| `PROCTOR_REDIS_URL` | no | Redis URL for the shared cooldown (empty = database check) |
 | `PROCTOR_NATS_URL` | no | NATS URL (default `nats://nats:4222`) |
 | `PROCTOR_NATS_SUBJECT` | no | Subject to subscribe (default `proctor.analyze`) |
 | `PROCTOR_YOLO_MODEL` | no | Model path (default `yolov8x.pt`) |
@@ -43,6 +44,7 @@ All vars are prefixed `PROCTOR_` via pydantic-settings.
 | `PROCTOR_CONFIDENCE_PERSON` | no | Person detection threshold (default `0.60`) |
 | `PROCTOR_VIOLATION_COOLDOWN_SECONDS` | no | Per-attempt, per-kind cooldown (default `30`) |
 | `PROCTOR_SUBMISSION_URL` | no | Submission service base URL (default `http://submission:8080`) |
+| `PROCTOR_INTERNAL_TOKEN` | no | Bearer token Submission presents on `GET /violations`; empty disables the endpoint (it answers 503) |
 
 In Kubernetes, `PROCTOR_DATABASE_URL` and credentials are injected from the
 `aethercode-secrets` Secret — see `deploy/helm/platform-service/values-proctor.yaml`.
@@ -72,3 +74,4 @@ prisma db push         # apply schema to dev DB (use migrations in prod)
 |----------|-------------|
 | `GET /healthz` | Liveness check (returns model_loaded, db_connected) |
 | `POST /analyze` | Direct HTTP trigger (smoke testing without NATS) |
+| `GET /violations?tenant_id=<uuid>&attempt_id=<uuid>` | Violations for an attempt (both parameters required), for Submission only: requires `Authorization: Bearer $PROCTOR_INTERNAL_TOKEN`, 503 when the token is unset |

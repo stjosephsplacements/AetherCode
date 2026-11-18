@@ -7,6 +7,20 @@ image:
 
 replicaCount: 2
 
+resources:
+  requests:
+    cpu: 1000m
+    memory: 1Gi
+  limits:
+    cpu: 3000m
+    memory: 2Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 70
+
 ports:
   - name: grpc
     port: 9445
@@ -41,8 +55,16 @@ secretEnv:
 env:
   - name: QBANK_DATABASE_URL
     value: "postgres://aether_question_bank_app:$(QBANK_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_qbank?sslmode={{ .Values.global.postgresSSLMode }}"
+  - name: QBANK_DB_MAX_CONNS
+    value: "8"
+  - name: QBANK_DB_MIN_CONNS
+    value: "2"
   - name: QBANK_PROJECTION_DATABASE_URL
     value: "postgres://aether_question_bank_projection_worker:$(QBANK_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_qbank?sslmode={{ .Values.global.postgresSSLMode }}"
+  - name: QBANK_PROJECTION_DB_MAX_CONNS
+    value: "2"
+  - name: QBANK_PROJECTION_DB_MIN_CONNS
+    value: "1"
   - name: QBANK_STORAGE_ENDPOINT
     value: "{{ .Values.global.minioEndpoint }}"
   - name: QBANK_STORAGE_ACCESS_KEY

@@ -24,6 +24,7 @@ readonly -a PLATFORM_DATABASES=(
   "seb:aether_seb:aether_seb_migrator:aether_seb_owner:aether_seb_app"
   "notification:aether_notification:aether_notification_migrator:aether_notification_owner:aether_notification_app"
   "analytics:aether_analytics:aether_analytics_migrator:aether_analytics_owner:aether_analytics_app"
+  "proctor:aether_proctor:aether_proctor_migrator:aether_proctor_owner:aether_proctor_app"
 )
 
 readonly -a PLATFORM_CONNECT_IDENTITIES=(
@@ -36,6 +37,7 @@ readonly -a PLATFORM_CONNECT_IDENTITIES=(
   "aether_seb:aether_seb_migrator:aether_seb_app:aether_seb_authz_reader:aether_seb_projection_worker"
   "aether_notification:aether_notification_migrator:aether_notification_app:aether_notification_authz_reader:aether_notification_projection_worker:aether_notification_retention_worker"
   "aether_analytics:aether_analytics_migrator:aether_analytics_app:aether_analytics_authz_reader:aether_analytics_projection_worker"
+  "aether_proctor:aether_proctor_migrator:aether_proctor_app:aether_proctor_authz_reader:aether_proctor_projection_worker"
 )
 
 container_started=false
@@ -119,6 +121,7 @@ start_postgres() {
     --env "SEB_DB_PASSWORD=${SERVICE_PASSWORD}" \
     --env "NOTIFICATION_DB_PASSWORD=${SERVICE_PASSWORD}" \
     --env "ANALYTICS_DB_PASSWORD=${SERVICE_PASSWORD}" \
+    --env "PROCTOR_DB_PASSWORD=${SERVICE_PASSWORD}" \
     --volume "${REPOSITORY_ROOT}/deploy/database/platform/dev-init.sh:/docker-entrypoint-initdb.d/00-aethercode-roles.sh:ro" \
     --volume "${REPOSITORY_ROOT}/deploy/database/platform/grant-connect.sql:/bootstrap/platform-grant-connect.sql:ro" \
     --volume "${REPOSITORY_ROOT}/deploy/database/judge-control/roles.sql:/bootstrap/judge-roles.sql:ro" \
@@ -582,68 +585,17 @@ SELECT
 }
 
 assert_user_batch_affiliation_policies() {
+  # The Casbin policy table was dropped by migration 000045 (ADR-0075 RBAC bitset cutover) and nothing recreates it,
+  # so the batch and self policy-row checks that used to live here no longer have anything to query. What replaced
+  # them is the role bit sets; assert the old table really is gone so a regression cannot bring back a second,
+  # divergent decision model.
   local table_exists
-  # Migration 000045 drops authorization_policy_rules (ADR-0075 RBAC bitset cutover).
-  # Once that migration has been applied the Casbin table no longer exists, so
-  # the policy-row assertions below are vacuously satisfied and we skip them.
   table_exists="$(database_psql aether_users --tuples-only --no-align --command "
 SELECT EXISTS (
   SELECT 1 FROM information_schema.tables
   WHERE table_schema = 'users' AND table_name = 'authorization_policy_rules'
 );")"
-  if [[ "$table_exists" != 't' ]]; then
-    return 0  # table dropped by 000045 — assertions no longer apply
-  fi
-
-  local state
-  # These rules were added after the submission self rules. Keep both sets in
-  # the verifier because a reused UUID would make a rollback of the batch
-  # migration silently delete unrelated attempt authorization policy.
-  state="$(database_psql aether_users --tuples-only --no-align --field-separator='|' --command "
-SELECT
-  EXISTS (
-    SELECT 1
-    FROM users.authorization_policy_rules
-    WHERE id = '018f4b0d-08f8-7c09-9ba7-efdf9c220017'::uuid
-      AND ptype = 'p'
-      AND v0 = 'placement_user'
-      AND v1 = 'placement_department'
-      AND v2 = '/student_batch_affiliations/:id'
-      AND v3 = 'read'
-  ),
-  EXISTS (
-    SELECT 1
-    FROM users.authorization_policy_rules
-    WHERE id = '018f4b0d-08f8-7c09-9ba7-efdf9c220018'::uuid
-      AND ptype = 'p'
-      AND v0 = 'placement_user'
-      AND v1 = 'placement_department'
-      AND v2 = '/student_batch_affiliations/:id'
-      AND v3 = 'write'
-  ),
-  EXISTS (
-    SELECT 1
-    FROM users.authorization_policy_rules
-    WHERE id = '018f4b0d-08f8-7c09-9ba7-efdf9c220012'::uuid
-      AND ptype = 'p'
-      AND v0 = 'student'
-      AND v1 = 'self'
-      AND v2 = '/attempts/:id'
-      AND v3 = 'read'
-  ),
-  EXISTS (
-    SELECT 1
-    FROM users.authorization_policy_rules
-    WHERE id = '018f4b0d-08f8-7c09-9ba7-efdf9c220013'::uuid
-      AND ptype = 'p'
-      AND v0 = 'student'
-      AND v1 = 'self'
-      AND v2 = '/attempts/:id'
-      AND v3 = 'write'
-  );
-")"
-  [[ "$state" == 't|t|t|t' ]] || fail \
-    "unexpected User batch or submission authorization policies: ${state}"
+  [[ "$table_exists" == 'f' ]] || fail "users.authorization_policy_rules still exists after the RBAC bitset cutover"
 }
 
 assert_notification_retention_execution_boundary() {
@@ -1176,7 +1128,8 @@ main() {
   restart_postgres
   for entry in "${PLATFORM_DATABASES[@]}"; do
     IFS=':' read -r service database migrator owner application <<<"$entry"
-    assert_capability_replay_schema "$database"
+    # The proctor database has no authz schema: it is not a capability-checked service.
+    [[ "$service" == proctor ]] || assert_capability_replay_schema "$database"
   done
   assert_superuser_rejected
 

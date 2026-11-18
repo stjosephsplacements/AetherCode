@@ -69,11 +69,13 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
   const base = lists[tab];
   const tagNames = [...new Set(base.flatMap((row) => row.tags))].filter((entry) => !isCompanyTag(entry)).sort();
   const companyNames = companiesIn(base.map((row) => row.tags));
+  // A company chosen on another tab may not exist on this one: fall back to "all" so the list is not filtered by a hidden control.
+  const selectedCompany = companyNames.includes(company) ? company : "all";
   const rows = base.filter(
     (row) =>
       (difficulty === "all" || row.difficulty === difficulty) &&
       (tag === "all" || row.tags.includes(tag)) &&
-      matchesCompany(row.tags, company) &&
+      matchesCompany(row.tags, selectedCompany) &&
       (!needle || row.title.toLowerCase().includes(needle) || row.slug.includes(needle) || row.tags.some((entry) => entry.includes(needle))),
   );
   // An older question bank has no categories; its questions sit in one "Uncategorised" folder, as the backfill files them.
@@ -84,7 +86,7 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
     const deep = [...entry.rows, ...flat.filter((child) => child.parent_id === entry.id).flatMap((child) => child.rows)];
     return { ...entry, deep, children: flat.filter((child) => child.parent_id === entry.id), levels: { easy: deep.filter((row) => row.difficulty === "easy").length, medium: deep.filter((row) => row.difficulty === "medium").length, hard: deep.filter((row) => row.difficulty === "hard").length } };
   });
-  const filtering = Boolean(needle) || difficulty !== "all" || tag !== "all" || company !== "all";
+  const filtering = Boolean(needle) || difficulty !== "all" || tag !== "all" || selectedCompany !== "all";
   const open = folders.find((entry) => (entry.id || UNCATEGORISED) === folder) ?? null;
   const parentOfOpen = open?.parent_id ? folders.find((entry) => entry.id === open.parent_id) : undefined;
   const topFolders = folders.filter((entry) => !entry.parent_id);
@@ -137,7 +139,7 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
           )}
         </div>
         {companyNames.length > 0 && (
-          <Select aria-label="Company" size="sm" className="w-44 capitalize" value={company} onValueChange={setCompany}>
+          <Select aria-label="Company" size="sm" className="w-44 capitalize" value={selectedCompany} onValueChange={setCompany}>
             <option value="all">Any company</option>
             {companyNames.map((entry) => (
               <option key={entry} value={entry}>
