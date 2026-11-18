@@ -1,0 +1,20 @@
+# Daily base backup of postgres-cluster. Apply it with -n in aethercode-dev and aethercode-prod;
+# minio-backup-netpol.yaml (namespace minio) lets the database pods reach MinIO. WAL is archived continuously
+# by the cluster's backup block (postgres-cluster.yaml).
+#
+# One-time setup, done once on the server: a bucket `aethercode-pg-backups` in the shared MinIO
+# and a user `cnpg-backup` whose policy allows only that bucket; its keys live in the Secret
+# `cnpg-backup-s3` (ACCESS_KEY_ID, ACCESS_SECRET_KEY) in each namespace. Restore by creating a
+# Cluster with bootstrap.recovery from the same object store.
+#
+# Limit: the backups sit on the same server as the database. They survive a bad migration or a
+# dropped table, not the loss of the machine.
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: postgres-cluster-daily
+spec:
+  schedule: "0 0 2 * * *"   # six fields, with seconds: 02:00 every day
+  backupOwnerReference: self
+  cluster: {name: postgres-cluster}
+  method: barmanObjectStore

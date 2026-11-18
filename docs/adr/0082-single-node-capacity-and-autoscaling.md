@@ -36,3 +36,12 @@ connections, and the production Postgres chart assumed three hosts.
   the `Unconfined` setting first used here. The profile must be loaded on the node before the
   cluster starts. Ruled out on the way: the backup stanza, sizes, namespace, disk, THP settings, the
   image's Debian base, and PostgreSQL minor version.
+
+## Backups
+
+The cluster's `backup.barmanObjectStore` archives WAL and a daily base backup to a bucket in the
+shared MinIO, through a user that can reach only that bucket. The built-in Barman support is
+deprecated and removed in CloudNativePG 1.31; the cluster must move to the Barman Cloud plugin
+before the operator is upgraded past 1.30. The backups share the server with the database, so they
+protect against data mistakes, not against losing the machine; copying the bucket off the host is
+open.
