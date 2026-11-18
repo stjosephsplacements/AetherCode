@@ -4,6 +4,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"regexp"
 	"strings"
 	"time"
@@ -26,7 +27,8 @@ type Store interface {
 	Authenticate(context.Context, Login) (Session, error)
 	RotateRefresh(context.Context, RefreshRotation) (Session, error)
 	RevokeRefresh(context.Context, []byte, string) error
-	RequestPasswordReset(context.Context, PasswordResetRequest) error
+	// RequestPasswordReset reports whether a live account matched; an unknown address records an event and returns false.
+	RequestPasswordReset(context.Context, PasswordResetRequest) (bool, error)
 	ResetPassword(context.Context, PasswordReset) error
 	ChangePassword(context.Context, PasswordChange) error
 	ValidateAccessToken(context.Context, string, string) error
@@ -247,7 +249,17 @@ type Service struct {
 	newID                     func() (string, error)
 	newOpaqueToken            func() (string, error)
 	deriveDeliveryToken       func(string, string) (string, error)
+	// mailer is set by UseMailer when email delivery is configured.
+	mailer Mailer
 }
+
+// Mailer delivers the reset link. It is optional: without one the reset token is only available to operators.
+type Mailer interface {
+	SendPasswordReset(ctx context.Context, to, token string, validFor time.Duration) error
+}
+
+// UseMailer turns on emailing reset links.
+func (service *Service) UseMailer(mailer Mailer) { service.mailer = mailer }
 
 // Options supplies validated runtime values to the identity use cases.
 type Options struct {
@@ -537,11 +549,24 @@ func (service *Service) RequestPasswordReset(contextValue context.Context, email
 		return "", err
 	}
 	hash := domain.HashToken(token)
-	if err := service.store.RequestPasswordReset(contextValue, PasswordResetRequest{
+	matched, err := service.store.RequestPasswordReset(contextValue, PasswordResetRequest{
 		TokenID: id, Email: email, TokenHash: hash[:], ExpiresAt: service.now().UTC().Add(service.passwordResetLifetime),
 		RequestIP: strings.TrimSpace(requestIP), RequestID: strings.TrimSpace(requestID),
-	}); err != nil {
+	})
+	if err != nil {
 		return "", err
+	}
+	if matched && service.mailer != nil {
+		// Sent after the response so a caller cannot tell a known address from an unknown one by timing, and so a
+		// mail outage cannot fail the request; the operator path (cmd/deliver-reset) still works.
+		lifetime := service.passwordResetLifetime
+		go func() {
+			sendContext, cancel := context.WithTimeout(context.WithoutCancel(contextValue), 30*time.Second)
+			defer cancel()
+			if err := service.mailer.SendPasswordReset(sendContext, email, token, lifetime); err != nil {
+				slog.Warn("password reset email was not sent", "request_id", requestID, "error", err)
+			}
+		}()
 	}
 	return token, nil
 }

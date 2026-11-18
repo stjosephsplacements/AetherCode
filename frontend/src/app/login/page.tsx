@@ -16,8 +16,8 @@ const SSO_ERRORS: Record<string, string> = {
 
 export const metadata: Metadata = { title: "Sign in" };
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; sso?: string }> }) {
-  const { next, sso } = await searchParams;
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; sso?: string; reset?: string }> }) {
+  const { next, sso, reset } = await searchParams;
   const ssoEnabled = process.env.AETHERCODE_SSO === "on";
   const ssoError = sso ? (SSO_ERRORS[sso] ?? SSO_ERRORS.failed) : null;
   return (
@@ -57,6 +57,11 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           </p>
 
           <div className="mt-8">
+            {reset === "done" && (
+              <p role="status" className="mb-6 rounded-2xl border border-line-strong bg-surface/50 px-4 py-3 font-mono text-[13px] text-ink">
+                Your password has been changed. Sign in with the new one.
+              </p>
+            )}
             {ssoError && (
               <p role="alert" className="mb-6 rounded-2xl border border-danger bg-danger-soft px-4 py-3 font-mono text-[13px] text-danger">
                 [!] {ssoError}

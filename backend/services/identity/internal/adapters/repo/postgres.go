@@ -460,10 +460,10 @@ func (repository *Postgres) RevokeRefresh(contextValue context.Context, tokenHas
 
 // RequestPasswordReset creates a reset token for a live principal without
 // leaking whether the supplied email exists.
-func (repository *Postgres) RequestPasswordReset(contextValue context.Context, command app.PasswordResetRequest) error {
+func (repository *Postgres) RequestPasswordReset(contextValue context.Context, command app.PasswordResetRequest) (bool, error) {
 	transaction, err := repository.pool.BeginTx(contextValue, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
 	if err != nil {
-		return fmt.Errorf("begin password reset request: %w", err)
+		return false, fmt.Errorf("begin password reset request: %w", err)
 	}
 	defer func() { _ = transaction.Rollback(contextValue) }()
 	var principalID string
@@ -478,34 +478,34 @@ func (repository *Postgres) RequestPasswordReset(contextValue context.Context, c
 			EventType: "identity.password_reset_requested.v1", Outcome: "failure", RequestID: command.RequestID,
 			IPAddress: command.RequestIP, Metadata: map[string]string{"reason": "unknown_or_inactive_principal"},
 		}); err != nil {
-			return err
+			return false, err
 		}
 		if err := transaction.Commit(contextValue); err != nil {
-			return fmt.Errorf("commit generic password reset request: %w", err)
+			return false, fmt.Errorf("commit generic password reset request: %w", err)
 		}
-		return nil
+		return false, nil
 	}
 	if err != nil {
-		return fmt.Errorf("look up password reset principal: %w", err)
+		return false, fmt.Errorf("look up password reset principal: %w", err)
 	}
 	if _, err := transaction.Exec(contextValue, `
 		UPDATE identity.password_reset_tokens
 		SET consumed_at = clock_timestamp()
 		WHERE principal_id = $1 AND consumed_at IS NULL
 	`, principalID); err != nil {
-		return fmt.Errorf("retire prior reset tokens: %w", err)
+		return false, fmt.Errorf("retire prior reset tokens: %w", err)
 	}
 	if _, err := transaction.Exec(contextValue, `
 		INSERT INTO identity.password_reset_tokens (id, principal_id, token_hash, expires_at, request_ip)
 		VALUES ($1, $2, $3, $4, NULLIF($5, '')::inet)
 	`, command.TokenID, principalID, command.TokenHash, command.ExpiresAt.UTC(), command.RequestIP); err != nil {
-		return fmt.Errorf("store password reset token: %w", err)
+		return false, fmt.Errorf("store password reset token: %w", err)
 	}
 	if err := repository.recordAuthEvent(contextValue, transaction, authEvent{
 		PrincipalID: principalID, EventType: "identity.password_reset_requested.v1", Outcome: "success",
 		RequestID: command.RequestID, IPAddress: command.RequestIP,
 	}); err != nil {
-		return err
+		return false, err
 	}
 	payload, err := json.Marshal(struct {
 		PrincipalID string    `json:"principal_id"`
@@ -514,15 +514,15 @@ func (repository *Postgres) RequestPasswordReset(contextValue context.Context, c
 		ExpiresAt   time.Time `json:"expires_at"`
 	}{PrincipalID: principalID, Email: command.Email, TokenID: command.TokenID, ExpiresAt: command.ExpiresAt.UTC()})
 	if err != nil {
-		return fmt.Errorf("encode password reset requested event: %w", err)
+		return false, fmt.Errorf("encode password reset requested event: %w", err)
 	}
 	if err := repository.enqueue(contextValue, transaction, principalID, "identity.password_reset.requested.v1", payload); err != nil {
-		return err
+		return false, err
 	}
 	if err := transaction.Commit(contextValue); err != nil {
-		return fmt.Errorf("commit password reset request: %w", err)
+		return false, fmt.Errorf("commit password reset request: %w", err)
 	}
-	return nil
+	return true, nil
 }
 
 // ResetPassword changes credentials, consumes the one-time token, clears any

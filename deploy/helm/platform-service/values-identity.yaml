@@ -19,6 +19,7 @@ config:
   SERVICE_NAME: "identity"
   IDENTITY_ACCESS_TOKEN_ISSUER: "aethercode-identity"
   IDENTITY_ACCESS_TOKEN_AUDIENCE: "aethercode"
+  IDENTITY_PUBLIC_BASE_URL: "{{ required \"global.publicOrigin is required\" .Values.global.publicOrigin }}"
   IDENTITY_INTROSPECTION_ADDR: "0.0.0.0:9444"
   IDENTITY_INTROSPECTION_TLS_CERT_FILE: "/certs/tls.crt"
   IDENTITY_INTROSPECTION_TLS_KEY_FILE: "/certs/tls.key"
@@ -40,6 +41,12 @@ secretEnv:
   - name: IDENTITY_MFA_MASTER_KEYS_JSON
   - name: IDENTITY_SSO_CLIENT_SECRET
     optional: true
+  # Password-reset email through Microsoft Graph. The Secret aethercode-mail (tenant-id, client-id, client-secret, sender)
+  # is created by the operator; without it mail stays off and the pods still start.
+  - {name: IDENTITY_MAIL_TENANT_ID, secretName: aethercode-mail, key: tenant-id, optional: true}
+  - {name: IDENTITY_MAIL_CLIENT_ID, secretName: aethercode-mail, key: client-id, optional: true}
+  - {name: IDENTITY_MAIL_CLIENT_SECRET, secretName: aethercode-mail, key: client-secret, optional: true}
+  - {name: IDENTITY_MAIL_SENDER, secretName: aethercode-mail, key: sender, optional: true}
 
 env:
   - name: IDENTITY_DATABASE_URL
@@ -70,7 +77,15 @@ networkPolicy:
       enabled: false
     # SSO provider (ADR-0042): if SSO is enabled, identity must reach the OIDC
     # provider. Add an egress rule to the provider's namespace+port here.
-    extraRules: []
+    extraRules:
+      # Password-reset email goes to Microsoft Graph and its sign-in endpoint (HTTPS). Anything public except private ranges.
+      - to:
+          - ipBlock:
+              cidr: 0.0.0.0/0
+              except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16]
+        ports:
+          - protocol: TCP
+            port: 443
 
 sso:
   # Single sign-on (ADR-0042). Empty issuer = SSO off. Not currently in use.

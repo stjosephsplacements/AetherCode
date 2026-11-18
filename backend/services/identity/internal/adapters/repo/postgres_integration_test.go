@@ -169,10 +169,18 @@ func TestBootstrapPrincipalActivatesThroughReset(t *testing.T) {
 	require.NoError(t, err)
 	tokenHash := make([]byte, 32)
 	tokenHash[0] = 1
-	require.NoError(t, repository.RequestPasswordReset(ctx, app.PasswordResetRequest{
+	matched, err := repository.RequestPasswordReset(ctx, app.PasswordResetRequest{
 		TokenID: uuid.NewString(), Email: "admin@example.com", TokenHash: tokenHash,
 		ExpiresAt: time.Now().UTC().Add(time.Hour), RequestIP: "127.0.0.1", RequestID: uuid.NewString(),
-	}))
+	})
+	require.NoError(t, err)
+	require.True(t, matched, "a live account matches")
+	matched, err = repository.RequestPasswordReset(ctx, app.PasswordResetRequest{
+		TokenID: uuid.NewString(), Email: "nobody@example.com", TokenHash: make([]byte, 32),
+		ExpiresAt: time.Now().UTC().Add(time.Hour), RequestIP: "127.0.0.1", RequestID: uuid.NewString(),
+	})
+	require.NoError(t, err)
+	require.False(t, matched, "an unknown address matches nothing and sends nothing")
 	require.NoError(t, repository.ResetPassword(ctx, app.PasswordReset{
 		TokenHash: tokenHash, PasswordHash: "$argon2id$v=19$m=65536,t=3,p=4$c2FsdA$aGFzaA",
 		RequestIP: "127.0.0.1", RequestID: uuid.NewString(),

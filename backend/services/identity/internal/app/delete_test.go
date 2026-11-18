@@ -21,12 +21,14 @@ func (m *mockStore) Authenticate(context.Context, Login) (Session, error) { retu
 func (m *mockStore) RotateRefresh(context.Context, RefreshRotation) (Session, error) {
 	return Session{}, nil
 }
-func (m *mockStore) RevokeRefresh(context.Context, []byte, string) error              { return nil }
-func (m *mockStore) RequestPasswordReset(context.Context, PasswordResetRequest) error { return nil }
-func (m *mockStore) ResetPassword(context.Context, PasswordReset) error               { return nil }
-func (m *mockStore) ChangePassword(context.Context, PasswordChange) error             { return nil }
-func (m *mockStore) ValidateAccessToken(context.Context, string, string) error        { return nil }
-func (m *mockStore) CreateMFAChallenge(context.Context, MFAChallenge) error           { return nil }
+func (m *mockStore) RevokeRefresh(context.Context, []byte, string) error { return nil }
+func (m *mockStore) RequestPasswordReset(context.Context, PasswordResetRequest) (bool, error) {
+	return true, nil
+}
+func (m *mockStore) ResetPassword(context.Context, PasswordReset) error        { return nil }
+func (m *mockStore) ChangePassword(context.Context, PasswordChange) error      { return nil }
+func (m *mockStore) ValidateAccessToken(context.Context, string, string) error { return nil }
+func (m *mockStore) CreateMFAChallenge(context.Context, MFAChallenge) error    { return nil }
 func (m *mockStore) CompleteMFAChallenge(context.Context, MFAChallengeCompletion) (Session, error) {
 	return Session{}, nil
 }

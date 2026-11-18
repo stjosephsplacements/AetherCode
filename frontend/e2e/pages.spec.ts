@@ -73,7 +73,7 @@ async function sweep(context: BrowserContext, paths: string[], options?: { allow
   expect(failures, failures.join("\n")).toEqual([]);
 }
 
-const PUBLIC = ["/login", "/about", "/architecture", "/changelog", "/help", "/privacy", "/security", "/status", "/system-check", "/terms"];
+const PUBLIC = ["/login", "/auth/forgot-password", "/auth/reset-password?token=sweep", "/about", "/architecture", "/changelog", "/help", "/privacy", "/security", "/status", "/system-check", "/terms"];
 
 test("public pages open without signing in", async ({ browser }) => {
   await sweep(await browser.newContext(), PUBLIC);

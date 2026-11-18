@@ -108,6 +108,24 @@ Principals and credentials support soft delete for account deactivation:
 
 Ref: [ADR-0013](../../docs/adr/0013-soft-delete-architecture.md)
 
+## Password-reset email
+
+`POST /v1/auth/password-reset` records a reset request and, when a live account has that address and mail is
+configured, emails a link `<IDENTITY_PUBLIC_BASE_URL>/auth/reset-password?token=<bearer>` through Microsoft Graph
+(`adapters/mail`, ADR-0085). The email is sent after the response, so the answer and its timing are the same for a
+known and an unknown address, and a mail outage cannot fail the request. `cmd/deliver-reset` remains the operator's
+fallback. The link works once and expires after `IDENTITY_PASSWORD_RESET_LIFETIME` (default 30 minutes).
+
+| Variable | Meaning |
+|---|---|
+| `IDENTITY_MAIL_TENANT_ID` | Microsoft Entra tenant (a GUID) |
+| `IDENTITY_MAIL_CLIENT_ID`, `IDENTITY_MAIL_CLIENT_SECRET` | the Entra application with the `Mail.Send` application permission |
+| `IDENTITY_MAIL_SENDER` | the mailbox it sends as, e.g. `no-reply@college.edu` |
+| `IDENTITY_PUBLIC_BASE_URL` | the web app's origin used in the link |
+
+The four `IDENTITY_MAIL_*` values are set together or not at all; with none, mail is off. In the chart they come from the
+Secret `aethercode-mail` (keys `tenant-id`, `client-id`, `client-secret`, `sender`), which is optional.
+
 ## Rate limiting
 
 `POST /v1/auth/register`, `POST /v1/auth/login`, `POST /v1/auth/password-reset`,

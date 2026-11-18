@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/stjosephsplacements/AetherCode/services/identity/internal/adapters/mail"
 	"github.com/stjosephsplacements/AetherCode/services/identity/internal/adapters/sso"
 	"log/slog"
 	"net"
@@ -200,6 +201,15 @@ func run(contextValue context.Context) error {
 	if provider := sso.New(ssoConfig); provider != nil {
 		identityService.UseSSO(provider, store)
 		go identityService.RunDirectorySync(runContext, logger)
+	}
+	// Password-reset emails through Microsoft Graph; off when IDENTITY_MAIL_* is unset.
+	mailConfig, err := mail.LoadConfig()
+	if err != nil {
+		return err
+	}
+	if sender := mail.New(mailConfig); sender != nil {
+		identityService.UseMailer(sender)
+		logger.Info("password reset email is on", "sender", mailConfig.Sender)
 	}
 	registerLimiter, err := ratelimit.New(ratelimit.Config{
 		Capacity:        float64(runtime.RegisterBurst),
