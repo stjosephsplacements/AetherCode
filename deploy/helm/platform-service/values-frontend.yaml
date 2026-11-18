@@ -96,7 +96,7 @@ ingress:
 networkPolicy:
   allowFrom: []
   # The ingress controller's namespace; change it if yours differs.
-  allowFromNamespaces: [ingress-nginx]
+  allowFromNamespaces: [traefik]
   egress:
     enabled: true
     dnsNamespaceLabels:

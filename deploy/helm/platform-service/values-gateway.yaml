@@ -47,7 +47,7 @@ networkPolicy:
     - service: frontend
       ports: [8080]
   # The ingress controller reaches /api/realtime directly; change it if yours differs.
-  allowFromNamespaces: [ingress-nginx]
+  allowFromNamespaces: [traefik]
   egress:
     enabled: true
     dnsNamespaceLabels:

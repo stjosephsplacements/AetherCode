@@ -23,7 +23,8 @@ edited. The rest is in `deploy/single-node/`:
   ranges (the old `allow-cidrs`), and the nginx provider.
 - `traefik-extras.yaml`: that allow-list middleware, and native replacements for the two
   snippet Ingresses (`cdn.` headers and path rewrite, `www.algoqx.tech` redirect to the apex).
-- Six NetworkPolicies that admitted `ingress-nginx` also admit the `traefik` namespace.
+- The `nginx` IngressClass, declared in `traefik-extras.yaml`, because the provider matches classes by name.
+- The frontend and gateway charts admit the `traefik` namespace (`allowFromNamespaces`); six live NetworkPolicies that admitted `ingress-nginx` also admit the `traefik` namespace.
 
 The move used Traefik on staging ports 8081/8444, a host-by-host comparison of status codes
 against nginx, a temporary tunnel route to 8081, removal of nginx, and a rebind to 80/443.
@@ -38,3 +39,7 @@ against nginx, a temporary tunnel route to 8081, removal of nginx, and a rebind 
   reads `X-Real-IP`.
 - The allow-list is not tested against a denied source.
 - Envoy Gateway remains the option if everything later moves to Gateway API.
+
+## Not yet verified
+
+The allow-list has not been tested with a request from outside `sourceRange` on ports 80 and 443; the origin ports are not reachable from outside the campus network, so the test needs a host on a non-Cloudflare, non-cluster address.
