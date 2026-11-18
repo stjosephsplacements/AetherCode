@@ -123,3 +123,12 @@ export async function dismissCookies(page: Page): Promise<void> {
   const choice = page.getByRole("button", { name: "Essential only" });
   if (await choice.isVisible().catch(() => false)) await choice.click();
 }
+
+/** The college the specs work in: E2E_TENANT_SLUG when set (use a small dedicated college), otherwise the first one. */
+export async function testTenantId(token: string): Promise<string> {
+  const slug = process.env.E2E_TENANT_SLUG;
+  const { items } = await call<{ items: { id: string; slug: string }[] }>("GET", "/tenant/v1/tenants", undefined, token);
+  const tenant = slug ? items.find((item) => item.slug === slug) : items[0];
+  if (!tenant) throw new Error(slug ? `no college with slug ${slug}` : "no college exists");
+  return tenant.id;
+}

@@ -2,7 +2,7 @@
 // account that turns on an authenticator app and signs in with it.
 import { expect, test } from "@playwright/test";
 import { randomBytes } from "node:crypto";
-import { adminEmail, adminPassword, adminSession, adminTotpSecret, call, freshTotp, totpAt } from "./support";
+import { adminEmail, adminPassword, adminSession, adminTotpSecret, call, freshTotp, testTenantId, totpAt } from "./support";
 
 const run = randomBytes(3).toString("hex");
 
@@ -27,7 +27,7 @@ test("administrator: wrong code is refused, the right one signs in", async ({ pa
 test("a staff account enrols an authenticator and then needs it to sign in", async ({ browser }) => {
   // Setup through the API: a department user with a staff-issued password.
   const admin = await adminSession();
-  const tenant = (await call<{ items: { id: string }[] }>("GET", "/tenant/v1/tenants", undefined, admin)).items[0]!.id;
+  const tenant = await testTenantId(admin);
   const department = (await call<{ items: { id: string }[] }>("GET", `/tenant/v1/tenants/${tenant}/departments`, undefined, admin)).items[0]!.id;
   const staff = await call<{ password: string }>("POST", `/user/v1/tenants/${tenant}/staff`, {
     username: `mfa.${run}`, display_name: "MFA Tester", role: "department_user", department_id: department,
