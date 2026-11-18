@@ -1,0 +1,21 @@
+{{- if .Values.headlessService.enabled }}
+# A headless Service lists every ready pod's address in DNS, so gRPC clients can balance over all of them instead of
+# pinning one connection to whichever pod the ClusterIP picked.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "platform-service.fullname" . }}-headless
+  labels:
+    {{- include "platform-service.labels" . | nindent 4 }}
+spec:
+  clusterIP: None
+  ports:
+    {{- range .Values.ports }}
+    - port: {{ .port }}
+      targetPort: {{ .name }}
+      protocol: TCP
+      name: {{ .name }}
+    {{- end }}
+  selector:
+    {{- include "platform-service.selectorLabels" . | nindent 4 }}
+{{- end }}

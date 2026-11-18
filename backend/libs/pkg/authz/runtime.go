@@ -24,6 +24,9 @@ type ClientRuntime struct {
 	CAFile          string
 	ServerName      string
 	RequireMTLS     bool
+	// RoundRobin spreads calls over every address the endpoint's DNS name returns (a headless Service), instead of
+	// pinning one connection to one User pod. Set AUTHZ_CLIENT_LOAD_BALANCE=round_robin.
+	RoundRobin bool
 }
 
 // LoadClientRuntime reads only authorization-client settings. In staging and
@@ -38,6 +41,13 @@ func LoadClientRuntime(environment string) (ClientRuntime, error) {
 		CAFile:          strings.TrimSpace(env("AUTHZ_CLIENT_TLS_CA_FILE", "")),
 		ServerName:      strings.TrimSpace(env("AUTHZ_CLIENT_TLS_SERVER_NAME", "")),
 		RequireMTLS:     environment == "staging" || environment == "production",
+	}
+	switch strings.ToLower(strings.TrimSpace(env("AUTHZ_CLIENT_LOAD_BALANCE", ""))) {
+	case "":
+	case "round_robin":
+		runtime.RoundRobin = true
+	default:
+		return ClientRuntime{}, fmt.Errorf("AUTHZ_CLIENT_LOAD_BALANCE must be empty or round_robin")
 	}
 	if runtime.Endpoint == "" || !strings.Contains(runtime.Endpoint, ":") {
 		return ClientRuntime{}, fmt.Errorf("AUTHZ_ENDPOINT must include a host and port")
@@ -60,7 +70,7 @@ func LoadClientRuntime(environment string) (ClientRuntime, error) {
 	return runtime, nil
 }
 
-// DialClient opens one long-lived gRPC connection to the central User service.
+// DialClient opens the long-lived gRPC channel to the central User service (one connection per User pod when RoundRobin).
 // There is no decision cache: every protected operation still invokes
 // Authorize over this mTLS channel.
 func DialClient(contextValue context.Context, runtime ClientRuntime) (*Client, *grpc.ClientConn, error) {
@@ -77,7 +87,14 @@ func DialClient(contextValue context.Context, runtime ClientRuntime) (*Client, *
 	dialContext, cancel := context.WithTimeout(contextValue, 5*time.Second)
 	defer cancel()
 	//nolint:staticcheck // SA1019: blocking dial is load-bearing for startup readiness; every caller treats a failed dial here as a fatal startup error, so services fail fast instead of starting without central authorization. Migrate alongside a readiness rework.
-	connection, err := grpc.DialContext(dialContext, runtime.Endpoint, grpc.WithTransportCredentials(transportCredentials), grpc.WithBlock())
+	target, options := runtime.Endpoint, []grpc.DialOption{grpc.WithTransportCredentials(transportCredentials), grpc.WithBlock()}
+	if runtime.RoundRobin {
+		// DNS resolution plus round robin: one subchannel per User pod behind a headless Service. The server ends
+		// connections after a while (MaxConnectionAge), which makes this re-resolve and pick up scaled pods.
+		target = "dns:///" + runtime.Endpoint
+		options = append(options, grpc.WithDefaultServiceConfig(`{"loadBalancingConfig":[{"round_robin":{}}]}`))
+	}
+	connection, err := grpc.DialContext(dialContext, target, options...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("dial central authorization service: %w", err)
 	}

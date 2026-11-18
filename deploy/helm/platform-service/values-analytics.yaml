@@ -21,7 +21,10 @@ tls:
 
 config:
   SERVICE_NAME: "analytics"
-  AUTHZ_ENDPOINT: "user:9443"
+  # One gRPC connection per User pod behind the headless Service, round robin (ADR-0086): a single connection to the
+  # ClusterIP pinned every authorization call to one pod and queued thousands of students behind it.
+  AUTHZ_ENDPOINT: "user-headless:9443"
+  AUTHZ_CLIENT_LOAD_BALANCE: "round_robin"
   AUTHZ_CLIENT_TLS_CA_FILE: "/certs/ca.crt"
   AUTHZ_CLIENT_TLS_SERVER_NAME: "user"
   AUTHZ_CLIENT_TLS_CERT_FILE: "/certs/tls.crt"

@@ -25,7 +25,12 @@ Argon2id at 64 MiB, 3 passes, 4 lanes, about 0.1 to 0.25 CPU-seconds and four th
    refused. The SEB service now reuses an allowed answer for `SEB_CHECK_CACHE_TTL` (off by default, 5 s in the chart, at most 1 minute),
    keyed by the candidate, tenant, URL, both hashes and the client IP. Denials and errors are never cached, so a changed policy that
    starts refusing takes effect within the TTL.
-4. Concurrent Argon2 work stays bounded per process (ADR-0085 follow-up, PR 220).
+4. **Balanced authorization channel.** Every protected service dialled the central authorization service in User through one gRPC
+   connection to a ClusterIP address; gRPC does not balance across it, so all authorization calls from all pods queued on one connection
+   to one User pod. A 1000-student test showed 2 to 4 s per request with every pod's CPU idle. User now has a headless Service
+   (`user-headless`), clients set `AUTHZ_CLIENT_LOAD_BALANCE=round_robin` (DNS resolution, one connection per User pod), and the User gRPC
+   server ends connections after a minute (`MaxConnectionAge`) so clients re-resolve and pods added by the autoscaler take traffic.
+5. Concurrent Argon2 work stays bounded per process (ADR-0085 follow-up, PR 220).
 
 ## Consequences
 Revocation takes up to 10 seconds to reach every service instead of being instant; for an exam platform with minutes-long
