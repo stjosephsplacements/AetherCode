@@ -23,3 +23,9 @@ Changing `SEB_ALLOW_VM` or `SEB_LAUNCH_PASSWORD` changes the generated Config Ke
 An exam's policy keeps the key saved the last time staff saved it, so after either change each exam must have its SEB policy saved
 again; until then its launch file fails the check, and the old key stays accepted. Production keeps both settings fixed and creates
 exams afterwards. Reconciling stored keys automatically is a follow-up.
+
+If a policy already holds 16 accepted keys, saving it again would add the new generated key as a 17th and be refused, so staff remove the
+old generated key (and any other key they no longer need) in the same save.
+The 120 seconds start at the first accepted download, even if that response never reached SEB; a candidate whose first download was lost
+may have less time left to type the password, and can open the link again or use the signed-in .seb download.
+`SEB_ALLOW_VM=true` is refused at start-up when `AETHERCODE_ENV` is production.

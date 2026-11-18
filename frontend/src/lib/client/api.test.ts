@@ -20,3 +20,8 @@ test("syncServerClock ignores a failed request", async () => {
   });
   await expect(syncServerClock()).resolves.toBe(false);
 });
+
+test("syncServerClock reports failure when the reply carries no usable Date header", async () => {
+  vi.stubGlobal("fetch", async () => new Response(null, { status: 503 }));
+  expect(await syncServerClock()).toBe(false);
+});

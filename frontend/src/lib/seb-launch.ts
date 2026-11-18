@@ -17,9 +17,9 @@ export function isTicketedLaunchFile(method: string, pathname: string, search: s
   return method === "GET" && LAUNCH_FILE.test(pathname) && TICKET.test(new URLSearchParams(search).get("ticket") ?? "");
 }
 
-// Safe Exam Browser sends HEAD before it downloads. If that fails it probes with a GET and then downloads with another
-// GET, and the probe spends the single-use ticket, so the real download is refused. A HEAD for a well-formed link is
-// therefore answered here, without looking at or spending the ticket, and SEB then makes its one GET.
+// Safe Exam Browser sends HEAD before it downloads. The gateway only admits GET here, so a HEAD that reached it would fail
+// and make SEB fall back to probing with a GET, which starts the ticket's re-download window early. A HEAD for a well-formed
+// link is therefore answered here, without looking at the ticket, so it stays unchanged until SEB's real GET.
 export function isLaunchFileProbe(method: string, pathname: string, search: string): boolean {
   return method === "HEAD" && isTicketedLaunchFile("GET", pathname, search);
 }
