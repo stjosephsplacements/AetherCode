@@ -41,7 +41,13 @@ fail() {
   failures=$((failures + 1)); log "FAILED: $*"; logger -p user.err -t aethercode-update "FAILED: $*"
   [[ -n "${DRY_RUN:-}" ]] || printf '%s %s (report: %s)\n' "$(date -Is)" "$*" "$REPORT" >"$REPORT_DIR/UPDATE_FAILED"
 }
-not_ready() { k3s kubectl get pods -A --no-headers | awk '$4!="Running" && $4!="Completed"' | wc -l; }
+# pods that are not Ready (a Running pod with a failed readiness probe counts); finished jobs do not. A failed query
+# counts as "everything is down" so the post-check cannot pass on an API error.
+not_ready() {
+  k3s kubectl get pods -A -o json 2>/dev/null |
+    jq '[.items[]|select(.status.phase!="Succeeded")|select([.status.conditions[]?|select(.type=="Ready" and .status=="True")]|length==0)]|length' ||
+    echo 9999
+}
 
 log "== pre-flight"
 [[ "$(k3s kubectl get nodes --no-headers | awk '{print $2}')" == Ready ]] || { fail "node not Ready, nothing updated"; exit 1; }
@@ -52,7 +58,8 @@ baseline=$(not_ready); log "pods not ready before: $baseline"
 log "== helm releases"
 for entry in "${RELEASES[@]}"; do
   read -r release namespace chart <<<"$entry"
-  current=$("${HELM[@]}" list -n "$namespace" -o json | jq -r --arg r "$release" '.[]|select(.name==$r)|.chart|sub("^.*-(?=v?[0-9]+\\.)";"")') # chart version
+  listing=$("${HELM[@]}" list -n "$namespace" -o json) || { fail "$release: helm list in $namespace failed"; continue; }
+  current=$(jq -r --arg r "$release" '.[]|select(.name==$r)|.chart|sub("^.*-(?=v?[0-9]+\\.)";"")' <<<"$listing") # chart version
   [[ -n "$current" ]] || { log "$release: not installed, skipped"; continue; }
   major="${current#v}"; major="${major%%.*}"
   versions=$("${HELM[@]}" search repo "$chart" --versions -o json) || { fail "$release: helm search --versions for $chart failed"; continue; }

@@ -43,7 +43,7 @@ for entry in "${CLUSTERS[@]}"; do
   "${KUBECTL[@]}" -n "$ns" exec "$pod" -c postgres -- pg_dumpall -U postgres --globals-only >"$out/globals.sql"
   # captured in a checked substitution: mapfile < <(...) would hide a failed query and skip every dump
   names="$("${KUBECTL[@]}" -n "$ns" exec "$pod" -c postgres -- \
-    psql -U postgres -Atc "select datname from pg_database where not datistemplate and datname <> 'postgres'")" \
+    psql -U postgres -Atc "select datname from pg_database where not datistemplate")" \
     || fail "cannot list databases of $ns/$cluster"
   mapfile -t databases <<<"$names"
   for database in "${databases[@]}"; do
