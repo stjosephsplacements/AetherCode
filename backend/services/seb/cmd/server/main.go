@@ -265,6 +265,19 @@ func run(contextValue context.Context) error {
 func loadLaunchSettings() (app.LaunchSettings, error) {
 	baseURL := strings.TrimSuffix(strings.TrimSpace(os.Getenv("SEB_LAUNCH_BASE_URL")), "/")
 	password := os.Getenv("SEB_LAUNCH_PASSWORD")
+	// Unset means false; a value that is not a boolean stops the service rather than guessing.
+	allowVM := false
+	if raw := strings.TrimSpace(os.Getenv("SEB_ALLOW_VM")); raw != "" {
+		parsedVM, err := strconv.ParseBool(raw)
+		if err != nil {
+			return app.LaunchSettings{}, fmt.Errorf("SEB_ALLOW_VM must be true or false: %w", err)
+		}
+		allowVM = parsedVM
+	}
+	// The virtual-machine rule is an anti-bypass control for every exam; it can be lifted only outside production.
+	if allowVM && strings.EqualFold(strings.TrimSpace(os.Getenv("AETHERCODE_ENV")), "production") {
+		return app.LaunchSettings{}, fmt.Errorf("SEB_ALLOW_VM=true is not allowed when AETHERCODE_ENV is production")
+	}
 	if baseURL == "" && password == "" {
 		return app.LaunchSettings{}, nil
 	}
@@ -288,17 +301,6 @@ func loadLaunchSettings() (app.LaunchSettings, error) {
 	}
 	if len(distinct) < 16 {
 		return app.LaunchSettings{}, fmt.Errorf("SEB_LAUNCH_PASSWORD looks patterned; generate it with `openssl rand -hex 24`")
-	}
-	// Unset means false; a value that is not a boolean stops the service rather than guessing.
-	allowVM := false
-	if raw := strings.TrimSpace(os.Getenv("SEB_ALLOW_VM")); raw != "" {
-		if allowVM, err = strconv.ParseBool(raw); err != nil {
-			return app.LaunchSettings{}, fmt.Errorf("SEB_ALLOW_VM must be true or false: %w", err)
-		}
-	}
-	// The virtual-machine rule is an anti-bypass control for every exam; it can be lifted only outside production.
-	if allowVM && strings.EqualFold(strings.TrimSpace(os.Getenv("AETHERCODE_ENV")), "production") {
-		return app.LaunchSettings{}, fmt.Errorf("SEB_ALLOW_VM=true is not allowed when AETHERCODE_ENV is production")
 	}
 	return app.LaunchSettings{BaseURL: baseURL, Password: password, AllowVM: allowVM}, nil
 }

@@ -602,7 +602,7 @@ for _ in range(15):
 else:
     sys.exit(f"FAIL staff never received their private copy: {mine}")
 # The assessment service lists the assignment before the submission service has projected it over NATS.
-# Six tries with a pause: the projection lags by seconds, and attempt starts have a burst limit of ten per hour.
+# Six tries with a pause: the projection lags by seconds, and attempt starts allow a burst of ten with a refill of 30 per hour.
 for _ in range(6):
     status, preview_attempt, _ = call("POST", attempts, {"candidate_assignment_id": preview_assignment["id"]}, token=faculty)
     if status != 404:
