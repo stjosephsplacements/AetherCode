@@ -114,7 +114,7 @@
 
 	<!-- ── Anti-bypass: VM / remote desktop ── -->
 	<key>allowVirtualMachine</key>
-	<false/>
+	<{{if .AllowVM}}true{{else}}false{{end}}/>
 	<key>allowScreenSharing</key>
 	<false/>
 	<key>allowSwitchToApplications</key>

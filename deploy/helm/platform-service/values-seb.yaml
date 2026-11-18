@@ -27,6 +27,8 @@ config:
   AUTHZ_CLIENT_TLS_CERT_FILE: "/certs/tls.crt"
   AUTHZ_CLIENT_TLS_KEY_FILE: "/certs/tls.key"
   SEB_LAUNCH_BASE_URL: "{{ required \"global.publicOrigin is required\" .Values.global.publicOrigin }}"
+  # "true" makes launch files let SEB run in a virtual machine. QA only; real exams keep it "false".
+  SEB_ALLOW_VM: "false"
 
 secretEnv:
   - name: SEB_DB_PASSWORD
