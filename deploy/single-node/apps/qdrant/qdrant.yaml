@@ -1,7 +1,8 @@
 # Qdrant for the Chronos_3GPP project (user sjce_ece), moved from a loose process on the host.
 # Data lives in /data/production/qdrant/{storage,snapshots}. The ports are published on the host's
 # loopback only (hostIP 127.0.0.1), so the project keeps using localhost:6333 and nothing is
-# reachable from the LAN or the internet.
+# reachable from the LAN or the internet. There is deliberately no Service: Qdrant has no authentication,
+# so no other pod may reach it.
 # Restore a snapshot: put it in /data/production/qdrant/snapshots/<collection>/ and
 #   PUT /collections/<collection>/snapshots/recover {"location":"file:///qdrant/snapshots/<collection>/<file>"}
 apiVersion: v1
@@ -54,15 +55,3 @@ spec:
           hostPath: {path: /data/production/qdrant/storage, type: Directory}
         - name: snapshots
           hostPath: {path: /data/production/qdrant/snapshots, type: Directory}
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: qdrant
-  namespace: qdrant
-  labels: {app.kubernetes.io/name: qdrant}
-spec:
-  selector: {app.kubernetes.io/name: qdrant}
-  ports:
-    - {name: http, port: 6333, targetPort: http}
-    - {name: grpc, port: 6334, targetPort: grpc}

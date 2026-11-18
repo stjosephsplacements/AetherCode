@@ -18,7 +18,7 @@ Where app files live: `/data/production/<app>/` (compose file, `.env`, config, d
   roll back to the previous image if not. Webmin follows its latest GitHub release.
 - Never touched: AetherCode, placement, algoqx, PostgreSQL and the CloudNativePG operator, MinIO, k3s, the kernel. OS packages are
   left to `unattended-upgrades` (security only), because a general apt upgrade restarts docker and containerd and every pod with them.
-- `DRY_RUN=1 /usr/local/bin/aethercode-update.sh` pulls the images (running containers are untouched) and reports what would change.
+- `DRY_RUN=1 /usr/local/bin/aethercode-update.sh` pulls the images (running containers are untouched), skips the backup, never writes or clears `UPDATE_FAILED`, and reports what would change.
 
 ## When it fails
 Read the newest file in `/data/backups/updates/`. Helm rollbacks are automatic; check `helm history <release> -n <ns>`. A Docker app

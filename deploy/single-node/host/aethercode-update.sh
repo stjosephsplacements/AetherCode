@@ -38,7 +38,7 @@ failures=0
 log() { printf '%s %s\n' "$(date +%T)" "$*" | tee -a "$REPORT"; }
 fail() {
   failures=$((failures + 1)); log "FAILED: $*"; logger -p user.err -t aethercode-update "FAILED: $*"
-  printf '%s %s (report: %s)\n' "$(date -Is)" "$*" "$REPORT" >"$REPORT_DIR/UPDATE_FAILED"
+  [[ -n "${DRY_RUN:-}" ]] || printf '%s %s (report: %s)\n' "$(date -Is)" "$*" "$REPORT" >"$REPORT_DIR/UPDATE_FAILED"
 }
 not_ready() { k3s kubectl get pods -A --no-headers | awk '$4!="Running" && $4!="Completed"' | wc -l; }
 
@@ -136,4 +136,5 @@ after=$(not_ready); log "pods not ready after: $after (before: $baseline)"
 [[ "$(k3s kubectl -n velero get backupstoragelocations.velero.io default -o jsonpath='{.status.phase}' 2>/dev/null)" == Available ]] || fail "Velero storage location not Available"
 
 (( failures == 0 )) || exit 1
-rm -f "$REPORT_DIR/UPDATE_FAILED"; log "update finished without failures"
+[[ -n "${DRY_RUN:-}" ]] || rm -f "$REPORT_DIR/UPDATE_FAILED"
+log "update finished without failures"
