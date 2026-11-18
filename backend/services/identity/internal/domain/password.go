@@ -128,7 +128,7 @@ func VerifyPassword(encodedHash, password string) bool {
 		return false
 	}
 	memory, err := parsePHCValue(parameters[0], "m")
-	if err != nil || memory < 8*1024 || memory > 1024*1024 {
+	if err != nil || memory < 8*1024 || memory > argonMemory { // the largest setting this service writes: bounds the memory one verification can claim
 		return false
 	}
 	iterations, err := parsePHCValue(parameters[1], "t")
