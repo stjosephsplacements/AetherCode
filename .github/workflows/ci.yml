@@ -35,6 +35,8 @@ jobs:
             (cd "$dir" && GOWORK=off go mod tidy && GOWORK=off go build ./...)
           done
           git diff --exit-code -- '*.mod' '*.sum'
+      - name: Generated authz migrations match their template
+        run: python3 backend/scripts/generate_authz_migration.py --verify
       - run: (cd backend && go work sync)
       - run: make build
       - run: make test

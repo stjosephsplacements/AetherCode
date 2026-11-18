@@ -30,8 +30,8 @@ All vars are prefixed `PROCTOR_` via pydantic-settings.
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `PROCTOR_DATABASE_URL` | **yes** | Prisma connection URL (`postgresql://user:pass@host/db`) |
-| `PROCTOR_DATABASE_DIRECT_URL` | **yes** | Direct (non-pooled) URL for migrations |
+| `PROCTOR_DATABASE_URL` | **yes** | Prisma connection URL, ending in `?schema=proctor` (`postgresql://user:pass@host/db?schema=proctor`): the tables are in the `proctor` schema |
+| `PROCTOR_DATABASE_DIRECT_URL` | **yes** | Direct (non-pooled) URL for migrations, also ending in `?schema=proctor` |
 | `PROCTOR_MINIO_ENDPOINT` | no | MinIO host:port (default `minio:9000`) |
 | `PROCTOR_MINIO_ACCESS_KEY` | **yes** | MinIO access key |
 | `PROCTOR_MINIO_SECRET_KEY` | **yes** | MinIO secret key |

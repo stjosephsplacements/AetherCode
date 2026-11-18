@@ -206,6 +206,14 @@ func (cards *TalentCards) Verify(ctx context.Context, token string) (talentcard.
 	if !valid {
 		return talentcard.Claims{}, notValid
 	}
+	// The token was signed with the contact details the student agreed to share at the time; honour a later change.
+	var sharesContact bool
+	if err := cards.pool.QueryRow(ctx, `SELECT analytics.talent_card_shares_contact($1::uuid)`, claims.CardID).Scan(&sharesContact); err != nil {
+		return talentcard.Claims{}, fmt.Errorf("check talent card contact consent: %w", err)
+	}
+	if !sharesContact {
+		claims.Email, claims.Phone = "", ""
+	}
 	return claims, nil
 }
 

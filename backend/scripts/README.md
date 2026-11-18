@@ -37,7 +37,7 @@ variant (`global` for `question-bank`; `tenant` for all others).
 # Dry-run — print all generated files to stdout
 python3 backend/scripts/generate_authz_migration.py
 
-# Verify existing files match generated content (CI gate)
+# Verify existing files match generated content (runs in CI, build-test job)
 python3 backend/scripts/generate_authz_migration.py --verify
 
 # Apply changes (re-generate all known services)

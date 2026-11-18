@@ -29,6 +29,15 @@ async def claim(
             return bool(await redis.set(cooldown_key(attempt_id, kind), 1, nx=True, ex=seconds))
         except Exception as exc:  # Redis down: stay correct on the database path
             logger.warning("Redis cooldown unavailable, using the database: %s", exc)
+            allowed = await fallback()
+            if allowed:
+                # Best effort: claim the window in Redis too, so once it recovers the next frame of this kind
+                # inside the window is refused there instead of recording a duplicate.
+                try:
+                    await redis.set(cooldown_key(attempt_id, kind), 1, nx=True, ex=seconds)
+                except Exception:
+                    pass
+            return allowed
     return await fallback()
 
 

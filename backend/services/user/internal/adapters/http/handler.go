@@ -174,7 +174,7 @@ func (handler *Handler) enrollStudent(writer http.ResponseWriter, request *http.
 	}
 	// placement_department_id is optional — skip placement assignment when empty
 	var placementDepartmentID string
-	if body.PlacementDepartmentID != "" {
+	if strings.TrimSpace(body.PlacementDepartmentID) != "" {
 		placementDepartmentID, err = httpx.ParseUUIDValue(body.PlacementDepartmentID, "placement_department_id")
 		if err != nil {
 			httpx.WriteError(writer, err)

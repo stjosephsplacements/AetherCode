@@ -303,6 +303,11 @@ func (service *Service) UploadSnapshot(contextValue context.Context, capability 
 		_ = service.storage.Delete(context.WithoutCancel(contextValue), key)
 		return "", txErr
 	}
+	if id == "" {
+		// The frame was already stored (a retried upload): drop the duplicate object and do not analyse it twice.
+		_ = service.storage.Delete(context.WithoutCancel(contextValue), key)
+		return "", nil
+	}
 	// Best-effort: publish to proctor service for GPU inference.
 	if service.snapshotPublisher != nil && id != "" {
 		type proctorEvent struct {

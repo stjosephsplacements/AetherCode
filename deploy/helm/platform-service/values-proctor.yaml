@@ -46,9 +46,9 @@ secretEnv:
 
 env:
   - name: PROCTOR_DATABASE_URL
-    value: "postgres://aether_proctor_app:$(PROCTOR_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_proctor?sslmode={{ .Values.global.postgresSSLMode }}"
+    value: "postgres://aether_proctor_app:$(PROCTOR_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_proctor?sslmode={{ .Values.global.postgresSSLMode }}&schema=proctor"
   - name: PROCTOR_DATABASE_DIRECT_URL
-    value: "postgres://aether_proctor_app:$(PROCTOR_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_proctor?sslmode={{ .Values.global.postgresSSLMode }}"
+    value: "postgres://aether_proctor_app:$(PROCTOR_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_proctor?sslmode={{ .Values.global.postgresSSLMode }}&schema=proctor"
 
 # Node selector — only schedule on nodes with NVIDIA GPUs.
 nodeSelector:

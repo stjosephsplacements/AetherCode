@@ -21,6 +21,10 @@ export function useWebcam(
   snapshotIntervalMs = 60_000,
 ) {
   const [state, setState] = useState<WebcamState>({ kind: "idle" });
+  // True after three uploads in a row were refused or failed, so the screen can tell the student the invigilator is not
+  // receiving their camera. One lost frame is normal and stays silent.
+  const [uploadsFailing, setUploadsFailing] = useState(false);
+  const failedUploads = useRef(0);
   const streamRef = useRef<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -69,7 +73,17 @@ export function useWebcam(
             headers: { "Content-Type": "image/jpeg", "X-Captured-At": capturedAt },
             body: blob,
             cache: "no-store",
-          }).catch(() => undefined);
+          })
+            .then((response) => {
+              // fetch resolves on 4xx and 5xx too: only a 2xx means the frame was stored.
+              if (!response.ok) throw new Error(`snapshot upload refused: ${response.status}`);
+              failedUploads.current = 0;
+              setUploadsFailing(false);
+            })
+            .catch(() => {
+              failedUploads.current += 1;
+              if (failedUploads.current >= 3) setUploadsFailing(true);
+            });
         },
         "image/jpeg",
         0.4,
@@ -101,5 +115,5 @@ export function useWebcam(
     return () => clearTimeout(id);
   }, [enabled, state.kind, request]);
 
-  return { state, request, capture };
+  return { state, request, capture, uploadsFailing };
 }

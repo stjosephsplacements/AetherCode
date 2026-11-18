@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"time"
 
 	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
+	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
 	"github.com/stjosephsplacements/AetherCode/services/submission/internal/app"
 )
@@ -359,6 +361,9 @@ func (handler *Handler) getGradingQueue(writer http.ResponseWriter, request *htt
 	writeRaw(writer, http.StatusOK, queue, err)
 }
 
+// snapshotClockSkew is how far a client-supplied capture time may differ from the server clock.
+const snapshotClockSkew = 2 * time.Minute
+
 func (handler *Handler) storeSnapshot(writer http.ResponseWriter, request *http.Request) {
 	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
 	if err != nil {
@@ -381,12 +386,16 @@ func (handler *Handler) storeSnapshot(writer http.ResponseWriter, request *http.
 		return
 	}
 	if len(data) > app.MaxSnapshotBytes {
-		httpx.WriteError(writer, fmt.Errorf("snapshot exceeds 512 KiB"))
+		httpx.WriteError(writer, apperrors.New(apperrors.CodeInvalidArgument, "snapshot exceeds 512 KiB"))
 		return
 	}
-	var capturedAt time.Time
+	// X-Captured-At is the key that makes a retried frame idempotent, but the candidate controls it and it orders the
+	// evidence, so it is honoured only within a narrow clock-skew window; otherwise the server's receipt time is used.
+	capturedAt := time.Now().UTC()
 	if raw := request.Header.Get("X-Captured-At"); raw != "" {
-		capturedAt, _ = time.Parse(time.RFC3339, raw)
+		if parsed, parseErr := time.Parse(time.RFC3339, raw); parseErr == nil && parsed.Sub(capturedAt).Abs() <= snapshotClockSkew {
+			capturedAt = parsed.UTC()
+		}
 	}
 	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "attempts", candidateID, tenantID)
 	if err != nil {
@@ -417,10 +426,20 @@ func (handler *Handler) listSnapshots(writer http.ResponseWriter, request *http.
 		httpx.WriteError(writer, err)
 		return
 	}
+	// ?limit= asks for more than the default 50 newest; the service caps it at 200.
+	limit := 50
+	if raw := request.URL.Query().Get("limit"); raw != "" {
+		parsed, parseErr := strconv.Atoi(raw)
+		if parseErr != nil || parsed < 1 {
+			httpx.WriteError(writer, apperrors.New(apperrors.CodeInvalidArgument, "limit must be a positive number"))
+			return
+		}
+		limit = parsed
+	}
 	snapshots, err := handler.service.ListSnapshots(request.Context(), decision.Capability, app.ListSnapshots{
 		TenantID:  tenantID,
 		AttemptID: attemptID,
-		Limit:     50,
+		Limit:     limit,
 	})
 	if err != nil {
 		httpx.WriteError(writer, err)

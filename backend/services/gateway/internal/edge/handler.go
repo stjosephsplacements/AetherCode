@@ -302,10 +302,14 @@ func isPublicProfileRoute(method, forwardedPath string) bool {
 
 // publicTalentCardPattern is the other anonymous read: a recruiter verifying a talent
 // card token (ADR-0081). The token is a v1 signed token; Analytics checks the signature.
-var publicTalentCardPattern = regexp.MustCompile(`^/v1/public/talent-cards/v1\.[A-Za-z0-9_-]{1,1000}\.[A-Za-z0-9_-]{1,128}$`)
+var publicTalentCardPattern = regexp.MustCompile(`^/v1/public/talent-cards/v1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{1,128}$`)
+
+// maxPublicTalentCardPath bounds the claims segment (Go's regexp cannot repeat more than 1000 times). A card's claims
+// are a few hundred bytes of JSON at most, base64url encoded; this leaves room for the longest identity fields.
+const maxPublicTalentCardPath = 4096
 
 func isPublicTalentCardRoute(method, forwardedPath string) bool {
-	return method == http.MethodGet && publicTalentCardPattern.MatchString(forwardedPath)
+	return method == http.MethodGet && len(forwardedPath) <= maxPublicTalentCardPath && publicTalentCardPattern.MatchString(forwardedPath)
 }
 
 // publicLaunchFilePattern is the one anonymous SEB route: Safe Exam Browser fetching a sebs://

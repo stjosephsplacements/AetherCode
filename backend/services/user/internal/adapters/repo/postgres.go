@@ -275,14 +275,14 @@ func (repository *Postgres) EnrollStudent(contextValue context.Context, transact
 	student.CollegeDepartmentID = command.CollegeDepartmentID
 	student.PlacementDepartmentID = command.PlacementDepartmentID
 	payload, err := json.Marshal(struct {
-		StudentID             string `json:"student_id"`
-		PrincipalID           string `json:"principal_id"`
-		TenantID              string `json:"tenant_id"`
-		CollegeDepartmentID   string `json:"college_department_id"`
-		PlacementDepartmentID string `json:"placement_department_id"`
+		StudentID             string  `json:"student_id"`
+		PrincipalID           string  `json:"principal_id"`
+		TenantID              string  `json:"tenant_id"`
+		CollegeDepartmentID   string  `json:"college_department_id"`
+		PlacementDepartmentID *string `json:"placement_department_id"`
 	}{
 		StudentID: student.ID, PrincipalID: student.PrincipalID, TenantID: student.TenantID,
-		CollegeDepartmentID: student.CollegeDepartmentID, PlacementDepartmentID: student.PlacementDepartmentID,
+		CollegeDepartmentID: student.CollegeDepartmentID, PlacementDepartmentID: optionalID(student.PlacementDepartmentID),
 	})
 	if err != nil {
 		return app.Student{}, fmt.Errorf("encode student enrollment event: %w", err)
@@ -1139,6 +1139,14 @@ func (repository *Postgres) ListRoleAssignments(contextValue context.Context, tr
 // nullableText returns nil when the value is blank, otherwise the trimmed
 // value. Used for both text and UUID SQL parameters so only one helper is
 // needed; the type cast (e.g. $1::uuid) is done in SQL.
+// optionalID is the JSON form of an optional identifier in an event: null, never an empty string.
+func optionalID(value string) *string {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	return &value
+}
+
 func nullableText(value string) any {
 	if strings.TrimSpace(value) == "" {
 		return nil
