@@ -1,12 +1,14 @@
 # causal-repair: a read-only viewer for an anomaly-detection integration pack, plus the MongoDB and
 # Redis that its (currently idle) pipeline worker uses. Moved from loose processes on the host.
+# The viewer's Ingress is open to nobody directly: its hostname only exists behind the Cloudflare tunnel and a
+# Cloudflare Access policy (the two owner emails), and Traefik admits only Cloudflare and cluster sources.
 # Data stays where it was, under /data/production/causal-repair/. The image is built from
 # /data/production/causal-repair/image/ (see Dockerfile) and imported into k3s, so imagePullPolicy is Never.
 #
 # The viewer is two containers in one pod: `viewer` (server.py on 127.0.0.1:8077) and `front`, a
 # GET/HEAD-only proxy on :8078 that is the only thing the Service exposes. MongoDB and Redis are
 # published on the host's loopback only (27017, 16379), as before, with no Service and no
-# in-cluster access.
+# in-cluster access (enforced by the NetworkPolicy at the end).
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -131,3 +133,18 @@ spec:
       volumes:
         - name: data
           hostPath: {path: /data/production/causal-repair/webapp/redisdata, type: Directory}
+---
+# MongoDB and Redis have no authentication and nothing in the cluster uses them: admit no pod. The host's
+# loopback hostPorts (27017, 16379) are not affected by this policy.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: data-stores-no-ingress
+  namespace: causal-repair
+spec:
+  podSelector:
+    matchExpressions:
+      - {key: app.kubernetes.io/name, operator: In, values: [mongodb, redis]}
+  policyTypes: [Ingress]
+  ingress: []
+
