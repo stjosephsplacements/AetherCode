@@ -32,7 +32,6 @@ import (
 	authzconfig "github.com/stjosephsplacements/AetherCode/services/user/internal/config"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/keepalive"
 	grpcHealth "google.golang.org/grpc/health"
 	grpcHealthV1 "google.golang.org/grpc/health/grpc_health_v1"
 )
@@ -405,9 +404,6 @@ func grpcOptionsFor(runtime authzconfig.Runtime) ([]grpc.ServerOption, error) {
 	return []grpc.ServerOption{
 		grpc.Creds(credentials.NewTLS(tlsConfig)),
 		grpc.UnaryInterceptor(grpcadapter.RequireCallerTargetSPIFFEIDs(runtime.TrustedServiceTargets)),
-		// Clients balance over every User pod; ending connections now and then makes them re-resolve DNS, so pods
-		// added by the autoscaler take traffic within a minute and a client never stays pinned to one pod.
-		grpc.KeepaliveParams(keepalive.ServerParameters{MaxConnectionAge: time.Minute, MaxConnectionAgeGrace: 20 * time.Second}),
 	}, nil
 }
 
