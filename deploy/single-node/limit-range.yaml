@@ -1,0 +1,12 @@
+# Defaults for pods that declare no resources (the migration and bucket-setup jobs), so they are admitted under
+# resource-quota.yaml, which requires requests on every pod. Pods that set their own requests and limits are unchanged.
+#   kubectl -n aethercode-prod apply -f deploy/single-node/limit-range.yaml
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: aethercode-defaults
+spec:
+  limits:
+    - type: Container
+      defaultRequest: {cpu: 100m, memory: 128Mi}
+      default: {cpu: "2", memory: 2Gi}
