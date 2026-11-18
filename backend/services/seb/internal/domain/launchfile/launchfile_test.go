@@ -71,8 +71,14 @@ func TestAllowVirtualMachineIsOffUnlessAsked(t *testing.T) {
 	if !strings.Contains(string(on), "<key>allowVirtualMachine</key>\n\t<true/>") {
 		t.Error("AllowVM did not reach the settings")
 	}
-	offKey, _ := keyOf(off)
-	onKey, _ := keyOf(on)
+	offKey, err := keyOf(off)
+	if err != nil {
+		t.Fatal(err)
+	}
+	onKey, err := keyOf(on)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if offKey == onKey {
 		t.Error("the Config Key does not change with AllowVM, so a VM-allowing file would pass a strict exam's check")
 	}

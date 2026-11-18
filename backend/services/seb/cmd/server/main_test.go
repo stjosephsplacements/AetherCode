@@ -57,6 +57,11 @@ func TestLoadLaunchSettingsAllowVMDefaultsToFalseAndRejectsNonBooleans(t *testin
 	if settings, err := loadLaunchSettings(); err != nil || !settings.AllowVM {
 		t.Fatalf("SEB_ALLOW_VM=true = %v, %v", settings.AllowVM, err)
 	}
+	t.Setenv("AETHERCODE_ENV", "production")
+	if _, err := loadLaunchSettings(); err == nil {
+		t.Fatal("SEB_ALLOW_VM=true was accepted in production")
+	}
+	t.Setenv("AETHERCODE_ENV", "staging")
 	t.Setenv("SEB_ALLOW_VM", "maybe")
 	if _, err := loadLaunchSettings(); err == nil {
 		t.Fatal("a non-boolean SEB_ALLOW_VM was accepted")

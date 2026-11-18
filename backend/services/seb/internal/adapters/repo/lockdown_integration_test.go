@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -375,9 +376,20 @@ func TestLaunchTicket(t *testing.T) {
 	if window < 119 || window > 121 {
 		t.Errorf("the re-download window after the first use is %.0f seconds, want 120", window)
 	}
+	var firstExpiry time.Time
+	if err := pool.QueryRow(ctx, `SELECT expires_at FROM seb.launch_tickets WHERE token_hash = $1`, digest("one")).Scan(&firstExpiry); err != nil {
+		t.Fatal(err)
+	}
 	// SEB downloads the link again after the exam password is typed, so the ticket works again...
 	if title := consume(examID, digest("one")); title == nil || *title != "Mid term" {
 		t.Errorf("the re-download SEB makes after the password prompt was refused: %v", title)
+	}
+	var secondExpiry time.Time
+	if err := pool.QueryRow(ctx, `SELECT expires_at FROM seb.launch_tickets WHERE token_hash = $1`, digest("one")).Scan(&secondExpiry); err != nil {
+		t.Fatal(err)
+	}
+	if !secondExpiry.Equal(firstExpiry) {
+		t.Errorf("a re-download moved the expiry from %v to %v", firstExpiry, secondExpiry)
 	}
 	// ...until the window after the first download closes.
 	if _, err := pool.Exec(ctx, `UPDATE seb.launch_tickets SET expires_at = clock_timestamp() - interval '1 second' WHERE token_hash = $1`, digest("one")); err != nil {
