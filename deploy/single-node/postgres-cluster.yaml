@@ -2,8 +2,7 @@
 # chart in deploy/helm/platform-postgres-ha assumes three hosts and cannot schedule here.
 #
 # The pods run under the AppArmor profile `aethercode-postgres` (deploy/single-node/apparmor/),
-# which must be loaded on the node first: `sudo install -m 644 apparmor/aethercode-postgres
-# /etc/apparmor.d/ && sudo apparmor_parser -r /etc/apparmor.d/aethercode-postgres`. Under the
+# which must be loaded on the node first: run deploy/single-node/apparmor/install.sh. Under the
 # default profile PostgreSQL 18's processes lose the signals they send each other on this node,
 # so the initdb job hangs ("Setting up primary" forever); the custom profile is the default
 # with signals allowed and everything else still denied (ADR-0074, ADR-0082).
