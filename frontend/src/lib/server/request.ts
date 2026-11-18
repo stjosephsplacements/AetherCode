@@ -1,10 +1,11 @@
 import "server-only";
+import { clientAddress } from "@/lib/client-ip";
 
 /**
- * The student's address as nginx reported it. nginx overwrites
- * X-Forwarded-For with $remote_addr, so its first entry is trustworthy here;
- * the gateway in turn trusts it only from this server's network.
+ * The student's address from X-Forwarded-For, behind Cloudflare and Traefik. Those append to a header the visitor may
+ * have written, so the address is the rightmost one that is not an internal hop, not the first entry; the gateway then
+ * trusts the single value this sends, but only from this server's network.
  */
 export function clientIP(headers: Headers): string | null {
-  return headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
+  return clientAddress(headers.get("x-forwarded-for"));
 }

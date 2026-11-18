@@ -381,7 +381,7 @@ function ExamWorkspace({ attemptPath, attemptId, tenantId, attempt, paper }: Loa
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 lg:flex-row lg:overflow-hidden">
         <QuestionRail items={items} currentId={currentId} statuses={statuses} onSelect={selectQuestion} />
 
-        <div ref={row} inert={cameraBlocked || integrity.needsFullscreen} className={cn("flex min-h-0 min-w-0 flex-1 flex-col gap-3 lg:flex-row", layout.swap && "lg:flex-row-reverse")}>
+        <div ref={row} inert={cameraBlocked || integrity.needsFullscreen || (live.integrity.webcamRequired && !webcamConsentGiven)} className={cn("flex min-h-0 min-w-0 flex-1 flex-col gap-3 lg:flex-row", layout.swap && "lg:flex-row-reverse")}>
         {statementOpen && !layout.focus && (
           <>
           <section aria-label="Question" className="flex min-h-[260px] min-w-0 flex-col overflow-hidden rounded-3xl border border-line bg-surface shadow-[var(--shadow-panel)] lg:min-h-0" style={{ flexBasis: `${layout.problemPct}%` }}>
