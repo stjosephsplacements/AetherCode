@@ -81,6 +81,8 @@ type CheckExamRequest struct {
 type LaunchSettings struct {
 	BaseURL  string
 	Password string
+	// AllowVM (SEB_ALLOW_VM) lets SEB start inside a virtual machine; false in production.
+	AllowVM bool
 }
 
 type LaunchFile struct {
@@ -318,6 +320,7 @@ func (service *Service) launchSettings(examID string) launchfile.Settings {
 		StartURL: service.launch.BaseURL + "/exam/" + strings.ToLower(examID),
 		QuitURL:  service.launch.BaseURL + "/student",
 		Password: service.launch.Password,
+		AllowVM:  service.launch.AllowVM,
 	}
 }
 

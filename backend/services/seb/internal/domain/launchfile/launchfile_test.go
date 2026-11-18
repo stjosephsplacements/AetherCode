@@ -53,6 +53,37 @@ func TestBuildDecodesToTheExamSettings(t *testing.T) {
 	}
 }
 
+func TestAllowVirtualMachineIsOffUnlessAsked(t *testing.T) {
+	t.Parallel()
+	base := Settings{StartURL: "https://exam.example/exam/1", QuitURL: "https://exam.example/student", Password: "launch-secret"}
+	off, err := render(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base.AllowVM = true
+	on, err := render(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(off), "<key>allowVirtualMachine</key>\n\t<false/>") {
+		t.Error("virtual machines are allowed by default")
+	}
+	if !strings.Contains(string(on), "<key>allowVirtualMachine</key>\n\t<true/>") {
+		t.Error("AllowVM did not reach the settings")
+	}
+	offKey, err := keyOf(off)
+	if err != nil {
+		t.Fatal(err)
+	}
+	onKey, err := keyOf(on)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if offKey == onKey {
+		t.Error("the Config Key does not change with AllowVM, so a VM-allowing file would pass a strict exam's check")
+	}
+}
+
 func TestBuildRequiresEverySetting(t *testing.T) {
 	t.Parallel()
 	if _, err := Build(Settings{StartURL: "https://exam.example/exam/1", QuitURL: "https://exam.example/student"}); err == nil {

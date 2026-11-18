@@ -119,3 +119,50 @@ func TestResyncManifestFailsClosedUntilFullMatchingSet(t *testing.T) {
 		t.Fatalf("wrong manifest = ready:%t err:%v, want fail closed", ready, err)
 	}
 }
+
+func TestCompletionBelongsToCurrentResyncOnlyWhenRecordedAfterTheRequest(t *testing.T) {
+	t.Parallel()
+	request := time.Date(2026, 11, 18, 8, 30, 0, 0, time.UTC)
+	before, after := request.Add(-2*time.Minute), request.Add(time.Second)
+	for _, test := range []struct {
+		name          string
+		hasCompletion bool
+		requested     *time.Time
+		completed     *time.Time
+		want          bool
+	}{
+		{"nothing recorded yet", false, &request, nil, false},
+		{"recorded after this request: a replay of it", true, &request, &after, true},
+		{"recorded before this request: an earlier resync, replaced", true, &request, &before, false},
+		{"recorded in the same instant", true, &request, &request, true},
+		{"timestamps missing: keep the strict check", true, nil, nil, true},
+	} {
+		if got := completionBelongsToCurrentResync(test.hasCompletion, test.requested, test.completed); got != test.want {
+			t.Errorf("%s: got %v, want %v", test.name, got, test.want)
+		}
+	}
+}
+
+func TestClassifyCompletion(t *testing.T) {
+	t.Parallel()
+	request := time.Date(2026, 11, 18, 8, 30, 0, 0, time.UTC)
+	before, after := request.Add(-time.Minute), request.Add(time.Second)
+	for _, test := range []struct {
+		name                   string
+		has                    bool
+		completed              *time.Time
+		sameContent, sameEvent bool
+		want                   completionAction
+	}{
+		{"first completion", false, nil, false, false, recordCompletion},
+		{"same event again for the current resync", true, &after, true, true, completionReplay},
+		{"another manifest for the current resync", true, &after, false, false, completionConflict},
+		{"stale completion from an earlier resync is replaced", true, &before, false, false, recordCompletion},
+		{"stale completion with the same content is replaced", true, &before, true, false, recordCompletion},
+		{"looks current but same content under another event ID is harmless", true, &after, true, false, recordCompletion},
+	} {
+		if got := classifyCompletion(test.has, &request, test.completed, test.sameContent, test.sameEvent); got != test.want {
+			t.Errorf("%s: got %v, want %v", test.name, got, test.want)
+		}
+	}
+}

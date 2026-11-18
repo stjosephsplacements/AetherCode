@@ -52,7 +52,7 @@ cleanup() {
   local status=$?
   trap - EXIT INT TERM
   if [[ "$container_started" == true ]]; then
-    docker rm --force "$CONTAINER_NAME" >/dev/null 2>&1 || true
+    docker rm --force --volumes "$CONTAINER_NAME" >/dev/null 2>&1 || true
   fi
   rm --force -- "$MIGRATION_RUNNER" >/dev/null 2>&1 || true
   rmdir -- "$TEMPORARY_DIRECTORY" >/dev/null 2>&1 || true

@@ -43,6 +43,8 @@ type Settings struct {
 	QuitURL string
 	// Password encrypts the file and is SEB's quit password.
 	Password string
+	// AllowVM lets SEB run inside a virtual machine. Only for QA on a VM; real exams keep it false.
+	AllowVM bool
 }
 
 // render fills the settings template and returns the plist.
@@ -57,7 +59,8 @@ func render(settings Settings) ([]byte, error) {
 	var plist bytes.Buffer
 	if err := settingsTemplate.Execute(&plist, struct {
 		StartURL, QuitURL, HashedQuitPassword string
-	}{settings.StartURL, settings.QuitURL, hex.EncodeToString(quitPassword[:])}); err != nil {
+		AllowVM                               bool
+	}{settings.StartURL, settings.QuitURL, hex.EncodeToString(quitPassword[:]), settings.AllowVM}); err != nil {
 		return nil, fmt.Errorf("render SEB settings: %w", err)
 	}
 	return plist.Bytes(), nil

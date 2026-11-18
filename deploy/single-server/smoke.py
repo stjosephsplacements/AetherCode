@@ -106,8 +106,18 @@ if not admin_totp:
     ok("admin enrolled a TOTP factor (secret appended to the credentials file)")
 STEP_UPS[admin] = step_up(admin)
 ok("admin stepped up with MFA")
-_, tenants, _ = call("GET", "/tenant/v1/tenants", token=admin, expect=200)
-tenant = tenants["items"][0]["id"]
+# SMOKE_TENANT_SLUG picks the college to use (a fresh one keeps the audit-log assertions independent of earlier runs).
+slug = os.environ.get("SMOKE_TENANT_SLUG")
+tenant, cursor = None, ""
+while tenant is None:
+    _, tenants, _ = call("GET", "/tenant/v1/tenants" + (f"?cursor={cursor}" if cursor else ""), token=admin, expect=200)
+    for item in tenants["items"]:
+        if not slug or item["slug"] == slug:
+            tenant = item["id"]
+            break
+    cursor = tenants.get("next_cursor")
+    if tenant is None and not cursor:
+        sys.exit(f"FAIL no college with slug {slug!r}")
 _, departments, _ = call("GET", f"/tenant/v1/tenants/{tenant}/departments", token=admin, expect=200)
 department = departments["items"][0]["id"]
 _, organization, _ = call("POST", "/tenant/v1/placement-organizations", {"code": f"PC{run}".upper(), "legal_name": f"Placement Cell {run}"}, token=admin, expect=201)
@@ -591,7 +601,14 @@ for _ in range(15):
     time.sleep(2)
 else:
     sys.exit(f"FAIL staff never received their private copy: {mine}")
-_, preview_attempt, _ = call("POST", attempts, {"candidate_assignment_id": preview_assignment["id"]}, token=faculty, expect=201)
+# The assessment service lists the assignment before the submission service has projected it over NATS.
+# Six tries with a pause: the projection lags by seconds, and attempt starts allow a burst of ten with a refill of 30 per hour.
+for _ in range(6):
+    status, preview_attempt, _ = call("POST", attempts, {"candidate_assignment_id": preview_assignment["id"]}, token=faculty)
+    if status != 404:
+        break
+    time.sleep(5)
+assert status == 201, (status, preview_attempt)
 _, preview_paper, _ = call("GET", f"{attempts}/{preview_attempt['id']}/paper", token=faculty, expect=200)
 assert preview_paper["title"] == "[Preview] Smoke test" and len(preview_paper["items"]) == 1, preview_paper
 ok("staff start and read a private copy of an exam as a student")

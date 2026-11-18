@@ -1,6 +1,8 @@
 # Caps AetherCode at about 40% of the 256-core campus server. Requests are what the
 # scheduler enforces; limits may burst above them. Apply once per namespace:
 #   kubectl -n aethercode-prod apply -f deploy/single-node/resource-quota.yaml
+# Apply limit-range.yaml with it: the quota requires requests on every pod, and the migration and bucket-setup
+# jobs declare none, so without the defaults their pods are refused.
 # See docs/runbooks/capacity-budget.md for how the numbers add up.
 apiVersion: v1
 kind: ResourceQuota

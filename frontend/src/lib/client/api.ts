@@ -62,18 +62,31 @@ export async function api<T>(path: string, options: Options = {}): Promise<T> {
 // header is whole seconds, so half a second is added). A wrong laptop clock then cannot skew a countdown.
 let clockOffset = 0;
 let bestRoundTrip = Infinity;
-function noteServerTime(response: Response, sent: number) {
+function noteServerTime(response: Response, sent: number): boolean {
   const server = Date.parse(response.headers.get("Date") ?? "");
-  const received = Date.now();
-  const roundTrip = received - sent;
-  if (!Number.isFinite(server) || roundTrip >= bestRoundTrip) return;
-  bestRoundTrip = roundTrip;
-  clockOffset = server + 500 - (sent + roundTrip / 2);
+  if (!Number.isFinite(server)) return false;
+  const roundTrip = Date.now() - sent;
+  if (roundTrip < bestRoundTrip) {
+    bestRoundTrip = roundTrip;
+    clockOffset = server + 500 - (sent + roundTrip / 2);
+  }
+  return true;
 }
 
 /** The time on the server, in epoch milliseconds, as best this browser can tell. */
 export function serverNow(): number {
   return Date.now() + clockOffset;
+}
+
+/** Learns the server's clock without a login. Pages that only show countdowns make no API call, so they need this. */
+export async function syncServerClock(): Promise<boolean> {
+  const sent = Date.now();
+  try {
+    const response = await fetch("/system-check/ping", { cache: "no-store", signal: AbortSignal.timeout(5000) });
+    return noteServerTime(response, sent);
+  } catch {
+    return false; // Offline: the browser's own clock stays in use and the caller may try again.
+  }
 }
 
 const SEB_REFUSAL = "secure exam browser validation failed";
