@@ -16,6 +16,9 @@ import (
 const (
 	consumerTag   = "judge-dispatcher"
 	prefetchCount = 4
+	// jobTimeout bounds one job so a hung dependency (storage, key service, engine) fails and is
+	// requeued instead of holding a consumer forever.
+	jobTimeout = 3 * time.Minute
 )
 
 // Consumer reads admission pointers from the judge admission queue and
@@ -139,7 +142,9 @@ func (c *Consumer) handleDelivery(ctx context.Context, delivery amqp091.Delivery
 		return
 	}
 
-	if err := c.worker.DispatchJob(ctx, msg.JobID); err != nil {
+	jobCtx, cancel := context.WithTimeout(ctx, jobTimeout)
+	defer cancel()
+	if err := c.worker.DispatchJob(jobCtx, msg.JobID); err != nil {
 		c.logger.Error("dispatcher: job dispatch failed, requeuing", "job_id", msg.JobID, "error", err)
 		_ = delivery.Nack(false, true)
 		return
