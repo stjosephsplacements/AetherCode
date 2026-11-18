@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { gatewayURL, isOwnOrigin } from "@/lib/server/config";
-import { isTicketedLaunchFile } from "@/lib/seb-launch";
+import { isLaunchFileProbe, isTicketedLaunchFile } from "@/lib/seb-launch";
 import { clientIP } from "@/lib/server/request";
 import { ACCESS_COOKIE } from "@/lib/server/tokens";
 
@@ -72,6 +72,15 @@ function problem(status: number, code: string, message: string): Response {
   return Response.json({ code, message }, { status });
 }
 
+// Answers SEB's HEAD probe of a launch link without spending its ticket; any other HEAD takes the normal path,
+// including the cross-site Origin check that applies to every method but GET.
+export async function HEAD(request: NextRequest): Promise<Response> {
+  const url = new URL(request.url);
+  if (isLaunchFileProbe(request.method, url.pathname, url.search)) {
+    return new Response(null, { status: 200, headers: { "content-type": "application/seb", "cache-control": "no-store" } });
+  }
+  return forward(request);
+}
 export const GET = forward;
 export const POST = forward;
 export const PUT = forward;
