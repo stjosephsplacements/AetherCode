@@ -1,6 +1,5 @@
 import { contacts } from "@/lib/server/contacts";
 import { publicOrigin } from "@/lib/server/config";
-import { SITE } from "@/lib/site";
 
 // RFC 9116. Expires is required; a year ahead, recomputed on each request.
 export function GET() {
@@ -8,8 +7,8 @@ export function GET() {
   const origin = publicOrigin();
   const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
   const lines = [
-    ...(security ? [`Contact: mailto:${security}`] : []),
-    `Contact: ${SITE.advisories}`,
+    // RFC 9116 needs at least one contact: the email when configured, otherwise the policy page.
+    `Contact: ${security ? `mailto:${security}` : `${origin}/security`}`,
     `Expires: ${expires}`,
     "Preferred-Languages: en",
     `Canonical: ${origin}/.well-known/security.txt`,

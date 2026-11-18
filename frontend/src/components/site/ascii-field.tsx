@@ -8,7 +8,7 @@ const RAMP = " .:-=+*#%@";
 /**
  * A full-page field of ASCII that flows behind the content: layered sine
  * waves drift with time and scroll. Around the pointer the characters
- * thicken and turn orange, drawn on a second layer that follows the mouse
+ * thicken and turn the brand colour, drawn on a second layer that follows the mouse
  * and fades out behind it. One text node per frame at about 30fps; paused in
  * background tabs; coarser on phones; a single still frame for reduced motion.
  */
@@ -54,7 +54,7 @@ export function AsciiField() {
             value += near * 0.6 * (0.7 + 0.3 * Math.sin(distance * 120 - time * 6));
           }
           const index = Math.max(0, Math.min(RAMP.length - 1, Math.floor(value * value * RAMP.length)));
-          // Cells by the pointer move to the orange layer; the grey layer leaves a gap there.
+          // Cells by the pointer move to the brand layer; the grey layer leaves a gap there.
           const hot = near > 0.1;
           text += hot ? " " : RAMP[index];
           lit += hot ? RAMP[Math.max(index, 3)] : " ";

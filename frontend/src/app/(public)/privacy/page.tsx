@@ -40,7 +40,7 @@ export default function PrivacyPage() {
                 college creates your account and decides which exams you take; it acts together with us for the exam records it
                 asks us to keep.
               </p>
-              <p>AetherCode is open-source software. Colleges that host their own copy are responsible for their own deployment.</p>
+              <p>AetherCode is licensed software. Colleges that host their own licensed copy are responsible for their own deployment.</p>
             </>
           ),
         },
@@ -171,8 +171,8 @@ export default function PrivacyPage() {
           body: (
             <>
               <p>
-                AetherCode is self-hosted: your data stays on servers this deployment&apos;s operator runs, not with the open-source
-                maintainers. Each college&apos;s data is kept apart by database row-level security, connections between services are
+                AetherCode is self-hosted: your data stays on servers this deployment&apos;s operator runs, not with the software
+                vendor. Each college&apos;s data is kept apart by database row-level security, connections between services are
                 encrypted, and your code runs in an isolated sandbox with no network access.
               </p>
               <p>

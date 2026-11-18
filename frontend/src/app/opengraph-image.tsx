@@ -24,7 +24,7 @@ export default function OpenGraphImage() {
         <div style={{ display: "flex", fontSize: 34, fontWeight: 700, letterSpacing: -0.5 }}>{SITE.name}</div>
         <div style={{ display: "flex", flexDirection: "column" }}>
           <div style={{ fontSize: 112, letterSpacing: -4, lineHeight: 1 }}>{SITE.tagline}</div>
-          <div style={{ marginTop: 28, fontSize: 30, color: "#a89fc4", maxWidth: 900 }}>Open-source coding assessments for colleges.</div>
+          <div style={{ marginTop: 28, fontSize: 30, color: "#a89fc4", maxWidth: 900 }}>Calm, fair coding exams for colleges.</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <div

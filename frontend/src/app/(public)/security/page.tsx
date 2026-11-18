@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { DocumentPage } from "@/components/site/document";
 import { contacts } from "@/lib/server/contacts";
-import { SITE } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Security",
@@ -28,13 +27,14 @@ export default function SecurityPage() {
           body: (
             <>
               <p>
-                Report privately through a{" "}
-                <a href={SITE.advisories}>GitHub security advisory</a>
+                Report privately
                 {security ? (
                   <>
-                    {" "}or by email to <a href={`mailto:${security}`}>{security}</a>
+                    {" "}by email to <a href={`mailto:${security}`}>{security}</a>
                   </>
-                ) : null}
+                ) : (
+                  " to your college's exam administrator"
+                )}
                 . Please don&apos;t open a public issue. Include what you found, how to reproduce it and the impact you expect.
               </p>
               <ul>

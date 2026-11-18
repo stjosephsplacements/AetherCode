@@ -33,7 +33,7 @@ export const DIAGRAMS = {
     "$ git clone        ",
     "  AlgoQX/AetherCode",
     "                   ",
-    "LICENSE  AGPL v3   ",
+    "LICENSE  Proprietary",
     "source   public    ",
     "hosting  yours     ",
   ],
