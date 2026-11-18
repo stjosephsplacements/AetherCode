@@ -364,6 +364,8 @@ services:
       # .seb launch files open ${PUBLIC_ORIGIN}/exam/<exam_id> (ADR-0022).
       SEB_LAUNCH_BASE_URL: ${PUBLIC_ORIGIN:?PUBLIC_ORIGIN is not set; see setup.sh}
       SEB_LAUNCH_PASSWORD: ${SEB_LAUNCH_PASSWORD:?SEB_LAUNCH_PASSWORD is not set; see setup.sh}
+      # "true" lets SEB run in a virtual machine. QA only; real exams keep it false.
+      SEB_ALLOW_VM: ${SEB_ALLOW_VM:-false}
     build: { context: ../../backend, dockerfile: services/seb/Dockerfile }
 
   notification:
