@@ -44,6 +44,7 @@ All vars are prefixed `PROCTOR_` via pydantic-settings.
 | `PROCTOR_CONFIDENCE_PERSON` | no | Person detection threshold (default `0.60`) |
 | `PROCTOR_VIOLATION_COOLDOWN_SECONDS` | no | Per-attempt, per-kind cooldown (default `30`) |
 | `PROCTOR_SUBMISSION_URL` | no | Submission service base URL (default `http://submission:8080`) |
+| `PROCTOR_INTERNAL_TOKEN` | no | Bearer token Submission presents on `GET /violations`; empty disables the endpoint (it answers 503) |
 
 In Kubernetes, `PROCTOR_DATABASE_URL` and credentials are injected from the
 `aethercode-secrets` Secret — see `deploy/helm/platform-service/values-proctor.yaml`.
@@ -73,3 +74,4 @@ prisma db push         # apply schema to dev DB (use migrations in prod)
 |----------|-------------|
 | `GET /healthz` | Liveness check (returns model_loaded, db_connected) |
 | `POST /analyze` | Direct HTTP trigger (smoke testing without NATS) |
+| `GET /violations` | Violations for an attempt, for Submission only: requires `Authorization: Bearer $PROCTOR_INTERNAL_TOKEN`, 503 when the token is unset |

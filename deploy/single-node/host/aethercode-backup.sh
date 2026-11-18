@@ -56,9 +56,14 @@ for entry in "${CLUSTERS[@]}"; do
   done
 done
 
-tar czf "$DEST/host-config.tgz" --warning=no-file-changed \
-  /etc/ssh /etc/ufw /etc/fail2ban /etc/webmin /etc/cloudflared /etc/cron.d /etc/systemd/system/*.service \
-  /data/production/litellm /data/production/searxng/config /data/production/*/compose.yaml /data/production/*/.env 2>/dev/null || [[ $? -eq 1 ]]
+# archive only the paths that exist, and say which are missing (tar exits 2 on a missing operand)
+paths=()
+for path in /etc/ssh /etc/ufw /etc/fail2ban /etc/webmin /etc/cloudflared /etc/cron.d /etc/systemd/system/*.service \
+            /data/production/litellm /data/production/searxng/config /data/production/*/compose.yaml /data/production/*/.env \
+            /data/production/gitea/data/gitea; do
+  if [[ -e "$path" ]]; then paths+=("$path"); else logger -t aethercode-backup "not backed up, missing: $path"; fi
+done
+tar czf "$DEST/host-config.tgz" --warning=no-file-changed "${paths[@]}" 2>/dev/null || [[ $? -eq 1 ]]
 crontab -l >"$DEST/root-crontab.txt" 2>/dev/null || true
 
 (cd "$DEST" && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum >SHA256SUMS)

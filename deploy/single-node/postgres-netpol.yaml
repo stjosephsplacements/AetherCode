@@ -2,6 +2,7 @@
 # disabled, adds no rule for the CloudNativePG pod. This lets the platform's pods and jobs
 # reach PostgreSQL, and the CNPG operator reach its status endpoint (port 8000).
 #   kubectl -n aethercode-dev apply -f deploy/single-node/postgres-netpol.yaml
+#   kubectl -n aethercode-prod apply -f deploy/single-node/postgres-netpol.yaml   # also for production, once the platform-infra chart is installed there
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata: {name: postgres-from-platform}

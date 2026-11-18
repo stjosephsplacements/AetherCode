@@ -429,7 +429,7 @@ services:
         condition: service_healthy
 
   proctor:
-    build: { context: ../../backend, dockerfile: services/proctor/Dockerfile }
+    build: { context: ../../backend/services/proctor, dockerfile: Dockerfile }
     restart: always
     environment:
       PROCTOR_SUBMISSION_URL: http://submission:8080

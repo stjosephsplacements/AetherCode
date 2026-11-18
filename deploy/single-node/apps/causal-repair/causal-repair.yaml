@@ -147,4 +147,17 @@ spec:
       - {key: app.kubernetes.io/name, operator: In, values: [mongodb, redis]}
   policyTypes: [Ingress]
   ingress: []
-
+---
+# The viewer sits behind Cloudflare Access at the edge, so inside the cluster only Traefik (which the tunnel
+# feeds) may reach it; other pods cannot go around the Access policy.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: viewer-from-traefik
+  namespace: causal-repair
+spec:
+  podSelector: {matchLabels: {app.kubernetes.io/name: viewer}}
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: traefik}}}]
+      ports: [{port: 8078, protocol: TCP}]
