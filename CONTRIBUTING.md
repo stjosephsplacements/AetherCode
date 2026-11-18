@@ -70,6 +70,9 @@ Never in a public issue. See [SECURITY.md](SECURITY.md).
 
 ## License
 
-AetherCode is copyright St. Joseph's Group of Institutions and licensed under
-the [GNU AGPL v3](LICENSE) (see [NOTICE](NOTICE)). By contributing you agree
-that your contributions are licensed under the same license.
+AetherCode is proprietary software owned by St. Joseph's Group of Institutions
+(see [LICENSE](LICENSE) and [NOTICE](NOTICE)). Only people working under a
+written agreement with the owner may contribute. By contributing you agree that
+the owner owns your contribution and may license it under the project's terms.
+Do not copy code from other projects unless its licence allows proprietary use,
+and record it in NOTICE.

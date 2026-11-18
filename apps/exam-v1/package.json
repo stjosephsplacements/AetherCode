@@ -1,7 +1,7 @@
 {
   "name": "exam-v1",
   "private": true,
-  "license": "AGPL-3.0-only",
+  "license": "UNLICENSED",
   "author": "St. Joseph's Group of Institutions",
   "type": "module",
   "scripts": {
