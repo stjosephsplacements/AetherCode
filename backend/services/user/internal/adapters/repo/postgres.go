@@ -1171,13 +1171,23 @@ func nullableTimestamp(value string) any {
 // roleBitsAssignmentQuery joins each assignment to its managed role (migration 000039): the root
 // administrator is the platform Owner, a delegated super admin the platform Super admin, placement
 // staff the Placement officer of the placement guild, and a college role the college guild's role
-// of the same name. An assignment with no matching role carries no bits.
+// of the same name. An assignment with no matching role carries no bits. It joins the base tables
+// instead of users.assignment_roles: that view is a security barrier, so the principal filter was
+// applied after joining every assignment to roles (79 ms and 26k buffer hits at 13k assignments).
 const roleBitsAssignmentQuery = `
 	SELECT a.role_name, a.scope_kind, COALESCE(a.tenant_id::text, ''), COALESCE(a.scope_id::text, ''),
 	       a.role_name = 'super_admin' AND a.scope_kind = 'platform' AND a.granted_by_principal_id <> a.principal_id,
-	       COALESCE(ar.permissions::text, '')
+	       COALESCE(r.permissions::text, '')
 	FROM users.active_role_assignments AS a
-	LEFT JOIN users.assignment_roles AS ar ON ar.assignment_id = a.id
+	JOIN users.role_assignments AS ra ON ra.id = a.id
+	LEFT JOIN users.roles AS r ON r.id = ra.role_id
+	   OR (ra.role_id IS NULL
+	       AND r.guild_kind = CASE ra.role_name WHEN 'super_admin' THEN 'platform' WHEN 'placement_user' THEN 'placement' ELSE 'college' END
+	       AND r.tenant_id IS NOT DISTINCT FROM CASE WHEN ra.role_name IN ('super_admin', 'placement_user') THEN NULL::uuid ELSE ra.tenant_id END
+	       AND r.system_key = CASE
+	           WHEN ra.role_name = 'super_admin' AND ra.granted_by_principal_id = ra.principal_id THEN 'owner'
+	           WHEN ra.role_name = 'placement_user' THEN 'placement_officer'
+	           ELSE ra.role_name END)
 	WHERE a.principal_id = $1
 	ORDER BY a.role_name, a.scope_kind, a.tenant_id NULLS FIRST, a.scope_id NULLS FIRST`
 
