@@ -99,3 +99,27 @@ export async function dismissOnboarding(page: Page): Promise<void> {
   await dialog.getByRole("button", { name: "Close" }).click();
   await expect(dialog).toBeHidden();
 }
+
+/** Sets a staff date-time picker (the popover that replaced the native datetime-local field) to a local "YYYY-MM-DDTHH:mm". */
+export async function pickDateTime(page: Page, id: string, value: string): Promise<void> {
+  const [day, time] = value.split("T");
+  const [hour, minute] = time!.split(":").map(Number);
+  await page.locator(`#${id}`).click();
+  const dialog = page.getByRole("dialog").last();
+  const dayButton = dialog.getByRole("button", { name: day!, exact: true });
+  if (!(await dayButton.isVisible())) await dialog.getByRole("button", { name: "Next month" }).click();
+  await dayButton.click();
+  await dialog.getByRole("combobox", { name: "Hour" }).click();
+  await page.getByRole("option", { name: `${hour! % 12 || 12} ${hour! < 12 ? "am" : "pm"}`, exact: true }).click();
+  // The minute list is every five minutes plus the current value; pick the nearest multiple of five.
+  const nearest = String(Math.min(55, Math.round(minute! / 5) * 5)).padStart(2, "0");
+  await dialog.getByRole("combobox", { name: "Minute" }).click();
+  await page.getByRole("option", { name: nearest, exact: true }).click();
+  await dialog.getByRole("button", { name: "Done" }).click();
+}
+
+/** The cookie notice floats over the bottom of the page and can sit on top of a primary button; choose essential only. */
+export async function dismissCookies(page: Page): Promise<void> {
+  const choice = page.getByRole("button", { name: "Essential only" });
+  if (await choice.isVisible().catch(() => false)) await choice.click();
+}

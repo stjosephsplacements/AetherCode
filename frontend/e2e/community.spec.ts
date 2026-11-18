@@ -2,7 +2,7 @@
 import { expect, test } from "@playwright/test";
 import { randomBytes } from "node:crypto";
 import { setUp } from "./seed";
-import { adminEmail, adminPassword, adminTotpSecret, dismissOnboarding, freshTotp } from "./support";
+import { adminEmail, adminPassword, adminTotpSecret, dismissCookies, dismissOnboarding, freshTotp } from "./support";
 
 const run = randomBytes(3).toString("hex").toUpperCase();
 
@@ -27,6 +27,7 @@ test("a student submits an interview experience and staff approve it", async ({ 
 
   // Submit an interview experience.
   await student.goto("/student/interviews");
+  await dismissCookies(student);
   const company = `E2E Corp ${run}`;
   await student.locator("#company-name").fill(company);
   await student.locator("#role-name").fill("Software Engineer");
