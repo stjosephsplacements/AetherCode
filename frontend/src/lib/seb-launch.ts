@@ -16,3 +16,10 @@ export function sebLaunchURL(origin: string, tenantID: string, examID: string, t
 export function isTicketedLaunchFile(method: string, pathname: string, search: string): boolean {
   return method === "GET" && LAUNCH_FILE.test(pathname) && TICKET.test(new URLSearchParams(search).get("ticket") ?? "");
 }
+
+// Safe Exam Browser sends HEAD before it downloads. If that fails it probes with a GET and then downloads with another
+// GET, and the probe spends the single-use ticket, so the real download is refused. A HEAD for a well-formed link is
+// therefore answered here, without looking at or spending the ticket, and SEB then makes its one GET.
+export function isLaunchFileProbe(method: string, pathname: string, search: string): boolean {
+  return method === "HEAD" && isTicketedLaunchFile("GET", pathname, search);
+}
