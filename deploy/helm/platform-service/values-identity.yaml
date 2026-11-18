@@ -5,7 +5,7 @@ image:
   repository: ghcr.io/stjosephsplacements/aethercode-identity
   tag: ""
 
-replicaCount: 2
+replicaCount: 3
 
 ports:
   - name: introspection
@@ -98,10 +98,12 @@ sso:
 # Password hashing is memory-hard: a bulk student import runs many hashes at once and was OOM-killed at 512Mi.
 # Helm merges this over the chart's defaults, which carry a 500m CPU limit; that throttled Argon2 to
 # about 0.3 s per account, so a 500-student import could not finish. Say the CPU limit explicitly.
+# A load test of 100 simultaneous sign-ins OOM-killed both pods at 1Gi; the code now bounds concurrent Argon2 work
+# (internal/domain/password.go), and this gives the rest headroom. Three replicas share a surge.
 resources:
   requests:
-    cpu: 500m
-    memory: 512Mi
+    cpu: 1000m
+    memory: 768Mi
   limits:
-    cpu: 2000m
-    memory: 1Gi
+    cpu: 4000m
+    memory: 2Gi
