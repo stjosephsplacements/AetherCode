@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"math/big"
+	"runtime"
 	"strconv"
 	"strings"
 	"unicode"
@@ -31,6 +32,19 @@ const (
 	generatedArgonIterations  = 2
 	generatedArgonParallelism = 1
 )
+
+// argonSlots bounds how many Argon2id computations run at once in this process. Each holds up to 64 MiB, and a
+// sign-in surge (a lab of students starting an exam together) used to start one per request and exceed the pod's
+// memory limit (OOM-killed under 100 simultaneous sign-ins). Callers wait for a slot instead; the slot count follows
+// the CPUs the process may use, between 2 and 6.
+var argonSlots = make(chan struct{}, max(2, min(6, runtime.GOMAXPROCS(0))))
+
+// withArgonSlot runs work once a slot is free.
+func withArgonSlot(work func()) {
+	argonSlots <- struct{}{}
+	defer func() { <-argonSlots }()
+	work()
+}
 
 // ValidatePassword enforces the v1 password policy before Argon2id work is
 // spent. It intentionally permits symbols without forcing any particular one.
@@ -91,7 +105,8 @@ func hashPassword(password string, memory, iterations uint32, parallelism uint8)
 	if _, err := rand.Read(salt); err != nil {
 		return "", fmt.Errorf("read password salt: %w", err)
 	}
-	hash := argon2.IDKey([]byte(password), salt, iterations, memory, parallelism, argonKeyLength)
+	var hash []byte
+	withArgonSlot(func() { hash = argon2.IDKey([]byte(password), salt, iterations, memory, parallelism, argonKeyLength) })
 	return fmt.Sprintf("$argon2id$v=%d$m=%d,t=%d,p=%d$%s$%s",
 		argon2.Version, memory, iterations, parallelism,
 		base64.RawStdEncoding.EncodeToString(salt), base64.RawStdEncoding.EncodeToString(hash)), nil
@@ -132,7 +147,10 @@ func VerifyPassword(encodedHash, password string) bool {
 	if err != nil || len(expected) != argonKeyLength {
 		return false
 	}
-	actual := argon2.IDKey([]byte(password), salt, uint32(iterations), uint32(memory), uint8(parallelism), uint32(len(expected)))
+	var actual []byte
+	withArgonSlot(func() {
+		actual = argon2.IDKey([]byte(password), salt, uint32(iterations), uint32(memory), uint8(parallelism), uint32(len(expected)))
+	})
 	return subtle.ConstantTimeCompare(actual, expected) == 1
 }
 

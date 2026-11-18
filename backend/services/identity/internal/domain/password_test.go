@@ -2,7 +2,10 @@ package domain
 
 import (
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestHashAndVerifyPassword(t *testing.T) {
@@ -88,5 +91,33 @@ func TestGeneratedPasswordHashVerifiesAndIsLighter(t *testing.T) {
 	chosen, err := HashPassword("A person chose this 2026")
 	if err != nil || !strings.Contains(chosen, "m=65536,t=3,p=4") {
 		t.Fatalf("a chosen password keeps the full settings, got %s (%v)", chosen, err)
+	}
+}
+
+func TestArgonSlotsBoundConcurrentWork(t *testing.T) {
+	t.Parallel()
+	limit := cap(argonSlots)
+	var running, peak atomic.Int32
+	var wg sync.WaitGroup
+	for range limit * 4 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			withArgonSlot(func() {
+				now := running.Add(1)
+				for {
+					seen := peak.Load()
+					if now <= seen || peak.CompareAndSwap(seen, now) {
+						break
+					}
+				}
+				time.Sleep(5 * time.Millisecond)
+				running.Add(-1)
+			})
+		}()
+	}
+	wg.Wait()
+	if got := int(peak.Load()); got > limit {
+		t.Fatalf("%d computations ran at once, limit %d", got, limit)
 	}
 }
