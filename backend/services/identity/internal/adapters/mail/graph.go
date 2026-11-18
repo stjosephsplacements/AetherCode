@@ -150,7 +150,7 @@ func (graph *Graph) SendPasswordReset(ctx context.Context, to, token string, val
 		if err != nil {
 			return fmt.Errorf("send mail: %w", err)
 		}
-		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 1<<20))
+		raw, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
 		_ = response.Body.Close()
 		switch {
 		case response.StatusCode == http.StatusAccepted:
@@ -158,7 +158,14 @@ func (graph *Graph) SendPasswordReset(ctx context.Context, to, token string, val
 		case response.StatusCode == http.StatusUnauthorized && attempt == 0: // a revoked or expired cached token: fetch another
 			continue
 		default:
-			return fmt.Errorf("Microsoft Graph refused the message: HTTP %d", response.StatusCode)
+			// Graph's error code (such as ErrorInvalidUser or ErrorAccessDenied) says what to fix; the body carries no secret.
+			var refusal struct {
+				Error struct {
+					Code string `json:"code"`
+				} `json:"error"`
+			}
+			_ = json.Unmarshal(raw, &refusal)
+			return fmt.Errorf("Microsoft Graph refused the message: HTTP %d %s", response.StatusCode, refusal.Error.Code)
 		}
 	}
 	return errors.New("Microsoft Graph refused the message")

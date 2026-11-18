@@ -84,10 +84,11 @@ func TestSendPasswordResetReportsRefusalsWithoutTheSecret(t *testing.T) {
 			_, _ = io.WriteString(w, `{"access_token":"abc","expires_in":3600}`)
 			return
 		}
-		w.WriteHeader(http.StatusForbidden)
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = io.WriteString(w, `{"error":{"code":"ErrorInvalidUser","message":"The requested user is invalid."}}`)
 	})
 	err := graph.SendPasswordReset(context.Background(), "asha@college.edu", "t", time.Hour)
-	if err == nil || !strings.Contains(err.Error(), "403") || strings.Contains(err.Error(), "secret") {
+	if err == nil || !strings.Contains(err.Error(), "404 ErrorInvalidUser") || strings.Contains(err.Error(), "secret") {
 		t.Fatalf("error = %v", err)
 	}
 	if err := graph.SendPasswordReset(context.Background(), "not an address", "t", time.Hour); err == nil {
