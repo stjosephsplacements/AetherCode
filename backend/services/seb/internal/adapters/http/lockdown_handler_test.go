@@ -1,10 +1,13 @@
 package httpadapter
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/stjosephsplacements/AetherCode/services/seb/internal/app"
 )
 
 func TestPutExamPolicyRejectsInvalidTenantID(t *testing.T) {
@@ -124,5 +127,49 @@ func TestGetCandidateLaunchFileRejectsInvalidIDs(t *testing.T) {
 				t.Fatalf("getCandidateLaunchFile accepted invalid IDs, got %d", recorder.Code)
 			}
 		})
+	}
+}
+
+const launchPath = "/v1/tenants/018f4b0d-08f8-7c09-9ba7-efdf9c223001/exams/018f4b0d-08f8-7c09-9ba7-efdf9c223002/"
+
+// A ticket in the query replaces the bearer: the authorizer is never consulted.
+func TestLaunchFileWithTicketSkipsAuthorization(t *testing.T) {
+	t.Parallel()
+	service := &fakeSEBService{launchFile: app.LaunchFile{Filename: "x.seb", Content: []byte("seb")}}
+	authorizer := &fakeAuthorizer{}
+	handler, err := NewHandler("seb", service, func(context.Context) error { return nil }, authorizer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, launchPath+"launch-file?ticket=abc", nil))
+	if recorder.Code != http.StatusOK || service.ticketUsed != "abc" {
+		t.Fatalf("status = %d, ticket = %q", recorder.Code, service.ticketUsed)
+	}
+	if authorizer.selfCalls+authorizer.regularCall != 0 {
+		t.Fatal("a ticketed download must not need a bearer")
+	}
+	if recorder.Header().Get("Cache-Control") != "no-store" {
+		t.Error("the launch file must not be cached")
+	}
+}
+
+func TestIssueLaunchTicketIsCandidateSelfAndNotCached(t *testing.T) {
+	t.Parallel()
+	authorizer := &fakeAuthorizer{}
+	handler, err := NewHandler("seb", &fakeSEBService{}, func(context.Context) error { return nil }, authorizer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, launchPath+"launch-ticket", nil))
+	if recorder.Code != http.StatusCreated || authorizer.selfCalls != 1 || authorizer.regularCall != 0 {
+		t.Fatalf("status = %d, self = %d, regular = %d", recorder.Code, authorizer.selfCalls, authorizer.regularCall)
+	}
+	if !strings.Contains(recorder.Body.String(), `"ticket":"issued-ticket"`) || !strings.Contains(recorder.Body.String(), `"expires_in":60`) {
+		t.Errorf("body = %s", recorder.Body.String())
+	}
+	if recorder.Header().Get("Cache-Control") != "no-store" {
+		t.Error("a ticket response must not be cached")
 	}
 }

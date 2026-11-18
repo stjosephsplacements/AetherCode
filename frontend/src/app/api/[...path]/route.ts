@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { gatewayURL, isOwnOrigin } from "@/lib/server/config";
+import { isTicketedLaunchFile } from "@/lib/seb-launch";
 import { clientIP } from "@/lib/server/request";
 import { ACCESS_COOKIE } from "@/lib/server/tokens";
 
@@ -29,15 +30,17 @@ async function forward(request: NextRequest): Promise<Response> {
   if (request.method !== "GET" && !isOwnOrigin(request.headers.get("origin"))) {
     return problem(403, "forbidden", "Cross-site request refused.");
   }
-  const token = request.cookies.get(ACCESS_COOKIE)?.value;
-  if (!token) return problem(401, "unauthenticated", "Your session has ended. Sign in again.");
+  // Safe Exam Browser fetches a sebs:// launch link with no cookie; its one-time ticket is the credential.
+  const ticketed = isTicketedLaunchFile(request.method, url.pathname, url.search);
+  const token = ticketed ? undefined : request.cookies.get(ACCESS_COOKIE)?.value;
+  if (!token && !ticketed) return problem(401, "unauthenticated", "Your session has ended. Sign in again.");
 
   const headers = new Headers();
   for (const name of FORWARDED_REQUEST_HEADERS) {
     const value = request.headers.get(name);
     if (value) headers.set(name, value);
   }
-  headers.set("authorization", `Bearer ${token}`);
+  if (token) headers.set("authorization", `Bearer ${token}`);
   const ip = clientIP(request.headers);
   if (ip) headers.set("x-forwarded-for", ip);
 

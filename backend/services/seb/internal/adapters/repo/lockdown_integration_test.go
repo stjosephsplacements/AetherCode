@@ -299,3 +299,103 @@ func TestLabNetworks(t *testing.T) {
 		t.Errorf("inside the lab without SEB: got %s, want missing", got)
 	}
 }
+
+// TestLaunchTicket proves the one-click launch credential: issued only to a candidate with an
+// open assignment, spent by the first anonymous use, bound to its exam, and short-lived.
+func TestLaunchTicket(t *testing.T) {
+	ctx := context.Background()
+	pool := startSEBDatabase(ctx, t)
+	staffID, candidateID, otherID := uuid.NewString(), uuid.NewString(), uuid.NewString()
+	examID, otherExamID, assignmentID := uuid.NewString(), uuid.NewString(), uuid.NewString()
+	for _, actor := range []string{staffID, candidateID, otherID} {
+		authorize(ctx, t, pool, actor)
+	}
+	snapshot(ctx, t, pool, assignmentID, candidateID, examID, "active", "-1 hour", "1 hour", 1)
+	if err := signed(ctx, t, pool, "aether_seb_app", staffID, "seb.write", "seb.configurations", func(transaction pgx.Tx) error {
+		_, err := transaction.Exec(ctx, `
+			INSERT INTO seb.exam_policies (tenant_id, exam_id, title, enabled, accepted_keys, updated_by)
+			VALUES ($1, $2, 'Mid term', true, $3, $4)`, tenantID, examID, []string{strings.Repeat("ab", 32)}, staffID)
+		return err
+	}); err != nil {
+		t.Fatalf("lock exam: %v", err)
+	}
+
+	digest := func(seed string) []byte { sum := sha256.Sum256([]byte(seed)); return sum[:] }
+	issue := func(actorID, exam string, token []byte) bool {
+		t.Helper()
+		var issued bool
+		if err := signed(ctx, t, pool, "aether_seb_app", actorID, "seb.read", "seb.sessions", func(transaction pgx.Tx) error {
+			return transaction.QueryRow(ctx, `SELECT seb.issue_launch_ticket($1, $2, $3)`, tenantID, exam, token).Scan(&issued)
+		}); err != nil {
+			t.Fatalf("issue_launch_ticket: %v", err)
+		}
+		return issued
+	}
+	// No tenant context: the ticket is the credential, as for Safe Exam Browser's own fetch.
+	consume := func(exam string, token []byte) *string {
+		t.Helper()
+		var title *string
+		transaction, err := pool.Begin(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer transaction.Rollback(ctx) //nolint:errcheck
+		if _, err := transaction.Exec(ctx, `SET LOCAL ROLE aether_seb_app`); err != nil {
+			t.Fatal(err)
+		}
+		if err := transaction.QueryRow(ctx, `SELECT seb.consume_launch_ticket($1, $2, $3)`, tenantID, exam, token).Scan(&title); err != nil {
+			t.Fatalf("consume_launch_ticket: %v", err)
+		}
+		if err := transaction.Commit(ctx); err != nil {
+			t.Fatal(err)
+		}
+		return title
+	}
+
+	if issue(otherID, examID, digest("stranger")) {
+		t.Error("a candidate without an assignment got a ticket")
+	}
+	if title := consume(examID, digest("stranger")); title != nil {
+		t.Errorf("a ticket that was never issued opened %q", *title)
+	}
+
+	if !issue(candidateID, examID, digest("one")) {
+		t.Fatal("assigned candidate was refused a ticket")
+	}
+	if title := consume(otherExamID, digest("one")); title != nil {
+		t.Errorf("a ticket opened another exam's file: %q", *title)
+	}
+	if title := consume(examID, digest("one")); title == nil || *title != "Mid term" {
+		t.Fatalf("first use = %v", title)
+	}
+	if title := consume(examID, digest("one")); title != nil {
+		t.Errorf("a spent ticket opened the file again: %q", *title)
+	}
+
+	// A new ticket replaces the earlier unspent one.
+	issue(candidateID, examID, digest("first"))
+	issue(candidateID, examID, digest("second"))
+	if title := consume(examID, digest("first")); title != nil {
+		t.Errorf("a replaced ticket still worked: %q", *title)
+	}
+	if title := consume(examID, digest("second")); title == nil {
+		t.Error("the newest ticket was refused")
+	}
+
+	// Past its sixty seconds it is refused.
+	issue(candidateID, examID, digest("late"))
+	if _, err := pool.Exec(ctx, `UPDATE seb.launch_tickets SET expires_at = clock_timestamp() - interval '1 second' WHERE token_hash = $1`, digest("late")); err != nil {
+		t.Fatal(err)
+	}
+	if title := consume(examID, digest("late")); title != nil {
+		t.Errorf("an expired ticket worked: %q", *title)
+	}
+
+	// The app role cannot read or write the table directly.
+	if err := signed(ctx, t, pool, "aether_seb_app", candidateID, "seb.read", "seb.sessions", func(transaction pgx.Tx) error {
+		_, err := transaction.Exec(ctx, `SELECT token_hash FROM seb.launch_tickets`)
+		return err
+	}); err == nil {
+		t.Error("the app role read seb.launch_tickets directly")
+	}
+}

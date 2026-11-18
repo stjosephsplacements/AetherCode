@@ -193,7 +193,8 @@ func (handler *Handler) ServeHTTP(writer http.ResponseWriter, request *http.Requ
 
 	public := (matched.service == "identity" && isPublicIdentityRoute(request.Method, matched.forwardedPath)) ||
 		(matched.service == "user" && isPublicProfileRoute(request.Method, matched.forwardedPath)) ||
-		(matched.service == "analytics" && isPublicTalentCardRoute(request.Method, matched.forwardedPath))
+		(matched.service == "analytics" && isPublicTalentCardRoute(request.Method, matched.forwardedPath)) ||
+		(matched.service == "seb" && isPublicLaunchFileRoute(request.Method, matched.forwardedPath, request.URL.Query().Get("ticket")))
 	assertion := ""
 	principalID := ""
 	if !public {
@@ -305,6 +306,18 @@ var publicTalentCardPattern = regexp.MustCompile(`^/v1/public/talent-cards/v1\.[
 
 func isPublicTalentCardRoute(method, forwardedPath string) bool {
 	return method == http.MethodGet && publicTalentCardPattern.MatchString(forwardedPath)
+}
+
+// publicLaunchFilePattern is the one anonymous SEB route: Safe Exam Browser fetching a sebs://
+// link has no session, so a one-time launch ticket in the query stands in for the bearer. The SEB
+// service spends the ticket; without a well-formed one the request needs a bearer like any other.
+var (
+	publicLaunchFilePattern = regexp.MustCompile(`^/v1/tenants/[0-9a-fA-F-]{36}/exams/[0-9a-fA-F-]{36}/launch-file$`)
+	launchTicketPattern     = regexp.MustCompile(`^[A-Za-z0-9_-]{43}$`)
+)
+
+func isPublicLaunchFileRoute(method, forwardedPath, ticket string) bool {
+	return method == http.MethodGet && publicLaunchFilePattern.MatchString(forwardedPath) && launchTicketPattern.MatchString(ticket)
 }
 
 func isPublicIdentityRoute(method, forwardedPath string) bool {

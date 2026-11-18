@@ -507,13 +507,53 @@ paths:
     - {$ref: '#/components/parameters/TenantID'}
     - {$ref: '#/components/parameters/ExamID'}
     get:
-      security: [bearerAuth: []]
+      security: [bearerAuth: [], {}]
       summary: Download a locked exam's .seb launch file (candidate)
       description: >-
         Only for a locked exam the bearer candidate is assigned to and whose
-        window has not closed; anything else is 404.
+        window has not closed; anything else is 404. With a `ticket` from
+        launch-ticket the bearer is not needed (Safe Exam Browser fetching a
+        sebs:// link has none): the ticket is spent by this request, and a
+        wrong, spent or expired one is 401.
+      parameters:
+      - name: ticket
+        in: query
+        required: false
+        schema: {type: string, pattern: '^[A-Za-z0-9_-]{43}$'}
       responses:
         '200': {$ref: '#/components/responses/LaunchFile'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
+        '500':
+          $ref: '#/components/responses/Problem500'
+        '429':
+          $ref: '#/components/responses/Problem429'
+  /v1/tenants/{tenant_id}/exams/{exam_id}/launch-ticket:
+    parameters:
+    - {$ref: '#/components/parameters/TenantID'}
+    - {$ref: '#/components/parameters/ExamID'}
+    post:
+      security: [bearerAuth: []]
+      summary: Mint a single-use ticket for the one-click sebs:// launch (candidate)
+      description: >-
+        Valid for 60 seconds and one launch-file download; a new ticket replaces
+        the candidate's earlier one for the exam. Only the ticket's hash is
+        stored. Needs an open assignment to a locked exam, else 404.
+      responses:
+        '201':
+          description: The ticket, shown once.
+          headers:
+            Cache-Control: {schema: {type: string, enum: [no-store]}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ticket, expires_in]
+                properties:
+                  ticket: {type: string, pattern: '^[A-Za-z0-9_-]{43}$'}
+                  expires_in: {type: integer, enum: [60]}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
