@@ -1,7 +1,6 @@
 "use client";
 
 import { CaretRight, MagnifyingGlass, X } from "@phosphor-icons/react/ssr";
-import Link from "next/link";
 import { useState } from "react";
 import { ExamPeek, examState } from "@/components/staff/exam-peek";
 import { Select } from "@/components/staff/form";
@@ -9,6 +8,7 @@ import type { ExamVersion } from "@/lib/api-types";
 import { useNow } from "@/lib/client/use-now";
 import { collegeHref } from "@/lib/links";
 import { cn, formatDuration, formatWindow } from "@/lib/utils";
+import { CollegeLink } from "@/components/college-link";
 
 export type BoardExam = { exam: { id: string; created_at: string }; version: ExamVersion | null; college?: { id: string; name: string } };
 
@@ -178,9 +178,9 @@ function Row({ entry, state, now }: { entry: BoardExam; state: State; now: numbe
       {body}
     </ExamPeek>
   ) : (
-    <Link href={collegeHref(`/staff/exams/${entry.exam.id}`, entry.college?.id)} className={layout}>
+    <CollegeLink href={collegeHref(`/staff/exams/${entry.exam.id}`, entry.college?.id)} className={layout}>
       {body}
-    </Link>
+    </CollegeLink>
   );
 }
 

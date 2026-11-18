@@ -1,6 +1,5 @@
 import { collegeHref } from "@/lib/links";
 import { Crown, Lock, ShieldCheck } from "@phosphor-icons/react/ssr";
-import Link from "next/link";
 import { ConfirmDelete } from "@/components/staff/confirm-delete";
 import { Field, Select } from "@/components/staff/form";
 import { Badge } from "@/components/ui/card";
@@ -8,6 +7,7 @@ import type { SuperAdmin } from "@/lib/server/people";
 import { AddDialog } from "../../staff/departments/add-dialog";
 import { lettermark } from "@/lib/lettermark";
 import { makeSuperAdmin, removeSuperAdmin } from "../../staff/accounts/actions";
+import { CollegeLink } from "@/components/college-link";
 
 /**
  * Platform administrators. The root administrator holds everything and is fixed.
@@ -76,9 +76,9 @@ export function PlatformAdmins({ admins, candidates, viewerIsRoot, workspace }: 
             ) : (
               viewerIsRoot && (
                 <div className="flex items-center gap-1">
-                  <Link href={collegeHref(`/staff/permissions?person=${admin.principalId}&scope=platform`, workspace)} className="rounded-full px-3 py-1.5 text-[13px] text-brand transition-colors hover:bg-hover">
+                  <CollegeLink href={collegeHref(`/staff/permissions?person=${admin.principalId}&scope=platform`, workspace)} className="rounded-full px-3 py-1.5 text-[13px] text-brand transition-colors hover:bg-hover">
                     Permissions
-                  </Link>
+                  </CollegeLink>
                   <ConfirmDelete
                     title={`Remove ${admin.name} as super admin?`}
                     description="They keep their staff account but lose every platform-wide permission."
