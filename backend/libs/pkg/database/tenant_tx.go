@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
 	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry"
 )
 
 // WithTenantTx begins a protected transaction only after the central User
@@ -29,7 +30,9 @@ func WithTenantTx(
 	if err := capability.ValidateAt(time.Now()); err != nil {
 		return err
 	}
+	beginStarted := time.Now()
 	transaction, err := pool.BeginTx(contextValue, pgx.TxOptions{})
+	telemetry.ObserveStage("begin_tx", beginStarted, err) // includes waiting for a pooled connection
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
@@ -43,13 +46,16 @@ func WithTenantTx(
 	if len(capability.Nodes) > 0 {
 		nodes = pgtype.FlatArray[string](capability.Nodes)
 	}
-	if _, err := transaction.Exec(contextValue, `
+	contextStarted := time.Now()
+	_, contextErr := transaction.Exec(contextValue, `
 		SELECT authz.set_context($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 	`, capability.ActorID, tenantID, capability.AuthzRevision,
 		capability.Decision, capability.CapabilityID, capability.Action, capability.Resource,
 		nodes,
-		capability.IssuedAt.UTC(), capability.ExpiresAt.UTC(), capability.KeyID, capability.Signature); err != nil {
-		return contextError(err)
+		capability.IssuedAt.UTC(), capability.ExpiresAt.UTC(), capability.KeyID, capability.Signature)
+	telemetry.ObserveStage("set_context", contextStarted, contextErr)
+	if contextErr != nil {
+		return contextError(contextErr)
 	}
 	if err := fn(transaction); err != nil {
 		return err

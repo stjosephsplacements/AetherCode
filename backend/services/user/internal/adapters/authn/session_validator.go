@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry"
 	userconfig "github.com/stjosephsplacements/AetherCode/services/user/internal/config"
 )
 
@@ -76,7 +77,9 @@ func (validator *SessionValidator) Validate(contextValue context.Context, token 
 	}
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Accept", "application/json")
+	started := time.Now()
 	response, err := validator.client.Do(request)
+	telemetry.ObserveStage("introspect", started, err)
 	if err != nil {
 		return fmt.Errorf("call Identity introspection: %w", err)
 	}
