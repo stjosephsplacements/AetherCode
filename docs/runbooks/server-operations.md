@@ -21,8 +21,9 @@ Where app files live: `/data/production/<app>/` (compose file, `.env`, config, d
 - `DRY_RUN=1 /usr/local/bin/aethercode-update.sh` pulls the images (running containers are untouched), skips the backup, never writes or clears `UPDATE_FAILED`, and reports what would change.
 
 ## When it fails
-Read the newest file in `/data/backups/updates/`. Helm rollbacks are automatic; check `helm history <release> -n <ns>`. A Docker app
-that failed its health check was already restored to the previous image.
+Read the newest file in `/data/backups/updates/`. Helm rollbacks are automatic; check `helm history <release> -n <ns>`. For a Docker app
+that failed its health check the script tries to restore the previous image: read the report for a "rollback failed" line, confirm
+the container runs the previous image ID and is healthy, and only then treat recovery as complete.
 
 ## Gotcha
 `helm upgrade --reuse-values` re-applies the credentials stored in the release. If a Secret is changed by hand, update the Helm values

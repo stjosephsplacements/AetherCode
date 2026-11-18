@@ -104,6 +104,9 @@ func TestExamPeakLatency(t *testing.T) {
 		}
 		wg.Wait()
 		elapsed := time.Since(started)
+		if len(samples) == 0 {
+			t.Fatalf("%s: every call failed, no latency samples to report", name)
+		}
 		sort.Slice(samples, func(a, b int) bool { return samples[a] < samples[b] })
 		at := func(p float64) time.Duration { return samples[int(float64(len(samples)-1)*p)] }
 		t.Logf("%-22s n=%d  %.0f/s  p50=%v p75=%v p90=%v p95=%v p99=%v max=%v", name, len(samples),
