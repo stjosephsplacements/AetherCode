@@ -253,6 +253,14 @@ func run(contextValue context.Context) error {
 	if err != nil {
 		return err
 	}
+	// A candidate's allowed request checks are reused briefly (ADR-0086); off unless SEB_CHECK_CACHE_TTL is set.
+	if raw := strings.TrimSpace(os.Getenv("SEB_CHECK_CACHE_TTL")); raw != "" {
+		ttl, err := time.ParseDuration(raw)
+		if err != nil || ttl < 0 || ttl > time.Minute {
+			return fmt.Errorf("SEB_CHECK_CACHE_TTL must be a duration between 0s and 1m")
+		}
+		sebService.SetCheckCacheTTL(ttl)
+	}
 	handler, err := httpadapter.NewHandler(serviceConfig.Name, sebService, readiness, authorizer)
 	if err != nil {
 		return err

@@ -20,7 +20,12 @@ Argon2id at 64 MiB, 3 passes, 4 lanes, about 0.1 to 0.25 CPU-seconds and four th
    service already used for generated passwords. That is about five times less CPU and a third of the memory per hash and one
    thread. Existing hashes (up to 64 MiB) keep verifying and are not rewritten; a stored hash asking for more than 64 MiB is refused
    before any work is done. Passwords stay at least 12 characters; sign-in is rate limited per IP and per account.
-3. Concurrent Argon2 work stays bounded per process (ADR-0085 follow-up, PR 220).
+3. **SEB request-check cache.** At exam start the gateway asks the SEB service to check every submission request, and each check was a
+   database transaction: with 1000 students the checks took about 3 s, the gateway's timeout, so 43% of start and save requests were
+   refused. The SEB service now reuses an allowed answer for `SEB_CHECK_CACHE_TTL` (off by default, 5 s in the chart, at most 1 minute),
+   keyed by the candidate, tenant, URL, both hashes and the client IP. Denials and errors are never cached, so a changed policy that
+   starts refusing takes effect within the TTL.
+4. Concurrent Argon2 work stays bounded per process (ADR-0085 follow-up, PR 220).
 
 ## Consequences
 Revocation takes up to 10 seconds to reach every service instead of being instant; for an exam platform with minutes-long

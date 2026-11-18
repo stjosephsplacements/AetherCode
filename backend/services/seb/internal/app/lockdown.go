@@ -190,12 +190,22 @@ func (service *Service) CheckExamRequest(ctx context.Context, capability central
 			return "", invalid("SEB header hashes must be 64 hexadecimal characters")
 		}
 	}
+	// A candidate polls the same URLs with the same hashes, and the answer only changes when staff change the exam's
+	// policy, so an allowed answer is reused briefly (SEB_CHECK_CACHE_TTL; off by default). Keyed by who is asking too:
+	// the check compares against the exams that candidate is sitting.
+	key := service.checkCacheKey(capability, command)
+	if result, ok := service.checkCache.get(key, service.now()); ok {
+		return result, nil
+	}
 	var result string
 	err = database.WithTenantTx(ctx, service.pool, capability, func(transaction pgx.Tx) error {
 		var err error
 		result, err = service.lockdown.CheckExamRequest(ctx, transaction, command)
 		return err
 	})
+	if err == nil && (result == "matched" || result == "not_required") {
+		service.checkCache.put(key, result, service.now())
+	}
 	return result, err
 }
 

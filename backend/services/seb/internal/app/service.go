@@ -227,6 +227,7 @@ type Service struct {
 	kms         kms.KeyManager
 	lockdown    LockdownStore
 	launch      LaunchSettings
+	checkCache  checkCache
 }
 
 // GetConfigurationPayload identifies a SEB configuration whose payload to
