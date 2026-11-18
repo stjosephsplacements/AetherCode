@@ -29,6 +29,9 @@ tls:
   enabled: true
   secretName: aethercode-tls-user
 
+headlessService:
+  enabled: true
+
 config:
   SERVICE_NAME: "user"
   # A successful session check is reused for 10 seconds (ADR-0086): a revoked token stays usable that long at most,
