@@ -539,15 +539,17 @@ func recordResyncCompletion(
 	var existingEventID string
 	var existingCount *int
 	var existingManifest []byte
+	var requestedAt, completedAt *time.Time
 	err := transaction.QueryRow(contextValue, `
-		SELECT COALESCE(completion_event_id::text, ''), expected_snapshot_count, expected_manifest_sha256
+		SELECT COALESCE(completion_event_id::text, ''), expected_snapshot_count, expected_manifest_sha256,
+		       requested_at, completed_at
 		FROM authz.authorization_projection_resync_state
 		WHERE singleton = true
-	`).Scan(&existingEventID, &existingCount, &existingManifest)
+	`).Scan(&existingEventID, &existingCount, &existingManifest, &requestedAt, &completedAt)
 	if err != nil {
 		return fmt.Errorf("read authorization resync completion state: %w", err)
 	}
-	if existingCount != nil {
+	if completionBelongsToCurrentResync(existingCount != nil, requestedAt, completedAt) {
 		if *existingCount != completion.SnapshotCount || !equalBytes(existingManifest, completion.ManifestSHA) {
 			return fmt.Errorf("authorization resync completion conflicts with the recorded manifest")
 		}
@@ -568,6 +570,20 @@ func recordResyncCompletion(
 		return fmt.Errorf("record authorization resync completion: %w", err)
 	}
 	return nil
+}
+
+// completionBelongsToCurrentResync reports whether the stored completion was recorded for the active resync. A warm
+// restart (a pod restart, or a second replica) keeps the previous completion, because a ready projection must have
+// one, so a completion recorded before the current request belongs to an earlier resync and the new completion
+// replaces it instead of being rejected as a replay.
+func completionBelongsToCurrentResync(hasCompletion bool, requestedAt, completedAt *time.Time) bool {
+	if !hasCompletion {
+		return false
+	}
+	if requestedAt == nil || completedAt == nil {
+		return true
+	}
+	return !completedAt.Before(*requestedAt)
 }
 
 func finalizeResync(contextValue context.Context, transaction pgx.Tx, resyncID string) error {
