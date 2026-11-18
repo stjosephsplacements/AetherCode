@@ -1,9 +1,12 @@
 # CloudNativePG cluster for the single campus server (k3s, one node). The production
 # chart in deploy/helm/platform-postgres-ha assumes three hosts and cannot schedule here.
 #
-# io_method: sync and huge_pages: off match the clusters that start on this node
-# (production, placement-*). Without them the initdb job hangs at "Configuring new
-# PostgreSQL instance" and the cluster stays in "Setting up primary".
+# podSecurityContext appArmorProfile Unconfined is required on this node: under the default
+# AppArmor profile PostgreSQL 18's processes lose the signals they send each other, so the
+# initdb job hangs ("Setting up primary" forever; a checkpoint only runs when its 5 minute
+# timer fires). The `production` and `placement-*` clusters run the same way. A custom
+# AppArmor profile that allows signals would be the tighter fix.
+# io_method: sync and huge_pages: off match those clusters too.
 #
 # These are the production sizes (16/24 CPU, 24/32Gi, max_connections 500). Development
 # runs the same manifest with 2/4 CPU, 4/8Gi, shared_buffers 2GB, max_connections 200 and
@@ -17,6 +20,10 @@ metadata:
 spec:
   instances: 1
   imageName: ghcr.io/cloudnative-pg/postgresql:18.6
+  inheritedMetadata:      # the service charts' egress policies select PostgreSQL by these labels
+    labels: {app.kubernetes.io/name: postgres, app.kubernetes.io/part-of: aethercode}
+  podSecurityContext:
+    appArmorProfile: {type: Unconfined}
   storage:
     storageClass: local-production # Retain: deleting the Cluster never deletes the data
     size: 50Gi
