@@ -96,8 +96,13 @@ networkPolicy:
         ports:
           - protocol: TCP
             port: 9000
+      # The engine runs in its own namespace (global.engineUrl), so the rule needs a namespace selector too: a bare
+      # podSelector only matches pods in the judge's own namespace and the engine calls were refused.
       - to:
-          - podSelector:
+          - namespaceSelector:
+              matchLabels:
+                kubernetes.io/metadata.name: aethercode
+            podSelector:
               matchLabels:
                 app.kubernetes.io/name: aethercode-exec
                 app.kubernetes.io/component: engine
