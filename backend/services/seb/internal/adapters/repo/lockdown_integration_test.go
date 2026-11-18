@@ -368,8 +368,16 @@ func TestLaunchTicket(t *testing.T) {
 	if title := consume(examID, digest("one")); title == nil || *title != "Mid term" {
 		t.Fatalf("first use = %v", title)
 	}
+	// SEB downloads the link again after the exam password is typed, so the ticket works again...
+	if title := consume(examID, digest("one")); title == nil || *title != "Mid term" {
+		t.Errorf("the re-download SEB makes after the password prompt was refused: %v", title)
+	}
+	// ...until the window after the first download closes.
+	if _, err := pool.Exec(ctx, `UPDATE seb.launch_tickets SET expires_at = clock_timestamp() - interval '1 second' WHERE token_hash = $1`, digest("one")); err != nil {
+		t.Fatal(err)
+	}
 	if title := consume(examID, digest("one")); title != nil {
-		t.Errorf("a spent ticket opened the file again: %q", *title)
+		t.Errorf("a ticket past its re-download window opened the file: %q", *title)
 	}
 
 	// A new ticket replaces the earlier unspent one.
