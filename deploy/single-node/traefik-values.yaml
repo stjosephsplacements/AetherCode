@@ -1,0 +1,55 @@
+# Traefik replaces ingress-nginx (retired upstream). It reads the existing `nginx`-class
+# Ingress objects and their nginx.ingress.kubernetes.io annotations, so most of the 18
+# Ingresses stay as they are; the two that use snippet annotations are redone natively in
+# traefik-extras.yaml. Install:
+#   helm upgrade --install traefik traefik/traefik --version 42.4.1 -n traefik \
+#     --create-namespace -f deploy/single-node/traefik-values.yaml
+#   kubectl apply -f deploy/single-node/traefik-extras.yaml
+# It binds host ports 80 and 443 (during the migration it ran on 8081/8444 beside nginx).
+deployment:
+  kind: DaemonSet            # one node: one pod per node, host ports like ingress-nginx
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate: {maxUnavailable: 1, maxSurge: 0}   # a host port allows one pod per node
+ingressClass:
+  isDefaultClass: true
+providers:
+  kubernetesCRD:
+    enabled: true
+  kubernetesIngress:
+    enabled: true            # native Ingresses (class traefik)
+    ingressClass: traefik
+  kubernetesIngressNGINX:
+    enabled: true
+    ingressClass: nginx
+    ingressClassByName: true   # keep matching `ingressClassName: nginx` after the nginx IngressClass is gone
+    controllerClass: k8s.io/ingress-nginx
+ports:
+  web:
+    hostPort: 80
+    forwardedHeaders:
+      trustedIPs: [127.0.0.1/32, 10.42.0.0/16, 10.43.0.0/16, 10.1.55.0/24, 10.1.53.0/24]   # cloudflared and the cluster, so X-Forwarded-Proto/For are honoured
+    http:
+      middlewares: [traefik-cloudflare-only@kubernetescrd]
+    transport:
+      respondingTimeouts: {readTimeout: 600s, writeTimeout: 600s, idleTimeout: 180s}
+  websecure:
+    hostPort: 443
+    forwardedHeaders:
+      trustedIPs: [127.0.0.1/32, 10.42.0.0/16, 10.43.0.0/16, 10.1.55.0/24, 10.1.53.0/24]
+    http:
+      middlewares: [traefik-cloudflare-only@kubernetescrd]
+    transport:
+      respondingTimeouts: {readTimeout: 600s, writeTimeout: 600s, idleTimeout: 180s}
+service:
+  enabled: true
+  spec:
+    type: ClusterIP          # no LoadBalancer: k3s servicelb would grab ports 80 and 443
+ingressRoute:
+  dashboard:
+    enabled: false
+resources:
+  requests: {cpu: 200m, memory: 256Mi}
+  limits: {cpu: "2", memory: 1Gi}
+log:
+  level: INFO
