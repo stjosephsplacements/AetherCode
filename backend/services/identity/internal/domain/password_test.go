@@ -89,8 +89,27 @@ func TestGeneratedPasswordHashVerifiesAndIsLighter(t *testing.T) {
 		t.Fatalf("generated passwords use the OWASP minimum settings, got %s", generated)
 	}
 	chosen, err := HashPassword("A person chose this 2026")
-	if err != nil || !strings.Contains(chosen, "m=65536,t=3,p=4") {
-		t.Fatalf("a chosen password keeps the full settings, got %s (%v)", chosen, err)
+	if err != nil || !strings.Contains(chosen, "m=19456,t=2,p=1") {
+		t.Fatalf("a chosen password uses the OWASP minimum settings, got %s (%v)", chosen, err)
+	}
+}
+
+func TestHashesWrittenWithTheOlderSettingsStillVerify(t *testing.T) {
+	t.Parallel()
+	// A hash written before the settings changed: 64 MiB, 3 passes, 4 lanes.
+	old, err := hashPassword("A person chose this 2026", 64*1024, 3, 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !VerifyPassword(old, "A person chose this 2026") || VerifyPassword(old, "another password 2026") {
+		t.Fatal("an older-settings hash must still verify exactly its password")
+	}
+	tooHeavy, err := hashPassword("A person chose this 2026", 128*1024, 1, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if VerifyPassword(tooHeavy, "A person chose this 2026") {
+		t.Fatal("a hash asking for more than 64 MiB must be refused before any work is done")
 	}
 }
 
