@@ -197,6 +197,28 @@ func TestHandlerUsesForwardedForOnlyFromTrustedIngress(t *testing.T) {
 	}
 }
 
+func TestClientIPIgnoresEntriesTheClientWroteItself(t *testing.T) {
+	_, trusted, err := net.ParseCIDR("10.0.0.0/8")
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := newTestHandler(t, map[string]*url.URL{"submission": mustURL(t, "http://127.0.0.1:1")}, &testVerifier{}, nil, []*net.IPNet{trusted})
+	for _, test := range []struct{ name, header, want string }{
+		{"single client", "203.0.113.8, 10.1.2.3", "203.0.113.8"},
+		{"client forged the left of the chain", "10.9.9.9, 198.51.100.7, 10.1.2.3", "198.51.100.7"},
+		{"forged public address", "192.0.2.1, 198.51.100.7, 127.0.0.1, 10.1.2.3", "198.51.100.7"},
+		{"all hops internal", "10.5.5.5, 10.1.2.3", "10.5.5.5"},
+	} {
+		request := proxyRequest(http.MethodGet, "/api/submission/v1/attempts")
+		request.RemoteAddr = "10.1.2.3:2345"
+		request.Header.Set("X-Forwarded-For", test.header)
+		got, err := handler.clientIP(request)
+		if err != nil || got != test.want {
+			t.Errorf("%s: clientIP = %q, %v; want %q", test.name, got, err, test.want)
+		}
+	}
+}
+
 func TestHandlerChecksSEBRequestHashBeforeForwarding(t *testing.T) {
 	const tenantID = "33333333-3333-4333-8333-333333333333"
 	requestHash, configKeyHash := strings.Repeat("a", 64), strings.Repeat("b", 64)
