@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useReducer, useSyncExternalStore } from "react";
 import { serverNow, syncServerClock } from "./api";
 
 let clockSynced = false;
@@ -11,10 +11,14 @@ let clockSynced = false;
  */
 export function useNow(intervalMs = 1000): number | null {
   // A PC whose clock is wrong would otherwise see every exam as closed until some API call corrected it.
+  const [, refresh] = useReducer((count: number) => count + 1, 0);
   useEffect(() => {
     if (clockSynced) return;
     clockSynced = true;
-    void syncServerClock();
+    void syncServerClock().then((ok) => {
+      if (ok) refresh();
+      else clockSynced = false; // a later mount tries again
+    });
   }, []);
   const subscribe = useCallback(
     (tick: () => void) => {

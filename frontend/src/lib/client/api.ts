@@ -77,12 +77,13 @@ export function serverNow(): number {
 }
 
 /** Learns the server's clock without a login. Pages that only show countdowns make no API call, so they need this. */
-export async function syncServerClock(): Promise<void> {
+export async function syncServerClock(): Promise<boolean> {
   const sent = Date.now();
   try {
     noteServerTime(await fetch("/system-check/ping", { cache: "no-store" }), sent);
+    return true;
   } catch {
-    // Offline: the browser's own clock stays in use.
+    return false; // Offline: the browser's own clock stays in use and the caller may try again.
   }
 }
 
