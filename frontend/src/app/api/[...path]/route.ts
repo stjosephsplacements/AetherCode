@@ -72,7 +72,8 @@ function problem(status: number, code: string, message: string): Response {
   return Response.json({ code, message }, { status });
 }
 
-// Answers SEB's HEAD probe of a launch link without spending its ticket; any other HEAD is forwarded like a GET.
+// Answers SEB's HEAD probe of a launch link without spending its ticket; any other HEAD takes the normal path,
+// including the cross-site Origin check that applies to every method but GET.
 export async function HEAD(request: NextRequest): Promise<Response> {
   const url = new URL(request.url);
   if (isLaunchFileProbe(request.method, url.pathname, url.search)) {
