@@ -18,9 +18,13 @@ import (
 )
 
 const (
-	argonMemory      = 64 * 1024
-	argonIterations  = 3
-	argonParallelism = 4
+	// OWASP's recommended Argon2id minimum (19 MiB, 2 passes, 1 lane), about five times less CPU and a third of the
+	// memory of the 64 MiB / 3 / 4 this service used before. Passwords here are at least 12 characters and sign-in is
+	// rate limited and locked out per account; the saving is what lets a lab of thousands sign in at once. Hashes
+	// written with the older settings still verify, and VerifyPassword accepts up to 64 MiB.
+	argonMemory      = 19 * 1024
+	argonIterations  = 2
+	argonParallelism = 1
 	argonSaltLength  = 16
 	argonKeyLength   = 32
 
@@ -32,6 +36,9 @@ const (
 	generatedArgonIterations  = 2
 	generatedArgonParallelism = 1
 )
+
+// maxVerifyMemory is the largest Argon2 memory a stored hash may ask for: the 64 MiB this service used to write.
+const maxVerifyMemory = 64 * 1024
 
 // argonSlots bounds how many Argon2id computations run at once in this process. Each holds up to 64 MiB, and a
 // sign-in surge (a lab of students starting an exam together) used to start one per request and exceed the pod's
@@ -128,7 +135,7 @@ func VerifyPassword(encodedHash, password string) bool {
 		return false
 	}
 	memory, err := parsePHCValue(parameters[0], "m")
-	if err != nil || memory < 8*1024 || memory > argonMemory { // the largest setting this service writes: bounds the memory one verification can claim
+	if err != nil || memory < 8*1024 || memory > maxVerifyMemory { // bounds the memory one verification can claim
 		return false
 	}
 	iterations, err := parsePHCValue(parameters[1], "t")
