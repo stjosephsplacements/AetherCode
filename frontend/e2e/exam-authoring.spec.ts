@@ -65,9 +65,9 @@ test("staff create, build and publish an exam through the UI", async ({ page }) 
     if (!(await batchTiles.isVisible())) await page.reload();
     await expect(batchTiles).toBeVisible({ timeout: 8_000 });
   }).toPass({ timeout: 90_000 });
-  await batchTiles.getByRole("button").first().click();
+  await batchTiles.getByRole("button", { name: new RegExp(`E2E-${run}`) }).click();
   await page.getByRole("button", { name: "Assign to 1 selected" }).click();
-  await expect(page.getByText("Batch").first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("Assigned to 1 batch.")).toBeVisible({ timeout: 30_000 });
 
   // The exam appears in the staff exam list.
   await expect(async () => {
