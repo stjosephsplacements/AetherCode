@@ -32,9 +32,6 @@ config:
   SEB_LAUNCH_BASE_URL: "{{ required \"global.publicOrigin is required\" .Values.global.publicOrigin }}"
   # "true" makes launch files let SEB run in a virtual machine. QA only; real exams keep it "false".
   SEB_ALLOW_VM: "false"
-  # An allowed request check is reused for 5 seconds per candidate and request (ADR-0086): at exam start every signed-in
-  # candidate sends one every second or so and each cost a database transaction (load test: 3 s per check at 1000 students).
-  SEB_CHECK_CACHE_TTL: "5s"
 
 secretEnv:
   - name: SEB_DB_PASSWORD
