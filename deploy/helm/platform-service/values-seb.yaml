@@ -62,8 +62,6 @@ env:
     value: "{{ .Values.global.minioUseSSL }}"
   - name: SEB_KMS_LOCAL_KEY
     value: "$(PLATFORM_KMS_LOCAL_KEY)"
-  - name: SEB_LAUNCH_PASSWORD
-    value: "$(SEB_LAUNCH_PASSWORD)"
 
 networkPolicy:
   allowFrom:
