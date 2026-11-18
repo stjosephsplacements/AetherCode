@@ -76,6 +76,17 @@ export function serverNow(): number {
   return Date.now() + clockOffset;
 }
 
+/** Learns the server's clock without a login. Pages that only show countdowns make no API call, so they need this. */
+export async function syncServerClock(): Promise<boolean> {
+  const sent = Date.now();
+  try {
+    noteServerTime(await fetch("/system-check/ping", { cache: "no-store" }), sent);
+    return true;
+  } catch {
+    return false; // Offline: the browser's own clock stays in use and the caller may try again.
+  }
+}
+
 const SEB_REFUSAL = "secure exam browser validation failed";
 
 /** Services answer {code, message}; the gateway's own refusals are {error}. */
