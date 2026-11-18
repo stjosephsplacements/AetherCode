@@ -1,11 +1,12 @@
 # CloudNativePG cluster for the single campus server (k3s, one node). The production
 # chart in deploy/helm/platform-postgres-ha assumes three hosts and cannot schedule here.
 #
-# podSecurityContext appArmorProfile Unconfined is required on this node: under the default
-# AppArmor profile PostgreSQL 18's processes lose the signals they send each other, so the
-# initdb job hangs ("Setting up primary" forever; a checkpoint only runs when its 5 minute
-# timer fires). The `production` and `placement-*` clusters run the same way. A custom
-# AppArmor profile that allows signals would be the tighter fix.
+# The pods run under the AppArmor profile `aethercode-postgres` (deploy/single-node/apparmor/),
+# which must be loaded on the node first: `sudo install -m 644 apparmor/aethercode-postgres
+# /etc/apparmor.d/ && sudo apparmor_parser -r /etc/apparmor.d/aethercode-postgres`. Under the
+# default profile PostgreSQL 18's processes lose the signals they send each other on this node,
+# so the initdb job hangs ("Setting up primary" forever); the custom profile is the default
+# with signals allowed and everything else still denied (ADR-0074, ADR-0082).
 # io_method: sync and huge_pages: off match those clusters too.
 #
 # These are the production sizes (16/24 CPU, 24/32Gi, max_connections 500). Development
@@ -23,7 +24,7 @@ spec:
   inheritedMetadata:      # the service charts' egress policies select PostgreSQL by these labels
     labels: {app.kubernetes.io/name: postgres, app.kubernetes.io/part-of: aethercode}
   podSecurityContext:
-    appArmorProfile: {type: Unconfined}
+    appArmorProfile: {type: Localhost, localhostProfile: aethercode-postgres}
   storage:
     storageClass: local-production # Retain: deleting the Cluster never deletes the data
     size: 50Gi

@@ -1,6 +1,6 @@
 # Platform PostgreSQL bootstrap
 
-`dev-init.sh` creates local development roles and the nine platform databases
+`dev-init.sh` creates local development roles and the ten platform databases (the nine services and proctor)
 when the PostgreSQL volume is first initialized. Each database has a non-login
 owner, a dedicated migrator, a runtime app identity, and a separate
 `*_projection_worker` identity for the event-fed authorization projection.

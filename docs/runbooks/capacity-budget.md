@@ -63,8 +63,8 @@ or pool sizes grow, put PgBouncer (the CNPG Pooler) in front before raising them
 a Cluster is deleted; `local-path` would delete it). One instance means no failover: backups and
 the volume are the safety net, so configure a real backup destination before production.
 
-Both clusters (`aethercode-dev` 2/4 CPU, `aethercode-prod` 16/24 CPU) are running from this manifest. It needs
-`appArmorProfile: Unconfined` on this node, or the initdb job hangs; see ADR-0082.
+Both clusters (`aethercode-dev` 2/4 CPU, `aethercode-prod` 16/24 CPU; the dev cluster's 2 CPU request is outside the 93.5 CPU production budget above) are running from this manifest. It needs
+the `aethercode-postgres` AppArmor profile loaded on the node, or the initdb job hangs; see ADR-0082.
 
 ## GPU
 

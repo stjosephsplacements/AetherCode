@@ -30,8 +30,9 @@ connections, and the production Postgres chart assumed three hosts.
 - Resolved: fresh CloudNativePG clusters hung at initdb on this node because, under the default
   AppArmor profile, PostgreSQL 18's processes lose the signals they send each other (a checkpoint
   ran only when its 5 minute timer fired and the job never finished). Setting
-  `podSecurityContext.appArmorProfile: Unconfined`, as the `production` and `placement-*` clusters
-  already do, fixes it: dev and prod initialised in under a minute. This weakens container
-  isolation for the database pods; a custom AppArmor profile that allows signals is the tighter
-  follow-up. Ruled out on the way: the backup stanza, sizes, namespace, disk, THP settings, the
+  `podSecurityContext.appArmorProfile` to a custom Localhost profile, `aethercode-postgres`
+  (`deploy/single-node/apparmor/`, containerd's default with signals allowed), fixes it: a
+  fresh cluster was healthy in 30 seconds, and the profile runs in enforce mode. It replaces
+  the `Unconfined` setting first used here. The profile must be loaded on the node before the
+  cluster starts. Ruled out on the way: the backup stanza, sizes, namespace, disk, THP settings, the
   image's Debian base, and PostgreSQL minor version.
