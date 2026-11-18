@@ -41,6 +41,9 @@ type IdentityIntrospectionRuntime struct {
 	CAFile          string
 	ServerName      string
 	RequireMTLS     bool
+	// CacheTTL is how long a successful check is reused (RFC 7662 section 4 allows caching introspection results).
+	// Zero, the default, checks identity on every decision. A revoked token stays usable for at most this long.
+	CacheTTL time.Duration
 }
 
 var targetServicePattern = regexp.MustCompile(`^[a-z][a-z0-9-]{0,62}$`)
@@ -117,6 +120,13 @@ func loadIdentityIntrospectionRuntime(environment string) (IdentityIntrospection
 		CAFile:          strings.TrimSpace(value("AUTHZ_IDENTITY_INTROSPECTION_TLS_CA_FILE", "")),
 		ServerName:      strings.TrimSpace(value("AUTHZ_IDENTITY_INTROSPECTION_TLS_SERVER_NAME", "")),
 		RequireMTLS:     environment == "staging" || environment == "production",
+	}
+	if raw := strings.TrimSpace(value("AUTHZ_IDENTITY_INTROSPECTION_CACHE_TTL", "0s")); raw != "0s" {
+		ttl, err := time.ParseDuration(raw)
+		if err != nil || ttl < 0 || ttl > time.Minute {
+			return IdentityIntrospectionRuntime{}, fmt.Errorf("AUTHZ_IDENTITY_INTROSPECTION_CACHE_TTL must be a duration between 0s and 1m")
+		}
+		runtime.CacheTTL = ttl
 	}
 	parsed, err := url.Parse(runtime.URL)
 	if err != nil || parsed.Host == "" || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.User != nil ||
