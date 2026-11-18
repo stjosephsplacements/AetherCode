@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -288,5 +289,12 @@ func loadLaunchSettings() (app.LaunchSettings, error) {
 	if len(distinct) < 16 {
 		return app.LaunchSettings{}, fmt.Errorf("SEB_LAUNCH_PASSWORD looks patterned; generate it with `openssl rand -hex 24`")
 	}
-	return app.LaunchSettings{BaseURL: baseURL, Password: password}, nil
+	// Unset means false; a value that is not a boolean stops the service rather than guessing.
+	allowVM := false
+	if raw := strings.TrimSpace(os.Getenv("SEB_ALLOW_VM")); raw != "" {
+		if allowVM, err = strconv.ParseBool(raw); err != nil {
+			return app.LaunchSettings{}, fmt.Errorf("SEB_ALLOW_VM must be true or false: %w", err)
+		}
+	}
+	return app.LaunchSettings{BaseURL: baseURL, Password: password, AllowVM: allowVM}, nil
 }

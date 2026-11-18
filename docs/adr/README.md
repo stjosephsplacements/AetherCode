@@ -87,3 +87,4 @@ Each decision is a numbered file; new ones start from [the template](0000-templa
 | [0081](0081-placement-and-integrity-milestone-a.md) | Placement and integrity, Milestone A (accepted) |
 | [0082](0082-single-node-capacity-and-autoscaling.md) | Capacity budget, autoscaling and pools for the single campus server (accepted) |
 | [0083](0083-traefik-replaces-ingress-nginx.md) | Traefik replaces ingress-nginx (accepted) |
+| [0084](0084-launch-ticket-redownload.md) | The SEB launch ticket opens the launch file again after its first download (accepted) |
