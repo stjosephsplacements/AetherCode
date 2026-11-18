@@ -57,6 +57,7 @@ metadata:
   labels: {app.kubernetes.io/name: litellm, app.kubernetes.io/part-of: production-apps}
 spec:
   replicas: 1
+  strategy: {type: Recreate}      # the host port can be held by one pod only, so a rolling update would hang
   selector: {matchLabels: {app.kubernetes.io/name: litellm}}
   template:
     metadata:
