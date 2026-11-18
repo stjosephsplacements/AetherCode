@@ -18,7 +18,7 @@ Run Traefik (chart 42.4.1, v3.7.19) as a DaemonSet on host ports 80 and 443. Its
 nginx-compatible provider reads the existing `nginx`-class Ingresses, so they were not
 edited. The rest is in `deploy/single-node/`:
 
-- `traefik-values.yaml`: forwarded headers trusted from cloudflared and the cluster, the same
+- `traefik-values.yaml`: forwarded headers trusted only from cloudflared (this host, 10.1.55.99), loopback and the cluster (never the LAN ranges), the same
   600 s timeouts, a default entry-point middleware that only allows Cloudflare and cluster
   ranges (the old `allow-cidrs`), and the nginx provider.
 - `traefik-extras.yaml`: that allow-list middleware, and native replacements for the two

@@ -208,7 +208,6 @@ async def _process_locked(event: SnapshotEvent) -> None:
         return
 
     raw_violations = await loop.run_in_executor(None, _detector.analyze, jpeg)
-    await _mark_processed(event.snapshot_id)
 
     elapsed = int((time.monotonic() - t0) * 1000)
     logger.info(
@@ -218,6 +217,7 @@ async def _process_locked(event: SnapshotEvent) -> None:
 
     policy = _effective_policy(event)
     cooldown = policy.cooldown(settings.violation_cooldown_seconds)
+    store_failure: Exception | None = None
     for v in raw_violations:
         kind = v["kind"]
         if not await claim_cooldown(
@@ -235,26 +235,22 @@ async def _process_locked(event: SnapshotEvent) -> None:
                 confidence=v["confidence"],
                 details=v.get("details", ""),
             )
-        except Exception:
-            await release_cooldown(_redis, event.attempt_id, kind)  # keep the violation retryable
-            raise
-        await _publish_recorded(event, row)
-
-        # Post integrity event to submission service (best-effort)
-        try:
-            r = await _http.post(
-                f"/v1/tenants/{event.tenant_id}/attempts/{event.attempt_id}/events",
-                json={"kind": v["kind"]},
-                headers={"X-Internal-Proctor": "true"},
-            )
-            r.raise_for_status()
-            logger.info("Posted %s violation for attempt %s", v["kind"], event.attempt_id)
         except Exception as exc:
-            logger.warning("Failed to post violation %s: %s", v["kind"], exc)
+            # Keep this violation retryable, but do not lose the others in the frame or skip the breach check.
+            logger.error("Cannot store %s violation for snapshot %s: %s", kind, event.snapshot_id, exc)
+            await release_cooldown(_redis, event.attempt_id, kind)
+            store_failure = exc
+            continue
+        await _publish_recorded(event, row)
 
     # Checked on every analysed frame, not only after a new violation: a publish
     # that failed earlier is retried by the next frame (the message id dedups).
     await _publish_if_breached(event, policy)
+
+    # Only now is the snapshot done: a failure above leaves it unmarked so a redelivery retries the violations.
+    if store_failure is not None:
+        raise store_failure
+    await _mark_processed(event.snapshot_id)
 
 
 async def _publish_recorded(event: SnapshotEvent, row) -> None:

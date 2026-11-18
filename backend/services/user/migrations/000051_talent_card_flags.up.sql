@@ -13,6 +13,8 @@ INSERT INTO users.permission_flags (key, bit_index, kind, elevated, platform_onl
     ('analytics.talent_card_consents.delete', 213, 'resource', false, false)
 ON CONFLICT DO NOTHING;
 
+-- Managed roles reject changes unless the migration opts in (000039), as 000050 does.
+SET LOCAL users.allow_managed_change = 'on';
 UPDATE users.roles
 SET permissions = permissions | users.flag_bits(ARRAY['analytics.talent_card_consents.read', 'analytics.talent_card_consents.write'])
 WHERE managed AND system_key = 'student';

@@ -29,6 +29,7 @@ readonly RELEASES=(
   "portainer portainer portainer/portainer"
   "kube-prometheus monitoring prometheus-community/kube-prometheus-stack"
   "kyverno kyverno kyverno/kyverno"
+  "gitea gitea gitea-charts/gitea"
 )
 readonly COMPOSE_APPS=(crawl4ai searxng chromium)
 
@@ -54,9 +55,12 @@ for entry in "${RELEASES[@]}"; do
   current=$("${HELM[@]}" list -n "$namespace" -o json | jq -r --arg r "$release" '.[]|select(.name==$r)|.chart|sub("^.*-(?=v?[0-9]+\\.)";"")') # chart version
   [[ -n "$current" ]] || { log "$release: not installed, skipped"; continue; }
   major="${current#v}"; major="${major%%.*}"
-  latest=$("${HELM[@]}" search repo "$chart" --versions -o json | jq -r --arg m "$major" '[.[]|select((.version|sub("^v";"")|split(".")[0])==$m)]|first|.version // empty')
+  versions=$("${HELM[@]}" search repo "$chart" --versions -o json) || { fail "$release: helm search --versions for $chart failed"; continue; }
+  latest=$(jq -r --arg m "$major" '[.[]|select((.version|sub("^v";"")|split(".")[0])==$m)]|first|.version // empty' <<<"$versions")
   newest=$("${HELM[@]}" search repo "$chart" -o json | jq -r 'first|.version // empty')
-  [[ -n "$latest" && "$latest" != "$current" ]] || { log "$release: $current is current${newest:+ (newest overall: $newest)}"; continue; }
+  # an empty search means the repository or the API failed, which must not look like "already current"
+  [[ -n "$newest" ]] || { fail "$release: helm search for $chart returned nothing"; continue; }
+  [[ -n "$latest" && "$latest" != "$current" ]] || { log "$release: $current is current (newest overall: $newest)"; continue; }
   extra=()
   # portainer's image tag is pinned in its values, so it must follow the chart's app version
   [[ "$release" == portainer ]] && extra=(--set "image.tag=$("${HELM[@]}" search repo "$chart" --version "$latest" -o json | jq -r 'first|.app_version|sub("^.*-";"")')")
@@ -105,8 +109,13 @@ agent=/data/production/portainer-agent
 if [[ -f "$agent/compose.yaml" ]]; then
   want=$(k3s kubectl -n portainer get deploy portainer -o jsonpath='{.spec.template.spec.containers[0].image}' | sed 's/.*://')
   if grep -q "portainer/agent:$want" "$agent/compose.yaml"; then log "portainer_agent: matches server $want"
-  elif [[ -n "${DRY_RUN:-}" ]]; then log "portainer_agent: would move to $want"
+  elif [[ -n "${DRY_RUN:-}" ]]; then
+    docker manifest inspect "portainer/agent:$want" >/dev/null 2>&1 && log "portainer_agent: would move to $want" || fail "portainer_agent: tag $want does not exist"
   else
+    # pull first, so a failed pull leaves compose.yaml untouched and the next run tries again
+    docker pull -q "portainer/agent:$want" >>"$REPORT" 2>&1 || { fail "portainer_agent pull of $want"; want=""; }
+  fi
+  if [[ -n "$want" && -z "${DRY_RUN:-}" ]] && ! grep -q "portainer/agent:$want" "$agent/compose.yaml"; then
     cp "$agent/compose.yaml" "$agent/compose.yaml.previous"
     sed -i "s#portainer/agent:[0-9.]*#portainer/agent:$want#" "$agent/compose.yaml"
     update_container "$agent" portainer_agent "portainer/agent:$want" "$agent/compose.yaml.previous"

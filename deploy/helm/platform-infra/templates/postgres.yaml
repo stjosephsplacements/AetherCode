@@ -99,7 +99,7 @@ spec:
               value: aether_admin
             {{- include "infra.secretEnv" (dict "name" "POSTGRES_PASSWORD" "key" "POSTGRES_SUPERUSER_PASSWORD" "secret" $.Values.secretName) | nindent 12 }}
             {{- range $key := list "IDENTITY" "TENANT" "USERS" "QBANK" "ASSESSMENT" "SUBMISSION" "SEB" "NOTIFICATION" "ANALYTICS" "PROCTOR" }}
-            {{- include "infra.secretEnv" (dict "name" (printf "%s_DB_PASSWORD" $key) "secret" $.Values.secretName) | nindent 12 }}
+            {{- include "infra.secretEnv" (dict "name" (printf "%s_DB_PASSWORD" $key) "secret" $.Values.secretName "optional" (eq $key "PROCTOR")) | nindent 12 }}
             {{- end }}
             {{- end }}
           readinessProbe:

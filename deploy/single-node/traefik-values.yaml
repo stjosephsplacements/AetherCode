@@ -28,7 +28,7 @@ ports:
   web:
     hostPort: 80
     forwardedHeaders:
-      trustedIPs: [127.0.0.1/32, 10.42.0.0/16, 10.43.0.0/16, 10.1.55.0/24, 10.1.53.0/24]   # cloudflared and the cluster, so X-Forwarded-Proto/For are honoured
+      trustedIPs: [127.0.0.1/32, 10.42.0.0/16, 10.43.0.0/16, 10.1.55.99/32]   # cloudflared (on this host) and the cluster only, so X-Forwarded-Proto/For are honoured; never a whole LAN range
     http:
       middlewares: [traefik-cloudflare-only@kubernetescrd]
     transport:
@@ -36,7 +36,7 @@ ports:
   websecure:
     hostPort: 443
     forwardedHeaders:
-      trustedIPs: [127.0.0.1/32, 10.42.0.0/16, 10.43.0.0/16, 10.1.55.0/24, 10.1.53.0/24]
+      trustedIPs: [127.0.0.1/32, 10.42.0.0/16, 10.43.0.0/16, 10.1.55.99/32]
     http:
       middlewares: [traefik-cloudflare-only@kubernetescrd]
     transport:

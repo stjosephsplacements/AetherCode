@@ -60,14 +60,14 @@ func (repository *Postgres) ImportStudents(contextValue context.Context, transac
 	batchID := command.BatchID
 	for index, student := range students {
 		payload, err := json.Marshal(struct {
-			StudentID             string `json:"student_id"`
-			PrincipalID           string `json:"principal_id"`
-			TenantID              string `json:"tenant_id"`
-			CollegeDepartmentID   string `json:"college_department_id"`
-			PlacementDepartmentID string `json:"placement_department_id"`
+			StudentID             string  `json:"student_id"`
+			PrincipalID           string  `json:"principal_id"`
+			TenantID              string  `json:"tenant_id"`
+			CollegeDepartmentID   string  `json:"college_department_id"`
+			PlacementDepartmentID *string `json:"placement_department_id"`
 		}{
 			StudentID: student.ID, PrincipalID: student.PrincipalID, TenantID: student.TenantID,
-			CollegeDepartmentID: student.CollegeDepartmentID, PlacementDepartmentID: student.PlacementDepartmentID,
+			CollegeDepartmentID: student.CollegeDepartmentID, PlacementDepartmentID: optionalID(student.PlacementDepartmentID),
 		})
 		if err != nil {
 			return nil, fmt.Errorf("encode student enrollment event: %w", err)

@@ -21,6 +21,11 @@ export function useWebcam(
   snapshotIntervalMs = 60_000,
 ) {
   const [state, setState] = useState<WebcamState>({ kind: "idle" });
+  // True after three uploads in a row were refused or failed, so the screen can tell the student the invigilator is not
+  // receiving their camera. One lost frame is normal and stays silent.
+  // Holds the attempt whose uploads are failing, so a new attempt starts clean without resetting state in an effect.
+  const [failingFor, setFailingFor] = useState<string | null>(null);
+  const failedUploads = useRef(0);
   const streamRef = useRef<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -36,6 +41,8 @@ export function useWebcam(
         video: { facingMode: "user", width: 320, height: 240 },
       });
       streamRef.current = stream;
+      // Unplugged or revoked after the start: the track ends, and the screen must block again.
+      stream.getVideoTracks().forEach((track) => track.addEventListener("ended", () => setState({ kind: "unavailable" })));
       const video = document.createElement("video");
       video.srcObject = stream;
       video.muted = true;
@@ -44,8 +51,10 @@ export function useWebcam(
       videoRef.current = video;
       canvasRef.current = document.createElement("canvas");
       setState({ kind: "active" });
-    } catch {
-      setState({ kind: "denied" });
+    } catch (error) {
+      // Only a refusal is "denied"; a missing or busy device is not a permission problem.
+      const refused = error instanceof DOMException && (error.name === "NotAllowedError" || error.name === "SecurityError");
+      setState({ kind: refused ? "denied" : "unavailable" });
     }
   }, []);
 
@@ -69,13 +78,28 @@ export function useWebcam(
             headers: { "Content-Type": "image/jpeg", "X-Captured-At": capturedAt },
             body: blob,
             cache: "no-store",
-          }).catch(() => undefined);
+          })
+            .then((response) => {
+              // fetch resolves on 4xx and 5xx too: only a 2xx means the frame was stored.
+              if (!response.ok) throw new Error(`snapshot upload refused: ${response.status}`);
+              failedUploads.current = 0;
+              setFailingFor(null);
+            })
+            .catch(() => {
+              failedUploads.current += 1;
+              if (failedUploads.current >= 3) setFailingFor(attemptId ?? null);
+            });
         },
         "image/jpeg",
         0.4,
       );
     }
   }, [tenantId, attemptId]);
+
+  // A new attempt starts counting from zero.
+  useEffect(() => {
+    failedUploads.current = 0;
+  }, [attemptId]);
 
   // Stop stream on unmount
   useEffect(() => {
@@ -101,5 +125,5 @@ export function useWebcam(
     return () => clearTimeout(id);
   }, [enabled, state.kind, request]);
 
-  return { state, request, capture };
+  return { state, request, capture, uploadsFailing: enabled && failingFor !== null && failingFor === (attemptId ?? null) };
 }

@@ -12,7 +12,7 @@ Where app files live: `/data/production/<app>/` (compose file, `.env`, config, d
 ## Update rules
 - Pre-flight gates: the node must be Ready and the backup must succeed, otherwise nothing is updated and `UPDATE_FAILED` is written. Pods that are
   already not ready do not stop the run; the count is recorded and the run fails if it grows after the update.
-- Helm apps (cert-manager, traefik, loki, promtail, velero, portainer, kube-prometheus-stack, kyverno) move to the newest chart of the
+- Helm apps (cert-manager, traefik, loki, promtail, velero, portainer, kube-prometheus-stack, kyverno, gitea) move to the newest chart of the
   same major version with `--atomic`; a failed upgrade rolls back by itself. A newer major is only reported.
 - Docker apps (`/data/production/{crawl4ai,searxng,chromium,portainer-agent}`) pull the new image, must pass a health check, and
   roll back to the previous image if not. Webmin follows its latest GitHub release.

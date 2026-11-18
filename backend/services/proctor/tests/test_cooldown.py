@@ -62,3 +62,24 @@ def test_release_reopens_the_window():
     run(claim(redis, "a1", "no_face", 30, lambda: db_says(False)))
     run(release(redis, "a1", "no_face"))
     assert run(claim(redis, "a1", "no_face", 30, lambda: db_says(False)))
+
+
+class FlakyRedis(FakeRedis):
+    """Fails its first call, then works: the database fallback ran, and Redis recovered afterwards."""
+
+    def __init__(self):
+        super().__init__()
+        self.calls = 0
+
+    async def set(self, key, value, nx=False, ex=None):
+        self.calls += 1
+        if self.calls == 1:
+            raise ConnectionError("down")
+        return await super().set(key, value, nx=nx, ex=ex)
+
+
+def test_database_fallback_also_claims_the_window_in_redis():
+    redis = FlakyRedis()
+    assert run(claim(redis, "a1", "phone_detected", 30, lambda: db_says(True)))
+    assert cooldown_key("a1", "phone_detected") in redis.keys
+    assert not run(claim(redis, "a1", "phone_detected", 30, lambda: db_says(True)))

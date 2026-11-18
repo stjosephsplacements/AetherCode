@@ -69,6 +69,8 @@ BEGIN
 END
 $function$;
 
+-- Managed roles reject changes unless the migration opts in (000039), as 000050 does.
+SET LOCAL users.allow_managed_change = 'on';
 UPDATE users.roles
 SET permissions = permissions & ~users.flag_bits(ARRAY['analytics.talent_card_consents.read', 'analytics.talent_card_consents.write'])
 WHERE managed AND system_key = 'student';

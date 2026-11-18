@@ -711,14 +711,19 @@ func (repository *Postgres) RecordIntegrityEvent(contextValue context.Context, t
 }
 
 func (repository *Postgres) StoreSnapshot(contextValue context.Context, transaction pgx.Tx, command app.StoreSnapshot) (string, error) {
-	var id string
+	// store_snapshot returns NULL when a frame with this capture time is already stored (ON CONFLICT DO NOTHING),
+	// so a retried upload is a no-op that yields an empty id, not a scan error.
+	var id *string
 	if err := transaction.QueryRow(contextValue,
 		`SELECT submission.store_snapshot($1, $2, $3, $4, $5)`,
 		command.TenantID, command.AttemptID, command.CapturedAt, command.StorageKey, command.SizeBytes,
 	).Scan(&id); err != nil {
 		return "", mapDatabaseError(err, "store snapshot")
 	}
-	return id, nil
+	if id == nil {
+		return "", nil
+	}
+	return *id, nil
 }
 
 func (repository *Postgres) GetAttemptProctorPolicy(contextValue context.Context, transaction pgx.Tx, tenantID, attemptID string) (json.RawMessage, error) {
@@ -732,21 +737,28 @@ func (repository *Postgres) GetAttemptProctorPolicy(contextValue context.Context
 func (repository *Postgres) ProctorGrid(contextValue context.Context, transaction pgx.Tx, command app.ExamVersionCommand) ([]app.GridRow, error) {
 	rows, err := transaction.Query(contextValue, `
 		SELECT attempt_id::text, candidate_id::text, started_at, snapshot_id::text, captured_at, storage_key,
-		       violation_total, violation_kinds, max_violations
+		       violation_total, violation_kinds, max_violations, counted_kinds
 		FROM submission.proctor_grid($1, $2, 200)`, command.TenantID, command.ExamVersionID)
 	if err != nil {
 		return nil, mapDatabaseError(err, "read proctor grid")
 	}
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (app.GridRow, error) {
 		var grid app.GridRow
-		var kinds []byte
+		var kinds, counted []byte
 		if err := row.Scan(&grid.AttemptID, &grid.CandidateID, &grid.StartedAt, &grid.SnapshotID, &grid.CapturedAt,
-			&grid.StorageKey, &grid.ViolationTotal, &kinds, &grid.MaxViolations); err != nil {
+			&grid.StorageKey, &grid.ViolationTotal, &kinds, &grid.MaxViolations, &counted); err != nil {
 			return grid, err
 		}
 		var decodeErr error
-		grid.ViolationKinds, decodeErr = app.DecodeKinds(kinds)
-		return grid, decodeErr
+		if grid.ViolationKinds, decodeErr = app.DecodeKinds(kinds); decodeErr != nil {
+			return grid, decodeErr
+		}
+		if len(counted) > 0 {
+			if err := json.Unmarshal(counted, &grid.CountedKinds); err != nil {
+				return grid, fmt.Errorf("decode counted violation kinds: %w", err)
+			}
+		}
+		return grid, nil
 	})
 }
 
