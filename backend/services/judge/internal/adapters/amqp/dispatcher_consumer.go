@@ -13,7 +13,10 @@ import (
 	"github.com/stjosephsplacements/AetherCode/services/judge/internal/dispatcher"
 )
 
-const consumerTag = "judge-dispatcher"
+const (
+	consumerTag   = "judge-dispatcher"
+	prefetchCount = 4
+)
 
 // Consumer reads admission pointers from the judge admission queue and
 // dispatches each job through the Worker. It reconnects automatically after
@@ -73,27 +76,46 @@ func (c *Consumer) runConnection(ctx context.Context) error {
 		return fmt.Errorf("declare judge admission quorum queue: %w", err)
 	}
 
+	// Bound what this consumer holds: with no prefetch the broker pushes the whole queue to the
+	// first consumers, stranding it there if one dies and exhausting broker memory.
+	if err := ch.Qos(prefetchCount, 0, false); err != nil {
+		return fmt.Errorf("set dispatcher prefetch: %w", err)
+	}
 	deliveries, err := ch.Consume(admissionQueue, consumerTag, false, false, false, false, nil)
 	if err != nil {
 		return fmt.Errorf("register dispatcher consumer: %w", err)
 	}
 
 	closeCh := conn.NotifyClose(make(chan *amqp091.Error, 1))
+	// A job can run for many seconds. The connection watcher cancels it when the broker goes
+	// away, so the loop reconnects instead of waiting on work whose acknowledgement is lost.
+	jobCtx, cancelJobs := context.WithCancel(ctx)
+	defer cancelJobs()
+	connErr := make(chan error, 1)
+	go func() {
+		select {
+		case amqpErr, open := <-closeCh:
+			if !open || amqpErr == nil {
+				connErr <- fmt.Errorf("AMQP connection closed unexpectedly")
+			} else {
+				connErr <- fmt.Errorf("AMQP connection error: %w", amqpErr)
+			}
+			cancelJobs()
+		case <-jobCtx.Done():
+		}
+	}()
 
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case amqpErr, open := <-closeCh:
-			if !open || amqpErr == nil {
-				return fmt.Errorf("AMQP connection closed unexpectedly")
-			}
-			return fmt.Errorf("AMQP connection error: %w", amqpErr)
+		case err := <-connErr:
+			return err
 		case delivery, open := <-deliveries:
 			if !open {
 				return fmt.Errorf("AMQP delivery channel closed")
 			}
-			c.handleDelivery(ctx, delivery)
+			c.handleDelivery(jobCtx, delivery)
 		}
 	}
 }
