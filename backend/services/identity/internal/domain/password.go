@@ -147,10 +147,10 @@ func VerifyPassword(encodedHash, password string) bool {
 	if err != nil || len(expected) != argonKeyLength {
 		return false
 	}
+	// Converted here, right after the bounds checks above, so the narrowing is visibly safe.
+	memoryKiB, passes, lanes, keyLength := uint32(memory), uint32(iterations), uint8(parallelism), uint32(len(expected))
 	var actual []byte
-	withArgonSlot(func() {
-		actual = argon2.IDKey([]byte(password), salt, uint32(iterations), uint32(memory), uint8(parallelism), uint32(len(expected)))
-	})
+	withArgonSlot(func() { actual = argon2.IDKey([]byte(password), salt, passes, memoryKiB, lanes, keyLength) })
 	return subtle.ConstantTimeCompare(actual, expected) == 1
 }
 
