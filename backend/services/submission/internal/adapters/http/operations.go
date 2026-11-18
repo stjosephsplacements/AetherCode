@@ -407,6 +407,10 @@ func (handler *Handler) storeSnapshot(writer http.ResponseWriter, request *http.
 		httpx.WriteError(writer, err)
 		return
 	}
+	if id == "" { // a retried upload of a frame that is already stored
+		writer.WriteHeader(http.StatusNoContent)
+		return
+	}
 	httpx.WriteJSON(writer, http.StatusCreated, map[string]string{"id": id})
 }
 

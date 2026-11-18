@@ -397,16 +397,23 @@ func (handler *Handler) clientIP(request *http.Request) (string, error) {
 	if len(parts) == 0 || len(parts) > 16 {
 		return "", errors.New("invalid forwarded-for chain")
 	}
-	client := net.ParseIP(strings.TrimSpace(parts[0]))
-	if client == nil {
-		return "", errors.New("invalid forwarded-for source")
-	}
-	for _, part := range parts {
-		if net.ParseIP(strings.TrimSpace(part)) == nil {
+	chain := make([]net.IP, len(parts))
+	for index, part := range parts {
+		chain[index] = net.ParseIP(strings.TrimSpace(part))
+		if chain[index] == nil {
 			return "", errors.New("invalid forwarded-for chain")
 		}
 	}
-	return client.String(), nil
+	// The client is the rightmost address that none of our own proxies added. Everything to the left of it is
+	// whatever the client chose to send (Cloudflare appends to an existing header instead of replacing it), so
+	// reading the leftmost entry would let a student outside the lab claim a lab address (ADR-0030).
+	// shortcut: loopback counts as a proxy hop because cloudflared runs on the node; drop it if that changes.
+	for index := len(chain) - 1; index >= 0; index-- {
+		if !chain[index].IsLoopback() && !handler.isTrustedProxy(chain[index]) {
+			return chain[index].String(), nil
+		}
+	}
+	return chain[0].String(), nil // every hop is internal: an in-cluster caller
 }
 
 func parseIPFromRemoteAddr(remoteAddress string) (net.IP, error) {
