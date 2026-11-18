@@ -69,7 +69,7 @@ the `aethercode-postgres` AppArmor profile loaded on the node, or the initdb job
 Backups: the cluster archives WAL continuously and takes a daily base backup (02:00) to the shared
 MinIO bucket `aethercode-pg-backups` (`dev/` and `prod/`, 14 day retention), with a user limited to
 that bucket. A test backup on dev completed. They live on the same server, so they cover mistakes,
-not the loss of the machine. CloudNativePG 1.31 removes this built-in Barman support: move to the
+not the loss of the machine. The installed CloudNativePG 1.30.1 warns that this built-in Barman support is removed in 1.31: move to the
 Barman Cloud plugin before upgrading past 1.30. Files: `postgres-backup.yaml`, `minio-backup-netpol.yaml`.
 
 ## GPU
