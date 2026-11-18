@@ -1,4 +1,4 @@
-{{- if .Values.headlessService.enabled }}
+{{- if and .Values.headlessService .Values.headlessService.enabled }}
 # A headless Service lists every ready pod's address in DNS, so gRPC clients can balance over all of them instead of
 # pinning one connection to whichever pod the ClusterIP picked.
 apiVersion: v1

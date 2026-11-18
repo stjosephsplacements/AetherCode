@@ -34,9 +34,6 @@ headlessService:
 
 config:
   SERVICE_NAME: "user"
-  # A successful session check is reused for 10 seconds (ADR-0086): a revoked token stays usable that long at most,
-  # and a surge of signed-in users no longer becomes one identity call and database lookup per request.
-  AUTHZ_IDENTITY_INTROSPECTION_CACHE_TTL: "10s"
   AUTHZ_CLIENT_TLS_CA_FILE: "/certs/ca.crt"
   AUTHZ_CLIENT_TLS_SERVER_NAME: "user"
   AUTHZ_CLIENT_TLS_CERT_FILE: "/certs/tls.crt"
