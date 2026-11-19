@@ -80,10 +80,10 @@ export default async function QuestionsPage({ searchParams }: { searchParams: Pr
   const row = toRow(staff.viewer.principalId, names);
   // Practice problems are published questions marked for practice (ADR-0041).
   const lists: Lists = {
-    tests: published.items.filter(({ question }) => question.audience !== "practice").map(row),
-    practice: published.items.filter(({ question }) => question.audience === "practice").map(row),
-    drafts: (drafts?.items ?? []).map(row),
-    review: (review?.items ?? []).map(row),
+    tests: published.filter(({ question }) => question.audience !== "practice").map(row),
+    practice: published.filter(({ question }) => question.audience === "practice").map(row),
+    drafts: (drafts ?? []).map(row),
+    review: (review ?? []).map(row),
   };
   const total = lists.tests.length + lists.practice.length + lists.drafts.length + lists.review.length;
 

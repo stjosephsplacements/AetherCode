@@ -2,12 +2,14 @@
 
 import { Megaphone, Timer } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
+import { LocalPager } from "@/components/staff/pager";
 import { EmptyState, Section, Table } from "@/components/staff/page-header";
 import { ActionForm, Checkbox, Field, FormMessage, SubmitButton, TextArea, TextInput, initialActionState } from "@/components/staff/form";
 import { Badge, Panel } from "@/components/ui/card";
 import type { ExamMonitor, MonitorCandidate } from "@/lib/api-types";
 import { LiveRefresh } from "@/lib/client/realtime";
+import { paginate } from "@/lib/paginate";
 import { formatCountdown, useNow } from "@/lib/client/use-now";
 import { formatDateTime, formatScoreText, formatTime } from "@/lib/utils";
 import { extendTime, postAnnouncement, setIntegrity, setResultsRelease } from "./actions";
@@ -48,15 +50,15 @@ export function MonitorBoard({
   versionId,
   monitor,
   rollNumber,
-  authorNames = {},
 }: {
   examId: string;
   versionId: string;
   monitor: ExamMonitor;
   rollNumber: Record<string, string>;
-  authorNames?: Record<string, string>;
 }) {
   const now = useNow(1000);
+  const [studentPage, setStudentPage] = useState(1);
+  const [notePage, setNotePage] = useState(1);
 
   const rows = monitor.candidates
     .map((candidate) => ({ candidate, roll: rollNumber[candidate.candidate_id] ?? candidate.candidate_id.slice(0, 8), status: candidateStatus(candidate, now) }))
@@ -67,6 +69,8 @@ export function MonitorBoard({
     finished: rows.filter((row) => row.candidate.submitted_at).length,
     notStarted: rows.filter((row) => !row.candidate.attempt_id).length,
   };
+  const students = paginate(rows, studentPage);
+  const notes = paginate(monitor.announcements, notePage);
   const hidden = (
     <>
       <input type="hidden" name="exam_id" value={examId} />
@@ -146,16 +150,14 @@ export function MonitorBoard({
       {monitor.announcements.length > 0 && (
         <Section title="Sent announcements">
           <ul className="space-y-2">
-            {monitor.announcements.map((note) => (
-              <li key={note.id} className="rounded-control border border-line bg-surface px-4 py-2.5 text-sm">
+            {notes.rows.map((note) => (
+              <li key={note.id} className="rounded-[var(--radius-control)] border border-line bg-surface px-4 py-2.5 text-sm">
                 <span className="mr-2 text-ink-muted">{formatTime(note.created_at)}</span>
-                {note.created_by && authorNames[note.created_by] && (
-                  <span className="mr-2 text-ink-muted">by {authorNames[note.created_by]}</span>
-                )}
                 <span className="whitespace-pre-wrap text-ink">{note.body}</span>
               </li>
             ))}
           </ul>
+          <LocalPager meta={notes} onPage={setNotePage} noun="announcements" />
         </Section>
       )}
 
@@ -164,7 +166,7 @@ export function MonitorBoard({
           <EmptyState>Nobody is assigned to this exam yet.</EmptyState>
         ) : (
           <Table head={["Roll number", "Status", "Time left", "Answered", "Flags", "Score", ""]}>
-            {rows.map(({ candidate, roll, status }) => (
+            {students.rows.map(({ candidate, roll, status }) => (
               <tr key={candidate.candidate_id}>
                 <td className="px-4 py-2.5 font-mono text-[13px] text-ink">
                   {candidate.attempt_id ? (
@@ -206,6 +208,7 @@ export function MonitorBoard({
             ))}
           </Table>
         )}
+        <LocalPager meta={students} onPage={setStudentPage} noun="students" />
       </Section>
     </>
   );

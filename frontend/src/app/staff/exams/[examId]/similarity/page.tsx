@@ -1,12 +1,11 @@
-import { ArrowLeft, Columns } from "@phosphor-icons/react/ssr";
+import { ArrowLeft } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { panel } from "@/app/admin/_dashboard/panel";
 import { EmptyState, LoadError, PageHeader, Section, Table } from "@/components/staff/page-header";
-import { cn } from "@/lib/utils";
+import { Pager } from "@/components/staff/pager";
 import { Badge } from "@/components/ui/card";
 import type { QuestionSimilarity } from "@/lib/api-types";
+import { paginate } from "@/lib/paginate";
 import { latestVersion } from "@/lib/server/exams";
 import { gateway } from "@/lib/server/gateway";
 import { requireCollege } from "@/lib/server/staff";
@@ -15,9 +14,10 @@ import { languageName } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Similarity" };
 
-export default async function SimilarityPage({ params }: { params: Promise<{ examId: string }> }) {
+export default async function SimilarityPage({ params, searchParams }: { params: Promise<{ examId: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const staff = await requireCollege();
   const { examId } = await params;
+  const query = await searchParams;
   let data;
   try {
     const version = await latestVersion(staff.tenantId, examId);
@@ -29,10 +29,10 @@ export default async function SimilarityPage({ params }: { params: Promise<{ exa
     data = { version, report, roll: new Map(students.map((student) => [student.principal_id, student.enrollment_number])) };
   } catch (error) {
     return (
-      <div className="animate-enter">
+      <>
         <PageHeader title="Similarity" />
         <LoadError error={error} />
-      </div>
+      </>
     );
   }
   const { version, report, roll } = data;
@@ -43,7 +43,7 @@ export default async function SimilarityPage({ params }: { params: Promise<{ exa
   );
 
   return (
-    <div className="animate-enter">
+    <>
       <Link href={`/staff/exams/${examId}/results`} className="mb-6 inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink">
         <ArrowLeft className="size-4" />
         {version.title} results
@@ -57,7 +57,11 @@ export default async function SimilarityPage({ params }: { params: Promise<{ exa
       ) : (
         report
           .toSorted((a, b) => (a.position ?? 0) - (b.position ?? 0))
-          .map((question) => (
+          .map((question) => {
+            // Each question pages its own pairs, under its own address parameter.
+            const param = `pairs-${question.exam_item_id.slice(0, 8)}`;
+            const pairs = paginate(question.pairs, query[param]);
+            return (
             <Section
               key={question.exam_item_id}
               title={`${question.position ?? ""}${question.position ? ". " : ""}${question.title ?? "Question"}`}
@@ -66,9 +70,8 @@ export default async function SimilarityPage({ params }: { params: Promise<{ exa
               {question.pairs.length === 0 ? (
                 <EmptyState>No similar pairs.</EmptyState>
               ) : (
-                <section className={cn(panel, "p-0 gap-0")}>
-                <Table head={["Similarity", "Student", "Student", "Languages", ""]}>
-                  {question.pairs.map((pair) => (
+                <Table head={["Similarity", "Student", "Student", "Languages"]}>
+                  {pairs.rows.map((pair) => (
                     <tr key={`${pair.a.attempt_id}-${pair.b.attempt_id}`}>
                       <td className="px-4 py-2.5">
                         <Badge tone={pair.score >= 0.9 ? "danger" : "warning"}>{Math.round(pair.score * 100)}%</Badge>
@@ -79,22 +82,15 @@ export default async function SimilarityPage({ params }: { params: Promise<{ exa
                         {languageName(pair.a.language)}
                         {pair.b.language !== pair.a.language && `, ${languageName(pair.b.language)}`}
                       </td>
-                      <td className="px-4 py-2.5 text-right">
-                        <Button variant="secondary" size="sm" asChild>
-                          <Link href={`/staff/exams/${examId}/similarity/compare?a=${pair.a.attempt_id}&b=${pair.b.attempt_id}&item=${question.exam_item_id}`}>
-                            <Columns className="size-4" />
-                            Compare
-                          </Link>
-                        </Button>
-                      </td>
                     </tr>
                   ))}
                 </Table>
-                </section>
               )}
+              <Pager meta={pairs} param={param} noun="pairs" />
             </Section>
-          ))
+            );
+          })
       )}
-    </div>
+    </>
   );
 }

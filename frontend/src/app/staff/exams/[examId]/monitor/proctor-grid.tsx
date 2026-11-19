@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { EmptyState, Section } from "@/components/staff/page-header";
+import { LocalPager } from "@/components/staff/pager";
 import { Badge, Panel } from "@/components/ui/card";
 import type { ProctorGridSeverity, ProctorGridTile } from "@/lib/api-types";
 import { APIError, api } from "@/lib/client/api";
-import { violationKindLabel } from "@/lib/proctor-kinds";
+import { paginate } from "@/lib/paginate";
 import { formatTime } from "@/lib/utils";
 
 const POLL_MS = 10_000;
@@ -14,6 +15,13 @@ const SEVERITY: Record<ProctorGridSeverity, { label: string; tone: "success" | "
   green: { label: "Clear", tone: "success", ring: "border-line" },
   amber: { label: "Watch", tone: "warning", ring: "border-warning" },
   red: { label: "Limit reached", tone: "danger", ring: "border-danger" },
+};
+
+const KIND_LABEL: Record<string, string> = {
+  face_missing: "No face",
+  multiple_faces: "Several faces",
+  phone_detected: "Phone",
+  gaze_away: "Looking away",
 };
 
 /**
@@ -32,6 +40,8 @@ export function ProctorGrid({
 }) {
   const [tiles, setTiles] = useState<ProctorGridTile[] | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const paged = paginate(tiles ?? [], page, 24);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -71,7 +81,7 @@ export function ProctorGrid({
         <EmptyState>No attempt is in progress.</EmptyState>
       ) : (
         <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
-          {tiles.map((tile) => {
+          {paged.rows.map((tile) => {
             const severity = SEVERITY[tile.severity];
             const kinds = Object.entries(tile.violation_kinds);
             return (
@@ -91,7 +101,7 @@ export function ProctorGrid({
                     <p className="text-xs text-ink-muted">
                       {tile.violation_total === 0
                         ? "No violations"
-                        : kinds.map(([kind, count]) => `${violationKindLabel(kind, "short") ?? kind} ×${count}`).join(", ")}
+                        : kinds.map(([kind, count]) => `${KIND_LABEL[kind] ?? kind} ×${count}`).join(", ")}
                     </p>
                     {tile.captured_at ? <p className="text-xs text-ink-subtle">Frame at {formatTime(tile.captured_at)}</p> : null}
                   </div>
@@ -101,6 +111,7 @@ export function ProctorGrid({
           })}
         </ul>
       )}
+      <LocalPager meta={paged} onPage={setPage} noun="cameras" />
     </Section>
   );
 }
