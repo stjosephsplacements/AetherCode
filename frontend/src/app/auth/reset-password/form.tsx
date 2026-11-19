@@ -1,11 +1,16 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { authButtonClass, authFieldClass } from "@/components/site/auth-card";
 import { type ResetState, completeReset } from "./actions";
 
 export function ResetForm({ token }: { token: string }) {
   const [state, action, pending] = useActionState<ResetState, FormData>(completeReset, { error: null });
+  // The token now lives in the hidden field only: drop it from the address bar, history and any later Referer.
+  // Without JavaScript this never runs and the form still works from the address.
+  useEffect(() => {
+    if (window.location.search) window.history.replaceState(window.history.state, "", window.location.pathname);
+  }, []);
   return (
     <form action={action} className="space-y-5" noValidate>
       <input type="hidden" name="token" value={token} />
@@ -14,7 +19,7 @@ export function ResetForm({ token }: { token: string }) {
           <span aria-hidden className="text-brand">&gt; </span>new password
         </label>
         <input id="password" name="password" type="password" autoComplete="new-password" minLength={12} required autoFocus className={authFieldClass} />
-        <p className="font-mono text-[12px] text-ink-subtle">At least 12 characters.</p>
+        <p className="font-mono text-[12px] text-ink-subtle">At least 12 characters, with at least one letter and one number.</p>
       </div>
       <div className="space-y-2">
         <label htmlFor="confirm" className="block font-mono text-[13px] text-ink">

@@ -25,18 +25,38 @@ const realtimeSource = (() => {
 // Everything is served from our own origin: the gateway is reached through
 // /api, fonts are self-hosted by next/font, Monaco by public/monaco. Monaco
 // runs its tokenizer in a blob: worker.
-const contentSecurityPolicy = [
-  "default-src 'self'",
-  `script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://*.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://static.cloudflareinsights.com https://analytics-aethercode.stjosephsplacements.in${isDev ? " 'unsafe-eval'" : ""}`,
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://www.google-analytics.com https://*.google-analytics.com https://www.googletagmanager.com https://*.googletagmanager.com",
-  "font-src 'self' data:",
-  "worker-src 'self' blob:",
-  `connect-src 'self'${realtimeSource} https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://*.analytics.google.com https://www.googletagmanager.com https://*.googletagmanager.com https://stats.g.doubleclick.net https://cloudflareinsights.com https://analytics-aethercode.stjosephsplacements.in`,
-  "frame-ancestors 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-].join("; ");
+function policy(thirdParty: boolean): string {
+  const analyticsScripts = " https://www.googletagmanager.com https://*.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://static.cloudflareinsights.com https://analytics-aethercode.stjosephsplacements.in";
+  const analyticsImages = " https://www.google-analytics.com https://*.google-analytics.com https://www.googletagmanager.com https://*.googletagmanager.com";
+  const analyticsConnections = " https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://*.analytics.google.com https://www.googletagmanager.com https://*.googletagmanager.com https://stats.g.doubleclick.net https://cloudflareinsights.com https://analytics-aethercode.stjosephsplacements.in";
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'unsafe-inline'${thirdParty ? analyticsScripts : ""}${isDev ? " 'unsafe-eval'" : ""}`,
+    "style-src 'self' 'unsafe-inline'",
+    `img-src 'self' data: blob:${thirdParty ? analyticsImages : ""}`,
+    "font-src 'self' data:",
+    "worker-src 'self' blob:",
+    `connect-src 'self'${realtimeSource}${thirdParty ? analyticsConnections : ""}`,
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join("; ");
+}
+
+const commonHeaders = [
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "Permissions-Policy", value: "accelerometer=(), camera=(self), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()" },
+];
+
+// The forgot and reset pages: the reset link carries a bearer, so no third-party host is allowed there and no
+// Referer is sent from them. The catch-all rule below excludes these two paths.
+const resetPageHeaders = [
+  ...commonHeaders,
+  { key: "Content-Security-Policy", value: policy(false) },
+  { key: "Referrer-Policy", value: "no-referrer" },
+  { key: "Cache-Control", value: "no-store" },
+];
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -58,15 +78,16 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: "/:path*",
+        // Every page except the reset pages, which get resetPageHeaders instead.
+        source: "/((?!auth/reset-password|auth/forgot-password).*)",
         headers: [
-          { key: "Content-Security-Policy", value: contentSecurityPolicy },
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "X-Frame-Options", value: "DENY" },
+          ...commonHeaders,
+          { key: "Content-Security-Policy", value: policy(true) },
           { key: "Referrer-Policy", value: "same-origin" },
-          { key: "Permissions-Policy", value: "accelerometer=(), camera=(self), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()" },
         ],
       },
+      { source: "/auth/reset-password", headers: resetPageHeaders },
+      { source: "/auth/forgot-password", headers: resetPageHeaders },
       {
         source: "/fonts/:path*",
         headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],

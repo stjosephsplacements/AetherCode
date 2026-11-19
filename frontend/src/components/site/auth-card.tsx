@@ -27,6 +27,15 @@ export function AuthCard({ title, lead, children }: { title: string; lead: strin
   );
 }
 
+/** Shown on the forgot and reset pages where the operator has not set up reset by email. */
+export function ResetUnavailable() {
+  return (
+    <p role="status" className="rounded-2xl border border-line-strong bg-surface/50 px-4 py-3.5 font-mono text-[13.5px] leading-relaxed text-ink">
+      Password reset by email is not set up on this site. Ask your exam administrator or faculty to reset your password.
+    </p>
+  );
+}
+
 export const authFieldClass =
   "h-12 w-full rounded-2xl border border-line-strong bg-surface/50 px-4 font-mono text-[15px] text-ink outline-none transition-[border-color,box-shadow] placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15";
 export const authButtonClass =

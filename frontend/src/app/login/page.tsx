@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { AsciiField } from "@/components/site/ascii-field";
 import { LiquidGlass } from "@/components/site/liquid-glass";
+import { passwordResetByEmail } from "@/lib/auth-paths";
 import { LoginForm } from "./login-form";
 
 const SSO_ERRORS: Record<string, string> = {
@@ -82,7 +83,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
                 </div>
               </>
             )}
-            <LoginForm next={next ?? ""} />
+            <LoginForm next={next ?? ""} resetByEmail={passwordResetByEmail()} />
           </div>
         </div>
 

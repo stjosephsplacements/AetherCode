@@ -7,7 +7,7 @@ import { type LoginState, type VerifyState, login, verifyLogin } from "./actions
 const fieldClass =
   "h-12 w-full rounded-2xl border border-line-strong bg-surface/50 px-4 font-mono text-[15px] text-ink outline-none backdrop-blur transition-[border-color,box-shadow] placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15";
 
-export function LoginForm({ next }: { next: string }) {
+export function LoginForm({ next, resetByEmail }: { next: string; resetByEmail: boolean }) {
   const [state, action, pending] = useActionState<LoginState, FormData>(login, { error: null, identifier: "" });
   const [expiredFor, setExpiredFor] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -71,11 +71,13 @@ export function LoginForm({ next }: { next: string }) {
       >
         {pending ? "Checking..." : "Sign in"}
       </button>
-      <p className="text-center font-mono text-[13px]">
-        <Link href="/auth/forgot-password" className="text-ink-muted underline-offset-4 transition-colors hover:text-ink hover:underline">
-          Forgot password?
-        </Link>
-      </p>
+      {resetByEmail && (
+        <p className="text-center font-mono text-[13px]">
+          <Link href="/auth/forgot-password" className="text-ink-muted underline-offset-4 transition-colors hover:text-ink hover:underline">
+            Forgot password?
+          </Link>
+        </p>
+      )}
     </form>
   );
 }
