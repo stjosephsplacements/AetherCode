@@ -4,8 +4,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { EmptyState, PageHeader } from "@/components/staff/page-header";
+import { Pager } from "@/components/staff/pager";
 import type { Attempt, AttemptResult, CandidateAssignment, PracticeProgress } from "@/lib/api-types";
 import { LiveRefresh } from "@/lib/client/realtime";
+import { paginate } from "@/lib/paginate";
 import { listAssignments } from "@/lib/server/assignments";
 import { listMyAttempts } from "@/lib/server/attempts";
 import { gateway } from "@/lib/server/gateway";
@@ -33,7 +35,7 @@ function Tile({ icon, label, value, note }: { icon: ReactNode; label: string; va
   );
 }
 
-export default async function PerformancePage() {
+export default async function PerformancePage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const viewer = await requireViewer();
   if (!viewer.tenantId) redirect("/student");
   const tenantPath = `/submission/v1/tenants/${viewer.tenantId}`;
@@ -45,12 +47,13 @@ export default async function PerformancePage() {
   const titles = new Map(assignments.map((assignment) => [assignment.id, assignment.title]));
   const finished = attempts
     .filter((attempt) => ["submitted", "grading", "graded", "expired"].includes(attempt.lifecycle_state))
-    .sort((a, b) => (b.submitted_at ?? b.submission_deadline).localeCompare(a.submitted_at ?? a.submission_deadline))
-    .slice(0, 20);
-  const results = await Promise.all(
-    finished.map(async (attempt) => ({ attempt, result: await gateway<AttemptResult>(`${tenantPath}/attempts/${attempt.id}/result`).catch(() => null) })),
-  );
-  const released = results.filter((entry) => entry.result?.released && entry.result.maximum_score > 0);
+    .sort((a, b) => (b.submitted_at ?? b.submission_deadline).localeCompare(a.submitted_at ?? a.submission_deadline));
+  const paged = paginate(finished, (await searchParams).page, 20);
+  // The average covers the 20 newest; the list shows its own page. Each result is fetched once.
+  const wanted = [...new Set([...finished.slice(0, 20), ...paged.rows])];
+  const fetched = new Map(await Promise.all(wanted.map(async (attempt) => [attempt.id, await gateway<AttemptResult>(`${tenantPath}/attempts/${attempt.id}/result`).catch(() => null)] as const)));
+  const results = paged.rows.map((attempt) => ({ attempt, result: fetched.get(attempt.id) ?? null }));
+  const released = finished.slice(0, 20).map((attempt) => ({ attempt, result: fetched.get(attempt.id) ?? null })).filter((entry) => entry.result?.released && entry.result.maximum_score > 0);
   const average = released.length ? released.reduce((sum, entry) => sum + (entry.result!.released ? entry.result!.score / entry.result!.maximum_score : 0), 0) / released.length : null;
   const today = DAY.format(new Date());
   const streak = practice ? currentStreak(practice.active_days, today) : 0;
@@ -97,7 +100,7 @@ export default async function PerformancePage() {
 
       <section aria-label="Exams" className="mt-8">
         <h2 className="mb-2.5 text-[15px] font-semibold tracking-[-0.01em] text-ink">Exam results</h2>
-        {results.length === 0 ? (
+        {paged.total === 0 ? (
           <EmptyState>Exams you finish appear here with their scores.</EmptyState>
         ) : (
           <ul className="divide-y divide-line overflow-hidden rounded-3xl border border-line bg-surface shadow-[var(--shadow-panel)]">
@@ -124,6 +127,7 @@ export default async function PerformancePage() {
             })}
           </ul>
         )}
+        <Pager meta={paged} noun="exams" />
       </section>
     </div>
   );

@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { LocalPager } from "@/components/staff/pager";
 import { type ChangeTag, RELEASES } from "@/content/changelog";
+import { paginate } from "@/lib/paginate";
 import { cn } from "@/lib/utils";
 
 const TAGS: ChangeTag[] = ["Platform", "UI", "Security", "Compilers"];
@@ -11,6 +13,8 @@ const dateFormat = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "lo
 export function ReleaseList() {
   const [tag, setTag] = useState<ChangeTag | null>(null);
   const shown = tag ? RELEASES.filter((release) => release.tags.includes(tag)) : RELEASES;
+  const [pageState, setPageState] = useState({ tag, page: 1 });
+  const paged = paginate(shown, pageState.tag === tag ? pageState.page : 1, 10);
   return (
     <>
       <div role="group" aria-label="Filter by area" className="flex flex-wrap gap-2">
@@ -30,7 +34,7 @@ export function ReleaseList() {
         ))}
       </div>
       <ol className="mt-12 space-y-12 border-l border-line pl-8">
-        {shown.map((release) => (
+        {paged.rows.map((release) => (
           <li key={release.date} className="relative">
             <span aria-hidden className="absolute -left-[37px] top-2 size-2.5 rounded-full border-2 border-canvas bg-accent ring-1 ring-line-strong" />
             <time dateTime={release.date} className="text-[13px] text-ink-subtle">
@@ -52,6 +56,9 @@ export function ReleaseList() {
           </li>
         ))}
       </ol>
+      <div className="mt-10">
+        <LocalPager meta={paged} onPage={(page) => setPageState({ tag, page })} noun="releases" />
+      </div>
     </>
   );
 }
