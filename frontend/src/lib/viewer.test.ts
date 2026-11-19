@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { RoleName } from "@/lib/api-types";
-import { type Viewer, homeFor, isPlacementOnly } from "./viewer";
+import { type Viewer, homeFor, isPlacementOnly, reachesAllColleges } from "./viewer";
+
+describe("reachesAllColleges", () => {
+  const officer = (platformRoles?: RoleName[]): Viewer => ({ principalId: "p", displayName: "P", username: "p", tenantId: "t", roles: ["placement_user"], platformRoles });
+  it("covers platform administrators and platform-scoped officers only", () => {
+    expect(reachesAllColleges({ ...officer(), roles: ["super_admin"] })).toBe(true);
+    expect(reachesAllColleges(officer(["placement_user"]))).toBe(true);
+    expect(reachesAllColleges(officer([]))).toBe(false);
+    expect(reachesAllColleges(officer())).toBe(false);
+  });
+});
 
 const viewer = (...roles: RoleName[]): Viewer => ({ principalId: "p", displayName: "P", username: "p", tenantId: null, roles });
 
