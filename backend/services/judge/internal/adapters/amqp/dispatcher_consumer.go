@@ -3,13 +3,16 @@ package amqp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/rabbitmq/amqp091-go"
+	"github.com/stjosephsplacements/AetherCode/services/judge/internal/app"
 	"github.com/stjosephsplacements/AetherCode/services/judge/internal/dispatcher"
 )
 
@@ -27,6 +30,9 @@ type Consumer struct {
 	tracker AdmissionTracker
 	logger  *slog.Logger
 }
+
+// requeuePause is how long a pointer waits before going back to the queue when it could not be marked consumed.
+const requeuePause = time.Second
 
 // AdmissionTracker records that a consumer handled an admission pointer.
 type AdmissionTracker interface {
@@ -149,14 +155,31 @@ func (c *Consumer) handleDelivery(ctx context.Context, delivery amqp091.Delivery
 	}
 
 	// Handing the pointer to this worker is the durable hand-off: from here the broker redelivers it if this consumer
-	// dies before acknowledging, so the publisher's stale sweep must not publish it again while the job runs (a long
-	// job would otherwise be dispatched twice). A failed mark only means the sweep may send one duplicate wake-up,
-	// which finds the job running or finished.
-	markCtx, markCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
-	if err := c.tracker.MarkAdmissionConsumed(markCtx, msg.EventID); err != nil {
-		c.logger.Warn("dispatcher: could not record the admission as consumed", "job_id", msg.JobID, "error", err)
+	// dies before acknowledging, so the publisher's stale sweep must not publish it again while the job runs. Nothing
+	// claims the job itself, so a pointer that could not be marked is not dispatched at all: it goes back to the queue
+	// (after a pause, so a database outage does not spin) and is retried once the mark can be written.
+	if _, err := uuid.Parse(msg.EventID); err != nil {
+		c.logger.Error("dispatcher: admission pointer has no valid event_id, discarding", "job_id", msg.JobID)
+		_ = delivery.Nack(false, false)
+		return
 	}
+	markCtx, markCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	markErr := c.tracker.MarkAdmissionConsumed(markCtx, msg.EventID)
 	markCancel()
+	if errors.Is(markErr, app.ErrAdmissionUnknown) {
+		c.logger.Error("dispatcher: admission pointer has no outbox row, discarding", "job_id", msg.JobID)
+		_ = delivery.Nack(false, false)
+		return
+	}
+	if markErr != nil {
+		c.logger.Warn("dispatcher: could not record the admission as consumed, requeuing without dispatch", "job_id", msg.JobID, "error", markErr)
+		select {
+		case <-ctx.Done():
+		case <-time.After(requeuePause):
+		}
+		_ = delivery.Nack(false, true)
+		return
+	}
 
 	jobCtx, cancel := context.WithTimeout(ctx, c.worker.JobTimeout())
 	defer cancel()

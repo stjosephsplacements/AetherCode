@@ -46,8 +46,9 @@ func (repository *Postgres) LeaseAdmissions(
 	rows, err := transaction.Query(contextValue, `
 		SELECT event_id, job_id
 		FROM judge.admission_outbox
-		WHERE (state = 'pending' AND available_at <= clock_timestamp())
-		   OR (state = 'leased' AND lease_expires_at <= clock_timestamp())
+		WHERE consumed_at IS NULL
+		  AND ((state = 'pending' AND available_at <= clock_timestamp())
+		       OR (state = 'leased' AND lease_expires_at <= clock_timestamp()))
 		ORDER BY available_at, created_at
 		FOR UPDATE SKIP LOCKED
 		LIMIT $1
@@ -104,7 +105,8 @@ func (repository *Postgres) LeaseAdmissions(
 func (repository *Postgres) MarkAdmissionPublished(contextValue context.Context, eventID, leaseID string) error {
 	command, err := repository.pool.Exec(contextValue, `
 		UPDATE judge.admission_outbox
-		SET state = 'published', published_at = clock_timestamp(),
+		SET state = CASE WHEN consumed_at IS NOT NULL THEN 'consumed' ELSE 'published' END,
+			published_at = clock_timestamp(),
 			lease_owner = NULL, lease_id = NULL, lease_expires_at = NULL,
 			updated_at = clock_timestamp()
 		WHERE event_id = $1
@@ -120,17 +122,34 @@ func (repository *Postgres) MarkAdmissionPublished(contextValue context.Context,
 	return nil
 }
 
-// MarkAdmissionConsumed records that a consumer handled the pointer, so the stale sweep stops republishing it. A pointer
-// that was requeued in the meantime is marked too; one that is leased right now is left to its publisher.
+// MarkAdmissionConsumed records that a consumer received the pointer, so the stale sweep stops republishing it. A
+// consumer can receive it before the publisher has recorded the broker confirmation, while the row is still leased: that
+// row keeps its lease (MarkAdmissionPublished then finishes it as consumed) but carries consumed_at from now on. A pointer
+// that was requeued in the meantime is consumed outright.
 func (repository *Postgres) MarkAdmissionConsumed(contextValue context.Context, eventID string) error {
-	if _, err := repository.pool.Exec(contextValue, `
+	command, err := repository.pool.Exec(contextValue, `
 		UPDATE judge.admission_outbox
-		SET state = 'consumed', consumed_at = clock_timestamp(), updated_at = clock_timestamp()
+		SET consumed_at = clock_timestamp(),
+			published_at = COALESCE(published_at, clock_timestamp()),
+			state = CASE WHEN state = 'leased' THEN 'leased' ELSE 'consumed' END,
+			updated_at = clock_timestamp()
 		WHERE event_id = $1
-		  AND state IN ('published', 'pending')
-		  AND published_at IS NOT NULL
-	`, eventID); err != nil {
+		  AND state IN ('published', 'pending', 'leased')
+		  AND consumed_at IS NULL
+	`, eventID)
+	if err != nil {
 		return fmt.Errorf("mark admission consumed: %w", err)
+	}
+	if command.RowsAffected() == 1 {
+		return nil
+	}
+	// Nothing changed: either it was consumed already (fine) or no such pointer exists (not fine).
+	var exists bool
+	if err := repository.pool.QueryRow(contextValue, `SELECT EXISTS (SELECT 1 FROM judge.admission_outbox WHERE event_id = $1)`, eventID).Scan(&exists); err != nil {
+		return fmt.Errorf("check admission exists: %w", err)
+	}
+	if !exists {
+		return app.ErrAdmissionUnknown
 	}
 	return nil
 }
