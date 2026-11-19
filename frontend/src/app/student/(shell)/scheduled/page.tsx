@@ -3,7 +3,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { EmptyState, PageHeader } from "@/components/staff/page-header";
+import { Pager } from "@/components/staff/pager";
 import { Button } from "@/components/ui/button";
+import { paginate } from "@/lib/paginate";
 import { groupByPhase, listAssignments } from "@/lib/server/assignments";
 import { requireViewer } from "@/lib/server/session";
 import { TIME_ZONE, formatDuration, formatWindow } from "@/lib/utils";
@@ -14,17 +16,18 @@ export const metadata: Metadata = { title: "Scheduled" };
 const day = new Intl.DateTimeFormat("en-IN", { timeZone: TIME_ZONE, day: "numeric" });
 const month = new Intl.DateTimeFormat("en-IN", { timeZone: TIME_ZONE, month: "short" });
 
-export default async function ScheduledPage() {
+export default async function ScheduledPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const viewer = await requireViewer();
   if (!viewer.tenantId) redirect("/student");
   // Failures go to the error boundary; an empty list would read as "no exams".
   const { upcoming, live } = groupByPhase(await listAssignments(viewer.tenantId));
-  const rows = [...live, ...upcoming];
+  const paged = paginate([...live, ...upcoming], (await searchParams).page);
+  const rows = paged.rows;
 
   return (
     <div className="animate-enter">
       <PageHeader title="Scheduled" description="Upcoming exams, soonest first." />
-      {rows.length === 0 ? (
+      {paged.total === 0 ? (
         <EmptyState>
           <CalendarDots className="mx-auto mb-3 size-6 text-ink-subtle" />
           Nothing is scheduled. New exams show up here as soon as faculty assign them.
@@ -61,6 +64,7 @@ export default async function ScheduledPage() {
           })}
         </ol>
       )}
+      <Pager meta={paged} noun="exams" />
     </div>
   );
 }
