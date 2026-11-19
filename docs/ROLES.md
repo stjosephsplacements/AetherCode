@@ -88,4 +88,4 @@ Mentors normally hold read permissions only: they see students and results in th
 ## Signing in and recovery
 - Every role signs in at `/login`. Staff accounts can enrol an authenticator (TOTP); sensitive actions ask again (step-up).
 - Students receive an initial password from staff import and must change it on first sign-in.
-- Forgotten passwords: staff reset them (`MANAGE_MEMBERS`), and the operator can deliver an administrator's reset token out of band (see SELF-HOSTING.md). There is no email self-service in this release.
+- Forgotten passwords: when Microsoft 365 mail is configured and the frontend has `PASSWORD_RESET_EMAIL=on` (identity service README, "Password-reset email"), a user whose account has an email address resets their own password from the sign-in page through an emailed one-time link. Otherwise staff reset them (`MANAGE_MEMBERS`), and the operator can deliver an administrator's reset token out of band (see SELF-HOSTING.md). Students sign in by roll number and normally have no email on file, so their reset stays staff-assisted.

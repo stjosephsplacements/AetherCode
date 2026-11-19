@@ -6,6 +6,7 @@ import Script from "next/script";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { isResetPath } from "@/lib/auth-paths";
 import { cn } from "@/lib/utils";
 
 export type Consent = { functional: boolean; analytics: boolean; at: string };
@@ -136,7 +137,7 @@ export function ConsentManager() {
 
   return (
     <>
-      {consent?.analytics && <Analytics />}
+      {consent?.analytics && !isResetPath(pathname) && <Analytics />}
 
       {showBanner && (
         <div
