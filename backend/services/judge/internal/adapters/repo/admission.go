@@ -127,7 +127,7 @@ func (repository *Postgres) MarkAdmissionPublished(contextValue context.Context,
 // row keeps its lease (MarkAdmissionPublished then finishes it as consumed) but carries consumed_at from now on. A pointer
 // that was requeued in the meantime is consumed outright.
 func (repository *Postgres) MarkAdmissionConsumed(contextValue context.Context, eventID string) error {
-	if _, err := repository.pool.Exec(contextValue, `
+	command, err := repository.pool.Exec(contextValue, `
 		UPDATE judge.admission_outbox
 		SET consumed_at = clock_timestamp(),
 			published_at = COALESCE(published_at, clock_timestamp()),
@@ -136,8 +136,20 @@ func (repository *Postgres) MarkAdmissionConsumed(contextValue context.Context, 
 		WHERE event_id = $1
 		  AND state IN ('published', 'pending', 'leased')
 		  AND consumed_at IS NULL
-	`, eventID); err != nil {
+	`, eventID)
+	if err != nil {
 		return fmt.Errorf("mark admission consumed: %w", err)
+	}
+	if command.RowsAffected() == 1 {
+		return nil
+	}
+	// Nothing changed: either it was consumed already (fine) or no such pointer exists (not fine).
+	var exists bool
+	if err := repository.pool.QueryRow(contextValue, `SELECT EXISTS (SELECT 1 FROM judge.admission_outbox WHERE event_id = $1)`, eventID).Scan(&exists); err != nil {
+		return fmt.Errorf("check admission exists: %w", err)
+	}
+	if !exists {
+		return app.ErrAdmissionUnknown
 	}
 	return nil
 }

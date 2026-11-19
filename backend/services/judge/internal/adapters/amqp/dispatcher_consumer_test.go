@@ -2,6 +2,7 @@ package amqp
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
@@ -9,11 +10,29 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/rabbitmq/amqp091-go"
+	"github.com/stjosephsplacements/AetherCode/services/judge/internal/app"
 )
 
-type failingTracker struct{ err error }
+type failingTracker struct {
+	err   error
+	calls *int
+}
 
-func (t failingTracker) MarkAdmissionConsumed(context.Context, string) error { return t.err }
+func (t failingTracker) MarkAdmissionConsumed(context.Context, string) error {
+	if t.calls != nil {
+		*t.calls++
+	}
+	return t.err
+}
+
+func pointer(t *testing.T, eventID, jobID string) string {
+	t.Helper()
+	body, err := json.Marshal(map[string]string{"event_id": eventID, "job_id": jobID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(body)
+}
 
 type recordingAck struct{ acks, nacks, requeues int }
 
@@ -35,10 +54,14 @@ func delivery(ack *recordingAck, body string) amqp091.Delivery {
 // dispatch would panic): the job is not claimed, so dispatching it could run it twice.
 func TestAPointerThatCannotBeMarkedIsRequeuedWithoutDispatch(t *testing.T) {
 	ack := &recordingAck{}
-	consumer := &Consumer{tracker: failingTracker{err: errors.New("database down")}, logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	calls := 0
+	consumer := &Consumer{tracker: failingTracker{err: errors.New("database down"), calls: &calls}, logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // skip the pause
-	consumer.handleDelivery(ctx, delivery(ack, `{"event_id":"`+uuid.NewString()+`","job_id":"`+uuid.NewString()+`"}`))
+	consumer.handleDelivery(ctx, delivery(ack, pointer(t, uuid.NewString(), uuid.NewString())))
+	if calls != 1 {
+		t.Fatalf("the tracker was called %d times, want once: the delivery must reach the mark", calls)
+	}
 	if ack.nacks != 1 || ack.requeues != 1 || ack.acks != 0 {
 		t.Fatalf("nacks=%d requeues=%d acks=%d, want one requeueing nack and no ack", ack.nacks, ack.requeues, ack.acks)
 	}
@@ -47,8 +70,19 @@ func TestAPointerThatCannotBeMarkedIsRequeuedWithoutDispatch(t *testing.T) {
 func TestAPointerWithoutAValidEventIDIsDiscarded(t *testing.T) {
 	ack := &recordingAck{}
 	consumer := &Consumer{tracker: failingTracker{}, logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
-	consumer.handleDelivery(context.Background(), delivery(ack, `{"event_id":"nope","job_id":"`+uuid.NewString()+`"}`))
+	consumer.handleDelivery(context.Background(), delivery(ack, pointer(t, "nope", uuid.NewString())))
 	if ack.nacks != 1 || ack.requeues != 0 {
 		t.Fatalf("nacks=%d requeues=%d, want one discarding nack", ack.nacks, ack.requeues)
+	}
+}
+
+// A pointer with no outbox row is not dispatched: nothing proves it was ever issued.
+func TestAPointerWithNoOutboxRowIsDiscarded(t *testing.T) {
+	ack := &recordingAck{}
+	calls := 0
+	consumer := &Consumer{tracker: failingTracker{err: app.ErrAdmissionUnknown, calls: &calls}, logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	consumer.handleDelivery(context.Background(), delivery(ack, pointer(t, uuid.NewString(), uuid.NewString())))
+	if calls != 1 || ack.nacks != 1 || ack.requeues != 0 || ack.acks != 0 {
+		t.Fatalf("calls=%d nacks=%d requeues=%d acks=%d, want one mark attempt and one discarding nack", calls, ack.nacks, ack.requeues, ack.acks)
 	}
 }

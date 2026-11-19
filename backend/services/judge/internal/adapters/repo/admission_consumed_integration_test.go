@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/stjosephsplacements/AetherCode/services/judge/internal/app"
 )
 
 // A published pointer nobody marks consumed is republished forever (every sweep), which floods the broker; a consumed one,
@@ -72,4 +74,19 @@ func TestConsumedBeforePublishedIsNotRepublished(t *testing.T) {
 	requeued, err := store.RequeueStalePublishedAdmissions(ctx, time.Now().Add(time.Hour), 1000)
 	require.NoError(t, err)
 	require.EqualValues(t, 0, requeued)
+}
+
+// A pointer that is not in the outbox is reported, so the consumer does not dispatch it; marking it twice is fine.
+func TestMarkAdmissionConsumedDistinguishesUnknownFromAlreadyConsumed(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	pool := bootstrapJudgeSchema(ctx, t)
+	store, _, _ := submitJob(ctx, t, pool, newFakeStorage(), []byte(`{"schema_version": 2, "test_cases": [{"stdin": "1\n", "expected_output": "1\n", "weight": 1}]}`))
+	leases, err := store.LeaseAdmissions(ctx, "test-publisher", 10, 30*time.Second)
+	require.NoError(t, err)
+	require.NoError(t, store.MarkAdmissionPublished(ctx, leases[0].EventID, leases[0].LeaseID))
+
+	require.NoError(t, store.MarkAdmissionConsumed(ctx, leases[0].EventID))
+	require.NoError(t, store.MarkAdmissionConsumed(ctx, leases[0].EventID), "already consumed is fine")
+	require.ErrorIs(t, store.MarkAdmissionConsumed(ctx, "00000000-0000-4000-8000-000000000000"), app.ErrAdmissionUnknown)
 }

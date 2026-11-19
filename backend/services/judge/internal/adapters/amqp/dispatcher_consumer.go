@@ -3,6 +3,7 @@ package amqp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/rabbitmq/amqp091-go"
+	"github.com/stjosephsplacements/AetherCode/services/judge/internal/app"
 	"github.com/stjosephsplacements/AetherCode/services/judge/internal/dispatcher"
 )
 
@@ -164,6 +166,11 @@ func (c *Consumer) handleDelivery(ctx context.Context, delivery amqp091.Delivery
 	markCtx, markCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 	markErr := c.tracker.MarkAdmissionConsumed(markCtx, msg.EventID)
 	markCancel()
+	if errors.Is(markErr, app.ErrAdmissionUnknown) {
+		c.logger.Error("dispatcher: admission pointer has no outbox row, discarding", "job_id", msg.JobID)
+		_ = delivery.Nack(false, false)
+		return
+	}
 	if markErr != nil {
 		c.logger.Warn("dispatcher: could not record the admission as consumed, requeuing without dispatch", "job_id", msg.JobID, "error", markErr)
 		select {
