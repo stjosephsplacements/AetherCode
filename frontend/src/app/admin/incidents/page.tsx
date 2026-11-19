@@ -1,3 +1,4 @@
+import { CollegeLink } from "@/components/college-link";
 import { CheckCircle, WarningCircle, Warning } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -86,9 +87,9 @@ export default async function IncidentsPage() {
             {board.liveExams.map((exam) => (
               <tr key={exam.versionId} className="align-middle">
                 <td className="px-4 py-3 font-medium text-ink">
-                  <Link href={`/admin/open?college=${exam.collegeId}&next=${encodeURIComponent(`/staff/exams/${exam.examId}/monitor`)}`} className="hover:text-brand">
+                  <CollegeLink href={`/admin/open?college=${exam.collegeId}&next=${encodeURIComponent(`/staff/exams/${exam.examId}/monitor`)}`} className="hover:text-brand">
                     {exam.title}
-                  </Link>
+                  </CollegeLink>
                 </td>
                 <td className="px-4 py-3 text-ink-muted">{exam.collegeName}</td>
                 <td className="px-4 py-3 font-mono tabular-nums">{exam.inProgress}</td>

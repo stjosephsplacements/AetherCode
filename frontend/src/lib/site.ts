@@ -10,7 +10,7 @@ export const SITE = {
   /** Kept in step with judge-languages.sh. */
   languages: ["C", "C++17", "Java", "Python 3", "JavaScript", "Go"],
   /** The last time the legal pages changed. */
-  legalUpdated: "28 October 2026",
+  legalUpdated: "19 November 2026",
 } as const;
 
 /** Public pages, for the sitemap and the proxy's allowlist. */

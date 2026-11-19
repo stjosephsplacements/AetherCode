@@ -10,7 +10,8 @@ live platform (real gateway, databases and judge), so run them against a staging
    students: the roster loads at most 5000 rows.
 2. **Administrator credentials** in `~/aethercode-admin.txt` (or `E2E_ADMIN_FILE`): `email password totp-secret`, one line,
    mode 600. Elevated actions need a fresh second factor, so the account needs a TOTP authenticator whose secret is the
-   third word. Disable that authenticator and delete the file when you are done.
+   third word. Use an account whose authenticator you created for this run, or add a second one; do not remove an authenticator the account
+   already relies on. Disable the one you added and delete the file when you are done.
 3. **A tunnel to the gateway only**, on `127.0.0.1:8380` (the specs call `http://127.0.0.1:8380/api`).
 4. **A local production build of the frontend** whose public origin matches the test URL. The app refuses non-GET requests
    from any other origin ("Cross-site request refused"), so do not test through a tunnel to the real frontend, and do not use
@@ -21,6 +22,8 @@ live platform (real gateway, databases and judge), so run them against a staging
    export GATEWAY_URL=http://127.0.0.1:8380 PUBLIC_ORIGIN=http://127.0.0.1:8382
    npx next build && npx next start -p 8382
    ```
+
+   `next start` keeps that terminal busy: run the specs from `frontend` in a second terminal.
 
 ## Run
 

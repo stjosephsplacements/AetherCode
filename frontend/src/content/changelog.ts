@@ -60,7 +60,7 @@ export const RELEASES: Release[] = [
       "Exams can require Safe Exam Browser, with every request's key checked against its exact URL.",
       "The server keeps each student's timer and submits automatically when time is up.",
       "Run code against the sample tests before you submit.",
-      "AetherCode became open source under the GNU AGPL v3.",
+      "AetherCode was released for colleges to run on their own servers.",
     ],
   },
   {

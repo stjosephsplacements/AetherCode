@@ -9,7 +9,7 @@ import type { ComponentProps } from "react";
 export function CollegeLink({ href, ...props }: ComponentProps<typeof Link> & { href: string }) {
   if (href.startsWith("/admin/open")) {
     // Link-only props are not valid on an anchor.
-    const anchor = Object.fromEntries(Object.entries(props).filter(([key]) => !["prefetch", "scroll", "replace", "shallow", "locale", "legacyBehavior", "passHref"].includes(key)));
+    const anchor = Object.fromEntries(Object.entries(props).filter(([key]) => !["prefetch", "scroll", "replace", "shallow", "locale", "legacyBehavior", "passHref", "as", "onNavigate"].includes(key)));
     return <a href={href} {...(anchor as ComponentProps<"a">)} />;
   }
   return <Link href={href} {...props} />;
