@@ -38,6 +38,11 @@ func NewWorker(store Store, engine Engine, runtime Runtime, logger *slog.Logger)
 	return &Worker{store: store, engine: engine, runtime: runtime, logger: logger}, nil
 }
 
+// JobTimeout is the deadline for dispatching one job.
+func (w *Worker) JobTimeout() time.Duration {
+	return time.Duration(w.runtime.JobTimeoutSeconds) * time.Second
+}
+
 // DispatchJob fetches one queued job, evaluates each pending test unit, and
 // writes the terminal verdict. Returning nil with no error means the job was
 // not found or was already in a terminal state; the caller should treat this

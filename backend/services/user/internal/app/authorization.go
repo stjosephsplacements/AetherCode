@@ -13,6 +13,7 @@ import (
 	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/rbac"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry"
 )
 
 var (
@@ -298,17 +299,21 @@ func (service *Service) Authorize(contextValue context.Context, request Request)
 	if err != nil {
 		return Decision{}, err
 	}
+	assertionStarted := time.Now()
 	identity, err := service.verifyIdentityAssertion(contextValue, validated)
+	telemetry.ObserveStage("verify_assertion", assertionStarted, err)
 	if err != nil {
 		return Decision{}, err
 	}
 
+	snapshotStarted := time.Now()
 	snapshot, err := service.store.Snapshot(contextValue, SnapshotQuery{
 		PrincipalID:  validated.PrincipalID,
 		TenantID:     validated.TenantID,
 		ResourceType: validated.ResourceType,
 		ResourceID:   validated.ResourceID,
 	})
+	telemetry.ObserveStage("snapshot", snapshotStarted, err)
 	if err != nil {
 		return Decision{}, fmt.Errorf("load canonical authorization snapshot: %w", err)
 	}
