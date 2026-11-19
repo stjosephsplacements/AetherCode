@@ -148,6 +148,16 @@ func (c *Consumer) handleDelivery(ctx context.Context, delivery amqp091.Delivery
 		return
 	}
 
+	// Handing the pointer to this worker is the durable hand-off: from here the broker redelivers it if this consumer
+	// dies before acknowledging, so the publisher's stale sweep must not publish it again while the job runs (a long
+	// job would otherwise be dispatched twice). A failed mark only means the sweep may send one duplicate wake-up,
+	// which finds the job running or finished.
+	markCtx, markCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	if err := c.tracker.MarkAdmissionConsumed(markCtx, msg.EventID); err != nil {
+		c.logger.Warn("dispatcher: could not record the admission as consumed", "job_id", msg.JobID, "error", err)
+	}
+	markCancel()
+
 	jobCtx, cancel := context.WithTimeout(ctx, c.worker.JobTimeout())
 	defer cancel()
 	if err := c.worker.DispatchJob(jobCtx, msg.JobID); err != nil {
@@ -156,12 +166,5 @@ func (c *Consumer) handleDelivery(ctx context.Context, delivery amqp091.Delivery
 		return
 	}
 
-	// The job is handled (done, or already finished): record it before acknowledging, so the publisher's stale sweep does not
-	// publish this pointer again. A failure only costs a harmless duplicate wake-up later.
-	markCtx, markCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
-	defer markCancel()
-	if err := c.tracker.MarkAdmissionConsumed(markCtx, msg.EventID); err != nil {
-		c.logger.Warn("dispatcher: could not record the admission as consumed", "job_id", msg.JobID, "error", err)
-	}
 	_ = delivery.Ack(false)
 }

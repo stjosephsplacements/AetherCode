@@ -28,7 +28,9 @@ func TestStaleSweepSkipsConsumedAndFinishedAdmissions(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, 1, requeued, "an unconsumed pointer of a queued job is republished")
 
-	// Delivered again and handled: consumed, so no later sweep takes it.
+	// The normal case: a published pointer is delivered to a worker and marked consumed.
+	_, err = pool.Exec(ctx, `UPDATE judge.admission_outbox SET state = 'published' WHERE event_id = $1`, leases[0].EventID)
+	require.NoError(t, err)
 	require.NoError(t, store.MarkAdmissionConsumed(ctx, leases[0].EventID))
 	var state string
 	require.NoError(t, pool.QueryRow(ctx, `SELECT state FROM judge.admission_outbox WHERE event_id = $1`, leases[0].EventID).Scan(&state))
