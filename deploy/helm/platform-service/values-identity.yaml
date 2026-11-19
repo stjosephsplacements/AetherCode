@@ -41,8 +41,10 @@ secretEnv:
   - name: IDENTITY_MFA_MASTER_KEYS_JSON
   - name: IDENTITY_SSO_CLIENT_SECRET
     optional: true
-  # Password-reset email through Microsoft Graph. The Secret aethercode-mail (tenant-id, client-id, client-secret, sender)
-  # is created by the operator; without it mail stays off and the pods still start.
+  # Password-reset email through Microsoft Graph. The operator creates the Secret aethercode-mail with all four keys
+  # (tenant-id, client-id, client-secret, sender) or none of them: with no Secret, mail stays off and the pods start; a
+  # partial Secret (or a missing or misspelled key) stops identity at startup, by design. The link's origin is
+  # global.publicOrigin (IDENTITY_PUBLIC_BASE_URL above), which must be https:// outside development.
   - {name: IDENTITY_MAIL_TENANT_ID, secretName: aethercode-mail, key: tenant-id, optional: true}
   - {name: IDENTITY_MAIL_CLIENT_ID, secretName: aethercode-mail, key: client-id, optional: true}
   - {name: IDENTITY_MAIL_CLIENT_SECRET, secretName: aethercode-mail, key: client-secret, optional: true}
@@ -78,7 +80,9 @@ networkPolicy:
     # SSO provider (ADR-0042): if SSO is enabled, identity must reach the OIDC
     # provider. Add an egress rule to the provider's namespace+port here.
     extraRules:
-      # Password-reset email goes to Microsoft Graph and its sign-in endpoint (HTTPS). Anything public except private ranges.
+      # Password-reset email goes to Microsoft Graph and its sign-in endpoint (HTTPS). Port 443 to any public address,
+      # never the private ranges. NetworkPolicy cannot filter by host name, so a per-host allowlist
+      # (graph.microsoft.com, login.microsoftonline.com) needs an egress proxy or a firewall rule outside the cluster.
       - to:
           - ipBlock:
               cidr: 0.0.0.0/0
