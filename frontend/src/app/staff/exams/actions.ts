@@ -3,10 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ActionState } from "@/components/staff/form";
-import type { Exam, ExamVersion, ExamVersionContent, Page, ProctorPolicy, ProctorPolicyVersion, QuestionVersion } from "@/lib/api-types";
+import type { Exam, ExamVersion, ExamVersionContent, ProctorPolicy, ProctorPolicyVersion, QuestionVersion } from "@/lib/api-types";
 import { chosenPolicyVersionId } from "@/lib/proctor-policy-body";
 import { actionError } from "@/lib/server/actions";
 import { PREVIEW_PREFIX, copyExam } from "@/lib/server/exams";
+import { fetchAllPages } from "@/lib/server/fetch-all";
 import { gateway } from "@/lib/server/gateway";
 import { listAllProctorPolicies, listProctorPolicyVersions } from "@/lib/server/proctor-policies";
 import { requireCollege } from "@/lib/server/staff";

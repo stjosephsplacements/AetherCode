@@ -4,10 +4,10 @@ import Link from "next/link";
 import { EmptyState, LoadError, PageHeader } from "@/components/staff/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/card";
-import type { Attempt, Page } from "@/lib/api-types";
+import type { Attempt } from "@/lib/api-types";
 import { LiveRefresh } from "@/lib/client/realtime";
 import { groupByPhase, listAssignments } from "@/lib/server/assignments";
-import { gateway } from "@/lib/server/gateway";
+import { listMyAttempts } from "@/lib/server/attempts";
 import { requireViewer } from "@/lib/server/session";
 import { cn, formatDateTime, formatDuration, formatWindow } from "@/lib/utils";
 import { Countdown } from "../countdown";
@@ -27,7 +27,7 @@ export default async function MyExams({ searchParams }: { searchParams: Promise<
     [assignments, attempts] = viewer.tenantId
       ? await Promise.all([
           listAssignments(viewer.tenantId),
-          gateway<Page<Attempt>>(`/submission/v1/tenants/${viewer.tenantId}/attempts?limit=100`).then((page) => page.items, () => [] as Attempt[]),
+          listMyAttempts(viewer.tenantId).catch(() => [] as Attempt[]),
         ])
       : [[], [] as Attempt[]];
   } catch (error) {
