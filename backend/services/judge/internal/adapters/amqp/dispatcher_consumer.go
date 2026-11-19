@@ -3,13 +3,16 @@ package amqp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/rabbitmq/amqp091-go"
+	"github.com/stjosephsplacements/AetherCode/services/judge/internal/app"
 	"github.com/stjosephsplacements/AetherCode/services/judge/internal/dispatcher"
 )
 
@@ -22,15 +25,24 @@ const (
 // dispatches each job through the Worker. It reconnects automatically after
 // connection failures.
 type Consumer struct {
-	url    string
-	worker *dispatcher.Worker
-	logger *slog.Logger
+	url     string
+	worker  *dispatcher.Worker
+	tracker AdmissionTracker
+	logger  *slog.Logger
+}
+
+// requeuePause is how long a pointer waits before going back to the queue when it could not be marked consumed.
+const requeuePause = time.Second
+
+// AdmissionTracker records that a consumer handled an admission pointer.
+type AdmissionTracker interface {
+	MarkAdmissionConsumed(ctx context.Context, eventID string) error
 }
 
 // NewConsumer validates configuration and creates a Consumer. The rawURL must
 // be the same JUDGE_RABBITMQ_URL used by the admission publisher so that the
 // consumer reads from the same quorum queue.
-func NewConsumer(rawURL string, worker *dispatcher.Worker, logger *slog.Logger) (*Consumer, error) {
+func NewConsumer(rawURL string, worker *dispatcher.Worker, tracker AdmissionTracker, logger *slog.Logger) (*Consumer, error) {
 	if worker == nil {
 		return nil, fmt.Errorf("dispatcher consumer worker is required")
 	}
@@ -41,7 +53,10 @@ func NewConsumer(rawURL string, worker *dispatcher.Worker, logger *slog.Logger) 
 	if err != nil || (parsed.Scheme != "amqp" && parsed.Scheme != "amqps") || parsed.Host == "" {
 		return nil, fmt.Errorf("JUDGE_RABBITMQ_URL must be a valid amqp or amqps URL")
 	}
-	return &Consumer{url: parsed.String(), worker: worker, logger: logger}, nil
+	if tracker == nil {
+		return nil, fmt.Errorf("dispatcher consumer admission tracker is required")
+	}
+	return &Consumer{url: parsed.String(), worker: worker, tracker: tracker, logger: logger}, nil
 }
 
 // Start connects to RabbitMQ and dispatches admission messages until ctx is
@@ -136,6 +151,33 @@ func (c *Consumer) handleDelivery(ctx context.Context, delivery amqp091.Delivery
 	if strings.TrimSpace(msg.JobID) == "" {
 		c.logger.Error("dispatcher: admission pointer missing job_id, discarding")
 		_ = delivery.Nack(false, false)
+		return
+	}
+
+	// Handing the pointer to this worker is the durable hand-off: from here the broker redelivers it if this consumer
+	// dies before acknowledging, so the publisher's stale sweep must not publish it again while the job runs. Nothing
+	// claims the job itself, so a pointer that could not be marked is not dispatched at all: it goes back to the queue
+	// (after a pause, so a database outage does not spin) and is retried once the mark can be written.
+	if _, err := uuid.Parse(msg.EventID); err != nil {
+		c.logger.Error("dispatcher: admission pointer has no valid event_id, discarding", "job_id", msg.JobID)
+		_ = delivery.Nack(false, false)
+		return
+	}
+	markCtx, markCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	markErr := c.tracker.MarkAdmissionConsumed(markCtx, msg.EventID)
+	markCancel()
+	if errors.Is(markErr, app.ErrAdmissionUnknown) {
+		c.logger.Error("dispatcher: admission pointer has no outbox row, discarding", "job_id", msg.JobID)
+		_ = delivery.Nack(false, false)
+		return
+	}
+	if markErr != nil {
+		c.logger.Warn("dispatcher: could not record the admission as consumed, requeuing without dispatch", "job_id", msg.JobID, "error", markErr)
+		select {
+		case <-ctx.Done():
+		case <-time.After(requeuePause):
+		}
+		_ = delivery.Nack(false, true)
 		return
 	}
 

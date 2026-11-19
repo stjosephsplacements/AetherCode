@@ -20,7 +20,9 @@ var (
 	ErrLanguageUnavailable = errors.New("requested language is unavailable")
 	ErrCompletionNotLeased = errors.New("completion is not currently leased to this consumer")
 	ErrAdmissionNotLeased  = errors.New("admission is not currently leased to this publisher")
-	ErrFanOutUnavailable   = errors.New("test-case fan-out storage or KMS is not configured on this instance")
+	// ErrAdmissionUnknown means no outbox row exists for a delivered pointer (its job was deleted, or the pointer is forged).
+	ErrAdmissionUnknown  = errors.New("admission pointer has no outbox row")
+	ErrFanOutUnavailable = errors.New("test-case fan-out storage or KMS is not configured on this instance")
 
 	uuidV7Pattern   = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
 	sha256Pattern   = regexp.MustCompile(`^[0-9a-f]{64}$`)
