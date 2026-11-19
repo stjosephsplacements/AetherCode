@@ -4,7 +4,6 @@ import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useRef } from "react";
-import { SITE } from "@/lib/site";
 import { LiquidGlass } from "./liquid-glass";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
@@ -36,7 +35,7 @@ const LOAD = [
 ];
 
 /**
- * The AetherCode Execution Engine, the open-source sandbox that runs every
+ * The AetherCode Execution Engine, the sandbox that runs every
  * submission (ADR-0028): what isolates the code, one run streamed event by
  * event (played once when it scrolls in), and the published load test.
  */
@@ -65,7 +64,7 @@ export function Engine() {
     <section id="engine" ref={root} className="mx-auto max-w-6xl scroll-mt-20 px-6 py-24">
       <h2 className="heading text-[2.3rem] text-ink sm:text-[3.1rem]">The engine that runs your code</h2>
       <p data-reveal className="mt-4 max-w-[44rem] text-[16px] leading-relaxed text-ink-muted">
-        Every Run and Submit goes to the AetherCode Execution Engine: an open-source Go service that compiles and runs untrusted
+        Every Run and Submit goes to the AetherCode Execution Engine: a Go service that compiles and runs untrusted
         code inside Linux kernel sandboxes and streams each step back as it happens.
       </p>
 
@@ -74,7 +73,7 @@ export function Engine() {
       <LiquidGlass strong className="relative overflow-hidden rounded-3xl shadow-[var(--shadow-overlay)]">
         <div className="flex border-b border-line font-mono text-[13px]">
           <p className="px-4 py-2.5 text-ink">aethercode-execution-engine</p>
-          <p className="ml-auto hidden px-4 py-2.5 text-ink-subtle sm:block">Go · AGPL-3.0</p>
+          <p className="ml-auto hidden px-4 py-2.5 text-ink-subtle sm:block">Go · sandboxed</p>
         </div>
 
         <div className="grid lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
@@ -88,12 +87,6 @@ export function Engine() {
                 </li>
               ))}
             </ul>
-            <a
-              href={SITE.engineRepo}
-              className="mt-10 w-fit rounded-full border border-line-strong px-5 py-2.5 text-[14px] font-medium text-ink shadow-[var(--shadow-panel)] transition-colors hover:border-brand hover:bg-brand hover:text-brand-ink"
-            >
-              View the engine on GitHub
-            </a>
           </div>
 
           <div className="border-t border-line-strong bg-canvas p-6 text-ink sm:p-10 lg:border-l lg:border-t-0">

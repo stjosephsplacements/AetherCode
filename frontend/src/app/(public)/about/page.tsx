@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { contacts } from "@/lib/server/contacts";
 import { SITE } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "About",
-  description: "Why AetherCode exists: fair, open-source coding assessments built by students and the St. Joseph's Placements and Training Cell.",
+  description: "Why AetherCode exists: fair coding assessments built by students and the St. Joseph's Placements and Training Cell.",
   alternates: { canonical: "/about" },
 };
 
@@ -15,7 +16,11 @@ const STATS = [
   { value: String(SITE.languages.length), label: "languages supported" },
 ];
 
+// The contact comes from the environment at start-up, not from the image build.
+export const dynamic = "force-dynamic";
+
 export default function AboutPage() {
+  const { support } = contacts();
   return (
     <div className="mx-auto max-w-6xl px-6 pb-24 pt-14 sm:pt-20">
       <div className="max-w-[46rem]">
@@ -43,14 +48,14 @@ export default function AboutPage() {
             AlgoQX, a student venture. It has since grown into a platform any college can run on its own servers, with Safe Exam
             Browser lockdown, sandboxed judging and results staff can trust.
           </p>
-          <p>It is maintained by {SITE.operatorShort}, with contributors from the open-source community.</p>
+          <p>It is built and maintained by {SITE.operatorShort}.</p>
         </section>
         <section>
-          <h2 className="font-serif text-[1.75rem] text-ink">Open source, for good</h2>
+          <h2 className="font-serif text-[1.75rem] text-ink">Transparent, even though it is not open source</h2>
           <p>
-            Every line is public under the {SITE.license}. Any college can host it, audit it or improve it, and anyone who runs a
-            modified version for others has to share their changes too. Assessment software that decides careers shouldn&apos;t be
-            a black box.
+            AetherCode is proprietary software. Colleges use it under a licence, hosted for them or installed on their own servers.
+            Assessment software that decides careers shouldn&apos;t be a black box, so how marks are decided and how exams are kept
+            honest is documented, and licensed colleges can audit the deployment they run.
           </p>
           <p>
             Read how it works on the <Link href="/architecture">architecture page</Link>, or how it keeps exams honest on the{" "}
@@ -60,11 +65,15 @@ export default function AboutPage() {
       </div>
 
       <div className="mt-20 flex flex-wrap items-center gap-3">
-        <Button asChild size="lg">
-          <a href={SITE.repo}>View the code on GitHub</a>
-        </Button>
+        {support ? (
+          <Button asChild size="lg">
+            <a href={`mailto:${support}?subject=AetherCode%20licence`}>Talk to us about a licence</a>
+          </Button>
+        ) : (
+          <p className="text-[15px] text-ink-muted">To license AetherCode, contact the placements and training cell of St. Joseph&apos;s Group of Institutions.</p>
+        )}
         <Button asChild size="lg" variant="secondary">
-          <a href={`${SITE.repo}/graphs/contributors`}>Meet the contributors</a>
+          <Link href="/security">How exams stay honest</Link>
         </Button>
       </div>
     </div>

@@ -94,7 +94,7 @@ export default function TermsPage() {
                 <li>automate requests to get around the rate limits that protect sign-in and code execution.</li>
               </ul>
               <p>
-                AetherCode&apos;s source code is open under the {SITE.license}: you&apos;re free to read, study and modify it. Finding a
+                AetherCode is proprietary software. Copying, reverse engineering or redistributing it is not permitted without a written licence. Finding a
                 weakness in this deployment? Report it through the <Link href="/security">security page</Link>; good-faith
                 reports are welcome.
               </p>
@@ -122,7 +122,7 @@ export default function TermsPage() {
                 add time or reschedule.
               </p>
               <p>
-                The software is provided &quot;as is&quot;, without warranty, as the {SITE.license} states. To the extent the law
+                The software is provided &quot;as is&quot;, without warranty, except as a college&apos;s licence agreement states. To the extent the law
                 allows, the operator is not liable for indirect losses arising from using the service.
               </p>
             </>

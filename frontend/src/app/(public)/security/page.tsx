@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { DocumentPage } from "@/components/site/document";
 import { contacts } from "@/lib/server/contacts";
-import { SITE } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Security",
@@ -28,23 +27,24 @@ export default function SecurityPage() {
           body: (
             <>
               <p>
-                Report privately through a{" "}
-                <a href={SITE.advisories}>GitHub security advisory</a>
+                Report privately
                 {security ? (
                   <>
-                    {" "}or by email to <a href={`mailto:${security}`}>{security}</a>
+                    {" "}by email to <a href={`mailto:${security}`}>{security}</a>
                   </>
-                ) : null}
+                ) : (
+                  " to your college's exam administrator"
+                )}
                 . Please don&apos;t open a public issue. Include what you found, how to reproduce it and the impact you expect.
               </p>
               <ul>
                 <li>We confirm we&apos;ve received your report and keep you updated while we fix it.</li>
-                <li>We credit you in the advisory unless you&apos;d rather stay anonymous.</li>
+                <li>We credit you in any advisory unless you&apos;d rather stay anonymous.</li>
                 <li>There is no paid bug bounty.</li>
               </ul>
               <p>
                 Machine-readable details are in <a href="/.well-known/security.txt">/.well-known/security.txt</a>. We don&apos;t
-                publish a PGP key; GitHub advisories are private between you and the maintainers.
+                publish a PGP key. If the report is sensitive, email only a request for a secure channel first and send the details once we reply.
               </p>
             </>
           ),

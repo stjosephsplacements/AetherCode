@@ -1,11 +1,10 @@
 import { Fragment } from "react";
-import { SITE } from "@/lib/site";
 import { DIAGRAMS } from "./platform-diagrams";
 
 const PARTS = [
   { label: "judging", title: "Run it. Judge it.", diagram: DIAGRAMS.judge, body: "Code runs in a sandbox with no network and hard CPU, memory and time limits." },
   { label: "services", title: "Built as services", diagram: DIAGRAMS.services, body: "A gateway in front of separate services for accounts, exams, submissions and the judge." },
-  { label: "open source", title: "Read every line", diagram: DIAGRAMS.oss, body: `Licensed under the ${SITE.license}. Audit how marks are decided and run it on your own servers.` },
+  { label: "licensed", title: "Run it on your servers", diagram: DIAGRAMS.hosting, body: "Proprietary software, licensed to colleges: hosted for you or installed on your own servers. How marks are decided is documented." },
   { label: "security", title: "Secure by default", diagram: DIAGRAMS.shield, body: "Row-level security keeps colleges apart, and services talk to each other over mutual TLS." },
 ];
 

@@ -1,15 +1,17 @@
 AetherCode
-Copyright (C) 2026 St. Joseph's Group of Institutions
+Copyright (C) 2026 St. Joseph's Group of Institutions. All rights reserved.
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as published
-by the Free Software Foundation, version 3 of the License.
+The code and documentation written by or for the Owner are proprietary software. See
+LICENSE for the terms. They may not be copied, modified or redistributed without a
+written licence from the Owner. This notice does not cover third-party components.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Affero General Public License for more details.
-
-You should have received a copy of the GNU Affero General Public License
-along with this program, in the file LICENSE.  If not, see
-<https://www.gnu.org/licenses/>.
+Third-party components keep their own licences, which apply to them and are not
+changed by LICENSE. The dependency lists are in:
+  - backend/go.work.sum and each backend service's go.sum (Go modules)
+  - frontend/pnpm-lock.yaml and apps/*/pnpm-lock.yaml (npm packages)
+  - backend/services/proctor/pyproject.toml (Python packages of the proctor service)
+Before shipping a release, regenerate the full third-party licence report and
+review it for any component whose licence restricts proprietary distribution
+(for example GPL or AGPL code linked into the Software). GSAP, used on the public
+pages, is not open source and is used under its own free licence; see
+frontend/README.md.

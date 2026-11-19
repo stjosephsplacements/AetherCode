@@ -57,7 +57,7 @@ export function StaffNav({ groups, collapsed = false }: { groups: NavGroup[]; co
                       active ? "bg-hover font-medium text-ink" : "text-ink-muted hover:bg-hover hover:text-ink",
                     )}
                   >
-                    {/* The orange tick marks where you are, the same mark as "now" on the overview. */}
+                    {/* The accent tick marks where you are, the same mark as "now" on the overview. */}
                     {active && <span aria-hidden className={cn("absolute top-1.5 bottom-1.5 w-[2px] rounded-full bg-brand", collapsed ? "-left-2.5" : "-left-2")} />}
                     <Icon className="size-4 shrink-0" />
                     {!collapsed && item.label}
