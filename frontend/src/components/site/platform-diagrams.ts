@@ -29,12 +29,12 @@ export const DIAGRAMS = {
     "|   Judge    |",
     "+------------+",
   ],
-  oss: [
-    "$ git clone        ",
-    "  AlgoQX/AetherCode",
+  hosting: [
+    "$ ./setup.sh      ",
+    "  https://exam.you ",
     "                   ",
     "LICENSE  Proprietary",
-    "source   public    ",
+    "source   private   ",
     "hosting  yours     ",
   ],
   shield: [

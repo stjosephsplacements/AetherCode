@@ -6,9 +6,10 @@ export function GET() {
   const { security } = contacts();
   const origin = publicOrigin();
   const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+  // RFC 9116 requires a Contact; without a configured SECURITY_EMAIL there is nothing valid to publish.
+  if (!security) return new Response("Not found\n", { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });
   const lines = [
-    // RFC 9116 needs at least one contact: the email when configured, otherwise the policy page.
-    `Contact: ${security ? `mailto:${security}` : `${origin}/security`}`,
+    `Contact: mailto:${security}`,
     `Expires: ${expires}`,
     "Preferred-Languages: en",
     `Canonical: ${origin}/.well-known/security.txt`,

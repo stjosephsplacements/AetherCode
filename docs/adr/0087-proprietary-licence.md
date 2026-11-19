@@ -17,7 +17,7 @@ to license it to colleges commercially and keep the source confidential.
 - App `package.json` files use `"license": "UNLICENSED"`.
 - The public site no longer links the repository, shows the AGPL, or presents the product as open source.
   Security reports go to the configured security email or the college's exam administrator.
-- Contributions are accepted only under a written agreement; the owner owns them.
+- Contributions are accepted only under a signed agreement that assigns copyright to the owner.
 
 ## Consequences
 

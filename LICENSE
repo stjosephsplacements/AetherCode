@@ -30,14 +30,17 @@ Owner has authorised in writing.
    such as its students' records, questions and results, remains the Licensee's.
 
 4. Third-party components. The Software includes third-party components under
-   their own licences, listed in NOTICE. Those licences apply to those
-   components and are not changed by this one.
+   their own licences. The dependency manifests and the licence-report process
+   named in NOTICE identify them. Those licences apply to those components and
+   are not changed by this one.
 
 5. Confidentiality. Source code, architecture documents and deployment
    details are confidential. The Licensee must protect them with at least the
    care it gives its own confidential information and must not disclose them
    except to employees and contractors who need them to operate the Software
-   and who are bound to the same duty.
+   and who are bound to the same duty. This duty does not cover information
+   that is public other than through your breach, including versions of the
+   Software that the Owner has itself published (see clause 8).
 
 6. No warranty. The Software is provided "as is", without warranty of any kind,
    except as a written licence agreement states. To the extent the law allows,

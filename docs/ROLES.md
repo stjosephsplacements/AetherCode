@@ -12,11 +12,11 @@ the scope; the web app only decides which area to show. Source of truth: `users.
 | Placement officer (`placement_user`) | platform or placement department | placement (3) | The placements and training cell: placement pool, drives, cross-college questions and exams. | `/placement` |
 | College admin (`college_admin`) | college | college (2) | A college's administrator: departments, batches, staff, roles, students, exams, results. | `/staff` |
 | Department user (`department_user`) | department | college (2) | Faculty or a department coordinator: questions, exams and results for their department. | `/staff` |
-| Mentor (`mentor`) | college | college (1) | A teacher who follows students' progress. Read-oriented. | `/staff` |
+| Mentor (`mentor`) | department or batch | college (1) | A teacher who follows students' progress. Read-oriented. | `/staff` |
 | Student (`student`) | self | college (1) | Candidates. Can only see and change their own records. | `/student` |
 
 Every member also holds the implicit `everyone` role of their guild (the baseline all members share).
-Higher tiers outrank lower ones in the role editor: you cannot edit or grant a role at or above your own.
+Higher tiers outrank lower ones in the role editor: a non-root actor must stay below their own highest role. The root (owner) may manage unmanaged roles; managed roles (Owner, Super admin, Placement officer and the built-in college roles) cannot be edited.
 
 ## Permission flags
 
@@ -31,7 +31,7 @@ Role permission bits, edited at `/staff/roles` and `/staff/permissions`:
 | `MANAGE_MEMBERS` | Add, import, deactivate and reset members (students, staff). |
 | `MANAGE_STRUCTURE` | Departments, batches and organisation settings. |
 | `VIEW_AUDIT` | Read the audit log. |
-| `VIEW_STUDENT_PII` | See personal data and exam-proctoring evidence (each read is audited). |
+| `VIEW_STUDENT_PII` | Opens the PII-gated resources, such as proctoring evidence (each read is audited). Ordinary student records are governed by `VIEW_SCOPE` and the per-resource permissions. |
 | `VIEW_PLACEMENT_POOL` / `MANAGE_PLACEMENT` | See and run placement drives and pools. |
 | `EXPORT_DATA` | Download CSV exports. |
 | `VIEW_GOLD_ANALYTICS` | Cross-cutting analytics dashboards. |

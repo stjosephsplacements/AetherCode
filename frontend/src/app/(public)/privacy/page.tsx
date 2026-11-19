@@ -171,8 +171,7 @@ export default function PrivacyPage() {
           body: (
             <>
               <p>
-                AetherCode is self-hosted: your data stays on servers this deployment&apos;s operator runs, not with the software
-                vendor. Each college&apos;s data is kept apart by database row-level security, connections between services are
+                AetherCode is installed for a college: your data stays on servers this deployment&apos;s operator runs. Each college&apos;s data is kept apart by database row-level security, connections between services are
                 encrypted, and your code runs in an isolated sandbox with no network access.
               </p>
               <p>

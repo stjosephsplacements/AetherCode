@@ -11,7 +11,7 @@ one to use, what to prepare and how to know it works.
 |---|---|---|
 | Fits | One campus, up to a few thousand students, one ops person | Several colleges or high availability |
 | Guide | [deploy/single-server/README.md](../deploy/single-server/README.md) | [deploy/helm/README.md](../deploy/helm/README.md), [deploy/single-node](../deploy/single-node) for one k3s node |
-| Database | One PostgreSQL 18 container, volume backups | Three-node PostgreSQL (CloudNativePG) with PITR |
+| Database | One PostgreSQL 18 container, volume backups | One PostgreSQL instance from the infra chart. High availability and point-in-time recovery are optional: install the `platform-postgres-ha` chart (three-node CloudNativePG) and follow [its runbook](runbooks/platform-postgres-ha.md) |
 | Scale-out | Vertical | Horizontal (autoscaling gateway, identity, submission, judge) |
 
 If unsure, start with a single server. Moving to Kubernetes later is a data migration, not a rewrite.
@@ -31,21 +31,28 @@ Engine as a host service, and Safe Exam Browser on lab machines if you lock exam
 gateway port, the execution engine (it has no authentication), PostgreSQL, NATS, MinIO or RabbitMQ.
 Lab machines need to reach the hostname; students' browsers need nothing else.
 
-**Secrets.** `setup.sh` generates `.env` and the private CA once. Back both up with the database: losing `.env` makes
-encrypted objects and sessions unreadable. Do not commit them. Rotate by following the runbooks, not by re-running setup.
+**Secrets.** Single server: `setup.sh` generates `.env` and the private CA once; back both up with the database, because losing
+`.env` makes encrypted objects and sessions unreadable. Kubernetes: `deploy/helm/generate-secrets.sh` writes the Kubernetes
+Secret (see the Helm guide); keep a copy in your password manager or sealed-secrets store. In both cases do not commit them, and
+rotate by following the runbooks, not by re-running the generator.
 
-**Email (optional).** Password-reset and notification mail uses Microsoft 365 through Microsoft Graph; without it,
-staff reset passwords for students (this is the supported exam-day path).
+**Password recovery.** There is no email channel in this release. Staff reset a student's password from the student's page, and
+the operator can deliver an administrator's reset token out of band with `deliver-reset` ("First administrator" in the
+single-server guide). Notifications are shown in the app.
 
 ## 3. Install
 
-1. Follow "First install" in the single-server guide (or the Helm guide). Every one-shot job (`migrate`,
-   `judge-migrate`, `buckets`) must exit 0.
-2. Install the execution engine and check it: `python3 engine-check.py` must print `Engine OK`.
+1. Follow "First install" in the single-server guide (or the Helm guide). Compose: the one-shot jobs `migrate`,
+   `judge-migrate` and `buckets` must exit 0. Helm: the migration hook jobs (including the proctor migration) and the
+   `judge-languages` job must complete; check them with `kubectl get jobs`.
+2. Install the execution engine and check it. `engine-check.py` takes the credentials file and the gateway URL (the Compose gateway
+   listens on `127.0.0.1:${GATEWAY_PORT:-8080}`, but the script defaults to 8380):
+   `python3 engine-check.py ~/aethercode-admin.txt http://127.0.0.1:8080` must print `Engine OK`.
 3. Create the first administrator ("First administrator" in the guide), set their password with the reset flow and
    enrol an authenticator app (TOTP). Elevated actions ask for a fresh second factor.
 4. Put nginx and TLS in front ("Public address"), then open `https://<your host>/login`.
-5. Run `python3 smoke.py`. It exercises sign-in, authoring, an exam, judging and results end to end.
+5. Run `python3 smoke.py ~/aethercode-admin.txt http://127.0.0.1:8080` (same arguments). It exercises sign-in, authoring,
+   an exam, judging and results end to end.
 
 ## 4. Day-0 checklist (one college)
 
@@ -71,7 +78,8 @@ Each role also has an in-app `/…/get-started` page. See [GETTING-STARTED.md](G
 - The execution engine sheds load with `429` and `Retry-After` when its queue is longer than twice its worker count.
   That is back-pressure, not an outage: the judge retries. Size workers so the p95 verdict time you measure with
   `loadtest.py` is acceptable.
-- Rehearse at your real size with `STUDENTS=<n> python3 loadtest.py` outside exam hours and read the per-step latencies.
+- Rehearse at your real size outside exam hours and read the per-step latencies:
+  `python3 loadtest.py --students <n> --gateway http://127.0.0.1:8080` (or `STUDENTS=<n> make loadtest` from the repository root).
 
 ## 6. Operate
 

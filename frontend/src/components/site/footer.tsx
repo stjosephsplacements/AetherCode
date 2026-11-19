@@ -60,7 +60,6 @@ export function Footer({ compact = false }: { compact?: boolean }) {
     {
       title: "Company",
       links: [
-        { href: "/about", label: "About" },
         { href: "/security", label: "Report a vulnerability" },
         { href: "/help", label: "Licensing" },
       ],

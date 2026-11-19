@@ -10,7 +10,7 @@ export const RELEASES: Release[] = [
     tags: ["UI", "Platform"],
     changes: [
       "A softer teal palette in light and dark themes, with a simpler home page.",
-      "AetherCode is now proprietary software, licensed to colleges. Earlier versions remain available under the licence they were published with.",
+      "AetherCode is now proprietary software, licensed to colleges. Earlier versions stay available under their original licence to those who already received them.",
     ],
   },
   {

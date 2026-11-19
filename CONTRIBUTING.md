@@ -72,7 +72,8 @@ Never in a public issue. See [SECURITY.md](SECURITY.md).
 
 AetherCode is proprietary software owned by St. Joseph's Group of Institutions
 (see [LICENSE](LICENSE) and [NOTICE](NOTICE)). Only people working under a
-written agreement with the owner may contribute. By contributing you agree that
-the owner owns your contribution and may license it under the project's terms.
+written agreement with the owner may contribute. That agreement must assign copyright in
+the contribution to the owner; submitting a pull request alone does not transfer
+ownership, and a contribution without a signed agreement will not be merged.
 Do not copy code from other projects unless its licence allows proprietary use,
 and record it in NOTICE.

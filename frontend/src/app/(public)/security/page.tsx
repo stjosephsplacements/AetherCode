@@ -39,12 +39,12 @@ export default function SecurityPage() {
               </p>
               <ul>
                 <li>We confirm we&apos;ve received your report and keep you updated while we fix it.</li>
-                <li>We credit you in the advisory unless you&apos;d rather stay anonymous.</li>
+                <li>We credit you in any advisory unless you&apos;d rather stay anonymous.</li>
                 <li>There is no paid bug bounty.</li>
               </ul>
               <p>
                 Machine-readable details are in <a href="/.well-known/security.txt">/.well-known/security.txt</a>. We don&apos;t
-                publish a PGP key; GitHub advisories are private between you and the maintainers.
+                publish a PGP key; ask for a different channel in your first message if you need one.
               </p>
             </>
           ),

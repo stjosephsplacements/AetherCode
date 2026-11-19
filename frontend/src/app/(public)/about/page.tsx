@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { contacts } from "@/lib/server/contacts";
 import { SITE } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -16,6 +17,7 @@ const STATS = [
 ];
 
 export default function AboutPage() {
+  const { support } = contacts();
   return (
     <div className="mx-auto max-w-6xl px-6 pb-24 pt-14 sm:pt-20">
       <div className="max-w-[46rem]">
@@ -60,9 +62,13 @@ export default function AboutPage() {
       </div>
 
       <div className="mt-20 flex flex-wrap items-center gap-3">
-        <Button asChild size="lg">
-          <Link href="/help">Talk to us about a licence</Link>
-        </Button>
+        {support ? (
+          <Button asChild size="lg">
+            <a href={`mailto:${support}?subject=AetherCode%20licence`}>Talk to us about a licence</a>
+          </Button>
+        ) : (
+          <p className="text-[15px] text-ink-muted">To license AetherCode, contact the placements and training cell of St. Joseph&apos;s Group of Institutions.</p>
+        )}
         <Button asChild size="lg" variant="secondary">
           <Link href="/security">How exams stay honest</Link>
         </Button>
