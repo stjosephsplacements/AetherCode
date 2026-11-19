@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/stjosephsplacements/AetherCode/services/judge/internal/app"
 )
 
 // A published pointer nobody marks consumed is republished forever (every sweep), which floods the broker; a consumed one,
@@ -47,4 +49,44 @@ func TestStaleSweepSkipsConsumedAndFinishedAdmissions(t *testing.T) {
 	requeued, err = store.RequeueStalePublishedAdmissions(ctx, future, 1000)
 	require.NoError(t, err)
 	require.EqualValues(t, 0, requeued, "a finished job's pointer is not republished")
+}
+
+// A worker can receive the pointer before the publisher records the broker confirmation (the row is still leased). That
+// delivery must still count: the row ends up consumed and no sweep republishes it.
+func TestConsumedBeforePublishedIsNotRepublished(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	pool := bootstrapJudgeSchema(ctx, t)
+	store, _, _ := submitJob(ctx, t, pool, newFakeStorage(), []byte(`{"schema_version": 2, "test_cases": [{"stdin": "1\n", "expected_output": "1\n", "weight": 1}]}`))
+
+	leases, err := store.LeaseAdmissions(ctx, "test-publisher", 10, 30*time.Second)
+	require.NoError(t, err)
+	require.Len(t, leases, 1)
+
+	require.NoError(t, store.MarkAdmissionConsumed(ctx, leases[0].EventID), "consumed while still leased")
+	require.NoError(t, store.MarkAdmissionPublished(ctx, leases[0].EventID, leases[0].LeaseID), "the publisher still finishes its lease")
+
+	var state string
+	var consumed bool
+	require.NoError(t, pool.QueryRow(ctx, `SELECT state, consumed_at IS NOT NULL FROM judge.admission_outbox WHERE event_id = $1`, leases[0].EventID).Scan(&state, &consumed))
+	require.Equal(t, "consumed", state)
+	require.True(t, consumed)
+	requeued, err := store.RequeueStalePublishedAdmissions(ctx, time.Now().Add(time.Hour), 1000)
+	require.NoError(t, err)
+	require.EqualValues(t, 0, requeued)
+}
+
+// A pointer that is not in the outbox is reported, so the consumer does not dispatch it; marking it twice is fine.
+func TestMarkAdmissionConsumedDistinguishesUnknownFromAlreadyConsumed(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	pool := bootstrapJudgeSchema(ctx, t)
+	store, _, _ := submitJob(ctx, t, pool, newFakeStorage(), []byte(`{"schema_version": 2, "test_cases": [{"stdin": "1\n", "expected_output": "1\n", "weight": 1}]}`))
+	leases, err := store.LeaseAdmissions(ctx, "test-publisher", 10, 30*time.Second)
+	require.NoError(t, err)
+	require.NoError(t, store.MarkAdmissionPublished(ctx, leases[0].EventID, leases[0].LeaseID))
+
+	require.NoError(t, store.MarkAdmissionConsumed(ctx, leases[0].EventID))
+	require.NoError(t, store.MarkAdmissionConsumed(ctx, leases[0].EventID), "already consumed is fine")
+	require.ErrorIs(t, store.MarkAdmissionConsumed(ctx, "00000000-0000-4000-8000-000000000000"), app.ErrAdmissionUnknown)
 }
