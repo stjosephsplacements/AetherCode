@@ -5,8 +5,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry"
 	authzv1 "github.com/stjosephsplacements/AetherCode/libs/proto/gen/go/aethercode/authz/v1"
 	"github.com/stjosephsplacements/AetherCode/services/user/internal/app"
 	"google.golang.org/grpc/codes"
@@ -39,6 +41,7 @@ func (server *Server) Authorize(contextValue context.Context, request *authzv1.A
 		}
 		targetService = caller.TargetService
 	}
+	started := time.Now()
 	decision, err := server.service.Authorize(contextValue, app.Request{
 		PrincipalID:       request.GetPrincipalId(),
 		Action:            request.GetAction(),
@@ -49,6 +52,7 @@ func (server *Server) Authorize(contextValue context.Context, request *authzv1.A
 		TargetService:     targetService,
 		IdentityAssertion: request.GetIdentityAssertion(),
 	})
+	telemetry.ObserveStage("server_authorize", started, err)
 	if err != nil {
 		var validationError *app.ValidationError
 		var authenticationError app.AuthenticationError

@@ -1,5 +1,4 @@
 import { ArrowUpRight, ChartBar, Eye, MonitorPlay } from "@phosphor-icons/react/ssr";
-import Link from "next/link";
 import { ConfirmDelete } from "@/components/staff/confirm-delete";
 import { deleteExam } from "@/app/staff/exams/actions";
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,7 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import type { ExamVersion } from "@/lib/api-types";
 import { collegeHref } from "@/lib/links";
 import { cn, formatDuration, formatWindow } from "@/lib/utils";
+import { CollegeLink } from "@/components/college-link";
 
 export const STATE_LABEL = { draft: "Draft", live: "Live now", next: "Scheduled", closed: "Closed" } as const;
 
@@ -41,32 +41,32 @@ export function ExamPeek({ exam, now, className, children, label }: { exam: { ex
           </dl>
           <div className="flex flex-wrap gap-2">
             <Button asChild>
-              <Link href={collegeHref(`/staff/exams/${id}`, exam.college?.id)}>
+              <CollegeLink href={collegeHref(`/staff/exams/${id}`, exam.college?.id)}>
                 Open exam
                 <ArrowUpRight />
-              </Link>
+              </CollegeLink>
             </Button>
             {(state === "live" || state === "closed") && (
               <Button asChild variant="secondary">
-                <Link href={collegeHref(`/staff/exams/${id}/monitor`, exam.college?.id)}>
+                <CollegeLink href={collegeHref(`/staff/exams/${id}/monitor`, exam.college?.id)}>
                   <MonitorPlay />
                   Monitor
-                </Link>
+                </CollegeLink>
               </Button>
             )}
             {state === "closed" && (
               <Button asChild variant="secondary">
-                <Link href={collegeHref(`/staff/exams/${id}/results`, exam.college?.id)}>
+                <CollegeLink href={collegeHref(`/staff/exams/${id}/results`, exam.college?.id)}>
                   <ChartBar />
                   Results
-                </Link>
+                </CollegeLink>
               </Button>
             )}
             <Button asChild variant="ghost">
-              <Link href={collegeHref(`/staff/exams/${id}/preview`, exam.college?.id)}>
+              <CollegeLink href={collegeHref(`/staff/exams/${id}/preview`, exam.college?.id)}>
                 <Eye />
                 Preview
-              </Link>
+              </CollegeLink>
             </Button>
             {state === "draft" && !exam.college && (
               <ConfirmDelete

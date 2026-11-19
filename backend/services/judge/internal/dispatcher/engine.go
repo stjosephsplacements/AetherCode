@@ -1,7 +1,14 @@
 // Package dispatcher coordinates execution job dispatch and verdict collection.
 package dispatcher
 
-import "context"
+import (
+	"context"
+	"errors"
+)
+
+// ErrVerdictLost is returned by Poll when the engine adapter no longer holds the verdict for a token it issued (a judge
+// restart, or a release after an interrupted attempt). The unit has no result yet and must run again.
+var ErrVerdictLost = errors.New("dispatcher: engine verdict lost before poll")
 
 // Engine is the evaluation engine port. The stub is used by default; the
 // AetherCode Execution Engine adapter (JUDGE_ENGINE=aethercode) requires the

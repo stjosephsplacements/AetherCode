@@ -7,6 +7,9 @@ import (
 	"strings"
 )
 
+// maxJobTimeoutSeconds is one day: far above any job, far below what a time.Duration can hold.
+const maxJobTimeoutSeconds = 24 * 60 * 60
+
 // Runtime holds validated dispatcher configuration loaded from the environment.
 type Runtime struct {
 	Enabled         bool
@@ -14,6 +17,8 @@ type Runtime struct {
 	Concurrency     int
 	PollIntervalMS  int
 	MaxPollAttempts int
+	// JobTimeoutSeconds bounds one job (all its units) in the consumer, so a hung dependency fails and is requeued.
+	JobTimeoutSeconds int
 }
 
 // LoadRuntime reads and validates dispatcher configuration from environment
@@ -53,6 +58,9 @@ func LoadRuntime() (Runtime, error) {
 	if r.MaxPollAttempts, err = intEnv("JUDGE_MAX_POLL_ATTEMPTS", 30); err != nil {
 		return Runtime{}, err
 	}
+	if r.JobTimeoutSeconds, err = intEnv("JUDGE_JOB_TIMEOUT_SECONDS", 900); err != nil {
+		return Runtime{}, err
+	}
 
 	if r.Enabled {
 		if r.EngineType != "stub" && r.EngineType != "aethercode" {
@@ -61,8 +69,18 @@ func LoadRuntime() (Runtime, error) {
 		if r.Concurrency < 1 || r.Concurrency > 32 {
 			return Runtime{}, fmt.Errorf("dispatcher: JUDGE_WORKER_CONCURRENCY must be 1-32")
 		}
-		if r.MaxPollAttempts < 1 {
-			return Runtime{}, fmt.Errorf("dispatcher: JUDGE_MAX_POLL_ATTEMPTS must be >= 1")
+		if r.MaxPollAttempts < 1 || r.MaxPollAttempts > 10000 {
+			return Runtime{}, fmt.Errorf("dispatcher: JUDGE_MAX_POLL_ATTEMPTS must be 1-10000")
+		}
+		// A zero or negative interval would poll in a tight loop.
+		if r.PollIntervalMS < 1 || r.PollIntervalMS > 60000 {
+			return Runtime{}, fmt.Errorf("dispatcher: JUDGE_POLL_INTERVAL_MS must be 1-60000")
+		}
+		// A job's units poll for up to MaxPollAttempts*PollIntervalMS each, so the deadline must not be shorter.
+		// The upper bound keeps the seconds-to-Duration conversion and the comparison below from overflowing.
+		if r.JobTimeoutSeconds < 30 || r.JobTimeoutSeconds > maxJobTimeoutSeconds ||
+			int64(r.JobTimeoutSeconds)*1000 < int64(r.MaxPollAttempts)*int64(r.PollIntervalMS) {
+			return Runtime{}, fmt.Errorf("dispatcher: JUDGE_JOB_TIMEOUT_SECONDS must be 30 to %d and at least one unit's polling time", maxJobTimeoutSeconds)
 		}
 	}
 	return r, nil

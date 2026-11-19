@@ -2,10 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { List, X, ArrowRight, ShieldCheck, Code, GraduationCap, Monitor, Clock, GitBranch, BookOpen, Terminal, ChartBar, Buildings } from "@phosphor-icons/react";
+import { List, X, ArrowRight, ShieldCheck, Code, GraduationCap, Monitor, Clock, BookOpen, ChartBar, Buildings } from "@phosphor-icons/react";
 import { usePathname } from "next/navigation";
 import { useState, useRef, useEffect, useCallback } from "react";
-import { SITE } from "@/lib/site";
 import { cn } from "@/lib/utils";
 import { ThemeIcon } from "./footer-controls";
 import { LiquidGlass } from "./liquid-glass";
@@ -27,8 +26,6 @@ const PLATFORM: NavGroup = {
 const DEVELOPERS: NavGroup = {
   label: "Developers",
   items: [
-    { href: SITE.repo, label: "GitHub", desc: "Source code and issues", icon: GitBranch },
-    { href: SITE.engineRepo, label: "Execution Engine", desc: "Sandboxed code runner", icon: Terminal },
     { href: "/architecture", label: "Architecture", desc: "How AetherCode works", icon: Code },
     { href: "/changelog", label: "Changelog", desc: "What shipped recently", icon: Clock },
   ],

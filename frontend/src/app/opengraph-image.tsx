@@ -17,14 +17,14 @@ export default function OpenGraphImage() {
           flexDirection: "column",
           justifyContent: "space-between",
           padding: "72px 80px",
-          background: "radial-gradient(800px 420px at 20% -10%, rgba(255,138,61,0.30), transparent 70%), radial-gradient(800px 420px at 90% 110%, rgba(169,156,255,0.24), transparent 70%), #0f0b1e",
-          color: "#f3eeff",
+          background: "radial-gradient(800px 420px at 20% -10%, rgba(79,209,197,0.30), transparent 70%), radial-gradient(800px 420px at 90% 110%, rgba(179,176,255,0.22), transparent 70%), #0b1519",
+          color: "#e8f1f0",
         }}
       >
         <div style={{ display: "flex", fontSize: 34, fontWeight: 700, letterSpacing: -0.5 }}>{SITE.name}</div>
         <div style={{ display: "flex", flexDirection: "column" }}>
           <div style={{ fontSize: 112, letterSpacing: -4, lineHeight: 1 }}>{SITE.tagline}</div>
-          <div style={{ marginTop: 28, fontSize: 30, color: "#a89fc4", maxWidth: 900 }}>Open-source coding assessments for colleges.</div>
+          <div style={{ marginTop: 28, fontSize: 30, color: "#9bb7b7", maxWidth: 900 }}>Calm, fair coding exams for colleges.</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <div

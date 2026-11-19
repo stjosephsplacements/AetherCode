@@ -108,7 +108,7 @@ export default function ArchitecturePage() {
         <h1 className="display mt-5 text-[2.6rem] text-ink sm:text-[3.4rem]">How AetherCode is built</h1>
         <p className="mt-5 text-[16px] leading-[1.7] text-ink-muted">
           For colleges and recruiters deciding whether to trust it with their exams. The full design, with the reasoning behind each
-          decision, is in the <a className="text-ink underline underline-offset-2" href="https://github.com/AlgoQX/AetherCode/tree/HEAD/docs/adr">architecture decision records</a>.
+          decision, is available to licensed colleges on request.
         </p>
       </header>
 

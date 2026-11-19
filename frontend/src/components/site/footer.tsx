@@ -1,4 +1,3 @@
-import { Star } from "@phosphor-icons/react/ssr";
 import Image from "next/image";
 import Link from "next/link";
 import { SITE } from "@/lib/site";
@@ -59,12 +58,10 @@ export function Footer({ compact = false }: { compact?: boolean }) {
   const columns = [
     ...COLUMNS,
     {
-      title: "Open source",
+      title: "Company",
       links: [
-        { href: SITE.repo, label: "GitHub" },
-        { href: SITE.engineRepo, label: "Execution engine" },
-        { href: `${SITE.repo}/blob/HEAD/LICENSE`, label: "License" },
-        { href: SITE.advisories, label: "Report a vulnerability" },
+        { href: "/security", label: "Report a vulnerability" },
+        { href: "/about", label: "Licensing" },
       ],
     },
   ];
@@ -79,12 +76,9 @@ export function Footer({ compact = false }: { compact?: boolean }) {
               <Image src="/3.png" alt="" width={22} height={22} className="logo-dark object-contain" />
               <span className="font-mono text-[16px] font-semibold tracking-tight text-ink">AetherCode</span>
             </Link>
-            <p className="mt-4 max-w-[26ch] text-[15px] leading-relaxed text-ink-muted">Let your code do the talking. Open-source exams and practice for colleges.</p>
+            <p className="mt-4 max-w-[26ch] text-[15px] leading-relaxed text-ink-muted">Let your code do the talking. Calm, fair exams and practice for colleges.</p>
             <div className="mt-6 flex flex-wrap gap-2">
-              <a href={SITE.repo} className="inline-flex items-center gap-2 rounded-full bg-brand px-4 py-2 text-[13.5px] font-medium text-brand-ink transition-opacity hover:opacity-90">
-                <Star className="size-3.5" /> Star on GitHub
-              </a>
-              <Link href="/login" className="inline-flex items-center rounded-full border border-line-strong px-4 py-2 text-[13.5px] font-medium text-ink transition-colors hover:bg-hover">
+              <Link href="/login" className="inline-flex items-center rounded-full bg-brand px-4 py-2 text-[13.5px] font-medium text-brand-ink transition-opacity hover:opacity-90">
                 Sign in
               </Link>
             </div>
@@ -111,7 +105,7 @@ export function Footer({ compact = false }: { compact?: boolean }) {
         </div>
         <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-line bg-surface-2 px-7 py-4 text-[12.5px] text-ink-subtle sm:px-10">
           <p>
-            © {year} {SITE.operatorShort}. {SITE.license}.
+            © {year} {SITE.operatorShort}. {SITE.license}
           </p>
           <div className="flex items-center gap-3">
             <Link href="/status" className="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1 text-ink-muted transition-colors hover:text-ink">

@@ -119,14 +119,14 @@
 
 @layer base {
   /* Dusk is the default (no attribute, or data-theme="dark"); Day is the
-     light twin. Violet-navy night with amber actions and a coral/lavender
-     glow; Day is warm paper with indigo ink and tangerine accents.
+     light twin. Deep teal-slate night with aqua actions and a soft lavender
+     glow; Day is cool mist with deep teal ink and calm teal accents.
      Every text/background pair below meets WCAG AA (4.5:1). */
   :root, [data-theme="dark"] {
     color-scheme: dark;
-    --canvas: #050505;
-    --surface: #0f0f0f;
-    --surface-2: #171717;
+    --canvas: #0b1519;
+    --surface: #101c21;
+    --surface-2: #16252b;
     /* Chart series, one per busy service. Validated with the dataviz checks against this theme. */
     --series-1: #3d94d6;
     --series-2: #c47a00;
@@ -136,29 +136,29 @@
     --series-6: #e0662a;
     --series-7: #2f9fc9;
     --series-8: #b08a2e;
-    --sidebar: #0a0a0a;
-    --hover: #1c1c1c;
-    --ink: #f2f2f2;
-    --ink-muted: #a3a3a3;
-    --ink-subtle: #8a8a8a;
-    --line: rgb(255 255 255 / 0.08);
-    --line-strong: rgb(255 255 255 / 0.15);
+    --sidebar: #091215;
+    --hover: #1a2c33;
+    --ink: #e8f1f0;
+    --ink-muted: #a7bcbc;
+    --ink-subtle: #86a0a2;
+    --line: rgb(190 230 225 / 0.09);
+    --line-strong: rgb(190 230 225 / 0.17);
 
-    --brand: #ff5a1f;
-    --brand-hover: #ff7440;
-    --brand-ink: #050505;
-    --brand-soft: rgb(255 90 31 / 0.14);
-    --brand-soft-ink: #ff9a70;
-    --accent: #ff6a33;
-    --coral: #ff4f79;
-    --lavender: #b9b2ff;
-    --glow: rgb(255 255 255 / 0.06);
-    --glow-2: rgb(255 90 31 / 0.08);
+    --brand: #4fd1c5;
+    --brand-hover: #7be0d6;
+    --brand-ink: #04201f;
+    --brand-soft: rgb(79 209 197 / 0.14);
+    --brand-soft-ink: #8eeadf;
+    --accent: #5fd6cc;
+    --coral: #ff7a95;
+    --lavender: #b3b0ff;
+    --glow: rgb(255 255 255 / 0.05);
+    --glow-2: rgb(79 209 197 / 0.08);
     --hero-aurora-1: var(--brand-soft);
-    --poster-sky: linear-gradient(to bottom, #050505 0%, #1a0d08 45%, #ff5a1f 100%);
-    --poster-ink: #f2f2f2;
-    --poster-on-ink: #050505;
-    --horizon: linear-gradient(to top, rgb(255 90 31 / 0.16), rgb(255 255 255 / 0.03) 45%, transparent);
+    --poster-sky: linear-gradient(to bottom, #0b1519 0%, #0f2a30 45%, #2a8f95 100%);
+    --poster-ink: #e8f1f0;
+    --poster-on-ink: #04201f;
+    --horizon: linear-gradient(to top, rgb(79 209 197 / 0.16), rgb(255 255 255 / 0.03) 45%, transparent);
 
     --success: #34d399;
     --success-soft: rgb(52 211 153 / 0.12);
@@ -172,12 +172,12 @@
     --shadow-overlay-v: 0 1px 0 rgb(255 255 255 / 0.06) inset, 0 32px 80px -16px rgb(0 0 0 / 0.7);
   }
 
-  /* Day: warm parchment, deep indigo ink, burnt-orange accents. Not white. */
+  /* Day: cool mist, deep teal ink, calm teal accents. Not white. */
   [data-theme="light"] {
     color-scheme: light;
-    --canvas: #f0ebe3;
-    --surface: #f7f3ed;
-    --surface-2: #e8e1d7;
+    --canvas: #eef5f4;
+    --surface: #f7fbfa;
+    --surface-2: #e1eeec;
     /* Chart series, one per busy service. Validated with the dataviz checks against this theme. */
     --series-1: #0072B2;
     --series-2: #D98200;
@@ -187,29 +187,29 @@
     --series-6: #D55E00;
     --series-7: #3FA7D6;
     --series-8: #8C6D1F;
-    --sidebar: #ebe5db;
-    --hover: #e4ddd2;
-    --ink: #1a1535;
-    --ink-muted: #4d4766;
-    --ink-subtle: #6b6580;
-    --line: #d9d0c4;
-    --line-strong: #cdc2b4;
+    --sidebar: #e6f0ee;
+    --hover: #dbe9e6;
+    --ink: #12303a;
+    --ink-muted: #3f5d66;
+    --ink-subtle: #4f6871;
+    --line: #cfe0dd;
+    --line-strong: #bcd2ce;
 
-    --brand: #b83d04;
-    --brand-hover: #a33600;
+    --brand: #0b7a75;
+    --brand-hover: #086460;
     --brand-ink: #ffffff;
-    --brand-soft: #f5d8c4;
-    --brand-soft-ink: #8f2e00;
-    --accent: #9a3300;
-    --coral: #c41d4a;
-    --lavender: #4b3fd1;
-    --glow: rgb(184 61 4 / 0.20);
-    --glow-2: rgb(75 63 209 / 0.12);
-    --hero-aurora-1: rgb(184 61 4 / 0.18);
-    --poster-sky: linear-gradient(to bottom, #f0ebe3 0%, #e8d8ce 30%, #daa898 58%, #e07030 84%, #f0a060 100%);
-    --poster-ink: #1a1535;
-    --poster-on-ink: #f7f3ed;
-    --horizon: linear-gradient(to top, rgb(184 61 4 / 0.24), rgb(220 140 70 / 0.18) 34%, rgb(75 63 209 / 0.06) 66%, transparent);
+    --brand-soft: #cfeceb;
+    --brand-soft-ink: #075a56;
+    --accent: #0b6f8a;
+    --coral: #c43d5e;
+    --lavender: #5a4fd0;
+    --glow: rgb(11 122 117 / 0.16);
+    --glow-2: rgb(90 79 208 / 0.12);
+    --hero-aurora-1: rgb(11 122 117 / 0.16);
+    --poster-sky: linear-gradient(to bottom, #eef5f4 0%, #d3ece8 32%, #a9d8d6 60%, #8fb8e0 84%, #b7b3f0 100%);
+    --poster-ink: #12303a;
+    --poster-on-ink: #f7fbfa;
+    --horizon: linear-gradient(to top, rgb(11 122 117 / 0.22), rgb(143 184 224 / 0.18) 34%, rgb(90 79 208 / 0.06) 66%, transparent);
 
     --success: #0d6b42;
     --success-soft: #daf0e4;
@@ -218,9 +218,9 @@
     --warning: #7a4207;
     --warning-soft: #f5ead4;
 
-    --shadow-hairline-v: 0 1px 2px rgb(26 21 53 / 0.06);
-    --shadow-panel-v: 0 1px 2px rgb(26 21 53 / 0.06), 0 8px 24px -12px rgb(26 21 53 / 0.12);
-    --shadow-overlay-v: 0 24px 64px -16px rgb(26 21 53 / 0.28);
+    --shadow-hairline-v: 0 1px 2px rgb(18 48 58 / 0.06);
+    --shadow-panel-v: 0 1px 2px rgb(18 48 58 / 0.06), 0 8px 24px -12px rgb(18 48 58 / 0.14);
+    --shadow-overlay-v: 0 24px 64px -16px rgb(18 48 58 / 0.28);
   }
 
   .logo-light { display: none !important; }
@@ -538,11 +538,11 @@ html:has(.ascii)::-webkit-scrollbar {
   display: none;
 }
 
-/* An ASCII cursor on the public and sign-in pages: an orange + everywhere,
+/* An ASCII cursor on the public and sign-in pages: a teal + everywhere,
    [>] over anything clickable, and the normal text cursor in fields. */
 .ascii,
 .ascii * {
-  cursor: url("data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2724%27%20height=%2724%27%3E%3Ctext%20x=%275%27%20y=%2718%27%20font-family=%27ui-monospace,Menlo,monospace%27%20font-size=%2722%27%20font-weight=%27700%27%20fill=%27%23ff5a1f%27%20stroke=%27%23050505%27%20stroke-width=%270.75%27%20paint-order=%27stroke%27%3E+%3C/text%3E%3C/svg%3E") 11 11, crosshair;
+  cursor: url("data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2724%27%20height=%2724%27%3E%3Ctext%20x=%275%27%20y=%2718%27%20font-family=%27ui-monospace,Menlo,monospace%27%20font-size=%2722%27%20font-weight=%27700%27%20fill=%27%234fd1c5%27%20stroke=%27%230b1519%27%20stroke-width=%270.75%27%20paint-order=%27stroke%27%3E+%3C/text%3E%3C/svg%3E") 11 11, crosshair;
 }
 .ascii a,
 .ascii a *,
@@ -550,14 +550,14 @@ html:has(.ascii)::-webkit-scrollbar {
 .ascii button *,
 .ascii summary,
 .ascii [role="tab"] {
-  cursor: url("data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2740%27%20height=%2724%27%3E%3Ctext%20x=%272%27%20y=%2717%27%20font-family=%27ui-monospace,Menlo,monospace%27%20font-size=%2715%27%20font-weight=%27700%27%20fill=%27%23ff5a1f%27%20stroke=%27%23050505%27%20stroke-width=%270.75%27%20paint-order=%27stroke%27%3E[&gt;]%3C/text%3E%3C/svg%3E") 2 12, pointer;
+  cursor: url("data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2740%27%20height=%2724%27%3E%3Ctext%20x=%272%27%20y=%2717%27%20font-family=%27ui-monospace,Menlo,monospace%27%20font-size=%2715%27%20font-weight=%27700%27%20fill=%27%234fd1c5%27%20stroke=%27%230b1519%27%20stroke-width=%270.75%27%20paint-order=%27stroke%27%3E[&gt;]%3C/text%3E%3C/svg%3E") 2 12, pointer;
 }
 .ascii input,
 .ascii textarea {
   cursor: text;
 }
 
-/* Long-form text on the public pages: dash bullets and orange underlines. */
+/* Long-form text on the public pages: dash bullets and teal underlines. */
 .ascii .prose-doc ul { list-style: none; padding-left: 0; }
 .ascii .prose-doc ul > li { position: relative; padding-left: 1.4em; }
 .ascii .prose-doc ul > li::before { content: "-"; position: absolute; left: 0; font-family: var(--font-mono); color: var(--accent); }
@@ -586,7 +586,7 @@ html:has(.ascii)::-webkit-scrollbar {
   to { width: 100%; }
 }
 
-/* Scrollbars in the app: square, thin, hairline track and an ink thumb that turns orange on hover.
+/* Scrollbars in the app: square, thin, hairline track and an ink thumb that turns teal on hover.
    The public pages keep theirs hidden (html:has(.ascii) above). */
 @supports not selector(::-webkit-scrollbar) {
   html:not(:has(.ascii)),
