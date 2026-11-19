@@ -22,6 +22,11 @@ type Worker struct {
 // NewWorker creates a Worker. It returns an error when the dispatcher runtime
 // is disabled so that callers can gate construction on the enabled flag without
 // a separate condition check.
+// JobTimeout is the deadline for dispatching one job.
+func (w *Worker) JobTimeout() time.Duration {
+	return time.Duration(w.runtime.JobTimeoutSeconds) * time.Second
+}
+
 func NewWorker(store Store, engine Engine, runtime Runtime, logger *slog.Logger) (*Worker, error) {
 	if !runtime.Enabled {
 		return nil, fmt.Errorf("dispatcher: runtime is disabled (JUDGE_DISPATCHER_ENABLED=false)")

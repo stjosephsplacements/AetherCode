@@ -14,6 +14,8 @@ type Runtime struct {
 	Concurrency     int
 	PollIntervalMS  int
 	MaxPollAttempts int
+	// JobTimeoutSeconds bounds one job (all its units) in the consumer, so a hung dependency fails and is requeued.
+	JobTimeoutSeconds int
 }
 
 // LoadRuntime reads and validates dispatcher configuration from environment
@@ -53,6 +55,9 @@ func LoadRuntime() (Runtime, error) {
 	if r.MaxPollAttempts, err = intEnv("JUDGE_MAX_POLL_ATTEMPTS", 30); err != nil {
 		return Runtime{}, err
 	}
+	if r.JobTimeoutSeconds, err = intEnv("JUDGE_JOB_TIMEOUT_SECONDS", 900); err != nil {
+		return Runtime{}, err
+	}
 
 	if r.Enabled {
 		if r.EngineType != "stub" && r.EngineType != "aethercode" {
@@ -63,6 +68,10 @@ func LoadRuntime() (Runtime, error) {
 		}
 		if r.MaxPollAttempts < 1 {
 			return Runtime{}, fmt.Errorf("dispatcher: JUDGE_MAX_POLL_ATTEMPTS must be >= 1")
+		}
+		// A job's units poll for up to MaxPollAttempts*PollIntervalMS each, so the deadline must not be shorter.
+		if r.JobTimeoutSeconds < 30 || r.JobTimeoutSeconds*1000 < r.MaxPollAttempts*r.PollIntervalMS {
+			return Runtime{}, fmt.Errorf("dispatcher: JUDGE_JOB_TIMEOUT_SECONDS must be at least 30 and at least one unit's polling time")
 		}
 	}
 	return r, nil

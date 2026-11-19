@@ -1173,13 +1173,14 @@ func nullableTimestamp(value string) any {
 // staff the Placement officer of the placement guild, and a college role the college guild's role
 // of the same name. An assignment with no matching role carries no bits. It joins the base tables
 // instead of users.assignment_roles: that view is a security barrier, so the principal filter was
-// applied after joining every assignment to roles (79 ms and 26k buffer hits at 13k assignments).
+// applied after joining every assignment to roles (79 ms and 26k buffer hits at 13k assignments). A soft-deleted
+// assignment is excluded here (the view did the same), so a deleted grant cannot authorize.
 const roleBitsAssignmentQuery = `
 	SELECT a.role_name, a.scope_kind, COALESCE(a.tenant_id::text, ''), COALESCE(a.scope_id::text, ''),
 	       a.role_name = 'super_admin' AND a.scope_kind = 'platform' AND a.granted_by_principal_id <> a.principal_id,
 	       COALESCE(r.permissions::text, '')
 	FROM users.active_role_assignments AS a
-	JOIN users.role_assignments AS ra ON ra.id = a.id
+	JOIN users.role_assignments AS ra ON ra.id = a.id AND ra.deleted_at IS NULL
 	LEFT JOIN users.roles AS r ON r.id = ra.role_id
 	   OR (ra.role_id IS NULL
 	       AND r.guild_kind = CASE ra.role_name WHEN 'super_admin' THEN 'platform' WHEN 'placement_user' THEN 'placement' ELSE 'college' END

@@ -79,14 +79,17 @@ func (validator *SessionValidator) Validate(contextValue context.Context, token 
 	request.Header.Set("Accept", "application/json")
 	started := time.Now()
 	response, err := validator.client.Do(request)
-	telemetry.ObserveStage("introspect", started, err)
 	if err != nil {
+		telemetry.ObserveStage("introspect", started, err)
 		return fmt.Errorf("call Identity introspection: %w", err)
 	}
 	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("identity introspection rejected the access token")
+		rejected := fmt.Errorf("identity introspection rejected the access token")
+		telemetry.ObserveStage("introspect", started, rejected)
+		return rejected
 	}
+	telemetry.ObserveStage("introspect", started, nil)
 	return nil
 }
 
