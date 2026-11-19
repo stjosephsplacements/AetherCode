@@ -1,13 +1,13 @@
 // Seeds a batch with one student and a published one-question exam through the gateway, as the
 // MFA-verified administrator. Shared by the browser specs.
-import { adminSession, call } from "./support";
+import { adminSession, call, testTenantId } from "./support";
 
 export type Setup = { tenant: string; examId: string; examVersionId: string; questionVersionId: string; questionId: string; questionTitle: string; batchId: string; departmentId: string; roll: string; password: string; roll2: string; password2: string; title: string };
 
 /** A batch with one student and a published one-question exam open in 20 s. */
 export async function setUp(run: string, opensInMs = 20_000): Promise<Setup> {
   const admin = await adminSession();
-  const tenant = (await call<{ items: { id: string }[] }>("GET", "/tenant/v1/tenants", undefined, admin)).items[0]!.id;
+  const tenant = await testTenantId(admin);
   const department = (await call<{ items: { id: string }[] }>("GET", `/tenant/v1/tenants/${tenant}/departments`, undefined, admin)).items[0]!.id;
   const organization = await call<{ id: string }>("POST", "/tenant/v1/placement-organizations", { code: `E2E${run}`, legal_name: `E2E ${run}` }, admin, 201);
   const placement = await call<{ id: string }>("POST", `/tenant/v1/placement-organizations/${organization.id}/departments`, { code: "E2E", name: "E2E placement" }, admin, 201);

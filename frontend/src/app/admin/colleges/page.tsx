@@ -1,7 +1,6 @@
 import { collegeHref } from "@/lib/links";
 import { Buildings, CheckCircle, GraduationCap, Stack } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { ConfirmDelete } from "@/components/staff/confirm-delete";
@@ -19,6 +18,7 @@ import { requireStaff } from "@/lib/server/staff";
 import { AddDialog } from "../../staff/departments/add-dialog";
 import { lettermark } from "@/lib/lettermark";
 import { createCollege, deleteCollege, updateCollege } from "./actions";
+import { CollegeLink } from "@/components/college-link";
 
 export const metadata: Metadata = { title: "Colleges" };
 
@@ -109,9 +109,9 @@ export default async function CollegesPage({ searchParams }: { searchParams: Pro
                 </td>
                 <td className="px-4 py-2">
                   <div className="flex items-center justify-end gap-1">
-                    <Link href={collegeHref("/staff/departments", tenant.id)} className="rounded-full px-3 py-1.5 text-[13px] text-brand transition-colors hover:bg-hover">
+                    <CollegeLink href={collegeHref("/staff/departments", tenant.id)} className="rounded-full px-3 py-1.5 text-[13px] text-brand transition-colors hover:bg-hover">
                       Departments
-                    </Link>
+                    </CollegeLink>
                     <EditDialog
                       title={`Edit ${tenant.display_name}`}
                       fields={[
