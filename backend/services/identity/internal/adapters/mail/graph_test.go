@@ -2,6 +2,7 @@ package mail
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -100,27 +101,86 @@ func TestLoadConfigRequiresAllOrNone(t *testing.T) {
 	for _, name := range []string{"IDENTITY_MAIL_TENANT_ID", "IDENTITY_MAIL_CLIENT_ID", "IDENTITY_MAIL_CLIENT_SECRET", "IDENTITY_MAIL_SENDER", "IDENTITY_PUBLIC_BASE_URL"} {
 		t.Setenv(name, "")
 	}
-	if config, err := LoadConfig(); err != nil || config != (Config{}) {
+	if config, err := LoadConfig("production"); err != nil || config != (Config{}) {
 		t.Fatalf("unset = %v, %v; want zero config and no error", config, err)
 	}
 	t.Setenv("IDENTITY_PUBLIC_BASE_URL", "https://exam.college.edu")
-	if config, err := LoadConfig(); err != nil || config != (Config{}) {
+	if config, err := LoadConfig("production"); err != nil || config != (Config{}) {
 		t.Fatalf("only the public origin = %v, %v; want mail off", config, err)
 	}
 	t.Setenv("IDENTITY_MAIL_CLIENT_ID", "client")
-	if _, err := LoadConfig(); err == nil {
+	if _, err := LoadConfig("production"); err == nil {
 		t.Fatal("a partial configuration was accepted")
 	}
 	t.Setenv("IDENTITY_MAIL_TENANT_ID", "../evil")
 	t.Setenv("IDENTITY_MAIL_CLIENT_SECRET", "s")
 	t.Setenv("IDENTITY_MAIL_SENDER", "no-reply@college.edu")
 	t.Setenv("IDENTITY_PUBLIC_BASE_URL", "https://exam.college.edu")
-	if _, err := LoadConfig(); err == nil {
+	if _, err := LoadConfig("production"); err == nil {
 		t.Fatal("a tenant id that is not a GUID was accepted")
 	}
 	t.Setenv("IDENTITY_MAIL_TENANT_ID", "11111111-2222-3333-4444-555555555555")
-	config, err := LoadConfig()
+	config, err := LoadConfig("production")
 	if err != nil || config.Sender != "no-reply@college.edu" {
 		t.Fatalf("valid config = %v, %v", config, err)
+	}
+}
+
+func TestLoadConfigRequiresHTTPSOutsideDevelopment(t *testing.T) {
+	t.Setenv("IDENTITY_MAIL_TENANT_ID", "11111111-2222-3333-4444-555555555555")
+	t.Setenv("IDENTITY_MAIL_CLIENT_ID", "client")
+	t.Setenv("IDENTITY_MAIL_CLIENT_SECRET", "s")
+	t.Setenv("IDENTITY_MAIL_SENDER", "no-reply@college.edu")
+	cases := []struct {
+		environment, base string
+		ok                bool
+	}{
+		{"production", "https://exam.college.edu", true},
+		{"production", "http://exam.college.edu", false},
+		{"staging", "http://exam.college.edu", false},
+		{"development", "http://localhost:3000", true},
+		{"test", "http://localhost:3000", true},
+		{"development", "ftp://exam.college.edu", false},
+		{"production", "https://", false},
+		{"production", "exam.college.edu", false},
+	}
+	for _, c := range cases {
+		t.Setenv("IDENTITY_PUBLIC_BASE_URL", c.base)
+		if _, err := LoadConfig(c.environment); (err == nil) != c.ok {
+			t.Errorf("%s %q: err = %v, want ok = %v", c.environment, c.base, err, c.ok)
+		}
+	}
+}
+
+func TestConcurrentSendsShareOneTokenFetchAndHonourContext(t *testing.T) {
+	var tokens atomic.Int32
+	release := make(chan struct{})
+	graph := testGraph(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/token" {
+			tokens.Add(1)
+			<-release
+			_, _ = io.WriteString(w, `{"access_token":"abc","expires_in":3600}`)
+			return
+		}
+		w.WriteHeader(http.StatusAccepted)
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	if err := graph.SendPasswordReset(ctx, "asha@college.edu", "t", time.Hour); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("a send waiting on the token fetch ignored its context: %v", err)
+	}
+	errs := make(chan error, 3)
+	for range 3 {
+		go func() { errs <- graph.SendPasswordReset(context.Background(), "asha@college.edu", "t", time.Hour) }()
+	}
+	time.Sleep(50 * time.Millisecond)
+	close(release)
+	for range 3 {
+		if err := <-errs; err != nil {
+			t.Fatal(err)
+		}
+	}
+	if tokens.Load() != 1 {
+		t.Errorf("fetched %d tokens for concurrent sends, want 1", tokens.Load())
 	}
 }

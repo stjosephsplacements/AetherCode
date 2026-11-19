@@ -28,8 +28,9 @@ type Config struct {
 	TenantID, ClientID, ClientSecret, Sender, PublicBaseURL string
 }
 
-// LoadConfig returns the zero Config when mail is not configured, and an error for a partial or malformed one.
-func LoadConfig() (Config, error) {
+// LoadConfig returns the zero Config when mail is not configured, and an error for a partial or malformed one. The
+// reset link carries a bearer, so the public origin must be https except in the development and test environments.
+func LoadConfig(environment string) (Config, error) {
 	config := Config{
 		TenantID:      strings.TrimSpace(os.Getenv("IDENTITY_MAIL_TENANT_ID")),
 		ClientID:      strings.TrimSpace(os.Getenv("IDENTITY_MAIL_CLIENT_ID")),
@@ -51,8 +52,11 @@ func LoadConfig() (Config, error) {
 		return Config{}, errors.New("IDENTITY_MAIL_SENDER must be a plain email address")
 	}
 	base, err := url.Parse(config.PublicBaseURL)
-	if err != nil || (base.Scheme != "https" && base.Scheme != "http") || base.Host == "" || base.Path != "" || base.RawQuery != "" || base.Fragment != "" {
+	if err != nil || base.Host == "" || base.Path != "" || base.RawQuery != "" || base.Fragment != "" || base.User != nil {
 		return Config{}, errors.New("IDENTITY_PUBLIC_BASE_URL must be the web app's origin, such as https://exam.example.edu")
+	}
+	if insecureOK := environment == "development" || environment == "test"; base.Scheme != "https" && (base.Scheme != "http" || !insecureOK) {
+		return Config{}, errors.New("IDENTITY_PUBLIC_BASE_URL must be an https:// URL: the reset link carries a bearer (http is accepted only in development and test)")
 	}
 	return config, nil
 }
@@ -65,9 +69,17 @@ type Graph struct {
 	sendURL string // sendMail endpoint
 	now     func() time.Time
 
-	mu      sync.Mutex
-	token   string
-	expires time.Time
+	mu       sync.Mutex // guards the fields below; never held across a network call
+	token    string
+	expires  time.Time
+	inflight *tokenFetch
+}
+
+// tokenFetch is one token request that concurrent senders wait on; token and err are set before done closes.
+type tokenFetch struct {
+	done  chan struct{}
+	token string
+	err   error
 }
 
 // New returns nil when mail is not configured.
@@ -84,24 +96,58 @@ func New(config Config) *Graph {
 	}
 }
 
+// accessToken returns the cached Graph token, or waits for the single in-flight fetch that every concurrent caller
+// shares. The fetch runs detached, so one caller's cancellation does not fail the others, and no lock is held across
+// the network call.
 func (graph *Graph) accessToken(ctx context.Context, force bool) (string, error) {
 	graph.mu.Lock()
-	defer graph.mu.Unlock()
 	if !force && graph.token != "" && graph.now().Before(graph.expires) {
-		return graph.token, nil
+		token := graph.token
+		graph.mu.Unlock()
+		return token, nil
 	}
+	fetch := graph.inflight
+	if fetch == nil {
+		fetch = &tokenFetch{done: make(chan struct{})}
+		graph.inflight = fetch
+		go graph.fetchToken(fetch)
+	}
+	graph.mu.Unlock()
+	select {
+	case <-fetch.done:
+		return fetch.token, fetch.err
+	case <-ctx.Done():
+		return "", fmt.Errorf("wait for mail access token: %w", ctx.Err())
+	}
+}
+
+func (graph *Graph) fetchToken(fetch *tokenFetch) {
+	token, expires, err := graph.requestToken()
+	graph.mu.Lock()
+	if err == nil {
+		graph.token, graph.expires = token, expires
+	}
+	graph.inflight = nil
+	graph.mu.Unlock()
+	fetch.token, fetch.err = token, err
+	close(fetch.done)
+}
+
+func (graph *Graph) requestToken() (string, time.Time, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), graph.client.Timeout)
+	defer cancel()
 	form := url.Values{
 		"client_id": {graph.config.ClientID}, "client_secret": {graph.config.ClientSecret},
 		"scope": {"https://graph.microsoft.com/.default"}, "grant_type": {"client_credentials"},
 	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, graph.authURL, strings.NewReader(form.Encode()))
 	if err != nil {
-		return "", fmt.Errorf("build token request: %w", err)
+		return "", time.Time{}, fmt.Errorf("build token request: %w", err)
 	}
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	response, err := graph.client.Do(request)
 	if err != nil {
-		return "", fmt.Errorf("request mail access token: %w", err)
+		return "", time.Time{}, fmt.Errorf("request mail access token: %w", err)
 	}
 	defer func() { _ = response.Body.Close() }()
 	var body struct {
@@ -110,11 +156,9 @@ func (graph *Graph) accessToken(ctx context.Context, force bool) (string, error)
 		Error       string `json:"error"`
 	}
 	if err := json.NewDecoder(io.LimitReader(response.Body, 1<<20)).Decode(&body); err != nil || response.StatusCode != http.StatusOK || body.AccessToken == "" {
-		return "", fmt.Errorf("mail access token refused: HTTP %d %s", response.StatusCode, body.Error)
+		return "", time.Time{}, fmt.Errorf("mail access token refused: HTTP %d %s", response.StatusCode, body.Error)
 	}
-	graph.token = body.AccessToken
-	graph.expires = graph.now().Add(time.Duration(body.ExpiresIn)*time.Second - time.Minute)
-	return graph.token, nil
+	return body.AccessToken, graph.now().Add(time.Duration(body.ExpiresIn)*time.Second - time.Minute), nil
 }
 
 // SendPasswordReset emails a sign-in-free link that completes a password reset. token is the opaque reset bearer.

@@ -459,7 +459,8 @@ func (repository *Postgres) RevokeRefresh(contextValue context.Context, tokenHas
 }
 
 // RequestPasswordReset creates a reset token for a live principal without
-// leaking whether the supplied email exists.
+// leaking whether the supplied email exists. It reports true only when a new token was issued: an unknown address,
+// or an account that already got one in the last minute or five in the last hour, issues nothing and sends no mail.
 func (repository *Postgres) RequestPasswordReset(contextValue context.Context, command app.PasswordResetRequest) (bool, error) {
 	transaction, err := repository.pool.BeginTx(contextValue, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
 	if err != nil {
@@ -470,7 +471,7 @@ func (repository *Postgres) RequestPasswordReset(contextValue context.Context, c
 	err = transaction.QueryRow(contextValue, `
 		SELECT id
 		FROM identity.principals
-		WHERE lower(email) = lower($1) AND deleted_at IS NULL AND status = 'active'
+		WHERE lower(email) = lower($1) AND deleted_at IS NULL AND status IN ('active', 'locked')
 		FOR UPDATE
 	`, command.Email).Scan(&principalID)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -487,6 +488,27 @@ func (repository *Postgres) RequestPasswordReset(contextValue context.Context, c
 	}
 	if err != nil {
 		return false, fmt.Errorf("look up password reset principal: %w", err)
+	}
+	// The row lock above serialises concurrent requests for one account, so these counts cannot be raced past.
+	var lastMinute, lastHour int
+	if err := transaction.QueryRow(contextValue, `
+		SELECT count(*) FILTER (WHERE issued_at > clock_timestamp() - interval '1 minute'), count(*)
+		FROM identity.password_reset_tokens
+		WHERE principal_id = $1 AND issued_at > clock_timestamp() - interval '1 hour'
+	`, principalID).Scan(&lastMinute, &lastHour); err != nil {
+		return false, fmt.Errorf("count recent password reset tokens: %w", err)
+	}
+	if lastMinute > 0 || lastHour >= 5 {
+		if err := repository.recordAuthEvent(contextValue, transaction, authEvent{
+			PrincipalID: principalID, EventType: "identity.password_reset_requested.v1", Outcome: "failure",
+			RequestID: command.RequestID, IPAddress: command.RequestIP, Metadata: map[string]string{"reason": "throttled"},
+		}); err != nil {
+			return false, err
+		}
+		if err := transaction.Commit(contextValue); err != nil {
+			return false, fmt.Errorf("commit throttled password reset request: %w", err)
+		}
+		return false, nil
 	}
 	if _, err := transaction.Exec(contextValue, `
 		UPDATE identity.password_reset_tokens

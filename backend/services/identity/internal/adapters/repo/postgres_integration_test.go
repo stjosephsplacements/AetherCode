@@ -198,6 +198,61 @@ func TestBootstrapPrincipalActivatesThroughReset(t *testing.T) {
 	require.Equal(t, 1, credentials)
 }
 
+func TestPasswordResetRequestsAreThrottledPerAccount(t *testing.T) {
+	ctx := context.Background()
+	pool := migratedPool(ctx, t)
+	tx, err := pool.Begin(ctx)
+	require.NoError(t, err)
+	_, err = tx.Exec(ctx, `SELECT pg_sleep(0.01)`)
+	require.NoError(t, err)
+	var principalID uuid.UUID
+	require.NoError(t, tx.QueryRow(ctx, `SELECT identity.bootstrap_first_principal($1, 'admin@example.com', 'Admin')`,
+		uuid.New()).Scan(&principalID))
+	require.NoError(t, tx.Commit(ctx))
+	repository, err := repo.NewPostgres(pool, map[string][]byte{"k": make([]byte, 32)}, "k")
+	require.NoError(t, err)
+	request := func() bool {
+		t.Helper()
+		hash := make([]byte, 32)
+		copy(hash, uuid.NewString())
+		matched, err := repository.RequestPasswordReset(ctx, app.PasswordResetRequest{
+			TokenID: uuid.NewString(), Email: "Admin@Example.com", TokenHash: hash,
+			ExpiresAt: time.Now().UTC().Add(time.Hour), RequestIP: "127.0.0.1", RequestID: uuid.NewString(),
+		})
+		require.NoError(t, err)
+		return matched
+	}
+	issued := func() int {
+		t.Helper()
+		var count int
+		require.NoError(t, pool.QueryRow(ctx, `SELECT count(*) FROM identity.password_reset_tokens WHERE principal_id = $1`, principalID).Scan(&count))
+		return count
+	}
+	ageTokens := func(by string) {
+		t.Helper()
+		_, err := pool.Exec(ctx, `UPDATE identity.password_reset_tokens SET issued_at = issued_at - $1::interval, expires_at = expires_at - $1::interval, consumed_at = consumed_at - $1::interval WHERE principal_id = $2`, by, principalID)
+		require.NoError(t, err)
+	}
+
+	_, err = pool.Exec(ctx, `UPDATE identity.principals SET status = 'locked' WHERE id = $1`, principalID)
+	require.NoError(t, err)
+	require.True(t, request(), "a locked account can recover by reset")
+	require.False(t, request(), "a second request inside a minute is throttled")
+	require.Equal(t, 1, issued(), "a throttled request issues no token")
+
+	for want := 2; want <= 5; want++ {
+		ageTokens("2 minutes")
+		require.True(t, request())
+		require.Equal(t, want, issued())
+	}
+	ageTokens("2 minutes")
+	require.False(t, request(), "a sixth request inside the hour is throttled")
+	require.Equal(t, 5, issued())
+
+	ageTokens("1 hour")
+	require.True(t, request(), "the window slides: an hour later requests work again")
+}
+
 // TestProvisionedAccountLifecycle covers ADR-0019 against real PostgreSQL:
 // username sign-in without email, all-or-nothing conflicts, reissue,
 // disable, and discard freeing the username.
