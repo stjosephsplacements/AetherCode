@@ -47,8 +47,9 @@ single-server guide). Notifications are shown in the app.
    `judge-languages` job must complete; check them with `kubectl get jobs`.
 2. Create the first administrator ("First administrator" in the guide), set their password with the reset flow and
    enrol an authenticator app (TOTP). Elevated actions ask for a fresh second factor.
-3. Write the credentials file the checks read: one line, `<admin email> <password>`, in `~/aethercode-admin.txt`
-   (`chmod 600`). Keep it off shared machines; delete it after go-live.
+3. Write the credentials file the checks read: one line, `<admin email> <password> <totp secret>`, in `~/aethercode-admin.txt`
+   (`chmod 600`). The third word is the authenticator secret shown when you enrol in step 2; smoke.py needs it for the
+   second-factor step-up. Keep the file off shared machines and delete it after go-live.
 4. Pick the gateway URL for the checks. Compose: `http://127.0.0.1:8080` (the loopback binding, `GATEWAY_PORT`). Helm:
    `kubectl -n <namespace> port-forward svc/gateway 8080:8080` in another terminal, then use `http://127.0.0.1:8080`.
    The scripts default to port 8380, so always pass the URL.

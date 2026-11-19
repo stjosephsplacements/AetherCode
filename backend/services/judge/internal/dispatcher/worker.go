@@ -119,7 +119,9 @@ func (w *Worker) DispatchJob(ctx context.Context, jobID string) error {
 		compileFailed = verdict.Status == "compile_error"
 	}
 
-	if err := w.store.MarkJobComplete(ctx, job.ID); err != nil {
+	completeCtx, cancelComplete := persistContext(ctx)
+	defer cancelComplete()
+	if err := w.store.MarkJobComplete(completeCtx, job.ID); err != nil {
 		return fmt.Errorf("mark job %s complete: %w", job.ID, err)
 	}
 	return nil
@@ -148,9 +150,14 @@ func (w *Worker) submitUnit(ctx context.Context, unit DispatchUnit) (string, err
 // recordVerdict saves a verdict the engine already produced. It outlives a cancelled job context (a job timeout or a
 // lost broker connection) for a short grace, so a finished result is not thrown away and run again.
 func (w *Worker) recordVerdict(ctx context.Context, unitID string, verdict UnitVerdict, output *evalbundle.UnitOutput) error {
-	saveCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), recordGrace)
+	saveCtx, cancel := persistContext(ctx)
 	defer cancel()
 	return w.store.RecordVerdict(saveCtx, unitID, verdict, output)
+}
+
+// persistContext returns a context that survives the job context ending, for a short grace.
+func persistContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.WithoutCancel(ctx), recordGrace)
 }
 
 // recordGrace bounds how long a finished verdict may take to save after its job context ended.

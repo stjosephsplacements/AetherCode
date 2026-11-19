@@ -17,12 +17,14 @@ type fakeEngine struct {
 	verdict     *UnitVerdict
 	submitErr   error
 	pollErr     error
+	requests    []UnitRequest
 }
 
-func (f *fakeEngine) Submit(_ context.Context, _ UnitRequest) (string, error) {
+func (f *fakeEngine) Submit(_ context.Context, req UnitRequest) (string, error) {
 	if f.submitErr != nil {
 		return "", f.submitErr
 	}
+	f.requests = append(f.requests, req)
 	f.submitCalls++
 	token := "fake-token"
 	f.tokens = append(f.tokens, token)
@@ -71,7 +73,10 @@ func (f *fakeStore) RecordToken(_ context.Context, unitID, token string) error {
 	return nil
 }
 
-func (f *fakeStore) RecordVerdict(_ context.Context, unitID string, verdict UnitVerdict, output *evalbundle.UnitOutput) error {
+func (f *fakeStore) RecordVerdict(ctx context.Context, unitID string, verdict UnitVerdict, output *evalbundle.UnitOutput) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if f.recordVerdictErr != nil {
 		return f.recordVerdictErr
 	}
@@ -82,7 +87,10 @@ func (f *fakeStore) RecordVerdict(_ context.Context, unitID string, verdict Unit
 
 // MarkJobComplete mirrors the real store: the overall verdict is derived from
 // the unit verdicts recorded so far.
-func (f *fakeStore) MarkJobComplete(_ context.Context, jobID string) error {
+func (f *fakeStore) MarkJobComplete(ctx context.Context, jobID string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if f.markCompleteErr != nil {
 		return f.markCompleteErr
 	}
@@ -334,7 +342,7 @@ func (e *lostThenFound) Poll(_ context.Context, token string) (*UnitVerdict, err
 }
 
 func TestWorkerRunsAUnitAgainWhenItsVerdictWasLost(t *testing.T) {
-	job := &DispatchJob{ID: "job-1", Units: []DispatchUnit{{ID: "unit-1", Token: "old-token", Language: "go", SourceCode: "x", TimeLimitMS: 1000, MemLimitKB: 65536}}}
+	job := &DispatchJob{ID: "job-1", Units: []DispatchUnit{{ID: "unit-1", Token: "old-token", Language: "go", SourceCode: "x", Stdin: "in", ExpectedOutput: "out", TimeLimitMS: 1000, MemLimitKB: 65536}}}
 	eng := &lostThenFound{fakeEngine: fakeEngine{verdict: &UnitVerdict{Status: "accepted"}}, lost: "old-token"}
 	store := newFakeStore(job)
 	w, err := NewWorker(store, eng, enabledRuntime(), testLogger())
@@ -346,6 +354,9 @@ func TestWorkerRunsAUnitAgainWhenItsVerdictWasLost(t *testing.T) {
 	}
 	if eng.submitCalls != 1 || store.recordedTokens["unit-1"] != "fake-token" {
 		t.Errorf("the unit must be submitted once more and its new token recorded: submits=%d token=%q", eng.submitCalls, store.recordedTokens["unit-1"])
+	}
+	if len(eng.requests) != 1 || eng.requests[0].Stdin != "in" || eng.requests[0].ExpectedOutput != "out" {
+		t.Errorf("the rerun must carry the unit's own input and expected output, got %+v", eng.requests)
 	}
 	if v := store.recordedVerdicts["unit-1"]; v.Status != "accepted" {
 		t.Errorf("verdict = %q, want accepted rather than an internal_error for a lost verdict", v.Status)
@@ -366,6 +377,9 @@ func TestWorkerSavesAFinishedVerdictAfterTheJobContextEnds(t *testing.T) {
 	}
 	if v := store.recordedVerdicts["unit-1"]; v.Status != "accepted" {
 		t.Errorf("a verdict the engine returned must be saved even when the job context was cancelled, got %+v", v)
+	}
+	if store.completedJobs["job-1"] != "accepted" {
+		t.Errorf("the job must also complete after its context ended, got %q", store.completedJobs["job-1"])
 	}
 }
 

@@ -115,20 +115,18 @@ func (a *DispatchStoreAdapter) FetchQueuedJob(ctx context.Context, jobID string)
 			MemLimitKB:  int(memoryLimitBytes / 1024),
 			Token:       unit.token,
 		}
-		// A unit that already holds an engine token is only polled, so its
-		// test case is not needed again, unless its output is recorded.
-		if unit.token == "" || returnsOutput {
-			plaintext, err := fetchDecrypted(ctx, a.storage, a.kms, unit.testCaseRef, unit.keyRef)
-			if err != nil {
-				return nil, fmt.Errorf("unit %s test case: %w", unit.id, err)
-			}
-			var testCase unitTestCase
-			if err := json.Unmarshal(plaintext, &testCase); err != nil {
-				return nil, fmt.Errorf("unit %s test case: decode: %w", unit.id, err)
-			}
-			dispatchUnit.Stdin = testCase.Stdin
-			dispatchUnit.ExpectedOutput = testCase.ExpectedOutput
+		// Every unit carries its test case, also one that already holds an engine token: if the engine adapter
+		// lost that unit's verdict, the dispatcher runs the unit again and needs the real input and expected output.
+		plaintext, err := fetchDecrypted(ctx, a.storage, a.kms, unit.testCaseRef, unit.keyRef)
+		if err != nil {
+			return nil, fmt.Errorf("unit %s test case: %w", unit.id, err)
 		}
+		var testCase unitTestCase
+		if err := json.Unmarshal(plaintext, &testCase); err != nil {
+			return nil, fmt.Errorf("unit %s test case: decode: %w", unit.id, err)
+		}
+		dispatchUnit.Stdin = testCase.Stdin
+		dispatchUnit.ExpectedOutput = testCase.ExpectedOutput
 		units = append(units, dispatchUnit)
 	}
 	return &dispatcher.DispatchJob{ID: jobID, Units: units, ReturnsOutput: returnsOutput}, nil
