@@ -4,10 +4,10 @@ import Link from "next/link";
 import { FigureCard } from "@/app/admin/_dashboard/charts";
 import { LoadError, PageHeader } from "@/components/staff/page-header";
 import { Button } from "@/components/ui/button";
-import type { AccountSummary, Page, QuestionDetail } from "@/lib/api-types";
+import type { AccountSummary, QuestionDetail } from "@/lib/api-types";
 import { authorName } from "@/lib/author-name";
 import { listCategories } from "@/lib/server/categories";
-import { gateway } from "@/lib/server/gateway";
+import { fetchAllPages } from "@/lib/server/fetch-all";
 import { listLanguages } from "@/lib/server/languages";
 import { describeAccounts } from "@/lib/server/people";
 import { requireStaff } from "@/lib/server/staff";
@@ -18,10 +18,8 @@ import { type ListKey, type Lists, QuestionBoard, type QuestionRow } from "./que
 
 export const metadata: Metadata = { title: "Questions" };
 
-const LIMIT = 100;
-
 async function fetchList(status: "" | "draft" | "review") {
-  return gateway<Page<QuestionDetail>>(`/question-bank/v1/questions?limit=${LIMIT}${status ? `&status=${status}` : ""}`);
+  return fetchAllPages<QuestionDetail>(`/question-bank/v1/questions${status ? `?status=${status}` : ""}`);
 }
 
 const toRow = (viewerId: string, names: Map<string, AccountSummary>) => ({ question, question_version: version }: QuestionDetail): QuestionRow => ({
@@ -54,7 +52,7 @@ export default async function QuestionsPage({ searchParams }: { searchParams: Pr
   const staff = await requireStaff();
   const requested = (await searchParams).tab;
   const initial = TABS.find((tab) => tab === requested) ?? "tests";
-  let published: Page<QuestionDetail>;
+  let published: QuestionDetail[];
   try {
     published = await fetchList("");
   } catch (error) {
@@ -73,7 +71,7 @@ export default async function QuestionsPage({ searchParams }: { searchParams: Pr
     listCategories(),
     loadIntakeTopics().catch(() => []),
   ]);
-  const authorIds = [...published.items, ...(drafts?.items ?? []), ...(review?.items ?? [])]
+  const authorIds = [...published, ...(drafts ?? []), ...(review ?? [])]
     .map(({ question_version }) => question_version.created_by)
     .filter((id): id is string => Boolean(id));
   const names = staff.tenantId && authorIds.length
