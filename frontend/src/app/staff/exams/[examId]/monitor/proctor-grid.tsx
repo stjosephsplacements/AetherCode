@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { EmptyState, Section } from "@/components/staff/page-header";
+import { LocalPager } from "@/components/staff/pager";
 import { Badge, Panel } from "@/components/ui/card";
 import type { ProctorGridSeverity, ProctorGridTile } from "@/lib/api-types";
 import { APIError, api } from "@/lib/client/api";
+import { paginate } from "@/lib/paginate";
 import { formatTime } from "@/lib/utils";
 
 const POLL_MS = 10_000;
@@ -38,6 +40,8 @@ export function ProctorGrid({
 }) {
   const [tiles, setTiles] = useState<ProctorGridTile[] | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const paged = paginate(tiles ?? [], page, 24);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -77,7 +81,7 @@ export function ProctorGrid({
         <EmptyState>No attempt is in progress.</EmptyState>
       ) : (
         <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
-          {tiles.map((tile) => {
+          {paged.rows.map((tile) => {
             const severity = SEVERITY[tile.severity];
             const kinds = Object.entries(tile.violation_kinds);
             return (
@@ -107,6 +111,7 @@ export function ProctorGrid({
           })}
         </ul>
       )}
+      <LocalPager meta={paged} onPage={setPage} noun="cameras" />
     </Section>
   );
 }
