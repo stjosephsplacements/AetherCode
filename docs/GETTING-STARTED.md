@@ -38,12 +38,13 @@ Mentors have read access in their scope (students, progress and results) and do 
 
 ## Placement officer
 1. Sign in at `/login`; you land on `/placement`.
-2. Set up placement departments and their staff.
+2. Set up placement departments and their staff (offered to officers whose reach is every college).
 3. Use the shared questions and exams for drives (the placement question bank is read-only; authoring needs a separate
    permission), and read the placement analytics.
 
 ## Platform administrator (owner)
 1. Complete the first-administrator steps in the deployment guide; sign in and enrol an authenticator app.
-2. **Colleges**: create each college and its first administrator.
+2. **Colleges**: create each college and its first administrator. To work inside one, choose it under **College workspace**
+   in the sidebar.
 3. Watch **Status** and **Incidents** during exams; use **Audit** for investigations.
 4. Take and test backups; plan upgrades with the release checklist.

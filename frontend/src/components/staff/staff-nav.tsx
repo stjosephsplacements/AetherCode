@@ -2,6 +2,7 @@
 
 import { List, Lock, Moon, Sun } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
+import { CollegeLink } from "@/components/college-link";
 import { usePathname } from "next/navigation";
 import { Tooltip } from "radix-ui";
 import { useState } from "react";
@@ -47,7 +48,7 @@ export function StaffNav({ groups, collapsed = false }: { groups: NavGroup[]; co
                     {!collapsed && <span className="sr-only">{item.locked}</span>}
                   </span>
                 ) : (
-                  <Link
+                  <CollegeLink
                     href={item.href}
                     aria-current={active ? "page" : undefined}
                     aria-label={collapsed ? item.label : undefined}
@@ -61,7 +62,7 @@ export function StaffNav({ groups, collapsed = false }: { groups: NavGroup[]; co
                     {active && <span aria-hidden className={cn("absolute top-1.5 bottom-1.5 w-[2px] rounded-full bg-brand", collapsed ? "-left-2.5" : "-left-2")} />}
                     <Icon className="size-4 shrink-0" />
                     {!collapsed && item.label}
-                  </Link>
+                  </CollegeLink>
                 );
                 return (
                   <li key={item.href}>
@@ -163,7 +164,7 @@ function MobileNavLink({ href, icon, label, locked }: { href: string; icon: Reac
     );
   }
   return (
-    <Link
+    <CollegeLink
       href={href}
       aria-current={current ? "page" : undefined}
       className={cn(
@@ -175,7 +176,7 @@ function MobileNavLink({ href, icon, label, locked }: { href: string; icon: Reac
         {icon}
       </span>
       <span>{label}</span>
-    </Link>
+    </CollegeLink>
   );
 }
 

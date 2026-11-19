@@ -72,9 +72,15 @@ Permission changes are limited to root and the college's administrators.
 Mentors normally hold read permissions only: they see students and results in their scope but do not author or schedule.
 
 ### Placement (`/placement`): placement officer
+The console is cross-college, unlike `/staff`, which is one college. An officer holding a platform-scoped assignment, like a
+platform administrator, is listed every college. An officer scoped to placement departments is shown only their home college
+in the console: the services let that scope read only the students of their departments (one student at a time), and do not
+let it list colleges, so the web UI cannot derive the other colleges. The services decide what each request returns. The
+`departments` and `staff` pages appear in the sidebar only for the all-colleges reach.
+
 | Page | Use |
 |---|---|
-| `departments`, `staff` | Placement departments and the staff in them. |
+| `departments`, `staff` | Placement departments and the staff in them (all-colleges reach only). |
 | `questions`, `exams` | Shared questions and exams across colleges for placement drives. |
 | `analytics` | Placement-pool analytics (`VIEW_PLACEMENT_POOL`, `VIEW_GOLD_ANALYTICS`). |
 
@@ -84,6 +90,9 @@ Mentors normally hold read permissions only: they see students and results in th
 | `colleges` | Create and manage college tenants. |
 | `admins` | Platform administrators and delegation. |
 | `analytics`, `audit`, `incidents`, `status` | Platform-wide analytics, the audit log, incident handling and service health. |
+
+The admin sidebar ends with a **College workspace** switcher: pick a college and the same `/staff` pages a college administrator
+sees are listed for it (links open the college through `/admin/open`). With no college chosen the section links to `colleges`.
 
 ## Signing in and recovery
 - Every role signs in at `/login`. Staff accounts can enrol an authenticator (TOTP); sensitive actions ask again (step-up).
