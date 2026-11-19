@@ -127,8 +127,15 @@ export async function dismissCookies(page: Page): Promise<void> {
 /** The college the specs work in: E2E_TENANT_SLUG when set (use a small dedicated college), otherwise the first one. */
 export async function testTenantId(token: string): Promise<string> {
   const slug = process.env.E2E_TENANT_SLUG;
-  const { items } = await call<{ items: { id: string; slug: string }[] }>("GET", "/tenant/v1/tenants", undefined, token);
-  const tenant = slug ? items.find((item) => item.slug === slug) : items[0];
-  if (!tenant) throw new Error(slug ? `no college with slug ${slug}` : "no college exists");
-  return tenant.id;
+  let cursor = "";
+  // The list is paged (newest first); follow the cursor until the slug is found or the pages end.
+  for (let page = 0; page < 100; page++) {
+    const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+    const result = await call<{ items: { id: string; slug: string }[]; next_cursor?: string }>("GET", `/tenant/v1/tenants${query}`, undefined, token);
+    const tenant = slug ? result.items.find((item) => item.slug === slug) : result.items[0];
+    if (tenant) return tenant.id;
+    if (!result.next_cursor) break;
+    cursor = result.next_cursor;
+  }
+  throw new Error(slug ? `no college with slug ${slug}` : "no college exists");
 }
