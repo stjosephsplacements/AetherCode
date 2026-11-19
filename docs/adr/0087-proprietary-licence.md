@@ -14,7 +14,7 @@ to license it to colleges commercially and keep the source confidential.
   modification, hosting for third parties, reverse engineering and building a competing product are
   prohibited.
 - `NOTICE` states ownership and points to the dependency lists for third-party licences.
-- App `package.json` files use `"license": "UNLICENSED"`.
+- The frontend and question-intake `package.json` files use `"license": "UNLICENSED"`; the frozen exam app (`apps/exam-v1`) is left unchanged under its security-fixes-only policy.
 - The public site no longer links the repository, shows the AGPL, or presents the product as open source.
   Security reports go to the configured security email or the college's exam administrator.
 - Contributions are accepted only under a signed agreement that assigns copyright to the owner.

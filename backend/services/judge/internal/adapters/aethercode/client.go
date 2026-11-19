@@ -43,8 +43,8 @@ const (
 )
 
 // Client runs each unit during Submit: it creates a job, follows the job's
-// event stream to its VERDICT, and keeps the verdict for the following Poll. A verdict lost to a judge restart resolves to
-// internal_error, so the unit can be regraded.
+// event stream to its VERDICT, and keeps the verdict for the following Poll. A verdict lost to a judge restart
+// makes Poll return dispatcher.ErrVerdictLost, and the dispatcher runs the unit again.
 type Client struct {
 	baseURL string
 	http    *http.Client
@@ -218,13 +218,13 @@ func batchKey(requests []dispatcher.UnitRequest) string {
 	return "batch-" + hex.EncodeToString(sum.Sum(nil))[:48]
 }
 
-// Poll returns and forgets the verdict stored by Submit.
+// Poll returns and forgets the verdict stored by Submit, or dispatcher.ErrVerdictLost when there is none.
 func (client *Client) Poll(_ context.Context, token string) (*dispatcher.UnitVerdict, error) {
 	client.mu.Lock()
 	defer client.mu.Unlock()
 	verdict, ok := client.verdicts[token]
 	if !ok {
-		return &dispatcher.UnitVerdict{Status: "internal_error", Stderr: "aethercode: verdict lost before poll"}, nil
+		return nil, dispatcher.ErrVerdictLost
 	}
 	delete(client.verdicts, token)
 	return &verdict, nil

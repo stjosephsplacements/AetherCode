@@ -319,3 +319,64 @@ func TestDispatchJobRecordsOutputOnlyWhenTheJobReturnsIt(t *testing.T) {
 		})
 	}
 }
+
+// lostThenFound loses the verdict of a token from an earlier attempt and answers a fresh one.
+type lostThenFound struct {
+	fakeEngine
+	lost string
+}
+
+func (e *lostThenFound) Poll(_ context.Context, token string) (*UnitVerdict, error) {
+	if token == e.lost {
+		return nil, ErrVerdictLost
+	}
+	return e.verdict, nil
+}
+
+func TestWorkerRunsAUnitAgainWhenItsVerdictWasLost(t *testing.T) {
+	job := &DispatchJob{ID: "job-1", Units: []DispatchUnit{{ID: "unit-1", Token: "old-token", Language: "go", SourceCode: "x", TimeLimitMS: 1000, MemLimitKB: 65536}}}
+	eng := &lostThenFound{fakeEngine: fakeEngine{verdict: &UnitVerdict{Status: "accepted"}}, lost: "old-token"}
+	store := newFakeStore(job)
+	w, err := NewWorker(store, eng, enabledRuntime(), testLogger())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := w.DispatchJob(context.Background(), "job-1"); err != nil {
+		t.Fatalf("DispatchJob: %v", err)
+	}
+	if eng.submitCalls != 1 || store.recordedTokens["unit-1"] != "fake-token" {
+		t.Errorf("the unit must be submitted once more and its new token recorded: submits=%d token=%q", eng.submitCalls, store.recordedTokens["unit-1"])
+	}
+	if v := store.recordedVerdicts["unit-1"]; v.Status != "accepted" {
+		t.Errorf("verdict = %q, want accepted rather than an internal_error for a lost verdict", v.Status)
+	}
+}
+
+func TestWorkerSavesAFinishedVerdictAfterTheJobContextEnds(t *testing.T) {
+	job := &DispatchJob{ID: "job-1", Units: []DispatchUnit{{ID: "unit-1", Language: "go", SourceCode: "x", TimeLimitMS: 1000, MemLimitKB: 65536}}}
+	ctx, cancel := context.WithCancel(context.Background())
+	eng := &cancelOnPoll{fakeEngine: fakeEngine{verdict: &UnitVerdict{Status: "accepted"}}, cancel: cancel}
+	store := newFakeStore(job)
+	w, err := NewWorker(store, eng, enabledRuntime(), testLogger())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := w.DispatchJob(ctx, "job-1"); err != nil {
+		t.Fatalf("DispatchJob: %v", err)
+	}
+	if v := store.recordedVerdicts["unit-1"]; v.Status != "accepted" {
+		t.Errorf("a verdict the engine returned must be saved even when the job context was cancelled, got %+v", v)
+	}
+}
+
+// cancelOnPoll ends the job context as the engine hands over the verdict.
+type cancelOnPoll struct {
+	fakeEngine
+	cancel context.CancelFunc
+}
+
+func (e *cancelOnPoll) Poll(ctx context.Context, token string) (*UnitVerdict, error) {
+	v, err := e.fakeEngine.Poll(ctx, token)
+	e.cancel()
+	return v, err
+}

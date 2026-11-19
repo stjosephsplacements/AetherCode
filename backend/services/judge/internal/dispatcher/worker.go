@@ -2,6 +2,7 @@ package dispatcher
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -79,7 +80,7 @@ func (w *Worker) DispatchJob(ctx context.Context, jobID string) error {
 			if token, ok := batched[unit.ID]; ok {
 				w.engine.(BatchEngine).Forget(token)
 			}
-			if err := w.store.RecordVerdict(ctx, unit.ID, UnitVerdict{Status: "compile_error"}, output); err != nil {
+			if err := w.recordVerdict(ctx, unit.ID, UnitVerdict{Status: "compile_error"}, output); err != nil {
 				return fmt.Errorf("record verdict for unit %s: %w", unit.ID, err)
 			}
 			continue
@@ -88,33 +89,31 @@ func (w *Worker) DispatchJob(ctx context.Context, jobID string) error {
 		if token == "" {
 			token = batched[unit.ID]
 		}
-		if token == "" {
-			submitted, submitErr := w.engine.Submit(ctx, UnitRequest{
-				Language:       unit.Language,
-				SourceCode:     unit.SourceCode,
-				Stdin:          unit.Stdin,
-				TimeLimitMS:    unit.TimeLimitMS,
-				MemLimitKB:     unit.MemLimitKB,
-				ExpectedOutput: unit.ExpectedOutput,
-				IdempotencyKey: unit.ID,
-			})
-			if submitErr != nil {
-				return fmt.Errorf("submit unit %s: %w", unit.ID, submitErr)
-			}
-			token = submitted
-			if err := w.store.RecordToken(ctx, unit.ID, token); err != nil {
-				return fmt.Errorf("record token for unit %s: %w", unit.ID, err)
+		var err error
+		fresh := token == ""
+		if fresh {
+			if token, err = w.submitUnit(ctx, unit); err != nil {
+				return err
 			}
 		}
 
 		verdict, err := w.pollUntilDone(ctx, token)
+		if errors.Is(err, ErrVerdictLost) && !fresh {
+			// A token from an earlier attempt: the engine adapter lost its verdict (a restart, or a release after an
+			// interrupted job). Run the unit again instead of recording a failure the candidate did not cause.
+			w.logger.Warn("dispatch: engine verdict lost; running the unit again", "unit_id", unit.ID)
+			if token, err = w.submitUnit(ctx, unit); err != nil {
+				return err
+			}
+			verdict, err = w.pollUntilDone(ctx, token)
+		}
 		if err != nil {
 			return fmt.Errorf("poll unit %s: %w", unit.ID, err)
 		}
 		if output != nil {
 			output.Stdout, output.Stderr, output.CompileOutput = verdict.Stdout, verdict.Stderr, verdict.CompileOutput
 		}
-		if err := w.store.RecordVerdict(ctx, unit.ID, *verdict, output); err != nil {
+		if err := w.recordVerdict(ctx, unit.ID, *verdict, output); err != nil {
 			return fmt.Errorf("record verdict for unit %s: %w", unit.ID, err)
 		}
 		compileFailed = verdict.Status == "compile_error"
@@ -125,6 +124,37 @@ func (w *Worker) DispatchJob(ctx context.Context, jobID string) error {
 	}
 	return nil
 }
+
+// submitUnit sends one unit to the engine and records its token.
+func (w *Worker) submitUnit(ctx context.Context, unit DispatchUnit) (string, error) {
+	token, err := w.engine.Submit(ctx, UnitRequest{
+		Language:       unit.Language,
+		SourceCode:     unit.SourceCode,
+		Stdin:          unit.Stdin,
+		TimeLimitMS:    unit.TimeLimitMS,
+		MemLimitKB:     unit.MemLimitKB,
+		ExpectedOutput: unit.ExpectedOutput,
+		IdempotencyKey: unit.ID,
+	})
+	if err != nil {
+		return "", fmt.Errorf("submit unit %s: %w", unit.ID, err)
+	}
+	if err := w.store.RecordToken(ctx, unit.ID, token); err != nil {
+		return "", fmt.Errorf("record token for unit %s: %w", unit.ID, err)
+	}
+	return token, nil
+}
+
+// recordVerdict saves a verdict the engine already produced. It outlives a cancelled job context (a job timeout or a
+// lost broker connection) for a short grace, so a finished result is not thrown away and run again.
+func (w *Worker) recordVerdict(ctx context.Context, unitID string, verdict UnitVerdict, output *evalbundle.UnitOutput) error {
+	saveCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), recordGrace)
+	defer cancel()
+	return w.store.RecordVerdict(saveCtx, unitID, verdict, output)
+}
+
+// recordGrace bounds how long a finished verdict may take to save after its job context ended.
+const recordGrace = 10 * time.Second
 
 // submitBatches sends a job's pending units to a BatchEngine in as few engine
 // jobs as possible and returns the token of each unit it submitted, by unit id.

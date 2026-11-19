@@ -11,7 +11,7 @@ one to use, what to prepare and how to know it works.
 |---|---|---|
 | Fits | One campus, up to a few thousand students, one ops person | Several colleges or high availability |
 | Guide | [deploy/single-server/README.md](../deploy/single-server/README.md) | [deploy/helm/README.md](../deploy/helm/README.md), [deploy/single-node](../deploy/single-node) for one k3s node |
-| Database | One PostgreSQL 18 container, volume backups | One PostgreSQL instance from the infra chart. High availability and point-in-time recovery are optional: install the `platform-postgres-ha` chart (three-node CloudNativePG) and follow [its runbook](runbooks/platform-postgres-ha.md) |
+| Database | One PostgreSQL 18 container, volume backups | One PostgreSQL instance from the infra chart. High availability and point-in-time recovery are not part of the default install. The optional `platform-postgres-ha` chart (three-node CloudNativePG) is not yet wired into the service charts (its client-certificate mode), so plan that work with [its runbook](runbooks/platform-postgres-ha.md) before relying on it |
 | Scale-out | Vertical | Horizontal (autoscaling gateway, identity, submission, judge) |
 
 If unsure, start with a single server. Moving to Kubernetes later is a data migration, not a rewrite.
@@ -50,11 +50,12 @@ single-server guide). Notifications are shown in the app.
 3. Write the credentials file the checks read: one line, `<admin email> <password>`, in `~/aethercode-admin.txt`
    (`chmod 600`). Keep it off shared machines; delete it after go-live.
 4. Pick the gateway URL for the checks. Compose: `http://127.0.0.1:8080` (the loopback binding, `GATEWAY_PORT`). Helm:
-   `kubectl -n <namespace> port-forward svc/gateway 8080:80` in another terminal, then use `http://127.0.0.1:8080`.
+   `kubectl -n <namespace> port-forward svc/gateway 8080:8080` in another terminal, then use `http://127.0.0.1:8080`.
    The scripts default to port 8380, so always pass the URL.
 5. Check the execution engine: `python3 engine-check.py ~/aethercode-admin.txt <gateway URL>` must print `Engine OK`.
 6. Put nginx and TLS in front ("Public address"), then open `https://<your host>/login`.
-7. Run `python3 smoke.py ~/aethercode-admin.txt <gateway URL>`. It exercises sign-in, authoring, an exam, judging and
+7. Run `python3 smoke.py ~/aethercode-admin.txt <gateway URL> https://<your host>`. The public origin is the third argument (the
+   Compose install can instead read it from `.env`; a Helm install has no `.env`). It exercises sign-in, authoring, an exam, judging and
    results end to end.
 
 ## 4. Day-0 checklist (one college)
@@ -78,7 +79,8 @@ Each role also has an in-app `/…/get-started` page. See [GETTING-STARTED.md](G
   first students signing in will be refused.
 - Password hashing (Argon2id) is deliberately slow and memory-bound; identity limits concurrent hashes. A simultaneous
   sign-in of thousands needs more identity replicas, not a weaker hash.
-- The execution engine sheds load with `429` and `Retry-After` when its queue is longer than twice its worker count.
+- The execution engine sheds load with `429` and `Retry-After` when its waiting queue passes its admission limit (a multiple
+  of its worker count that you can set).
   That is back-pressure, not an outage: the judge retries. Size workers so the p95 verdict time you measure with
   `loadtest.py` is acceptable.
 - Rehearse at your real size outside exam hours and read the per-step latencies:
@@ -90,9 +92,9 @@ Each role also has an in-app `/…/get-started` page. See [GETTING-STARTED.md](G
 |---|---|
 | Health | `docker compose ps`; `/status` page; `GET /readyz` on each service |
 | Backups | `backup.sh` (single server) or the PostgreSQL runbook; restore-test monthly |
-| Upgrades | "Upgrades" in the single-server guide: back up, pull, build, `up -d`, check `migrate` exited 0, run `smoke.py` |
+| Upgrades | "Upgrades" in the single-server guide: back up, pull, build, `up -d`, check `migrate` exited 0, then recreate the credentials file (install step 3), run `smoke.py` and delete the file again |
 | Rollback | Every migration has a down file; after more than one step, restore the backup instead |
-| Audit | Admin and staff audit log pages; each read of student personal data is recorded |
+| Audit | Admin and staff audit log pages; staff writes and deletes are recorded, and so are reads of proctoring evidence |
 | Branding and SSO | "College branding" and "Single sign-on" in the guide |
 
 ## 7. Security checklist
@@ -114,4 +116,4 @@ Each role also has an in-app `/…/get-started` page. See [GETTING-STARTED.md](G
 | Many students get 403 from Safe Exam Browser checks under load | The authorization service is saturated; add replicas and check the authorization database for slow queries. |
 | Students cannot sign in during a lab burst | Per-address rate limit (section 5), or too few identity replicas. |
 | `migrate` fails on upgrade | Read `docker compose logs migrate`; do not start services against a half-migrated database; restore the backup if needed. |
-| Disk full | Build caches and logs first (`docker system prune` removes unused images and build cache only); never delete database volumes. |
+| Disk full | Build caches and logs first (use `docker image prune` and `docker builder prune`; `docker system prune` also removes stopped containers and unused networks, so check `docker ps -a` first); never delete database volumes. |

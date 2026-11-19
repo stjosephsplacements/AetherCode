@@ -1,6 +1,7 @@
 {
   "name": "aethercode-frontend",
   "private": true,
+  "license": "UNLICENSED",
   "version": "0.1.0",
   "type": "module",
   "packageManager": "pnpm@12.6.0",

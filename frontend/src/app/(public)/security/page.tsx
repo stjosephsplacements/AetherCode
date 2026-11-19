@@ -33,7 +33,7 @@ export default function SecurityPage() {
                     {" "}by email to <a href={`mailto:${security}`}>{security}</a>
                   </>
                 ) : (
-                  " to your college's exam administrator"
+                  " through your college's exam administrator, who passes it to the AetherCode maintainers"
                 )}
                 . Please don&apos;t open a public issue. Include what you found, how to reproduce it and the impact you expect.
               </p>

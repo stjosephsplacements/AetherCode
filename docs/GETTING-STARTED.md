@@ -17,8 +17,8 @@ Short paths for each role. Each role also has an in-app guide at `/student/get-s
 
 ## Faculty (department user)
 1. Sign in and open `/staff/get-started`.
-2. **Questions**: write the statement, add sample and hidden tests, add a model solution and run the model check. A question
-   publishes only when the model solution passes every test.
+2. **Questions**: write the statement, add sample and hidden tests, add a model solution and run the model check. A coding question
+   publishes only when the model solution passes every test; a multiple-choice question needs its options and correct answer.
 3. **Exams**: new exam, pick questions or pools, set the window, duration and languages, assign a batch, choose the proctor
    policy. Preview it, or try it as a candidate.
 4. On exam day open **Monitor** to see who is in, progress and violations; grant extra time where policy allows.

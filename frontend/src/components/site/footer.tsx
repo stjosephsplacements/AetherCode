@@ -61,7 +61,7 @@ export function Footer({ compact = false }: { compact?: boolean }) {
       title: "Company",
       links: [
         { href: "/security", label: "Report a vulnerability" },
-        { href: "/help", label: "Licensing" },
+        { href: "/about", label: "Licensing" },
       ],
     },
   ];

@@ -24,7 +24,7 @@ export function ForColleges() {
           ))}
         </ul>
         <div data-reveal className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-3">
-          <Link href="/help" className="rounded-full bg-brand px-5 py-2.5 text-[14px] text-brand-ink shadow-[var(--shadow-panel)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5">
+          <Link href="/about" className="rounded-full bg-brand px-5 py-2.5 text-[14px] text-brand-ink shadow-[var(--shadow-panel)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5">
             Talk to us about a licence
           </Link>
           <Link href="/architecture" className="text-[14px] text-ink-muted transition-colors hover:text-brand">
