@@ -48,3 +48,28 @@ func TestStaleSweepSkipsConsumedAndFinishedAdmissions(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, 0, requeued, "a finished job's pointer is not republished")
 }
+
+// A worker can receive the pointer before the publisher records the broker confirmation (the row is still leased). That
+// delivery must still count: the row ends up consumed and no sweep republishes it.
+func TestConsumedBeforePublishedIsNotRepublished(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	pool := bootstrapJudgeSchema(ctx, t)
+	store, _, _ := submitJob(ctx, t, pool, newFakeStorage(), []byte(`{"schema_version": 2, "test_cases": [{"stdin": "1\n", "expected_output": "1\n", "weight": 1}]}`))
+
+	leases, err := store.LeaseAdmissions(ctx, "test-publisher", 10, 30*time.Second)
+	require.NoError(t, err)
+	require.Len(t, leases, 1)
+
+	require.NoError(t, store.MarkAdmissionConsumed(ctx, leases[0].EventID), "consumed while still leased")
+	require.NoError(t, store.MarkAdmissionPublished(ctx, leases[0].EventID, leases[0].LeaseID), "the publisher still finishes its lease")
+
+	var state string
+	var consumed bool
+	require.NoError(t, pool.QueryRow(ctx, `SELECT state, consumed_at IS NOT NULL FROM judge.admission_outbox WHERE event_id = $1`, leases[0].EventID).Scan(&state, &consumed))
+	require.Equal(t, "consumed", state)
+	require.True(t, consumed)
+	requeued, err := store.RequeueStalePublishedAdmissions(ctx, time.Now().Add(time.Hour), 1000)
+	require.NoError(t, err)
+	require.EqualValues(t, 0, requeued)
+}
