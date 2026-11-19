@@ -2,18 +2,21 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { EmptyState, LoadError, PageHeader } from "@/components/staff/page-header";
+import { Pager } from "@/components/staff/pager";
 import { Badge } from "@/components/ui/card";
 import type { CommunityPost } from "@/lib/api-types";
 import { communityList } from "@/lib/server/community";
+import { paginate } from "@/lib/paginate";
 import { requireViewer } from "@/lib/server/session";
 import { cn, formatDateTime } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Blogs" };
 
-export default async function BlogsPage({ searchParams }: { searchParams: Promise<{ tag?: string }> }) {
+export default async function BlogsPage({ searchParams }: { searchParams: Promise<{ tag?: string; page?: string }> }) {
   const viewer = await requireViewer();
   if (!viewer.tenantId) redirect("/student");
-  const tag = (await searchParams).tag?.trim().toLowerCase();
+  const query = await searchParams;
+  const tag = query.tag?.trim().toLowerCase();
   let posts;
   try {
     posts = await communityList<CommunityPost>(viewer.tenantId, "posts", { tag });
@@ -25,6 +28,7 @@ export default async function BlogsPage({ searchParams }: { searchParams: Promis
       </>
     );
   }
+  const paged = paginate(posts, query.page);
   return (
     <div className="animate-enter">
       <PageHeader title="Blogs" description="Guides and announcements from your placement team." />
@@ -40,8 +44,8 @@ export default async function BlogsPage({ searchParams }: { searchParams: Promis
         {posts.length === 0 ? (
           <EmptyState>{tag ? `No posts tagged “${tag}”.` : "No posts yet."}</EmptyState>
         ) : (
-          <ul className="overflow-hidden rounded-surface border border-line bg-surface">
-            {posts.map((post, index) => (
+          <ul className="overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface">
+            {paged.rows.map((post, index) => (
               <li key={post.id} className={cn("px-5 py-4", index > 0 && "border-t border-line")}>
                 <Link href={`/student/blogs/${post.id}`} className="text-[16px] font-medium text-ink hover:text-brand">
                   {post.title}
@@ -51,7 +55,7 @@ export default async function BlogsPage({ searchParams }: { searchParams: Promis
                 {post.tags.length > 0 && (
                   <p className="mt-2 flex flex-wrap gap-1.5">
                     {post.tags.map((name) => (
-                      <Link key={name} href={`/student/blogs?tag=${encodeURIComponent(name)}`} className="rounded-pill bg-hover px-2.5 py-0.5 text-[12px] text-ink-muted hover:text-ink">
+                      <Link key={name} href={`/student/blogs?tag=${encodeURIComponent(name)}`} className="rounded-full bg-hover px-2.5 py-0.5 text-[12px] text-ink-muted hover:text-ink">
                         {name}
                       </Link>
                     ))}
@@ -61,6 +65,7 @@ export default async function BlogsPage({ searchParams }: { searchParams: Promis
             ))}
           </ul>
         )}
+        <Pager meta={paged} noun="posts" />
       </div>
     </div>
   );

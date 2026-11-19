@@ -3,8 +3,10 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { ActionForm, Field, TextInput } from "@/components/staff/form";
 import { EmptyState, LoadError, PageHeader } from "@/components/staff/page-header";
+import { Pager } from "@/components/staff/pager";
 import { Panel } from "@/components/ui/card";
 import type { PersonalTask } from "@/lib/api-types";
+import { paginate } from "@/lib/paginate";
 import { communityList } from "@/lib/server/community";
 import { requireViewer } from "@/lib/server/session";
 import { cn, formatDateTime, isOverdue } from "@/lib/utils";
@@ -12,7 +14,7 @@ import { addTask, deleteTask, toggleTask } from "../../community/actions";
 
 export const metadata: Metadata = { title: "My tasks" };
 
-export default async function TasksPage() {
+export default async function TasksPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const viewer = await requireViewer();
   if (!viewer.tenantId) redirect("/student");
   let tasks;
@@ -26,6 +28,7 @@ export default async function TasksPage() {
       </>
     );
   }
+  const paged = paginate(tasks, (await searchParams).page);
   return (
     <div className="animate-enter">
       <PageHeader title={"My tasks"} description={"Your own to-do list: mock tests, applications, revision. Only you can see it."} />
@@ -45,8 +48,8 @@ export default async function TasksPage() {
         {tasks.length === 0 ? (
           <EmptyState>Nothing to do. Add something above.</EmptyState>
         ) : (
-          <ul className="overflow-hidden rounded-surface border border-line bg-surface">
-            {tasks.map((task, index) => {
+          <ul className="overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface">
+            {paged.rows.map((task, index) => {
               const late = isOverdue(task.due_at, task.done);
               return (
                 <li key={task.id} className={cn("flex items-center gap-3 px-4 py-3", index > 0 && "border-t border-line")}>
@@ -72,6 +75,7 @@ export default async function TasksPage() {
             })}
           </ul>
         )}
+        <Pager meta={paged} noun="tasks" />
       </div>
     </div>
   );
