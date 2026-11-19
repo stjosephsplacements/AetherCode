@@ -4,8 +4,10 @@ import { CaretRight, MagnifyingGlass, X } from "@phosphor-icons/react/ssr";
 import { useState } from "react";
 import { ExamPeek, examState } from "@/components/staff/exam-peek";
 import { Select } from "@/components/staff/form";
+import { LocalPager } from "@/components/staff/pager";
 import type { ExamVersion } from "@/lib/api-types";
 import { useNow } from "@/lib/client/use-now";
+import { paginate } from "@/lib/paginate";
 import { collegeHref } from "@/lib/links";
 import { cn, formatDuration, formatWindow } from "@/lib/utils";
 import { CollegeLink } from "@/components/college-link";
@@ -51,6 +53,9 @@ export function ExamBoard({ exams, renderedAt }: { exams: BoardExam[]; renderedA
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [college, setCollege] = useState("all");
+  // Each state group pages on its own; any filter change starts them all again at page 1.
+  const [pages, setPages] = useState<Partial<Record<State, number>>>({});
+  const reset = () => setPages({});
   const colleges = [...new Map(exams.flatMap((entry) => (entry.college ? [[entry.college.id, entry.college.name] as const] : []))).entries()].sort((a, b) => a[1].localeCompare(b[1]));
 
   const needle = query.trim().toLowerCase();
@@ -72,7 +77,7 @@ export function ExamBoard({ exams, renderedAt }: { exams: BoardExam[]; renderedA
               key={tile.key}
               type="button"
               aria-pressed={active}
-              onClick={() => setFilter(tile.key)}
+              onClick={() => { setFilter(tile.key); reset(); }}
               className={cn(
                 "flex flex-col items-start rounded-[var(--radius-surface)] border bg-surface px-5 py-4 text-left transition-[border-color,background-color,transform] active:scale-[0.98]",
                 active ? "border-ink/60 bg-surface-2" : "border-line hover:border-line-strong",
@@ -95,19 +100,19 @@ export function ExamBoard({ exams, renderedAt }: { exams: BoardExam[]; renderedA
           <input
             type="search"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => { setQuery(event.target.value); reset(); }}
             placeholder="Search by title or exam ID"
             aria-label="Search exams"
             className="h-10 w-full rounded-[var(--radius-control)] border border-line-strong bg-surface pl-9 pr-9 text-sm text-ink outline-none transition-[border-color,box-shadow] placeholder:text-ink-subtle hover:border-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15 [&::-webkit-search-cancel-button]:appearance-none"
           />
           {query && (
-            <button type="button" aria-label="Clear search" onClick={() => setQuery("")} className="absolute right-2 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-md text-ink-subtle transition-colors hover:bg-hover hover:text-ink">
+            <button type="button" aria-label="Clear search" onClick={() => { setQuery(""); reset(); }} className="absolute right-2 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-md text-ink-subtle transition-colors hover:bg-hover hover:text-ink">
               <X className="size-3.5" />
             </button>
           )}
         </div>
         {colleges.length > 1 && (
-          <Select aria-label="College" size="sm" className="w-52" value={college} onValueChange={setCollege}>
+          <Select aria-label="College" size="sm" className="w-52" value={college} onValueChange={(value) => { setCollege(value); reset(); }}>
             <option value="all">Every college</option>
             {colleges.map(([id, name]) => (
               <option key={id} value={id}>
@@ -127,7 +132,9 @@ export function ExamBoard({ exams, renderedAt }: { exams: BoardExam[]; renderedA
         </div>
       ) : (
         <div className="mt-4 space-y-6">
-          {shown.map(({ state, label }) => (
+          {shown.map(({ state, label }) => {
+            const paged = paginate(grouped[state], pages[state]);
+            return (
             <section key={state} aria-label={label}>
               {filter === "all" && (
                 <h2 className="mb-2 flex items-center gap-2 px-1 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">
@@ -136,14 +143,16 @@ export function ExamBoard({ exams, renderedAt }: { exams: BoardExam[]; renderedA
                 </h2>
               )}
               <ul className="divide-y divide-line overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface">
-                {grouped[state].map((entry) => (
+                {paged.rows.map((entry) => (
                   <li key={entry.exam.id}>
                     <Row entry={entry} state={state} now={now} />
                   </li>
                 ))}
               </ul>
+              <LocalPager meta={paged} onPage={(page) => setPages((current) => ({ ...current, [state]: page }))} noun={`${label.toLowerCase()} exams`} />
             </section>
-          ))}
+            );
+          })}
         </div>
       )}
     </>

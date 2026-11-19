@@ -3,9 +3,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LoadError, PageHeader } from "@/components/staff/page-header";
 import { Button } from "@/components/ui/button";
-import type { Page, QuestionDetail } from "@/lib/api-types";
+import type { QuestionDetail } from "@/lib/api-types";
 import { listCategories } from "@/lib/server/categories";
-import { gateway } from "@/lib/server/gateway";
+import { fetchAllPages } from "@/lib/server/fetch-all";
 import { listLanguages } from "@/lib/server/languages";
 import { requireStaff } from "@/lib/server/staff";
 import { ImportDialog } from "./import-dialog";
@@ -14,10 +14,8 @@ import { type ListKey, type Lists, QuestionBoard, type QuestionRow } from "./que
 
 export const metadata: Metadata = { title: "Questions" };
 
-const LIMIT = 100;
-
-async function fetchList(status: "" | "draft" | "review") {
-  return gateway<Page<QuestionDetail>>(`/question-bank/v1/questions?limit=${LIMIT}${status ? `&status=${status}` : ""}`);
+function fetchList(status: "" | "draft" | "review") {
+  return fetchAllPages<QuestionDetail>(`/question-bank/v1/questions${status ? `?status=${status}` : ""}`);
 }
 
 const toRow = (viewerId: string) => ({ question, question_version: version }: QuestionDetail): QuestionRow => ({
@@ -49,7 +47,7 @@ export default async function QuestionsPage({ searchParams }: { searchParams: Pr
   const staff = await requireStaff();
   const requested = (await searchParams).tab;
   const initial = TABS.find((tab) => tab === requested) ?? "tests";
-  let published: Page<QuestionDetail>;
+  let published: QuestionDetail[];
   try {
     published = await fetchList("");
   } catch (error) {
@@ -65,10 +63,10 @@ export default async function QuestionsPage({ searchParams }: { searchParams: Pr
   const row = toRow(staff.viewer.principalId);
   // Practice problems are published questions marked for practice (ADR-0041).
   const lists: Lists = {
-    tests: published.items.filter(({ question }) => question.audience !== "practice").map(row),
-    practice: published.items.filter(({ question }) => question.audience === "practice").map(row),
-    drafts: (drafts?.items ?? []).map(row),
-    review: (review?.items ?? []).map(row),
+    tests: published.filter(({ question }) => question.audience !== "practice").map(row),
+    practice: published.filter(({ question }) => question.audience === "practice").map(row),
+    drafts: (drafts ?? []).map(row),
+    review: (review ?? []).map(row),
   };
 
   return (
@@ -94,7 +92,6 @@ export default async function QuestionsPage({ searchParams }: { searchParams: Pr
         languages={languages}
         categories={categories}
         initial={initial}
-        capped={{ tests: Boolean(published.next_cursor), practice: Boolean(published.next_cursor), drafts: Boolean(drafts?.next_cursor), review: Boolean(review?.next_cursor) }}
       />
     </>
   );

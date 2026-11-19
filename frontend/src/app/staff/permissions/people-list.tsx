@@ -3,7 +3,9 @@
 import { MagnifyingGlass } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { useDeferredValue, useState } from "react";
+import { LocalPager } from "@/components/staff/pager";
 import { Badge } from "@/components/ui/card";
+import { PAGE_SIZE, paginate } from "@/lib/paginate";
 import { cn } from "@/lib/utils";
 import { lettermark } from "@/lib/lettermark";
 
@@ -12,8 +14,11 @@ export type Person = { principalId: string; collegeId: string; collegeName: stri
 /** The staff you can give permissions to: searchable, the chosen one marked. */
 export function PeopleList({ people, chosen, showCollege }: { people: Person[]; chosen: { principalId: string; collegeId: string } | null; showCollege: boolean }) {
   const [query, setQuery] = useState("");
+  // Open on the page that holds the person being edited.
+  const [page, setPage] = useState(() => Math.floor(Math.max(0, people.findIndex((person) => person.principalId === chosen?.principalId && person.collegeId === chosen.collegeId)) / PAGE_SIZE) + 1);
   const needle = useDeferredValue(query.trim().toLowerCase());
   const shown = needle ? people.filter((person) => `${person.name} ${person.collegeName} ${person.labels.join(" ")}`.toLowerCase().includes(needle)) : people;
+  const paged = paginate(shown, page);
   return (
     <div className="overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface xl:sticky xl:top-16">
       <div className="relative border-b border-line p-2.5">
@@ -21,7 +26,7 @@ export function PeopleList({ people, chosen, showCollege }: { people: Person[]; 
         <input
           type="search"
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => { setQuery(event.target.value); setPage(1); }}
           placeholder={`Search ${people.length} staff`}
           aria-label="Search staff"
           className="h-9 w-full rounded-[var(--radius-control)] border border-line bg-canvas pl-8 pr-3 text-sm text-ink outline-none transition-[border-color,box-shadow] placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15"
@@ -29,7 +34,7 @@ export function PeopleList({ people, chosen, showCollege }: { people: Person[]; 
       </div>
       <ul className="max-h-[68vh] divide-y divide-line overflow-y-auto" aria-label="Staff">
         {shown.length === 0 && <li className="px-4 py-6 text-center text-sm text-ink-muted">No one matches.</li>}
-        {shown.map((person) => {
+        {paged.rows.map((person) => {
           const current = chosen?.principalId === person.principalId && chosen.collegeId === person.collegeId;
           return (
             <li key={`${person.collegeId}-${person.principalId}`}>
@@ -51,6 +56,7 @@ export function PeopleList({ people, chosen, showCollege }: { people: Person[]; 
           );
         })}
       </ul>
+      <div className="border-t border-line px-3 pb-3"><LocalPager meta={paged} onPage={setPage} noun="staff" /></div>
     </div>
   );
 }

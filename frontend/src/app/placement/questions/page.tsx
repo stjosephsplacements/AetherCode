@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { LoadError, PageHeader, Table } from "@/components/staff/page-header";
+import { Pager } from "@/components/staff/pager";
 import { Badge } from "@/components/ui/card";
+import { paginate } from "@/lib/paginate";
 import type { QuestionDetail } from "@/lib/api-types";
 import { fetchAllPages } from "@/lib/server/fetch-all";
 import { requirePlacement } from "@/lib/server/placement";
@@ -8,7 +10,7 @@ import { languageName } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Questions" };
 
-export default async function PlacementQuestionsPage() {
+export default async function PlacementQuestionsPage({ searchParams }: { searchParams: Promise<{ tests?: string; practice?: string }> }) {
   await requirePlacement();
   let questions;
   try {
@@ -25,6 +27,10 @@ export default async function PlacementQuestionsPage() {
   const tests = questions.filter(({ question }) => question.audience !== "practice");
   const practice = questions.filter(({ question }) => question.audience === "practice");
 
+  const pages = await searchParams;
+  const testPage = paginate(tests, pages.tests);
+  const practicePage = paginate(practice, pages.practice);
+
   return (
     <>
       <PageHeader
@@ -34,7 +40,7 @@ export default async function PlacementQuestionsPage() {
       <h2 className="mb-3 text-[15px] font-semibold tracking-[-0.01em] text-ink">Test questions ({tests.length})</h2>
       {tests.length > 0 && (
         <Table head={["Title", "Difficulty", "Languages", "Tests", "Status"]}>
-          {tests.map(({ question_version: version }) => (
+          {testPage.rows.map(({ question_version: version }) => (
             <tr key={version.id}>
               <td className="px-4 py-2.5 font-medium text-ink">{version.title}</td>
               <td className="px-4 py-2.5"><Badge tone="neutral">{version.difficulty}</Badge></td>
@@ -45,11 +51,12 @@ export default async function PlacementQuestionsPage() {
           ))}
         </Table>
       )}
+      <Pager meta={testPage} param="tests" noun="test questions" />
 
       <h2 className="mb-3 mt-8 text-[15px] font-semibold tracking-[-0.01em] text-ink">Practice questions ({practice.length})</h2>
       {practice.length > 0 && (
         <Table head={["Title", "Difficulty", "Languages", "Tests"]}>
-          {practice.map(({ question_version: version }) => (
+          {practicePage.rows.map(({ question_version: version }) => (
             <tr key={version.id}>
               <td className="px-4 py-2.5 font-medium text-ink">{version.title}</td>
               <td className="px-4 py-2.5"><Badge tone="neutral">{version.difficulty}</Badge></td>
@@ -59,6 +66,7 @@ export default async function PlacementQuestionsPage() {
           ))}
         </Table>
       )}
+      <Pager meta={practicePage} param="practice" noun="practice questions" />
     </>
   );
 }

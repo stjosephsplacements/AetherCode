@@ -8,7 +8,7 @@ import { PlatformAdmins } from "./platform-admins";
 
 export const metadata: Metadata = { title: "Administrators" };
 
-export default async function AdminsPage() {
+export default async function AdminsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const staff = await requireAdmin();
   let data;
   try {
@@ -36,7 +36,7 @@ export default async function AdminsPage() {
   return (
     <>
       <PageHeader title="Administrators" description="People with access to every college. Manage their permissions from here." />
-      <PlatformAdmins admins={superAdmins} candidates={candidates} viewerIsRoot={superAdmins.some((admin) => admin.root && admin.principalId === staff.viewer.principalId)} workspace={staff.tenants[0]?.id} />
+      <PlatformAdmins admins={superAdmins} candidates={candidates} viewerIsRoot={superAdmins.some((admin) => admin.root && admin.principalId === staff.viewer.principalId)} workspace={staff.tenants[0]?.id} page={(await searchParams).page} />
     </>
   );
 }
