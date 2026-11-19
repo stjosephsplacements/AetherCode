@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { EmptyState, LoadError, PageHeader, Table } from "@/components/staff/page-header";
-import type { Page, RoleAssignment } from "@/lib/api-types";
+import type { RoleAssignment } from "@/lib/api-types";
 import { departmentLabel, listPlacement } from "@/lib/server/directory";
-import { gateway } from "@/lib/server/gateway";
+import { fetchAllPages } from "@/lib/server/fetch-all";
 import { requirePlacement } from "@/lib/server/placement";
 import { describeAccounts, listRoleAssignments } from "@/lib/server/people";
 import { inColleges } from "@/lib/server/colleges";
@@ -17,8 +17,8 @@ export default async function PlacementStaffPage() {
   let data;
   try {
     const placementDir = await listPlacement();
-    const assignments = await gateway<Page<RoleAssignment>>("/user/v1/role-assignments?role_name=placement_user&limit=100");
-    const activePlacements = assignments.items.filter((a) => a.status === "active");
+    const assignments = await fetchAllPages<RoleAssignment>("/user/v1/role-assignments?role_name=placement_user");
+    const activePlacements = assignments.filter((a) => a.status === "active");
     const principalIds = [...new Set(activePlacements.map((a) => a.principal_id))];
 
     const names = new Map<string, string>();

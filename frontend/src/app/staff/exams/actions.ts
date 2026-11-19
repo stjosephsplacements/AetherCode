@@ -3,9 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ActionState } from "@/components/staff/form";
-import type { Exam, ExamVersion, ExamVersionContent, Page, ProctorPolicy, ProctorPolicyVersion, QuestionVersion } from "@/lib/api-types";
+import type { Exam, ExamVersion, ExamVersionContent, ProctorPolicy, ProctorPolicyVersion, QuestionVersion } from "@/lib/api-types";
 import { actionError } from "@/lib/server/actions";
 import { PREVIEW_PREFIX, copyExam } from "@/lib/server/exams";
+import { fetchAllPages } from "@/lib/server/fetch-all";
 import { gateway } from "@/lib/server/gateway";
 import { requireCollege } from "@/lib/server/staff";
 import { collegeTimeToISO } from "@/lib/utils";
@@ -19,9 +20,9 @@ const STANDARD_POLICY = "Standard";
  */
 async function standardPolicyVersion(tenantId: string): Promise<string> {
   const base = `/assessment/v1/tenants/${tenantId}`;
-  const policies = (await gateway<Page<ProctorPolicy>>(`${base}/proctor-policies?limit=100`)).items;
+  const policies = await fetchAllPages<ProctorPolicy>(`${base}/proctor-policies`);
   for (const policy of policies) {
-    const versions = (await gateway<Page<ProctorPolicyVersion>>(`${base}/proctor-policies/${policy.id}/versions?limit=100`)).items;
+    const versions = await fetchAllPages<ProctorPolicyVersion>(`${base}/proctor-policies/${policy.id}/versions`);
     const published = versions.find((version) => version.status === "published");
     if (published) return published.id;
   }

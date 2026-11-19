@@ -9,11 +9,11 @@ import { Field, TextInput } from "@/components/staff/form";
 import { EmptyState, LoadError, PageHeader, Table } from "@/components/staff/page-header";
 import { Pager } from "@/components/staff/pager";
 import { Badge } from "@/components/ui/card";
-import type { Page, Tenant } from "@/lib/api-types";
+import type { Tenant } from "@/lib/api-types";
 import { paginate } from "@/lib/paginate";
 import { inColleges } from "@/lib/server/colleges";
 import { listBatches, listDepartments } from "@/lib/server/directory";
-import { gateway } from "@/lib/server/gateway";
+import { fetchAllPages } from "@/lib/server/fetch-all";
 import { requireStaff } from "@/lib/server/staff";
 import { AddDialog } from "../../staff/departments/add-dialog";
 import { lettermark } from "@/lib/lettermark";
@@ -35,7 +35,7 @@ export default async function CollegesPage({ searchParams }: { searchParams: Pro
   if (!staff.isPlatformAdmin) redirect("/staff");
   let tenants: Tenant[];
   try {
-    tenants = (await gateway<Page<Tenant>>("/tenant/v1/tenants?limit=100")).items;
+    tenants = await fetchAllPages<Tenant>("/tenant/v1/tenants");
   } catch (error) {
     return (
       <>

@@ -4,9 +4,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { EmptyState, PageHeader } from "@/components/staff/page-header";
-import type { Attempt, AttemptResult, CandidateAssignment, Page, PracticeProgress } from "@/lib/api-types";
+import type { Attempt, AttemptResult, CandidateAssignment, PracticeProgress } from "@/lib/api-types";
 import { LiveRefresh } from "@/lib/client/realtime";
 import { listAssignments } from "@/lib/server/assignments";
+import { listMyAttempts } from "@/lib/server/attempts";
 import { gateway } from "@/lib/server/gateway";
 import { requireViewer } from "@/lib/server/session";
 import { currentStreak, weekGrid } from "@/lib/streak";
@@ -38,7 +39,7 @@ export default async function PerformancePage() {
   const tenantPath = `/submission/v1/tenants/${viewer.tenantId}`;
   const [practice, attempts, assignments] = await Promise.all([
     gateway<PracticeProgress>(`/question-bank/v1/tenants/${viewer.tenantId}/practice/progress`).catch(() => null),
-    gateway<Page<Attempt>>(`${tenantPath}/attempts?limit=100`).then((page) => page.items, () => [] as Attempt[]),
+    listMyAttempts(viewer.tenantId).catch(() => [] as Attempt[]),
     listAssignments(viewer.tenantId).catch(() => [] as CandidateAssignment[]),
   ]);
   const titles = new Map(assignments.map((assignment) => [assignment.id, assignment.title]));

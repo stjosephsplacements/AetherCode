@@ -22,4 +22,14 @@ describe("paginate", () => {
   it("handles an empty list", () => {
     expect(paginate([], "1")).toMatchObject({ pages: 1, from: 0, to: 0, rows: [] });
   });
+  it("has no empty trailing page on an exact multiple", () => {
+    const fifty = items.slice(0, 50);
+    expect(paginate(fifty, "2", 25)).toMatchObject({ page: 2, pages: 2, from: 26, to: 50 });
+    expect(paginate(fifty, "3", 25).page).toBe(2);
+  });
+  it("accepts a numeric page and clamps zero and fractions", () => {
+    expect(paginate(items, 0, 25).page).toBe(1);
+    expect(paginate(items, 2.9, 25).page).toBe(2);
+    expect(paginate([], 7).page).toBe(1);
+  });
 });

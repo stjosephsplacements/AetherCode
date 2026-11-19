@@ -11,6 +11,7 @@ import { Badge, Panel } from "@/components/ui/card";
 import type { ExamVersionContent, Page, QuestionDetail, QuestionVersion, SebPolicy } from "@/lib/api-types";
 import { departmentLabel, listBatches, listDepartments, listPlacement } from "@/lib/server/directory";
 import { latestVersion } from "@/lib/server/exams";
+import { fetchAllPages } from "@/lib/server/fetch-all";
 import { GatewayError, gateway } from "@/lib/server/gateway";
 import { requireCollege } from "@/lib/server/staff";
 import { formatDuration, formatScoreText, formatWindow, isoToCollegeTime } from "@/lib/utils";
@@ -41,7 +42,7 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
     if (!version) throw new Error("This exam has no version.");
     const [content, questions, batches, departments, placement, seb] = await Promise.all([
       gateway<ExamVersionContent>(`/assessment/v1/tenants/${staff.tenantId}/exam-versions/${version.id}/content`),
-      gateway<Page<QuestionDetail>>("/question-bank/v1/questions?limit=100"),
+      fetchAllPages<QuestionDetail>("/question-bank/v1/questions"),
       listBatches(staff.tenantId),
       listDepartments(staff.tenantId),
       listPlacement(),
@@ -66,7 +67,7 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
             )
           ).filter((entry) => entry !== null);
     // Practice problems are public to students, so exams use test questions only (ADR-0041).
-    data = { version, content, questions: questions.items.filter(({ question }) => question.audience !== "practice"), batches, departments, placement, seb, regradable };
+    data = { version, content, questions: questions.filter(({ question }) => question.audience !== "practice"), batches, departments, placement, seb, regradable };
   } catch (error) {
     return (
       <>

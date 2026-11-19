@@ -1,5 +1,6 @@
 import "server-only";
-import type { AccountSummary, Page, RoleAssignment } from "@/lib/api-types";
+import type { AccountSummary, RoleAssignment } from "@/lib/api-types";
+import { fetchAllPages } from "./fetch-all";
 import { gateway } from "./gateway";
 
 /** Names this college's accounts by principal ID (ADR-0043); unknown IDs are left out. */
@@ -17,19 +18,9 @@ export async function describeAccounts(tenantId: string, principalIds: string[])
   return named;
 }
 
-/** Every role assignment in a college, following the cursor (up to 2000). */
-export async function listRoleAssignments(tenantId: string): Promise<RoleAssignment[]> {
-  const assignments: RoleAssignment[] = [];
-  let cursor = "";
-  for (let page = 0; page < 20; page++) {
-    const result = await gateway<Page<RoleAssignment>>(`/user/v1/role-assignments?limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`, {
-      headers: { "X-Tenant-ID": tenantId },
-    });
-    assignments.push(...result.items);
-    if (!result.next_cursor) break;
-    cursor = result.next_cursor;
-  }
-  return assignments;
+/** Every role assignment in a college, following the cursor. */
+export function listRoleAssignments(tenantId: string): Promise<RoleAssignment[]> {
+  return fetchAllPages<RoleAssignment>("/user/v1/role-assignments", { headers: { "X-Tenant-ID": tenantId } });
 }
 
 export type SuperAdmin = { assignmentId: string; principalId: string; root: boolean; name: string; username: string };
@@ -39,8 +30,8 @@ export type SuperAdmin = { assignmentId: string; principalId: string; root: bool
  * the first college that knows them, or from the signed-in account itself.
  */
 export async function listSuperAdmins(colleges: { id: string }[], me: { principalId: string; displayName: string; username: string }): Promise<SuperAdmin[]> {
-  const result = await gateway<Page<RoleAssignment>>("/user/v1/role-assignments?limit=100&role_name=super_admin&scope_kind=platform");
-  const active = result.items.filter((assignment) => assignment.status === "active");
+  const result = await fetchAllPages<RoleAssignment>("/user/v1/role-assignments?role_name=super_admin&scope_kind=platform");
+  const active = result.filter((assignment) => assignment.status === "active");
   const named = new Map<string, AccountSummary>();
   for (const college of colleges) {
     const missing = active.map((assignment) => assignment.principal_id).filter((id) => !named.has(id));

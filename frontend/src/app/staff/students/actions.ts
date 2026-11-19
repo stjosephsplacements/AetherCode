@@ -2,8 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import type { ActionState } from "@/components/staff/form";
-import type { Batch, IssuedCredential, Page, StudentImportResult } from "@/lib/api-types";
+import type { IssuedCredential, StudentImportResult } from "@/lib/api-types";
 import { actionError } from "@/lib/server/actions";
+import { listBatches } from "@/lib/server/directory";
 import { GatewayError, gateway } from "@/lib/server/gateway";
 import { collegeFor, requireStaff } from "@/lib/server/staff";
 
@@ -41,8 +42,7 @@ export async function importStudents(_previous: ImportState, form: FormData): Pr
   if (rows.length > MAX_ROWS) return { error: `Import at most ${MAX_ROWS} students at a time.` };
   const batchId = String(form.get("batch_id") ?? "").split(":").pop() ?? "";
   try {
-    const batches = await gateway<Page<Batch>>(`/tenant/v1/tenants/${tenantId}/batches?limit=100`);
-    const batch = batches.items.find((candidate) => candidate.id === batchId);
+    const batch = (await listBatches(tenantId)).find((candidate) => candidate.id === batchId);
     if (!batch) return { error: "Choose a batch." };
     // A placement department created seconds ago reaches the user service a moment later; until then
     // the import names a target it cannot see yet, so wait for it rather than fail.

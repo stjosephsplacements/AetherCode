@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { LoadError, PageHeader, Table } from "@/components/staff/page-header";
 import { Badge } from "@/components/ui/card";
-import type { Page, QuestionDetail } from "@/lib/api-types";
-import { gateway } from "@/lib/server/gateway";
+import type { QuestionDetail } from "@/lib/api-types";
+import { fetchAllPages } from "@/lib/server/fetch-all";
 import { requirePlacement } from "@/lib/server/placement";
 import { languageName } from "@/lib/utils";
 
@@ -12,7 +12,7 @@ export default async function PlacementQuestionsPage() {
   await requirePlacement();
   let questions;
   try {
-    questions = (await gateway<Page<QuestionDetail>>("/question-bank/v1/questions?limit=100")).items;
+    questions = await fetchAllPages<QuestionDetail>("/question-bank/v1/questions");
   } catch (error) {
     return (
       <>
