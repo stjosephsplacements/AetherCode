@@ -45,14 +45,17 @@ single-server guide). Notifications are shown in the app.
 1. Follow "First install" in the single-server guide (or the Helm guide). Compose: the one-shot jobs `migrate`,
    `judge-migrate` and `buckets` must exit 0. Helm: the migration hook jobs (including the proctor migration) and the
    `judge-languages` job must complete; check them with `kubectl get jobs`.
-2. Install the execution engine and check it. `engine-check.py` takes the credentials file and the gateway URL (the Compose gateway
-   listens on `127.0.0.1:${GATEWAY_PORT:-8080}`, but the script defaults to 8380):
-   `python3 engine-check.py ~/aethercode-admin.txt http://127.0.0.1:8080` must print `Engine OK`.
-3. Create the first administrator ("First administrator" in the guide), set their password with the reset flow and
+2. Create the first administrator ("First administrator" in the guide), set their password with the reset flow and
    enrol an authenticator app (TOTP). Elevated actions ask for a fresh second factor.
-4. Put nginx and TLS in front ("Public address"), then open `https://<your host>/login`.
-5. Run `python3 smoke.py ~/aethercode-admin.txt http://127.0.0.1:8080` (same arguments). It exercises sign-in, authoring,
-   an exam, judging and results end to end.
+3. Write the credentials file the checks read: one line, `<admin email> <password>`, in `~/aethercode-admin.txt`
+   (`chmod 600`). Keep it off shared machines; delete it after go-live.
+4. Pick the gateway URL for the checks. Compose: `http://127.0.0.1:8080` (the loopback binding, `GATEWAY_PORT`). Helm:
+   `kubectl -n <namespace> port-forward svc/gateway 8080:80` in another terminal, then use `http://127.0.0.1:8080`.
+   The scripts default to port 8380, so always pass the URL.
+5. Check the execution engine: `python3 engine-check.py ~/aethercode-admin.txt <gateway URL>` must print `Engine OK`.
+6. Put nginx and TLS in front ("Public address"), then open `https://<your host>/login`.
+7. Run `python3 smoke.py ~/aethercode-admin.txt <gateway URL>`. It exercises sign-in, authoring, an exam, judging and
+   results end to end.
 
 ## 4. Day-0 checklist (one college)
 
@@ -79,7 +82,7 @@ Each role also has an in-app `/…/get-started` page. See [GETTING-STARTED.md](G
   That is back-pressure, not an outage: the judge retries. Size workers so the p95 verdict time you measure with
   `loadtest.py` is acceptable.
 - Rehearse at your real size outside exam hours and read the per-step latencies:
-  `python3 loadtest.py --students <n> --gateway http://127.0.0.1:8080` (or `STUDENTS=<n> make loadtest` from the repository root).
+  `python3 loadtest.py --students <n> --gateway <gateway URL>`.
 
 ## 6. Operate
 

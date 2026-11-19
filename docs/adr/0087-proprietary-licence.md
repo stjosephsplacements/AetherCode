@@ -24,7 +24,7 @@ to license it to colleges commercially and keep the source confidential.
 - Versions already published under the AGPL stay available under it to those who received them. The
   licence says so (clause 8); it cannot be withdrawn.
 - Nothing may be linked into the Software whose licence forbids proprietary distribution. Before each
-  release, generate the Go and npm licence reports and review them. MinIO and similar AGPL products
+  release, generate the Go, npm and Python (resolved from `backend/services/proctor/pyproject.toml`) licence reports and review them. MinIO and similar AGPL products
   run as separate services and are not linked, but a licensee-facing deployment guide must say they keep
   their own licence.
 - This ADR is not legal advice. The owner's counsel must approve the licence text and the

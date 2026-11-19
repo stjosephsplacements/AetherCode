@@ -16,6 +16,9 @@ const STATS = [
   { value: String(SITE.languages.length), label: "languages supported" },
 ];
 
+// The contact comes from the environment at start-up, not from the image build.
+export const dynamic = "force-dynamic";
+
 export default function AboutPage() {
   const { support } = contacts();
   return (

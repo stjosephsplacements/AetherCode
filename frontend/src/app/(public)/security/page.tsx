@@ -44,7 +44,7 @@ export default function SecurityPage() {
               </ul>
               <p>
                 Machine-readable details are in <a href="/.well-known/security.txt">/.well-known/security.txt</a>. We don&apos;t
-                publish a PGP key; ask for a different channel in your first message if you need one.
+                publish a PGP key. If the report is sensitive, email only a request for a secure channel first and send the details once we reply.
               </p>
             </>
           ),
