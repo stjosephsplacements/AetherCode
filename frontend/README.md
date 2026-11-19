@@ -81,6 +81,12 @@ in the same directory. The sign-in page keeps the AetherCode mark.
   IdP secrets are never committed; the login page shows "Sign in with your
   St. Joseph's account" when SSO is on.
 
+- **Lists.** Every list page pages with `Pager` (URL `?page=`, server pages) or
+  `LocalPager` (client lists, filter first), sized by `paginate` in
+  `src/lib/paginate.ts`. Loaders read every record with `fetchAllPages`
+  (`src/lib/server/fetch-all.ts`), which follows `next_cursor` and fails rather
+  than truncate; never fetch one `?limit=100` page and render it.
+
 ## Screens
 
 | Route | Screen |
