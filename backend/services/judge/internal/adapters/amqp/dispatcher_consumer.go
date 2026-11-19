@@ -22,15 +22,21 @@ const (
 // dispatches each job through the Worker. It reconnects automatically after
 // connection failures.
 type Consumer struct {
-	url    string
-	worker *dispatcher.Worker
-	logger *slog.Logger
+	url     string
+	worker  *dispatcher.Worker
+	tracker AdmissionTracker
+	logger  *slog.Logger
+}
+
+// AdmissionTracker records that a consumer handled an admission pointer.
+type AdmissionTracker interface {
+	MarkAdmissionConsumed(ctx context.Context, eventID string) error
 }
 
 // NewConsumer validates configuration and creates a Consumer. The rawURL must
 // be the same JUDGE_RABBITMQ_URL used by the admission publisher so that the
 // consumer reads from the same quorum queue.
-func NewConsumer(rawURL string, worker *dispatcher.Worker, logger *slog.Logger) (*Consumer, error) {
+func NewConsumer(rawURL string, worker *dispatcher.Worker, tracker AdmissionTracker, logger *slog.Logger) (*Consumer, error) {
 	if worker == nil {
 		return nil, fmt.Errorf("dispatcher consumer worker is required")
 	}
@@ -41,7 +47,10 @@ func NewConsumer(rawURL string, worker *dispatcher.Worker, logger *slog.Logger) 
 	if err != nil || (parsed.Scheme != "amqp" && parsed.Scheme != "amqps") || parsed.Host == "" {
 		return nil, fmt.Errorf("JUDGE_RABBITMQ_URL must be a valid amqp or amqps URL")
 	}
-	return &Consumer{url: parsed.String(), worker: worker, logger: logger}, nil
+	if tracker == nil {
+		return nil, fmt.Errorf("dispatcher consumer admission tracker is required")
+	}
+	return &Consumer{url: parsed.String(), worker: worker, tracker: tracker, logger: logger}, nil
 }
 
 // Start connects to RabbitMQ and dispatches admission messages until ctx is
@@ -138,6 +147,16 @@ func (c *Consumer) handleDelivery(ctx context.Context, delivery amqp091.Delivery
 		_ = delivery.Nack(false, false)
 		return
 	}
+
+	// Handing the pointer to this worker is the durable hand-off: from here the broker redelivers it if this consumer
+	// dies before acknowledging, so the publisher's stale sweep must not publish it again while the job runs (a long
+	// job would otherwise be dispatched twice). A failed mark only means the sweep may send one duplicate wake-up,
+	// which finds the job running or finished.
+	markCtx, markCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	if err := c.tracker.MarkAdmissionConsumed(markCtx, msg.EventID); err != nil {
+		c.logger.Warn("dispatcher: could not record the admission as consumed", "job_id", msg.JobID, "error", err)
+	}
+	markCancel()
 
 	jobCtx, cancel := context.WithTimeout(ctx, c.worker.JobTimeout())
 	defer cancel()

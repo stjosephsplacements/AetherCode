@@ -233,7 +233,7 @@ func startDispatchConsumer(
 	if workerErr != nil {
 		return workerErr
 	}
-	consumer, consumerErr := amqpadapter.NewConsumer(rabbitURL, worker, logger)
+	consumer, consumerErr := amqpadapter.NewConsumer(rabbitURL, worker, repo.NewPostgres(pool, objectStorage, keyManager), logger)
 	if consumerErr != nil {
 		return consumerErr
 	}
