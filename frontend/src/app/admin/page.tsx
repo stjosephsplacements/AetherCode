@@ -6,6 +6,7 @@ import { Tile } from "@/components/staff/tile";
 import { collegeHref } from "@/lib/links";
 import { requireAdmin } from "@/lib/server/staff";
 import { serviceHealth } from "@/lib/server/status";
+import { CollegeLink } from "@/components/college-link";
 
 export const metadata: Metadata = { title: "Admin" };
 
@@ -45,10 +46,10 @@ export default async function AdminHome() {
       <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
         {staff.tenants.map((tenant) => (
           <li key={tenant.id}>
-            <Link href={collegeHref("/staff", tenant.id)} className="flex items-center justify-between gap-3 rounded-[var(--radius-surface)] border border-line bg-surface px-4 py-3 transition-shadow hover:shadow-[var(--shadow-panel)]">
+            <CollegeLink href={collegeHref("/staff", tenant.id)} className="flex items-center justify-between gap-3 rounded-[var(--radius-surface)] border border-line bg-surface px-4 py-3 transition-shadow hover:shadow-[var(--shadow-panel)]">
               <span className="truncate text-[14.5px] font-medium text-ink">{tenant.display_name}</span>
               <span className="shrink-0 text-[13px] text-brand">Open workspace</span>
-            </Link>
+            </CollegeLink>
           </li>
         ))}
       </ul>
