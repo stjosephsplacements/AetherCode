@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry"
 	authzv1 "github.com/stjosephsplacements/AetherCode/libs/proto/gen/go/aethercode/authz/v1"
 	"google.golang.org/grpc"
 )
@@ -69,6 +70,7 @@ func (client *Client) Authorize(contextValue context.Context, request CentralReq
 	if identityAssertion == "" {
 		return CentralDecision{}, fmt.Errorf("identity assertion is required for a central authorization decision")
 	}
+	started := time.Now()
 	response, err := client.client.Authorize(contextValue, &authzv1.AuthorizeRequest{
 		PrincipalId:       request.PrincipalID,
 		Action:            request.Action,
@@ -79,6 +81,7 @@ func (client *Client) Authorize(contextValue context.Context, request CentralReq
 		TargetService:     request.TargetService,
 		IdentityAssertion: identityAssertion,
 	})
+	telemetry.ObserveStage("client_authorize", started, err)
 	if err != nil {
 		return CentralDecision{}, fmt.Errorf("request central authorization decision: %w", err)
 	}

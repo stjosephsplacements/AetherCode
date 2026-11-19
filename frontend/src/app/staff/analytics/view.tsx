@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
 import { Tile } from "@/components/staff/tile";
 import { EmptyState, PageHeader, Table } from "@/components/staff/page-header";
@@ -8,6 +7,7 @@ import { PASS_SHARE } from "@/lib/results";
 import { cn, formatDateTime } from "@/lib/utils";
 import { ExamTrend, ScoreHistogram } from "./charts";
 import { type StudentRow, StudentList } from "./student-list";
+import { CollegeLink } from "@/components/college-link";
 
 export type AnalyticsData = {
   attempts: Pick<Attempt, "share">[];
@@ -197,9 +197,9 @@ function ExamRows({ points }: { points: ExamPoint[] }) {
       {points.map((point) => (
         <li key={point.id} className="grid grid-cols-[minmax(0,1fr)_7rem_3.5rem] items-center gap-3 py-2.5">
           <div className="min-w-0">
-            <Link href={collegeHref(`/staff/exams/${point.id}/results`, point.college?.id)} className="block truncate text-[13.5px] font-medium text-ink transition-colors hover:text-brand">
+            <CollegeLink href={collegeHref(`/staff/exams/${point.id}/results`, point.college?.id)} className="block truncate text-[13.5px] font-medium text-ink transition-colors hover:text-brand">
               {point.title}
-            </Link>
+            </CollegeLink>
             <p className="truncate font-mono text-[11px] text-ink-subtle">
               {point.college ? `${point.college.name}, ` : ""}
               {formatDateTime(point.at)}, {point.graded} graded
@@ -222,9 +222,9 @@ function ExamTable({ points, several }: { points: ExamPoint[]; several: boolean 
       {points.map((point) => (
         <tr key={point.id} className="border-t border-line">
           <td className="px-4 py-2.5">
-            <Link href={collegeHref(`/staff/exams/${point.id}/results`, point.college?.id)} className="font-medium text-ink hover:text-brand">
+            <CollegeLink href={collegeHref(`/staff/exams/${point.id}/results`, point.college?.id)} className="font-medium text-ink hover:text-brand">
               {point.title}
-            </Link>
+            </CollegeLink>
           </td>
           {several && <td className="px-4 py-2.5 text-ink-muted">{point.college?.name}</td>}
           <td className="whitespace-nowrap px-4 py-2.5 text-ink-muted">{formatDateTime(point.at)}</td>

@@ -9,7 +9,7 @@ export type Contacts = {
   support: string | null;
   /** The grievance officer the DPDP Act requires a data fiduciary to name. */
   grievance: string | null;
-  /** Where vulnerability reports go; GitHub advisories when unset. */
+  /** Where vulnerability reports go; when unset, the page sends them through the college's exam administrator. */
   security: string | null;
 };
 

@@ -112,7 +112,7 @@ Ref: [ADR-0013](../../docs/adr/0013-soft-delete-architecture.md)
 
 `POST /v1/auth/password-reset` records a reset request and, when a live account has that address and mail is
 configured, emails a link `<IDENTITY_PUBLIC_BASE_URL>/auth/reset-password?token=<bearer>` through Microsoft Graph
-(`adapters/mail`, ADR-0085). The email is sent after the response, so the answer and its timing are the same for a
+(`adapters/mail`, ADR-0088). The email is sent after the response, so the answer and its timing are the same for a
 known and an unknown address, and a mail outage cannot fail the request. `cmd/deliver-reset` remains the operator's
 fallback. The link works once and expires after `IDENTITY_PASSWORD_RESET_LIFETIME` (default 30 minutes).
 

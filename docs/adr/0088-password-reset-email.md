@@ -1,4 +1,4 @@
-# ADR-0085: Password-reset email through Microsoft Graph, sent by the Identity service
+# ADR-0088: Password-reset email through Microsoft Graph, sent by the Identity service
 
 - Status: accepted (2026-11-18)
 

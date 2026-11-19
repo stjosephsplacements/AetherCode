@@ -1,22 +1,22 @@
 <p align="center">
-  <img src="docs/assets/aethercode-banner.jpg" alt="AetherCode: AGPL 3.0 licensed, built in Go" width="100%">
+  <img src="docs/assets/aethercode-banner.jpg" alt="AetherCode: coding exams and practice for colleges" width="100%">
 </p>
 
 # AetherCode
 
 [![CI](https://github.com/stjosephsplacements/AetherCode/actions/workflows/ci.yml/badge.svg?branch=production)](https://github.com/stjosephsplacements/AetherCode/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/stjosephsplacements/AetherCode/actions/workflows/codeql.yml/badge.svg?branch=production)](https://github.com/stjosephsplacements/AetherCode/actions/workflows/codeql.yml)
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
+[![License: Proprietary](https://img.shields.io/badge/License-Proprietary-lightgrey.svg)](LICENSE)
 
-AetherCode is an open-source coding-assessment platform for colleges. Staff
+AetherCode is a coding-assessment platform for colleges. Staff
 write programming questions with hidden tests, students sit timed exams in a
 HackerRank-style editor (optionally locked down in Safe Exam Browser), and
 submissions are compiled and judged in a sandboxed execution engine. Around the
 exams it gives students practice problems, interview experiences, contest and
 hackathon listings, and gives staff results, live monitoring and analytics.
 
-It is built for supervised college lab exams and released under the
-[GNU AGPL v3](LICENSE).
+It is built for supervised college lab exams. It is proprietary software: see
+[LICENSE](LICENSE).
 
 ## What it does
 
@@ -112,15 +112,15 @@ evidence) are listed in the roadmap.
 
 ## Contributing
 
-Contributions are welcome: read [CONTRIBUTING.md](CONTRIBUTING.md) first, and
-follow the [Code of Conduct](CODE_OF_CONDUCT.md). Report security issues
-privately as described in [SECURITY.md](SECURITY.md), never in a public issue.
+Changes come from the owner's team and contractors under a written agreement:
+read [CONTRIBUTING.md](CONTRIBUTING.md) first, and follow the
+[Code of Conduct](CODE_OF_CONDUCT.md). Report security issues privately as
+described in [SECURITY.md](SECURITY.md), never in a public issue.
 
 ## License
 
-Copyright (C) 2026 St. Joseph's Group of Institutions.
+Copyright (C) 2026 St. Joseph's Group of Institutions. All rights reserved.
 
-AetherCode is free software: you can redistribute it and/or modify it under the
-terms of the [GNU Affero General Public License v3.0](LICENSE). If you run a
-modified version as a network service, the AGPL requires you to offer its
-users the corresponding source code. See [NOTICE](NOTICE).
+AetherCode is proprietary software, not open source. Using, copying, modifying or
+hosting it requires a written licence from the owner; see [LICENSE](LICENSE) and
+[NOTICE](NOTICE).

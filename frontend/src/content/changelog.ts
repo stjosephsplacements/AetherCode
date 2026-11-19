@@ -5,6 +5,15 @@ export type Release = { date: string; title: string; tags: ChangeTag[]; changes:
 /** Newest first. Written for students and staff, from the merged changes on GitHub. */
 export const RELEASES: Release[] = [
   {
+    date: "2026-11-19",
+    title: "A calmer look, and a new licence",
+    tags: ["UI", "Platform"],
+    changes: [
+      "A softer teal palette in light and dark themes, with a simpler home page.",
+      "AetherCode is now proprietary software, licensed to colleges. Earlier versions stay available under their original licence to those who already received them.",
+    ],
+  },
+  {
     date: "2026-10-28",
     title: "A new look, and clearer privacy controls",
     tags: ["UI", "Security"],
@@ -51,7 +60,7 @@ export const RELEASES: Release[] = [
       "Exams can require Safe Exam Browser, with every request's key checked against its exact URL.",
       "The server keeps each student's timer and submits automatically when time is up.",
       "Run code against the sample tests before you submit.",
-      "AetherCode became open source under the GNU AGPL v3.",
+      "AetherCode was released for colleges to run on their own servers.",
     ],
   },
   {

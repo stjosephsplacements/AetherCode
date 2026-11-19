@@ -120,6 +120,21 @@ func (repository *Postgres) MarkAdmissionPublished(contextValue context.Context,
 	return nil
 }
 
+// MarkAdmissionConsumed records that a consumer handled the pointer, so the stale sweep stops republishing it. A pointer
+// that was requeued in the meantime is marked too; one that is leased right now is left to its publisher.
+func (repository *Postgres) MarkAdmissionConsumed(contextValue context.Context, eventID string) error {
+	if _, err := repository.pool.Exec(contextValue, `
+		UPDATE judge.admission_outbox
+		SET state = 'consumed', consumed_at = clock_timestamp(), updated_at = clock_timestamp()
+		WHERE event_id = $1
+		  AND state IN ('published', 'pending')
+		  AND published_at IS NOT NULL
+	`, eventID); err != nil {
+		return fmt.Errorf("mark admission consumed: %w", err)
+	}
+	return nil
+}
+
 // ReleaseAdmission returns an unconfirmed lease to the durable retry queue.
 func (repository *Postgres) ReleaseAdmission(
 	contextValue context.Context,
@@ -166,13 +181,17 @@ func (repository *Postgres) RequeueStalePublishedAdmissions(
 	}
 	command, err := repository.pool.Exec(contextValue, `
 		WITH stale AS (
-			SELECT event_id
-			FROM judge.admission_outbox
-			WHERE state = 'published'
-			  AND consumed_at IS NULL
-			  AND published_at <= $1
-			ORDER BY published_at
-			FOR UPDATE SKIP LOCKED
+			SELECT o.event_id
+			FROM judge.admission_outbox AS o
+			WHERE o.state = 'published'
+			  AND o.consumed_at IS NULL
+			  AND o.published_at <= $1
+			  AND NOT EXISTS (
+				SELECT 1 FROM judge.execution_jobs AS j
+				WHERE j.id = o.job_id AND j.state IN ('completed', 'failed', 'cancelled', 'expired')
+			  )
+			ORDER BY o.published_at
+			FOR UPDATE OF o SKIP LOCKED
 			LIMIT $2
 		)
 		UPDATE judge.admission_outbox AS admission

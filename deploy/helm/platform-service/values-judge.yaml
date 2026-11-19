@@ -106,6 +106,19 @@ networkPolicy:
               matchLabels:
                 app.kubernetes.io/name: aethercode-exec
                 app.kubernetes.io/component: engine
+          # The Rust engine (aethercode-exec-rs gateway). Allowing it here costs nothing while it is absent. To cut over,
+          # run `helm upgrade judge ... --set global.engineUrl=http://aethercode-exec-rs-svc.aethercode.svc.cluster.local:5100`
+          # directly (deploy/helm/install.sh passes extra arguments only to the frontend release) once the engine repo's
+          # `rust` overlay is applied and its shadow soak is clean; roll back by dropping that flag. A one-off --set is reverted by the next judge release (the default is `engine` from values-common.yaml), so
+          # keep it in the values file you pass to every judge upgrade. The URL and the
+          # namespaceSelector below assume the engine runs in the `aethercode` namespace; change both together if yours does not.
+          - namespaceSelector:
+              matchLabels:
+                kubernetes.io/metadata.name: aethercode
+            podSelector:
+              matchLabels:
+                app.kubernetes.io/name: aethercode-exec-rs
+                app.kubernetes.io/component: gateway
           # The chart default (global.engineUrl http://engine:5100) puts the engine in the judge's own namespace.
           - podSelector:
               matchLabels:

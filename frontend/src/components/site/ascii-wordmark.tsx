@@ -8,7 +8,7 @@ const NOISE = "*/#%@!?+=<>";
 const LINES = WORDMARK.split("\n");
 const WIDTH = Math.max(...LINES.map((line) => line.length));
 
-/** The wordmark with the face in orange and the extruded shadow dimmed. */
+/** The wordmark with the face in the brand colour and the extruded shadow dimmed. */
 function Art({ lines }: { lines: string[] }) {
   return (
     <>

@@ -7,7 +7,7 @@ import { Engine } from "@/components/site/engine";
 import { Hero } from "@/components/site/hero";
 import { Meet } from "@/components/site/meet";
 import { Numbers } from "@/components/site/numbers";
-import { OpenSource } from "@/components/site/open-source";
+import { ForColleges } from "@/components/site/for-colleges";
 import { Platform } from "@/components/site/platform";
 import { Statement } from "@/components/site/statement";
 import { requireViewer } from "@/lib/server/session";
@@ -50,7 +50,7 @@ export default async function Landing() {
       <Rule />
       <Numbers />
       <Rule />
-      <OpenSource />
+      <ForColleges />
 
       <Rule />
       <section className="mx-auto max-w-6xl px-6 py-28 text-center">
