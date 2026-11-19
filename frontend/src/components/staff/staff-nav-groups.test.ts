@@ -8,13 +8,38 @@ describe("staffNavGroups", () => {
   it("hides set-up and platform pages from staff who cannot manage accounts", () => {
     const groups = staffNavGroups({ canManageAccounts: false });
     expect(groups.map((group) => group.label)).toEqual(["Overview", "Assess", "Help"]);
-    expect(hrefs(groups)).not.toContain("/staff/accounts");
+    expect(hrefs(groups)).toEqual([
+      "/staff",
+      "/staff/get-started",
+      "/staff/questions",
+      "/staff/exams",
+      "/staff/calendar",
+      "/staff/analytics",
+      "/staff/community",
+      "/staff/help",
+    ]);
   });
 
   it("lists every page for a college administrator, in creation order", () => {
     const groups = staffNavGroups({ canManageAccounts: true });
     expect(groups.map((group) => group.label)).toEqual(["Overview", "Set up", "Assess", "Platform", "Help"]);
-    expect(hrefs(groups).slice(2, 4)).toEqual(["/staff/departments", "/staff/accounts"]);
+    expect(hrefs(groups)).toEqual([
+      "/staff",
+      "/staff/get-started",
+      "/staff/departments",
+      "/staff/accounts",
+      "/staff/students",
+      "/staff/permissions",
+      "/staff/roles",
+      "/staff/questions",
+      "/staff/exams",
+      "/staff/calendar",
+      "/staff/analytics",
+      "/staff/community",
+      "/staff/audit",
+      "/staff/status",
+      "/staff/help",
+    ]);
   });
 
   it("applies locks by page, and routes links and labels for the admin sidebar", () => {
