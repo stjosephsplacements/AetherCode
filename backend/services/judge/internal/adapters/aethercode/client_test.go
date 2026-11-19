@@ -3,6 +3,7 @@ package aethercode
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -119,9 +120,8 @@ func TestRejectsUnknownLanguagesAndLostVerdicts(t *testing.T) {
 	if _, err := client.Submit(context.Background(), dispatcher.UnitRequest{Language: "cobol", SourceCode: "x"}); err == nil {
 		t.Fatal("an unmapped language must be rejected")
 	}
-	verdict, err := client.Poll(context.Background(), "aethercode-unknown")
-	if err != nil || verdict.Status != "internal_error" {
-		t.Fatalf("lost verdict = %+v, %v; want internal_error so the unit is regraded", verdict, err)
+	if verdict, err := client.Poll(context.Background(), "aethercode-unknown"); !errors.Is(err, dispatcher.ErrVerdictLost) || verdict != nil {
+		t.Fatalf("lost verdict = %+v, %v; want ErrVerdictLost so the unit runs again", verdict, err)
 	}
 }
 
@@ -254,7 +254,7 @@ func TestForgetReleasesAVerdict(t *testing.T) {
 		t.Fatal(err)
 	}
 	client.Forget(tokens[0])
-	if verdict, _ := client.Poll(context.Background(), tokens[0]); verdict.Status != "internal_error" {
-		t.Fatalf("a forgotten verdict polled as %q, want internal_error", verdict.Status)
+	if _, err := client.Poll(context.Background(), tokens[0]); !errors.Is(err, dispatcher.ErrVerdictLost) {
+		t.Fatalf("a forgotten verdict polled with %v, want ErrVerdictLost", err)
 	}
 }

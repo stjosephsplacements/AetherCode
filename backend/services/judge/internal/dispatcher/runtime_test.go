@@ -39,3 +39,20 @@ func TestLoadRuntimeJobTimeout(t *testing.T) {
 		t.Fatalf("job timeout = %d, err %v; want 120", runtime.JobTimeoutSeconds, err)
 	}
 }
+
+func TestLoadRuntimeRejectsUnusablePolling(t *testing.T) {
+	t.Setenv("JUDGE_DISPATCHER_ENABLED", "true")
+	t.Setenv("JUDGE_ENGINE", "stub")
+	t.Setenv("JUDGE_WORKER_CONCURRENCY", "4")
+	t.Setenv("JUDGE_POLL_INTERVAL_MS", "2000")
+	t.Setenv("JUDGE_MAX_POLL_ATTEMPTS", "30")
+	t.Setenv("JUDGE_JOB_TIMEOUT_SECONDS", "900")
+	for name, value := range map[string]string{"JUDGE_POLL_INTERVAL_MS": "0", "JUDGE_MAX_POLL_ATTEMPTS": "100000000"} {
+		t.Run(name, func(t *testing.T) {
+			t.Setenv(name, value)
+			if _, err := LoadRuntime(); err == nil {
+				t.Fatalf("%s=%s must be refused", name, value)
+			}
+		})
+	}
+}

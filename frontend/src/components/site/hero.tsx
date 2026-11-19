@@ -14,7 +14,7 @@ export function Hero() {
   return (
     <section className="relative isolate flex min-h-[calc(100svh-56px)] flex-col items-center justify-center overflow-hidden px-4 py-20 text-center">
       {/* Aurora blobs — more saturated in light mode so the brand colour dominates. */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-20 overflow-hidden">
+      <div aria-hidden className="pointer-events-none absolute inset-0 -z-20 hidden overflow-hidden md:block">
         <div className="aurora absolute -left-[10%] top-[8%] h-[55%] w-[55%] bg-[radial-gradient(closest-side,var(--hero-aurora-1),transparent)]" />
         <div className="aurora absolute -right-[8%] top-[30%] h-[60%] w-[50%] bg-[radial-gradient(closest-side,var(--glow-2),transparent)] [animation-delay:-9s]" />
       </div>

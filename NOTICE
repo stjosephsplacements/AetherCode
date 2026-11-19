@@ -10,8 +10,14 @@ changed by LICENSE. The dependency lists are in:
   - backend/go.work.sum and each backend service's go.sum (Go modules)
   - frontend/pnpm-lock.yaml and apps/*/pnpm-lock.yaml (npm packages)
   - backend/services/proctor/pyproject.toml (Python packages of the proctor service)
+The lists above name the packages; the licence of each is reported by `pnpm licenses list` (npm), `go-licenses report` (Go)
+and `pip-licenses` run in the proctor environment (Python).
 Before shipping a release, regenerate the full third-party licence report and
 review it for any component whose licence restricts proprietary distribution
 (for example GPL or AGPL code linked into the Software). GSAP, used on the public
 pages, is not open source and is used under its own free licence; see
 frontend/README.md.
+
+Known item. The proctor service depends on Ultralytics (AGPL-3.0). Distributing it inside proprietary software to licensees
+requires an Ultralytics Enterprise licence or replacing that dependency first. The Owner must resolve this before any copy of
+the proctor service is delivered to a licensee.

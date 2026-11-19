@@ -37,7 +37,7 @@ Role permission bits, edited at `/staff/roles` and `/staff/permissions`:
 | `VIEW_GOLD_ANALYTICS` | Cross-cutting analytics dashboards. |
 | `<service>.<resource>.read/write/delete` | Per-resource access, for example `assessment.exams.write`. |
 
-Reading is implied by writing. A delete is a write to the databases and is recorded as a delete in the audit log.
+Writing needs reading: granting a write in the role editor also grants its matching read, and a write without its read is ignored when permissions are resolved. A delete is a write to the databases and is recorded as a delete in the audit log.
 Permission changes are limited to root and the college's administrators.
 
 ## Areas and what they are for
@@ -88,4 +88,4 @@ Mentors normally hold read permissions only: they see students and results in th
 ## Signing in and recovery
 - Every role signs in at `/login`. Staff accounts can enrol an authenticator (TOTP); sensitive actions ask again (step-up).
 - Students receive an initial password from staff import and must change it on first sign-in.
-- Forgotten passwords: staff reset them (`MANAGE_MEMBERS`); email self-service is available when Microsoft 365 mail is configured.
+- Forgotten passwords: staff reset them (`MANAGE_MEMBERS`), and the operator can deliver an administrator's reset token out of band (see SELF-HOSTING.md). There is no email self-service in this release.

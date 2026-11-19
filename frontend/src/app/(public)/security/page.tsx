@@ -33,9 +33,9 @@ export default function SecurityPage() {
                     {" "}by email to <a href={`mailto:${security}`}>{security}</a>
                   </>
                 ) : (
-                  " to your college's exam administrator"
+                  " by asking your college's exam administrator for the AetherCode maintainers' secure channel before you send any details"
                 )}
-                . Please don&apos;t open a public issue. Include what you found, how to reproduce it and the impact you expect.
+                . Please don&apos;t open a public issue. Once you have a private channel, include what you found, how to reproduce it and the impact you expect.
               </p>
               <ul>
                 <li>We confirm we&apos;ve received your report and keep you updated while we fix it.</li>
