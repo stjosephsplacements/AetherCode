@@ -1,8 +1,10 @@
 import { ArrowSquareOut, BookmarkSimple } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { EmptyState, PageHeader } from "@/components/staff/page-header";
+import { Pager } from "@/components/staff/pager";
 import { Badge } from "@/components/ui/card";
 import type { FeedItem, FeedKind } from "@/lib/api-types";
+import { paginate } from "@/lib/paginate";
 import { cn, formatWindow } from "@/lib/utils";
 import { setBookmark } from "@/app/student/community/actions";
 
@@ -14,7 +16,8 @@ export const FEED_TITLES: Record<FeedKind, { title: string; intro: string; empty
 
 const PHASE_TONE = { upcoming: "brand", live: "success", ended: "neutral" } as const;
 
-export function FeedView({ kind, items, path, saved }: { kind: FeedKind; items: FeedItem[]; path: string; saved: boolean }) {
+export function FeedView({ kind, items, path, saved, page }: { kind: FeedKind; items: FeedItem[]; path: string; saved: boolean; page?: string }) {
+  const paged = paginate(items, page);
   const { title, intro, empty } = FEED_TITLES[kind];
   return (
     <div className="animate-enter">
@@ -34,7 +37,7 @@ export function FeedView({ kind, items, path, saved }: { kind: FeedKind; items: 
           <EmptyState>{saved ? "Nothing saved yet." : empty}</EmptyState>
         ) : (
           <ul className="overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface">
-            {items.map((item, index) => (
+            {paged.rows.map((item, index) => (
               <li key={item.id} className={cn("flex items-start gap-4 px-5 py-4", index > 0 && "border-t border-line")}>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -61,6 +64,7 @@ export function FeedView({ kind, items, path, saved }: { kind: FeedKind; items: 
             ))}
           </ul>
         )}
+        <Pager meta={paged} noun="listings" />
       </div>
     </div>
   );

@@ -1,7 +1,10 @@
 "use client";
 
 import { DownloadSimple, Printer } from "@phosphor-icons/react/ssr";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { paginate } from "@/lib/paginate";
+import { LocalPager } from "./pager";
 
 export type Credential = { username: string; name?: string; password: string };
 
@@ -16,9 +19,11 @@ function toCsv(rows: Credential[]): string {
 
 /**
  * One-time passwords, shown once: the platform never returns them again.
- * Download them as CSV or print one slip per student.
+ * Download them as CSV or print one slip per student. The screen shows a page at a time; print and CSV carry every row.
  */
 export function CredentialsTable({ rows, filename }: { rows: Credential[]; filename: string }) {
+  const [page, setPage] = useState(1);
+  const paged = paginate(rows, page, 24);
   function download() {
     const url = URL.createObjectURL(new Blob([toCsv(rows)], { type: "text/csv" }));
     const link = Object.assign(document.createElement("a"), { href: url, download: filename });
@@ -43,10 +48,10 @@ export function CredentialsTable({ rows, filename }: { rows: Credential[]; filen
         </div>
       </div>
       <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 print:grid-cols-3 print:gap-0">
-        {rows.map((row) => (
+        {rows.map((row, index) => (
           <div
             key={row.username}
-            className="break-inside-avoid rounded-[var(--radius-control)] border border-line bg-surface px-3 py-2.5 print:rounded-none print:border-dashed"
+            className={`${index >= paged.from - 1 && index < paged.to ? "" : "hidden print:block "}break-inside-avoid rounded-[var(--radius-control)] border border-line bg-surface px-3 py-2.5 print:rounded-none print:border-dashed`}
           >
             {row.name && <p className="truncate text-sm font-medium text-ink">{row.name}</p>}
             <p className="font-mono text-xs text-ink-muted">
@@ -57,6 +62,9 @@ export function CredentialsTable({ rows, filename }: { rows: Credential[]; filen
             </p>
           </div>
         ))}
+      </div>
+      <div className="print:hidden">
+        <LocalPager meta={paged} onPage={setPage} noun="accounts" />
       </div>
     </div>
   );

@@ -3,8 +3,10 @@ import { CheckCircle, WarningCircle, Warning } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { EmptyState, LoadError, PageHeader, Section, Table } from "@/components/staff/page-header";
+import { Pager } from "@/components/staff/pager";
 import { Badge } from "@/components/ui/card";
 import { LiveRefresh } from "@/lib/client/realtime";
+import { paginate } from "@/lib/paginate";
 import { loadIncidents } from "@/lib/server/incidents";
 import { requireAdmin } from "@/lib/server/staff";
 import { formatDateTime } from "@/lib/utils";
@@ -14,7 +16,7 @@ export const metadata: Metadata = { title: "Incidents" };
 
 const age = (iso: string | null) => (iso ? `${Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000))} s` : "none");
 
-export default async function IncidentsPage() {
+export default async function IncidentsPage({ searchParams }: { searchParams: Promise<{ incidents?: string; exams?: string; queues?: string }> }) {
   const staff = await requireAdmin();
   let board;
   try {
@@ -27,6 +29,10 @@ export default async function IncidentsPage() {
       </>
     );
   }
+  const pages = await searchParams;
+  const incidents = paginate(board.incidents, pages.incidents);
+  const liveExams = paginate(board.liveExams, pages.exams);
+  const queues = paginate(board.queues, pages.queues);
   const critical = board.incidents.filter((incident) => incident.severity === "critical").length;
   return (
     <>
@@ -52,7 +58,7 @@ export default async function IncidentsPage() {
         </div>
       ) : (
         <ul className="mb-8 space-y-2">
-          {board.incidents.map((incident, index) => {
+          {incidents.rows.map((incident, index) => {
             const Icon = incident.severity === "critical" ? WarningCircle : Warning;
             const body = (
               <>
@@ -78,13 +84,14 @@ export default async function IncidentsPage() {
           })}
         </ul>
       )}
+      <div className="-mt-6 mb-8"><Pager meta={incidents} param="incidents" noun="incidents" /></div>
 
       <Section title="Exams in progress" description="Open now, in any college. Add time or send a message to everyone in one exam.">
         {board.liveExams.length === 0 ? (
           <EmptyState>No exam is open right now.</EmptyState>
         ) : (
           <Table head={["Exam", "College", "In progress", "Handed in", "Not started", "Flags", "Closes", ""]}>
-            {board.liveExams.map((exam) => (
+            {liveExams.rows.map((exam) => (
               <tr key={exam.versionId} className="align-middle">
                 <td className="px-4 py-3 font-medium text-ink">
                   <CollegeLink href={`/admin/open?college=${exam.collegeId}&next=${encodeURIComponent(`/staff/exams/${exam.examId}/monitor`)}`} className="hover:text-brand">
@@ -104,11 +111,12 @@ export default async function IncidentsPage() {
             ))}
           </Table>
         )}
+        <Pager meta={liveExams} param="exams" noun="exams" />
       </Section>
 
       <Section title="Judge queue" description="Code waiting to be graded or run, per college.">
         <Table head={["College", "Grading queued", "With the judge", "Oldest waiting", "Failed (1 h)", "Runs queued", "Oldest run"]}>
-          {board.queues.map(({ collegeId, collegeName, queue }) => (
+          {queues.rows.map(({ collegeId, collegeName, queue }) => (
             <tr key={collegeId}>
               <td className="px-4 py-3 font-medium text-ink">{collegeName}</td>
               {queue ? (
@@ -128,6 +136,7 @@ export default async function IncidentsPage() {
             </tr>
           ))}
         </Table>
+        <Pager meta={queues} param="queues" noun="colleges" />
       </Section>
     </>
   );

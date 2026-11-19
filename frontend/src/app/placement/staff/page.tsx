@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { EmptyState, LoadError, PageHeader, Table } from "@/components/staff/page-header";
-import type { Page, RoleAssignment } from "@/lib/api-types";
+import { Pager } from "@/components/staff/pager";
+import type { RoleAssignment } from "@/lib/api-types";
 import { departmentLabel, listPlacement } from "@/lib/server/directory";
-import { gateway } from "@/lib/server/gateway";
+import { paginate } from "@/lib/paginate";
+import { fetchAllPages } from "@/lib/server/fetch-all";
 import { requirePlacement } from "@/lib/server/placement";
 import { describeAccounts, listRoleAssignments } from "@/lib/server/people";
 import { inColleges } from "@/lib/server/colleges";
@@ -12,13 +14,13 @@ import { assignPlacementOfficer } from "./actions";
 
 export const metadata: Metadata = { title: "Placement staff" };
 
-export default async function PlacementStaffPage() {
+export default async function PlacementStaffPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const placement = await requirePlacement();
   let data;
   try {
     const placementDir = await listPlacement();
-    const assignments = await gateway<Page<RoleAssignment>>("/user/v1/role-assignments?role_name=placement_user&limit=100");
-    const activePlacements = assignments.items.filter((a) => a.status === "active");
+    const assignments = await fetchAllPages<RoleAssignment>("/user/v1/role-assignments?role_name=placement_user");
+    const activePlacements = assignments.filter((a) => a.status === "active");
     const principalIds = [...new Set(activePlacements.map((a) => a.principal_id))];
 
     const names = new Map<string, string>();
@@ -69,6 +71,7 @@ export default async function PlacementStaffPage() {
     org.departments.map((dep) => ({ id: dep.id, name: `${departmentLabel(dep)}, ${org.legal_name}` }))
   );
 
+  const paged = paginate(officers, (await searchParams).page);
   const existingPrincipalIds = new Set(officers.map((o) => o.principalId));
 
   return (
@@ -97,7 +100,7 @@ export default async function PlacementStaffPage() {
         </EmptyState>
       ) : (
         <Table head={["Name", "Placement department", ...(placement.isPlatformAdmin ? [""] : [])]}>
-          {officers.map((officer) => (
+          {paged.rows.map((officer) => (
             <tr key={officer.assignmentId}>
               <td className="px-4 py-3 font-medium text-ink">{officer.name}</td>
               <td className="px-4 py-3 text-ink-muted">{officer.department}</td>
@@ -110,6 +113,7 @@ export default async function PlacementStaffPage() {
           ))}
         </Table>
       )}
+      <Pager meta={paged} noun="officers" />
     </>
   );
 }

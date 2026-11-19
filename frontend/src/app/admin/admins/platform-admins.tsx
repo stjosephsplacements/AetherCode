@@ -2,7 +2,9 @@ import { collegeHref } from "@/lib/links";
 import { Crown, Lock, ShieldCheck } from "@phosphor-icons/react/ssr";
 import { ConfirmDelete } from "@/components/staff/confirm-delete";
 import { Field, Select } from "@/components/staff/form";
+import { Pager } from "@/components/staff/pager";
 import { Badge } from "@/components/ui/card";
+import { paginate } from "@/lib/paginate";
 import type { SuperAdmin } from "@/lib/server/people";
 import { AddDialog } from "../../staff/departments/add-dialog";
 import { lettermark } from "@/lib/lettermark";
@@ -14,7 +16,8 @@ import { CollegeLink } from "@/components/college-link";
  * A super admin the root adds holds every permission to begin with, and only the
  * root can narrow or remove them.
  */
-export function PlatformAdmins({ admins, candidates, viewerIsRoot, workspace }: { admins: SuperAdmin[]; candidates: { id: string; label: string }[]; viewerIsRoot: boolean; /** A college to open the permissions editor in until it moves into /admin. */ workspace?: string }) {
+export function PlatformAdmins({ admins, candidates, viewerIsRoot, workspace, page }: { admins: SuperAdmin[]; candidates: { id: string; label: string }[]; viewerIsRoot: boolean; /** A college to open the permissions editor in until it moves into /admin. */ workspace?: string; page?: string }) {
+  const paged = paginate(admins, page);
   const pickable = candidates.filter((candidate) => !admins.some((admin) => admin.principalId === candidate.id));
   return (
     <section aria-label="Platform administrators" className="mb-6">
@@ -46,7 +49,7 @@ export function PlatformAdmins({ admins, candidates, viewerIsRoot, workspace }: 
         )}
       </div>
       <ul className="divide-y divide-line overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface">
-        {admins.map((admin) => (
+        {paged.rows.map((admin) => (
           <li key={admin.assignmentId} className="flex flex-wrap items-center gap-3 px-4 py-3">
             <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-full bg-brand-soft font-mono text-[12px] font-semibold text-brand-soft-ink">
               {lettermark(admin.name)}
@@ -96,6 +99,7 @@ export function PlatformAdmins({ admins, candidates, viewerIsRoot, workspace }: 
           </li>
         ))}
       </ul>
+      <Pager meta={paged} noun="administrators" />
     </section>
   );
 }

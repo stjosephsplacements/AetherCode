@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import { EmptyState, LoadError, PageHeader, Table } from "@/components/staff/page-header";
+import { Pager } from "@/components/staff/pager";
 import { Badge } from "@/components/ui/card";
+import { paginate } from "@/lib/paginate";
 import { type CollegeExam, listAllExams } from "@/lib/server/exams";
 import { requirePlacement } from "@/lib/server/placement";
 import { formatDateTime } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Placement exams" };
 
-export default async function PlacementExamsPage() {
+export default async function PlacementExamsPage({ searchParams }: { searchParams: Promise<{ published?: string; drafts?: string }> }) {
   const placement = await requirePlacement();
   let exams: CollegeExam[];
   try {
@@ -26,6 +28,10 @@ export default async function PlacementExamsPage() {
   const published = withVersions.filter((entry) => entry.version.status === "published");
   const drafts = withVersions.filter((entry) => entry.version.status !== "published");
 
+  const pages = await searchParams;
+  const publishedPage = paginate(published, pages.published);
+  const draftPage = paginate(drafts, pages.drafts);
+
   return (
     <>
       <PageHeader
@@ -38,7 +44,7 @@ export default async function PlacementExamsPage() {
         <EmptyState>No published exams across colleges.</EmptyState>
       ) : (
         <Table head={["Exam", "College", "Window", "Duration", "Status"]}>
-          {published.map((entry) => (
+          {publishedPage.rows.map((entry) => (
             <tr key={entry.version.id}>
               <td className="px-4 py-2.5 font-medium text-ink">{entry.version.title}</td>
               <td className="px-4 py-2.5 text-ink-muted">{entry.college.name}</td>
@@ -51,12 +57,13 @@ export default async function PlacementExamsPage() {
           ))}
         </Table>
       )}
+      <Pager meta={publishedPage} param="published" noun="published exams" />
 
       {drafts.length > 0 && (
         <>
           <h2 className="mb-3 mt-8 text-[15px] font-semibold tracking-[-0.01em] text-ink">Drafts ({drafts.length})</h2>
           <Table head={["Exam", "College", "Status"]}>
-            {drafts.map((entry) => (
+            {draftPage.rows.map((entry) => (
               <tr key={entry.version.id}>
                 <td className="px-4 py-2.5 font-medium text-ink">{entry.version.title}</td>
                 <td className="px-4 py-2.5 text-ink-muted">{entry.college.name}</td>
@@ -64,6 +71,7 @@ export default async function PlacementExamsPage() {
               </tr>
             ))}
           </Table>
+          <Pager meta={draftPage} param="drafts" noun="drafts" />
         </>
       )}
     </>

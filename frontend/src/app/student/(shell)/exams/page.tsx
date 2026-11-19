@@ -2,12 +2,14 @@ import { Clock } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { EmptyState, LoadError, PageHeader } from "@/components/staff/page-header";
+import { Pager } from "@/components/staff/pager";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/card";
-import type { Attempt, Page } from "@/lib/api-types";
+import type { Attempt } from "@/lib/api-types";
 import { LiveRefresh } from "@/lib/client/realtime";
+import { paginate } from "@/lib/paginate";
 import { groupByPhase, listAssignments } from "@/lib/server/assignments";
-import { gateway } from "@/lib/server/gateway";
+import { listMyAttempts } from "@/lib/server/attempts";
 import { requireViewer } from "@/lib/server/session";
 import { cn, formatDateTime, formatDuration, formatWindow } from "@/lib/utils";
 import { Countdown } from "../countdown";
@@ -20,14 +22,14 @@ const TABS = [
   { key: "past", label: "Past" },
 ] as const;
 
-export default async function MyExams({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+export default async function MyExams({ searchParams }: { searchParams: Promise<{ tab?: string; page?: string }> }) {
   const viewer = await requireViewer();
   let assignments, attempts;
   try {
     [assignments, attempts] = viewer.tenantId
       ? await Promise.all([
           listAssignments(viewer.tenantId),
-          gateway<Page<Attempt>>(`/submission/v1/tenants/${viewer.tenantId}/attempts?limit=100`).then((page) => page.items, () => [] as Attempt[]),
+          listMyAttempts(viewer.tenantId).catch(() => [] as Attempt[]),
         ])
       : [[], [] as Attempt[]];
   } catch (error) {
@@ -39,11 +41,12 @@ export default async function MyExams({ searchParams }: { searchParams: Promise<
     );
   }
   const phases = groupByPhase(assignments);
-  const requested = (await searchParams).tab;
+  const { tab: requested, page } = await searchParams;
   const tab = TABS.find((entry) => entry.key === requested)?.key ?? (phases.live.length ? "live" : phases.upcoming.length ? "upcoming" : phases.past.length ? "past" : "live");
   const attemptOf = new Map<string, Attempt>();
   for (const attempt of [...attempts].sort((a, b) => a.attempt_number - b.attempt_number)) attemptOf.set(attempt.candidate_assignment_id, attempt);
-  const rows = phases[tab];
+  const paged = paginate(phases[tab], page, 24);
+  const rows = paged.rows;
 
   return (
     <div className="animate-enter">
@@ -67,7 +70,7 @@ export default async function MyExams({ searchParams }: { searchParams: Promise<
         ))}
       </nav>
 
-      {rows.length === 0 ? (
+      {paged.total === 0 ? (
         <EmptyState>{tab === "live" ? "Nothing is open right now." : tab === "upcoming" ? "No upcoming exams." : "No past exams yet."}</EmptyState>
       ) : (
         <ul className="grid gap-3 md:grid-cols-2">
@@ -113,6 +116,7 @@ export default async function MyExams({ searchParams }: { searchParams: Promise<
           })}
         </ul>
       )}
+      <Pager meta={paged} noun="exams" />
     </div>
   );
 }

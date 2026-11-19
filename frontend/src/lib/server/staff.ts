@@ -1,9 +1,9 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import type { Page, Tenant } from "@/lib/api-types";
+import type { Tenant } from "@/lib/api-types";
 import { type Viewer, homeFor, isPlacementOnly, isStaff } from "@/lib/viewer";
-import { gateway } from "./gateway";
+import { fetchAllPages } from "./fetch-all";
 import { requireViewer } from "./session";
 
 export const TENANT_COOKIE = "ac_tenant";
@@ -41,8 +41,8 @@ export async function requireStaff(): Promise<StaffContext> {
 export async function requireAdmin(): Promise<StaffContext> {
   const viewer = await requireViewer();
   if (!viewer.roles.includes("super_admin")) redirect(homeFor(viewer));
-  const page = await gateway<Page<Tenant>>("/tenant/v1/tenants?limit=100");
-  return { viewer, tenantId: null, tenants: page.items, viewAll: true, isPlatformAdmin: true, canManageAccounts: true };
+  const tenants = await fetchAllPages<Tenant>("/tenant/v1/tenants");
+  return { viewer, tenantId: null, tenants, viewAll: true, isPlatformAdmin: true, canManageAccounts: true };
 }
 
 /** requireStaff, for pages that need a college. */

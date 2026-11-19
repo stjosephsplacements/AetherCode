@@ -4,8 +4,10 @@ import { CheckCircle, CircleDashed, MagnifyingGlass } from "@phosphor-icons/reac
 import { Select as FormSelect } from "@/components/staff/form";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { LocalPager } from "@/components/staff/pager";
 import { Badge } from "@/components/ui/card";
 import type { PracticeProblem } from "@/lib/api-types";
+import { paginate } from "@/lib/paginate";
 import { cn } from "@/lib/utils";
 
 const DIFFICULTY_TONE = { easy: "success", medium: "warning", hard: "danger" } as const;
@@ -33,6 +35,11 @@ export function PracticeList({ problems, hideTopic = false }: { problems: Practi
     if (status === "todo") return !problem.attempted;
     return true;
   });
+
+  // Any filter change starts again at page 1.
+  const filterKey = [query, difficulty, status, tag].join("\u0000");
+  const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
+  const paged = paginate(shown, pageState.key === filterKey ? pageState.page : 1);
 
   return (
     <>
@@ -71,7 +78,7 @@ export function PracticeList({ problems, hideTopic = false }: { problems: Practi
         </p>
       ) : (
         <ul className="mt-4 overflow-hidden rounded-3xl border border-line bg-surface shadow-[var(--shadow-panel)]">
-          {shown.map((problem, index) => (
+          {paged.rows.map((problem, index) => (
             <li key={problem.question_id} className={cn(index > 0 && "border-t border-line")}>
               <Link href={`/student/practice/${problem.question_id}`} className="flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-hover">
                 {problem.solved ? (
@@ -89,6 +96,7 @@ export function PracticeList({ problems, hideTopic = false }: { problems: Practi
           ))}
         </ul>
       )}
+      <LocalPager meta={paged} onPage={(page) => setPageState({ key: filterKey, page })} noun="problems" />
     </>
   );
 }

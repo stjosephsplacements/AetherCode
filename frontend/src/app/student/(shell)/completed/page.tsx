@@ -3,8 +3,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { EmptyState, PageHeader } from "@/components/staff/page-header";
+import { Pager } from "@/components/staff/pager";
 import { Badge } from "@/components/ui/card";
 import { LiveRefresh } from "@/lib/client/realtime";
+import { paginate } from "@/lib/paginate";
 import { listAssignments } from "@/lib/server/assignments";
 import { listMyAttempts } from "@/lib/server/attempts";
 import { requireViewer } from "@/lib/server/session";
@@ -14,7 +16,7 @@ export const metadata: Metadata = { title: "Completed" };
 
 const STATE = { submitted: ["Submitted", "neutral"], grading: ["Being graded", "warning"], graded: ["Graded", "success"] } as const;
 
-export default async function CompletedPage() {
+export default async function CompletedPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
   const viewer = await requireViewer();
   if (!viewer.tenantId) redirect("/student");
   const [attempts, assignments] = await Promise.all([listMyAttempts(viewer.tenantId).catch(() => []), listAssignments(viewer.tenantId).catch(() => [])]);
@@ -22,6 +24,7 @@ export default async function CompletedPage() {
   const finished = attempts
     .filter((attempt) => attempt.lifecycle_state in STATE)
     .sort((a, b) => (b.submitted_at ?? b.submission_deadline).localeCompare(a.submitted_at ?? a.submission_deadline));
+  const paged = paginate(finished, (await searchParams).page);
 
   return (
     <div className="animate-enter">
@@ -34,7 +37,7 @@ export default async function CompletedPage() {
         </EmptyState>
       ) : (
         <ul className="divide-y divide-line overflow-hidden rounded-3xl border border-line bg-surface shadow-[var(--shadow-panel)]">
-          {finished.map((attempt) => {
+          {paged.rows.map((attempt) => {
             const [label, tone] = STATE[attempt.lifecycle_state as keyof typeof STATE];
             return (
               <li key={attempt.id}>
@@ -53,6 +56,7 @@ export default async function CompletedPage() {
           })}
         </ul>
       )}
+      <Pager meta={paged} noun="exams" />
     </div>
   );
 }

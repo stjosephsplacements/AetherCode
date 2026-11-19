@@ -5,10 +5,12 @@ import { CaretRight, MagnifyingGlass, X } from "@phosphor-icons/react/ssr";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Select } from "@/components/staff/form";
+import { LocalPager } from "@/components/staff/pager";
 import { Tile } from "@/components/staff/tile";
 import { Badge } from "@/components/ui/card";
 import type { Category } from "@/lib/api-types";
 import { type Language, nameOf } from "@/lib/languages";
+import { paginate } from "@/lib/paginate";
 import { cn } from "@/lib/utils";
 import { FolderCard } from "./folder-card";
 import { QuestionPeek } from "./question-peek";
@@ -48,8 +50,9 @@ const TABS: { key: ListKey; label: string; empty: string }[] = [
 
 // The address value for the folder of questions that have no category.
 const UNCATEGORISED = "uncategorised";
+const LEVELS = ["easy", "medium", "hard"] as const;
 
-export function QuestionBoard({ lists, languages, categories, capped, initial }: { lists: Lists; languages: Language[]; categories: Category[]; capped: Partial<Record<ListKey, boolean>>; initial: ListKey }) {
+export function QuestionBoard({ lists, languages, categories, initial }: { lists: Lists; languages: Language[]; categories: Category[]; initial: ListKey }) {
   const [tab, setTab] = useState<ListKey>(initial);
   const [query, setQuery] = useState("");
   const [difficulty, setDifficulty] = useState("all");
@@ -93,6 +96,12 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
   const shown = filtering ? topFolders.filter((entry) => entry.deep.length > 0) : topFolders;
   const subFolders = open ? folders.filter((entry) => entry.parent_id === open.id && (!filtering || entry.deep.length > 0)) : [];
   const empty = TABS.find((entry) => entry.key === tab)!.empty;
+  // Questions and folders page separately; changing the list, a filter or the open folder starts them at page 1 again.
+  const resetKey = [tab, query, difficulty, tag, selectedCompany, folder ?? ""].join("\u0000");
+  const [pageState, setPageState] = useState({ key: resetKey, question: 1, folder: 1 });
+  const current = pageState.key === resetKey ? pageState : { key: resetKey, question: 1, folder: 1 };
+  const questionPage = paginate(open ? [...open.rows].sort((a, b) => LEVELS.indexOf(a.difficulty) - LEVELS.indexOf(b.difficulty)) : [], current.question);
+  const folderPage = paginate(shown, current.folder, 24);
 
   return (
     <>
@@ -114,7 +123,6 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
               </span>
               <span className={cn("mt-2 text-[30px] font-semibold leading-none tracking-[-0.03em] tabular-nums", urgent ? "text-brand" : "text-ink")}>
                 {lists[key].length}
-                {capped[key] && "+"}
               </span>
             </button>
           );
@@ -165,7 +173,7 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
           <option value="hard">Hard</option>
         </Select>
         <p className="ml-auto shrink-0 font-mono text-[12px] text-ink-subtle" aria-live="polite">
-          {rows.length} shown{capped[tab] && ", latest 100"}
+          {rows.length} shown
         </p>
       </div>
 
@@ -199,15 +207,15 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
                   {lists[tab].length === 0 ? empty : filtering ? "Nothing in this folder matches those filters." : "This folder is empty in this list."}
                 </div>
               ) : (
-                (["easy", "medium", "hard"] as const).map((level) => {
-                  const inLevel = open.rows.filter((row) => row.difficulty === level);
+                LEVELS.map((level) => {
+                  const inLevel = questionPage.rows.filter((row) => row.difficulty === level);
                   if (inLevel.length === 0) return null;
                   return (
                     <section key={level} aria-label={level} className="mb-5 last:mb-0">
                       <h3 className="mb-1.5 flex items-center gap-2 px-1 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">
                         <span aria-hidden className={cn("size-1.5 rounded-full", level === "easy" ? "bg-success" : level === "medium" ? "bg-warning" : "bg-danger")} />
                         {level}
-                        <span className="tabular-nums text-ink-muted">{inLevel.length}</span>
+                        <span className="tabular-nums text-ink-muted">{open.rows.filter((row) => row.difficulty === level).length}</span>
                       </h3>
                       <ul className="divide-y divide-line overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface">
                         {inLevel.map((row) => (
@@ -240,6 +248,7 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
                   );
                 })
               )}
+              <LocalPager meta={questionPage} onPage={(question) => setPageState({ ...current, question })} noun="questions" />
             </>
           ) : shown.length === 0 ? (
             <div className="rounded-[var(--radius-surface)] border border-dashed border-line-strong px-6 py-14 text-center text-sm text-ink-muted">
@@ -247,12 +256,15 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
             </div>
           ) : (
             <ul className="grid gap-x-5 gap-y-6 sm:grid-cols-2 2xl:grid-cols-3" aria-label="Categories">
-              {shown.map((entry) => (
+              {folderPage.rows.map((entry) => (
                 <li key={entry.id}>
                   <FolderCard name={entry.name} total={entry.deep.length} levels={entry.levels} onOpen={() => openFolder(entry.id || UNCATEGORISED)} />
                 </li>
               ))}
             </ul>
+          )}
+          {!open && shown.length > 0 && (
+            <LocalPager meta={folderPage} onPage={(folder) => setPageState({ ...current, folder })} noun="categories" />
           )}
         </div>
 

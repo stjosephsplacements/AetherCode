@@ -22,11 +22,11 @@ export function Pager({ meta, param = "page", noun = "rows" }: { meta: Meta; par
   const btn = "rounded-md border border-line px-3 py-1.5 text-xs transition-colors";
 
   return (
-    <nav aria-label="Pagination" className="mt-3 flex items-center justify-between gap-3 text-xs text-ink-subtle">
+    <nav aria-label="Pagination" className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 text-xs text-ink-subtle">
       <span className="tabular-nums">
         {meta.from}-{meta.to} of {meta.total} {noun}
       </span>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {meta.page > 1 ? (
           <Link href={href(meta.page - 1)} scroll={false} className={`${btn} text-ink hover:bg-hover`}>Previous</Link>
         ) : (
@@ -48,11 +48,11 @@ export function LocalPager({ meta, onPage, noun = "rows" }: { meta: Meta; onPage
   if (meta.pages <= 1) return null;
   const btn = "rounded-md border border-line px-3 py-1.5 text-xs text-ink transition-colors hover:bg-hover disabled:opacity-40 disabled:hover:bg-transparent";
   return (
-    <nav aria-label="Pagination" className="mt-3 flex items-center justify-between gap-3 text-xs text-ink-subtle">
+    <nav aria-label="Pagination" className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 text-xs text-ink-subtle">
       <span className="tabular-nums">
         {meta.from}-{meta.to} of {meta.total} {noun}
       </span>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <button type="button" className={btn} disabled={meta.page <= 1} onClick={() => onPage(meta.page - 1)}>Previous</button>
         <span className="tabular-nums">Page {meta.page} of {meta.pages}</span>
         <button type="button" className={btn} disabled={meta.page >= meta.pages} onClick={() => onPage(meta.page + 1)}>Next</button>

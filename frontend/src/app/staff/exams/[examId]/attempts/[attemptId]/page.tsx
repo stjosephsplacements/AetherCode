@@ -2,8 +2,10 @@ import { ArrowLeft } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LoadError, PageHeader, Section } from "@/components/staff/page-header";
+import { Pager } from "@/components/staff/pager";
 import { Badge, Panel } from "@/components/ui/card";
 import type { AttemptReview, Snapshot } from "@/lib/api-types";
+import { paginate } from "@/lib/paginate";
 import { GatewayError, gateway } from "@/lib/server/gateway";
 import { requireCollege } from "@/lib/server/staff";
 import { listAllStudents } from "@/lib/server/students";
@@ -45,7 +47,7 @@ function describe(event: AttemptReview["events"][number]): string {
 /** The most snapshots the API returns for one attempt. */
 const SNAPSHOT_LIMIT = 200;
 
-export default async function AttemptPage({ params }: { params: Promise<{ examId: string; attemptId: string }> }) {
+export default async function AttemptPage({ params, searchParams }: { params: Promise<{ examId: string; attemptId: string }>; searchParams: Promise<{ events?: string; snapshots?: string }> }) {
   const staff = await requireCollege();
   const { examId, attemptId } = await params;
   let data;
@@ -71,6 +73,9 @@ export default async function AttemptPage({ params }: { params: Promise<{ examId
     );
   }
   const { review, roll, snapshots } = data;
+  const pages = await searchParams;
+  const snapshotPage = paginate(snapshots ?? [], pages.snapshots, 24);
+  const eventPage = paginate(review.events, pages.events);
   const { attempt } = review;
 
   return (
@@ -136,24 +141,26 @@ export default async function AttemptPage({ params }: { params: Promise<{ examId
             <p className="mb-2 text-sm text-ink-muted">Showing the newest {SNAPSHOT_LIMIT} pictures; earlier ones are not listed.</p>
           )}
           <div className="flex flex-wrap gap-2">
-            {snapshots.map((snap) => (
+            {snapshotPage.rows.map((snap) => (
               <a key={snap.id} href={snap.url} target="_blank" rel="noopener noreferrer">
                 <img src={snap.url} width={120} height={90} title={snap.captured_at} alt={`Snapshot at ${snap.captured_at}`} className="rounded border border-line object-cover" />
               </a>
             ))}
           </div>
+          <Pager meta={snapshotPage} param="snapshots" noun="snapshots" />
         </Section>
       )}
 
       <Section title="Activity">
         <ol className="space-y-1.5 text-sm">
-          {review.events.map((event, index) => (
+          {eventPage.rows.map((event, index) => (
             <li key={index} className="flex gap-3">
               <span className="w-40 shrink-0 font-mono text-[13px] tabular-nums text-ink-muted">{formatDateTime(event.occurred_at)}</span>
               <span className="text-ink">{describe(event)}</span>
             </li>
           ))}
         </ol>
+        <Pager meta={eventPage} param="events" noun="events" />
       </Section>
     </>
   );
