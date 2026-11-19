@@ -42,8 +42,18 @@ func LoadConfig(environment string) (Config, error) {
 	if config.TenantID == "" && config.ClientID == "" && config.ClientSecret == "" && config.Sender == "" {
 		return Config{}, nil
 	}
-	if config.TenantID == "" || config.ClientID == "" || config.ClientSecret == "" || config.Sender == "" || config.PublicBaseURL == "" {
-		return Config{}, errors.New("IDENTITY_MAIL_TENANT_ID, _CLIENT_ID, _CLIENT_SECRET, _SENDER and IDENTITY_PUBLIC_BASE_URL must all be set, or none")
+	var missing []string
+	for _, setting := range []struct{ name, value string }{
+		{"IDENTITY_MAIL_TENANT_ID", config.TenantID}, {"IDENTITY_MAIL_CLIENT_ID", config.ClientID},
+		{"IDENTITY_MAIL_CLIENT_SECRET", config.ClientSecret}, {"IDENTITY_MAIL_SENDER", config.Sender},
+		{"IDENTITY_PUBLIC_BASE_URL", config.PublicBaseURL},
+	} {
+		if setting.value == "" {
+			missing = append(missing, setting.name)
+		}
+	}
+	if len(missing) > 0 {
+		return Config{}, fmt.Errorf("password reset email is partly configured: set %s, or clear the IDENTITY_MAIL_* values to turn it off", strings.Join(missing, ", "))
 	}
 	if !tenantPattern.MatchString(config.TenantID) {
 		return Config{}, errors.New("IDENTITY_MAIL_TENANT_ID must be a GUID")

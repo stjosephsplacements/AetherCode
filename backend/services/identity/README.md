@@ -112,8 +112,9 @@ Ref: [ADR-0013](../../docs/adr/0013-soft-delete-architecture.md)
 
 `POST /v1/auth/password-reset` records a reset request and, when a live account has that address and mail is
 configured, emails a link `<IDENTITY_PUBLIC_BASE_URL>/auth/reset-password?token=<bearer>` through Microsoft Graph
-(`adapters/mail`, ADR-0088). The email is sent after the response, so the answer and its timing are the same for a
-known and an unknown address, and a mail outage cannot fail the request. `cmd/deliver-reset` remains the operator's
+(`adapters/mail`, ADR-0088). The HTTP response is the same for a known and an unknown address. The mail is queued
+(256 slots, 4 workers, drained on shutdown) and sent asynchronously, so a mail outage cannot fail the request; a full queue drops
+the mail and logs it. An account gets at most one reset token per minute and five per hour; further requests answer the same and send nothing. `cmd/deliver-reset` remains the operator's
 fallback. The link works once and expires after `IDENTITY_PASSWORD_RESET_LIFETIME` (default 30 minutes).
 
 | Variable | Meaning |
@@ -123,8 +124,15 @@ fallback. The link works once and expires after `IDENTITY_PASSWORD_RESET_LIFETIM
 | `IDENTITY_MAIL_SENDER` | the mailbox it sends as, e.g. `no-reply@college.edu` |
 | `IDENTITY_PUBLIC_BASE_URL` | the web app's origin used in the link |
 
-The four `IDENTITY_MAIL_*` values are set together or not at all; with none, mail is off. In the chart they come from the
-Secret `aethercode-mail` (keys `tenant-id`, `client-id`, `client-secret`, `sender`), which is optional.
+`IDENTITY_PUBLIC_BASE_URL` belongs to the same all-or-none group as the four `IDENTITY_MAIL_*` values: with none of the
+five set, mail is off; with some set and others missing, the service stops at startup naming what is missing. (`IDENTITY_PUBLIC_BASE_URL`
+alone leaves mail off; the chart always sets it.) The origin must be `https://` unless `AETHERCODE_ENV` is `development` or `test`.
+In the chart the four mail values come from the Secret `aethercode-mail` (keys `tenant-id`, `client-id`, `client-secret`,
+`sender`): create it with all four keys or not at all. The frontend shows the sign-in link and reset pages only when its
+`PASSWORD_RESET_EMAIL=on`.
+
+Entra setup: an app registration with the Microsoft Graph **application** permission `Mail.Send` and admin consent, a client
+secret, and an Exchange Online application access policy (`New-ApplicationAccessPolicy`) that restricts the app to the sender mailbox.
 
 ## Rate limiting
 
