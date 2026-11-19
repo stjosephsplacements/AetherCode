@@ -36,7 +36,7 @@ function policy(thirdParty: boolean): string {
     `img-src 'self' data: blob:${thirdParty ? analyticsImages : ""}`,
     "font-src 'self' data:",
     "worker-src 'self' blob:",
-    `connect-src 'self'${realtimeSource}${thirdParty ? analyticsConnections : ""}`,
+    `connect-src 'self'${thirdParty ? realtimeSource + analyticsConnections : ""}`,
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -79,15 +79,15 @@ const nextConfig: NextConfig = {
     return [
       {
         // Every page except the reset pages, which get resetPageHeaders instead.
-        source: "/((?!auth/reset-password|auth/forgot-password).*)",
+        source: "/((?!auth/(?:reset|forgot)-password(?:/|$)).*)",
         headers: [
           ...commonHeaders,
           { key: "Content-Security-Policy", value: policy(true) },
           { key: "Referrer-Policy", value: "same-origin" },
         ],
       },
-      { source: "/auth/reset-password", headers: resetPageHeaders },
-      { source: "/auth/forgot-password", headers: resetPageHeaders },
+      { source: "/auth/reset-password/:path*", headers: resetPageHeaders },
+      { source: "/auth/forgot-password/:path*", headers: resetPageHeaders },
       {
         source: "/fonts/:path*",
         headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],

@@ -62,7 +62,7 @@ func LoadConfig(environment string) (Config, error) {
 		return Config{}, errors.New("IDENTITY_MAIL_SENDER must be a plain email address")
 	}
 	base, err := url.Parse(config.PublicBaseURL)
-	if err != nil || base.Host == "" || base.Path != "" || base.RawQuery != "" || base.Fragment != "" || base.User != nil {
+	if err != nil || base.Host == "" || base.Path != "" || base.RawQuery != "" || base.Fragment != "" || base.User != nil || base.ForceQuery || strings.ContainsAny(config.PublicBaseURL, "?#") {
 		return Config{}, errors.New("IDENTITY_PUBLIC_BASE_URL must be the web app's origin, such as https://exam.example.edu")
 	}
 	if insecureOK := environment == "development" || environment == "test"; base.Scheme != "https" && (base.Scheme != "http" || !insecureOK) {

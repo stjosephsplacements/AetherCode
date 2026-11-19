@@ -259,7 +259,11 @@ type Mailer interface {
 
 // UseMailer turns on emailing reset links through a bounded queue and a few workers (ADR-0088). Call CloseMail on
 // shutdown to drain it.
-func (service *Service) UseMailer(mailer Mailer) { service.mail = newMailQueue(mailer) }
+func (service *Service) UseMailer(mailer Mailer) {
+	if mailer != nil {
+		service.mail = newMailQueue(mailer)
+	}
+}
 
 // CloseMail stops accepting reset emails and waits for the queued ones to go out, or for ctx to end. A mail still
 // queued when the process dies is lost; the user can request a new link.

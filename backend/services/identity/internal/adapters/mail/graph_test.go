@@ -143,6 +143,8 @@ func TestLoadConfigRequiresHTTPSOutsideDevelopment(t *testing.T) {
 		{"development", "ftp://exam.college.edu", false},
 		{"production", "https://", false},
 		{"production", "exam.college.edu", false},
+		{"production", "https://exam.college.edu?", false},
+		{"production", "https://exam.college.edu#", false},
 	}
 	for _, c := range cases {
 		t.Setenv("IDENTITY_PUBLIC_BASE_URL", c.base)

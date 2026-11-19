@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "Forgot password", robots: { index: f
 
 export default function ForgotPasswordPage() {
   return (
-    <AuthCard title="Forgot your password?" lead="// we email a one-time link to the address on your account.">
+    <AuthCard title="Forgot your password?" lead={passwordResetByEmail() ? "// we email a one-time link to the address on your account." : "// reset by email is not set up here."}>
       {passwordResetByEmail() ? <ForgotForm /> : <ResetUnavailable />}
     </AuthCard>
   );

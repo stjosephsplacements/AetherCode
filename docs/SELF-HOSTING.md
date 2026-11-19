@@ -39,7 +39,7 @@ rotate by following the runbooks, not by re-running the generator.
 **Password recovery.** When Microsoft 365 mail is configured, a person whose account has an email address can reset their own
 password from the sign-in page: the identity service emails a one-time link through Microsoft Graph. Setting it up needs an Entra
 app registration with the Microsoft Graph application permission `Mail.Send`, admin consent, a client secret, and an Exchange
-application access policy that restricts the app to the sender mailbox; the settings and steps are in the identity service README
+application access policy that restricts the app to the sender mailbox, and the frontend setting `PASSWORD_RESET_EMAIL=on` (default off) so the sign-in link and reset pages appear; the settings and steps are in the identity service README
 ("Password-reset email") and ADR-0088. Without mail, staff reset a student's password from the student's page, and the operator
 can deliver an administrator's reset token out of band with `deliver-reset` ("First administrator" in the single-server guide).
 Notifications are shown in the app.
