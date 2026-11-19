@@ -51,6 +51,8 @@ export async function requirePlacement(): Promise<PlacementContext> {
     try {
       colleges = await listAllColleges();
     } catch (error) {
+      // An officer whose role may not list colleges keeps their own, and the context says so (allColleges false)
+      // so the UI does not claim a scope the pages are not loading.
       if (isPlatformAdmin) throw error;
       console.error("could not list colleges for placement:", error);
       allColleges = false;

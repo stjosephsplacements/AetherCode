@@ -31,7 +31,9 @@ export async function requireViewer(): Promise<Viewer> {
   if (cached) {
     try {
       const viewer = JSON.parse(cached) as Viewer;
-      if (viewer.principalId === accessSubject(token)) return viewer;
+      // A cookie written before platformRoles existed would silently narrow a platform-scoped officer to one college:
+      // read the viewer again instead.
+      if (viewer.principalId === accessSubject(token) && Array.isArray(viewer.platformRoles)) return viewer;
     } catch {
       // Fall through and read it again.
     }
