@@ -59,7 +59,9 @@ type Scope struct {
 
 // Assignment is the typed role binding loaded from the User database.
 type Assignment struct {
-	Role      centralauthz.Role
+	Role centralauthz.Role
+	// RoleID is the users.roles UUID used for overwrite matching (ADR-0075).
+	RoleID    string
 	ScopeKind string
 	TenantID  string
 	ScopeID   string

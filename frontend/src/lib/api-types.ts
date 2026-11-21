@@ -332,8 +332,24 @@ export type ExamVersionContent = {
   }[];
 };
 
+export type ProctorPolicyBody = {
+  enabled?: boolean;
+  violation_cooldown_seconds?: number;
+  max_violations?: number;
+  auto_submit_on_breach?: boolean;
+  counted_violation_kinds?: string[];
+  /** Legacy lockdown flag kept on older published versions. */
+  seb_required?: boolean;
+};
+
 export type ProctorPolicy = { id: string; name: string; version: number; lifecycle_state: string };
-export type ProctorPolicyVersion = { id: string; proctor_policy_id: string; version_number: number; status: string };
+export type ProctorPolicyVersion = {
+  id: string;
+  proctor_policy_id: string;
+  version_number: number;
+  status: "draft" | "published" | "retired";
+  policy: ProctorPolicyBody;
+};
 
 export type SebPolicy = { enabled: boolean; accepted_keys: string[]; allowed_networks: string[]; title: string };
 

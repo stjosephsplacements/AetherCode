@@ -37,6 +37,8 @@ config:
   PROCTOR_CONFIDENCE_PHONE: "0.50"
   PROCTOR_CONFIDENCE_PERSON: "0.60"
   PROCTOR_VIOLATION_COOLDOWN_SECONDS: "30"
+  # Shared cooldown across replicas (ADR-0080). Service name redis in the same namespace.
+  PROCTOR_REDIS_URL: "redis://redis:6379/0"
 
 secretEnv:
   # Mounted from aethercode-secrets Secret.
@@ -83,6 +85,13 @@ networkPolicy:
         ports:
           - protocol: TCP
             port: 9000
+      - to:
+          - podSelector:
+              matchLabels:
+                app.kubernetes.io/name: redis
+        ports:
+          - protocol: TCP
+            port: 6379
 
 # No HPA — GPU pods don't scale by CPU; scale by adding GPU nodes.
 autoscaling:

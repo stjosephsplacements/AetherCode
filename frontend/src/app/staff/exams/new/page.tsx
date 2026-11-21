@@ -1,15 +1,28 @@
 import type { Metadata } from "next";
 import { ActionForm, Field, TextArea, TextInput } from "@/components/staff/form";
-import { PageHeader } from "@/components/staff/page-header";
+import { LoadError, PageHeader } from "@/components/staff/page-header";
 import { Panel } from "@/components/ui/card";
+import { listPublishedPolicyVersions } from "@/lib/server/proctor-policies";
 import { requireCollege } from "@/lib/server/staff";
 import { TIME_ZONE } from "@/lib/utils";
 import { createExam } from "../actions";
+import { ExamPolicyField } from "../exam-policy-field";
 
 export const metadata: Metadata = { title: "New exam" };
 
 export default async function NewExamPage() {
-  await requireCollege();
+  const { tenantId } = await requireCollege();
+  let policies: Awaited<ReturnType<typeof listPublishedPolicyVersions>>;
+  try {
+    policies = await listPublishedPolicyVersions(tenantId);
+  } catch (error) {
+    return (
+      <>
+        <PageHeader title="New exam" />
+        <LoadError error={error} />
+      </>
+    );
+  }
   return (
     <>
       <PageHeader title="New exam" description="Set the window and duration. You add questions on the next page." />
@@ -29,6 +42,7 @@ export default async function NewExamPage() {
               <TextInput id="exam-duration" name="duration_minutes" type="number" min={1} max={720} defaultValue={90} required />
             </Field>
           </div>
+          <ExamPolicyField policies={policies} />
           <Field label="Instructions" htmlFor="exam-instructions" hint="Shown on the exam's start page. Markdown.">
             <TextArea id="exam-instructions" name="instructions_markdown" placeholder={"- Two questions, 90 minutes.\n- Run checks the sample tests; hidden tests decide marks."} />
           </Field>

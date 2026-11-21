@@ -4,12 +4,20 @@ import Link from "next/link";
 import { LoadError, PageHeader, Section } from "@/components/staff/page-header";
 import { Badge, Panel } from "@/components/ui/card";
 import type { AttemptReview, Snapshot } from "@/lib/api-types";
+import { SNAPSHOT_PAGE_SIZE, violationKindLabel } from "@/lib/proctor-kinds";
 import { GatewayError, gateway } from "@/lib/server/gateway";
 import { requireCollege } from "@/lib/server/staff";
 import { listAllStudents } from "@/lib/server/students";
 import { formatDateTime, formatScoreText, formatTime, languageName } from "@/lib/utils";
+import { SnapshotsGallery } from "./snapshots-gallery";
 
 export const metadata: Metadata = { title: "Attempt" };
+
+const INTEGRITY_LABEL: Record<string, string> = {
+  blur: "Left the exam window",
+  paste: "Tried to paste from outside the exam (blocked)",
+  fullscreen_exit: "Left fullscreen",
+};
 
 /** The attempt's event log in staff words. Saves are not logged; submits and hand-in are. */
 function describe(event: AttemptReview["events"][number]): string {
@@ -27,23 +35,14 @@ function describe(event: AttemptReview["events"][number]): string {
       return "Graded";
     case "submission.attempt.cancelled.v1":
       return "Attempt cancelled";
-    case "submission.attempt.integrity.v1":
-      return ({
-        blur: "Left the exam window",
-        paste: "Tried to paste from outside the exam (blocked)",
-        fullscreen_exit: "Left fullscreen",
-        phone_detected: "Phone detected (GPU)",
-        multiple_faces: "Multiple people in frame",
-        face_missing: "No face in frame",
-        gaze_away: "Looking away from screen",
-      } as Record<string, string>)[String(payload.kind)] ?? "Integrity event";
+    case "submission.attempt.integrity.v1": {
+      const kind = String(payload.kind);
+      return INTEGRITY_LABEL[kind] ?? violationKindLabel(kind) ?? "Integrity event";
+    }
     default:
       return event.event_type.replace(/^submission\./, "").replace(/\.v\d+$/, "").replaceAll(/[._]/g, " ");
   }
 }
-
-/** The most snapshots the API returns for one attempt. */
-const SNAPSHOT_LIMIT = 200;
 
 export default async function AttemptPage({ params }: { params: Promise<{ examId: string; attemptId: string }> }) {
   const staff = await requireCollege();
@@ -54,7 +53,7 @@ export default async function AttemptPage({ params }: { params: Promise<{ examId
       gateway<AttemptReview>(`/submission/v1/tenants/${staff.tenantId}/attempts/${attemptId}/review`),
       listAllStudents(staff.tenantId),
       // Webcam evidence is behind VIEW_STUDENT_PII: no permission (403) means no section, any other failure is shown.
-      gateway<Snapshot[]>(`/submission/v1/tenants/${staff.tenantId}/attempts/${attemptId}/snapshots?limit=${SNAPSHOT_LIMIT}`).catch(
+      gateway<Snapshot[]>(`/submission/v1/tenants/${staff.tenantId}/attempts/${attemptId}/snapshots?limit=${SNAPSHOT_PAGE_SIZE}`).catch(
         (error: unknown) => {
           if (error instanceof GatewayError && error.status === 403) return null;
           throw error;
@@ -131,17 +130,8 @@ export default async function AttemptPage({ params }: { params: Promise<{ examId
       ))}
 
       {snapshots !== null && snapshots.length > 0 && (
-        <Section title="Webcam snapshots">
-          {snapshots.length >= SNAPSHOT_LIMIT && (
-            <p className="mb-2 text-sm text-ink-muted">Showing the newest {SNAPSHOT_LIMIT} pictures; earlier ones are not listed.</p>
-          )}
-          <div className="flex flex-wrap gap-2">
-            {snapshots.map((snap) => (
-              <a key={snap.id} href={snap.url} target="_blank" rel="noopener noreferrer">
-                <img src={snap.url} width={120} height={90} title={snap.captured_at} alt={`Snapshot at ${snap.captured_at}`} className="rounded border border-line object-cover" />
-              </a>
-            ))}
-          </div>
+        <Section title="Webcam snapshots" description="Newest first. Load earlier if the attempt ran long.">
+          <SnapshotsGallery tenantId={staff.tenantId} attemptId={attemptId} initial={snapshots} />
         </Section>
       )}
 

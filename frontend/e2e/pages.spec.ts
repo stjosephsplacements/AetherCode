@@ -92,7 +92,7 @@ test("platform administrator: console and college workspace", async ({ browser }
   await sweep(context, [
     "/staff", "/staff/accounts", "/staff/analytics", "/staff/audit", "/staff/calendar", "/staff/community", "/staff/departments",
     "/staff/exams", "/staff/exams/new", "/staff/get-started", "/staff/help", "/staff/permissions",
-    "/staff/questions", "/staff/questions/new", "/staff/status", "/staff/students",
+    "/staff/proctor-policies", "/staff/questions", "/staff/questions/new", "/staff/status", "/staff/students",
     `/staff/exams/${seed.examId}`, `/staff/exams/${seed.examId}/monitor`, `/staff/exams/${seed.examId}/preview`,
     `/staff/exams/${seed.examId}/results`, `/staff/exams/${seed.examId}/similarity`,
     `/staff/questions/${seed.questionVersionId}`,

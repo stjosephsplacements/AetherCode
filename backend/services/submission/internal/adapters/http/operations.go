@@ -430,7 +430,6 @@ func (handler *Handler) listSnapshots(writer http.ResponseWriter, request *http.
 		httpx.WriteError(writer, err)
 		return
 	}
-	// ?limit= asks for more than the default 50 newest; the service caps it at 200.
 	limit := 50
 	if raw := request.URL.Query().Get("limit"); raw != "" {
 		parsed, parseErr := strconv.Atoi(raw)
@@ -444,6 +443,7 @@ func (handler *Handler) listSnapshots(writer http.ResponseWriter, request *http.
 		TenantID:  tenantID,
 		AttemptID: attemptID,
 		Limit:     limit,
+		BeforeID:  request.URL.Query().Get("before"),
 	})
 	if err != nil {
 		httpx.WriteError(writer, err)

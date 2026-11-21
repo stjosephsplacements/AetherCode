@@ -200,22 +200,28 @@ func TestComputeAllow(t *testing.T) {
 		EveryonePerms:  bitsFor("VIEW_SCOPE"),
 	}
 
+	const staffRoleID = "bbbbbbbb-0000-0000-0000-000000000001"
+	const deptRoleID = "bbbbbbbb-0000-0000-0000-000000000002"
+	staffCollege := Assignment{
+		Role: "staff", RoleID: staffRoleID, ScopeKind: "college", TenantID: "t1", ScopeID: "t1",
+		Perms: bitsFor("VIEW_SCOPE", "submission.attempts.read"), HasPerms: true,
+	}
+
 	t.Run("role with read permission at college scope", func(t *testing.T) {
-		a := Assignment{Role: "staff", ScopeKind: "college", TenantID: "t1", ScopeID: "t1", Perms: bitsFor("VIEW_SCOPE", "submission.attempts.read"), HasPerms: true}
-		if !computeAllow(base, a, readReq) {
+		if !computeAllow(base, staffCollege, readReq) {
 			t.Error("expected read to be allowed")
 		}
 	})
 
 	t.Run("role without HasPerms is denied", func(t *testing.T) {
-		a := Assignment{Role: "staff", ScopeKind: "college", ScopeID: "t1"}
+		a := Assignment{Role: "staff", RoleID: staffRoleID, ScopeKind: "college", ScopeID: "t1"}
 		if computeAllow(base, a, readReq) {
 			t.Error("expected denial when HasPerms is false")
 		}
 	})
 
 	t.Run("unknown scope kind returns nil path and denies", func(t *testing.T) {
-		a := Assignment{Role: "staff", ScopeKind: "galaxy", HasPerms: true, Perms: bitsFor("VIEW_SCOPE", "ADMINISTRATOR")}
+		a := Assignment{Role: "staff", RoleID: staffRoleID, ScopeKind: "galaxy", HasPerms: true, Perms: bitsFor("VIEW_SCOPE", "ADMINISTRATOR")}
 		if computeAllow(base, a, readReq) {
 			t.Error("expected denial for unknown scope kind")
 		}
@@ -226,11 +232,10 @@ func TestComputeAllow(t *testing.T) {
 		snap.Overwrites = []rbac.Overwrite{{
 			At:         rbac.Node{Kind: rbac.NodeCollege, ID: "t1"},
 			TargetKind: rbac.TargetRole,
-			TargetID:   "staff",
+			TargetID:   staffRoleID,
 			Deny:       bitsFor("submission.attempts.read"),
 		}}
-		a := Assignment{Role: "staff", ScopeKind: "college", TenantID: "t1", ScopeID: "t1", Perms: bitsFor("VIEW_SCOPE", "submission.attempts.read"), HasPerms: true}
-		if computeAllow(snap, a, readReq) {
+		if computeAllow(snap, staffCollege, readReq) {
 			t.Error("expected deny overwrite to block read")
 		}
 	})
@@ -240,17 +245,80 @@ func TestComputeAllow(t *testing.T) {
 		snap.Overwrites = []rbac.Overwrite{{
 			At:         rbac.Node{Kind: rbac.NodeCollege, ID: "t1"},
 			TargetKind: rbac.TargetRole,
-			TargetID:   "staff",
+			TargetID:   staffRoleID,
 			Allow:      bitsFor("submission.attempts.write"),
 		}}
-		a := Assignment{Role: "staff", ScopeKind: "college", TenantID: "t1", ScopeID: "t1", Perms: bitsFor("VIEW_SCOPE", "submission.attempts.read"), HasPerms: true}
-		if !computeAllow(snap, a, writeReq) {
+		if !computeAllow(snap, staffCollege, writeReq) {
 			t.Error("expected allow overwrite to grant write")
 		}
 	})
 
+	t.Run("role-name overwrite target does not match RoleID", func(t *testing.T) {
+		snap := base
+		snap.Overwrites = []rbac.Overwrite{{
+			At:         rbac.Node{Kind: rbac.NodeCollege, ID: "t1"},
+			TargetKind: rbac.TargetRole,
+			TargetID:   "staff",
+			Deny:       bitsFor("submission.attempts.read"),
+		}}
+		if !computeAllow(snap, staffCollege, readReq) {
+			t.Error("expected name-targeted overwrite to be ignored so read still allows")
+		}
+	})
+
+	t.Run("empty RoleID ignores role-targeted overwrite", func(t *testing.T) {
+		snap := base
+		snap.Overwrites = []rbac.Overwrite{{
+			At:         rbac.Node{Kind: rbac.NodeCollege, ID: "t1"},
+			TargetKind: rbac.TargetRole,
+			TargetID:   staffRoleID,
+			Deny:       bitsFor("submission.attempts.read"),
+		}}
+		a := staffCollege
+		a.RoleID = ""
+		if !computeAllow(snap, a, readReq) {
+			t.Error("expected empty RoleID not to match a UUID overwrite deny")
+		}
+	})
+
+	t.Run("role deny on one assignment blocks sibling role on the same path", func(t *testing.T) {
+		const otherRoleID = "bbbbbbbb-0000-0000-0000-000000000099"
+		other := Assignment{
+			Role: "monitor", RoleID: otherRoleID, ScopeKind: "college", TenantID: "t1", ScopeID: "t1",
+			Perms: bitsFor("VIEW_SCOPE", "submission.attempts.read"), HasPerms: true,
+		}
+		snap := base
+		snap.Assignments = []Assignment{staffCollege, other}
+		snap.Overwrites = []rbac.Overwrite{{
+			At:         rbac.Node{Kind: rbac.NodeCollege, ID: "t1"},
+			TargetKind: rbac.TargetRole,
+			TargetID:   staffRoleID,
+			Deny:       bitsFor("submission.attempts.read"),
+		}}
+		// Looping the non-denied role must still see the deny on staffRoleID.
+		if computeAllow(snap, other, readReq) {
+			t.Error("expected deny on sibling role to remove the permission for the path")
+		}
+	})
+
+	t.Run("member overwrite still matches principal", func(t *testing.T) {
+		snap := base
+		snap.Overwrites = []rbac.Overwrite{{
+			At:         rbac.Node{Kind: rbac.NodeCollege, ID: "t1"},
+			TargetKind: rbac.TargetMember,
+			TargetID:   "p1",
+			Deny:       bitsFor("submission.attempts.read"),
+		}}
+		if computeAllow(snap, staffCollege, readReq) {
+			t.Error("expected member-targeted deny to block read")
+		}
+	})
+
 	t.Run("department scope walks through college", func(t *testing.T) {
-		a := Assignment{Role: "dept_admin", ScopeKind: "department", TenantID: "c1", ScopeID: "d1", Perms: bitsFor("VIEW_SCOPE", "submission.attempts.read"), HasPerms: true}
+		a := Assignment{
+			Role: "dept_admin", RoleID: deptRoleID, ScopeKind: "department", TenantID: "c1", ScopeID: "d1",
+			Perms: bitsFor("VIEW_SCOPE", "submission.attempts.read"), HasPerms: true,
+		}
 		if !computeAllow(base, a, readReq) {
 			t.Error("expected department-scoped assignment to allow read")
 		}

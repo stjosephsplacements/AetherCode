@@ -1254,11 +1254,15 @@ paths:
       - $ref: '#/components/parameters/AttemptID'
       - in: query
         name: limit
-        description: How many of the newest snapshots to return. Default 50, at most 200.
+        description: How many snapshots to return per page. Default 50, at most 200.
         schema: {type: integer, minimum: 1, maximum: 200}
+      - in: query
+        name: before
+        description: Oldest snapshot id from the previous page (keyset cursor for older frames).
+        schema: {type: string, format: uuid, maxLength: 36}
       responses:
         '200':
-          description: Snapshot list with presigned URLs.
+          description: Snapshot list with presigned URLs (newest first within the page).
           content:
             application/json:
               schema:
@@ -1304,7 +1308,7 @@ paths:
                 required: [attempt_id, violations, truncated, snapshots]
                 properties:
                   attempt_id: {type: string, format: uuid, maxLength: 36}
-                  truncated: {type: boolean, description: Set when violations or snapshots were cut to the newest entries.}
+                  truncated: {type: boolean, description: Set when the violation list was cut to the newest entries. Snapshots are fully paged into the export.}
                   violations:
                     type: array
                     maxItems: 1000
@@ -1320,7 +1324,7 @@ paths:
                         detected_at: {type: string, format: date-time, maxLength: 35}
                   snapshots:
                     type: array
-                    maxItems: 200
+                    maxItems: 10000
                     items:
                       type: object
                       properties:

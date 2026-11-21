@@ -5,10 +5,10 @@ SERVICES := gateway identity tenant user question-bank assessment submission jud
 # Go code lives under backend/; the web UI under frontend/; apps/ holds standalone apps.
 MODULES := backend/libs/pkg $(addprefix backend/services/,$(SERVICES))
 
-.PHONY: help check k8s-lint engine-check loadtest dev-up dev-down dev-judge-up dev-judge-down build test test-integration test-migrations lint proto migrate bootstrap rotate-authz-key fmt fmt-check vet vuln verify-workspace exam-check exam-build exam-up exam-down web-check web-build
+.PHONY: help check k8s-lint engine-check loadtest dev-up dev-down dev-judge-up dev-judge-down build test test-integration test-migrations lint proto migrate bootstrap rotate-authz-key fmt fmt-check vet vuln verify-workspace exam-check exam-build exam-up exam-down web-check web-build proctor-test
 
 help:
-	@printf '%s\n' 'Targets: check k8s-lint engine-check loadtest web-check web-build exam-check exam-build exam-up exam-down dev-up dev-down dev-judge-up dev-judge-down build test test-integration test-migrations lint proto migrate bootstrap rotate-authz-key fmt fmt-check vet vuln'
+	@printf '%s\n' 'Targets: check k8s-lint engine-check loadtest web-check web-build exam-check exam-build exam-up exam-down proctor-test dev-up dev-down dev-judge-up dev-judge-down build test test-integration test-migrations lint proto migrate bootstrap rotate-authz-key fmt fmt-check vet vuln'
 
 check: build lint test web-check web-build
 
@@ -35,6 +35,11 @@ build: verify-workspace
 
 test: verify-workspace
 	@for module in $(MODULES); do (cd $$module && go test ./...); done
+
+# Policy and cooldown unit tests only — --no-project skips ultralytics/mediapipe/torch.
+proctor-test:
+	@cd backend/services/proctor && \
+		uv run --no-project --python 3.11 --with pydantic --with pydantic-settings --with pytest pytest -q
 
 test-integration:
 	@for module in $(MODULES); do (cd $$module && go test -tags=integration ./...); done

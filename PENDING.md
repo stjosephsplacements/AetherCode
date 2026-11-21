@@ -33,9 +33,8 @@ What the 2026-11-16 cutover cleanup run completed (PR #183):
   fifth argument to `set_exam_integrity`) and is fixed in this PR. `libs/pkg/messaging`
   `TestRetryHandledByPeerRestoresReadiness` fails only on a nearly full disk (the 2 GiB JetStream stream cannot
   be reserved; it fails the same on the base commit) and passes on the dev server and in CI.
-- **Open finding, not fixed here**: `computeAllow` (`user/internal/app/rbac_engine.go`) identifies the held role by
-  name, but overwrite targets are role UUIDs and `Assignment` carries no role ID, so role-targeted overwrites are
-  ignored. Predates this work (in `production`). Needs a snapshot and SQL change; auth work, ask first.
+- **Fixed 2026-11-21**: `computeAllow` now uses `Assignment.RoleID` from the snapshot SQL (`r.id`) so role-targeted
+  overwrites match UUIDs.
 - Spectral and the live cluster were not re-run.
 - **Go toolchain 1.26.11 (PR #184, `678f13e`, merged 2026-11-16)**: fixes GO-2026-6859 in `net/http`, which
   failed `vulnerability-scan`. Touches `go.work`, every `go.mod`, the digest-pinned Dockerfiles, `ci.yml`,
@@ -539,17 +538,13 @@ label and the ACM order was denied, owner can order an Advanced Certificate).
 
 Ask-first areas under AGENTS.md apply. In priority order:
 1. ~~**RBAC cutover (ADR-0075).**~~ **DONE 2026-11-08**: bitset live, helm values updated, `authorization_policy_rules` table dropped (migration 000045).
-2. **Proctoring** (ADR-0080, PR from `feat/proctor-policy-evidence`, not deployed): policy body validated in
-   assessment and projected to submission (assessment 000040, submission 000043); each webcam frame carries it on
-   `proctor.analyze`; the proctor service counts the violations that pass the per-kind cooldown and publishes `proctor.violation.threshold` to
-   JetStream; submission consumes it and submits the attempt (`submit_attempt_for_violation`, 000041). Evidence
-   export `GET .../attempts/{a}/proctor-evidence` is gated by `VIEW_STUDENT_PII` (or ADMINISTRATOR) in the User
-   service and audited as `proctor.evidence.exported` (user 000049; submission 000042 for `list_snapshots`). Submission 000044 closes an IDOR: `store_snapshot` now requires the caller's own attempt.
-   Deploy: apply Submission and the User migrations and Assessment 000040 can go in any order (older Submission ignores the field); set
-   `PROCTOR_INTERNAL_TOKEN`, `SUBMISSION_PROCTOR_URL`, `SUBMISSION_PROCTOR_TOKEN`; the platform stream gains
-   `proctor.violation.>`. Remaining: no frontend policy editor; the GPU service and the JetStream publish were not run
-   against a live NATS and GPU; `libs/pkg/messaging` `TestRetryHandledByPeerRestoresReadiness` fails on the
-   baseline too. Known gaps from review: the Python policy tests (`backend/services/proctor/tests`) are not in `make test` or CI; the per-attempt cooldown lock is in-process, so two proctor replicas can still double-count a kind (needs a DB constraint); a list of more than 200 snapshots is flagged `truncated`, not paged. Earlier note that attempt detail shows violation kinds is not backed by any frontend type. Hardening (Submission 000047 row-locks the attempt in `store_snapshot`; PII resources are opened only by `VIEW_STUDENT_PII`, never a grant or resource flag; Assessment re-validates a draft policy at publish). Open: assignments projected before the policy rollout keep a NULL policy, so auto-submit stays off for them (the safe default; a made-up fallback would submit students under a policy no author set). The real fix is an Assessment re-emit of those snapshots with a version bump, which needs owner approval because it rewrites assignment rows.
+2. **Proctoring** (ADR-0080): policy body, projection, cooldown, evidence export, and auto-submit path remain as
+   before. **Done in code (2026-11-21):** staff proctor policy editor (`/staff/proctor-policies`), shared
+   `ViolationKind` labels, `make proctor-test` + CI job, snapshot keyset paging (submission 000050) with attempt
+   “Load earlier”, evidence export pages all snapshots, `PROCTOR_REDIS_URL` wired in single-server compose
+   (adds `redis`) and helm `values-proctor`. Still not proven live against NATS+GPU on campus. Open: assignments
+   projected before the policy rollout keep a NULL policy (safe default; re-emit needs owner approval). Helm
+   expects a Redis Service named `redis` in the namespace.
 3. Port of the exam-v1 features not yet verified in the platform: lockdown depth (SEB enforcement path),
    ~~live monitor real-time updates~~ (done), similarity report (needs running SEB + engine to verify). CSV export
    now has a browser spec (`results-export.spec.ts`).
@@ -560,9 +555,13 @@ Ask-first areas under AGENTS.md apply. In priority order:
 8. Judge capacity: size the engine for the largest slot (1,000 at once gave p95 33 s for a verdict).
 9. ~~`placement_department_id` required in enrol/import blocked colleges with no placement dept.~~ **DONE 2026-11-09**: migrations 000047 + 000048 make it optional in both single-enrol and bulk import. 000047 down fixed 2026-11-16. Still needs deployment to apply to the live DB.
 10. ~~Forms that render their result without `FormMessage` would still show the raw `__mfa_required__` marker~~ Verified: every form whose action calls `actionError()` already renders through `FormMessage`. No live leak exists; a successful MFA code is not browser-tested.
-11. ~~Update the milestone table in `docs/roadmap.md`~~ Updated through 2026-11-08; every decision needs
-    an ADR (roles page has no new ADR — it wires existing ADR-0066 APIs to a UI).
+11. ~~Update the milestone table in `docs/roadmap.md`~~ Updated through 2026-11-21 (M9 / ADR-0088).
 12. ~~ingress-nginx AppArmor fix has no ADR and fix was hand-applied.~~ **DONE 2026-11-08**: ADR-0076 written; `helm upgrade ingress-nginx` applied to revision 3 with the workaround values. Fix will survive future controller upgrades.
+13. **Land 2026-11-21 work** (PR #236): RoleID fix + ADR-0088 + Redis in `platform-infra`. After merge,
+    follow `docs/runbooks/proctor-campus-cutover.md` (migrate `000050` before submission binary,
+    Redis pods, NATS+GPU proof). Campus SSH from this workstation timed out 2026-11-21 — owner must
+    run cutover on-box. Then: SEB + similarity against real SEB; judge capacity for the slot;
+    placement read model / analytics medallion; external HA/KMS/backup gates in `docs/roadmap.md`.
 
 ## 5. Verification commands
 
