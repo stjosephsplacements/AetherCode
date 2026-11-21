@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  canonicalViolationKind,
+  normalizeCountedKinds,
   POLICY_KIND_OPTIONS,
   SNAPSHOT_PAGE_SIZE,
   VIOLATION_KINDS,
@@ -30,5 +32,11 @@ describe("proctor-kinds", () => {
 
   it("keeps the snapshot page size at the API cap", () => {
     expect(SNAPSHOT_PAGE_SIZE).toBe(200);
+  });
+
+  it("maps uppercase aliases onto canonical kinds", () => {
+    expect(canonicalViolationKind("NO_FACE")).toBe("face_missing");
+    expect(canonicalViolationKind("PROHIBITED_DEVICE")).toBe("phone_detected");
+    expect(normalizeCountedKinds(["NO_FACE", "gaze_away", "NO_FACE"])).toEqual(["face_missing", "gaze_away"]);
   });
 });

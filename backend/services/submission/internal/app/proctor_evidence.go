@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
 	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
 )
@@ -55,6 +56,9 @@ func (service *Service) GetProctorEvidence(contextValue context.Context, capabil
 	if service.violationReader == nil {
 		return ProctorEvidence{}, apperrors.New(apperrors.CodeUnavailable, "proctor evidence is not configured")
 	}
+	if service.storage == nil {
+		return ProctorEvidence{}, apperrors.New(apperrors.CodeUnavailable, "snapshot storage is not configured")
+	}
 	snapshots, err := service.listAllSnapshots(contextValue, capability, tenantID, attemptID)
 	if err != nil {
 		return ProctorEvidence{}, err
@@ -73,13 +77,32 @@ func (service *Service) GetProctorEvidence(contextValue context.Context, capabil
 
 const snapshotEvidencePageSize = 200
 
-// listAllSnapshots walks keyset pages so evidence export is not capped at one page.
+// listAllSnapshots walks keyset pages inside one tenant transaction so a
+// single-use capability is not consumed per page.
 func (service *Service) listAllSnapshots(contextValue context.Context, capability centralauthz.Capability, tenantID, attemptID string) ([]Snapshot, error) {
-	return walkSnapshotPages(snapshotEvidencePageSize, func(before string) ([]Snapshot, error) {
-		return service.ListSnapshots(contextValue, capability, ListSnapshots{
-			TenantID: tenantID, AttemptID: attemptID, Limit: snapshotEvidencePageSize, BeforeID: before,
+	var all []Snapshot
+	err := service.inTenant(contextValue, capability, func(transaction pgx.Tx) error {
+		command := ListSnapshots{TenantID: tenantID, AttemptID: attemptID, Limit: snapshotEvidencePageSize}
+		_, walkErr := walkSnapshotPages(snapshotEvidencePageSize, func(before string) ([]Snapshot, error) {
+			command.BeforeID = before
+			rows, storeErr := service.store.ListSnapshotKeys(contextValue, transaction, command)
+			if storeErr != nil {
+				return nil, storeErr
+			}
+			page := make([]Snapshot, 0, len(rows))
+			for _, row := range rows {
+				url, presignErr := service.storage.PresignGet(contextValue, row.StorageKey, 15*time.Minute)
+				if presignErr != nil {
+					return nil, fmt.Errorf("presign snapshot %s: %w", row.ID, presignErr)
+				}
+				page = append(page, Snapshot{ID: row.ID, CapturedAt: row.CapturedAt, URL: url})
+			}
+			all = append(all, page...)
+			return page, nil
 		})
+		return walkErr
 	})
+	return all, err
 }
 
 // walkSnapshotPages fetches keyset pages until a short page. before is empty on the first call.

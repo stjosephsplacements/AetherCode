@@ -8,6 +8,7 @@ secretName: aethercode-secrets
 images:
   postgres: postgres:18.6
   nats: nats:2.14.3-alpine
+  redis: redis:8.8.0
   minio: cgr.dev/chainguard/minio@sha256:0f95aa412a12351a95bb43c3b54b66440eb0aa022bb3f3458942678a489e915b
   minioClient: cgr.dev/chainguard/minio-client@sha256:231c5976b6145971a5440dcd99257b23840513999f87cbcb68cd6a8ba674ca51
   rabbitmq: rabbitmq:4.3.3-management@sha256:d8b3d416236ae5ba3f6a9f4e4651fdacda01780181a7d83a71b640248d8f0a69
@@ -56,6 +57,14 @@ nats:
   resources:
     requests: {cpu: 100m, memory: 128Mi}
     limits: {cpu: "1", memory: 512Mi}
+
+# Shared proctor cooldown (ADR-0088). Pods and Service use app.kubernetes.io/name=redis
+# so values-proctor NetworkPolicy egress and PROCTOR_REDIS_URL=redis://redis:6379/0 match.
+redis:
+  enabled: true
+  resources:
+    requests: {cpu: 50m, memory: 64Mi}
+    limits: {cpu: 500m, memory: 512Mi}
 
 minio:
   enabled: true

@@ -1324,7 +1324,7 @@ paths:
                         detected_at: {type: string, format: date-time, maxLength: 35}
                   snapshots:
                     type: array
-                    maxItems: 200
+                    maxItems: 10000
                     items:
                       type: object
                       properties:

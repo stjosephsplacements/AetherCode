@@ -281,6 +281,26 @@ func TestComputeAllow(t *testing.T) {
 		}
 	})
 
+	t.Run("role deny on one assignment blocks sibling role on the same path", func(t *testing.T) {
+		const otherRoleID = "bbbbbbbb-0000-0000-0000-000000000099"
+		other := Assignment{
+			Role: "monitor", RoleID: otherRoleID, ScopeKind: "college", TenantID: "t1", ScopeID: "t1",
+			Perms: bitsFor("VIEW_SCOPE", "submission.attempts.read"), HasPerms: true,
+		}
+		snap := base
+		snap.Assignments = []Assignment{staffCollege, other}
+		snap.Overwrites = []rbac.Overwrite{{
+			At:         rbac.Node{Kind: rbac.NodeCollege, ID: "t1"},
+			TargetKind: rbac.TargetRole,
+			TargetID:   staffRoleID,
+			Deny:       bitsFor("submission.attempts.read"),
+		}}
+		// Looping the non-denied role must still see the deny on staffRoleID.
+		if computeAllow(snap, other, readReq) {
+			t.Error("expected deny on sibling role to remove the permission for the path")
+		}
+	})
+
 	t.Run("member overwrite still matches principal", func(t *testing.T) {
 		snap := base
 		snap.Overwrites = []rbac.Overwrite{{

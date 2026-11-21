@@ -99,13 +99,52 @@ func computeAllow(snapshot Snapshot, assignment Assignment, request Request) boo
 		return false
 	}
 	everyone := rbac.Role{ID: snapshot.EveryoneRoleID, Perms: snapshot.EveryonePerms}
+	// Include the loop assignment plus every other binding on the snapshot so unit
+	// tests that omit Assignments still work and Authorize sees sibling roles.
+	pool := make([]Assignment, 0, len(snapshot.Assignments)+1)
+	pool = append(pool, snapshot.Assignments...)
+	pool = append(pool, assignment)
 	member := rbac.Member{
 		ID:    request.PrincipalID,
 		Owner: assignment.isRoot(),
-		Roles: []rbac.Assigned{{Role: rbac.Role{ID: assignment.RoleID, Perms: assignment.Perms}, At: path[len(path)-1]}},
+		Roles: rolesOnPath(pool, path),
+	}
+	if len(member.Roles) == 0 {
+		return false
+	}
+	for _, held := range pool {
+		if held.isRoot() {
+			member.Owner = true
+			break
+		}
 	}
 	effective := rbac.Compute(snapshot.ResolverFlags, everyone, member, path, snapshot.Overwrites)
 	return permsAllow(snapshot.Flags, effective, request)
+}
+
+// rolesOnPath collects every assignment whose attach node lies on path so role-targeted
+// overwrites see all of the principal's roles on that tree (ADR-0075).
+func rolesOnPath(assignments []Assignment, path []rbac.Node) []rbac.Assigned {
+	onPath := make(map[rbac.Node]bool, len(path))
+	for _, node := range path {
+		onPath[node] = true
+	}
+	roles := make([]rbac.Assigned, 0, len(assignments))
+	for _, held := range assignments {
+		if !held.HasPerms {
+			continue
+		}
+		heldPath := scopePath(held)
+		if len(heldPath) == 0 {
+			continue
+		}
+		at := heldPath[len(heldPath)-1]
+		if !onPath[at] {
+			continue
+		}
+		roles = append(roles, rbac.Assigned{Role: rbac.Role{ID: held.RoleID, Perms: held.Perms}, At: at})
+	}
+	return roles
 }
 
 // permsAllow checks whether a resolved permission set grants the requested action.

@@ -1,9 +1,9 @@
 import { Checkbox, Field, TextInput } from "@/components/staff/form";
 import type { ProctorPolicyBody } from "@/lib/api-types";
-import { POLICY_KIND_OPTIONS } from "@/lib/proctor-kinds";
+import { normalizeCountedKinds, POLICY_KIND_OPTIONS } from "@/lib/proctor-kinds";
 
 export function PolicyKindChecks({ selected = [] }: { selected?: readonly string[] }) {
-  const chosen = new Set(selected);
+  const chosen = new Set(normalizeCountedKinds(selected));
   return (
     <Field label="Counted kinds" htmlFor="policy-kinds" hint="Leave all unchecked to count every kind.">
       <div id="policy-kinds" className="grid gap-2 sm:grid-cols-2">

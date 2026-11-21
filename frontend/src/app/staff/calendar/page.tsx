@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import type { ExamVersion } from "@/lib/api-types";
 import { daysOfWindow, monthGrid, monthOf, overlappingPairs, parseMonth, shiftMonth, sharedWindow } from "@/lib/calendar";
 import { type ExamWithVersion, listExams } from "@/lib/server/exams";
+import { listPublishedPolicyVersions } from "@/lib/server/proctor-policies";
 import { requireCollege } from "@/lib/server/staff";
 import { TIME_ZONE, cn, formatDateTime, formatTime } from "@/lib/utils";
 import { NewExamDialog } from "../exams/new-exam-dialog";
@@ -74,8 +75,9 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const today = todayKey.format(now);
   const month = parseMonth((await searchParams).month) ?? monthOf(new Date(now));
   let exams: (ExamWithVersion & { college?: { id: string; name: string } })[];
+  let policies: Awaited<ReturnType<typeof listPublishedPolicyVersions>> = [];
   try {
-    exams = await listExams(staff.tenantId);
+    [exams, policies] = await Promise.all([listExams(staff.tenantId), listPublishedPolicyVersions(staff.tenantId)]);
   } catch (error) {
     return <LoadError error={error} />;
   }
@@ -139,7 +141,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
               <CaretRight />
             </Link>
           </Button>
-          <NewExamDialog />
+          <NewExamDialog policies={policies} />
         </div>
       </header>
 

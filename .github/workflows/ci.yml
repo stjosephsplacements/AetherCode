@@ -226,6 +226,7 @@ jobs:
   deploy:
     needs:
       - build-test
+      - proctor
       - web
       - exam-v1
       - integration-test
@@ -303,6 +304,7 @@ jobs:
   deploy-dev:
     needs:
       - build-test
+      - proctor
       - web
       - build-images
     if: github.event_name == 'push' && github.ref == 'refs/heads/development'

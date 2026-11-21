@@ -6,9 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { TIME_ZONE } from "@/lib/utils";
 import { createExam } from "./actions";
+import { ExamPolicyField, type PublishedPolicyOption } from "./exam-policy-field";
 
 /** Create an exam without leaving the page; on success the action opens its editor to add questions. */
-export function NewExamDialog({ colleges }: { colleges?: { id: string; name: string }[] }) {
+export function NewExamDialog({
+  colleges,
+  policies = [],
+}: {
+  colleges?: { id: string; name: string }[];
+  policies?: PublishedPolicyOption[];
+}) {
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -45,6 +52,7 @@ export function NewExamDialog({ colleges }: { colleges?: { id: string; name: str
             <Field label="Duration (minutes)" htmlFor="exam-duration" hint="Each student's own timer." className="sm:max-w-[50%]">
               <TextInput id="exam-duration" name="duration_minutes" type="number" min={1} max={720} defaultValue={90} required />
             </Field>
+            <ExamPolicyField policies={policies} />
             <Field label="Instructions" htmlFor="exam-instructions" hint="Shown on the exam's start page. Markdown.">
               <TextArea id="exam-instructions" name="instructions_markdown" placeholder={"- Two questions, 90 minutes.\n- Run checks the sample tests; hidden tests decide marks."} />
             </Field>

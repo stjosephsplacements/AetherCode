@@ -14,13 +14,14 @@ import { collegeTimeToISO } from "@/lib/utils";
 const STANDARD_POLICY = "Standard";
 
 /**
- * Fallback when the form does not name a published policy: reuse any published
- * version, or mint a Standard policy once per college.
+ * Fallback when the form does not name a published policy: reuse the college's
+ * Standard published version, or mint Standard once.
  */
 async function standardPolicyVersion(tenantId: string): Promise<string> {
   const base = `/assessment/v1/tenants/${tenantId}`;
   const policies = (await gateway<Page<ProctorPolicy>>(`${base}/proctor-policies?limit=100`)).items;
   for (const policy of policies) {
+    if (policy.name !== STANDARD_POLICY) continue;
     const versions = (await gateway<Page<ProctorPolicyVersion>>(`${base}/proctor-policies/${policy.id}/versions?limit=100`)).items;
     const published = versions.find((version) => version.status === "published");
     if (published) return published.id;

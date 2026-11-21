@@ -557,10 +557,10 @@ Ask-first areas under AGENTS.md apply. In priority order:
 10. ~~Forms that render their result without `FormMessage` would still show the raw `__mfa_required__` marker~~ Verified: every form whose action calls `actionError()` already renders through `FormMessage`. No live leak exists; a successful MFA code is not browser-tested.
 11. ~~Update the milestone table in `docs/roadmap.md`~~ Updated through 2026-11-21 (M9 / ADR-0088).
 12. ~~ingress-nginx AppArmor fix has no ADR and fix was hand-applied.~~ **DONE 2026-11-08**: ADR-0076 written; `helm upgrade ingress-nginx` applied to revision 3 with the workaround values. Fix will survive future controller upgrades.
-13. **Land 2026-11-21 work**: merge RoleID fix + ADR-0088 (policy UI, `000050` paging, Redis cooldown,
-    `make proctor-test` CI). Apply submission `000050` on campus; ensure a Redis Service labelled
-    `app.kubernetes.io/name: redis` before relying on `PROCTOR_REDIS_URL` in cluster. Then prove
-    NATS+GPU live. After that: SEB path + similarity against real SEB; judge capacity for the slot;
+13. **Land 2026-11-21 work** (PR #236): RoleID fix + ADR-0088 + Redis in `platform-infra`. After merge,
+    follow `docs/runbooks/proctor-campus-cutover.md` (migrate `000050` before submission binary,
+    Redis pods, NATS+GPU proof). Campus SSH from this workstation timed out 2026-11-21 — owner must
+    run cutover on-box. Then: SEB + similarity against real SEB; judge capacity for the slot;
     placement read model / analytics medallion; external HA/KMS/backup gates in `docs/roadmap.md`.
 
 ## 5. Verification commands

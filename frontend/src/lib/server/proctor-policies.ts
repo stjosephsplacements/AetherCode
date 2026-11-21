@@ -29,7 +29,9 @@ export async function listProctorPolicyVersions(
   status?: "draft" | "published",
 ): Promise<ProctorPolicyVersion[]> {
   const filter = status ? `&status=${status}` : "";
-  return walkPages(`${assessmentBase(tenantId)}/proctor-policies/${policyId}/versions?limit=100${filter}`);
+  return walkPages(
+    `${assessmentBase(tenantId)}/proctor-policies/${encodeURIComponent(policyId)}/versions?limit=100${filter}`,
+  );
 }
 
 /** Published policy versions staff can attach when creating an exam. */

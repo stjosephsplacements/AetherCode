@@ -26,10 +26,10 @@ frames with the same cursor. Page size stays capped at 200.
 **Redis shared cooldown**: set `PROCTOR_REDIS_URL` so
 `SET proctor:cooldown:{attempt}:{kind} NX EX` serialises replicas. Empty URL
 keeps the database fallback (replicas can race). Single-server Compose runs a
-`redis` service; Helm `values-proctor` points at
-`redis://redis:6379/0` and allows egress to a Service labelled
-`app.kubernetes.io/name: redis` in the same namespace (that Service must exist
-before enabling Redis cooldown in cluster).
+`redis` service. Helm `platform-infra` deploys a Redis Deployment and Service
+whose **pods** are labelled `app.kubernetes.io/name: redis` (NetworkPolicy
+matches pods, not the Service metadata alone). `values-proctor` uses
+`redis://redis:6379/0` and allows egress to those pods.
 
 **RBAC RoleID**: the authorization snapshot SQL selects `r.id` into
 `Assignment.RoleID`; `computeAllow` passes that UUID into the bitset engine so
