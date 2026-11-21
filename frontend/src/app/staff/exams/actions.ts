@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ActionState } from "@/components/staff/form";
 import type { Exam, ExamVersion, ExamVersionContent, Page, ProctorPolicy, ProctorPolicyVersion, QuestionVersion } from "@/lib/api-types";
+import { chosenPolicyVersionId } from "@/lib/proctor-policy-body";
 import { actionError } from "@/lib/server/actions";
 import { PREVIEW_PREFIX, copyExam } from "@/lib/server/exams";
 import { gateway } from "@/lib/server/gateway";
@@ -13,9 +14,8 @@ import { collegeTimeToISO } from "@/lib/utils";
 const STANDARD_POLICY = "Standard";
 
 /**
- * Every exam version names a published proctor policy version. Lab lockdown
- * is set per exam (Safe Exam Browser), so one standard policy per college
- * suffices; it is created the first time it is needed.
+ * Fallback when the form does not name a published policy: reuse any published
+ * version, or mint a Standard policy once per college.
  */
 async function standardPolicyVersion(tenantId: string): Promise<string> {
   const base = `/assessment/v1/tenants/${tenantId}`;
@@ -28,7 +28,10 @@ async function standardPolicyVersion(tenantId: string): Promise<string> {
   const policy = await gateway<ProctorPolicy>(`${base}/proctor-policies`, { method: "POST", body: { name: STANDARD_POLICY } });
   const version = await gateway<ProctorPolicyVersion>(`${base}/proctor-policies/${policy.id}/versions`, {
     method: "POST",
-    body: { expected_policy_version: policy.version, policy: { seb_required: false } },
+    body: {
+      expected_policy_version: policy.version,
+      policy: { enabled: false, seb_required: false },
+    },
   });
   await gateway(`${base}/proctor-policy-versions/${version.id}/publish`, { method: "POST", body: {} });
   return version.id;
@@ -43,7 +46,7 @@ export async function createExam(_previous: ActionState, form: FormData): Promis
     const opensAt = collegeTimeToISO(String(form.get("opens_at")));
     const closesAt = collegeTimeToISO(String(form.get("closes_at")));
     if (Date.parse(closesAt) <= Date.parse(opensAt)) return { error: "The window must close after it opens." };
-    const policyVersionId = await standardPolicyVersion(tenantId);
+    const policyVersionId = chosenPolicyVersionId(form) || (await standardPolicyVersion(tenantId));
     const exam = await gateway<Exam>(`${base}/exams`, { method: "POST", body: {} });
     const version = await gateway<ExamVersion>(`${base}/exams/${exam.id}/versions`, {
       method: "POST",

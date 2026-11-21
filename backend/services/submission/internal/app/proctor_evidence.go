@@ -35,8 +35,7 @@ type ViolationReader interface {
 type ProctorEvidence struct {
 	AttemptID  string      `json:"attempt_id"`
 	Violations []Violation `json:"violations"`
-	// Truncated flags a list cut to the newest entries: violations beyond 1000,
-	// or snapshots beyond the 200 the database lists.
+	// Truncated is set when the violation list was cut; snapshots are fully paged.
 	Truncated bool       `json:"truncated"`
 	Snapshots []Snapshot `json:"snapshots"`
 }
@@ -56,7 +55,7 @@ func (service *Service) GetProctorEvidence(contextValue context.Context, capabil
 	if service.violationReader == nil {
 		return ProctorEvidence{}, apperrors.New(apperrors.CodeUnavailable, "proctor evidence is not configured")
 	}
-	snapshots, err := service.ListSnapshots(contextValue, capability, ListSnapshots{TenantID: tenantID, AttemptID: attemptID, Limit: 200})
+	snapshots, err := service.listAllSnapshots(contextValue, capability, tenantID, attemptID)
 	if err != nil {
 		return ProctorEvidence{}, err
 	}
@@ -64,6 +63,38 @@ func (service *Service) GetProctorEvidence(contextValue context.Context, capabil
 	if err != nil {
 		return ProctorEvidence{}, fmt.Errorf("read proctor violations: %w", err)
 	}
-	return ProctorEvidence{AttemptID: attemptID, Violations: violations.Violations, Snapshots: snapshots,
-		Truncated: violations.Truncated || len(snapshots) == 200}, nil
+	return ProctorEvidence{
+		AttemptID:  attemptID,
+		Violations: violations.Violations,
+		Snapshots:  snapshots,
+		Truncated:  violations.Truncated,
+	}, nil
+}
+
+const snapshotEvidencePageSize = 200
+
+// listAllSnapshots walks keyset pages so evidence export is not capped at one page.
+func (service *Service) listAllSnapshots(contextValue context.Context, capability centralauthz.Capability, tenantID, attemptID string) ([]Snapshot, error) {
+	return walkSnapshotPages(snapshotEvidencePageSize, func(before string) ([]Snapshot, error) {
+		return service.ListSnapshots(contextValue, capability, ListSnapshots{
+			TenantID: tenantID, AttemptID: attemptID, Limit: snapshotEvidencePageSize, BeforeID: before,
+		})
+	})
+}
+
+// walkSnapshotPages fetches keyset pages until a short page. before is empty on the first call.
+func walkSnapshotPages(pageSize int, fetch func(before string) ([]Snapshot, error)) ([]Snapshot, error) {
+	var all []Snapshot
+	var before string
+	for {
+		batch, err := fetch(before)
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, batch...)
+		if len(batch) < pageSize {
+			return all, nil
+		}
+		before = batch[len(batch)-1].ID
+	}
 }

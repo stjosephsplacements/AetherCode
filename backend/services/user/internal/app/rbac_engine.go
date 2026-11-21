@@ -102,7 +102,7 @@ func computeAllow(snapshot Snapshot, assignment Assignment, request Request) boo
 	member := rbac.Member{
 		ID:    request.PrincipalID,
 		Owner: assignment.isRoot(),
-		Roles: []rbac.Assigned{{Role: rbac.Role{ID: string(assignment.Role), Perms: assignment.Perms}, At: path[len(path)-1]}},
+		Roles: []rbac.Assigned{{Role: rbac.Role{ID: assignment.RoleID, Perms: assignment.Perms}, At: path[len(path)-1]}},
 	}
 	effective := rbac.Compute(snapshot.ResolverFlags, everyone, member, path, snapshot.Overwrites)
 	return permsAllow(snapshot.Flags, effective, request)

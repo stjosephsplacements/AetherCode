@@ -764,8 +764,8 @@ func (repository *Postgres) ProctorGrid(contextValue context.Context, transactio
 
 func (repository *Postgres) ListSnapshotKeys(contextValue context.Context, transaction pgx.Tx, command app.ListSnapshots) ([]app.SnapshotRow, error) {
 	rows, err := transaction.Query(contextValue,
-		`SELECT id::text, captured_at, storage_key FROM submission.list_snapshots($1, $2, $3)`,
-		command.TenantID, command.AttemptID, command.Limit,
+		`SELECT id::text, captured_at, storage_key FROM submission.list_snapshots($1, $2, $3, $4)`,
+		command.TenantID, command.AttemptID, command.Limit, nullableUUID(command.BeforeID),
 	)
 	if err != nil {
 		return nil, mapDatabaseError(err, "list snapshot keys")

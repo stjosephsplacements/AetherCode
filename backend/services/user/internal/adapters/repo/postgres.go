@@ -109,7 +109,7 @@ func (repository *Postgres) Snapshot(contextValue context.Context, query app.Sna
 	for assignments.Next() {
 		var assignment app.Assignment
 		var bits string
-		if err := assignments.Scan(&assignment.Role, &assignment.ScopeKind, &assignment.TenantID, &assignment.ScopeID, &assignment.Delegated, &bits); err != nil {
+		if err := assignments.Scan(&assignment.Role, &assignment.RoleID, &assignment.ScopeKind, &assignment.TenantID, &assignment.ScopeID, &assignment.Delegated, &bits); err != nil {
 			assignments.Close()
 			return app.Snapshot{}, fmt.Errorf("scan active role assignment: %w", err)
 		}
@@ -1176,7 +1176,7 @@ func nullableTimestamp(value string) any {
 // applied after joining every assignment to roles (79 ms and 26k buffer hits at 13k assignments). A soft-deleted
 // assignment is excluded here (the view did the same), so a deleted grant cannot authorize.
 const roleBitsAssignmentQuery = `
-	SELECT a.role_name, a.scope_kind, COALESCE(a.tenant_id::text, ''), COALESCE(a.scope_id::text, ''),
+	SELECT a.role_name, COALESCE(r.id::text, ''), a.scope_kind, COALESCE(a.tenant_id::text, ''), COALESCE(a.scope_id::text, ''),
 	       a.role_name = 'super_admin' AND a.scope_kind = 'platform' AND a.granted_by_principal_id <> a.principal_id,
 	       COALESCE(r.permissions::text, '')
 	FROM users.active_role_assignments AS a

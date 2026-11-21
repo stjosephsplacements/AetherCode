@@ -230,6 +230,8 @@ type ListSnapshots struct {
 	TenantID  string
 	AttemptID string
 	Limit     int
+	// BeforeID is the oldest snapshot id from the previous page (keyset cursor).
+	BeforeID string
 }
 
 // SnapshotRow is the raw repo result before presigning.
@@ -334,8 +336,12 @@ func (service *Service) UploadSnapshot(contextValue context.Context, capability 
 
 func (service *Service) ListSnapshots(contextValue context.Context, capability centralauthz.Capability, command ListSnapshots) ([]Snapshot, error) {
 	command.TenantID, command.AttemptID = normalizeUUID(command.TenantID), normalizeUUID(command.AttemptID)
+	command.BeforeID = normalizeUUID(command.BeforeID)
 	if !isUUID(command.TenantID) || !isUUID(command.AttemptID) {
 		return nil, apperrors.New(apperrors.CodeInvalidArgument, "tenant ID and attempt ID are required")
+	}
+	if command.BeforeID != "" && !isUUID(command.BeforeID) {
+		return nil, apperrors.New(apperrors.CodeInvalidArgument, "before must be a snapshot id")
 	}
 	if command.Limit <= 0 || command.Limit > 200 {
 		command.Limit = 50

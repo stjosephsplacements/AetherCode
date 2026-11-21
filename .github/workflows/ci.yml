@@ -41,6 +41,15 @@ jobs:
       - run: make build
       - run: make test
 
+  proctor:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.11"
+      - run: make proctor-test
+
   web:
     runs-on: ubuntu-24.04
     steps:

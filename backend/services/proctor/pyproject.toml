@@ -23,6 +23,10 @@ dependencies = [
 # Generate the client into the package so it ships with the wheel.
 output = "src/proctor/prisma_client"
 
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

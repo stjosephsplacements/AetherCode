@@ -43,6 +43,7 @@ export default async function StaffLayout({ children }: { children: React.ReactN
     items: [
       item({ href: "/staff/questions", label: "Questions", icon: "questions" } as const),
       item({ href: "/staff/exams", label: "Exams", icon: "exams" } as const),
+      item({ href: "/staff/proctor-policies", label: "Proctor policies", icon: "roles" } as const),
       { href: "/staff/calendar", label: "Calendar", icon: "calendar" },
       { href: "/staff/analytics", label: "Analytics", icon: "analytics" },
       { href: "/staff/community", label: "Community", icon: "community" },

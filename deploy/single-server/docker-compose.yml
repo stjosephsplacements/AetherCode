@@ -64,6 +64,18 @@ services:
       timeout: 3s
       retries: 20
 
+  redis:
+    image: redis:8.8.0
+    restart: always
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   minio:
     # MinIO stopped publishing images; this is Chainguard's maintained build,
     # pinned by digest. It has bash but no curl/wget/mc, hence the health check.
@@ -438,6 +450,7 @@ services:
       PROCTOR_MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
       PROCTOR_MINIO_BUCKET: aethercode
       PROCTOR_NATS_URL: nats://nats:4222
+      PROCTOR_REDIS_URL: redis://redis:6379/0
       PROCTOR_DATABASE_URL: postgres://aether_proctor_app:${PROCTOR_DB_PASSWORD:?run setup.sh first}@postgres:5432/aether_proctor?sslmode=disable&schema=proctor
       PROCTOR_DATABASE_DIRECT_URL: postgres://aether_proctor_app:${PROCTOR_DB_PASSWORD}@postgres:5432/aether_proctor?sslmode=disable&schema=proctor
     healthcheck:
@@ -452,6 +465,8 @@ services:
       minio:
         condition: service_healthy
       nats:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     deploy:
       resources:
@@ -536,4 +551,5 @@ volumes:
   judge-rabbitmq-data:
   postgres-data:
   nats-data:
+  redis-data:
   minio-data:

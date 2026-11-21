@@ -57,3 +57,4 @@ apps/exam-v1/scripts/*.csv
 
 __pycache__/
 *.pyc
+graphify-out/
