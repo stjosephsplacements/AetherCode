@@ -18,6 +18,7 @@ spec:
         {{- include "infra.labels" . | nindent 8 }}
         app.kubernetes.io/name: redis
     spec:
+      automountServiceAccountToken: false
       securityContext:
         {{- include "infra.podSecurity" . | nindent 8 }}
         runAsUser: 999

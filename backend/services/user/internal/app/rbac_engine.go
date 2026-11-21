@@ -106,14 +106,14 @@ func computeAllow(snapshot Snapshot, assignment Assignment, request Request) boo
 	pool = append(pool, assignment)
 	member := rbac.Member{
 		ID:    request.PrincipalID,
-		Owner: assignment.isRoot(),
+		Owner: assignment.HasPerms && assignment.isRoot(),
 		Roles: rolesOnPath(pool, path),
 	}
 	if len(member.Roles) == 0 {
 		return false
 	}
 	for _, held := range pool {
-		if held.isRoot() {
+		if held.HasPerms && held.isRoot() {
 			member.Owner = true
 			break
 		}

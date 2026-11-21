@@ -8,6 +8,7 @@ import { chosenPolicyVersionId } from "@/lib/proctor-policy-body";
 import { actionError } from "@/lib/server/actions";
 import { PREVIEW_PREFIX, copyExam } from "@/lib/server/exams";
 import { gateway } from "@/lib/server/gateway";
+import { listAllProctorPolicies, listProctorPolicyVersions } from "@/lib/server/proctor-policies";
 import { requireCollege } from "@/lib/server/staff";
 import { collegeTimeToISO } from "@/lib/utils";
 
@@ -19,11 +20,10 @@ const STANDARD_POLICY = "Standard";
  */
 async function standardPolicyVersion(tenantId: string): Promise<string> {
   const base = `/assessment/v1/tenants/${tenantId}`;
-  const policies = (await gateway<Page<ProctorPolicy>>(`${base}/proctor-policies?limit=100`)).items;
+  const policies = await listAllProctorPolicies(tenantId);
   for (const policy of policies) {
     if (policy.name !== STANDARD_POLICY) continue;
-    const versions = (await gateway<Page<ProctorPolicyVersion>>(`${base}/proctor-policies/${policy.id}/versions?limit=100`)).items;
-    const published = versions.find((version) => version.status === "published");
+    const published = (await listProctorPolicyVersions(tenantId, policy.id, "published"))[0];
     if (published) return published.id;
   }
   const policy = await gateway<ProctorPolicy>(`${base}/proctor-policies`, { method: "POST", body: { name: STANDARD_POLICY } });

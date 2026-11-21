@@ -15,6 +15,16 @@ snapshot list.
 
 ## 2. Redis for shared cooldown
 
+Upgrade infrastructure so Redis exists (reuse the cluster’s existing values file):
+
+```bash
+helm upgrade infra deploy/helm/platform-infra \
+  --namespace "$NAMESPACE" \
+  --install \
+  --reset-then-reuse-values \
+  --wait --atomic --timeout 15m
+```
+
 `platform-infra` deploys Redis with pods labelled `app.kubernetes.io/name: redis`.
 Confirm:
 

@@ -14,7 +14,7 @@ const VIOLATION_KIND_META: Record<ViolationKind, { short: string; full: string }
 };
 
 /** Assessment also accepts uppercase aliases from older policy bodies. */
-const KIND_ALIASES: Record<string, ViolationKind> = {
+const KIND_ALIASES: Record<string, ViolationKind> = Object.assign(Object.create(null), {
   NO_FACE: "face_missing",
   MULTIPLE_FACES: "multiple_faces",
   PROHIBITED_DEVICE: "phone_detected",
@@ -23,7 +23,7 @@ const KIND_ALIASES: Record<string, ViolationKind> = {
   multiple_faces: "multiple_faces",
   phone_detected: "phone_detected",
   gaze_away: "gaze_away",
-};
+});
 
 export const POLICY_KIND_OPTIONS = VIOLATION_KINDS.map((value) => ({
   value,
@@ -36,7 +36,8 @@ function isViolationKind(kind: string): kind is ViolationKind {
 
 /** Map API / legacy names onto the canonical snake_case kind. */
 export function canonicalViolationKind(kind: string): ViolationKind | undefined {
-  return KIND_ALIASES[kind] ?? (isViolationKind(kind) ? kind : undefined);
+  if (!Object.hasOwn(KIND_ALIASES, kind)) return isViolationKind(kind) ? kind : undefined;
+  return KIND_ALIASES[kind];
 }
 
 /** Deduplicate and canonicalize counted kinds for forms and saves. */

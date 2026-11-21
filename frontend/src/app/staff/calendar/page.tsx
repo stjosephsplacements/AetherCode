@@ -75,12 +75,12 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const today = todayKey.format(now);
   const month = parseMonth((await searchParams).month) ?? monthOf(new Date(now));
   let exams: (ExamWithVersion & { college?: { id: string; name: string } })[];
-  let policies: Awaited<ReturnType<typeof listPublishedPolicyVersions>> = [];
   try {
-    [exams, policies] = await Promise.all([listExams(staff.tenantId), listPublishedPolicyVersions(staff.tenantId)]);
+    exams = await listExams(staff.tenantId);
   } catch (error) {
     return <LoadError error={error} />;
   }
+  const policies = await listPublishedPolicyVersions(staff.tenantId).catch(() => []);
 
   const scheduled = exams.flatMap(({ exam, version, college }) =>
     version && version.status !== "retired" ? [{ examId: exam.id, version, opensAt: version.opens_at, closesAt: version.closes_at, college }] : [],

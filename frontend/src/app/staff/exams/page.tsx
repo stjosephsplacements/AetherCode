@@ -13,9 +13,8 @@ export default async function ExamsPage() {
   const staff = await requireCollege();
   const renderedAt = new Date().getTime();
   let exams: (ExamWithVersion & { college?: { id: string; name: string } })[];
-  let policies: Awaited<ReturnType<typeof listPublishedPolicyVersions>> = [];
   try {
-    [exams, policies] = await Promise.all([listExams(staff.tenantId), listPublishedPolicyVersions(staff.tenantId)]);
+    exams = await listExams(staff.tenantId);
   } catch (error) {
     return (
       <>
@@ -24,6 +23,7 @@ export default async function ExamsPage() {
       </>
     );
   }
+  const policies = await listPublishedPolicyVersions(staff.tenantId).catch(() => []);
   return (
     <>
       <LiveRefresh topics={["attempts"]} />

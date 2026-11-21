@@ -80,7 +80,7 @@ const snapshotEvidencePageSize = 200
 // listAllSnapshots walks keyset pages inside one tenant transaction so a
 // single-use capability is not consumed per page.
 func (service *Service) listAllSnapshots(contextValue context.Context, capability centralauthz.Capability, tenantID, attemptID string) ([]Snapshot, error) {
-	var all []Snapshot
+	all := make([]Snapshot, 0)
 	err := service.inTenant(contextValue, capability, func(transaction pgx.Tx) error {
 		command := ListSnapshots{TenantID: tenantID, AttemptID: attemptID, Limit: snapshotEvidencePageSize}
 		_, walkErr := walkSnapshotPages(snapshotEvidencePageSize, func(before string) ([]Snapshot, error) {

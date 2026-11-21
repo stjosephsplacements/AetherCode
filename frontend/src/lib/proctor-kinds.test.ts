@@ -39,4 +39,9 @@ describe("proctor-kinds", () => {
     expect(canonicalViolationKind("PROHIBITED_DEVICE")).toBe("phone_detected");
     expect(normalizeCountedKinds(["NO_FACE", "gaze_away", "NO_FACE"])).toEqual(["face_missing", "gaze_away"]);
   });
+
+  it("ignores prototype keys on the alias map", () => {
+    expect(canonicalViolationKind("constructor")).toBeUndefined();
+    expect(violationKindLabel("constructor")).toBeUndefined();
+  });
 });
