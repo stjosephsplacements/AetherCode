@@ -35,12 +35,12 @@ export default function OpenGraphImage() {
               padding: "14px 24px",
               borderRadius: 999,
               background: "rgba(52,211,153,0.14)",
-              color: "#34d399",
+              color: "#bcff00",
               fontSize: 26,
               fontWeight: 600,
             }}
           >
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#bcff00" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
               <path d="M20 6 9 17l-5-5" />
             </svg>
             5 of 5 test cases passed
