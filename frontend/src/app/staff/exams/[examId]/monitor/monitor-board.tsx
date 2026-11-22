@@ -50,11 +50,13 @@ export function MonitorBoard({
   versionId,
   monitor,
   rollNumber,
+  authorNames = {},
 }: {
   examId: string;
   versionId: string;
   monitor: ExamMonitor;
   rollNumber: Record<string, string>;
+  authorNames?: Record<string, string>;
 }) {
   const now = useNow(1000);
   const [studentPage, setStudentPage] = useState(1);
@@ -153,6 +155,9 @@ export function MonitorBoard({
             {notes.rows.map((note) => (
               <li key={note.id} className="rounded-[var(--radius-control)] border border-line bg-surface px-4 py-2.5 text-sm">
                 <span className="mr-2 text-ink-muted">{formatTime(note.created_at)}</span>
+                {note.created_by && authorNames[note.created_by] && (
+                  <span className="mr-2 text-ink-muted">by {authorNames[note.created_by]}</span>
+                )}
                 <span className="whitespace-pre-wrap text-ink">{note.body}</span>
               </li>
             ))}

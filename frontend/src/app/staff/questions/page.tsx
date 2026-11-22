@@ -108,23 +108,17 @@ export default async function QuestionsPage({ searchParams }: { searchParams: Pr
 
       <div className="mb-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <FigureCard label="In bank" value={String(total)} note="loaded on this page" />
-        <FigureCard label="Tests" value={`${lists.tests.length}${published.next_cursor ? "+" : ""}`} note="published for exams" />
-        <FigureCard label="Drafts" value={`${lists.drafts.length}${drafts?.next_cursor ? "+" : ""}`} note="not published yet" />
+        <FigureCard label="Tests" value={String(lists.tests.length)} note="published for exams" />
+        <FigureCard label="Drafts" value={String(lists.drafts.length)} note="not published yet" />
         <FigureCard
           label="To review"
-          value={`${lists.review.length}${review?.next_cursor ? "+" : ""}`}
+          value={String(lists.review.length)}
           note={lists.review.length ? "waiting on staff" : "all caught up"}
           tone={lists.review.length ? "warn" : "good"}
         />
       </div>
 
-      <QuestionBoard
-        lists={lists}
-        languages={languages}
-        categories={categories}
-        initial={initial}
-        capped={{ tests: Boolean(published.next_cursor), practice: Boolean(published.next_cursor), drafts: Boolean(drafts?.next_cursor), review: Boolean(review?.next_cursor) }}
-      />
+      <QuestionBoard lists={lists} languages={languages} categories={categories} initial={initial} />
     </div>
   );
 }
