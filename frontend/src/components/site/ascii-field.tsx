@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 
 // Sparse to dense.
@@ -11,8 +12,10 @@ const RAMP = " .:-=+*#%@";
  * thicken and turn the brand colour, drawn on a second layer that follows the mouse
  * and fades out behind it. One text node per frame at about 30fps; paused in
  * background tabs; coarser on phones; a single still frame for reduced motion.
+ * The landing page keeps a clean dark shell (Docker-style), so the field stays off there.
  */
 export function AsciiField() {
+  const pathname = usePathname();
   const ref = useRef<HTMLPreElement>(null);
   const glowRef = useRef<HTMLPreElement>(null);
 
@@ -95,7 +98,9 @@ export function AsciiField() {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("resize", onResize);
     };
-  }, []);
+  }, [pathname]);
+
+  if (pathname === "/") return null;
 
   const layer = "ascii-art pointer-events-none fixed inset-0 select-none overflow-hidden [font-size:calc(100vw/var(--columns,150)/0.6)]";
   return (

@@ -21,10 +21,14 @@ type Contest = {
 export default async function StaffContestsPage() {
   const staff = await requireStaff();
   const collegeId = collegeFor(staff);
-  const [contests, practice] = await Promise.all([
-    gateway<Contest[]>(`/question-bank/v1/tenants/${collegeId}/contests`).catch(() => [] as Contest[]),
-    gateway<PracticeProblem[]>(`/question-bank/v1/tenants/${collegeId}/practice/questions`).catch(() => [] as PracticeProblem[]),
+  const [contestsRaw, practiceRaw] = await Promise.all([
+    gateway<Contest[] | { items?: Contest[] }>(`/question-bank/v1/tenants/${collegeId}/contests`).catch(() => [] as Contest[]),
+    gateway<PracticeProblem[] | { items?: PracticeProblem[] }>(`/question-bank/v1/tenants/${collegeId}/practice/questions`).catch(
+      () => [] as PracticeProblem[],
+    ),
   ]);
+  const contests = Array.isArray(contestsRaw) ? contestsRaw : Array.isArray(contestsRaw?.items) ? contestsRaw.items : [];
+  const practice = Array.isArray(practiceRaw) ? practiceRaw : Array.isArray(practiceRaw?.items) ? practiceRaw.items : [];
   const questions = practice.map((row) => ({
     id: row.question_id,
     title: row.title,

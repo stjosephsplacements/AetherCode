@@ -6,7 +6,7 @@
  */
 export function Statement() {
   return (
-    <section className="mx-auto grid max-w-6xl gap-10 px-6 py-24 sm:py-28 lg:grid-cols-2 lg:gap-16">
+    <div className="mt-6 grid gap-10 lg:grid-cols-2 lg:gap-16 lg:items-end">
       <h2 data-statement className="font-sans text-[2.4rem] font-bold leading-[1.1] tracking-[-0.04em] text-ink sm:text-[3.2rem]">
         Placements{" "}
         <span className="relative text-ink-subtle decoration-brand decoration-[3px] max-sm:line-through sm:whitespace-nowrap">
@@ -19,6 +19,6 @@ export function Statement() {
         Every student sits the same exam, in the same editor, judged by the same hidden tests. Marks come from what you write,
         not where you studied.
       </p>
-    </section>
+    </div>
   );
 }

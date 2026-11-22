@@ -15,6 +15,13 @@ import {
 // Every page and /api request passes through here first, so this is the one
 // place a session's tokens are rotated. Pages and route handlers downstream
 // only read the access cookie.
+function continueWithPath(request: NextRequest, pathname: string, mutate?: (headers: Headers) => void) {
+  const headers = new Headers(request.headers);
+  headers.set("x-aether-pathname", pathname);
+  mutate?.(headers);
+  return NextResponse.next({ request: { headers } });
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   // Single sign-on pages run before there is a session (ADR-0042); the
@@ -37,15 +44,15 @@ export async function proxy(request: NextRequest) {
     } catch {
       // The gateway is unreachable: let the request through; it will fail
       // on its own and the session is kept for when the gateway is back.
-      return NextResponse.next();
+      return continueWithPath(request, pathname);
     }
     if (pair === null) return endSession(request, isLogin || isAPI);
 
     request.cookies.set(ACCESS_COOKIE, pair.access_token);
     request.cookies.set(REFRESH_COOKIE, pair.refresh_token);
-    const headers = new Headers(request.headers);
-    headers.set("cookie", request.cookies.toString());
-    const response = NextResponse.next({ request: { headers } });
+    const response = continueWithPath(request, pathname, (headers) => {
+      headers.set("cookie", request.cookies.toString());
+    });
     for (const cookie of sessionCookies(pair)) response.cookies.set(cookie);
     return response;
   }
@@ -58,7 +65,7 @@ export async function proxy(request: NextRequest) {
   if (!access && !refresh && !isLogin && !isAPI) {
     return siteRedirect(request, pathname === "/" ? "/login" : `/login?next=${encodeURIComponent(pathname + search)}`);
   }
-  return NextResponse.next();
+  return continueWithPath(request, pathname);
 }
 
 const PUBLIC_FILES = ["/sitemap.xml", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png", "/opengraph-image", "/icon", "/apple-icon", "/.well-known/security.txt"];
