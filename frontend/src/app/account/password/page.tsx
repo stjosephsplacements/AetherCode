@@ -4,6 +4,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { AsciiField } from "@/components/site/ascii-field";
 import { LiquidGlass } from "@/components/site/liquid-glass";
+import { passwordResetByEmail } from "@/lib/auth-paths";
 import { requireViewer } from "@/lib/server/session";
 import { PASSWORD_COOKIE } from "@/lib/server/tokens";
 import { homeFor } from "@/lib/viewer";
@@ -19,6 +20,7 @@ export default async function ChangePasswordPage({ searchParams }: { searchParam
   const lead = required
     ? "// your college gave you a temporary password. replace it with one only you know."
     : "// at least 12 characters. you stay signed in on this device.";
+  const emailReset = passwordResetByEmail();
 
   return (
     <main className="ascii relative grid min-h-dvh place-items-center overflow-hidden px-4 py-10">
@@ -69,9 +71,19 @@ export default async function ChangePasswordPage({ searchParams }: { searchParam
 
         <div className="border-t border-line/50 px-7 py-4 sm:px-9">
           <p className="font-mono text-[12px] leading-relaxed text-ink-subtle">
-            {required
-              ? "[*] after you save, we take you to your home screen."
-              : "[*] forgot the current one? ask your exam administrator to reset it."}
+            {required ? (
+              "[*] after you save, we take you to your home screen."
+            ) : emailReset ? (
+              <>
+                [*] forgot the current one?{" "}
+                <Link href="/auth/forgot-password" className="text-brand underline-offset-2 hover:underline">
+                  reset it by email
+                </Link>
+                .
+              </>
+            ) : (
+              "[*] forgot the current one? ask your exam administrator to reset it."
+            )}
           </p>
         </div>
       </LiquidGlass>
