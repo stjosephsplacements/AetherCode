@@ -50,6 +50,7 @@ type Runtime struct {
 	SEBProtectedPrefixes []string
 	SEBPublicOrigin      string
 	RateLimit            RateLimit
+	PublicRateLimit      RateLimit
 	RequestTimeout       time.Duration
 	SEBValidationTimeout time.Duration
 	Realtime             Realtime
@@ -124,6 +125,10 @@ func Load() (Runtime, error) {
 	if err != nil {
 		return Runtime{}, err
 	}
+	publicRateLimit, err := loadPublicRateLimit(rateLimit)
+	if err != nil {
+		return Runtime{}, err
+	}
 	requestTimeout, err := duration("GATEWAY_REQUEST_TIMEOUT", 30*time.Second)
 	if err != nil {
 		return Runtime{}, err
@@ -146,6 +151,7 @@ func Load() (Runtime, error) {
 		SEBProtectedPrefixes: prefixes,
 		SEBPublicOrigin:      publicOrigin,
 		RateLimit:            rateLimit,
+		PublicRateLimit:      publicRateLimit,
 		RequestTimeout:       requestTimeout,
 		SEBValidationTimeout: sebValidationTimeout,
 		Realtime:             realtime,
@@ -344,6 +350,41 @@ func loadRateLimit() (RateLimit, error) {
 	}
 	if idleTTL <= 0 {
 		return RateLimit{}, fmt.Errorf("GATEWAY_RATE_LIMIT_IDLE_TTL must be positive")
+	}
+	return RateLimit{Capacity: capacity, RefillPerSecond: refill, MaxEntries: maxEntries, IdleTTL: idleTTL}, nil
+}
+
+// loadPublicRateLimit configures anonymous Identity sign-in routes. When the
+// GATEWAY_PUBLIC_RATE_LIMIT_* variables are unset, it mirrors the authenticated
+// bucket so single-bucket deployments stay unchanged.
+func loadPublicRateLimit(authenticated RateLimit) (RateLimit, error) {
+	if os.Getenv("GATEWAY_PUBLIC_RATE_LIMIT_CAPACITY") == "" &&
+		os.Getenv("GATEWAY_PUBLIC_RATE_LIMIT_REFILL_PER_SECOND") == "" &&
+		os.Getenv("GATEWAY_PUBLIC_RATE_LIMIT_MAX_ENTRIES") == "" &&
+		os.Getenv("GATEWAY_PUBLIC_RATE_LIMIT_IDLE_TTL") == "" {
+		return authenticated, nil
+	}
+	capacity, err := positiveFloat("GATEWAY_PUBLIC_RATE_LIMIT_CAPACITY", authenticated.Capacity)
+	if err != nil {
+		return RateLimit{}, err
+	}
+	refill, err := positiveFloat("GATEWAY_PUBLIC_RATE_LIMIT_REFILL_PER_SECOND", authenticated.RefillPerSecond)
+	if err != nil {
+		return RateLimit{}, err
+	}
+	maxEntries, err := positiveInt("GATEWAY_PUBLIC_RATE_LIMIT_MAX_ENTRIES", authenticated.MaxEntries)
+	if err != nil {
+		return RateLimit{}, err
+	}
+	if maxEntries > 1000000 {
+		return RateLimit{}, fmt.Errorf("GATEWAY_PUBLIC_RATE_LIMIT_MAX_ENTRIES exceeds the 1000000 safety bound")
+	}
+	idleTTL, err := duration("GATEWAY_PUBLIC_RATE_LIMIT_IDLE_TTL", authenticated.IdleTTL)
+	if err != nil {
+		return RateLimit{}, err
+	}
+	if idleTTL <= 0 {
+		return RateLimit{}, fmt.Errorf("GATEWAY_PUBLIC_RATE_LIMIT_IDLE_TTL must be positive")
 	}
 	return RateLimit{Capacity: capacity, RefillPerSecond: refill, MaxEntries: maxEntries, IdleTTL: idleTTL}, nil
 }

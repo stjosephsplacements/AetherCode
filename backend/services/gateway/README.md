@@ -52,12 +52,18 @@ GATEWAY_RATE_LIMIT_CAPACITY=60
 GATEWAY_RATE_LIMIT_REFILL_PER_SECOND=10
 GATEWAY_RATE_LIMIT_MAX_ENTRIES=100000
 GATEWAY_RATE_LIMIT_IDLE_TTL=10m
+GATEWAY_PUBLIC_RATE_LIMIT_CAPACITY=          # optional; anonymous Identity sign-in routes only
+GATEWAY_PUBLIC_RATE_LIMIT_REFILL_PER_SECOND=
+GATEWAY_PUBLIC_RATE_LIMIT_MAX_ENTRIES=
+GATEWAY_PUBLIC_RATE_LIMIT_IDLE_TTL=
 GATEWAY_REQUEST_TIMEOUT=30s
 GATEWAY_SEB_VALIDATION_TIMEOUT=3s
 ```
 
 The token-bucket limiter is per Gateway instance and keyed by verified
-principal (or by a trustworthy source IP for anonymous public Identity calls).
+principal (or by a trustworthy source IP for anonymous traffic). Anonymous
+`/v1/auth/*` Identity routes may use a separate public bucket
+(`GATEWAY_PUBLIC_RATE_LIMIT_*`) so a lab sign-in burst does not widen per-principal limits.
 Ingress/WAF must enforce the complementary global quota; the in-memory bucket
 is intentionally bounded and is not a distributed rate-limit authority.
 

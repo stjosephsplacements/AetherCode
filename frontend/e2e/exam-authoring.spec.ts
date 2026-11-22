@@ -27,8 +27,13 @@ test("staff create, build and publish an exam through the UI", async ({ page }) 
   const title = `UI exam ${run}`;
   await page.goto("/staff/exams/new");
   await page.getByLabel("Title").fill(title);
-  const opens = new Date(Date.now() + 600_000);
-  const closes = new Date(opens.getTime() + 7_200_000);
+  const onFiveMinutes = (d: Date) => {
+    const rounded = new Date(d);
+    rounded.setMinutes(Math.round(rounded.getMinutes() / 5) * 5, 0, 0);
+    return rounded;
+  };
+  const opens = onFiveMinutes(new Date(Date.now() + 600_000));
+  const closes = onFiveMinutes(new Date(opens.getTime() + 7_200_000));
   const pad = (n: number) => String(n).padStart(2, "0");
   const local = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   await pickDateTime(page, "exam-opens", local(opens));
@@ -50,8 +55,9 @@ test("staff create, build and publish an exam through the UI", async ({ page }) 
   await match.click();
   await page.locator("#add-marks").fill("15");
   await page.getByRole("button", { name: "Add question" }).click();
-  await expect(page.getByText(seed.questionTitle).first()).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByText("15").first()).toBeVisible();
+  const questionRow = page.getByRole("row").filter({ hasText: seed.questionTitle });
+  await expect(questionRow).toBeVisible({ timeout: 30_000 });
+  await expect(questionRow.getByRole("cell", { name: "15", exact: true })).toBeVisible();
 
   // Publish.
   await page.getByRole("button", { name: "Publish exam" }).click();

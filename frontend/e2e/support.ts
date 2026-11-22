@@ -100,10 +100,13 @@ export async function dismissOnboarding(page: Page): Promise<void> {
   await expect(dialog).toBeHidden();
 }
 
-/** Sets a staff date-time picker (the popover that replaced the native datetime-local field) to a local "YYYY-MM-DDTHH:mm". */
+/** Sets a staff date-time picker (the popover that replaced the native datetime-local field) to a local "YYYY-MM-DDTHH:mm". Minutes are rounded to five in the UI. */
 export async function pickDateTime(page: Page, id: string, value: string): Promise<void> {
   const [day, time] = value.split("T");
   const [hour, minute] = time!.split(":").map(Number);
+  if (minute! % 5 !== 0) {
+    throw new Error(`pickDateTime only supports five-minute steps; got ${value}`);
+  }
   await page.locator(`#${id}`).click();
   const dialog = page.getByRole("dialog").last();
   const dayButton = dialog.getByRole("button", { name: day!, exact: true });
@@ -121,7 +124,8 @@ export async function pickDateTime(page: Page, id: string, value: string): Promi
 /** The cookie notice floats over the bottom of the page and can sit on top of a primary button; choose essential only. */
 export async function dismissCookies(page: Page): Promise<void> {
   const choice = page.getByRole("button", { name: "Essential only" });
-  if (await choice.isVisible().catch(() => false)) await choice.click();
+  const shown = await choice.waitFor({ state: "visible", timeout: 3_000 }).then(() => true, () => false);
+  if (shown) await choice.click();
 }
 
 /** The college the specs work in: E2E_TENANT_SLUG when set (use a small dedicated college), otherwise the first one. */

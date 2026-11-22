@@ -75,6 +75,7 @@ type Config struct {
 	Upstreams            map[string]*url.URL
 	Verifier             AssertionVerifier
 	Limiter              *ratelimit.Limiter
+	PublicLimiter        *ratelimit.Limiter
 	TrustedProxyCIDRs    []*net.IPNet
 	SEBProtectedPrefixes []string
 	SEBPublicOrigin      string
@@ -90,6 +91,7 @@ type Handler struct {
 	upstreams            map[string]*url.URL
 	verifier             AssertionVerifier
 	limiter              *ratelimit.Limiter
+	publicLimiter        *ratelimit.Limiter
 	trustedProxyCIDRs    []*net.IPNet
 	sebProtectedPrefixes []string
 	sebPublicOrigin      string
@@ -111,6 +113,10 @@ func New(config Config) (*Handler, error) {
 	}
 	if config.Limiter == nil {
 		return nil, fmt.Errorf("gateway limiter is required")
+	}
+	publicLimiter := config.PublicLimiter
+	if publicLimiter == nil {
+		publicLimiter = config.Limiter
 	}
 	if len(config.Upstreams) == 0 {
 		return nil, fmt.Errorf("gateway requires at least one upstream")
@@ -146,6 +152,7 @@ func New(config Config) (*Handler, error) {
 		upstreams:            upstreams,
 		verifier:             config.Verifier,
 		limiter:              config.Limiter,
+		publicLimiter:        publicLimiter,
 		trustedProxyCIDRs:    append([]*net.IPNet(nil), config.TrustedProxyCIDRs...),
 		sebProtectedPrefixes: append([]string(nil), config.SEBProtectedPrefixes...),
 		sebPublicOrigin:      strings.TrimSuffix(config.SEBPublicOrigin, "/"),
@@ -217,10 +224,13 @@ func (handler *Handler) ServeHTTP(writer http.ResponseWriter, request *http.Requ
 	}
 
 	limitKey := "ip:" + clientIP
+	limiter := handler.limiter
 	if principalID != "" {
 		limitKey = "principal:" + principalID
+	} else if matched.service == "identity" && isPublicIdentityRoute(request.Method, matched.forwardedPath) {
+		limiter = handler.publicLimiter
 	}
-	if !handler.limiter.Allow(limitKey, handler.now()) {
+	if !limiter.Allow(limitKey, handler.now()) {
 		writer.Header().Set("Retry-After", "1")
 		writeError(writer, http.StatusTooManyRequests, "rate limit exceeded")
 		return
