@@ -3,7 +3,7 @@ info:
   title: AetherCode Tenant API
   version: 1.0.0
   description: |
-    Tenant, department, batch, retention, and legal-hold workflows. Every
+    Tenant, department, batch, branding, retention, and legal-hold workflows. Every
     business request requires an Identity bearer assertion, a fresh User
     authorization decision over mTLS, and a transaction-scoped signed RLS
     capability; authorization failures fail closed.
@@ -315,6 +315,194 @@ paths:
           $ref: '#/components/responses/Problem500'
         '429':
           $ref: '#/components/responses/Problem429'
+  /v1/branding:
+    get:
+      summary: Public branding for sign-in and anonymous pages
+      parameters:
+      - name: tenant_id
+        in: query
+        schema: {$ref: '#/components/schemas/UUID'}
+      responses:
+        '200': {$ref: '#/components/responses/BrandingView'}
+        '400': {$ref: '#/components/responses/Error'}
+        '500':
+          $ref: '#/components/responses/Problem500'
+  /v1/branding/logos/{logo_id}:
+    get:
+      summary: Public logo proxy
+      parameters:
+      - name: logo_id
+        in: path
+        required: true
+        schema: {$ref: '#/components/schemas/UUID'}
+      responses:
+        '200':
+          description: Logo bytes
+        '404': {$ref: '#/components/responses/Error'}
+        '500':
+          $ref: '#/components/responses/Problem500'
+  /v1/branding/platform:
+    get:
+      summary: Platform-default branding settings
+      security: [bearerAuth: []]
+      responses:
+        '200': {$ref: '#/components/responses/BrandingView'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '500':
+          $ref: '#/components/responses/Problem500'
+    put:
+      summary: Update platform-default branding
+      security: [bearerAuth: []]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/BrandingPayload'}
+      responses:
+        '200': {$ref: '#/components/responses/BrandingView'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '500':
+          $ref: '#/components/responses/Problem500'
+  /v1/branding/platform/logos:
+    post:
+      summary: Upload a platform-default logo
+      security: [bearerAuth: []]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [logo]
+              properties:
+                logo: {type: string, format: binary}
+                alt_text: {type: string, maxLength: 200}
+      responses:
+        '201': {$ref: '#/components/responses/BrandingView'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
+        '500':
+          $ref: '#/components/responses/Problem500'
+  /v1/branding/platform/logos/order:
+    put:
+      summary: Reorder platform-default logos
+      security: [bearerAuth: []]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/BrandingLogoOrder'}
+      responses:
+        '200': {$ref: '#/components/responses/BrandingView'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '500':
+          $ref: '#/components/responses/Problem500'
+  /v1/branding/platform/logos/{logo_id}:
+    delete:
+      summary: Delete a platform-default logo
+      security: [bearerAuth: []]
+      parameters:
+      - name: logo_id
+        in: path
+        required: true
+        schema: {$ref: '#/components/schemas/UUID'}
+      responses:
+        '200': {$ref: '#/components/responses/BrandingView'}
+        '404': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '500':
+          $ref: '#/components/responses/Problem500'
+  /v1/tenants/{tenant_id}/branding:
+    parameters: [$ref: '#/components/parameters/TenantID']
+    get:
+      summary: Read college branding settings
+      security: [bearerAuth: []]
+      responses:
+        '200': {$ref: '#/components/responses/BrandingView'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '500':
+          $ref: '#/components/responses/Problem500'
+    put:
+      summary: Update college branding settings
+      security: [bearerAuth: []]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/BrandingPayload'}
+      responses:
+        '200': {$ref: '#/components/responses/BrandingView'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '500':
+          $ref: '#/components/responses/Problem500'
+  /v1/tenants/{tenant_id}/branding/logos:
+    post:
+      summary: Upload a college logo
+      security: [bearerAuth: []]
+      parameters: [$ref: '#/components/parameters/TenantID']
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [logo]
+              properties:
+                logo: {type: string, format: binary}
+                alt_text: {type: string, maxLength: 200}
+      responses:
+        '201': {$ref: '#/components/responses/BrandingView'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
+        '500':
+          $ref: '#/components/responses/Problem500'
+  /v1/tenants/{tenant_id}/branding/logos/order:
+    put:
+      summary: Reorder college logos
+      security: [bearerAuth: []]
+      parameters: [$ref: '#/components/parameters/TenantID']
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/BrandingLogoOrder'}
+      responses:
+        '200': {$ref: '#/components/responses/BrandingView'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '500':
+          $ref: '#/components/responses/Problem500'
+  /v1/tenants/{tenant_id}/branding/logos/{logo_id}:
+    delete:
+      summary: Delete a college logo
+      security: [bearerAuth: []]
+      parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - name: logo_id
+        in: path
+        required: true
+        schema: {$ref: '#/components/schemas/UUID'}
+      responses:
+        '200': {$ref: '#/components/responses/BrandingView'}
+        '404': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '500':
+          $ref: '#/components/responses/Problem500'
   /v1/tenants/{tenant_id}/legal-holds:
     post:
       summary: Place a tenant, student, assessment, or submission legal hold
@@ -695,6 +883,18 @@ components:
           $ref: '#/components/headers/RateLimit-Reset'
         Access-Control-Allow-Origin:
           $ref: '#/components/headers/Access-Control-Allow-Origin'
+    BrandingView:
+      description: Resolved branding settings
+      content: {application/json: {schema: {$ref: '#/components/schemas/BrandingView'}}}
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/Access-Control-Allow-Origin'
     RetentionPolicy:
       description: Tenant retention policy
       content: {application/json: {schema: {$ref: '#/components/schemas/RetentionPolicy'}}}
@@ -854,6 +1054,62 @@ components:
         code: {type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9_-]{1,62}$', maxLength: 1000}
         name: {type: string, minLength: 1, maxLength: 255}
         academic_year: {type: string, pattern: '^[0-9]{4}-[0-9]{4}$', maxLength: 1000}
+    BrandingPayload:
+      type: object
+      additionalProperties: false
+      properties:
+        app_name: {type: string, maxLength: 60}
+        accent_color:
+          oneOf:
+          - {type: string, pattern: '^#[0-9a-fA-F]{6}$', maxLength: 7}
+          - {type: 'null'}
+    BrandingLogoOrder:
+      type: object
+      required: [logo_ids]
+      additionalProperties: false
+      properties:
+        logo_ids:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items: {$ref: '#/components/schemas/UUID'}
+    BrandingLogo:
+      type: object
+      required: [id, content_type, position, alt_text]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        url: {type: string, maxLength: 4096}
+        content_type: {type: string, maxLength: 64}
+        position: {type: integer, minimum: 0, maximum: 4, format: int64}
+        alt_text: {type: string, maxLength: 200}
+    BrandingView:
+      type: object
+      required: [logos]
+      properties:
+        tenant_id:
+          oneOf:
+          - {$ref: '#/components/schemas/UUID'}
+          - {type: 'null'}
+        app_name:
+          oneOf:
+          - {type: string, maxLength: 60}
+          - {type: 'null'}
+        accent_color:
+          oneOf:
+          - {type: string, pattern: '^#[0-9a-fA-F]{6}$', maxLength: 7}
+          - {type: 'null'}
+        logos:
+          type: array
+          maxItems: 5
+          items: {$ref: '#/components/schemas/BrandingLogo'}
+        updated_at:
+          oneOf:
+          - {$ref: '#/components/schemas/Timestamp'}
+          - {type: 'null'}
+        updated_by:
+          oneOf:
+          - {$ref: '#/components/schemas/UUID'}
+          - {type: 'null'}
     RetentionPolicyRequest:
       type: object
       required: [academic_records_years, audit_records_years, auth_logs_days, notification_delivery_days, execution_record_days]

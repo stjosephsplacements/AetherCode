@@ -76,6 +76,9 @@ export function AssignForm({
         <Field label="Available until" htmlFor="assign-until">
           <TextInput id="assign-until" name="available_until" type="datetime-local" defaultValue={closes} required />
         </Field>
+        <Field label="Extra time (minutes)" htmlFor="assign-extra" hint="Optional accommodation added to each candidate's duration.">
+          <TextInput id="assign-extra" name="extra_time_minutes" type="number" min={0} max={240} defaultValue="0" />
+        </Field>
       </div>
 
       <div className="mt-2">

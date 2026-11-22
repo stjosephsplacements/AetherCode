@@ -10,6 +10,7 @@ import { requireViewer } from "@/lib/server/session";
 import { currentStreak, weekGrid } from "@/lib/streak";
 import { TIME_ZONE, cn, formatDateTime, formatDuration, formatWindow } from "@/lib/utils";
 import { Countdown } from "./countdown";
+import { SebQuitFromQuery } from "./seb-quit-from-query";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -52,6 +53,7 @@ export default async function StudentDashboard() {
 
   return (
     <div className="animate-enter space-y-6">
+      <SebQuitFromQuery tenantId={viewer.tenantId} />
       <LiveRefresh topics={["attempts", "grading"]} />
       {/* Hero */}
       <section className="relative overflow-hidden rounded-panel p-6 text-[var(--poster-ink)] shadow-[var(--shadow-panel)] sm:p-9" style={{ background: "var(--poster-sky)" }}>

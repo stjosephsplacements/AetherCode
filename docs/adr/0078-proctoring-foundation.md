@@ -54,12 +54,13 @@ Until then, webcam is off by default.
    with server-confirmed storage.
 5. Add snapshot gallery to the attempt detail page for invigilators.
 
-### Phase 3 — face/phone detection (future)
+### Phase 3 — client TF.js hints (shipped MVP)
 
-Run TensorFlow.js `face-detection` in a Web Worker. Fire an integrity event
-of kind `face_missing` or `multiple_faces` when detection confidence
-exceeds the threshold. No server model needed; model weights are ~3 MB loaded
-once from a CDN.
+BlazeFace in the browser runs beside the GPU proctor path. Hints post to
+`POST .../client-proctor-hints` as **advisory** rows only; they do not feed
+violation counts or auto-submit (ADR-0080). Staff read them with proctor
+evidence; snapshots remain `VIEW_STUDENT_PII`. Phone detection on the client
+is deferred; the server YOLO path stays authoritative.
 
 ## Consequences
 

@@ -24,10 +24,15 @@ pnpm typecheck && pnpm lint && pnpm build
 | Variable | Meaning |
 |---|---|
 | `GATEWAY_URL` | Where the Next.js server reaches the gateway (`http://gateway:8080` in Compose). |
+| `QUESTION_INTAKE_URL` | Base URL of the question intake app for staff topic import (ADR-0069), e.g. `http://127.0.0.1:3300`. |
 | `PUBLIC_ORIGIN` | The origin students load the site from. Must equal the gateway's `GATEWAY_SEB_PUBLIC_ORIGIN`. Mutating `/api` requests must carry it as `Origin`. |
-| `BRANDING_FILE` | Optional. A JSON file of per-college branding (ADR-0045). |
+| `BRANDING_FILE` | Optional fallback file when tenant branding tables are empty (ADR-0045, ADR-0059). |
 
 ### Branding
+
+Staff can edit branding under **Branding** in the college workspace (ADR-0059).
+`brandFor` loads `GET /api/tenant/v1/branding` first and falls back to
+`BRANDING_FILE` when the tenant service has no rows.
 
 `BRANDING_FILE` points at a JSON file; logos are files beside it. The server
 re-reads it when it changes.
@@ -69,7 +74,12 @@ in the same directory. The sign-in page keeps the AetherCode mark.
   call (start, paper, save, run, submit) is made by client components. A
   server-side fetch would not carry SEB's per-request hash.
 - **SEB entry.** The `.seb` launch file starts at `/exam/<exam id>`, which sends
-  the student (after sign-in) to that exam's lobby. SEB quits at `/student`.
+  the student (after sign-in) to that exam's lobby. SEB quits at `/student?seb=quit`
+  after hand-in; quit-token self-service is ADR-0094.
+- **Campus SSO (ADR-0042).** Set `AETHERCODE_SSO=on` and the identity service's
+  `IDENTITY_SSO_*` values (see `deploy/single-server/README.md`, "Single sign-on").
+  IdP secrets are never committed; the login page shows "Sign in with your
+  St. Joseph's account" when SSO is on.
 
 ## Screens
 
@@ -94,6 +104,7 @@ in the same directory. The sign-in page keeps the AetherCode mark.
 | `/staff/exams/<exam>/monitor` | Live monitor with WebSocket updates, announcements, extend time |
 | `/staff/exams/<exam>/results` | Results, CSV export, result release |
 | `/staff/exams/<exam>/similarity` | Similarity report |
+| `/staff/exams/<exam>/similarity/compare` | Side-by-side code compare for a pair |
 | `/staff/questions` | Question bank, authoring, model-solution checks |
 | `/staff/students` | Student roster, bulk import, individual detail |
 | `/staff/roles` | College role management with permission grids |

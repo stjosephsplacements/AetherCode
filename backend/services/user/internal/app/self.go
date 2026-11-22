@@ -3,9 +3,11 @@ package app
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/rbac"
 )
 
 // Self is what the signed-in principal may know about their own access:
@@ -16,6 +18,11 @@ type Self struct {
 	PrincipalID string       `json:"principal_id"`
 	Roles       []SelfRole   `json:"roles"`
 	Student     *SelfStudent `json:"student"`
+	// Permissions are the named flags held on any of the caller's roles
+	// (union of role bits). Grants and overwrites are not included; services
+	// still authorize each request. Used by the BFF for UI gates such as
+	// VIEW_STUDENT_PII on the placement console.
+	Permissions []string `json:"permissions"`
 }
 
 type SelfRole struct {
@@ -45,7 +52,11 @@ func (service *Service) Self(contextValue context.Context, assertion string) (Se
 	if err != nil {
 		return Self{}, fmt.Errorf("read own role assignments: %w", err)
 	}
-	self := Self{PrincipalID: principalID, Roles: make([]SelfRole, 0, len(snapshot.Assignments))}
+	self := Self{
+		PrincipalID: principalID,
+		Roles:       make([]SelfRole, 0, len(snapshot.Assignments)),
+		Permissions: heldPermissionKeys(snapshot),
+	}
 	for _, assignment := range snapshot.Assignments {
 		self.Roles = append(self.Roles, SelfRole{
 			RoleName: string(assignment.Role), ScopeKind: assignment.ScopeKind,
@@ -56,4 +67,35 @@ func (service *Service) Self(contextValue context.Context, assertion string) (Se
 		}
 	}
 	return self, nil
+}
+
+// heldPermissionKeys unions every assignment's role bits and returns the flag
+// keys that are set. Root administrators are treated as holding ADMINISTRATOR.
+func heldPermissionKeys(snapshot Snapshot) []string {
+	var held rbac.Perms
+	root := false
+	for _, assignment := range snapshot.Assignments {
+		if assignment.isRoot() {
+			root = true
+		}
+		if assignment.HasPerms {
+			held = held.Or(assignment.Perms)
+		}
+	}
+	keys := make([]string, 0, len(snapshot.Flags))
+	for key, index := range snapshot.Flags {
+		if held.Has(index) {
+			keys = append(keys, key)
+		}
+	}
+	if root {
+		if _, ok := snapshot.Flags[flagAdministrator]; ok && !slices.Contains(keys, flagAdministrator) {
+			keys = append(keys, flagAdministrator)
+		}
+	}
+	slices.Sort(keys)
+	if keys == nil {
+		return []string{}
+	}
+	return keys
 }

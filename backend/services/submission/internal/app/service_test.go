@@ -85,6 +85,18 @@ func (validationStore) ListCodeRuns(context.Context, pgx.Tx, ListCodeRuns) ([]Co
 func (validationStore) GetGradingQueue(context.Context, pgx.Tx, string) (json.RawMessage, error) {
 	panic("unexpected store call")
 }
+func (validationStore) ListFailedGradingJobs(context.Context, pgx.Tx, ListFailedGradingJobs) (json.RawMessage, error) {
+	panic("unexpected store call")
+}
+func (validationStore) RetryFailedGradingJob(context.Context, pgx.Tx, string, string) (json.RawMessage, error) {
+	panic("unexpected store call")
+}
+func (validationStore) RetryAllFailedGradingJobs(context.Context, pgx.Tx, string, int) (json.RawMessage, error) {
+	panic("unexpected store call")
+}
+func (validationStore) DismissFailedGradingJob(context.Context, pgx.Tx, string, string, string) (json.RawMessage, error) {
+	panic("unexpected store call")
+}
 
 func (validationStore) GetExamMonitor(context.Context, pgx.Tx, ExamVersionCommand) (json.RawMessage, error) {
 	return nil, nil
@@ -117,6 +129,12 @@ func (validationStore) SetIntegrity(context.Context, pgx.Tx, SetIntegrity) error
 func (validationStore) RecordIntegrityEvent(context.Context, pgx.Tx, GetAttempt, string) error {
 	return nil
 }
+func (validationStore) RecordClientProctorHint(context.Context, pgx.Tx, GetAttempt, string, float32) error {
+	return nil
+}
+func (validationStore) ListClientProctorHints(context.Context, pgx.Tx, GetAttempt) (json.RawMessage, error) {
+	return json.RawMessage(`[]`), nil
+}
 func (validationStore) RegradeItem(context.Context, pgx.Tx, ExamVersionCommand, string) (json.RawMessage, error) {
 	return nil, nil
 }
@@ -133,6 +151,9 @@ func (validationStore) StoreSnapshot(context.Context, pgx.Tx, StoreSnapshot) (st
 }
 func (validationStore) ListSnapshotKeys(context.Context, pgx.Tx, ListSnapshots) ([]SnapshotRow, error) {
 	return nil, nil
+}
+func (validationStore) PurgeCodeRunsForAttempt(context.Context, pgx.Tx, PurgeCodeRuns) (PurgeCodeRunsResult, error) {
+	return PurgeCodeRunsResult{}, nil
 }
 func (validationStore) Ping(context.Context) error { return nil }
 

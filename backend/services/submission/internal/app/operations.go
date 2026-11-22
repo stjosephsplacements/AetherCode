@@ -383,3 +383,92 @@ func (service *Service) GetGradingQueue(contextValue context.Context, capability
 	})
 	return queue, err
 }
+
+// ListFailedGradingJobs lists failed evaluation requests and sample runs (ADR-0059).
+type ListFailedGradingJobs struct {
+	TenantID   string
+	Limit      int
+	CursorSort string
+	CursorID   string
+}
+
+// ListFailedGradingJobs returns permanently failed dispatch jobs, newest first.
+func (service *Service) ListFailedGradingJobs(contextValue context.Context, capability centralauthz.Capability, command ListFailedGradingJobs) (json.RawMessage, error) {
+	command.TenantID = normalizeUUID(command.TenantID)
+	if !isUUID(command.TenantID) {
+		return nil, apperrors.New(apperrors.CodeInvalidArgument, "tenant ID must be a UUID")
+	}
+	if command.CursorID != "" && !isUUID(command.CursorID) {
+		return nil, apperrors.New(apperrors.CodeInvalidArgument, "cursor job ID must be a UUID")
+	}
+	if (command.CursorSort == "") != (command.CursorID == "") {
+		return nil, apperrors.New(apperrors.CodeInvalidArgument, "cursor must include both timestamp and job ID")
+	}
+	if command.CursorSort != "" {
+		if _, err := time.Parse(time.RFC3339Nano, command.CursorSort); err != nil {
+			return nil, apperrors.New(apperrors.CodeInvalidArgument, "before must be an RFC3339 timestamp")
+		}
+	}
+	if command.Limit <= 0 {
+		command.Limit = 50
+	}
+	if command.Limit > 200 {
+		command.Limit = 200
+	}
+	var list json.RawMessage
+	err := service.inTenant(contextValue, capability, func(transaction pgx.Tx) error {
+		var storeErr error
+		list, storeErr = service.store.ListFailedGradingJobs(contextValue, transaction, command)
+		return storeErr
+	})
+	return list, err
+}
+
+// RetryFailedGradingJob requeues one failed job if it has not already completed (ADR-0059).
+func (service *Service) RetryFailedGradingJob(contextValue context.Context, capability centralauthz.Capability, tenantID, jobID string) (json.RawMessage, error) {
+	tenantID, jobID = normalizeUUID(tenantID), normalizeUUID(jobID)
+	if !isUUID(tenantID) || !isUUID(jobID) {
+		return nil, apperrors.New(apperrors.CodeInvalidArgument, "tenant and job ID must be UUIDs")
+	}
+	var result json.RawMessage
+	err := service.inTenant(contextValue, capability, func(transaction pgx.Tx) error {
+		var storeErr error
+		result, storeErr = service.store.RetryFailedGradingJob(contextValue, transaction, tenantID, jobID)
+		return storeErr
+	})
+	return result, err
+}
+
+// RetryAllFailedGradingJobs requeues up to 500 open failures (ADR-0059).
+func (service *Service) RetryAllFailedGradingJobs(contextValue context.Context, capability centralauthz.Capability, tenantID string) (json.RawMessage, error) {
+	tenantID = normalizeUUID(tenantID)
+	if !isUUID(tenantID) {
+		return nil, apperrors.New(apperrors.CodeInvalidArgument, "tenant ID must be a UUID")
+	}
+	var result json.RawMessage
+	err := service.inTenant(contextValue, capability, func(transaction pgx.Tx) error {
+		var storeErr error
+		result, storeErr = service.store.RetryAllFailedGradingJobs(contextValue, transaction, tenantID, 500)
+		return storeErr
+	})
+	return result, err
+}
+
+// DismissFailedGradingJob removes a failed job from the staff queue with a reason (ADR-0059).
+func (service *Service) DismissFailedGradingJob(contextValue context.Context, capability centralauthz.Capability, tenantID, jobID, reason string) (json.RawMessage, error) {
+	tenantID, jobID = normalizeUUID(tenantID), normalizeUUID(jobID)
+	reason = strings.TrimSpace(reason)
+	if !isUUID(tenantID) || !isUUID(jobID) {
+		return nil, apperrors.New(apperrors.CodeInvalidArgument, "tenant and job ID must be UUIDs")
+	}
+	if reason == "" || utf8.RuneCountInString(reason) > 500 {
+		return nil, apperrors.New(apperrors.CodeInvalidArgument, "dismissal reason is required and must be at most 500 characters")
+	}
+	var result json.RawMessage
+	err := service.inTenant(contextValue, capability, func(transaction pgx.Tx) error {
+		var storeErr error
+		result, storeErr = service.store.DismissFailedGradingJob(contextValue, transaction, tenantID, jobID, reason)
+		return storeErr
+	})
+	return result, err
+}

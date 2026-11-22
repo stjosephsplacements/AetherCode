@@ -30,6 +30,7 @@ func DefaultLanguages() []Language {
 		{Key: "python3", Name: "Python 3", Editor: "python"},
 		{Key: "javascript", Name: "JavaScript", Editor: "javascript"},
 		{Key: "go", Name: "Go", Editor: "go"},
+		{Key: "sqlite", Name: "SQLite", Editor: "sql"},
 	}
 }
 

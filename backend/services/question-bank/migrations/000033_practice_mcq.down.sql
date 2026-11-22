@@ -1,0 +1,190 @@
+SET ROLE aether_question_bank_owner;
+
+DROP FUNCTION qbank.start_practice_mcq_submission(uuid, uuid, integer[]);
+
+DELETE FROM qbank.practice_submissions WHERE selected_choices IS NOT NULL;
+
+ALTER TABLE qbank.practice_submissions DROP CONSTRAINT practice_submissions_payload;
+ALTER TABLE qbank.practice_submissions DROP COLUMN selected_choices;
+ALTER TABLE qbank.practice_submissions
+    ALTER COLUMN language_key SET NOT NULL,
+    ALTER COLUMN source_object_key SET NOT NULL,
+    ALTER COLUMN source_checksum SET NOT NULL,
+    ALTER COLUMN source_key_reference SET NOT NULL;
+
+CREATE OR REPLACE FUNCTION qbank.practice_version(p_question_id uuid)
+RETURNS qbank.question_versions
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, qbank
+AS $function$
+    SELECT version.*
+    FROM qbank.questions AS question
+    JOIN qbank.question_versions AS version ON version.question_id = question.id
+    WHERE question.id = p_question_id
+      AND question.audience = 'practice'
+      AND question.lifecycle_state <> 'archived'
+      AND question.deleted_at IS NULL
+      AND version.status = 'published'
+      AND version.deleted_at IS NULL
+      AND version.kind = 'coding'
+    ORDER BY version.version_number DESC
+    LIMIT 1
+$function$;
+
+CREATE OR REPLACE FUNCTION qbank.list_practice_questions()
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, qbank, authz, app
+AS $function$
+DECLARE
+    caller record;
+BEGIN
+    SELECT * INTO caller FROM qbank.require_practice_context(false);
+    RETURN COALESCE((
+        SELECT jsonb_agg(jsonb_build_object(
+                   'question_id', question.id,
+                   'slug', question.slug,
+                   'title', version.title,
+                   'difficulty', version.difficulty,
+                   'tags', qbank.version_tag_names(version.id),
+                   'solved', EXISTS (
+                       SELECT 1 FROM qbank.practice_submissions AS mine
+                       WHERE mine.actor_id = caller.actor_id AND mine.question_id = question.id
+                         AND mine.mode = 'submit' AND mine.verdict = 'accepted'),
+                   'attempted', EXISTS (
+                       SELECT 1 FROM qbank.practice_submissions AS mine
+                       WHERE mine.actor_id = caller.actor_id AND mine.question_id = question.id
+                         AND mine.mode = 'submit')
+               ) ORDER BY CASE version.difficulty WHEN 'easy' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END, version.title)
+        FROM qbank.questions AS question
+        CROSS JOIN LATERAL qbank.practice_version(question.id) AS version
+        WHERE question.audience = 'practice' AND version.id IS NOT NULL
+    ), '[]'::jsonb);
+END
+$function$;
+
+CREATE OR REPLACE FUNCTION qbank.get_practice_question(p_question_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, qbank, authz, app
+AS $function$
+DECLARE
+    version qbank.question_versions%ROWTYPE;
+    sample qbank.test_case_manifests%ROWTYPE;
+BEGIN
+    PERFORM qbank.require_practice_context(false);
+    version := qbank.practice_version(p_question_id);
+    IF version.id IS NULL THEN
+        RAISE EXCEPTION 'practice problem was not found' USING ERRCODE = 'P0002';
+    END IF;
+    SELECT * INTO sample FROM qbank.test_case_manifests
+    WHERE question_version_id = version.id AND manifest_kind = 'sample';
+    RETURN jsonb_build_object(
+        'question_id', p_question_id,
+        'question_version_id', version.id,
+        'title', version.title,
+        'prompt_markdown', version.prompt_markdown,
+        'difficulty', version.difficulty,
+        'languages', version.supported_languages,
+        'time_limit_ms', version.time_limit_ms,
+        'memory_limit_kib', version.memory_limit_kib,
+        'tags', qbank.version_tag_names(version.id),
+        'sample', CASE WHEN sample.id IS NULL THEN NULL ELSE jsonb_build_object(
+            'object_key', sample.object_key, 'checksum', lower(sample.checksum::text),
+            'encryption_key_reference', sample.encryption_key_reference) END
+    );
+END
+$function$;
+
+CREATE OR REPLACE FUNCTION qbank.start_practice_submission(
+    p_id uuid,
+    p_question_id uuid,
+    p_language_key text,
+    p_mode text,
+    p_custom_input boolean,
+    p_source_object_key text,
+    p_source_checksum text,
+    p_source_key_reference text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, qbank, authz, app
+AS $function$
+DECLARE
+    caller record;
+    version qbank.question_versions%ROWTYPE;
+    sample qbank.test_case_manifests%ROWTYPE;
+BEGIN
+    SELECT * INTO caller FROM qbank.require_practice_context(true);
+    IF p_mode IS NULL OR p_mode NOT IN ('run', 'submit') OR (p_custom_input AND p_mode <> 'run') THEN
+        RAISE EXCEPTION 'practice mode must be run or submit' USING ERRCODE = '22023';
+    END IF;
+    version := qbank.practice_version(p_question_id);
+    IF version.id IS NULL THEN
+        RAISE EXCEPTION 'practice problem was not found' USING ERRCODE = 'P0002';
+    END IF;
+    IF NOT version.supported_languages ? p_language_key THEN
+        RAISE EXCEPTION 'the problem does not allow this language' USING ERRCODE = '22023';
+    END IF;
+    SELECT * INTO sample FROM qbank.test_case_manifests
+    WHERE question_version_id = version.id AND manifest_kind = 'sample';
+    IF p_mode = 'run' AND NOT p_custom_input AND sample.id IS NULL THEN
+        RAISE EXCEPTION 'this problem has no sample tests; run it with your own input' USING ERRCODE = '55000';
+    END IF;
+
+    UPDATE qbank.practice_submissions
+    SET lifecycle_state = 'failed', verdict = 'internal_error', units = '[]'::jsonb, completed_at = clock_timestamp()
+    WHERE lifecycle_state = 'queued' AND requested_at < clock_timestamp() - interval '10 minutes';
+    IF EXISTS (SELECT 1 FROM qbank.practice_submissions
+               WHERE actor_id = caller.actor_id AND lifecycle_state = 'queued') THEN
+        RAISE EXCEPTION 'wait for your last run to finish' USING ERRCODE = '55000';
+    END IF;
+    IF (SELECT count(*) FROM qbank.practice_submissions WHERE lifecycle_state = 'queued') >= 12 THEN
+        RAISE EXCEPTION 'practice is busy right now; try again in a minute' USING ERRCODE = '55000';
+    END IF;
+
+    INSERT INTO qbank.practice_submissions (id, tenant_id, actor_id, question_id, question_version_id, mode,
+                                            custom_input, language_key, source_object_key, source_checksum,
+                                            source_key_reference)
+    VALUES (p_id, caller.tenant_id, caller.actor_id, p_question_id, version.id, p_mode, p_custom_input,
+            p_language_key, p_source_object_key, lower(p_source_checksum), p_source_key_reference);
+    RETURN jsonb_build_object(
+        'bundle_object_key', CASE WHEN p_mode = 'submit' THEN version.evaluation_bundle_object_key ELSE sample.object_key END,
+        'bundle_checksum', lower(CASE WHEN p_mode = 'submit' THEN version.evaluation_bundle_checksum::text ELSE sample.checksum::text END),
+        'bundle_key_reference', CASE WHEN p_mode = 'submit' THEN version.encryption_key_reference ELSE sample.encryption_key_reference END,
+        'time_limit_ms', version.time_limit_ms,
+        'memory_limit_kib', version.memory_limit_kib
+    );
+END
+$function$;
+
+CREATE OR REPLACE FUNCTION qbank.get_practice_submission(p_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, qbank, authz, app
+AS $function$
+DECLARE
+    caller record;
+    found_row qbank.practice_submissions%ROWTYPE;
+BEGIN
+    SELECT * INTO caller FROM qbank.require_practice_context(false);
+    SELECT * INTO found_row FROM qbank.practice_submissions WHERE id = p_id AND actor_id = caller.actor_id;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'practice run was not found' USING ERRCODE = 'P0002';
+    END IF;
+    RETURN qbank.practice_submission_json(found_row) || jsonb_build_object('source', jsonb_build_object(
+        'object_key', found_row.source_object_key, 'checksum', found_row.source_checksum::text,
+        'encryption_key_reference', found_row.source_key_reference));
+END
+$function$;
+
+RESET ROLE;

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import type { Attempt, AttemptResult } from "@/lib/api-types";
 import { api } from "@/lib/client/api";
 import { useRealtime } from "@/lib/client/realtime";
+import { SocraticExplainer } from "@/components/exam/socratic-explainer";
 import { formatDateTime, formatScoreText } from "@/lib/utils";
 
 // Confirms the submission and follows grading. Marks stay hidden until
@@ -134,6 +135,7 @@ function ReleasedResult({ result }: { result: Extract<AttemptResult, { released:
         ))}
       </ul>
       <p className="mt-3 text-center text-[13px] text-ink-subtle">Each question counts your best submission. Released {formatDateTime(result.released_at)}.</p>
+      <SocraticExplainer items={result.items} />
       <div className="mt-9 text-center">
         <Button asChild variant="secondary">
           <Link href="/student">Back to my exams</Link>

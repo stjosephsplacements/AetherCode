@@ -14,6 +14,7 @@ import (
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
 	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/pagination"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/storage"
 )
 
 var (
@@ -66,6 +67,11 @@ type Store interface {
 	UpdatePlacementOrganization(context.Context, pgx.Tx, UpdatePlacementOrganization) (PlacementOrganization, error)
 	UpdateDepartment(context.Context, pgx.Tx, UpdateDepartment) (Department, error)
 	UpdateBatch(context.Context, pgx.Tx, UpdateBatch) (Batch, error)
+	GetBranding(context.Context, pgx.Tx, *string) (BrandingView, error)
+	UpsertBranding(context.Context, pgx.Tx, UpsertBranding) (BrandingView, error)
+	InsertBrandingLogo(context.Context, pgx.Tx, *string, string, string, string, string, []byte, string) (BrandingView, error)
+	ReorderBrandingLogos(context.Context, pgx.Tx, *string, []string) (BrandingView, error)
+	DeleteBrandingLogo(context.Context, pgx.Tx, *string, string) (string, BrandingView, error)
 	Ping(context.Context) error
 }
 
@@ -242,8 +248,9 @@ type ListPlacementDepartments struct {
 
 // Service owns the secure transaction boundary for Tenant workflows.
 type Service struct {
-	pool  *pgxpool.Pool
-	store Store
+	pool    *pgxpool.Pool
+	store   Store
+	storage storage.Object
 }
 
 func NewService(pool *pgxpool.Pool, store Store) (*Service, error) {

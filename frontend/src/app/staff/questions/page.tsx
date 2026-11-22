@@ -12,6 +12,7 @@ import { listLanguages } from "@/lib/server/languages";
 import { describeAccounts } from "@/lib/server/people";
 import { requireStaff } from "@/lib/server/staff";
 import { ImportDialog } from "./import-dialog";
+import { loadIntakeTopics } from "./actions";
 import { ManageCategories } from "./manage-categories";
 import { type ListKey, type Lists, QuestionBoard, type QuestionRow } from "./question-board";
 
@@ -65,7 +66,13 @@ export default async function QuestionsPage({ searchParams }: { searchParams: Pr
     );
   }
   // The other lists are separate requests; a role that cannot read one still gets the rest.
-  const [drafts, review, { languages }, categories] = await Promise.all([fetchList("draft").catch(() => null), fetchList("review").catch(() => null), listLanguages(), listCategories()]);
+  const [drafts, review, { languages }, categories, intakeTopics] = await Promise.all([
+    fetchList("draft").catch(() => null),
+    fetchList("review").catch(() => null),
+    listLanguages(),
+    listCategories(),
+    loadIntakeTopics().catch(() => []),
+  ]);
   const authorIds = [...published.items, ...(drafts?.items ?? []), ...(review?.items ?? [])]
     .map(({ question_version }) => question_version.created_by)
     .filter((id): id is string => Boolean(id));
@@ -90,7 +97,7 @@ export default async function QuestionsPage({ searchParams }: { searchParams: Pr
         actions={
           <>
             {staff.canManageAccounts && categories.length > 0 && <ManageCategories categories={categories} />}
-            <ImportDialog />
+            <ImportDialog intakeTopics={intakeTopics} />
             <Button asChild>
               <Link href="/staff/questions/new">
                 <Plus />

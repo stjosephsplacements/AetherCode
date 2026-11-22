@@ -23,6 +23,8 @@ export type Me = {
     scope_id?: string;
   }[];
   student: { tenant_id: string } | null;
+  /** Named permission flags held on any of the caller's roles (union of role bits). */
+  permissions: string[];
 };
 
 /** GET /identity/v1/principals/{self} */
@@ -237,6 +239,8 @@ export type PracticeProblem = {
   question_id: string;
   slug: string;
   title: string;
+  /** "coding" or "mcq"; omitted on older rows means coding (ADR-0041). */
+  kind?: "coding" | "mcq";
   difficulty: "easy" | "medium" | "hard";
   tags: string[];
   solved: boolean;
@@ -246,6 +250,7 @@ export type PracticeProblem = {
 export type PracticeQuestion = {
   question_id: string;
   question_version_id: string;
+  kind?: "coding" | "mcq";
   title: string;
   prompt_markdown: string;
   difficulty: "easy" | "medium" | "hard";
@@ -256,6 +261,20 @@ export type PracticeQuestion = {
   samples: { input: string; expected_output: string }[];
   /** Function-only problems: the stub students start from, by language. */
   starters?: Record<string, string>;
+  choices?: string[];
+  multiple_choice?: boolean;
+};
+
+/** GET practice submission for a multiple-choice problem after submit. */
+export type PracticeMcqQuestion = PracticeQuestion & { kind: "mcq"; choices: string[]; multiple_choice: boolean };
+
+export type PracticeMcqRun = PracticeRun & {
+  kind?: "mcq";
+  selected_choices?: number[];
+  choices?: string[];
+  correct_choices?: number[];
+  choice_explanations?: (string | null)[] | null;
+  multiple_choice?: boolean;
 };
 
 export type PracticeUnit = {
@@ -469,6 +488,32 @@ export type AttemptReview = {
   events: { occurred_at: string; event_type: string; actor_id: string | null; payload: Record<string, unknown> }[];
 };
 
+/** GET /submission/v1/tenants/{t}/exam-versions/{v}/similarity/align (ADR-0081 C). */
+export type ConsortiumDrive = {
+  id: string;
+  placement_department_id: string;
+  title: string;
+  metric: string;
+  opens_at: string;
+  closes_at: string;
+  created_at: string;
+};
+
+export type ConsortiumLeaderboardEntry = {
+  tenant_id: string;
+  student_id: string;
+  score: string | null;
+  activity_at: string | null;
+};
+
+export type SimilarityAlign = {
+  tokens_a: string[];
+  tokens_b: string[];
+  shared: boolean[];
+  score: number;
+  shared_fingerprints: number;
+};
+
 /** GET /submission/v1/tenants/{t}/exam-versions/{v}/similarity (ADR-0031). */
 export type QuestionSimilarity = {
   exam_item_id: string;
@@ -507,7 +552,26 @@ export type QueueStats = {
   p95_seconds_last_hour: number | null;
 };
 
-export type GradingQueue = { checked_at: string; evaluations: QueueStats; runs: QueueStats };
+export type GradingQueue = {
+  checked_at: string;
+  /** Open failed dispatch jobs staff can retry or dismiss (ADR-0059). */
+  failed_open?: number;
+  evaluations: QueueStats;
+  runs: QueueStats;
+};
+
+/** GET /submission/v1/tenants/{t}/grading-queue/failed (ADR-0059). */
+export type FailedGradingJob = {
+  id: string;
+  kind: "evaluation" | "run";
+  submission_id: string;
+  attempt_id: string;
+  error_summary: string;
+  dispatch_attempts: number;
+  failed_at: string | null;
+};
+
+export type FailedGradingJobsPage = { total: number; items: FailedGradingJob[] };
 
 /** GET /user/v1/role-assignments (X-Tenant-ID). */
 export type RoleAssignment = {

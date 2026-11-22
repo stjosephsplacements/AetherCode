@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/stjosephsplacements/AetherCode/services/identity/internal/adapters/mail"
 	"github.com/stjosephsplacements/AetherCode/services/identity/internal/adapters/sso"
 	"log/slog"
 	"net"
@@ -200,6 +201,23 @@ func run(contextValue context.Context) error {
 	if provider := sso.New(ssoConfig); provider != nil {
 		identityService.UseSSO(provider, store)
 		go identityService.RunDirectorySync(runContext, logger)
+	}
+	// Password-reset emails through Microsoft Graph; off when IDENTITY_MAIL_* is unset.
+	mailConfig, err := mail.LoadConfig(serviceConfig.Environment)
+	if err != nil {
+		return err
+	}
+	if sender := mail.New(mailConfig); sender != nil {
+		identityService.UseMailer(sender)
+		// Runs when run returns, that is after the HTTP servers have stopped: queued mails get the shutdown timeout to go out.
+		defer func() {
+			drainContext, cancelDrain := context.WithTimeout(context.Background(), serviceConfig.ShutdownTimeout)
+			defer cancelDrain()
+			if err := identityService.CloseMail(drainContext); err != nil {
+				logger.Warn("queued password reset emails were not all sent", "error", err)
+			}
+		}()
+		logger.Info("password reset email is on", "sender", mailConfig.Sender)
 	}
 	registerLimiter, err := ratelimit.New(ratelimit.Config{
 		Capacity:        float64(runtime.RegisterBurst),

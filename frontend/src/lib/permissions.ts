@@ -16,7 +16,7 @@ const AREAS: [string, string[]][] = [
   ["Exams", ["exams", "exam_versions", "exam_sections", "exam_items", "assignment_rules", "candidate_assignments", "proctor_policies", "proctor_policy_versions", "configurations"]],
   ["Results and analytics", ["attempts", "attempt_events", "score_summaries", "event_facts", "student_progress_rollups", "batch_progress_rollups", "exam_result_rollups", "placement_student_rollups", "report_exports"]],
   ["Students and staff", ["students", "student_department_memberships", "current_student_affiliations", "student_batch_affiliations", "mentor_batch_assignments", "placement_department_memberships", "staff_audit"]],
-  ["Organisation", ["departments", "batches", "retention_policies", "legal_holds"]],
+  ["Organisation", ["departments", "batches", "branding", "retention_policies", "legal_holds"]],
   ["Community", ["community", "community_moderation", "notifications"]],
   ["Platform", ["tenants", "placement_organizations", "provisioning_requests", "permission_grants", "role_assignments", "category_management", "question_exports"]],
 ];

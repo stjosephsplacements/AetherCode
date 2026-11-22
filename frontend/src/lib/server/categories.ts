@@ -16,6 +16,15 @@ export async function listCategories(): Promise<Category[]> {
   }
 }
 
+/** Creates or returns the category with that sibling name (question bank validates uniqueness). */
+export async function createCategoryByName(name: string, parentId?: string): Promise<string> {
+  const created = await gateway<Category>("/question-bank/v1/categories", {
+    method: "POST",
+    body: { name, ...(parentId ? { parent_id: parentId } : {}) },
+  });
+  return created.id;
+}
+
 /** Tags in use, most used first, to suggest while an author types. */
 export async function listTagSuggestions(limit = 200): Promise<TagSuggestion[]> {
   try {

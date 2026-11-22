@@ -9,6 +9,16 @@ import (
 
 const practiceTestUUID = "019c06d6-20e1-7a21-8a4f-bd8b21a43f18"
 
+func TestSQLitePracticeAllowed(t *testing.T) {
+	t.Parallel()
+	if !sqlitePracticeAllowed([]string{"runner:sqlite"}) || !sqlitePracticeAllowed([]string{"arena:sql"}) {
+		t.Fatal("sqlite tags should allow practice sqlite")
+	}
+	if sqlitePracticeAllowed([]string{"arrays"}) {
+		t.Fatal("untagged question must not allow sqlite")
+	}
+}
+
 func TestSetQuestionAudienceRejectsInvalidAudienceAndID(t *testing.T) {
 	t.Parallel()
 	service := testService(newFakeStorage())

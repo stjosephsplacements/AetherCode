@@ -3,7 +3,9 @@
 A small app beside the platform, so question authoring does not wait on platform development. Staff sign in
 with their normal AetherCode account, write a question with its tests and model solutions, and the hosted
 judge must pass every solution on every test before the question can be saved. Everything goes into its own
-database; the platform's question bank is untouched. Import into it later.
+database. Staff import a topic into the shared question bank from the platform
+console (Questions → Import → intake topic): authorized staff only, idempotent
+per intake question, and model checks must pass before publish.
 
 - **Sign in**: the platform's identity service through the gateway (`/identity/v1/auth/login`, then `/user/v1/me`).
   Staff roles only; students are refused. Tokens live in httpOnly cookies and rotate in `proxy.ts`.

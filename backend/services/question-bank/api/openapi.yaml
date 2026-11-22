@@ -1132,8 +1132,8 @@ paths:
     get:
       summary: The practice catalogue with the student's progress (ADR-0041)
       description: >-
-        Published coding questions marked for practice, each with title,
-        difficulty, tags, and whether the caller solved or attempted it.
+        Published coding and multiple-choice questions marked for practice, each with title,
+        kind, difficulty, tags, and whether the caller solved or attempted it.
         Authorized as the bearer on practice_submissions in their tenant.
       security:
       - bearerAuth: []
@@ -1166,7 +1166,7 @@ paths:
   /v1/tenants/{tenant_id}/practice/questions/{question_id}:
     get:
       summary: One practice problem with its sample tests (ADR-0041)
-      description: The latest published version's statement, languages, limits, tags and decrypted sample tests. Hidden tests are never returned.
+      description: The latest published version's statement, kind, languages or options, limits, tags and decrypted sample tests. Hidden tests are never returned; mcq never returns the answer key.
       security:
       - bearerAuth: []
       parameters:
@@ -1198,11 +1198,11 @@ paths:
         '429':
           $ref: '#/components/responses/Problem429'
     post:
-      summary: Run or submit code on a practice problem (ADR-0041)
+      summary: Run or submit on a practice problem (ADR-0041)
       description: >-
-        mode run uses the sample tests, or input when given; mode submit uses
-        every test. One job per student may be in flight and at most 12 across
-        the platform, so exams keep Judge's other slots.
+        Coding problems: mode run uses the sample tests, or input when given; mode submit uses
+        every test. Multiple-choice: mode submit with selected indices only; grading is immediate.
+        Coding jobs — one per student in flight, at most 12 across the platform.
       security:
       - bearerAuth: []
       parameters:
@@ -1215,12 +1215,13 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              required: [language, mode, source]
+              required: [mode]
               properties:
                 language: {type: string, maxLength: 1000}
                 mode: {type: string, enum: [run, submit]}
                 source: {type: string, maxLength: 65536}
                 input: {type: string, maxLength: 65536, description: Runs only.}
+                selected: {type: array, items: {type: integer, minimum: 0, format: int64, maximum: 2147483647}, maxItems: 20, description: Mcq submit only.}
       responses:
         '202': {description: 'Started: { id }; poll the run.', headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}
         '400': {description: Invalid language, mode: null, code or input.: null, headers: {RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}, RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}, RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}, Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}}}

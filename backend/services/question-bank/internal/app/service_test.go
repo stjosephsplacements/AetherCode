@@ -452,6 +452,10 @@ func (s *panicStore) StartPractice(context.Context, pgx.Tx, string, StartPractic
 	panic("unexpected store call")
 }
 
+func (s *panicStore) StartPracticeMcq(context.Context, pgx.Tx, string, string, []int) (json.RawMessage, error) {
+	panic("unexpected store call")
+}
+
 func (s *panicStore) ListPracticeSubmissions(context.Context, pgx.Tx, string) (json.RawMessage, error) {
 	panic("unexpected store call")
 }
@@ -461,6 +465,19 @@ func (s *panicStore) GetPracticeSubmission(context.Context, pgx.Tx, string) (jso
 }
 
 func (s *panicStore) GetPracticeProgress(context.Context, pgx.Tx) (json.RawMessage, error) {
+	panic("unexpected store call")
+}
+
+func (s *panicStore) ListCollegeContests(context.Context, pgx.Tx, string) (json.RawMessage, error) {
+	panic("unexpected store call")
+}
+func (s *panicStore) SaveCollegeContest(context.Context, pgx.Tx, string, string, string, string, time.Time, time.Time, []string) (json.RawMessage, error) {
+	panic("unexpected store call")
+}
+func (s *panicStore) RegisterCollegeContest(context.Context, pgx.Tx, string, string) (json.RawMessage, error) {
+	panic("unexpected store call")
+}
+func (s *panicStore) CollegeContestLeaderboard(context.Context, pgx.Tx, string, string) (json.RawMessage, error) {
 	panic("unexpected store call")
 }
 

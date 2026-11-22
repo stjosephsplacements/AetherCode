@@ -33,7 +33,9 @@ import { type SaveState, useAnswers } from "./use-answers";
 import { useIntegrity } from "./use-integrity";
 import { useLiveState } from "./use-live-state";
 import { bestScore, isJudging, useSubmissions } from "./use-submissions";
+import { useClientProctor } from "./use-client-proctor";
 import { useWebcam } from "./use-webcam";
+import { storeSebQuitToken } from "@/components/student/seb-quit-panel";
 
 const CodeEditor = dynamic(() => import("./code-editor").then((module) => module.CodeEditor), {
   ssr: false,
@@ -58,9 +60,27 @@ export function ExamScreen({ tenantId, attemptId }: { tenantId: string; attemptI
           return;
         }
         setLoaded({ attempt, paper });
+        const storageKey = `ac_seb_quit_issued_${attemptId}`;
+        if (sessionStorage.getItem(storageKey)) return;
+        void api<{ quit_token: string }>(`/seb/v1/tenants/${tenantId}/attempts/${attemptId}/lockdown-quit-session`, {
+          method: "POST",
+          idempotencyKey: crypto.randomUUID(),
+          body: {
+            exam_id: attempt.exam_id,
+            exam_version_id: attempt.exam_version_id,
+            expires_at: attempt.submission_deadline,
+          },
+        })
+          .then((issued) => {
+            storeSebQuitToken(issued.quit_token);
+            sessionStorage.setItem(storageKey, "1");
+          })
+          .catch(() => {
+            /* SEB quit self-service is optional when the session already exists */
+          });
       })
       .catch((error: Error) => setFailure(error));
-  }, [attemptPath, attemptId, router]);
+  }, [attemptPath, attemptId, router, tenantId]);
 
   if (failure) {
     const seb = failure instanceof APIError && failure.code === "seb_required";
@@ -150,7 +170,9 @@ function ExamWorkspace({ attemptPath, attemptId, tenantId, attempt, paper }: Loa
     catch { return false; }
   });
   const integrity = useIntegrity(attemptPath, live.integrity.requireFullscreen, !readOnly && !ending);
-  const webcam = useWebcam(live.integrity.webcamRequired && webcamConsentGiven && !readOnly && !ending, tenantId, attemptId);
+  const webcamActive = live.integrity.webcamRequired && webcamConsentGiven && !readOnly && !ending;
+  const webcam = useWebcam(webcamActive, tenantId, attemptId);
+  useClientProctor(webcamActive && webcam.state.kind === "active", tenantId, attemptId, webcam.videoRef);
   // The exam requires a camera: a denied or missing one blocks the screen until the student fixes it (ADR-0078).
   const cameraBlocked = live.integrity.webcamRequired && webcamConsentGiven && !readOnly && !ending &&
     webcam.state.kind !== "active";

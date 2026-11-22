@@ -618,6 +618,27 @@ func (repository *Postgres) GetGradingQueue(contextValue context.Context, transa
 	return queryJSON(contextValue, transaction, "get grading queue", `SELECT submission.get_grading_queue($1)`, tenantID)
 }
 
+func (repository *Postgres) ListFailedGradingJobs(contextValue context.Context, transaction pgx.Tx, command app.ListFailedGradingJobs) (json.RawMessage, error) {
+	return queryJSON(contextValue, transaction, "list failed grading jobs",
+		`SELECT submission.list_failed_grading_jobs($1, $2, $3, $4)`,
+		command.TenantID, command.Limit, nullableTimestamp(command.CursorSort), nullableUUID(command.CursorID))
+}
+
+func (repository *Postgres) RetryFailedGradingJob(contextValue context.Context, transaction pgx.Tx, tenantID, jobID string) (json.RawMessage, error) {
+	return queryJSON(contextValue, transaction, "retry failed grading job",
+		`SELECT submission.retry_failed_grading_job($1, $2)`, tenantID, jobID)
+}
+
+func (repository *Postgres) RetryAllFailedGradingJobs(contextValue context.Context, transaction pgx.Tx, tenantID string, limit int) (json.RawMessage, error) {
+	return queryJSON(contextValue, transaction, "retry all failed grading jobs",
+		`SELECT submission.retry_all_failed_grading_jobs($1, $2)`, tenantID, limit)
+}
+
+func (repository *Postgres) DismissFailedGradingJob(contextValue context.Context, transaction pgx.Tx, tenantID, jobID, reason string) (json.RawMessage, error) {
+	return queryJSON(contextValue, transaction, "dismiss failed grading job",
+		`SELECT submission.dismiss_failed_grading_job($1, $2, $3)`, tenantID, jobID, reason)
+}
+
 func (repository *Postgres) ReleaseResults(contextValue context.Context, transaction pgx.Tx, command app.ReleaseResults) (json.RawMessage, error) {
 	return queryJSON(contextValue, transaction, "release results",
 		`SELECT jsonb_build_object('results_released_at', submission.set_exam_results_release($1, $2, $3))`,
@@ -710,6 +731,19 @@ func (repository *Postgres) RecordIntegrityEvent(contextValue context.Context, t
 	return nil
 }
 
+func (repository *Postgres) RecordClientProctorHint(contextValue context.Context, transaction pgx.Tx, command app.GetAttempt, kind string, confidence float32) error {
+	if _, err := transaction.Exec(contextValue, `SELECT submission.record_client_proctor_hint($1, $2, $3, $4)`,
+		command.TenantID, command.AttemptID, kind, confidence); err != nil {
+		return mapDatabaseError(err, "record client proctor hint")
+	}
+	return nil
+}
+
+func (repository *Postgres) ListClientProctorHints(contextValue context.Context, transaction pgx.Tx, command app.GetAttempt) (json.RawMessage, error) {
+	return queryJSON(contextValue, transaction, "list client proctor hints",
+		`SELECT submission.list_client_proctor_hints($1, $2)`, command.TenantID, command.AttemptID)
+}
+
 func (repository *Postgres) StoreSnapshot(contextValue context.Context, transaction pgx.Tx, command app.StoreSnapshot) (string, error) {
 	// store_snapshot returns NULL when a frame with this capture time is already stored (ON CONFLICT DO NOTHING),
 	// so a retried upload is a no-op that yields an empty id, not a scan error.
@@ -779,4 +813,16 @@ func (repository *Postgres) ListSnapshotKeys(contextValue context.Context, trans
 func (repository *Postgres) RegradeItem(contextValue context.Context, transaction pgx.Tx, command app.ExamVersionCommand, examItemID string) (json.RawMessage, error) {
 	return queryJSON(contextValue, transaction, "regrade exam item",
 		`SELECT submission.regrade_exam_item($1, $2, $3)`, command.TenantID, command.ExamVersionID, examItemID)
+}
+
+func (repository *Postgres) PurgeCodeRunsForAttempt(contextValue context.Context, transaction pgx.Tx, command app.PurgeCodeRuns) (app.PurgeCodeRunsResult, error) {
+	var result app.PurgeCodeRunsResult
+	err := transaction.QueryRow(contextValue, `
+		SELECT purged_runs, purged_units
+		FROM submission.purge_code_runs_for_attempt($1, $2, $3, $4)
+	`, command.TenantID, command.AttemptID, command.ActorID, command.Reason).Scan(&result.PurgedRuns, &result.PurgedUnits)
+	if err != nil {
+		return app.PurgeCodeRunsResult{}, mapDatabaseError(err, "purge code runs for attempt")
+	}
+	return result, nil
 }

@@ -10,6 +10,8 @@ export type Viewer = {
   roles: RoleName[];
   /** Placement departments this viewer is an officer of (role assignment scopes). */
   placementDepartmentIds: string[];
+  /** Named permission flags from /v1/me (role bits). */
+  permissions: string[];
 };
 
 export function buildViewer(me: Me, principal: Principal): Viewer {
@@ -27,7 +29,14 @@ export function buildViewer(me: Me, principal: Principal): Viewer {
           .map((role) => role.scope_id as string),
       ),
     ],
+    permissions: me.permissions ?? [],
   };
+}
+
+/** True when the viewer holds VIEW_STUDENT_PII or ADMINISTRATOR on a role. */
+export function canViewStudentPII(viewer: Viewer): boolean {
+  const permissions = viewer.permissions ?? [];
+  return permissions.includes("VIEW_STUDENT_PII") || permissions.includes("ADMINISTRATOR");
 }
 
 /** Placement staff who hold no college role: they work across colleges in /placement, never in /staff. */

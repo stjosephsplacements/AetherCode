@@ -236,6 +236,13 @@ services:
       IDENTITY_SSO_ADMIN_TOKEN_FILE: ${IDENTITY_SSO_ADMIN_TOKEN_FILE:-}
       IDENTITY_SSO_ORGANIZATION_ID: ${IDENTITY_SSO_ORGANIZATION_ID:-}
       IDENTITY_SSO_EMAIL_DOMAIN: ${IDENTITY_SSO_EMAIL_DOMAIN:-}
+      # Password-reset email through Microsoft Graph (ADR-0091). All five empty = off; some but not all set stops
+      # identity at startup. IDENTITY_PUBLIC_BASE_URL is the site's https origin (the link's address).
+      IDENTITY_MAIL_TENANT_ID: ${IDENTITY_MAIL_TENANT_ID:-}
+      IDENTITY_MAIL_CLIENT_ID: ${IDENTITY_MAIL_CLIENT_ID:-}
+      IDENTITY_MAIL_CLIENT_SECRET: ${IDENTITY_MAIL_CLIENT_SECRET:-}
+      IDENTITY_MAIL_SENDER: ${IDENTITY_MAIL_SENDER:-}
+      IDENTITY_PUBLIC_BASE_URL: ${IDENTITY_PUBLIC_BASE_URL:-}
     build: { context: ../../backend, dockerfile: services/identity/Dockerfile }
 
   user:
@@ -250,6 +257,9 @@ services:
       USER_DB_MIN_CONNS: "4"
       USER_AUTHZ_DATABASE_URL: postgres://aether_user_authz_reader:${USERS_DB_PASSWORD}@postgres:5432/aether_users?sslmode=disable
       USER_PROJECTION_DATABASE_URL: postgres://aether_user_projection_worker:${USERS_DB_PASSWORD}@postgres:5432/aether_users?sslmode=disable
+      USER_PLATFORM_STATS_ENABLED: ${USER_PLATFORM_STATS_ENABLED:-false}
+      USER_PLATFORM_STATS_DATABASE_URL: postgres://aether_user_platform_stats_worker:${USERS_DB_PASSWORD}@postgres:5432/aether_users?sslmode=disable
+      NOTIFICATION_PLATFORM_STATS_DATABASE_URL: postgres://aether_notification_platform_stats_reader:${NOTIFICATION_DB_PASSWORD}@postgres:5432/aether_notification?sslmode=disable
       AUTHZ_GRPC_ADDR: 0.0.0.0:9443
       AUTHZ_TLS_CERT_FILE: /certs/user.crt
       AUTHZ_TLS_KEY_FILE: /certs/user.key
@@ -338,6 +348,9 @@ services:
       # Time-up submits a student's saved code; poll often so it lands soon after the 15 s grace.
       SUBMISSION_EXPIRY_POLL_INTERVAL: 10s
       SUBMISSION_EXPIRY_DATABASE_URL: postgres://aether_submission_expiry_worker:${SUBMISSION_DB_PASSWORD}@postgres:5432/aether_submission?sslmode=disable
+      SUBMISSION_RETENTION_ENABLED: ${SUBMISSION_RETENTION_ENABLED:-true}
+      SUBMISSION_RETENTION_POLL_INTERVAL: 5m
+      SUBMISSION_RETENTION_DATABASE_URL: postgres://aether_submission_retention_worker:${SUBMISSION_DB_PASSWORD}@postgres:5432/aether_submission?sslmode=disable
       JUDGE_COMPLETION_ENABLED: "true"
       SUBMISSION_JUDGE_ADAPTER_DATABASE_URL: postgres://aether_submission_judge_adapter:${SUBMISSION_DB_PASSWORD}@postgres:5432/aether_submission?sslmode=disable
       JUDGE_COMPLETION_GRPC_ADDR: judge:8443
@@ -524,6 +537,8 @@ services:
       GATEWAY_URL: http://gateway:8080
       # "on" shows "Sign in with your St. Joseph's account" (ADR-0042).
       AETHERCODE_SSO: ${AETHERCODE_SSO:-off}
+      # "on" shows "Forgot password?" and the email reset pages; set it with the IDENTITY_MAIL_* values (ADR-0091).
+      PASSWORD_RESET_EMAIL: ${PASSWORD_RESET_EMAIL:-off}
       PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?PUBLIC_ORIGIN is not set; see setup.sh}
       # College names, colours and logos (ADR-0045); absent file, default look.
       BRANDING_FILE: /branding/branding.json

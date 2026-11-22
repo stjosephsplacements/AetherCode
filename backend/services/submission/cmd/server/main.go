@@ -36,6 +36,7 @@ import (
 	"github.com/stjosephsplacements/AetherCode/services/submission/internal/app"
 	submissionconfig "github.com/stjosephsplacements/AetherCode/services/submission/internal/config"
 	"github.com/stjosephsplacements/AetherCode/services/submission/internal/expiry"
+	"github.com/stjosephsplacements/AetherCode/services/submission/internal/retention"
 )
 
 func main() {
@@ -411,6 +412,39 @@ func run(contextValue context.Context) error {
 		logger.Warn("proctor violation auto-submit is off: the expiry worker is disabled")
 	}
 
+	var retentionRunner *retention.Runner
+	retentionRuntime, retentionRuntimeErr := retention.LoadRuntime(serviceConfig.Environment)
+	if retentionRuntimeErr != nil {
+		return retentionRuntimeErr
+	}
+	if retentionRuntime.Enabled {
+		retentionDatabaseConfig, retentionConfigErr := config.LoadDatabase("SUBMISSION_RETENTION")
+		if retentionConfigErr != nil {
+			return retentionConfigErr
+		}
+		retentionPool, retentionPoolErr := database.Open(contextValue, retentionDatabaseConfig)
+		if retentionPoolErr != nil {
+			return retentionPoolErr
+		}
+		defer retentionPool.Close()
+		retentionStore, retentionStoreErr := retention.NewStore(retentionPool)
+		if retentionStoreErr != nil {
+			return retentionStoreErr
+		}
+		if retentionRoleErr := retentionStore.Ping(contextValue); retentionRoleErr != nil {
+			return retentionRoleErr
+		}
+		var retentionRunnerErr error
+		retentionRunner, retentionRunnerErr = retention.NewRunner(retentionStore, retentionRuntime, logger)
+		if retentionRunnerErr != nil {
+			return retentionRunnerErr
+		}
+		if retentionPurgeErr := retentionRunner.ProcessOnce(contextValue); retentionPurgeErr != nil {
+			return fmt.Errorf("initial submission code-run retention purge: %w", retentionPurgeErr)
+		}
+		go retentionRunner.Run(contextValue)
+	}
+
 	priorReadiness := readiness
 	readiness = func(readinessContext context.Context) error {
 		if err := priorReadiness(readinessContext); err != nil {
@@ -422,7 +456,12 @@ func run(contextValue context.Context) error {
 			}
 		}
 		if expiryRunner != nil {
-			return expiryRunner.Ready(readinessContext)
+			if err := expiryRunner.Ready(readinessContext); err != nil {
+				return err
+			}
+		}
+		if retentionRunner != nil {
+			return retentionRunner.Ready(readinessContext)
 		}
 		return nil
 	}

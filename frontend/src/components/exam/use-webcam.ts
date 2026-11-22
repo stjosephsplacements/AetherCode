@@ -125,5 +125,5 @@ export function useWebcam(
     return () => clearTimeout(id);
   }, [enabled, state.kind, request]);
 
-  return { state, request, capture, uploadsFailing: enabled && failingFor !== null && failingFor === (attemptId ?? null) };
+  return { state, request, capture, uploadsFailing: enabled && failingFor !== null && failingFor === (attemptId ?? null), videoRef };
 }

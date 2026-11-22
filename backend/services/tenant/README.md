@@ -1,7 +1,8 @@
 # Tenant service
 
 The tenant service owns colleges, placement organizations, college and
-placement departments, batches, retention policies, legal holds, and tenant
+placement departments, batches, college branding (app name, accent colour,
+logos in object storage), retention policies, legal holds, and tenant
 provisioning records in `aether_tenant`.
 
 ## Database model
@@ -35,7 +36,7 @@ platform grant check.
 
 Policies use only `tenant.read` and `tenant.write` with fixed resources:
 `tenant.tenants`, `tenant.departments`, `tenant.batches`,
-`tenant.retention_policies`, `tenant.legal_holds`,
+`tenant.branding`, `tenant.branding_logos`, `tenant.retention_policies`, `tenant.legal_holds`,
 `tenant.placement_organizations`, and `tenant.provisioning_requests`. A write
 capability may make the same resource visible for PostgreSQL row targeting, but
 every mutation policy still requires its exact `tenant.write` capability.

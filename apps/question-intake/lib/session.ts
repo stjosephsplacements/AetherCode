@@ -37,7 +37,7 @@ function subject(token: string): string {
   }
 }
 
-async function loadViewer(token: string): Promise<Viewer | null> {
+export async function loadViewer(token: string): Promise<Viewer | null> {
   const me = await call<{ principal_id: string; roles: { role_name: string }[] }>("/user/v1/me", { token });
   if (me.status !== 200 || !me.data) return null;
   const roles = [...new Set(me.data.roles.map((role) => role.role_name))];

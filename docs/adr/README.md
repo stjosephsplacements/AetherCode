@@ -85,8 +85,16 @@ Each decision is a numbered file; new ones start from [the template](0000-templa
 | [0079](0079-remove-casbin-engine.md) | Remove the Casbin engine; role bit sets are the decision model (accepted) |
 | [0080](0080-proctor-violation-policy-and-auto-submit.md) | Proctor violation policy, auto-submit and evidence export (accepted) |
 | [0081](0081-placement-and-integrity-milestone-a.md) | Placement and integrity, Milestone A (accepted) |
+| [0081-B](0081-placement-and-integrity-milestone-b.md) | Practice arena, SQLite runner, Socratic explainer (accepted) |
+| [0081-C](0081-placement-and-integrity-milestone-c.md) | AST visualiser, consortium drives (accepted) |
 | [0082](0082-single-node-capacity-and-autoscaling.md) | Capacity budget, autoscaling and pools for the single campus server (accepted) |
 | [0083](0083-traefik-replaces-ingress-nginx.md) | Traefik replaces ingress-nginx (accepted) |
 | [0084](0084-launch-ticket-redownload.md) | The SEB launch ticket opens the launch file again after its first download (accepted) |
 | [0087](0087-proprietary-licence.md) | Proprietary licence (accepted) |
 | [0088](0088-proctor-staff-editor-snapshot-paging-redis.md) | Staff proctor policy editor, snapshot keyset paging, Redis cooldown (accepted) |
+| [0089](0089-placement-admin-setup-staff-console.md) | Placement org is admin setup; placement staff use the staff console (accepted) |
+| [0090](0090-staff-content-attribution.md) | Staff content attribution (accepted) |
+| [0091](0091-password-reset-email.md) | Password-reset email through Microsoft Graph, sent by the Identity service (accepted) |
+| [0092](0092-college-contests.md) | College-scoped practice contests and live leaderboards (accepted) |
+| [0093](0093-mcq-practice.md) | Multiple-choice practice with explanations after submit (accepted) |
+| [0094](0094-seb-quit-self-service.md) | SEB quit-token self-service after hand-in (accepted) |

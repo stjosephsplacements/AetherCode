@@ -206,6 +206,8 @@ type Store interface {
 	RotateConfiguration(context.Context, pgx.Tx, RotateConfiguration) (Configuration, error)
 	RevokeConfiguration(context.Context, pgx.Tx, RevokeConfiguration) (Configuration, error)
 	IssueSession(context.Context, pgx.Tx, IssueSession) (Session, error)
+	IssueLockdownQuitSession(context.Context, pgx.Tx, IssueLockdownQuitSession, string, string) (Session, error)
+	RedeemQuitToken(context.Context, pgx.Tx, string) error
 	GetSession(context.Context, pgx.Tx, string, string) (Session, error)
 	CloseSession(context.Context, pgx.Tx, CloseSession) (Session, error)
 	ValidateSessionHeader(context.Context, pgx.Tx, ValidateSessionHeader) (ValidationResult, error)

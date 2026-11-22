@@ -49,6 +49,18 @@ func NewHandler(serviceName string, service *app.Service, readiness httpx.Readin
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/departments/{department_id}/hard", handler.hardDeleteDepartment)
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/batches/{batch_id}", handler.deleteBatch)
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/batches/{batch_id}/hard", handler.hardDeleteBatch)
+	mux.HandleFunc("GET /v1/branding", handler.getPublicBranding)
+	mux.HandleFunc("GET /v1/branding/logos/{logo_id}", handler.getPublicBrandingLogo)
+	mux.HandleFunc("GET /v1/branding/platform", handler.getPlatformBranding)
+	mux.HandleFunc("PUT /v1/branding/platform", handler.putPlatformBranding)
+	mux.HandleFunc("POST /v1/branding/platform/logos", handler.postPlatformBrandingLogo)
+	mux.HandleFunc("PUT /v1/branding/platform/logos/order", handler.putPlatformBrandingLogoOrder)
+	mux.HandleFunc("DELETE /v1/branding/platform/logos/{logo_id}", handler.deletePlatformBrandingLogo)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/branding", handler.getTenantBranding)
+	mux.HandleFunc("PUT /v1/tenants/{tenant_id}/branding", handler.putTenantBranding)
+	mux.HandleFunc("POST /v1/tenants/{tenant_id}/branding/logos", handler.postTenantBrandingLogo)
+	mux.HandleFunc("PUT /v1/tenants/{tenant_id}/branding/logos/order", handler.putTenantBrandingLogoOrder)
+	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/branding/logos/{logo_id}", handler.deleteTenantBrandingLogo)
 	return mux, nil
 }
 

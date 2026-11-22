@@ -48,3 +48,8 @@ the column and restores the five-argument function.
 `000027_resolve_choice_explanations` adds `out_choice_explanations` to
 `resolve_published_question_version` so Assessment can pin the explanations
 (ADR-0058). Rollback restores the previous result shape.
+
+`000033_practice_mcq` lets students practise multiple-choice questions marked
+for practice: synchronous submit with `start_practice_mcq_submission`, choice
+explanations after submit (ADR-0058), and `kind` on catalogue rows. Rollback
+deletes mcq practice runs and restores coding-only `practice_version`.

@@ -16,9 +16,13 @@ commonConfig: {}
 
 config:
   GATEWAY_URL: "http://gateway:8080"
+  QUESTION_INTAKE_URL: "http://question-intake:3000"
   PUBLIC_ORIGIN: '{{ required "global.publicOrigin is required" .Values.global.publicOrigin }}'
   # "on" shows "Sign in with your St. Joseph's account" (ADR-0042).
   AETHERCODE_SSO: "off"
+  # "on" shows "Forgot password?" and the email reset pages. Set it only once the identity service has mail
+  # (the Secret aethercode-mail, ADR-0091); otherwise those pages tell users to ask their administrator.
+  PASSWORD_RESET_EMAIL: "off"
   # College names, colours and logos (ADR-0045); a missing file means the default look.
   BRANDING_FILE: /branding/branding.json
   NODE_ENV: production

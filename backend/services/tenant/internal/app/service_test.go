@@ -113,6 +113,21 @@ func (panicStore) ListPlacementDepartments(context.Context, pgx.Tx, ListPlacemen
 func (panicStore) ListBatches(context.Context, pgx.Tx, ListBatches) ([]Batch, error) {
 	panic("unexpected persistence call")
 }
+func (panicStore) GetBranding(context.Context, pgx.Tx, *string) (BrandingView, error) {
+	panic("unexpected persistence call")
+}
+func (panicStore) UpsertBranding(context.Context, pgx.Tx, UpsertBranding) (BrandingView, error) {
+	panic("unexpected persistence call")
+}
+func (panicStore) InsertBrandingLogo(context.Context, pgx.Tx, *string, string, string, string, string, []byte, string) (BrandingView, error) {
+	panic("unexpected persistence call")
+}
+func (panicStore) ReorderBrandingLogos(context.Context, pgx.Tx, *string, []string) (BrandingView, error) {
+	panic("unexpected persistence call")
+}
+func (panicStore) DeleteBrandingLogo(context.Context, pgx.Tx, *string, string) (string, BrandingView, error) {
+	panic("unexpected persistence call")
+}
 func (panicStore) Ping(context.Context) error { panic("unexpected persistence call") }
 
 const testUUID = "550e8400-e29b-41d4-a716-446655440000"

@@ -1,6 +1,6 @@
 # ADR-0059: Closing the remaining gaps with the reference product
 
-- Status: proposed
+- Status: accepted (§1 branding shipped; §2–3 pending)
 - Date: 2026-11-02
 
 ## Context
@@ -25,7 +25,7 @@ designs the three gaps that no other ADR covers.
 | Blogs, contests, hackathons, open source management | Community | Done (redesigned, paged) |
 | Tasks, resume, profile, performance, practice | Student pages | Done |
 | SEB start | SEB service | Done |
-| Branding page: app name, logo carousel per college and global | Branding is a file read at deploy | Gap, designed below |
+| Branding page: app name, logo carousel per college and global | Tenant branding API + staff console page | Done (§1) |
 | Queue operations: metrics, failed jobs, requeue one or all | Grading queue counts and regrade | Gap, designed below |
 | Scrapers dashboard: platform profiles, sync one student or everyone | Stats fetched live per student view | Gap, designed below |
 | Stats: global health, content pulse, security audit | Platform analytics, Audit log, System status | Covered; no change |
@@ -53,6 +53,12 @@ a short cache, and the file stays as the fallback when the tables are empty, so 
 deployments change nothing.
 
 ### 2. Failed work visible and retryable
+
+**Implementation notes (2026-11):** Shipped in submission `000052_failed_grading_queue`
+and `/staff/status/failed` (admin re-export). Staff audit for retry-one and dismiss
+uses the normal authorization path (`write` / `delete` on `score_summaries`); bulk
+retry-all logs one `write` with resource id `retry-all` — the retried count is in
+the API response only, not the audit row.
 
 The grading queue shows counts only. Add to the submission service
 `GET /v1/tenants/{t}/grading-queue/failed` (id, submission, attempt, error summary, attempts

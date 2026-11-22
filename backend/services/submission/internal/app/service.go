@@ -88,6 +88,10 @@ type Store interface {
 	ListCodeRuns(context.Context, pgx.Tx, ListCodeRuns) ([]CodeRun, error)
 	GetExamMonitor(context.Context, pgx.Tx, ExamVersionCommand) (json.RawMessage, error)
 	GetGradingQueue(context.Context, pgx.Tx, string) (json.RawMessage, error)
+	ListFailedGradingJobs(context.Context, pgx.Tx, ListFailedGradingJobs) (json.RawMessage, error)
+	RetryFailedGradingJob(context.Context, pgx.Tx, string, string) (json.RawMessage, error)
+	RetryAllFailedGradingJobs(context.Context, pgx.Tx, string, int) (json.RawMessage, error)
+	DismissFailedGradingJob(context.Context, pgx.Tx, string, string, string) (json.RawMessage, error)
 	ReleaseResults(context.Context, pgx.Tx, ReleaseResults) (json.RawMessage, error)
 	ExtendDeadlines(context.Context, pgx.Tx, ExtendDeadlines) (int, error)
 	PostAnnouncement(context.Context, pgx.Tx, PostAnnouncement) (json.RawMessage, error)
@@ -99,11 +103,14 @@ type Store interface {
 	SetIntegrity(context.Context, pgx.Tx, SetIntegrity) error
 	RegradeItem(context.Context, pgx.Tx, ExamVersionCommand, string) (json.RawMessage, error)
 	RecordIntegrityEvent(context.Context, pgx.Tx, GetAttempt, string) error
+	RecordClientProctorHint(context.Context, pgx.Tx, GetAttempt, string, float32) error
+	ListClientProctorHints(context.Context, pgx.Tx, GetAttempt) (json.RawMessage, error)
 	StoreSnapshot(context.Context, pgx.Tx, StoreSnapshot) (string, error)
 	GetAttemptProctorPolicy(ctx context.Context, tx pgx.Tx, tenantID, attemptID string) (json.RawMessage, error)
 	ProctorGrid(ctx context.Context, tx pgx.Tx, command ExamVersionCommand) ([]GridRow, error)
 	ListSnapshotKeys(context.Context, pgx.Tx, ListSnapshots) ([]SnapshotRow, error)
 	Ping(context.Context) error
+	PurgeCodeRunsForAttempt(context.Context, pgx.Tx, PurgeCodeRuns) (PurgeCodeRunsResult, error)
 }
 
 // AttemptUnitSummary is the candidate-safe outcome of one evaluated exam item.

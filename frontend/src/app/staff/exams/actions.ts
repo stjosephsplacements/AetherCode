@@ -134,13 +134,15 @@ export async function assignExam(_previous: ActionState, form: FormData): Promis
   } catch (error) {
     return { error: error instanceof Error ? error.message : "The window is not valid." };
   }
+  const extraMinutes = Math.max(0, Math.min(240, Number(form.get("extra_time_minutes") ?? 0) || 0));
+  const accommodations = extraMinutes > 0 ? { extra_time_seconds: extraMinutes * 60 } : {};
   const failed: string[] = [];
   let assigned = 0;
   for (const targetId of targets) {
     try {
       await gateway(`/assessment/v1/tenants/${tenantId}/exam-versions/${String(form.get("version_id"))}/assignment-rules`, {
         method: "POST",
-        body: { target_type: targetType, target_id: targetId, available_from: from, available_until: until, accommodations: {} },
+        body: { target_type: targetType, target_id: targetId, available_from: from, available_until: until, accommodations },
       });
       assigned++;
     } catch (error) {

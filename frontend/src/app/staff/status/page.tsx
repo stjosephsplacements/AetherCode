@@ -130,6 +130,17 @@ export default async function StatusPage() {
                     {runFail === null ? "sample runs quiet" : `runs ${(runFail * 100).toFixed(runFail < 0.1 ? 1 : 0)}%`}
                   </p>
                 </div>
+                <div>
+                  <dt className="text-[12px] text-ink-muted">Failed</dt>
+                  <dd className="mt-0.5 font-mono text-[18px] font-semibold tabular-nums tracking-[-0.02em] text-ink">
+                    {queue.failed_open ?? 0}
+                  </dd>
+                  <p className="mt-0.5 text-[11.5px]">
+                    <Link href="/staff/status/failed" className="font-medium text-brand hover:underline">
+                      {queue.failed_open ? "Review & retry" : "Open failed queue"}
+                    </Link>
+                  </p>
+                </div>
               </dl>
 
               <div className="mt-5 border-t border-line pt-5">

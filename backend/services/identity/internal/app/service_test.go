@@ -22,6 +22,7 @@ type memoryStore struct {
 	login        Login
 	rotation     RefreshRotation
 	resetRequest PasswordResetRequest
+	noAccount    bool // RequestPasswordReset finds no live account
 	reset        PasswordReset
 	mfaChallenge MFAChallenge
 	session      Session
@@ -50,9 +51,9 @@ func (store *memoryStore) RotateRefresh(_ context.Context, command RefreshRotati
 
 func (store *memoryStore) RevokeRefresh(_ context.Context, _ []byte, _ string) error { return nil }
 
-func (store *memoryStore) RequestPasswordReset(_ context.Context, command PasswordResetRequest) error {
+func (store *memoryStore) RequestPasswordReset(_ context.Context, command PasswordResetRequest) (bool, error) {
 	store.resetRequest = command
-	return nil
+	return !store.noAccount, nil
 }
 
 func (store *memoryStore) ChangePassword(context.Context, PasswordChange) error { return nil }
@@ -266,5 +267,42 @@ func TestFreshMFADropsStaleStamp(t *testing.T) {
 	}
 	if freshMFA(&stale, now) != nil || freshMFA(nil, now) != nil {
 		t.Fatal("a stale or missing stamp must be dropped")
+	}
+}
+
+type recordingMailer struct{ sent chan [2]string }
+
+func (mailer recordingMailer) SendPasswordReset(_ context.Context, to, token string, _ time.Duration) error {
+	mailer.sent <- [2]string{to, token}
+	return nil
+}
+
+func TestPasswordResetEmailsTheLinkOnlyForARealAccount(t *testing.T) {
+	store := &memoryStore{}
+	service := newTestService(t, store)
+	mailer := recordingMailer{sent: make(chan [2]string, 2)}
+	service.UseMailer(mailer)
+
+	token, err := service.RequestPasswordReset(context.Background(), "Asha@College.edu", "10.0.0.1", "req-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case got := <-mailer.sent:
+		if got != [2]string{"asha@college.edu", token} {
+			t.Fatalf("mailed %v, want the normalised address and the reset bearer", got)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("no email was sent for a real account")
+	}
+
+	store.noAccount = true
+	if _, err := service.RequestPasswordReset(context.Background(), "nobody@college.edu", "10.0.0.1", "req-2"); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case got := <-mailer.sent:
+		t.Fatalf("an unknown address was mailed: %v", got)
+	case <-time.After(200 * time.Millisecond):
 	}
 }

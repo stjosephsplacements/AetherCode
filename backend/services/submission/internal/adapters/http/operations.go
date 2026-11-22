@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
@@ -23,6 +24,10 @@ import (
 func (handler *Handler) registerOperations(mux *http.ServeMux) {
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/monitor", handler.getExamMonitor)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/grading-queue", handler.getGradingQueue)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/grading-queue/failed", handler.listFailedGradingJobs)
+	mux.HandleFunc("POST /v1/tenants/{tenant_id}/grading-queue/failed/retry-all", handler.retryAllFailedGradingJobs)
+	mux.HandleFunc("POST /v1/tenants/{tenant_id}/grading-queue/failed/{job_id}/retry", handler.retryFailedGradingJob)
+	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/grading-queue/failed/{job_id}", handler.dismissFailedGradingJob)
 	mux.HandleFunc("PUT /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/results-release", handler.releaseResults)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/extensions", handler.extendDeadlines)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/announcements", handler.postAnnouncement)
@@ -30,6 +35,9 @@ func (handler *Handler) registerOperations(mux *http.ServeMux) {
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}/result", handler.getAttemptResult)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}/review", handler.reviewAttempt)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/similarity", handler.similarityReport)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/similarity/align", handler.similarityAlign)
+	mux.HandleFunc("POST /v1/tenants/{tenant_id}/attempts/{attempt_id}/client-proctor-hints", handler.recordClientProctorHint)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}/client-proctor-hints", handler.listClientProctorHints)
 	mux.HandleFunc("PUT /v1/tenants/{tenant_id}/attempts/{attempt_id}/choices/{exam_item_id}", handler.saveChoice)
 	mux.HandleFunc("PUT /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/integrity", handler.setIntegrity)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/attempts/{attempt_id}/events", handler.recordIntegrityEvent)
@@ -159,6 +167,91 @@ func (handler *Handler) saveChoice(writer http.ResponseWriter, request *http.Req
 		TenantID: tenantID, AttemptID: attemptID, ExamItemID: examItemID, Selected: body.Selected,
 	})
 	writeRaw(writer, http.StatusOK, saved, err)
+}
+
+type clientProctorHintRequest struct {
+	Kind       string  `json:"kind"`
+	Confidence float32 `json:"confidence"`
+}
+
+func (handler *Handler) recordClientProctorHint(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	attemptID, err := httpx.ParseUUIDPathValue(request, "attempt_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var body clientProctorHintRequest
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	candidateID, err := candidateResourceID(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "attempts", candidateID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	if err := handler.service.RecordClientProctorHint(request.Context(), decision.Capability, app.GetAttempt{TenantID: tenantID, AttemptID: attemptID}, body.Kind, body.Confidence); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.WriteHeader(http.StatusNoContent)
+}
+
+func (handler *Handler) listClientProctorHints(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	attemptID, err := httpx.ParseUUIDPathValue(request, "attempt_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "proctor_evidence", attemptID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	hints, err := handler.service.ListClientProctorHints(request.Context(), decision.Capability, app.GetAttempt{TenantID: tenantID, AttemptID: attemptID})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, hints)
+}
+
+// similarityAlign returns token alignment for two attempts (ADR-0081 C).
+func (handler *Handler) similarityAlign(writer http.ResponseWriter, request *http.Request) {
+	command, capability, err := handler.authorizeExamVersion(request, "read", "judge_receipts")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	attemptA := request.URL.Query().Get("attempt_a")
+	attemptB := request.URL.Query().Get("attempt_b")
+	examItemID := request.URL.Query().Get("exam_item_id")
+	if attemptA == "" || attemptB == "" || examItemID == "" {
+		httpx.WriteError(writer, apperrors.New(apperrors.CodeInvalidArgument, "attempt_a, attempt_b and exam_item_id are required"))
+		return
+	}
+	report, err := handler.service.SimilarityAlignReport(request.Context(), capability, command, examItemID, attemptA, attemptB)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.Header().Set("Cache-Control", "no-store")
+	httpx.WriteJSON(writer, http.StatusOK, report)
 }
 
 // similarityReport compares students' latest code per question (ADR-0031).
@@ -359,6 +452,102 @@ func (handler *Handler) getGradingQueue(writer http.ResponseWriter, request *htt
 	writer.Header().Set("Cache-Control", "no-store")
 	queue, err := handler.service.GetGradingQueue(request.Context(), decision.Capability, tenantID)
 	writeRaw(writer, http.StatusOK, queue, err)
+}
+
+func (handler *Handler) listFailedGradingJobs(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "score_summaries", tenantID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	limit := 50
+	if value := request.URL.Query().Get("limit"); value != "" {
+		parsed, parseErr := strconv.Atoi(value)
+		if parseErr != nil || parsed < 1 {
+			httpx.WriteError(writer, apperrors.New(apperrors.CodeInvalidArgument, "limit must be a positive integer"))
+			return
+		}
+		limit = parsed
+	}
+	cursorSort := strings.TrimSpace(request.URL.Query().Get("before"))
+	cursorID := strings.TrimSpace(request.URL.Query().Get("before_id"))
+	writer.Header().Set("Cache-Control", "no-store")
+	list, err := handler.service.ListFailedGradingJobs(request.Context(), decision.Capability, app.ListFailedGradingJobs{
+		TenantID: tenantID, Limit: limit, CursorSort: cursorSort, CursorID: cursorID,
+	})
+	writeRaw(writer, http.StatusOK, list, err)
+}
+
+func (handler *Handler) retryFailedGradingJob(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	jobID, err := httpx.ParseUUIDPathValue(request, "job_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "score_summaries", jobID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.Header().Set("Cache-Control", "no-store")
+	result, err := handler.service.RetryFailedGradingJob(request.Context(), decision.Capability, tenantID, jobID)
+	writeRaw(writer, http.StatusOK, result, err)
+}
+
+func (handler *Handler) retryAllFailedGradingJobs(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "score_summaries", "retry-all", tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.Header().Set("Cache-Control", "no-store")
+	result, err := handler.service.RetryAllFailedGradingJobs(request.Context(), decision.Capability, tenantID)
+	writeRaw(writer, http.StatusOK, result, err)
+}
+
+type dismissFailedJobRequest struct {
+	Reason string `json:"reason"`
+}
+
+func (handler *Handler) dismissFailedGradingJob(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	jobID, err := httpx.ParseUUIDPathValue(request, "job_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var body dismissFailedJobRequest
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "delete", "score_summaries", jobID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.Header().Set("Cache-Control", "no-store")
+	result, err := handler.service.DismissFailedGradingJob(request.Context(), decision.Capability, tenantID, jobID, body.Reason)
+	writeRaw(writer, http.StatusOK, result, err)
 }
 
 // snapshotClockSkew is how far a client-supplied capture time may differ from the server clock.

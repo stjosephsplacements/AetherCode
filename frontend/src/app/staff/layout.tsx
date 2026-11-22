@@ -54,6 +54,7 @@ export default async function StaffLayout({ children }: { children: React.ReactN
           ],
         }),
         item({ href: "/staff/students", label: "Students", icon: "students" }),
+        item({ href: "/staff/branding", label: "Branding", icon: "organisation" }),
       ],
     });
   }
@@ -72,6 +73,7 @@ export default async function StaffLayout({ children }: { children: React.ReactN
       }),
       { href: "/staff/analytics", label: "Analytics", icon: "analytics" },
       { href: "/staff/community", label: "Community", icon: "community" },
+      { href: "/staff/contests", label: "Contests", icon: "contests" },
     ],
   });
   if (staff.canManageAccounts) {

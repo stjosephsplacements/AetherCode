@@ -216,18 +216,18 @@ type route struct {
 var routes = map[string]route{
 	"tenant": {
 		Audience: "aether_tenant", ActionPrefix: "tenant", ResourcePrefix: "tenant",
-		GlobalResources: resourceSet("tenants", "placement_organizations", "provisioning_requests"),
-		Resources:       resourceSet("tenants", "departments", "batches", "retention_policies", "legal_holds", "placement_organizations", "provisioning_requests"),
+		GlobalResources: resourceSet("tenants", "placement_organizations", "provisioning_requests", "branding"),
+		Resources:       resourceSet("tenants", "departments", "batches", "branding", "retention_policies", "legal_holds", "placement_organizations", "provisioning_requests"),
 	},
 	"user": {
 		Audience: "aether_users", ActionPrefix: "user", ResourcePrefix: "users",
 		OptionalTenantResources: resourceSet("role_assignments", "placement_department_memberships", "permission_grants", "roles"),
-		Resources:               resourceSet("staff_audit", "roles", "role_overwrites", "permission_grants", "accounts", "profiles", "students", "student_department_memberships", "current_student_affiliations", "student_batch_affiliations", "mentor_batch_assignments", "role_assignments", "placement_department_memberships"),
+		Resources:               resourceSet("staff_audit", "roles", "role_overwrites", "permission_grants", "accounts", "profiles", "platform_profiles", "students", "student_department_memberships", "current_student_affiliations", "student_batch_affiliations", "mentor_batch_assignments", "role_assignments", "placement_department_memberships"),
 	},
 	"question-bank": {
 		Audience: "aether_qbank", ActionPrefix: "qbank", ResourcePrefix: "qbank", Global: true, StaffAuthoring: true,
-		Resources:       resourceSet("questions", "question_versions", "test_case_manifests", "question_assets", "tags", "question_version_tags", "question_exports", "categories", "category_management", "practice_submissions"),
-		TenantResources: resourceSet("practice_submissions"),
+		Resources:       resourceSet("questions", "question_versions", "test_case_manifests", "question_assets", "tags", "question_version_tags", "question_exports", "categories", "category_management", "practice_submissions", "college_contests"),
+		TenantResources: resourceSet("practice_submissions", "college_contests"),
 	},
 	"assessment": {
 		Audience: "aether_assessment", ActionPrefix: "assessment", ResourcePrefix: "assessment",
