@@ -34,7 +34,7 @@ export default function OpenGraphImage() {
               gap: 14,
               padding: "14px 24px",
               borderRadius: 999,
-              background: "rgba(52,211,153,0.14)",
+              background: "rgba(188,255,0,0.14)",
               color: "#bcff00",
               fontSize: 26,
               fontWeight: 600,
