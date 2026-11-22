@@ -1,44 +1,80 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import Link from "next/link";
 import { cookies } from "next/headers";
-import { ActionForm, Field, TextInput } from "@/components/staff/form";
-import { Panel } from "@/components/ui/card";
+import { AsciiField } from "@/components/site/ascii-field";
+import { LiquidGlass } from "@/components/site/liquid-glass";
 import { requireViewer } from "@/lib/server/session";
 import { PASSWORD_COOKIE } from "@/lib/server/tokens";
-import { changePassword } from "./actions";
+import { homeFor } from "@/lib/viewer";
+import { ChangePasswordForm } from "./form";
 
-export const metadata: Metadata = { title: "Change password" };
+export const metadata: Metadata = { title: "Change password", robots: { index: false, follow: false } };
 
 export default async function ChangePasswordPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
-  await requireViewer();
+  const viewer = await requireViewer();
   const required = Boolean((await cookies()).get(PASSWORD_COOKIE));
   const { next } = await searchParams;
+  const title = required ? "Choose your password" : "Change password";
+  const lead = required
+    ? "// your college gave you a temporary password. replace it with one only you know."
+    : "// at least 12 characters. you stay signed in on this device.";
+
   return (
-    <main className="grid min-h-dvh place-items-center bg-canvas px-4 py-10">
-      <div className="w-full max-w-sm animate-enter">
-        <Image src="/4.png" alt="AetherCode" width={36} height={36} className="logo-light mx-auto object-contain" />
-        <Image src="/3.png" alt="AetherCode" width={36} height={36} className="logo-dark mx-auto object-contain" />
-        <h1 className="display mt-6 text-center text-[2rem] text-ink">{required ? "Choose your password" : "Change password"}</h1>
-        <p className="mx-auto mt-2 max-w-[34ch] text-center text-sm text-ink-muted">
-          {required
-            ? "Your password was given to you by your college. Replace it with one only you know before you continue."
-            : "Use at least 12 characters. You stay signed in on this device."}
-        </p>
-        <Panel className="mt-8 p-5">
-          <ActionForm action={changePassword} submitLabel="Save password">
-            <input type="hidden" name="next" value={next ?? ""} />
-            <Field label={required ? "Password you were given" : "Current password"} htmlFor="current-password">
-              <TextInput id="current-password" name="current_password" type="password" autoComplete="current-password" required />
-            </Field>
-            <Field label="New password" htmlFor="new-password" hint="At least 12 characters.">
-              <TextInput id="new-password" name="new_password" type="password" autoComplete="new-password" minLength={12} required />
-            </Field>
-            <Field label="New password again" htmlFor="confirm-password">
-              <TextInput id="confirm-password" name="confirm_password" type="password" autoComplete="new-password" minLength={12} required />
-            </Field>
-          </ActionForm>
-        </Panel>
+    <main className="ascii relative grid min-h-dvh place-items-center overflow-hidden px-4 py-10">
+      <AsciiField />
+
+      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div className="login-orb absolute -left-[18%] -top-[12%] h-[65%] w-[55%] rounded-pill bg-[radial-gradient(closest-side,var(--hero-aurora-1),transparent)] opacity-45" />
+        <div className="login-orb absolute -bottom-[18%] -right-[12%] h-[60%] w-[50%] rounded-pill bg-[radial-gradient(closest-side,var(--glow-2),transparent)] opacity-35 [animation-delay:-7s]" />
       </div>
+
+      <div aria-hidden className="pointer-events-none absolute h-[520px] w-[480px] rounded-panel bg-brand/10 blur-[80px]" />
+
+      <LiquidGlass strong className="relative w-full max-w-[460px] overflow-hidden rounded-panel shadow-[var(--shadow-overlay)]">
+        <div className="flex items-center justify-between px-7 pt-7 sm:px-9 sm:pt-9">
+          <Link href="/" className="inline-flex items-center gap-2.5">
+            <Image src="/4.png" alt="" width={22} height={22} priority className="logo-light object-contain" />
+            <Image src="/3.png" alt="" width={22} height={22} priority className="logo-dark object-contain" />
+            <span className="font-mono text-[15px] font-semibold tracking-tight text-ink">AetherCode</span>
+          </Link>
+          {!required && (
+            <Link
+              href={homeFor(viewer)}
+              className="rounded-pill border border-line px-3 py-1 font-mono text-[12px] text-ink-muted transition-colors hover:bg-hover hover:text-ink"
+            >
+              &larr; Back
+            </Link>
+          )}
+        </div>
+
+        <div className="px-7 pb-9 pt-8 sm:px-9">
+          <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-brand">Account</p>
+          <h1 className="mt-2 text-[28px] font-semibold tracking-[-0.03em] text-ink">{title}</h1>
+          <p className="mt-1.5 font-mono text-[13px] leading-relaxed text-ink-muted">{lead}</p>
+
+          {required && (
+            <p
+              role="status"
+              className="mt-6 rounded-2xl border border-brand/40 bg-brand-soft px-4 py-3 font-mono text-[13px] leading-relaxed text-ink"
+            >
+              [!] you must set a new password before you can open exams or the console.
+            </p>
+          )}
+
+          <div className="mt-7">
+            <ChangePasswordForm required={required} next={next ?? ""} />
+          </div>
+        </div>
+
+        <div className="border-t border-line/50 px-7 py-4 sm:px-9">
+          <p className="font-mono text-[12px] leading-relaxed text-ink-subtle">
+            {required
+              ? "[*] after you save, we take you to your home screen."
+              : "[*] forgot the current one? ask your exam administrator to reset it."}
+          </p>
+        </div>
+      </LiquidGlass>
     </main>
   );
 }
