@@ -231,7 +231,7 @@
     --brand: #6b9000;
     --brand-hover: #557300;
     --brand-ink: #e9ebe6;
-    --brand-soft: rgb(107 144 0 / 0.22);
+    --brand-soft: rgb(107 144 0 / 0.4);
     --brand-soft-ink: #061414;
     --accent: #6b9000;
     --coral: #c43d5e;
@@ -254,6 +254,9 @@
     --shadow-hairline-v: 0 1px 2px rgb(6 20 20 / 0.08);
     --shadow-panel-v: 0 1px 2px rgb(6 20 20 / 0.08), 0 8px 24px -12px rgb(6 20 20 / 0.2);
     --shadow-overlay-v: 0 24px 64px -16px rgb(6 20 20 / 0.35);
+    /* Active nav must read clearly on Laurel chrome — thicker Pear ring + fill. */
+    --shadow-nav-active: 0 0 0 2px var(--brand),
+      0 10px 28px -10px color-mix(in srgb, var(--brand) 75%, transparent);
   }
 
   .logo-light { display: none !important; }
