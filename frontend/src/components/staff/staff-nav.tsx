@@ -333,7 +333,7 @@ export function ThemeToggle() {
   return (
     <button
       type="button"
-      onClick={() => setTheme(next)}
+      onClick={(event) => setTheme(next, event.nativeEvent)}
       aria-label={`Switch to ${next} theme`}
       title={`Switch to ${next} theme`}
       className="grid size-9 place-items-center rounded-control text-ink-muted transition-[color,background-color,transform] hover:bg-hover hover:text-ink active:scale-[0.97]"

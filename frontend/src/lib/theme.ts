@@ -28,75 +28,67 @@ function functionalConsent(): boolean {
   }
 }
 
-const RAMP = " .:-=+*#%@";
-
-function asciiDissolve(onMidpoint: () => void) {
-  const overlay = document.createElement("pre");
-  overlay.setAttribute("aria-hidden", "true");
-  Object.assign(overlay.style, {
-    position: "fixed", inset: "0", zIndex: "99999",
-    pointerEvents: "none", margin: "0", overflow: "hidden",
-    fontFamily: "monospace", lineHeight: "1",
-    fontSize: `${Math.max(10, window.innerWidth / 120 / 0.6)}px`,
-    background: "transparent", color: "var(--brand)",
-  });
-  document.body.appendChild(overlay);
-
-  const cols = Math.ceil(window.innerWidth / (window.innerWidth / 120));
-  const rows = Math.ceil(window.innerHeight / (window.innerWidth / 120 / 0.6)) + 1;
-  const total = cols * rows;
-  const order = Array.from({ length: total }, (_, i) => i);
-  for (let i = order.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [order[i], order[j]] = [order[j]!, order[i]!];
-  }
-
-  const cells = new Array(total).fill(" ");
-  const duration = 400;
-  let start = 0;
-  let fired = false;
-
-  const frame = (now: number) => {
-    if (!start) start = now;
-    const elapsed = now - start;
-    const t = Math.min(elapsed / duration, 1);
-
-    if (t <= 0.5) {
-      const progress = t / 0.5;
-      const count = Math.floor(progress * total);
-      for (let i = 0; i < count; i++) cells[order[i]!] = RAMP[Math.floor(Math.random() * RAMP.length)];
-    } else {
-      if (!fired) { fired = true; onMidpoint(); }
-      const progress = (t - 0.5) / 0.5;
-      const count = Math.floor(progress * total);
-      for (let i = 0; i < count; i++) cells[order[i]!] = " ";
-    }
-
-    let text = "";
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) text += cells[r * cols + c];
-      text += "\n";
-    }
-    overlay.textContent = text;
-
-    if (t < 1) {
-      requestAnimationFrame(frame);
-    } else {
-      overlay.remove();
-    }
-  };
-  requestAnimationFrame(frame);
+function applyTheme(theme: Theme) {
+  document.documentElement.dataset.theme = theme;
+  if (functionalConsent()) document.cookie = `${THEME_COOKIE}=${theme}; path=/; max-age=31536000; samesite=lax`;
 }
 
-/** Switches the theme with an ASCII dissolve transition. */
-export function setTheme(theme: Theme) {
-  const apply = () => {
-    document.documentElement.dataset.theme = theme;
-    if (functionalConsent()) document.cookie = `${THEME_COOKIE}=${theme}; path=/; max-age=31536000; samesite=lax`;
-  };
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    apply();
+function circleRadius(x: number, y: number) {
+  const { innerWidth: w, innerHeight: h } = window;
+  return Math.hypot(Math.max(x, w - x), Math.max(y, h - y));
+}
+
+/** Circular wipe from the click (View Transitions). Falls back to an instant switch. */
+function circleReveal(theme: Theme, x: number, y: number) {
+  const root = document.documentElement;
+  root.style.setProperty("--theme-x", `${x}px`);
+  root.style.setProperty("--theme-y", `${y}px`);
+  root.style.setProperty("--theme-r", `${circleRadius(x, y)}px`);
+
+  const start = (document as Document & { startViewTransition?: (update: () => void) => { finished: Promise<unknown> } }).startViewTransition;
+  if (typeof start === "function") {
+    const transition = start.call(document, () => applyTheme(theme));
+    void transition.finished.finally(() => {
+      root.style.removeProperty("--theme-x");
+      root.style.removeProperty("--theme-y");
+      root.style.removeProperty("--theme-r");
+    });
     return;
   }
-  asciiDissolve(apply);
+
+  // No View Transitions: clip-path overlay using the destination canvas colour.
+  const overlay = document.createElement("div");
+  overlay.setAttribute("aria-hidden", "true");
+  Object.assign(overlay.style, {
+    position: "fixed",
+    inset: "0",
+    zIndex: "99999",
+    pointerEvents: "none",
+    background: theme === "light" ? "#96998c" : "#0a0a0a",
+    clipPath: `circle(0px at ${x}px ${y}px)`,
+    transition: "clip-path 480ms cubic-bezier(0.22, 1, 0.36, 1)",
+  });
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => {
+    overlay.style.clipPath = `circle(${circleRadius(x, y)}px at ${x}px ${y}px)`;
+  });
+  overlay.addEventListener(
+    "transitionend",
+    () => {
+      applyTheme(theme);
+      overlay.remove();
+    },
+    { once: true },
+  );
+}
+
+/** Switches the theme. Pass the pointer event so the wipe expands from the control. */
+export function setTheme(theme: Theme, origin?: { clientX: number; clientY: number } | MouseEvent) {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    applyTheme(theme);
+    return;
+  }
+  const x = origin && "clientX" in origin ? origin.clientX : window.innerWidth / 2;
+  const y = origin && "clientY" in origin ? origin.clientY : window.innerHeight / 2;
+  circleReveal(theme, x, y);
 }
