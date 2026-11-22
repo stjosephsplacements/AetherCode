@@ -18,12 +18,7 @@ IMMUTABLE
 AS $function$
     SELECT CASE
         WHEN btrim(COALESCE(p_failure_code, '')) = '' THEN 'unknown'
-        ELSE left(
-            split_part(btrim(p_failure_code), E'\n', 1)
-            || CASE WHEN position(E'\n' in btrim(p_failure_code)) > 0
-                    THEN ': ' || left(split_part(btrim(p_failure_code), E'\n', 2), 160)
-                    ELSE '' END,
-            200)
+        ELSE left(split_part(btrim(p_failure_code), E'\n', 1), 200)
     END;
 $function$;
 

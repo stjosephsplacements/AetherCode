@@ -14,25 +14,28 @@ import (
 
 // TestFailedGradingQueue covers ADR-0059 §2: staff list/retry/dismiss without leaking source.
 func TestFailedGradingQueue(t *testing.T) {
-	t.Parallel()
 	ctx := context.Background()
 	pool := startSubmissionDatabase(ctx, t)
 
-	item := newID(t)
-	fixture := seedAssignedAttempt(ctx, t, pool, "grading", executableItem(item))
-	requestOne := seedQueuedRequest(ctx, t, pool, fixture, item)
-	requestTwo := seedQueuedRequest(ctx, t, pool, fixture, item)
+	itemOne, itemTwo := newID(t), newID(t)
+	fixture := seedAssignedAttempt(ctx, t, pool, "grading", executableItem(itemOne), executableItem(itemTwo))
+	requestOne := seedQueuedRequest(ctx, t, pool, fixture, itemOne)
+	requestTwo := seedQueuedRequest(ctx, t, pool, fixture, itemTwo)
 
-	markFailed := func(requestID, code string) bool {
+	persistFailed := func(requestID, code string) bool {
 		var graded bool
-		asRole(ctx, t, pool, "aether_submission_judge_adapter", func(transaction pgx.Tx) {
-			require.NoError(t, transaction.QueryRow(ctx, `SELECT submission.mark_evaluation_failed($1, $2, $3, $4, $5, $6)`,
-				unitTenantID, requestID, code, newID(t), newID(t), newID(t)).Scan(&graded))
-		})
+		transaction, err := pool.Begin(ctx)
+		require.NoError(t, err)
+		defer transaction.Rollback(ctx) //nolint:errcheck
+		_, err = transaction.Exec(ctx, `SET LOCAL ROLE aether_submission_judge_adapter`)
+		require.NoError(t, err)
+		require.NoError(t, transaction.QueryRow(ctx, `SELECT submission.mark_evaluation_failed($1, $2, $3, $4, $5, $6)`,
+			unitTenantID, requestID, code, newID(t), newID(t), newID(t)).Scan(&graded))
+		require.NoError(t, transaction.Commit(ctx))
 		return graded
 	}
-	require.False(t, markFailed(requestOne, "judge_rejected\nline-two-should-not-leak"))
-	require.True(t, markFailed(requestTwo, "item_not_executable"))
+	require.False(t, persistFailed(requestOne, "judge_rejected\nline-two-should-not-leak"))
+	require.True(t, persistFailed(requestTwo, "item_not_executable"), "failing the last open request closes grading")
 
 	staffID := newID(t)
 	authorizeActorsInTenant(ctx, t, pool, fixture.CandidateID, staffID)
