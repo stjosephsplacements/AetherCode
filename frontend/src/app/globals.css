@@ -151,46 +151,46 @@
 @utility rounded-pill { border-radius: var(--radius-pill); }
 
 @layer base {
-  /* Dark is the default. Palette: Pear #bcff00, Rich Black #061414, Laurel Leaf
-     #96998c, Celeste #d2d3ce, Ceiling White #e9ebe6. Every text/background pair
-     meets WCAG AA (4.5:1) for body copy; Pear is used as fill with Rich Black ink. */
+  /* Dark is the default. Rich Black (#061414) dominates chrome; Pear (#bcff00) is
+     accent-only (buttons, focus, active). Surfaces lift with neutral gray — no
+     green/teal wash. Neutrals: Laurel #96998c, Celeste #d2d3ce, Ceiling #e9ebe6. */
   :root, [data-theme="dark"] {
     color-scheme: dark;
     --canvas: #061414;
-    --surface: #0c1c1c;
-    --surface-2: #122424;
-    /* Chart series, one per busy service. Lead with Pear; keep distinct hues. */
+    --surface: #121212;
+    --surface-2: #1a1a1a;
+    /* Chart series: Pear leads; others stay distinct (not olive fills). */
     --series-1: #bcff00;
     --series-2: #c47a00;
     --series-3: #c06aa9;
-    --series-4: #34d399;
+    --series-4: #6ec8ff;
     --series-5: #8f7cf0;
     --series-6: #e0662a;
-    --series-7: #6ec8ff;
+    --series-7: #d2d3ce;
     --series-8: #b08a2e;
-    --sidebar: #041010;
-    --hover: #163030;
+    --sidebar: #030909;
+    --hover: #222222;
     --ink: #e9ebe6;
     --ink-muted: #96998c;
     --ink-subtle: #6f7268;
-    --line: rgb(210 211 206 / 0.12);
-    --line-strong: rgb(210 211 206 / 0.22);
+    --line: rgb(233 235 230 / 0.1);
+    --line-strong: rgb(233 235 230 / 0.18);
 
     --brand: #bcff00;
     --brand-hover: #d4ff4d;
     --brand-ink: #061414;
-    --brand-soft: rgb(188 255 0 / 0.14);
-    --brand-soft-ink: #bcff00;
+    --brand-soft: rgb(188 255 0 / 0.1);
+    --brand-soft-ink: #e9ebe6;
     --accent: #bcff00;
     --coral: #ff7a95;
     --lavender: #b3b0ff;
-    --glow: rgb(233 235 230 / 0.04);
-    --glow-2: rgb(188 255 0 / 0.1);
-    --hero-aurora-1: var(--brand-soft);
-    --poster-sky: linear-gradient(to bottom, #061414 0%, #0c1c1c 42%, #1a2e14 100%);
+    --glow: rgb(233 235 230 / 0.03);
+    --glow-2: rgb(188 255 0 / 0.04);
+    --hero-aurora-1: rgb(188 255 0 / 0.06);
+    --poster-sky: linear-gradient(to bottom, #061414 0%, #121212 55%, #1a1a1a 100%);
     --poster-ink: #e9ebe6;
     --poster-on-ink: #061414;
-    --horizon: linear-gradient(to top, rgb(188 255 0 / 0.16), rgb(233 235 230 / 0.04) 45%, transparent);
+    --horizon: linear-gradient(to top, rgb(6 20 20 / 0.9), rgb(233 235 230 / 0.03) 50%, transparent);
 
     --success: #34d399;
     --success-soft: rgb(52 211 153 / 0.12);
@@ -204,20 +204,19 @@
     --shadow-overlay-v: 0 1px 0 rgb(233 235 230 / 0.06) inset, 0 32px 80px -16px rgb(0 0 0 / 0.85);
   }
 
-  /* Day: Ceiling White canvas, Rich Black ink, Pear accents on dark fills. */
+  /* Day: Ceiling White / Celeste chrome, Rich Black ink, Pear on brand fills only. */
   [data-theme="light"] {
     color-scheme: light;
     --canvas: #e9ebe6;
-    --surface: #f4f5f1;
+    --surface: #f7f7f5;
     --surface-2: #d2d3ce;
-    /* Chart series, one per busy service. Validated with the dataviz checks against this theme. */
-    --series-1: #5a8000;
+    --series-1: #061414;
     --series-2: #D98200;
     --series-3: #B34F9B;
-    --series-4: #009E73;
+    --series-4: #0072B2;
     --series-5: #6C5CE7;
     --series-6: #D55E00;
-    --series-7: #3FA7D6;
+    --series-7: #96998c;
     --series-8: #8C6D1F;
     --sidebar: #d2d3ce;
     --hover: #c5c7bf;
@@ -228,20 +227,20 @@
     --line-strong: #96998c;
 
     --brand: #bcff00;
-    --brand-hover: #a8e600;
+    --brand-hover: #d4ff4d;
     --brand-ink: #061414;
-    --brand-soft: #e4f5a8;
-    --brand-soft-ink: #3a5200;
-    --accent: #5a8000;
+    --brand-soft: #e9ebe6;
+    --brand-soft-ink: #061414;
+    --accent: #061414;
     --coral: #c43d5e;
     --lavender: #5a4fd0;
-    --glow: rgb(188 255 0 / 0.22);
-    --glow-2: rgb(6 20 20 / 0.06);
-    --hero-aurora-1: rgb(188 255 0 / 0.2);
-    --poster-sky: linear-gradient(to bottom, #e9ebe6 0%, #d2d3ce 36%, #c5d98a 72%, #bcff00 100%);
+    --glow: rgb(6 20 20 / 0.04);
+    --glow-2: rgb(6 20 20 / 0.03);
+    --hero-aurora-1: rgb(188 255 0 / 0.08);
+    --poster-sky: linear-gradient(to bottom, #e9ebe6 0%, #d2d3ce 48%, #061414 100%);
     --poster-ink: #061414;
     --poster-on-ink: #e9ebe6;
-    --horizon: linear-gradient(to top, rgb(188 255 0 / 0.28), rgb(150 153 140 / 0.16) 40%, transparent);
+    --horizon: linear-gradient(to top, rgb(6 20 20 / 0.12), rgb(150 153 140 / 0.1) 45%, transparent);
 
     --success: #0d6b42;
     --success-soft: #daf0e4;
