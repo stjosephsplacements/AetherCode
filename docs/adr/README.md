@@ -90,6 +90,7 @@ Each decision is a numbered file; new ones start from [the template](0000-templa
 | [0082](0082-single-node-capacity-and-autoscaling.md) | Capacity budget, autoscaling and pools for the single campus server (accepted) |
 | [0083](0083-traefik-replaces-ingress-nginx.md) | Traefik replaces ingress-nginx (accepted) |
 | [0084](0084-launch-ticket-redownload.md) | The SEB launch ticket opens the launch file again after its first download (accepted) |
+<<<<<<< HEAD
 | [0087](0087-proprietary-licence.md) | Proprietary licence (accepted) |
 | [0088](0088-proctor-staff-editor-snapshot-paging-redis.md) | Staff proctor policy editor, snapshot keyset paging, Redis cooldown (accepted) |
 | [0089](0089-placement-admin-setup-staff-console.md) | Placement org is admin setup; placement staff use the staff console (accepted) |
@@ -98,3 +99,6 @@ Each decision is a numbered file; new ones start from [the template](0000-templa
 | [0092](0092-college-contests.md) | College-scoped practice contests and live leaderboards (accepted) |
 | [0093](0093-mcq-practice.md) | Multiple-choice practice with explanations after submit (accepted) |
 | [0094](0094-seb-quit-self-service.md) | SEB quit-token self-service after hand-in (accepted) |
+=======
+| [0086](0086-session-check-cache-and-lighter-hashing.md) | A short session-check cache and OWASP-minimum password hashing (accepted) |
+>>>>>>> 74f0ecb (perf: short session-check cache in the user service; OWASP-minimum Argon2id for new passwords)
