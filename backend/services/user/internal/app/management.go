@@ -172,10 +172,10 @@ type SetStudentPlacement struct {
 }
 
 type StudentPlacement struct {
-	StudentID               string  `json:"student_id"`
-	TenantID                string  `json:"tenant_id"`
-	PlacementDepartmentID   *string `json:"placement_department_id"`
-	PlacementMembershipID   *string `json:"placement_membership_id"`
+	StudentID             string  `json:"student_id"`
+	TenantID              string  `json:"tenant_id"`
+	PlacementDepartmentID *string `json:"placement_department_id"`
+	PlacementMembershipID *string `json:"placement_membership_id"`
 }
 
 type AssignMentorBatch struct {
