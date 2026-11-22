@@ -22,7 +22,7 @@ export function SebQuitPanel({ tenantId, visible }: { tenantId: string | null; v
     setLoading(true);
     api<{ quit_password: string }>(`/seb/v1/tenants/${tenantId}/quit-self`, {
       method: "POST",
-      body: JSON.stringify({ quit_token: token }),
+      body: { quit_token: token },
     })
       .then((response) => {
         if (!cancelled) {
@@ -59,9 +59,7 @@ export function SebQuitPanel({ tenantId, visible }: { tenantId: string | null; v
           {error}
         </p>
       )}
-      {password && (
-        <motionBox password={password} />
-      )}
+      {password && <PasswordReveal password={password} />}
     </section>
   );
 }
@@ -70,7 +68,7 @@ export function storeSebQuitToken(token: string) {
   sessionStorage.setItem(storageKey, token);
 }
 
-function motionBox({ password }: { password: string }) {
+function PasswordReveal({ password }: { password: string }) {
   const [shown, setShown] = useState(false);
   return (
     <div className="mt-4 flex flex-wrap items-center gap-3">

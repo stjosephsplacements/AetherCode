@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Input } from "@/components/staff/form";
+import { TextInput } from "@/components/staff/form";
 import { api } from "@/lib/client/api";
 import { toast } from "sonner";
 
@@ -68,7 +68,7 @@ export function DataRetentionActions({
         Purge code runs
       </Button>
       {canHardDelete && (
-        <Button variant="danger" onClick={() => setDeleteOpen(true)}>
+        <Button variant="secondary" className="border-danger/40 text-danger hover:bg-danger-soft" onClick={() => setDeleteOpen(true)}>
           Permanently delete attempt
         </Button>
       )}
@@ -124,12 +124,23 @@ function ReasonDialog({
   return (
     <Dialog open={open} onOpenChange={(value) => !value && onClose()}>
       <DialogContent title={title} description={description} className="p-6">
-        <Input value={reason} onChange={(event) => onReason(event.target.value)} placeholder="Reason for audit log" maxLength={500} className="mt-3 w-full" />
+        <TextInput
+          value={reason}
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) => onReason(event.target.value)}
+          placeholder="Reason for audit log"
+          maxLength={500}
+          className="mt-3 w-full"
+        />
         <div className="mt-4 flex justify-end gap-2">
           <Button variant="secondary" onClick={onClose} disabled={busy}>
             Cancel
           </Button>
-          <Button variant={destructive ? "danger" : "primary"} disabled={busy || !reason.trim()} onClick={onConfirm}>
+          <Button
+            variant={destructive ? "secondary" : "primary"}
+            className={destructive ? "border-danger/40 text-danger hover:bg-danger-soft" : undefined}
+            disabled={busy || !reason.trim()}
+            onClick={onConfirm}
+          >
             Confirm
           </Button>
         </div>
