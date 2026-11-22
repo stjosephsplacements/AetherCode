@@ -47,7 +47,7 @@ func (service *Service) IssueLockdownQuitSession(ctx context.Context, capability
 	if !strings.EqualFold(strings.TrimSpace(capability.TenantID), strings.TrimSpace(command.TenantID)) {
 		return IssuedSession{}, apperrors.New(apperrors.CodeForbidden, "authorization tenant scope does not match request")
 	}
-	if capability.Subject == "" {
+	if capability.ActorID == "" {
 		return IssuedSession{}, apperrors.New(apperrors.CodeUnauthorized, "a candidate identity is required")
 	}
 
@@ -78,7 +78,7 @@ func (service *Service) IssueLockdownQuitSession(ctx context.Context, capability
 		}
 		tokenHash := HashHeaderValue(quitToken)
 		var issueErr error
-		result, issueErr = service.store.IssueLockdownQuitSession(ctx, transaction, command, tokenHash, capability.Subject)
+		result, issueErr = service.store.IssueLockdownQuitSession(ctx, transaction, command, tokenHash, capability.ActorID)
 		if issueErr != nil {
 			return issueErr
 		}

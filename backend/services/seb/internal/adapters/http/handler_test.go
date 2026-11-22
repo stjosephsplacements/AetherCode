@@ -55,6 +55,12 @@ func (service *fakeSEBService) RevokeConfiguration(_ context.Context, _ centrala
 	service.revokeCommand = command
 	return service.configurationResult, nil
 }
+func (service *fakeSEBService) IssueLockdownQuitSession(_ context.Context, _ centralauthz.Capability, _ app.IssueLockdownQuitSession) (app.IssuedSession, error) {
+	return app.IssuedSession{}, nil
+}
+func (service *fakeSEBService) RedeemQuitToken(_ context.Context, _ centralauthz.Capability, _ app.RedeemQuitToken) (app.QuitRedemption, error) {
+	return app.QuitRedemption{}, nil
+}
 func (service *fakeSEBService) IssueSession(_ context.Context, _ centralauthz.Capability, command app.IssueSession) (app.IssuedSession, error) {
 	service.mutationCalls++
 	service.issueCommand = command

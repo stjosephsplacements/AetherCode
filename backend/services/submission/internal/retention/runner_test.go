@@ -48,7 +48,7 @@ func TestRunnerDoesNotBecomeReadyAfterFailedPurge(t *testing.T) {
 }
 
 func TestLoadRuntimeRequiresRetentionOutsideDevelopment(t *testing.T) {
-	t.Setenv("SUBMISSION_RETENTION_RETENTION_ENABLED", "false")
+	t.Setenv("SUBMISSION_RETENTION_ENABLED", "false")
 	if _, err := LoadRuntime("production"); err == nil {
 		t.Fatal("LoadRuntime() allowed retention to be disabled in production")
 	}

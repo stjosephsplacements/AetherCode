@@ -10,6 +10,7 @@ import { gateway } from "@/lib/server/gateway";
 import { requireCollege } from "@/lib/server/staff";
 import { listAllStudents } from "@/lib/server/students";
 import { cn, languageName } from "@/lib/utils";
+import { SimilarityAlignPanel } from "./align-panel";
 
 export const metadata: Metadata = { title: "Compare code" };
 
@@ -41,7 +42,7 @@ export default async function SimilarityComparePage({
   const { a, b, item } = await searchParams;
   if (!a || !b || !item) notFound();
 
-  let data: { versionTitle: string; left: Program; right: Program };
+  let data: { versionId: string; versionTitle: string; left: Program; right: Program };
   try {
     const version = await latestVersion(staff.tenantId, examId);
     if (!version) throw new Error("This exam has no version.");
@@ -54,7 +55,7 @@ export default async function SimilarityComparePage({
     const left = programOf(leftReview, item, roll.get(leftReview.attempt.candidate_id) ?? a.slice(0, 8));
     const right = programOf(rightReview, item, roll.get(rightReview.attempt.candidate_id) ?? b.slice(0, 8));
     if (!left || !right) notFound();
-    data = { versionTitle: version.title, left, right };
+    data = { versionId: version.id, versionTitle: version.title, left, right };
   } catch (error) {
     if (error && typeof error === "object" && "digest" in error) throw error;
     return (
@@ -65,7 +66,7 @@ export default async function SimilarityComparePage({
     );
   }
 
-  const { versionTitle, left, right } = data;
+  const { versionId, versionTitle, left, right } = data;
 
   return (
     <div className="animate-enter">
@@ -97,6 +98,13 @@ export default async function SimilarityComparePage({
           </section>
         ))}
       </div>
+      <SimilarityAlignPanel
+        tenantId={staff.tenantId}
+        versionId={versionId}
+        examItemId={item}
+        attemptA={a}
+        attemptB={b}
+      />
     </div>
   );
 }

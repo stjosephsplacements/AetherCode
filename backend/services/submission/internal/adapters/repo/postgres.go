@@ -814,3 +814,15 @@ func (repository *Postgres) RegradeItem(contextValue context.Context, transactio
 	return queryJSON(contextValue, transaction, "regrade exam item",
 		`SELECT submission.regrade_exam_item($1, $2, $3)`, command.TenantID, command.ExamVersionID, examItemID)
 }
+
+func (repository *Postgres) PurgeCodeRunsForAttempt(contextValue context.Context, transaction pgx.Tx, command app.PurgeCodeRuns) (app.PurgeCodeRunsResult, error) {
+	var result app.PurgeCodeRunsResult
+	err := transaction.QueryRow(contextValue, `
+		SELECT purged_runs, purged_units
+		FROM submission.purge_code_runs_for_attempt($1, $2, $3, $4)
+	`, command.TenantID, command.AttemptID, command.ActorID, command.Reason).Scan(&result.PurgedRuns, &result.PurgedUnits)
+	if err != nil {
+		return app.PurgeCodeRunsResult{}, mapDatabaseError(err, "purge code runs for attempt")
+	}
+	return result, nil
+}

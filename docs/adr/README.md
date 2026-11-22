@@ -85,6 +85,8 @@ Each decision is a numbered file; new ones start from [the template](0000-templa
 | [0079](0079-remove-casbin-engine.md) | Remove the Casbin engine; role bit sets are the decision model (accepted) |
 | [0080](0080-proctor-violation-policy-and-auto-submit.md) | Proctor violation policy, auto-submit and evidence export (accepted) |
 | [0081](0081-placement-and-integrity-milestone-a.md) | Placement and integrity, Milestone A (accepted) |
+| [0081-B](0081-placement-and-integrity-milestone-b.md) | Practice arena, SQLite runner, Socratic explainer (accepted) |
+| [0081-C](0081-placement-and-integrity-milestone-c.md) | AST visualiser, consortium drives (accepted) |
 | [0082](0082-single-node-capacity-and-autoscaling.md) | Capacity budget, autoscaling and pools for the single campus server (accepted) |
 | [0083](0083-traefik-replaces-ingress-nginx.md) | Traefik replaces ingress-nginx (accepted) |
 | [0084](0084-launch-ticket-redownload.md) | The SEB launch ticket opens the launch file again after its first download (accepted) |

@@ -129,6 +129,12 @@ func (validationStore) SetIntegrity(context.Context, pgx.Tx, SetIntegrity) error
 func (validationStore) RecordIntegrityEvent(context.Context, pgx.Tx, GetAttempt, string) error {
 	return nil
 }
+func (validationStore) RecordClientProctorHint(context.Context, pgx.Tx, GetAttempt, string, float32) error {
+	return nil
+}
+func (validationStore) ListClientProctorHints(context.Context, pgx.Tx, GetAttempt) (json.RawMessage, error) {
+	return json.RawMessage(`[]`), nil
+}
 func (validationStore) RegradeItem(context.Context, pgx.Tx, ExamVersionCommand, string) (json.RawMessage, error) {
 	return nil, nil
 }
@@ -145,6 +151,9 @@ func (validationStore) StoreSnapshot(context.Context, pgx.Tx, StoreSnapshot) (st
 }
 func (validationStore) ListSnapshotKeys(context.Context, pgx.Tx, ListSnapshots) ([]SnapshotRow, error) {
 	return nil, nil
+}
+func (validationStore) PurgeCodeRunsForAttempt(context.Context, pgx.Tx, PurgeCodeRuns) (PurgeCodeRunsResult, error) {
+	return PurgeCodeRunsResult{}, nil
 }
 func (validationStore) Ping(context.Context) error { return nil }
 

@@ -64,6 +64,12 @@ env:
     value: "1"
   - name: SUBMISSION_EXPIRY_DATABASE_URL
     value: "postgres://aether_submission_expiry_worker:$(SUBMISSION_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_submission?sslmode={{ .Values.global.postgresSSLMode }}"
+  - name: SUBMISSION_RETENTION_ENABLED
+    value: "true"
+  - name: SUBMISSION_RETENTION_POLL_INTERVAL
+    value: "5m"
+  - name: SUBMISSION_RETENTION_DATABASE_URL
+    value: "postgres://aether_submission_retention_worker:$(SUBMISSION_DB_PASSWORD)@{{ .Values.global.postgresHost }}:5432/aether_submission?sslmode={{ .Values.global.postgresSSLMode }}"
   - name: SUBMISSION_EXPIRY_DB_MAX_CONNS
     value: "2"
   - name: SUBMISSION_EXPIRY_DB_MIN_CONNS

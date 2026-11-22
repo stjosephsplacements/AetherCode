@@ -488,6 +488,32 @@ export type AttemptReview = {
   events: { occurred_at: string; event_type: string; actor_id: string | null; payload: Record<string, unknown> }[];
 };
 
+/** GET /submission/v1/tenants/{t}/exam-versions/{v}/similarity/align (ADR-0081 C). */
+export type ConsortiumDrive = {
+  id: string;
+  placement_department_id: string;
+  title: string;
+  metric: string;
+  opens_at: string;
+  closes_at: string;
+  created_at: string;
+};
+
+export type ConsortiumLeaderboardEntry = {
+  tenant_id: string;
+  student_id: string;
+  score: string | null;
+  activity_at: string | null;
+};
+
+export type SimilarityAlign = {
+  tokens_a: string[];
+  tokens_b: string[];
+  shared: boolean[];
+  score: number;
+  shared_fingerprints: number;
+};
+
 /** GET /submission/v1/tenants/{t}/exam-versions/{v}/similarity (ADR-0031). */
 export type QuestionSimilarity = {
   exam_item_id: string;

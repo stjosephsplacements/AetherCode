@@ -112,3 +112,9 @@ psql --set=ON_ERROR_STOP=1 --dbname="aether_submission" \
   --set=database="aether_submission" --set=expiry_worker="aether_submission_expiry_worker" <<'SQL'
 GRANT CONNECT ON DATABASE :"database" TO :"expiry_worker";
 SQL
+
+create_login_role_if_missing "aether_submission_retention_worker" "${SUBMISSION_DB_PASSWORD:?missing SUBMISSION_DB_PASSWORD}"
+psql --set=ON_ERROR_STOP=1 --dbname="aether_submission" \
+  --set=database="aether_submission" --set=retention_worker="aether_submission_retention_worker" <<'SQL'
+GRANT CONNECT ON DATABASE :"database" TO :"retention_worker";
+SQL

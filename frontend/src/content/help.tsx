@@ -58,7 +58,8 @@ export const STUDENT_HELP: HelpSection[] = [
       },
       {
         question: "Safe Exam Browser asks for a quit password.",
-        answer: "Ask your invigilator. The password is kept by the invigilators so that nobody can leave the locked exam on their own.",
+        answer:
+          "After you have handed in, open your student dashboard from the quit page (or go to Dashboard with ?seb=quit in the address). If your exam was taken in SEB on this device, you will see the quit password there. Before hand-in, or on another device, ask your invigilator.",
       },
       {
         question: "Safe Exam Browser says a virtual machine was detected, or does not load on an old Mac.",

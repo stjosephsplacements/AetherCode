@@ -23,10 +23,10 @@ type ConsortiumDrive struct {
 }
 
 type ConsortiumLeaderboardEntry struct {
-	TenantID   string  `json:"tenant_id"`
-	StudentID  string  `json:"student_id"`
-	Score      *string `json:"score"`
-	ActivityAt *string `json:"activity_at"`
+	TenantID   string     `json:"tenant_id"`
+	StudentID  string     `json:"student_id"`
+	Score      *string    `json:"score"`
+	ActivityAt *time.Time `json:"activity_at"`
 }
 
 // CreateConsortiumDrive opens a new placement-scoped drive.

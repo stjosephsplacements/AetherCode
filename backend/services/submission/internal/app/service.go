@@ -110,6 +110,7 @@ type Store interface {
 	ProctorGrid(ctx context.Context, tx pgx.Tx, command ExamVersionCommand) ([]GridRow, error)
 	ListSnapshotKeys(context.Context, pgx.Tx, ListSnapshots) ([]SnapshotRow, error)
 	Ping(context.Context) error
+	PurgeCodeRunsForAttempt(context.Context, pgx.Tx, PurgeCodeRuns) (PurgeCodeRunsResult, error)
 }
 
 // AttemptUnitSummary is the candidate-safe outcome of one evaluated exam item.

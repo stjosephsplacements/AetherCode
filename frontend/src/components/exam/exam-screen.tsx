@@ -35,6 +35,7 @@ import { useLiveState } from "./use-live-state";
 import { bestScore, isJudging, useSubmissions } from "./use-submissions";
 import { useClientProctor } from "./use-client-proctor";
 import { useWebcam } from "./use-webcam";
+import { storeSebQuitToken } from "@/components/student/seb-quit-panel";
 
 const CodeEditor = dynamic(() => import("./code-editor").then((module) => module.CodeEditor), {
   ssr: false,
@@ -59,9 +60,28 @@ export function ExamScreen({ tenantId, attemptId }: { tenantId: string; attemptI
           return;
         }
         setLoaded({ attempt, paper });
+        const storageKey = `ac_seb_quit_issued_${attemptId}`;
+        if (sessionStorage.getItem(storageKey)) return;
+        const idempotencyKey = crypto.randomUUID();
+        void api<{ quit_token: string }>(`/seb/v1/tenants/${tenantId}/attempts/${attemptId}/lockdown-quit-session`, {
+          method: "POST",
+          headers: { "Idempotency-Key": idempotencyKey },
+          body: JSON.stringify({
+            exam_id: attempt.exam_id,
+            exam_version_id: attempt.exam_version_id,
+            expires_at: attempt.submission_deadline,
+          }),
+        })
+          .then((issued) => {
+            storeSebQuitToken(issued.quit_token);
+            sessionStorage.setItem(storageKey, "1");
+          })
+          .catch(() => {
+            /* SEB quit self-service is optional when the session already exists */
+          });
       })
       .catch((error: Error) => setFailure(error));
-  }, [attemptPath, attemptId, router]);
+  }, [attemptPath, attemptId, router, tenantId]);
 
   if (failure) {
     const seb = failure instanceof APIError && failure.code === "seb_required";

@@ -48,6 +48,7 @@ func NewHandler(serviceName string, service *app.Service, readiness httpx.Readin
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/attempts/{attempt_id}/submit", handler.submitAttempt)
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/attempts/{attempt_id}", handler.deleteAttempt)
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/attempts/{attempt_id}/hard", handler.hardDeleteAttempt)
+	mux.HandleFunc("POST /v1/tenants/{tenant_id}/attempts/{attempt_id}/code-runs/purge", handler.purgeCodeRunsForAttempt)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts", handler.listAttempts)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}/answers", handler.listAnswerRevisions)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}/unit-results", handler.getAttemptUnitSummary)
@@ -308,6 +309,42 @@ func (handler *Handler) deleteAttempt(writer http.ResponseWriter, request *http.
 		return
 	}
 	writer.WriteHeader(http.StatusNoContent)
+}
+
+func (handler *Handler) purgeCodeRunsForAttempt(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	attemptID, err := httpx.ParseUUIDPathValue(request, "attempt_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var body deleteAttemptRequest
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	candidateID, err := candidateResourceID(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "attempts", candidateID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	result, err := handler.service.PurgeCodeRunsForAttempt(request.Context(), decision.Capability, app.PurgeCodeRuns{
+		TenantID: tenantID, AttemptID: attemptID, ActorID: decision.PrincipalID, Reason: body.Reason,
+	})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, result)
 }
 
 func (handler *Handler) hardDeleteAttempt(writer http.ResponseWriter, request *http.Request) {

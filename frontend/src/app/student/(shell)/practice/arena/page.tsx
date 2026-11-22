@@ -26,7 +26,7 @@ export default async function PracticeArenaPage() {
         title="Practice arena"
         description="Timed session over arena-tagged problems. Staff tag questions with arena or arena:sql for SQLite drills."
       />
-      <motion-note />
+      <ArenaTimerNote />
       {arena.length === 0 ? (
         <p className="rounded-panel border border-dashed border-line-strong px-6 py-14 text-center text-sm text-ink-muted">
           No arena problems yet. Ask faculty to tag practice questions with <span className="font-mono text-ink">arena</span>.
@@ -41,7 +41,7 @@ export default async function PracticeArenaPage() {
   );
 }
 
-function motion-note() {
+function ArenaTimerNote() {
   return (
     <p className="mb-6 flex items-center gap-2 rounded-panel border border-line bg-brand-soft/40 px-4 py-3 text-[13px] text-ink-muted">
       <Timer className="size-4 shrink-0 text-brand" />

@@ -348,6 +348,9 @@ services:
       # Time-up submits a student's saved code; poll often so it lands soon after the 15 s grace.
       SUBMISSION_EXPIRY_POLL_INTERVAL: 10s
       SUBMISSION_EXPIRY_DATABASE_URL: postgres://aether_submission_expiry_worker:${SUBMISSION_DB_PASSWORD}@postgres:5432/aether_submission?sslmode=disable
+      SUBMISSION_RETENTION_ENABLED: ${SUBMISSION_RETENTION_ENABLED:-true}
+      SUBMISSION_RETENTION_POLL_INTERVAL: 5m
+      SUBMISSION_RETENTION_DATABASE_URL: postgres://aether_submission_retention_worker:${SUBMISSION_DB_PASSWORD}@postgres:5432/aether_submission?sslmode=disable
       JUDGE_COMPLETION_ENABLED: "true"
       SUBMISSION_JUDGE_ADAPTER_DATABASE_URL: postgres://aether_submission_judge_adapter:${SUBMISSION_DB_PASSWORD}@postgres:5432/aether_submission?sslmode=disable
       JUDGE_COMPLETION_GRPC_ADDR: judge:8443

@@ -3,7 +3,6 @@ package repo
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/jackc/pgx/v5"
 	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"

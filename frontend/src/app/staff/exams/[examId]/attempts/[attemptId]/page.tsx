@@ -11,6 +11,7 @@ import { requireCollege } from "@/lib/server/staff";
 import { listAllStudents } from "@/lib/server/students";
 import { cn, formatDateTime, formatScoreText, formatTime, languageName } from "@/lib/utils";
 import { SnapshotsGallery } from "./snapshots-gallery";
+import { DataRetentionActions } from "./data-retention-actions";
 
 export const metadata: Metadata = { title: "Attempt" };
 
@@ -157,6 +158,14 @@ export default async function AttemptPage({ params }: { params: Promise<{ examId
           </ol>
         </section>
       </div>
+      {staff.tenantId && (
+        <DataRetentionActions
+          tenantId={staff.tenantId}
+          examId={examId}
+          attemptId={attemptId}
+          canHardDelete={staff.isPlatformAdmin}
+        />
+      )}
     </div>
   );
 }
