@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { type RefObject, useCallback, useEffect, useRef } from "react";
 import { api } from "@/lib/client/api";
 
 type HintKind = "face_missing" | "multiple_faces" | "phone_detected";
@@ -10,7 +10,7 @@ export function useClientProctor(
   enabled: boolean,
   tenantId: string | undefined,
   attemptId: string | undefined,
-  video: HTMLVideoElement | null,
+  videoRef: RefObject<HTMLVideoElement | null>,
   intervalMs = 12_000,
 ) {
   const model = useRef<Awaited<ReturnType<typeof loadModel>> | null>(null);

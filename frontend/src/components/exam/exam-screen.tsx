@@ -33,6 +33,7 @@ import { type SaveState, useAnswers } from "./use-answers";
 import { useIntegrity } from "./use-integrity";
 import { useLiveState } from "./use-live-state";
 import { bestScore, isJudging, useSubmissions } from "./use-submissions";
+import { useClientProctor } from "./use-client-proctor";
 import { useWebcam } from "./use-webcam";
 
 const CodeEditor = dynamic(() => import("./code-editor").then((module) => module.CodeEditor), {

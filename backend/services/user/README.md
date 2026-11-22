@@ -206,6 +206,20 @@ All user entities support soft delete (archival without physical removal):
 
 Ref: [ADR-0013](../../docs/adr/0013-soft-delete-architecture.md)
 
+## Platform profile cache (ADR-0059 §3)
+
+Students link coding handles in the notification service. Cached stats live in
+`users.platform_stats`, refreshed by an optional in-process worker
+(`USER_PLATFORM_STATS_ENABLED`). Staff read the cache from Analytics → Profiles.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/v1/tenants/{tenant_id}/platform-profiles` | Paged cached rows; filters `platform`, `status`, `batch_id`. |
+| `POST` | `/v1/tenants/{tenant_id}/platform-profiles/sync` | Queue refresh for every student (10 minute rate limit). |
+| `POST` | `/v1/tenants/{tenant_id}/students/{student_id}/platform-profiles/sync` | Queue one student. |
+
+Individual student pages still fall back to live fetches when cache is empty.
+
 ## Collection endpoints
 
 Three cursor-paginated list endpoints follow the Class B pattern (staff roles

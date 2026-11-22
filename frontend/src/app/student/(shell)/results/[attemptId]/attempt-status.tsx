@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import type { Attempt, AttemptResult } from "@/lib/api-types";
 import { api } from "@/lib/client/api";
 import { useRealtime } from "@/lib/client/realtime";
+import { SocraticExplainer } from "@/components/exam/socratic-explainer";
 import { formatDateTime, formatScoreText } from "@/lib/utils";
 
 // Confirms the submission and follows grading. Marks stay hidden until
