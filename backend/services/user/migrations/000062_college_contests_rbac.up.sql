@@ -2,9 +2,9 @@ SET ROLE aether_user_owner;
 
 INSERT INTO users.permission_flags (key, bit_index, kind, platform_only, student_managed)
 VALUES
-    ('question-bank.college_contests.read', 217, 'resource', false, false),
-    ('question-bank.college_contests.write', 218, 'resource', false, false),
-    ('question-bank.college_contests.delete', 219, 'resource', false, false)
+    ('question-bank.college_contests.read', 223, 'resource', false, false),
+    ('question-bank.college_contests.write', 224, 'resource', false, false),
+    ('question-bank.college_contests.delete', 225, 'resource', false, false)
 ON CONFLICT (key) DO NOTHING;
 
 UPDATE users.roles

@@ -26,6 +26,15 @@ import (
 // practiceFairnessKey groups practice jobs in Judge's admission limiter.
 const practiceFairnessKey = "question-bank:practice"
 
+func sqlitePracticeAllowed(tags []string) bool {
+	for _, tag := range tags {
+		if tag == "runner:sqlite" || tag == "arena:sql" || strings.HasPrefix(tag, "arena:") && strings.Contains(tag, "sql") {
+			return true
+		}
+	}
+	return false
+}
+
 // SetQuestionAudience moves a question between tests and practice.
 type SetQuestionAudience struct {
 	QuestionID string
@@ -214,6 +223,15 @@ func (service *Service) StartPractice(contextValue context.Context, capability c
 	}
 	if strings.TrimSpace(command.Source) == "" || len(command.Source) > maxSolutionBytes {
 		return "", apperrors.New(apperrors.CodeInvalidArgument, "write some code first; at most 64 KB")
+	}
+	if command.Language == "sqlite" {
+		question, tagErr := service.GetPracticeQuestion(contextValue, capability, command.QuestionID)
+		if tagErr != nil {
+			return "", tagErr
+		}
+		if !sqlitePracticeAllowed(question.Tags) {
+			return "", apperrors.New(apperrors.CodeInvalidArgument, "SQLite runs only on practice problems tagged runner:sqlite or arena:sql")
+		}
 	}
 	if command.Input != nil && (command.Mode != "run" || len(*command.Input) > evalbundle.MaxOutputBytes) {
 		return "", apperrors.New(apperrors.CodeInvalidArgument, "your own input is for runs only, at most 64 KB")

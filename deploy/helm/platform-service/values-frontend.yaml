@@ -16,6 +16,7 @@ commonConfig: {}
 
 config:
   GATEWAY_URL: "http://gateway:8080"
+  QUESTION_INTAKE_URL: "http://question-intake:3000"
   PUBLIC_ORIGIN: '{{ required "global.publicOrigin is required" .Values.global.publicOrigin }}'
   # "on" shows "Sign in with your St. Joseph's account" (ADR-0042).
   AETHERCODE_SSO: "off"

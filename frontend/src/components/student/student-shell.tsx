@@ -35,6 +35,7 @@ const NAV: Entry[] = [
     items: [
       { href: "/student/interviews", label: "Interviews" },
       { href: "/student/contests", label: "Contests" },
+      { href: "/student/college-contests", label: "College contests" },
       { href: "/student/hackathons", label: "Hackathons" },
       { href: "/student/open-source", label: "Open source" },
       { href: "/student/blogs", label: "Blogs" },

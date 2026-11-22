@@ -18,6 +18,6 @@ database are not touched, and the two share no code or tables (as with the exam 
 
 ## Consequences
 
-- Authors can work now; questions are imported into the platform bank later by a script that reads this database.
+- Authors can work now; staff import topics into the platform bank from the console (idempotent, model-check gate before publish).
 - The engine is called directly, so the intake app depends on the engine's HTTP API (`/api/v1/execute` and the
   `stream_token` stream) and not on the platform's judge service, which is private.

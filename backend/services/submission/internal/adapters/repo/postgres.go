@@ -731,6 +731,19 @@ func (repository *Postgres) RecordIntegrityEvent(contextValue context.Context, t
 	return nil
 }
 
+func (repository *Postgres) RecordClientProctorHint(contextValue context.Context, transaction pgx.Tx, command app.GetAttempt, kind string, confidence float32) error {
+	if _, err := transaction.Exec(contextValue, `SELECT submission.record_client_proctor_hint($1, $2, $3, $4)`,
+		command.TenantID, command.AttemptID, kind, confidence); err != nil {
+		return mapDatabaseError(err, "record client proctor hint")
+	}
+	return nil
+}
+
+func (repository *Postgres) ListClientProctorHints(contextValue context.Context, transaction pgx.Tx, command app.GetAttempt) (json.RawMessage, error) {
+	return queryJSON(contextValue, transaction, "list client proctor hints",
+		`SELECT submission.list_client_proctor_hints($1, $2)`, command.TenantID, command.AttemptID)
+}
+
 func (repository *Postgres) StoreSnapshot(contextValue context.Context, transaction pgx.Tx, command app.StoreSnapshot) (string, error) {
 	// store_snapshot returns NULL when a frame with this capture time is already stored (ON CONFLICT DO NOTHING),
 	// so a retried upload is a no-op that yields an empty id, not a scan error.

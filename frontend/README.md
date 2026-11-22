@@ -24,10 +24,15 @@ pnpm typecheck && pnpm lint && pnpm build
 | Variable | Meaning |
 |---|---|
 | `GATEWAY_URL` | Where the Next.js server reaches the gateway (`http://gateway:8080` in Compose). |
+| `QUESTION_INTAKE_URL` | Base URL of the question intake app for staff topic import (ADR-0069), e.g. `http://127.0.0.1:3300`. |
 | `PUBLIC_ORIGIN` | The origin students load the site from. Must equal the gateway's `GATEWAY_SEB_PUBLIC_ORIGIN`. Mutating `/api` requests must carry it as `Origin`. |
-| `BRANDING_FILE` | Optional. A JSON file of per-college branding (ADR-0045). |
+| `BRANDING_FILE` | Optional fallback file when tenant branding tables are empty (ADR-0045, ADR-0059). |
 
 ### Branding
+
+Staff can edit branding under **Branding** in the college workspace (ADR-0059).
+`brandFor` loads `GET /api/tenant/v1/branding` first and falls back to
+`BRANDING_FILE` when the tenant service has no rows.
 
 `BRANDING_FILE` points at a JSON file; logos are files beside it. The server
 re-reads it when it changes.

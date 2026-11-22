@@ -14,8 +14,10 @@ import { departmentLabel, listBatches, listDepartments, listPlacement } from "@/
 import { placementDepartmentOptions } from "@/lib/server/placement-org";
 import { latestVersion } from "@/lib/server/exams";
 import { GatewayError, gateway } from "@/lib/server/gateway";
+import { clientIP } from "@/lib/server/request";
 import { requireCollege } from "@/lib/server/staff";
 import { cn, formatDuration, formatScoreText, formatWindow, isoToCollegeTime } from "@/lib/utils";
+import { headers } from "next/headers";
 import { addPool, addQuestion, deleteExam, duplicateExam, publishExam, regradeItem, removeExamItem, removeExamSection, saveSebPolicy, tryExam, updateExamDetails, updateExamItemMarks, updateExamSection } from "../actions";
 import { AssignForm } from "./assign-form";
 import { MoveWindow } from "./move-window";
@@ -34,8 +36,33 @@ async function sebPolicy(tenantId: string, examId: string): Promise<SebPolicy | 
   }
 }
 
+/** Exact IP or CIDR containing the address (lab diagnostic only; SEB enforces for real). */
+function ipAllowed(address: string, networks: string[]): boolean {
+  if (networks.length === 0) return true;
+  for (const network of networks) {
+    const trimmed = network.trim();
+    if (!trimmed) continue;
+    if (!trimmed.includes("/")) {
+      if (trimmed === address) return true;
+      continue;
+    }
+    const [base, bitsRaw] = trimmed.split("/");
+    const bits = Number(bitsRaw);
+    if (!base || !Number.isInteger(bits) || bits < 0 || bits > 32) continue;
+    const toInt = (ip: string) => ip.split(".").reduce((value, part) => (value << 8) + (Number(part) & 255), 0) >>> 0;
+    try {
+      const mask = bits === 0 ? 0 : (~0 << (32 - bits)) >>> 0;
+      if ((toInt(address) & mask) === (toInt(base) & mask)) return true;
+    } catch {
+      /* ignore malformed */
+    }
+  }
+  return false;
+}
+
 export default async function ExamPage({ params }: { params: Promise<{ examId: string }> }) {
   const staff = await requireCollege();
+  const viewerIP = clientIP(await headers());
   const { examId } = await params;
   let data;
   try {
@@ -430,6 +457,19 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
             <Field label="Lab networks" htmlFor="seb-networks" hint="The lab's public address or range (what a lab machine sees at whatismyip), one per line. Leave empty to allow any network.">
               <TextArea id="seb-networks" name="allowed_networks" defaultValue={(seb?.allowed_networks ?? []).join("\n")} className="font-mono text-xs" spellCheck={false} />
             </Field>
+            <p className="mt-3 rounded-surface border border-line bg-sunken px-3 py-2 font-mono text-[12.5px] text-ink-muted">
+              This browser&apos;s address as the server sees it:{" "}
+              <span className="text-ink">{viewerIP ?? "unknown"}</span>
+              {viewerIP && (seb?.allowed_networks?.length ?? 0) > 0 ? (
+                <>
+                  {" "}
+                  ·{" "}
+                  <span className={ipAllowed(viewerIP, seb?.allowed_networks ?? []) ? "text-success" : "text-danger"}>
+                    {ipAllowed(viewerIP, seb?.allowed_networks ?? []) ? "matches lab list" : "outside lab list"}
+                  </span>
+                </>
+              ) : null}
+            </p>
           </ActionForm>
           {seb?.enabled && (
             <Button asChild variant="secondary" size="sm" className="mt-4">

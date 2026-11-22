@@ -257,6 +257,9 @@ services:
       USER_DB_MIN_CONNS: "4"
       USER_AUTHZ_DATABASE_URL: postgres://aether_user_authz_reader:${USERS_DB_PASSWORD}@postgres:5432/aether_users?sslmode=disable
       USER_PROJECTION_DATABASE_URL: postgres://aether_user_projection_worker:${USERS_DB_PASSWORD}@postgres:5432/aether_users?sslmode=disable
+      USER_PLATFORM_STATS_ENABLED: ${USER_PLATFORM_STATS_ENABLED:-false}
+      USER_PLATFORM_STATS_DATABASE_URL: postgres://aether_user_platform_stats_worker:${USERS_DB_PASSWORD}@postgres:5432/aether_users?sslmode=disable
+      NOTIFICATION_PLATFORM_STATS_DATABASE_URL: postgres://aether_notification_platform_stats_reader:${NOTIFICATION_DB_PASSWORD}@postgres:5432/aether_notification?sslmode=disable
       AUTHZ_GRPC_ADDR: 0.0.0.0:9443
       AUTHZ_TLS_CERT_FILE: /certs/user.crt
       AUTHZ_TLS_KEY_FILE: /certs/user.key

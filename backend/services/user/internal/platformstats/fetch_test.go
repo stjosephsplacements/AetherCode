@@ -7,7 +7,7 @@ func TestStaleOnRateLimit(t *testing.T) {
 	if staleOnRateLimit(nil) != "failed" {
 		t.Fatal("expected failed for nil")
 	}
-	if staleOnRateLimit(errString("429 Too Many Requests")) != "stale" {
+	if staleOnRateLimit(errString("rate limited")) != "stale" {
 		t.Fatal("expected stale for rate limit")
 	}
 }

@@ -47,6 +47,8 @@ type service interface {
 	IssueLaunchTicket(context.Context, centralauthz.Capability, string, string) (string, error)
 	TicketLaunchFile(ctx context.Context, tenantID, examID, ticket string) (app.LaunchFile, error)
 	CheckExamRequest(context.Context, centralauthz.Capability, app.CheckExamRequest) (string, error)
+	IssueLockdownQuitSession(context.Context, centralauthz.Capability, app.IssueLockdownQuitSession) (app.IssuedSession, error)
+	RedeemQuitToken(context.Context, centralauthz.Capability, app.RedeemQuitToken) (app.QuitRedemption, error)
 }
 
 type authorizer interface {
@@ -79,6 +81,8 @@ func NewHandler(serviceName string, service service, readiness httpx.ReadinessFu
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/exams/{exam_id}/launch-file", handler.getCandidateLaunchFile)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/exams/{exam_id}/launch-ticket", handler.issueLaunchTicket)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/request-checks", handler.checkRequest)
+	mux.HandleFunc("POST /v1/tenants/{tenant_id}/attempts/{attempt_id}/lockdown-quit-session", handler.issueLockdownQuitSession)
+	mux.HandleFunc("POST /v1/tenants/{tenant_id}/quit-self", handler.redeemQuitToken)
 	return mux, nil
 }
 
@@ -599,4 +603,96 @@ func (handler *Handler) getConfigurationPayload(writer http.ResponseWriter, requ
 	writer.Header().Set("Content-Length", strconv.Itoa(len(payload)))
 	writer.WriteHeader(http.StatusOK)
 	_, _ = writer.Write(payload)
+}
+
+type lockdownQuitSessionRequest struct {
+	ExamID        string `json:"exam_id"`
+	ExamVersionID string `json:"exam_version_id"`
+	ExpiresAt     string `json:"expires_at"`
+}
+
+func (handler *Handler) issueLockdownQuitSession(writer http.ResponseWriter, request *http.Request) {
+	tenantID, attemptID, err := tenantAndResourceID(request, "attempt_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	idempotencyKey, err := requiredIdempotencyKey(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var body lockdownQuitSessionRequest
+	raw, err := httpx.DecodeJSONRaw(request, &body)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	requestHash, err := database.HashRequestBody(raw)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	expiresAt, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(body.ExpiresAt))
+	if err != nil {
+		httpx.WriteError(writer, invalidRequest("expires_at must be RFC3339"))
+		return
+	}
+	sessionID, err := database.NewUUIDv7()
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	eventID, err := database.NewUUIDv7()
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeSelfHTTP(request.Context(), request, "write", "sessions", tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	issued, err := handler.service.IssueLockdownQuitSession(request.Context(), decision.Capability, app.IssueLockdownQuitSession{
+		ID: sessionID, EventID: eventID, TenantID: tenantID, AttemptID: attemptID,
+		ExamID: body.ExamID, ExamVersionID: body.ExamVersionID, ExpiresAt: expiresAt,
+		IdempotencyKey: idempotencyKey, RequestHash: requestHash,
+	})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.Header().Set("Cache-Control", "no-store")
+	httpx.WriteJSON(writer, http.StatusCreated, issued)
+}
+
+type redeemQuitTokenRequest struct {
+	QuitToken string `json:"quit_token"`
+}
+
+func (handler *Handler) redeemQuitToken(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var body redeemQuitTokenRequest
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeSelfHTTP(request.Context(), request, "read", "sessions", tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	result, err := handler.service.RedeemQuitToken(request.Context(), decision.Capability, app.RedeemQuitToken{
+		TenantID: tenantID, Token: body.QuitToken,
+	})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.Header().Set("Cache-Control", "no-store")
+	httpx.WriteJSON(writer, http.StatusOK, result)
 }

@@ -103,6 +103,8 @@ type Store interface {
 	SetIntegrity(context.Context, pgx.Tx, SetIntegrity) error
 	RegradeItem(context.Context, pgx.Tx, ExamVersionCommand, string) (json.RawMessage, error)
 	RecordIntegrityEvent(context.Context, pgx.Tx, GetAttempt, string) error
+	RecordClientProctorHint(context.Context, pgx.Tx, GetAttempt, string, float32) error
+	ListClientProctorHints(context.Context, pgx.Tx, GetAttempt) (json.RawMessage, error)
 	StoreSnapshot(context.Context, pgx.Tx, StoreSnapshot) (string, error)
 	GetAttemptProctorPolicy(ctx context.Context, tx pgx.Tx, tenantID, attemptID string) (json.RawMessage, error)
 	ProctorGrid(ctx context.Context, tx pgx.Tx, command ExamVersionCommand) ([]GridRow, error)

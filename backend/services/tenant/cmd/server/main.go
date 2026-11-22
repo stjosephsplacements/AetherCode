@@ -17,7 +17,6 @@ import (
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/logging"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/messaging"
-	"github.com/stjosephsplacements/AetherCode/libs/pkg/storage"
 	minioclient "github.com/stjosephsplacements/AetherCode/libs/pkg/storage/minio"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry/dbmetrics"

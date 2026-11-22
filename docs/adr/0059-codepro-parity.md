@@ -1,6 +1,6 @@
 # ADR-0059: Closing the remaining gaps with the reference product
 
-- Status: proposed
+- Status: accepted (§1 branding shipped; §2–3 pending)
 - Date: 2026-11-02
 
 ## Context
@@ -25,7 +25,7 @@ designs the three gaps that no other ADR covers.
 | Blogs, contests, hackathons, open source management | Community | Done (redesigned, paged) |
 | Tasks, resume, profile, performance, practice | Student pages | Done |
 | SEB start | SEB service | Done |
-| Branding page: app name, logo carousel per college and global | Branding is a file read at deploy | Gap, designed below |
+| Branding page: app name, logo carousel per college and global | Tenant branding API + staff console page | Done (§1) |
 | Queue operations: metrics, failed jobs, requeue one or all | Grading queue counts and regrade | Gap, designed below |
 | Scrapers dashboard: platform profiles, sync one student or everyone | Stats fetched live per student view | Gap, designed below |
 | Stats: global health, content pulse, security audit | Platform analytics, Audit log, System status | Covered; no change |

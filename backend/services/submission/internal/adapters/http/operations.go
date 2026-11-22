@@ -35,6 +35,9 @@ func (handler *Handler) registerOperations(mux *http.ServeMux) {
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}/result", handler.getAttemptResult)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}/review", handler.reviewAttempt)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/similarity", handler.similarityReport)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/similarity/align", handler.similarityAlign)
+	mux.HandleFunc("POST /v1/tenants/{tenant_id}/attempts/{attempt_id}/client-proctor-hints", handler.recordClientProctorHint)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/attempts/{attempt_id}/client-proctor-hints", handler.listClientProctorHints)
 	mux.HandleFunc("PUT /v1/tenants/{tenant_id}/attempts/{attempt_id}/choices/{exam_item_id}", handler.saveChoice)
 	mux.HandleFunc("PUT /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/integrity", handler.setIntegrity)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/attempts/{attempt_id}/events", handler.recordIntegrityEvent)
@@ -164,6 +167,91 @@ func (handler *Handler) saveChoice(writer http.ResponseWriter, request *http.Req
 		TenantID: tenantID, AttemptID: attemptID, ExamItemID: examItemID, Selected: body.Selected,
 	})
 	writeRaw(writer, http.StatusOK, saved, err)
+}
+
+type clientProctorHintRequest struct {
+	Kind       string  `json:"kind"`
+	Confidence float32 `json:"confidence"`
+}
+
+func (handler *Handler) recordClientProctorHint(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	attemptID, err := httpx.ParseUUIDPathValue(request, "attempt_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var body clientProctorHintRequest
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	candidateID, err := candidateResourceID(request)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "attempts", candidateID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	if err := handler.service.RecordClientProctorHint(request.Context(), decision.Capability, app.GetAttempt{TenantID: tenantID, AttemptID: attemptID}, body.Kind, body.Confidence); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.WriteHeader(http.StatusNoContent)
+}
+
+func (handler *Handler) listClientProctorHints(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	attemptID, err := httpx.ParseUUIDPathValue(request, "attempt_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "proctor_evidence", attemptID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	hints, err := handler.service.ListClientProctorHints(request.Context(), decision.Capability, app.GetAttempt{TenantID: tenantID, AttemptID: attemptID})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, hints)
+}
+
+// similarityAlign returns token alignment for two attempts (ADR-0081 C).
+func (handler *Handler) similarityAlign(writer http.ResponseWriter, request *http.Request) {
+	command, capability, err := handler.authorizeExamVersion(request, "read", "judge_receipts")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	attemptA := request.URL.Query().Get("attempt_a")
+	attemptB := request.URL.Query().Get("attempt_b")
+	examItemID := request.URL.Query().Get("exam_item_id")
+	if attemptA == "" || attemptB == "" || examItemID == "" {
+		httpx.WriteError(writer, apperrors.New(apperrors.CodeInvalidArgument, "attempt_a, attempt_b and exam_item_id are required"))
+		return
+	}
+	report, err := handler.service.SimilarityAlignReport(request.Context(), capability, command, examItemID, attemptA, attemptB)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	writer.Header().Set("Cache-Control", "no-store")
+	httpx.WriteJSON(writer, http.StatusOK, report)
 }
 
 // similarityReport compares students' latest code per question (ADR-0031).

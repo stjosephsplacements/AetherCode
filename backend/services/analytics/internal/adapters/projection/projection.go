@@ -761,6 +761,9 @@ func (store *Store) rebuildBatchProgress(ctx context.Context, tx pgx.Tx, tenantI
 	if _, err := tx.Exec(ctx, `SELECT analytics.rebuild_batch_progress_by_department($1::uuid, $2::uuid)`, tenantID, batchID); err != nil {
 		return projectionError(err, "rebuild batch progress by department")
 	}
+	if _, err := tx.Exec(ctx, `SELECT analytics.rebuild_gold_mentor_batch($1::uuid, $2::uuid)`, tenantID, batchID); err != nil {
+		return projectionError(err, "rebuild gold mentor batch")
+	}
 	return nil
 }
 

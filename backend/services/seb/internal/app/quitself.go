@@ -32,11 +32,6 @@ type QuitRedemption struct {
 	QuitPassword string `json:"quit_password"`
 }
 
-type QuitSelfStore interface {
-	IssueLockdownQuitSession(context.Context, pgx.Tx, IssueLockdownQuitSession, string, string) (Session, error)
-	RedeemQuitToken(context.Context, pgx.Tx, string) error
-}
-
 func (service *Service) IssueLockdownQuitSession(ctx context.Context, capability centralauthz.Capability, command IssueLockdownQuitSession) (IssuedSession, error) {
 	if !isUUID(command.ID) || !isUUID(command.EventID) || !isUUID(command.TenantID) ||
 		!isUUID(command.AttemptID) || !isUUID(command.ExamID) || !isUUID(command.ExamVersionID) {

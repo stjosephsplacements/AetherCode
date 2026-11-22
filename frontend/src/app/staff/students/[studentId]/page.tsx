@@ -16,8 +16,10 @@ import { platformStats } from "@/lib/server/platforms";
 import { gateway } from "@/lib/server/gateway";
 import { collegeFor, requireStaff } from "@/lib/server/staff";
 import { cn } from "@/lib/utils";
+import { ActionForm, Field, TextInput } from "@/components/staff/form";
 import { deleteStudent, updateStudent } from "../actions";
 import { StudentActions } from "../panels";
+import { issueTalentCard } from "./talent-card-actions";
 
 export const metadata: Metadata = { title: "Student profile" };
 
@@ -136,6 +138,28 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
         </div>
       </div>
 
+
+      <Section title="Talent card" description="Issue a signed card a recruiter can verify at /talent/… (requires VIEW_STUDENT_PII).">
+        <div className={cn(panel)}>
+          <ActionForm action={issueTalentCard} submitLabel="Issue talent card">
+            <input type="hidden" name="student_id" value={studentId} />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Display name" htmlFor="tc-name">
+                <TextInput id="tc-name" name="display_name" defaultValue={account?.display_name ?? ""} />
+              </Field>
+              <Field label="Roll number" htmlFor="tc-roll">
+                <TextInput id="tc-roll" name="roll_number" defaultValue={student.enrollment_number} />
+              </Field>
+              <Field label="College" htmlFor="tc-college">
+                <TextInput id="tc-college" name="college" defaultValue={staff.tenants.find((college) => college.id === collegeId)?.display_name ?? ""} />
+              </Field>
+              <Field label="Department" htmlFor="tc-dept">
+                <TextInput id="tc-dept" name="department" defaultValue={dept} />
+              </Field>
+            </div>
+          </ActionForm>
+        </div>
+      </Section>
 
       {/* Competitive Profiles */}
       <Section title="Linked Coding Profiles" description="External platforms linked by the student.">

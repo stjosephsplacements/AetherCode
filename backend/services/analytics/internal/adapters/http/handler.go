@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/database"
 	apperrors "github.com/stjosephsplacements/AetherCode/libs/pkg/errors"
@@ -44,6 +45,9 @@ func NewHandler(serviceName string, service *app.Service, readiness httpx.Readin
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/batch-progress/{batch_id}", handler.listBatchProgress)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/batch-progress/{batch_id}/by-department", handler.listDepartmentBatchProgress)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/placement-progress/{placement_department_id}", handler.listPlacementProgress)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/placement-departments/{placement_department_id}/consortium-drives", handler.listConsortiumDrives)
+	mux.HandleFunc("POST /v1/tenants/{tenant_id}/placement-departments/{placement_department_id}/consortium-drives", handler.createConsortiumDrive)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/placement-departments/{placement_department_id}/consortium-drives/{drive_id}/leaderboard", handler.consortiumLeaderboard)
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/report-exports", handler.requestReportExport)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/report-exports/{export_id}", handler.getReportExport)
 	mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/report-exports/{export_id}", handler.deleteReportExport)
@@ -308,6 +312,79 @@ func (handler *Handler) deleteReportExport(writer http.ResponseWriter, request *
 		return
 	}
 	writer.WriteHeader(http.StatusNoContent)
+}
+
+type consortiumDriveRequest struct {
+	Title    string    `json:"title"`
+	OpensAt  time.Time `json:"opens_at"`
+	ClosesAt time.Time `json:"closes_at"`
+}
+
+func (handler *Handler) listConsortiumDrives(writer http.ResponseWriter, request *http.Request) {
+	tenantID, placementDepartmentID, _, err := tenantResourceAndLimit(request, "placement_department_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "placement_student_rollups", placementDepartmentID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	drives, err := handler.service.ListConsortiumDrives(request.Context(), decision.Capability, placementDepartmentID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, drives)
+}
+
+func (handler *Handler) createConsortiumDrive(writer http.ResponseWriter, request *http.Request) {
+	tenantID, placementDepartmentID, _, err := tenantResourceAndLimit(request, "placement_department_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var body consortiumDriveRequest
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "placement_student_rollups", placementDepartmentID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	id, err := handler.service.CreateConsortiumDrive(request.Context(), decision.Capability, placementDepartmentID, body.Title, body.OpensAt, body.ClosesAt)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusCreated, map[string]string{"id": id})
+}
+
+func (handler *Handler) consortiumLeaderboard(writer http.ResponseWriter, request *http.Request) {
+	tenantID, placementDepartmentID, limit, err := tenantResourceAndLimit(request, "placement_department_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	driveID, err := httpx.ParseUUIDPathValue(request, "drive_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	decision, err := handler.authorizer.AuthorizeHTTP(request.Context(), request, "read", "placement_student_rollups", placementDepartmentID, tenantID)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	board, err := handler.service.ConsortiumLeaderboard(request.Context(), decision.Capability, driveID, limit)
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, board)
 }
 
 func (handler *Handler) hardDeleteReportExport(writer http.ResponseWriter, request *http.Request) {
