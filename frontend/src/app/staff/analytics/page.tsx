@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { LoadError, PageHeader } from "@/components/staff/page-header";
-import type { ExamResult, Page, Student } from "@/lib/api-types";
+import type { ExamResult } from "@/lib/api-types";
 import { LiveRefresh } from "@/lib/client/realtime";
 import { listBatches, listDepartments } from "@/lib/server/directory";
 import { listExams, mapLimit } from "@/lib/server/exams";
@@ -41,8 +41,8 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
       // Batch membership comes from each batch's student list.
       const batchOf = new Map<string, string>();
       await mapLimit(batches, 6, async (batch) => {
-        const page = await gateway<Page<Student>>(`/user/v1/tenants/${collegeId}/students?batch_id=${batch.id}&limit=100`).catch(() => null);
-        for (const student of page?.items ?? []) batchOf.set(student.principal_id, batch.id);
+        const members = await listAllStudents(collegeId, batch.id).catch(() => []);
+        for (const student of members) batchOf.set(student.principal_id, batch.id);
       });
       return { results, students, departments, batches, batchOf };
     });

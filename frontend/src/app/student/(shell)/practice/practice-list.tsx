@@ -1,11 +1,13 @@
 "use client";
 
-import { CheckCircle, CircleDashed, CodeBlock, ListChecks, MagnifyingGlass } from "@phosphor-icons/react/ssr";
+import { CheckCircle, CircleDashed, MagnifyingGlass } from "@phosphor-icons/react/ssr";
 import { Select as FormSelect } from "@/components/staff/form";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { LocalPager } from "@/components/staff/pager";
 import { Badge } from "@/components/ui/card";
 import type { PracticeProblem } from "@/lib/api-types";
+import { paginate } from "@/lib/paginate";
 import { cn } from "@/lib/utils";
 
 const DIFFICULTY_TONE = { easy: "success", medium: "warning", hard: "danger" } as const;
@@ -16,16 +18,9 @@ const STATUSES = [
   { value: "solved", label: "Solved" },
 ] as const;
 
-const KINDS = [
-  { value: "all", label: "All types" },
-  { value: "coding", label: "Coding" },
-  { value: "mcq", label: "Multiple choice" },
-] as const;
-
 export function PracticeList({ problems, hideTopic = false }: { problems: PracticeProblem[]; hideTopic?: boolean }) {
   const [query, setQuery] = useState("");
   const [difficulty, setDifficulty] = useState<"all" | PracticeProblem["difficulty"]>("all");
-  const [kind, setKind] = useState<(typeof KINDS)[number]["value"]>("all");
   const [status, setStatus] = useState<(typeof STATUSES)[number]["value"]>("all");
   const [tag, setTag] = useState("");
   const tags = useMemo(() => [...new Set(problems.flatMap((problem) => problem.tags))].sort(), [problems]);
@@ -34,14 +29,17 @@ export function PracticeList({ problems, hideTopic = false }: { problems: Practi
     const text = query.trim().toLowerCase();
     if (text && !problem.title.toLowerCase().includes(text) && !problem.tags.some((name) => name.toLowerCase().includes(text))) return false;
     if (difficulty !== "all" && problem.difficulty !== difficulty) return false;
-    const problemKind = problem.kind ?? "coding";
-    if (kind !== "all" && problemKind !== kind) return false;
     if (tag && !problem.tags.includes(tag)) return false;
     if (status === "solved") return problem.solved;
     if (status === "attempted") return problem.attempted && !problem.solved;
     if (status === "todo") return !problem.attempted;
     return true;
   });
+
+  // Any filter change starts again at page 1.
+  const filterKey = [query, difficulty, status, tag].join("\u0000");
+  const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
+  const paged = paginate(shown, pageState.key === filterKey ? pageState.page : 1);
 
   return (
     <>
@@ -53,12 +51,11 @@ export function PracticeList({ problems, hideTopic = false }: { problems: Practi
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search by title or topic"
-            className="h-9 w-full rounded-control border border-line bg-surface pl-9 pr-3 text-sm text-ink outline-none placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15"
+            className="h-9 w-full rounded-[var(--radius-control)] border border-line bg-surface pl-9 pr-3 text-sm text-ink outline-none placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15"
           />
         </label>
         <Select label="Difficulty" value={difficulty} onChange={(value) => setDifficulty(value as typeof difficulty)}
           options={[["all", "Any difficulty"], ["easy", "Easy"], ["medium", "Medium"], ["hard", "Hard"]]} />
-        <Select label="Type" value={kind} onChange={(value) => setKind(value as typeof kind)} options={KINDS.map((row) => [row.value, row.label] as [string, string])} />
         {!hideTopic && tags.length > 0 && <Select label="Topic" value={tag} onChange={setTag} options={[["", "Any topic"], ...tags.map((name) => [name, name] as [string, string])]} />}
       </div>
       <nav aria-label="Status" className="mt-3 flex gap-1.5">
@@ -68,7 +65,7 @@ export function PracticeList({ problems, hideTopic = false }: { problems: Practi
             type="button"
             aria-pressed={status === option.value}
             onClick={() => setStatus(option.value)}
-            className={cn("rounded-pill px-3 py-1 text-[13px]", status === option.value ? "bg-ink text-canvas" : "bg-hover text-ink-muted hover:text-ink")}
+            className={cn("rounded-full px-3 py-1 text-[13px]", status === option.value ? "bg-ink text-canvas" : "bg-hover text-ink-muted hover:text-ink")}
           >
             {option.label}
           </button>
@@ -76,12 +73,12 @@ export function PracticeList({ problems, hideTopic = false }: { problems: Practi
       </nav>
 
       {shown.length === 0 ? (
-        <p className="mt-6 rounded-panel border border-dashed border-line-strong px-6 py-12 text-center text-sm text-ink-muted">
+        <p className="mt-6 rounded-3xl border border-dashed border-line-strong px-6 py-12 text-center text-sm text-ink-muted">
           {problems.length === 0 ? "No practice problems yet. Your faculty adds them here." : "No problems match these filters."}
         </p>
       ) : (
-        <ul className="mt-4 overflow-hidden rounded-panel border border-line bg-surface shadow-[var(--shadow-panel)]">
-          {shown.map((problem, index) => (
+        <ul className="mt-4 overflow-hidden rounded-3xl border border-line bg-surface shadow-[var(--shadow-panel)]">
+          {paged.rows.map((problem, index) => (
             <li key={problem.question_id} className={cn(index > 0 && "border-t border-line")}>
               <Link href={`/student/practice/${problem.question_id}`} className="flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-hover">
                 {problem.solved ? (
@@ -90,14 +87,7 @@ export function PracticeList({ problems, hideTopic = false }: { problems: Practi
                   <CircleDashed className={cn("size-[18px] shrink-0", problem.attempted ? "text-warning" : "text-ink-subtle")} aria-label={problem.attempted ? "Attempted" : "Not attempted"} />
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="flex items-center gap-2 truncate text-[15px] font-medium text-ink">
-                    {(problem.kind ?? "coding") === "mcq" ? (
-                      <ListChecks className="size-4 shrink-0 text-ink-muted" aria-hidden />
-                    ) : (
-                      <CodeBlock className="size-4 shrink-0 text-ink-muted" aria-hidden />
-                    )}
-                    {problem.title}
-                  </p>
+                  <p className="truncate text-[15px] font-medium text-ink">{problem.title}</p>
                   {problem.tags.length > 0 && <p className="mt-0.5 truncate text-[13px] text-ink-muted">{problem.tags.join(", ")}</p>}
                 </div>
                 <Badge tone={DIFFICULTY_TONE[problem.difficulty]}>{problem.difficulty}</Badge>
@@ -106,6 +96,7 @@ export function PracticeList({ problems, hideTopic = false }: { problems: Practi
           ))}
         </ul>
       )}
+      <LocalPager meta={paged} onPage={(page) => setPageState({ key: filterKey, page })} noun="problems" />
     </>
   );
 }

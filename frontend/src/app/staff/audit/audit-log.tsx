@@ -3,8 +3,10 @@
 import { MagnifyingGlass } from "@phosphor-icons/react/ssr";
 import { useDeferredValue, useMemo, useState } from "react";
 import { EmptyState } from "@/components/staff/page-header";
+import { LocalPager } from "@/components/staff/pager";
 import { Badge } from "@/components/ui/card";
 import { lettermark } from "@/lib/lettermark";
+import { paginate } from "@/lib/paginate";
 import { cn } from "@/lib/utils";
 
 export type AuditRow = {
@@ -27,11 +29,12 @@ const OUTCOMES = [
   { key: "refused", label: "Refused" },
 ] as const;
 
-/** The log grouped by day, with a search and an outcome filter over what is loaded. */
+/** The log grouped by day, with a search and an outcome filter over what is loaded, 25 entries to a page. */
 export function AuditLog({ rows, several }: { rows: AuditRow[]; several: boolean }) {
   const [query, setQuery] = useState("");
   const [outcome, setOutcome] = useState<(typeof OUTCOMES)[number]["key"]>("all");
   const needle = useDeferredValue(query.trim().toLowerCase());
+  const [pageState, setPageState] = useState({ key: "", page: 1 });
   const shown = useMemo(
     () =>
       rows.filter(
@@ -41,11 +44,14 @@ export function AuditLog({ rows, several }: { rows: AuditRow[]; several: boolean
       ),
     [rows, needle, outcome],
   );
+  // A new search or outcome starts again at page 1.
+  const filterKey = `${needle}\u0000${outcome}`;
+  const paged = useMemo(() => paginate(shown, pageState.key === filterKey ? pageState.page : 1), [shown, pageState, filterKey]);
   const days = useMemo(() => {
     const groups = new Map<string, AuditRow[]>();
-    for (const row of shown) groups.set(row.day, [...(groups.get(row.day) ?? []), row]);
+    for (const row of paged.rows) groups.set(row.day, [...(groups.get(row.day) ?? []), row]);
     return [...groups.entries()];
-  }, [shown]);
+  }, [paged]);
   const refused = rows.filter((row) => !row.allowed).length;
 
   return (
@@ -123,6 +129,7 @@ export function AuditLog({ rows, several }: { rows: AuditRow[]; several: boolean
           ))}
         </div>
       )}
+      <LocalPager meta={paged} onPage={(page) => setPageState({ key: filterKey, page })} noun="entries" />
     </div>
   );
 }

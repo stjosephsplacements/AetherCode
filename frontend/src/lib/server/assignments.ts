@@ -1,11 +1,10 @@
 import "server-only";
-import type { CandidateAssignment, Page } from "@/lib/api-types";
-import { gateway } from "./gateway";
+import type { CandidateAssignment } from "@/lib/api-types";
+import { fetchAllPages } from "./fetch-all";
 
 /** The signed-in student's exam assignments, newest window first. */
-export async function listAssignments(tenantId: string): Promise<CandidateAssignment[]> {
-  const page = await gateway<Page<CandidateAssignment>>(`/assessment/v1/tenants/${tenantId}/candidate-assignments?limit=100`);
-  return page.items;
+export function listAssignments(tenantId: string): Promise<CandidateAssignment[]> {
+  return fetchAllPages<CandidateAssignment>(`/assessment/v1/tenants/${tenantId}/candidate-assignments`);
 }
 
 export type AssignmentPhase = "live" | "upcoming" | "past";

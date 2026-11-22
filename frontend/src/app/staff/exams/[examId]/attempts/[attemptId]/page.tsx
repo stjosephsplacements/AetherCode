@@ -1,25 +1,17 @@
 import { ArrowLeft } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { panel } from "@/app/admin/_dashboard/panel";
-import { LoadError, PageHeader } from "@/components/staff/page-header";
-import { Badge } from "@/components/ui/card";
+import { LoadError, PageHeader, Section } from "@/components/staff/page-header";
+import { Pager } from "@/components/staff/pager";
+import { Badge, Panel } from "@/components/ui/card";
 import type { AttemptReview, Snapshot } from "@/lib/api-types";
-import { SNAPSHOT_PAGE_SIZE, violationKindLabel } from "@/lib/proctor-kinds";
+import { paginate } from "@/lib/paginate";
 import { GatewayError, gateway } from "@/lib/server/gateway";
 import { requireCollege } from "@/lib/server/staff";
 import { listAllStudents } from "@/lib/server/students";
-import { cn, formatDateTime, formatScoreText, formatTime, languageName } from "@/lib/utils";
-import { SnapshotsGallery } from "./snapshots-gallery";
-import { DataRetentionActions } from "./data-retention-actions";
+import { formatDateTime, formatScoreText, formatTime, languageName } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Attempt" };
-
-const INTEGRITY_LABEL: Record<string, string> = {
-  blur: "Left the exam window",
-  paste: "Tried to paste from outside the exam (blocked)",
-  fullscreen_exit: "Left fullscreen",
-};
 
 /** The attempt's event log in staff words. Saves are not logged; submits and hand-in are. */
 function describe(event: AttemptReview["events"][number]): string {
@@ -37,16 +29,25 @@ function describe(event: AttemptReview["events"][number]): string {
       return "Graded";
     case "submission.attempt.cancelled.v1":
       return "Attempt cancelled";
-    case "submission.attempt.integrity.v1": {
-      const kind = String(payload.kind);
-      return INTEGRITY_LABEL[kind] ?? violationKindLabel(kind) ?? "Integrity event";
-    }
+    case "submission.attempt.integrity.v1":
+      return ({
+        blur: "Left the exam window",
+        paste: "Tried to paste from outside the exam (blocked)",
+        fullscreen_exit: "Left fullscreen",
+        phone_detected: "Phone detected (GPU)",
+        multiple_faces: "Multiple people in frame",
+        face_missing: "No face in frame",
+        gaze_away: "Looking away from screen",
+      } as Record<string, string>)[String(payload.kind)] ?? "Integrity event";
     default:
       return event.event_type.replace(/^submission\./, "").replace(/\.v\d+$/, "").replaceAll(/[._]/g, " ");
   }
 }
 
-export default async function AttemptPage({ params }: { params: Promise<{ examId: string; attemptId: string }> }) {
+/** The most snapshots the API returns for one attempt. */
+const SNAPSHOT_LIMIT = 200;
+
+export default async function AttemptPage({ params, searchParams }: { params: Promise<{ examId: string; attemptId: string }>; searchParams: Promise<{ events?: string; snapshots?: string }> }) {
   const staff = await requireCollege();
   const { examId, attemptId } = await params;
   let data;
@@ -55,7 +56,7 @@ export default async function AttemptPage({ params }: { params: Promise<{ examId
       gateway<AttemptReview>(`/submission/v1/tenants/${staff.tenantId}/attempts/${attemptId}/review`),
       listAllStudents(staff.tenantId),
       // Webcam evidence is behind VIEW_STUDENT_PII: no permission (403) means no section, any other failure is shown.
-      gateway<Snapshot[]>(`/submission/v1/tenants/${staff.tenantId}/attempts/${attemptId}/snapshots?limit=${SNAPSHOT_PAGE_SIZE}`).catch(
+      gateway<Snapshot[]>(`/submission/v1/tenants/${staff.tenantId}/attempts/${attemptId}/snapshots?limit=${SNAPSHOT_LIMIT}`).catch(
         (error: unknown) => {
           if (error instanceof GatewayError && error.status === 403) return null;
           throw error;
@@ -65,17 +66,20 @@ export default async function AttemptPage({ params }: { params: Promise<{ examId
     data = { review, roll: students.find((student) => student.principal_id === review.attempt.candidate_id)?.enrollment_number, snapshots };
   } catch (error) {
     return (
-      <div className="animate-enter">
+      <>
         <PageHeader title="Attempt" />
         <LoadError error={error} />
-      </div>
+      </>
     );
   }
   const { review, roll, snapshots } = data;
+  const pages = await searchParams;
+  const snapshotPage = paginate(snapshots ?? [], pages.snapshots, 24);
+  const eventPage = paginate(review.events, pages.events);
   const { attempt } = review;
 
   return (
-    <div className="animate-enter">
+    <>
       <Link href={`/staff/exams/${examId}/monitor`} className="mb-6 inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink">
         <ArrowLeft className="size-4" />
         Live monitor
@@ -95,77 +99,69 @@ export default async function AttemptPage({ params }: { params: Promise<{ examId
         }
       />
 
-      <div className="grid gap-3">
-        {review.items.map((item, index) => (
-          <section key={item.exam_item_id} className={cn(panel)}>
-            <div className="mb-3">
-              <h2 className="text-[15px] font-semibold text-ink">
-                {item.position ?? index + 1}. {item.title ?? "Question"}
-              </h2>
-              <p className="mt-1 text-[12.5px] text-ink-muted">
-                Best {item.best_score === null ? "-" : formatScoreText(Number(item.best_score))} of {formatScoreText(Number(item.maximum_score))} marks
+      {review.items.map((item, index) => (
+        <Section
+          key={item.exam_item_id}
+          title={`${item.position ?? index + 1}. ${item.title ?? "Question"}`}
+          description={`Best ${item.best_score === null ? "-" : formatScoreText(Number(item.best_score))} of ${formatScoreText(Number(item.maximum_score))} marks`}
+        >
+          {item.latest_answer ? (
+            <Panel className="overflow-hidden">
+              <p className="border-b border-line px-4 py-2 text-[13px] text-ink-muted">
+                {languageName(item.latest_answer.language)}, save {item.latest_answer.revision_number}, {formatDateTime(item.latest_answer.saved_at)}
               </p>
-            </div>
-            {item.latest_answer ? (
-              <div className="overflow-hidden rounded-control border border-line">
-                <p className="border-b border-line bg-hover/40 px-4 py-2 text-[13px] text-ink-muted">
-                  {languageName(item.latest_answer.language)}, save {item.latest_answer.revision_number}, {formatDateTime(item.latest_answer.saved_at)}
-                </p>
-                <pre className="max-h-[480px] overflow-auto px-4 py-3 font-mono text-[13px] leading-relaxed text-ink">{item.latest_answer.source}</pre>
-              </div>
-            ) : (
-              <p className="text-sm text-ink-muted">No code saved.</p>
-            )}
-            {item.evaluations.length > 0 && (
-              <ul className="mt-3 space-y-1.5 text-[13px]">
-                {item.evaluations.map((evaluation) => (
-                  <li key={`${evaluation.queued_at}-${evaluation.revision_number}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-ink-muted">
-                    <span className="font-mono tabular-nums">{formatTime(evaluation.queued_at)}</span>
-                    <span className="text-ink">{evaluation.origin === "item_submit" ? "Submit" : "Hand-in"}</span>
-                    <span>save {evaluation.revision_number}</span>
-                    <span>
-                      {Object.entries(evaluation.verdict_counts)
-                        .map(([verdict, count]) => `${count} ${verdict.replaceAll("_", " ")}`)
-                        .join(", ") || evaluation.lifecycle_state}
-                    </span>
-                    {evaluation.score !== null && <span className="font-mono text-ink">{formatScoreText(Number(evaluation.score))} marks</span>}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        ))}
+              <pre className="max-h-[480px] overflow-auto px-4 py-3 font-mono text-[13px] leading-relaxed text-ink">{item.latest_answer.source}</pre>
+            </Panel>
+          ) : (
+            <p className="text-sm text-ink-muted">No code saved.</p>
+          )}
+          {item.evaluations.length > 0 && (
+            <ul className="mt-3 space-y-1.5 text-[13px]">
+              {item.evaluations.map((evaluation) => (
+                <li key={`${evaluation.queued_at}-${evaluation.revision_number}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-ink-muted">
+                  <span className="font-mono tabular-nums">{formatTime(evaluation.queued_at)}</span>
+                  <span className="text-ink">{evaluation.origin === "item_submit" ? "Submit" : "Hand-in"}</span>
+                  <span>save {evaluation.revision_number}</span>
+                  <span>
+                    {Object.entries(evaluation.verdict_counts)
+                      .map(([verdict, count]) => `${count} ${verdict.replaceAll("_", " ")}`)
+                      .join(", ") || evaluation.lifecycle_state}
+                  </span>
+                  {evaluation.score !== null && <span className="font-mono text-ink">{formatScoreText(Number(evaluation.score))} marks</span>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Section>
+      ))}
 
-        {snapshots !== null && snapshots.length > 0 && (
-          <section className={cn(panel)}>
-            <div className="mb-3">
-              <h2 className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">Webcam snapshots</h2>
-              <p className="mt-1 text-[12.5px] text-ink-muted">Newest first. Load earlier if the attempt ran long.</p>
-            </div>
-            <SnapshotsGallery tenantId={staff.tenantId} attemptId={attemptId} initial={snapshots} />
-          </section>
-        )}
-
-        <section className={cn(panel)}>
-          <h2 className="mb-3 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">Activity</h2>
-          <ol className="space-y-1.5 text-sm">
-            {review.events.map((event, index) => (
-              <li key={index} className="flex gap-3">
-                <span className="w-40 shrink-0 font-mono text-[13px] tabular-nums text-ink-muted">{formatDateTime(event.occurred_at)}</span>
-                <span className="text-ink">{describe(event)}</span>
-              </li>
+      {snapshots !== null && snapshots.length > 0 && (
+        <Section title="Webcam snapshots">
+          {snapshots.length >= SNAPSHOT_LIMIT && (
+            <p className="mb-2 text-sm text-ink-muted">Showing the newest {SNAPSHOT_LIMIT} pictures; earlier ones are not listed.</p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            {snapshotPage.rows.map((snap) => (
+              <a key={snap.id} href={snap.url} target="_blank" rel="noopener noreferrer">
+                <img src={snap.url} width={120} height={90} title={snap.captured_at} alt={`Snapshot at ${snap.captured_at}`} className="rounded border border-line object-cover" />
+              </a>
             ))}
-          </ol>
-        </section>
-      </div>
-      {staff.tenantId && (
-        <DataRetentionActions
-          tenantId={staff.tenantId}
-          examId={examId}
-          attemptId={attemptId}
-          canHardDelete={staff.isPlatformAdmin}
-        />
+          </div>
+          <Pager meta={snapshotPage} param="snapshots" noun="snapshots" />
+        </Section>
       )}
-    </div>
+
+      <Section title="Activity">
+        <ol className="space-y-1.5 text-sm">
+          {eventPage.rows.map((event, index) => (
+            <li key={index} className="flex gap-3">
+              <span className="w-40 shrink-0 font-mono text-[13px] tabular-nums text-ink-muted">{formatDateTime(event.occurred_at)}</span>
+              <span className="text-ink">{describe(event)}</span>
+            </li>
+          ))}
+        </ol>
+        <Pager meta={eventPage} param="events" noun="events" />
+      </Section>
+    </>
   );
 }

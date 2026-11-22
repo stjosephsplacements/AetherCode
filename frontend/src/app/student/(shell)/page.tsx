@@ -2,9 +2,10 @@ import { ArrowRight, BookOpenText, CalendarDots, Chats, CodeBlock, FileText, Fir
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Ring } from "@/components/student/ring";
-import type { Attempt, Page, PracticeProgress } from "@/lib/api-types";
+import type { Attempt, PracticeProgress } from "@/lib/api-types";
 import { LiveRefresh } from "@/lib/client/realtime";
 import { groupByPhase, listAssignments } from "@/lib/server/assignments";
+import { listMyAttempts } from "@/lib/server/attempts";
 import { gateway } from "@/lib/server/gateway";
 import { requireViewer } from "@/lib/server/session";
 import { currentStreak, weekGrid } from "@/lib/streak";
@@ -28,7 +29,7 @@ export default async function StudentDashboard() {
   const [assignments, attempts, progress] = viewer.tenantId
     ? await Promise.all([
         listAssignments(viewer.tenantId).catch(() => []),
-        gateway<Page<Attempt>>(`/submission/v1/tenants/${viewer.tenantId}/attempts?limit=100`).then((page) => page.items, () => []),
+        listMyAttempts(viewer.tenantId).catch(() => [] as Attempt[]),
         gateway<PracticeProgress>(`/question-bank/v1/tenants/${viewer.tenantId}/practice/progress`).catch(() => null),
       ])
     : [[], [], null];

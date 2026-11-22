@@ -4,10 +4,10 @@ import Link from "next/link";
 import { FigureCard } from "@/app/admin/_dashboard/charts";
 import { LoadError, PageHeader } from "@/components/staff/page-header";
 import { Button } from "@/components/ui/button";
-import type { AccountSummary, Page, QuestionDetail } from "@/lib/api-types";
+import type { AccountSummary, QuestionDetail } from "@/lib/api-types";
 import { authorName } from "@/lib/author-name";
 import { listCategories } from "@/lib/server/categories";
-import { gateway } from "@/lib/server/gateway";
+import { fetchAllPages } from "@/lib/server/fetch-all";
 import { listLanguages } from "@/lib/server/languages";
 import { describeAccounts } from "@/lib/server/people";
 import { requireStaff } from "@/lib/server/staff";
@@ -18,10 +18,8 @@ import { type ListKey, type Lists, QuestionBoard, type QuestionRow } from "./que
 
 export const metadata: Metadata = { title: "Questions" };
 
-const LIMIT = 100;
-
 async function fetchList(status: "" | "draft" | "review") {
-  return gateway<Page<QuestionDetail>>(`/question-bank/v1/questions?limit=${LIMIT}${status ? `&status=${status}` : ""}`);
+  return fetchAllPages<QuestionDetail>(`/question-bank/v1/questions${status ? `?status=${status}` : ""}`);
 }
 
 const toRow = (viewerId: string, names: Map<string, AccountSummary>) => ({ question, question_version: version }: QuestionDetail): QuestionRow => ({
@@ -54,7 +52,7 @@ export default async function QuestionsPage({ searchParams }: { searchParams: Pr
   const staff = await requireStaff();
   const requested = (await searchParams).tab;
   const initial = TABS.find((tab) => tab === requested) ?? "tests";
-  let published: Page<QuestionDetail>;
+  let published: QuestionDetail[];
   try {
     published = await fetchList("");
   } catch (error) {
@@ -73,7 +71,7 @@ export default async function QuestionsPage({ searchParams }: { searchParams: Pr
     listCategories(),
     loadIntakeTopics().catch(() => []),
   ]);
-  const authorIds = [...published.items, ...(drafts?.items ?? []), ...(review?.items ?? [])]
+  const authorIds = [...published, ...(drafts ?? []), ...(review ?? [])]
     .map(({ question_version }) => question_version.created_by)
     .filter((id): id is string => Boolean(id));
   const names = staff.tenantId && authorIds.length
@@ -82,10 +80,10 @@ export default async function QuestionsPage({ searchParams }: { searchParams: Pr
   const row = toRow(staff.viewer.principalId, names);
   // Practice problems are published questions marked for practice (ADR-0041).
   const lists: Lists = {
-    tests: published.items.filter(({ question }) => question.audience !== "practice").map(row),
-    practice: published.items.filter(({ question }) => question.audience === "practice").map(row),
-    drafts: (drafts?.items ?? []).map(row),
-    review: (review?.items ?? []).map(row),
+    tests: published.filter(({ question }) => question.audience !== "practice").map(row),
+    practice: published.filter(({ question }) => question.audience === "practice").map(row),
+    drafts: (drafts ?? []).map(row),
+    review: (review ?? []).map(row),
   };
   const total = lists.tests.length + lists.practice.length + lists.drafts.length + lists.review.length;
 
@@ -110,23 +108,17 @@ export default async function QuestionsPage({ searchParams }: { searchParams: Pr
 
       <div className="mb-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <FigureCard label="In bank" value={String(total)} note="loaded on this page" />
-        <FigureCard label="Tests" value={`${lists.tests.length}${published.next_cursor ? "+" : ""}`} note="published for exams" />
-        <FigureCard label="Drafts" value={`${lists.drafts.length}${drafts?.next_cursor ? "+" : ""}`} note="not published yet" />
+        <FigureCard label="Tests" value={String(lists.tests.length)} note="published for exams" />
+        <FigureCard label="Drafts" value={String(lists.drafts.length)} note="not published yet" />
         <FigureCard
           label="To review"
-          value={`${lists.review.length}${review?.next_cursor ? "+" : ""}`}
+          value={String(lists.review.length)}
           note={lists.review.length ? "waiting on staff" : "all caught up"}
           tone={lists.review.length ? "warn" : "good"}
         />
       </div>
 
-      <QuestionBoard
-        lists={lists}
-        languages={languages}
-        categories={categories}
-        initial={initial}
-        capped={{ tests: Boolean(published.next_cursor), practice: Boolean(published.next_cursor), drafts: Boolean(drafts?.next_cursor), review: Boolean(review?.next_cursor) }}
-      />
+      <QuestionBoard lists={lists} languages={languages} categories={categories} initial={initial} />
     </div>
   );
 }

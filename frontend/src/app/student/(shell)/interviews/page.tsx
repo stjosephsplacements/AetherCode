@@ -3,8 +3,10 @@ import { redirect } from "next/navigation";
 import { RoundsEditor } from "@/components/community/rounds-editor";
 import { ActionForm, Field, Select, TextArea, TextInput } from "@/components/staff/form";
 import { EmptyState, LoadError, Section, PageHeader } from "@/components/staff/page-header";
+import { Pager } from "@/components/staff/pager";
 import { Panel } from "@/components/ui/card";
 import type { InterviewExperience } from "@/lib/api-types";
+import { paginate } from "@/lib/paginate";
 import { communityList } from "@/lib/server/community";
 import { requireViewer } from "@/lib/server/session";
 import { shareExperience } from "../../community/actions";
@@ -12,10 +14,11 @@ import { ExperienceCard } from "./experience-card";
 
 export const metadata: Metadata = { title: "Interview experiences" };
 
-export default async function InterviewsPage({ searchParams }: { searchParams: Promise<{ company?: string }> }) {
+export default async function InterviewsPage({ searchParams }: { searchParams: Promise<{ company?: string; page?: string; mine?: string }> }) {
   const viewer = await requireViewer();
   if (!viewer.tenantId) redirect("/student");
-  const company = (await searchParams).company?.trim();
+  const query = await searchParams;
+  const company = query.company?.trim();
   let shared, mine;
   try {
     [shared, mine] = await Promise.all([
@@ -26,6 +29,8 @@ export default async function InterviewsPage({ searchParams }: { searchParams: P
     return (<><PageHeader title="Interview experiences" /><LoadError error={error} /></>);
   }
   const waiting = mine.filter((experience) => experience.status !== "approved");
+  const sharedPage = paginate(shared, query.page, 10);
+  const waitingPage = paginate(waiting, query.mine, 10);
   return (
     <div className="animate-enter">
       <PageHeader title="Interview experiences" description="What seniors were asked in interviews, round by round. Posts are anonymous and reviewed before publishing." />
@@ -36,16 +41,18 @@ export default async function InterviewsPage({ searchParams }: { searchParams: P
       </form>
 
       <div className="mt-6 space-y-4">
-        {shared.length === 0 ? <EmptyState>{company ? `No approved experiences for “${company}”.` : "No experiences have been approved yet. Be the first to share yours."}</EmptyState> : shared.map((experience) => <ExperienceCard key={experience.id} experience={experience} />)}
+        {shared.length === 0 ? <EmptyState>{company ? `No approved experiences for “${company}”.` : "No experiences have been approved yet. Be the first to share yours."}</EmptyState> : sharedPage.rows.map((experience) => <ExperienceCard key={experience.id} experience={experience} />)}
+        <Pager meta={sharedPage} noun="experiences" />
       </div>
 
       {waiting.length > 0 && (
         <Section title="Your submissions" description="Waiting for approval, or sent back with a note.">
           <div className="space-y-4">
-            {waiting.map((experience) => (
+            {waitingPage.rows.map((experience) => (
               <ExperienceCard key={experience.id} experience={experience} />
             ))}
           </div>
+          <Pager meta={waitingPage} param="mine" noun="submissions" />
         </Section>
       )}
 
