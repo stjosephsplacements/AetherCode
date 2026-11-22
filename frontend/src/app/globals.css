@@ -192,8 +192,9 @@
     --poster-on-ink: #061414;
     --horizon: linear-gradient(to top, rgb(6 20 20 / 0.9), rgb(233 235 230 / 0.03) 50%, transparent);
 
-    --success: #34d399;
-    --success-soft: rgb(52 211 153 / 0.12);
+    /* Success uses Pear — no emerald/teal leftover from the old theme. */
+    --success: #bcff00;
+    --success-soft: rgb(188 255 0 / 0.12);
     --danger: #ff6b7f;
     --danger-soft: rgb(255 107 127 / 0.12);
     --warning: #ffc24b;
@@ -243,8 +244,9 @@
     --poster-on-ink: #e9ebe6;
     --horizon: linear-gradient(to top, rgb(150 153 140 / 0.2), rgb(6 20 20 / 0.08) 45%, transparent);
 
-    --success: #0d6b42;
-    --success-soft: #daf0e4;
+    /* Success follows Laurel Leaf in light (same as brand); no emerald/teal. */
+    --success: #96998c;
+    --success-soft: #e0e1db;
     --danger: #b52340;
     --danger-soft: #f8e0e6;
     --warning: #7a4207;
