@@ -205,14 +205,14 @@
     --shadow-overlay-v: 0 1px 0 rgb(233 235 230 / 0.06) inset, 0 32px 80px -16px rgb(0 0 0 / 0.85);
   }
 
-  /* Day: Ceiling White / Celeste chrome, Rich Black ink. Laurel Leaf carries brand
-     and accent — Pear washes out on light canvases. */
+  /* Day: Laurel Leaf dominates chrome (no pure white). Rich Black ink. Darkened
+     Pear (#6b9000) for brand/accent — full Pear washes out on light. */
   [data-theme="light"] {
     color-scheme: light;
-    --canvas: #e9ebe6;
-    --surface: #f7f7f5;
-    --surface-2: #d2d3ce;
-    --series-1: #96998c;
+    --canvas: #96998c;
+    --surface: #a8aaa0;
+    --surface-2: #85887c;
+    --series-1: #6b9000;
     --series-2: #D98200;
     --series-3: #B34F9B;
     --series-4: #0072B2;
@@ -220,41 +220,40 @@
     --series-6: #D55E00;
     --series-7: #061414;
     --series-8: #8C6D1F;
-    --sidebar: #d2d3ce;
-    --hover: #c5c7bf;
+    --sidebar: #85887c;
+    --hover: #7e8176;
     --ink: #061414;
-    --ink-muted: #4a4d45;
-    --ink-subtle: #96998c;
-    --line: #c5c7bf;
-    --line-strong: #96998c;
+    --ink-muted: #1a2222;
+    --ink-subtle: #2e3330;
+    --line: rgb(6 20 20 / 0.18);
+    --line-strong: rgb(6 20 20 / 0.28);
 
-    --brand: #96998c;
-    --brand-hover: #7e8176;
+    --brand: #6b9000;
+    --brand-hover: #557300;
     --brand-ink: #e9ebe6;
-    --brand-soft: #e0e1db;
+    --brand-soft: rgb(107 144 0 / 0.22);
     --brand-soft-ink: #061414;
-    --accent: #96998c;
+    --accent: #6b9000;
     --coral: #c43d5e;
     --lavender: #5a4fd0;
-    --glow: rgb(150 153 140 / 0.12);
-    --glow-2: rgb(6 20 20 / 0.04);
-    --hero-aurora-1: rgb(150 153 140 / 0.14);
-    --poster-sky: linear-gradient(to bottom, #e9ebe6 0%, #d2d3ce 48%, #061414 100%);
+    --glow: rgb(6 20 20 / 0.06);
+    --glow-2: rgb(107 144 0 / 0.12);
+    --hero-aurora-1: rgb(107 144 0 / 0.14);
+    --poster-sky: linear-gradient(to bottom, #96998c 0%, #85887c 45%, #061414 100%);
     --poster-ink: #061414;
     --poster-on-ink: #e9ebe6;
-    --horizon: linear-gradient(to top, rgb(150 153 140 / 0.2), rgb(6 20 20 / 0.08) 45%, transparent);
+    --horizon: linear-gradient(to top, rgb(107 144 0 / 0.18), rgb(6 20 20 / 0.1) 45%, transparent);
 
-    /* Success follows Laurel Leaf in light (same as brand); no emerald/teal. */
-    --success: #96998c;
-    --success-soft: #e0e1db;
+    --success: #6b9000;
+    --success-soft: rgb(107 144 0 / 0.2);
     --danger: #b52340;
     --danger-soft: #f8e0e6;
     --warning: #7a4207;
     --warning-soft: #f5ead4;
 
-    --shadow-hairline-v: 0 1px 2px rgb(6 20 20 / 0.06);
-    --shadow-panel-v: 0 1px 2px rgb(6 20 20 / 0.06), 0 8px 24px -12px rgb(6 20 20 / 0.14);
-    --shadow-overlay-v: 0 24px 64px -16px rgb(6 20 20 / 0.28);
+    --shadow-hairline-v: 0 1px 2px rgb(6 20 20 / 0.08);
+    --shadow-panel-v: 0 1px 2px rgb(6 20 20 / 0.08), 0 8px 24px -12px rgb(6 20 20 / 0.2);
+    --shadow-overlay-v: 0 24px 64px -16px rgb(6 20 20 / 0.35);
   }
 
   .logo-light { display: none !important; }
