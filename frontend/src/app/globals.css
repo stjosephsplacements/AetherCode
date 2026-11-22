@@ -204,19 +204,20 @@
     --shadow-overlay-v: 0 1px 0 rgb(233 235 230 / 0.06) inset, 0 32px 80px -16px rgb(0 0 0 / 0.85);
   }
 
-  /* Day: Ceiling White / Celeste chrome, Rich Black ink, Pear on brand fills only. */
+  /* Day: Ceiling White / Celeste chrome, Rich Black ink. Laurel Leaf carries brand
+     and accent — Pear washes out on light canvases. */
   [data-theme="light"] {
     color-scheme: light;
     --canvas: #e9ebe6;
     --surface: #f7f7f5;
     --surface-2: #d2d3ce;
-    --series-1: #061414;
+    --series-1: #96998c;
     --series-2: #D98200;
     --series-3: #B34F9B;
     --series-4: #0072B2;
     --series-5: #6C5CE7;
     --series-6: #D55E00;
-    --series-7: #96998c;
+    --series-7: #061414;
     --series-8: #8C6D1F;
     --sidebar: #d2d3ce;
     --hover: #c5c7bf;
@@ -226,21 +227,21 @@
     --line: #c5c7bf;
     --line-strong: #96998c;
 
-    --brand: #bcff00;
-    --brand-hover: #d4ff4d;
-    --brand-ink: #061414;
-    --brand-soft: #e9ebe6;
+    --brand: #96998c;
+    --brand-hover: #7e8176;
+    --brand-ink: #e9ebe6;
+    --brand-soft: #e0e1db;
     --brand-soft-ink: #061414;
-    --accent: #061414;
+    --accent: #96998c;
     --coral: #c43d5e;
     --lavender: #5a4fd0;
-    --glow: rgb(6 20 20 / 0.04);
-    --glow-2: rgb(6 20 20 / 0.03);
-    --hero-aurora-1: rgb(188 255 0 / 0.08);
+    --glow: rgb(150 153 140 / 0.12);
+    --glow-2: rgb(6 20 20 / 0.04);
+    --hero-aurora-1: rgb(150 153 140 / 0.14);
     --poster-sky: linear-gradient(to bottom, #e9ebe6 0%, #d2d3ce 48%, #061414 100%);
     --poster-ink: #061414;
     --poster-on-ink: #e9ebe6;
-    --horizon: linear-gradient(to top, rgb(6 20 20 / 0.12), rgb(150 153 140 / 0.1) 45%, transparent);
+    --horizon: linear-gradient(to top, rgb(150 153 140 / 0.2), rgb(6 20 20 / 0.08) 45%, transparent);
 
     --success: #0d6b42;
     --success-soft: #daf0e4;

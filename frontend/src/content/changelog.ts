@@ -9,7 +9,7 @@ export const RELEASES: Release[] = [
     title: "Pear and Rich Black",
     tags: ["UI"],
     changes: [
-      "Fresh brand palette: Pear accent on Rich Black, with Laurel Leaf, Celeste and Ceiling White neutrals in light and dark themes.",
+      "Fresh brand palette: Rich Black chrome with Pear accents in dark mode; Laurel Leaf brand in light mode, with Celeste and Ceiling White neutrals.",
     ],
   },
   {
