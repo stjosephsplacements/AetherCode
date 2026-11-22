@@ -24,8 +24,8 @@ type IssueLockdownQuitSession struct {
 }
 
 type RedeemQuitToken struct {
-	TenantID  string
-	TokenHash string
+	TenantID string
+	Token    string
 }
 
 type QuitRedemption struct {
@@ -97,8 +97,8 @@ func (service *Service) IssueLockdownQuitSession(ctx context.Context, capability
 }
 
 func (service *Service) RedeemQuitToken(ctx context.Context, capability centralauthz.Capability, command RedeemQuitToken) (QuitRedemption, error) {
-	token := strings.TrimSpace(command.TokenHash)
-	if !isUUID(command.TenantID) || !isChecksum(token) {
+	token := strings.TrimSpace(command.Token)
+	if !isUUID(command.TenantID) || token == "" || len(token) > 255 {
 		return QuitRedemption{}, invalid("quit token redemption fields are invalid")
 	}
 	if service.launch.Password == "" {
@@ -106,7 +106,7 @@ func (service *Service) RedeemQuitToken(ctx context.Context, capability centrala
 	}
 
 	err := database.WithTenantTx(ctx, service.pool, capability, func(transaction pgx.Tx) error {
-		return service.store.RedeemQuitToken(ctx, transaction, strings.ToLower(token))
+		return service.store.RedeemQuitToken(ctx, transaction, HashHeaderValue(token))
 	})
 	if err != nil {
 		return QuitRedemption{}, err

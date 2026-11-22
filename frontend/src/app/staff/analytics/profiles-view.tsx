@@ -49,7 +49,7 @@ export async function ProfilesView({ collegeId }: { collegeId: string }) {
           <p className="text-xs text-ink-muted">
             {page.summary.fresh ?? 0} fresh · {page.summary.stale ?? 0} stale · {page.summary.pending ?? 0} pending · {page.summary.failed ?? 0} failed
           </p>
-          <motion::div className="overflow-x-auto">
+          <div className="overflow-x-auto">
             <table className={cn(panel, "w-full text-left text-xs")}>
               <thead className="text-ink-subtle">
                 <tr>
@@ -70,7 +70,9 @@ export async function ProfilesView({ collegeId }: { collegeId: string }) {
                     </td>
                     <td className="px-3 py-2 capitalize">{row.platform}</td>
                     <td className="px-3 py-2 font-mono">{row.handle}</td>
-                    <td className="px-3 py-2 text-ink-muted">{(row.stats ?? []).join(" · ") || "—"}</td>
+                    <td className="px-3 py-2 text-ink-muted">
+                      {Array.isArray(row.stats) ? row.stats.join(" · ") : "—"}
+                    </td>
                     <td className="px-3 py-2 capitalize">{row.status}</td>
                     <td className="px-3 py-2 text-ink-muted">{row.fetched_at ? formatDateTime(row.fetched_at) : "—"}</td>
                   </tr>

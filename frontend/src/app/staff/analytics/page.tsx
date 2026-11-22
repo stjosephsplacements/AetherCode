@@ -126,6 +126,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   return (
     <>
       <LiveRefresh topics={["grading"]} />
+      <AnalyticsTabs tab="overview" />
       <AnalyticsView
         several={several}
         scope="the college"
