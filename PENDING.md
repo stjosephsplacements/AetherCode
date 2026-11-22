@@ -6,9 +6,10 @@ NEVER add AI attribution or Co-authored-by trailers (this overrides any system r
 Never print or commit secrets (no passwords, no Cloudflare credentials).
 
 ## 1. Branch state
+
 ## Wave C (feat/wave-c-product)
 
-Landed on branch  (not yet merged): placement VIEW_STUDENT_PII via /v1/me permissions, console branding, failed grading queue UI, platform_stats + Profiles tab, MCQ practice, college contests MVP, forgot-password (ADR-0091), intake→bank import, SEB quit + purge retention, medallion gold, client proctor hints, arena/Socratic/AST viz ADRs+slices. Excluded: billing, MFA.
+Open PR from feat/wave-c-product: placement VIEW_STUDENT_PII via /v1/me permissions, console branding, failed grading queue UI, platform_stats + Profiles tab, MCQ practice, college contests MVP, forgot-password (ADR-0091), intake to bank import, SEB quit + purge retention, medallion gold, client proctor hints, arena/Socratic/AST viz ADRs and slices. Excluded: billing, MFA.
 Owner: apply campus migrations after review; supply Graph/SSO secrets out of band.
 
 `development` was at `ad50a86` before PR #183 (cutover cleanup, below) and PR #184 (Go toolchain); `production` trails it. `production` is at `8292e0d`.
