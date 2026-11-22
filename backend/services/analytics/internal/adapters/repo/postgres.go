@@ -211,16 +211,17 @@ type placementProgressRow struct {
 }
 
 func (repository *Postgres) ListPlacementProgress(ctx context.Context, tx *database.GormDB, tenantID, placementDepartmentID string, limit int) ([]app.PlacementProgress, error) {
-	rows := make([]placementProgressRow, 0)
-	result := tx.WithContext(ctx).
-		Table("analytics.placement_student_rollups").
-		Where(map[string]any{"tenant_id": tenantID, "placement_department_id": placementDepartmentID}).
-		Order("latest_activity_at DESC NULLS LAST").
-		Order("student_id ASC").
-		Limit(limit).
-		Find(&rows)
-	if result.Error != nil {
-		return nil, mapError(result.Error, "list placement progress")
+	// Prefer medallion gold (ADR-0067); fall back to the legacy rollup until campus rebuilds gold.
+	rows, err := repository.listPlacementProgressTable(ctx, tx, "analytics_gold.gold_placement_student", tenantID, placementDepartmentID, limit)
+	if err != nil || len(rows) == 0 {
+		legacy, legacyErr := repository.listPlacementProgressTable(ctx, tx, "analytics.placement_student_rollups", tenantID, placementDepartmentID, limit)
+		if legacyErr != nil {
+			if err != nil {
+				return nil, err
+			}
+			return nil, legacyErr
+		}
+		rows = legacy
 	}
 	placementProgress := make([]app.PlacementProgress, 0, len(rows))
 	for _, row := range rows {
@@ -233,6 +234,21 @@ func (repository *Postgres) ListPlacementProgress(ctx context.Context, tx *datab
 		})
 	}
 	return placementProgress, nil
+}
+
+func (repository *Postgres) listPlacementProgressTable(ctx context.Context, tx *database.GormDB, table, tenantID, placementDepartmentID string, limit int) ([]placementProgressRow, error) {
+	rows := make([]placementProgressRow, 0)
+	result := tx.WithContext(ctx).
+		Table(table).
+		Where(map[string]any{"tenant_id": tenantID, "placement_department_id": placementDepartmentID}).
+		Order("latest_activity_at DESC NULLS LAST").
+		Order("student_id ASC").
+		Limit(limit).
+		Find(&rows)
+	if result.Error != nil {
+		return nil, mapError(result.Error, "list placement progress")
+	}
+	return rows, nil
 }
 
 func (repository *Postgres) GetReportExport(ctx context.Context, tx pgx.Tx, tenantID, exportID string) (app.ReportExport, error) {
