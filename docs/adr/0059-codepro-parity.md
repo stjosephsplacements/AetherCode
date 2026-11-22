@@ -54,6 +54,12 @@ deployments change nothing.
 
 ### 2. Failed work visible and retryable
 
+**Implementation notes (2026-11):** Shipped in submission `000052_failed_grading_queue`
+and `/staff/status/failed` (admin re-export). Staff audit for retry-one and dismiss
+uses the normal authorization path (`write` / `delete` on `score_summaries`); bulk
+retry-all logs one `write` with resource id `retry-all` — the retried count is in
+the API response only, not the audit row.
+
 The grading queue shows counts only. Add to the submission service
 `GET /v1/tenants/{t}/grading-queue/failed` (id, submission, attempt, error summary, attempts
 so far, last failure time, newest first, paged), `POST .../failed/{id}/retry`,

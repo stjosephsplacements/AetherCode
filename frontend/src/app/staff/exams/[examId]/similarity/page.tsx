@@ -1,6 +1,7 @@
-import { ArrowLeft } from "@phosphor-icons/react/ssr";
+import { ArrowLeft, Columns } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { panel } from "@/app/admin/_dashboard/panel";
 import { EmptyState, LoadError, PageHeader, Section, Table } from "@/components/staff/page-header";
 import { cn } from "@/lib/utils";
@@ -79,12 +80,12 @@ export default async function SimilarityPage({ params }: { params: Promise<{ exa
                         {pair.b.language !== pair.a.language && `, ${languageName(pair.b.language)}`}
                       </td>
                       <td className="px-4 py-2.5 text-right">
-                        <Link
-                          href={`/staff/exams/${examId}/similarity/compare?a=${pair.a.attempt_id}&b=${pair.b.attempt_id}&item=${question.exam_item_id}`}
-                          className="text-sm text-brand hover:underline"
-                        >
-                          Compare
-                        </Link>
+                        <Button variant="secondary" size="sm" asChild>
+                          <Link href={`/staff/exams/${examId}/similarity/compare?a=${pair.a.attempt_id}&b=${pair.b.attempt_id}&item=${question.exam_item_id}`}>
+                            <Columns className="size-4" />
+                            Compare
+                          </Link>
+                        </Button>
                       </td>
                     </tr>
                   ))}

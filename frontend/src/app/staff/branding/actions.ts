@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { ActionState } from "@/components/staff/form";
 import { gateway, GatewayError } from "@/lib/server/gateway";
 import { gatewayURL } from "@/lib/server/config";
 import { requireCollege } from "@/lib/server/staff";
@@ -11,9 +12,7 @@ type BrandingView = {
   logos?: { id: string; url?: string; position: number; alt_text: string }[];
 };
 
-export type BrandingActionState = { error?: string; ok?: boolean };
-
-export async function saveBranding(_prev: BrandingActionState, formData: FormData): Promise<BrandingActionState> {
+export async function saveBranding(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const { tenantId } = await requireCollege();
   const appName = String(formData.get("app_name") ?? "").trim();
   const accentColor = String(formData.get("accent_color") ?? "").trim();

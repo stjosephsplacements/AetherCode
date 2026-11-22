@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle, CircleDashed, MagnifyingGlass } from "@phosphor-icons/react/ssr";
+import { CheckCircle, CircleDashed, CodeBlock, ListChecks, MagnifyingGlass } from "@phosphor-icons/react/ssr";
 import { Select as FormSelect } from "@/components/staff/form";
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -16,9 +16,16 @@ const STATUSES = [
   { value: "solved", label: "Solved" },
 ] as const;
 
+const KINDS = [
+  { value: "all", label: "All types" },
+  { value: "coding", label: "Coding" },
+  { value: "mcq", label: "Multiple choice" },
+] as const;
+
 export function PracticeList({ problems, hideTopic = false }: { problems: PracticeProblem[]; hideTopic?: boolean }) {
   const [query, setQuery] = useState("");
   const [difficulty, setDifficulty] = useState<"all" | PracticeProblem["difficulty"]>("all");
+  const [kind, setKind] = useState<(typeof KINDS)[number]["value"]>("all");
   const [status, setStatus] = useState<(typeof STATUSES)[number]["value"]>("all");
   const [tag, setTag] = useState("");
   const tags = useMemo(() => [...new Set(problems.flatMap((problem) => problem.tags))].sort(), [problems]);
@@ -27,6 +34,8 @@ export function PracticeList({ problems, hideTopic = false }: { problems: Practi
     const text = query.trim().toLowerCase();
     if (text && !problem.title.toLowerCase().includes(text) && !problem.tags.some((name) => name.toLowerCase().includes(text))) return false;
     if (difficulty !== "all" && problem.difficulty !== difficulty) return false;
+    const problemKind = problem.kind ?? "coding";
+    if (kind !== "all" && problemKind !== kind) return false;
     if (tag && !problem.tags.includes(tag)) return false;
     if (status === "solved") return problem.solved;
     if (status === "attempted") return problem.attempted && !problem.solved;
@@ -49,6 +58,7 @@ export function PracticeList({ problems, hideTopic = false }: { problems: Practi
         </label>
         <Select label="Difficulty" value={difficulty} onChange={(value) => setDifficulty(value as typeof difficulty)}
           options={[["all", "Any difficulty"], ["easy", "Easy"], ["medium", "Medium"], ["hard", "Hard"]]} />
+        <Select label="Type" value={kind} onChange={(value) => setKind(value as typeof kind)} options={KINDS.map((row) => [row.value, row.label] as [string, string])} />
         {!hideTopic && tags.length > 0 && <Select label="Topic" value={tag} onChange={setTag} options={[["", "Any topic"], ...tags.map((name) => [name, name] as [string, string])]} />}
       </div>
       <nav aria-label="Status" className="mt-3 flex gap-1.5">
@@ -80,7 +90,14 @@ export function PracticeList({ problems, hideTopic = false }: { problems: Practi
                   <CircleDashed className={cn("size-[18px] shrink-0", problem.attempted ? "text-warning" : "text-ink-subtle")} aria-label={problem.attempted ? "Attempted" : "Not attempted"} />
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[15px] font-medium text-ink">{problem.title}</p>
+                  <p className="flex items-center gap-2 truncate text-[15px] font-medium text-ink">
+                    {(problem.kind ?? "coding") === "mcq" ? (
+                      <ListChecks className="size-4 shrink-0 text-ink-muted" aria-hidden />
+                    ) : (
+                      <CodeBlock className="size-4 shrink-0 text-ink-muted" aria-hidden />
+                    )}
+                    {problem.title}
+                  </p>
                   {problem.tags.length > 0 && <p className="mt-0.5 truncate text-[13px] text-ink-muted">{problem.tags.join(", ")}</p>}
                 </div>
                 <Badge tone={DIFFICULTY_TONE[problem.difficulty]}>{problem.difficulty}</Badge>

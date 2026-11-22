@@ -27,7 +27,7 @@ export default async function PracticePage() {
   return (
     <div className="animate-enter">
       <LiveRefresh topics={["grading"]} />
-      <PageHeader title="Practice" description="Practice problems by topic. Run your code, submit it, and see how you did. Nothing here counts for exams." />
+      <PageHeader title="Practice" description="Coding and multiple-choice problems by topic. Run or submit code, or answer MCQs and read the explanations. Nothing here counts for exams." />
       <section className="mb-8 grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div className="flex flex-wrap items-center gap-6 rounded-panel border border-line bg-surface p-6 shadow-[var(--shadow-panel)]">
           <Ring value={solved} max={problems.length} size={112} stroke={11}>
