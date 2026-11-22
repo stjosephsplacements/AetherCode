@@ -9,7 +9,7 @@ public API never returns encrypted object keys, checksums, or key references;
 those remain available only to the future dedicated, India-resident export
 worker. That worker is intentionally not implemented by this service.
 
-## Medallion gold (ADR-0067, migration `000024`)
+## Medallion gold (ADR-0067, migration `000025`)
 
 - Schemas `analytics_bronze`, `analytics_silver`, `analytics_gold`: bronze and silver are compatibility views over existing facts and projections; gold holds `gold_placement_student` and mentor-scoped `gold_mentor_batch_progress` (node-scoped batch RLS, same as batch rollups).
 - `rebuild_student_placement` and batch progress rebuilds dual-write gold tables.
