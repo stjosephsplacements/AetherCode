@@ -18,6 +18,7 @@ export function useClientProctor(
   const faces = useRef(0);
 
   const analyze = useCallback(async () => {
+    const video = videoRef.current;
     if (!enabled || !video || !tenantId || !attemptId || video.readyState < 2 || busy.current) return;
     busy.current = true;
     try {
@@ -49,13 +50,13 @@ export function useClientProctor(
     } finally {
       busy.current = false;
     }
-  }, [enabled, tenantId, attemptId, video]);
+  }, [enabled, tenantId, attemptId, videoRef]);
 
   useEffect(() => {
-    if (!enabled || !video) return;
+    if (!enabled) return;
     const timer = setInterval(() => void analyze(), intervalMs);
     return () => clearInterval(timer);
-  }, [enabled, video, analyze, intervalMs]);
+  }, [enabled, analyze, intervalMs]);
 }
 
 async function loadModel() {

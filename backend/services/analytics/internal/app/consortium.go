@@ -56,7 +56,7 @@ func (service *Service) ListConsortiumDrives(ctx context.Context, capability cen
 	}
 	var drives []ConsortiumDrive
 	if err := json.Unmarshal(raw, &drives); err != nil {
-		return nil, apperrors.New(apperrors.CodeInternal, "consortium drive list is malformed")
+		return nil, apperrors.New(apperrors.CodeUnavailable, "consortium drive list is malformed")
 	}
 	return drives, nil
 }
@@ -75,7 +75,7 @@ func (service *Service) ConsortiumLeaderboard(ctx context.Context, capability ce
 	}
 	var board []ConsortiumLeaderboardEntry
 	if err := json.Unmarshal(raw, &board); err != nil {
-		return nil, apperrors.New(apperrors.CodeInternal, "leaderboard is malformed")
+		return nil, apperrors.New(apperrors.CodeUnavailable, "leaderboard is malformed")
 	}
 	return board, nil
 }

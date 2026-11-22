@@ -151,7 +151,9 @@ function ExamWorkspace({ attemptPath, attemptId, tenantId, attempt, paper }: Loa
     catch { return false; }
   });
   const integrity = useIntegrity(attemptPath, live.integrity.requireFullscreen, !readOnly && !ending);
-  const webcam = useWebcam(live.integrity.webcamRequired && webcamConsentGiven && !readOnly && !ending, tenantId, attemptId);
+  const webcamActive = live.integrity.webcamRequired && webcamConsentGiven && !readOnly && !ending;
+  const webcam = useWebcam(webcamActive, tenantId, attemptId);
+  useClientProctor(webcamActive && webcam.state.kind === "active", tenantId, attemptId, webcam.videoRef);
   // The exam requires a camera: a denied or missing one blocks the screen until the student fixes it (ADR-0078).
   const cameraBlocked = live.integrity.webcamRequired && webcamConsentGiven && !readOnly && !ending &&
     webcam.state.kind !== "active";
