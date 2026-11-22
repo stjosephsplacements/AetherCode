@@ -151,14 +151,14 @@
 @utility rounded-pill { border-radius: var(--radius-pill); }
 
 @layer base {
-  /* Dark is the default. Rich Black (#061414) dominates chrome; Pear (#bcff00) is
-     accent-only (buttons, focus, active). Surfaces lift with neutral gray — no
-     green/teal wash. Neutrals: Laurel #96998c, Celeste #d2d3ce, Ceiling #e9ebe6. */
+  /* Dark is the default. Deck swatch "Rich Black" (#061414) is green-biased
+     (G/B > R); chrome uses neutral near-black instead. Pear (#bcff00) is
+     accent-only. Neutrals: Laurel #96998c, Celeste #d2d3ce, Ceiling #e9ebe6. */
   :root, [data-theme="dark"] {
     color-scheme: dark;
-    --canvas: #061414;
-    --surface: #121212;
-    --surface-2: #1a1a1a;
+    --canvas: #0a0a0a;
+    --surface: #141414;
+    --surface-2: #1c1c1c;
     /* Chart series: Pear leads; others stay distinct (not olive fills). */
     --series-1: #bcff00;
     --series-2: #c47a00;
@@ -168,7 +168,7 @@
     --series-6: #e0662a;
     --series-7: #d2d3ce;
     --series-8: #b08a2e;
-    --sidebar: #030909;
+    --sidebar: #050505;
     --hover: #222222;
     --ink: #e9ebe6;
     --ink-muted: #96998c;
@@ -178,7 +178,7 @@
 
     --brand: #bcff00;
     --brand-hover: #d4ff4d;
-    --brand-ink: #061414;
+    --brand-ink: #0a0a0a;
     --brand-soft: rgb(188 255 0 / 0.1);
     --brand-soft-ink: #e9ebe6;
     --accent: #bcff00;
@@ -187,10 +187,10 @@
     --glow: rgb(233 235 230 / 0.03);
     --glow-2: rgb(188 255 0 / 0.04);
     --hero-aurora-1: rgb(188 255 0 / 0.06);
-    --poster-sky: linear-gradient(to bottom, #061414 0%, #121212 55%, #1a1a1a 100%);
+    --poster-sky: linear-gradient(to bottom, #0a0a0a 0%, #141414 55%, #1c1c1c 100%);
     --poster-ink: #e9ebe6;
-    --poster-on-ink: #061414;
-    --horizon: linear-gradient(to top, rgb(6 20 20 / 0.9), rgb(233 235 230 / 0.03) 50%, transparent);
+    --poster-on-ink: #0a0a0a;
+    --horizon: linear-gradient(to top, rgb(10 10 10 / 0.95), rgb(233 235 230 / 0.03) 50%, transparent);
 
     /* Success uses Pear — no emerald/teal leftover from the old theme. */
     --success: #bcff00;
