@@ -60,6 +60,21 @@ export async function uploadLogo(_prev: ActionState, formData: FormData): Promis
   }
 }
 
+export async function reorderLogos(logoIds: string[]): Promise<ActionState> {
+  const { tenantId } = await requireCollege();
+  if (!logoIds.length) return { error: "Nothing to reorder" };
+  try {
+    await gateway<BrandingView>(`/tenant/v1/tenants/${tenantId}/branding/logos/order`, {
+      method: "PUT",
+      body: { logo_ids: logoIds },
+    });
+    revalidatePath("/staff/branding");
+    return { error: null, message: "Saved." };
+  } catch (error) {
+    return { error: error instanceof GatewayError ? error.message : "Logo order could not be saved" };
+  }
+}
+
 export async function deleteLogo(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const { tenantId } = await requireCollege();
   const logoId = String(formData.get("logo_id") ?? "");

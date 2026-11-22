@@ -4,7 +4,8 @@ import { ActionForm, Field, TextInput } from "@/components/staff/form";
 import { LoadError, PageHeader } from "@/components/staff/page-header";
 import { gateway } from "@/lib/server/gateway";
 import { requireCollege } from "@/lib/server/staff";
-import { deleteLogo, saveBranding, uploadLogo } from "./actions";
+import { LogoReorderButtons } from "@/components/staff/logo-reorder";
+import { deleteLogo, reorderLogos, saveBranding, uploadLogo } from "./actions";
 
 export const metadata: Metadata = { title: "Branding" };
 
@@ -29,6 +30,7 @@ export default async function BrandingPage() {
   }
 
   const logos = [...(view.logos ?? [])].sort((left, right) => left.position - right.position);
+  const logoIds = logos.map((logo) => logo.id);
 
   return (
     <div className="animate-enter max-w-2xl space-y-8">
@@ -56,7 +58,7 @@ export default async function BrandingPage() {
         </ActionForm>
 
         <ul className="space-y-3">
-          {logos.map((logo) => (
+          {logos.map((logo, index) => (
             <li key={logo.id} className="flex items-center gap-4 rounded border border-line p-3">
               <div className="relative size-12 shrink-0 overflow-hidden rounded bg-canvas">
                 {logo.url ? (
@@ -64,6 +66,7 @@ export default async function BrandingPage() {
                 ) : null}
               </div>
               <div className="min-w-0 flex-1 text-sm text-ink-muted">{logo.alt_text || "Logo"}</div>
+              <LogoReorderButtons logoIds={logoIds} index={index} reorder={reorderLogos} />
               <ActionForm action={deleteLogo} submitLabel="Remove" submitVariant="secondary">
                 <input type="hidden" name="logo_id" value={logo.id} />
               </ActionForm>

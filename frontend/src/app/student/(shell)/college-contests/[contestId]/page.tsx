@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { panel } from "@/app/admin/_dashboard/panel";
 import { LoadError, PageHeader } from "@/components/staff/page-header";
 import { gateway } from "@/lib/server/gateway";
+import { describeAccounts } from "@/lib/server/people";
 import { requireStudent } from "@/lib/server/student";
 import { cn, formatDateTime } from "@/lib/utils";
 
@@ -23,6 +24,9 @@ export default async function ContestLeaderboardPage({ params }: { params: Promi
       </>
     );
   }
+  const people = rows.length
+    ? await describeAccounts(student.tenantId, rows.map((row) => row.actor_id)).catch(() => new Map())
+    : new Map();
   return (
     <div className="animate-enter space-y-4">
       <PageHeader title="Live leaderboard" description="Accepted practice submits during the contest window." />
@@ -37,14 +41,21 @@ export default async function ContestLeaderboardPage({ params }: { params: Promi
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, index) => (
+            {rows.map((row, index) => {
+              const person = people.get(row.actor_id);
+              const label =
+                person?.display_name?.trim() ||
+                person?.username?.trim() ||
+                row.actor_id.slice(0, 8);
+              return (
               <tr key={row.actor_id} className="border-t border-line/60">
                 <td className="px-3 py-2 tabular-nums">{index + 1}</td>
-                <td className="px-3 py-2 font-mono text-[11px]">{row.actor_id.slice(0, 8)}</td>
+                <td className="px-3 py-2 text-sm">{label}</td>
                 <td className="px-3 py-2 tabular-nums font-semibold">{row.problems}</td>
                 <td className="px-3 py-2 text-ink-muted">{formatDateTime(row.last_solve)}</td>
               </tr>
-            ))}
+            );
+            })}
           </tbody>
         </table>
         {rows.length === 0 && <p className="p-4 text-sm text-ink-muted">No accepted submissions yet.</p>}

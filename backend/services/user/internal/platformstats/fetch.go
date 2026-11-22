@@ -7,8 +7,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
+)
+
+var (
+	skillrackProgramsRe    = regexp.MustCompile(`(?i)PROGRAMS SOLVED[\s\S]*?</i>([0-9,]+)`)
+	skillrackProgramsAltRe = regexp.MustCompile(`(?i)programs?\s*solved[:\s]*([0-9,]+)`)
 )
 
 const userAgent = "AetherCode (+https://aethercode.stjosephsplacements.in)"
@@ -40,8 +46,10 @@ func fetchLines(ctx context.Context, platform, handle string) ([]string, string,
 		return leetcode(ctx, client, handle)
 	case "atcoder":
 		return atcoder(ctx, client, handle)
-	case "codechef", "hackerrank", "skillrack":
+	case "codechef", "hackerrank":
 		return nil, "fresh", nil
+	case "skillrack":
+		return skillrack(ctx, client, handle)
 	default:
 		return nil, "failed", fmt.Errorf("unsupported platform %s", platform)
 	}
@@ -178,6 +186,53 @@ func leetcode(ctx context.Context, client *http.Client, handle string) ([]string
 		fmt.Sprintf("%d solved", total),
 		fmt.Sprintf("%d easy, %d medium, %d hard", counts["easy"], counts["medium"], counts["hard"]),
 	}, "fresh", nil
+}
+
+func skillrack(ctx context.Context, client *http.Client, handle string) ([]string, string, error) {
+	html, err := getHTML(ctx, client, "https://www.skillrack.com/faces/resume.xhtml?id="+encode(handle))
+	if err != nil {
+		return nil, staleOnRateLimit(err), err
+	}
+	lines := parseSkillrackProgramsSolved(html)
+	if len(lines) == 0 {
+		return nil, "fresh", nil
+	}
+	return lines, "fresh", nil
+}
+
+func parseSkillrackProgramsSolved(html string) []string {
+	for _, pattern := range []*regexp.Regexp{skillrackProgramsRe, skillrackProgramsAltRe} {
+		match := pattern.FindStringSubmatch(html)
+		if len(match) > 1 && strings.TrimSpace(match[1]) != "" {
+			return []string{strings.TrimSpace(match[1]) + " programs solved"}
+		}
+	}
+	return nil
+}
+
+func getHTML(ctx context.Context, client *http.Client, url string) (string, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return "", err
+	}
+	request.Header.Set("User-Agent", userAgent)
+	request.Header.Set("Accept", "text/html")
+	response, err := client.Do(request)
+	if err != nil {
+		return "", err
+	}
+	defer response.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(response.Body, 1<<20))
+	if err != nil {
+		return "", err
+	}
+	if response.StatusCode == http.StatusTooManyRequests {
+		return "", fmt.Errorf("rate limited")
+	}
+	if response.StatusCode >= 400 {
+		return "", fmt.Errorf("http %d", response.StatusCode)
+	}
+	return string(body), nil
 }
 
 func atcoder(ctx context.Context, client *http.Client, handle string) ([]string, string, error) {
