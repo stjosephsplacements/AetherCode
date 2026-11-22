@@ -219,10 +219,10 @@ func (graph *Graph) SendPasswordReset(ctx context.Context, to, token string, val
 				} `json:"error"`
 			}
 			_ = json.Unmarshal(raw, &refusal)
-			return fmt.Errorf("Microsoft Graph refused the message: HTTP %d %s", response.StatusCode, refusal.Error.Code)
+			return fmt.Errorf("microsoft Graph refused the message: HTTP %d %s", response.StatusCode, refusal.Error.Code)
 		}
 	}
-	return errors.New("Microsoft Graph refused the message")
+	return errors.New("microsoft Graph refused the message")
 }
 
 func passwordResetBody(link string, validFor time.Duration) string {
