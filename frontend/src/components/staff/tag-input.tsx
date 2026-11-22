@@ -55,12 +55,12 @@ export function TagInput({ value, onChange, suggestions, id, disabled }: { value
       <div
         onClick={() => input.current?.focus()}
         className={cn(
-          "flex min-h-10 w-full flex-wrap items-center gap-1.5 rounded-[var(--radius-control)] border border-line-strong bg-surface px-2 py-1.5 shadow-[var(--shadow-hairline)] transition-[border-color,box-shadow] hover:border-ink-subtle focus-within:border-brand focus-within:ring-4 focus-within:ring-brand/15",
+          "flex min-h-10 w-full flex-wrap items-center gap-1.5 rounded-control border border-line-strong bg-surface px-2 py-1.5 shadow-[var(--shadow-hairline)] transition-[border-color,box-shadow] hover:border-ink-subtle focus-within:border-brand focus-within:ring-4 focus-within:ring-brand/15",
           disabled && "pointer-events-none opacity-60",
         )}
       >
         {value.map((tag) => (
-          <span key={tag} className="inline-flex h-7 items-center gap-1 rounded-full bg-hover pl-2.5 pr-1 text-[13px] text-ink">
+          <span key={tag} className="inline-flex h-7 items-center gap-1 rounded-pill bg-hover pl-2.5 pr-1 text-[13px] text-ink">
             {tag}
             <button
               type="button"
@@ -69,7 +69,7 @@ export function TagInput({ value, onChange, suggestions, id, disabled }: { value
                 event.stopPropagation();
                 onChange(value.filter((entry) => entry !== tag));
               }}
-              className="grid size-5 place-items-center rounded-full text-ink-muted transition-colors hover:bg-line hover:text-ink"
+              className="grid size-5 place-items-center rounded-pill text-ink-muted transition-colors hover:bg-line hover:text-ink"
             >
               <X className="size-3" />
             </button>
@@ -101,7 +101,7 @@ export function TagInput({ value, onChange, suggestions, id, disabled }: { value
         />
       </div>
       {open && matches.length > 0 && (
-        <ul id={listId} role="listbox" className="absolute left-0 right-0 top-full z-30 mt-1 max-h-60 overflow-y-auto rounded-[var(--radius-control)] border border-line-strong bg-surface p-1 shadow-[var(--shadow-overlay)]">
+        <ul id={listId} role="listbox" className="absolute left-0 right-0 top-full z-30 mt-1 max-h-60 overflow-y-auto rounded-control border border-line-strong bg-surface p-1 shadow-[var(--shadow-overlay)]">
           {matches.map((suggestion, index) => (
             <li
               key={suggestion.name}
@@ -114,7 +114,7 @@ export function TagInput({ value, onChange, suggestions, id, disabled }: { value
                 add(suggestion.name);
               }}
               onMouseEnter={() => setActive(index)}
-              className={cn("flex cursor-default items-center justify-between rounded-md px-2.5 py-1.5 text-[13.5px] text-ink", index === active && "bg-hover")}
+              className={cn("flex cursor-default items-center justify-between rounded-control px-2.5 py-1.5 text-[13.5px] text-ink", index === active && "bg-hover")}
             >
               {suggestion.name}
               <span className="font-mono text-[11.5px] tabular-nums text-ink-subtle">{suggestion.count}</span>

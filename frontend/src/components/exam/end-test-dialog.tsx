@@ -36,7 +36,7 @@ export function EndTestDialog({
       </AlertDialog.Trigger>
       <AlertDialog.Portal>
         <AlertDialog.Overlay className="fixed inset-0 z-50 animate-fade bg-[rgb(20_20_19/0.45)]" />
-        <AlertDialog.Content className="fixed left-1/2 top-1/2 z-50 flex max-h-[85dvh] w-[calc(100%-2rem)] max-w-[460px] -translate-x-1/2 -translate-y-1/2 animate-enter flex-col rounded-[var(--radius-surface)] border border-line bg-surface shadow-[var(--shadow-overlay)]">
+        <AlertDialog.Content className="fixed left-1/2 top-1/2 z-50 flex max-h-[85dvh] w-[calc(100%-2rem)] max-w-[460px] -translate-x-1/2 -translate-y-1/2 animate-enter flex-col rounded-surface border border-line bg-surface shadow-[var(--shadow-overlay)]">
           <div className="p-6 pb-4">
             <AlertDialog.Title className="display text-[1.5rem] text-ink">End your test?</AlertDialog.Title>
             <AlertDialog.Description className="mt-2 text-sm leading-relaxed text-ink-muted">
@@ -48,7 +48,7 @@ export function EndTestDialog({
             {items.map((item, index) => {
               const status = statuses[item.exam_item_id] ?? ({ kind: "empty" } as QuestionStatus);
               return (
-                <li key={item.exam_item_id} className="flex items-center gap-3 rounded-[var(--radius-control)] bg-canvas px-3 py-2.5">
+                <li key={item.exam_item_id} className="flex items-center gap-3 rounded-control bg-canvas px-3 py-2.5">
                   <span className="w-5 text-center text-[13px] font-semibold tabular-nums text-ink-muted">{index + 1}</span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[13px] font-medium text-ink">{item.title}</span>

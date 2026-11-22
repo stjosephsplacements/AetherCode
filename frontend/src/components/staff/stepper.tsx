@@ -15,14 +15,14 @@ export type Step = {
  */
 export function Stepper({ steps, onSelect, label = "Progress" }: { steps: Step[]; onSelect?: (id: string) => void; label?: string }) {
   return (
-    <ol aria-label={label} className="grid gap-px overflow-hidden rounded-[var(--radius-surface)] border border-line bg-line" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
+    <ol aria-label={label} className="grid gap-px overflow-hidden rounded-surface border border-line bg-line" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
       {steps.map((step, index) => {
         const body = (
           <>
             <span
               aria-hidden
               className={cn(
-                "grid size-6 shrink-0 place-items-center rounded-full font-mono text-[11px] tabular-nums transition-colors",
+                "grid size-6 shrink-0 place-items-center rounded-pill font-mono text-[11px] tabular-nums transition-colors",
                 step.state === "done" && "bg-success text-canvas",
                 step.state === "current" && "bg-brand text-brand-ink",
                 (step.state === "todo" || step.state === "locked") && "border border-line-strong text-ink-subtle",

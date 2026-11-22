@@ -30,10 +30,10 @@ function Node({ title, children, tone = "plain", mono }: { title: string; childr
   };
   const dark = tone === "dark";
   return (
-    <div className={`rounded-[var(--radius-surface)] border px-4 py-3.5 shadow-[var(--shadow-hairline)] ${tones[tone]}`}>
+    <div className={`rounded-surface border px-4 py-3.5 shadow-[var(--shadow-hairline)] ${tones[tone]}`}>
       <p className={`text-[14.5px] font-semibold ${dark ? "" : "text-ink"}`}>{title}</p>
       {children && <p className={`mt-1 text-[12.5px] leading-snug ${dark ? "text-[#a89fc4]" : "text-ink-muted"}`}>{children}</p>}
-      {mono && <p className="mt-2 inline-block rounded-full bg-hover px-2 py-0.5 font-mono text-[10.5px] text-ink-subtle">{mono}</p>}
+      {mono && <p className="mt-2 inline-block rounded-pill bg-hover px-2 py-0.5 font-mono text-[10.5px] text-ink-subtle">{mono}</p>}
     </div>
   );
 }
@@ -41,7 +41,7 @@ function Node({ title, children, tone = "plain", mono }: { title: string; childr
 /** One labelled band of the diagram. */
 function Layer({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="rounded-[var(--radius-surface)] border border-line bg-surface-2 p-3 sm:p-4">
+    <div className="rounded-surface border border-line bg-surface-2 p-3 sm:p-4">
       <p className="mb-3 px-1 font-mono text-[11.5px] uppercase tracking-[0.08em] text-ink-subtle">{label}</p>
       {children}
     </div>
@@ -52,7 +52,7 @@ function Link2({ label }: { label: string }) {
   return (
     <div aria-hidden className="flex flex-col items-center py-1.5">
       <span className="h-4 w-px bg-line-strong" />
-      <span className="rounded-full border border-line bg-surface px-3 py-0.5 font-mono text-[11px] text-ink-muted">{label}</span>
+      <span className="rounded-pill border border-line bg-surface px-3 py-0.5 font-mono text-[11px] text-ink-muted">{label}</span>
       <span className="h-4 w-px bg-line-strong" />
     </div>
   );
@@ -102,7 +102,7 @@ export default function ArchitecturePage() {
   return (
     <div className="mx-auto max-w-6xl px-6 pb-24 pt-12 sm:pt-16">
       <header className="mx-auto max-w-[46rem] text-center">
-        <p className="mx-auto inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1 font-mono text-[12px] text-ink-muted">
+        <p className="mx-auto inline-flex items-center gap-2 rounded-pill border border-line bg-surface px-3 py-1 font-mono text-[12px] text-ink-muted">
           <Cube className="size-3.5 text-brand" /> Architecture
         </p>
         <h1 className="display mt-5 text-[2.6rem] text-ink sm:text-[3.4rem]">How AetherCode is built</h1>
@@ -114,14 +114,14 @@ export default function ArchitecturePage() {
 
       <dl data-reveal className="mt-12 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {FACTS.map(([value, label]) => (
-          <div key={label} className="rounded-[var(--radius-surface)] border border-line bg-surface p-5 shadow-[var(--shadow-hairline)]">
+          <div key={label} className="rounded-surface border border-line bg-surface p-5 shadow-[var(--shadow-hairline)]">
             <dt className="font-mono text-[1.9rem] font-semibold leading-none text-ink">{value}</dt>
             <dd className="mt-2 text-[13px] leading-snug text-ink-muted">{label}</dd>
           </div>
         ))}
       </dl>
 
-      <figure data-reveal className="mt-10 rounded-[calc(var(--radius-surface)+6px)] border border-line bg-surface p-3 shadow-[var(--shadow-panel)] sm:p-6">
+      <figure data-reveal className="mt-10 rounded-panel border border-line bg-surface p-3 shadow-[var(--shadow-panel)] sm:p-6">
         <figcaption className="sr-only">
           Students and staff use the web app, which calls the gateway. The gateway routes to nine services, each with its own database.
           The submission service sends code to the judge, which runs it in the sandboxed execution engine.
@@ -164,9 +164,9 @@ export default function ArchitecturePage() {
 
       <div className="mt-16 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {PRINCIPLES.map(({ icon: Icon, title, body }, index) => (
-          <section key={title} data-reveal className="rounded-[var(--radius-surface)] border border-line bg-surface p-6 shadow-[var(--shadow-hairline)] transition-shadow hover:shadow-[var(--shadow-panel)]">
+          <section key={title} data-reveal className="rounded-surface border border-line bg-surface p-6 shadow-[var(--shadow-hairline)] transition-shadow hover:shadow-[var(--shadow-panel)]">
             <div className="flex items-center justify-between">
-              <span className="grid size-10 place-items-center rounded-full bg-brand-soft text-brand"><Icon className="size-[18px]" /></span>
+              <span className="grid size-10 place-items-center rounded-pill bg-brand-soft text-brand"><Icon className="size-[18px]" /></span>
               <span aria-hidden className="font-mono text-[12px] text-ink-subtle">{String(index + 1).padStart(2, "0")}</span>
             </div>
             <h2 className="mt-5 text-[1.15rem] font-semibold leading-snug text-ink">{title}</h2>

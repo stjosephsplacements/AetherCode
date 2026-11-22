@@ -87,7 +87,7 @@ export function AssignForm({
             <label className="relative">
               <span className="sr-only">Search</span>
               <MagnifyingGlass className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-ink-subtle" />
-              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search" className="h-8 w-40 rounded-full border border-line bg-surface pl-8 pr-3 text-[13px] text-ink outline-none placeholder:text-ink-subtle focus:border-brand" />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search" className="h-8 w-40 rounded-pill border border-line bg-surface pl-8 pr-3 text-[13px] text-ink outline-none placeholder:text-ink-subtle focus:border-brand" />
             </label>
             <button
               type="button"
@@ -101,14 +101,14 @@ export function AssignForm({
                   return next;
                 })
               }
-              className="rounded-full bg-hover px-3 py-1 text-[12.5px] font-medium text-ink-muted transition-colors hover:text-ink"
+              className="rounded-pill bg-hover px-3 py-1 text-[12.5px] font-medium text-ink-muted transition-colors hover:text-ink"
             >
               {allShown ? "Clear" : "Select all"}
             </button>
           </div>
         </div>
         {shown.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-line-strong px-4 py-6 text-center text-sm text-ink-muted">Nothing matches.</p>
+          <p className="rounded-surface border border-dashed border-line-strong px-4 py-6 text-center text-sm text-ink-muted">Nothing matches.</p>
         ) : (
           <ul className="grid max-h-72 gap-2 overflow-y-auto sm:grid-cols-2 xl:grid-cols-3" role="group" aria-label={labels[type]}>
             {shown.map((option) => {
@@ -119,7 +119,7 @@ export function AssignForm({
                     type="button"
                     aria-pressed={on}
                     onClick={() => toggle(option.id)}
-                    className={cn("flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left text-[13.5px] transition-colors", on ? "border-brand bg-brand-soft text-brand-soft-ink" : "border-line text-ink hover:border-line-strong hover:bg-hover")}
+                    className={cn("flex w-full items-center gap-2.5 rounded-surface border px-3 py-2 text-left text-[13.5px] transition-colors", on ? "border-brand bg-brand-soft text-brand-soft-ink" : "border-line text-ink hover:border-line-strong hover:bg-hover")}
                   >
                     <span className={cn("grid size-4 shrink-0 place-items-center rounded border", on ? "border-brand bg-brand text-brand-ink" : "border-line-strong")}>{on && <Check className="size-3" />}</span>
                     <span className="min-w-0 truncate">{option.label}</span>

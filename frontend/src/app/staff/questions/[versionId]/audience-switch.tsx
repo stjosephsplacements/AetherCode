@@ -28,7 +28,7 @@ export function AudienceSwitch({ questionId, versionId, initial }: { questionId:
   }
 
   return (
-    <div role="radiogroup" aria-label="Use this question for" className={cn("inline-flex rounded-full bg-hover p-0.5", pending && "opacity-60")}>
+    <div role="radiogroup" aria-label="Use this question for" className={cn("inline-flex rounded-pill bg-hover p-0.5", pending && "opacity-60")}>
       {OPTIONS.map((option) => (
         <button
           key={option.value}
@@ -38,7 +38,7 @@ export function AudienceSwitch({ questionId, versionId, initial }: { questionId:
           disabled={pending}
           onClick={() => choose(option.value)}
           className={cn(
-            "rounded-full px-3 py-1 text-[13px] transition-colors",
+            "rounded-pill px-3 py-1 text-[13px] transition-colors",
             audience === option.value ? "bg-surface font-medium text-ink shadow-sm" : "text-ink-muted hover:text-ink",
           )}
         >

@@ -58,7 +58,7 @@ export function ErrorView({
         </h1>
         <p className="mt-4 max-w-[46ch] text-[15.5px] leading-relaxed text-ink-muted">{message}</p>
 
-        <div className="mt-8 rounded-[var(--radius-surface)] overflow-hidden border border-line-strong bg-surface font-mono text-[13px] shadow-[var(--shadow-panel)]">
+        <div className="mt-8 rounded-surface overflow-hidden border border-line-strong bg-surface font-mono text-[13px] shadow-[var(--shadow-panel)]">
           <p className="border-b border-line-strong px-4 py-2 text-ink-subtle">Request</p>
           <div className="space-y-1 px-4 py-3">
             <p className="break-all text-ink">
@@ -78,7 +78,7 @@ export function ErrorView({
             <button
               type="button"
               onClick={onRetry}
-              className="rounded-full bg-brand px-4 py-2.5 text-brand-ink shadow-[var(--shadow-panel)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"
+              className="rounded-pill bg-brand px-4 py-2.5 text-brand-ink shadow-[var(--shadow-panel)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"
             >
               Try again
             </button>
@@ -87,7 +87,7 @@ export function ErrorView({
             href="/"
             className={
               onRetry
-                ? "rounded-full border border-line-strong px-4 py-2.5 text-ink shadow-[var(--shadow-panel)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"
+                ? "rounded-pill border border-line-strong px-4 py-2.5 text-ink shadow-[var(--shadow-panel)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"
                 : "bg-brand px-4 py-2.5 text-brand-ink shadow-[var(--shadow-panel)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5"
             }
           >

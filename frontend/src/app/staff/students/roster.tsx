@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Popover } from "radix-ui";
 import { type ReactNode, useEffect, useMemo, useState, useTransition } from "react";
+import { FigureCard } from "@/app/admin/_dashboard/charts";
+import { panel } from "@/app/admin/_dashboard/panel";
 import { CredentialsTable } from "@/components/staff/credentials";
 import { ConfirmDelete } from "@/components/staff/confirm-delete";
 import { EditDialog } from "@/components/staff/edit-dialog";
@@ -196,7 +198,7 @@ export function Roster({ rows, several, actions }: { rows: StudentRow[]; several
   const hiddenSelected = chosen.filter((row) => !shown.includes(row)).length;
 
   const table = (list: StudentRow[]) => (
-    <div className="max-h-[72dvh] overflow-auto rounded-[var(--radius-surface)] border border-line bg-surface">
+    <div className="max-h-[72dvh] overflow-auto rounded-control border border-line bg-hover/20">
       <table className="w-full min-w-[900px] text-left text-sm">
         <thead className="sticky top-0 z-10 bg-sidebar shadow-[0_1px_0_var(--line)]">
           <tr>
@@ -215,7 +217,7 @@ export function Roster({ rows, several, actions }: { rows: StudentRow[]; several
               </td>
               <td className="px-4 py-2.5">
                 <div className="flex items-center gap-3">
-                  <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-full bg-brand-soft font-mono text-[12px] font-semibold text-brand-soft-ink">{initials(student.name, student.roll)}</span>
+                  <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-control bg-brand-soft font-mono text-[12px] font-semibold text-brand-soft-ink">{initials(student.name, student.roll)}</span>
                   <span className="min-w-0">
                     <Link href={`/staff/students/${student.id}?college=${student.tenantId}`} className="block truncate font-medium text-ink hover:text-brand hover:underline">
                       {student.name || <span className="text-ink-subtle">Unnamed</span>}
@@ -276,151 +278,175 @@ export function Roster({ rows, several, actions }: { rows: StudentRow[]; several
     </div>
   );
 
-  const stat = (label: string, value: number, note?: string) => (
-    <div className="flex min-w-0 items-baseline gap-3 rounded-[var(--radius-surface)] border border-line bg-surface px-4 py-3">
-      <div className="min-w-0">
-        <p className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-ink-subtle">{label}</p>
-        <p className="mt-1 font-mono text-[24px] font-semibold leading-none tabular-nums text-ink">{value}</p>
-      </div>
-      {note && <p className="ml-auto text-right text-[11.5px] leading-tight text-ink-muted">{note}</p>}
-    </div>
-  );
-
   return (
-    <div className="space-y-5">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" role="group" aria-label="Summary">
-        {stat("Total enrolled", shown.length, shown.length !== rows.length ? `of ${rows.length}` : undefined)}
-        {stat("Active accounts", active, notSignedIn > 0 ? `${notSignedIn} not signed in yet` : undefined)}
-        {stat("Disabled", disabled, disabled > 0 ? "cannot sign in" : undefined)}
-        {stat("In a placement department", placed, shown.length > placed ? `${shown.length - placed} without` : undefined)}
-      </div>
+    <div className="grid auto-rows-[minmax(120px,auto)] gap-3 md:grid-cols-6 xl:grid-cols-12">
+      <FigureCard
+        label="Enrolled"
+        value={String(shown.length)}
+        note={shown.length !== rows.length ? `of ${rows.length} total` : "matching filters"}
+        className="md:col-span-3 xl:col-span-3"
+      />
+      <FigureCard
+        label="Active"
+        value={String(active)}
+        note={notSignedIn > 0 ? `${notSignedIn} not signed in yet` : "can sign in"}
+        tone="good"
+        className="md:col-span-3 xl:col-span-3"
+      />
+      <FigureCard
+        label="Disabled"
+        value={String(disabled)}
+        note={disabled > 0 ? "cannot sign in" : "none blocked"}
+        tone={disabled ? "warn" : "good"}
+        className="md:col-span-3 xl:col-span-3"
+      />
+      <FigureCard
+        label="Placed"
+        value={String(placed)}
+        note={shown.length > placed ? `${shown.length - placed} without track` : "all have a track"}
+        className="md:col-span-3 xl:col-span-3"
+      />
 
-      <div className="flex flex-wrap items-center gap-2">
-        {quick("batch", "Batch", "All batches")}
-        {quick("department", "Department", "All departments")}
-        {quick("placement", "Placement department", "All placements")}
-        <div className="relative min-w-52 flex-1 sm:max-w-xs">
-          <MagnifyingGlass aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-subtle" />
-          <input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search roll number, name, email or phone"
-            aria-label="Search students"
-            className="h-8 w-full rounded-full border border-line-strong bg-surface pl-9 pr-3 text-[13px] text-ink outline-none transition-[border-color,box-shadow] placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15"
-          />
-        </div>
-
-        <Popover.Root>
-          <Popover.Trigger asChild>
-            <Button variant="secondary" size="sm">
-              <FunnelSimple />
-              More filters
-              {filterCount > 0 && <span className="rounded-full bg-brand-soft px-1.5 font-mono text-[11px] text-brand">{filterCount}</span>}
-            </Button>
-          </Popover.Trigger>
-          <Popover.Portal>
-            <Popover.Content align="start" sideOffset={6} className="z-50 max-h-[min(70dvh,480px)] w-80 animate-fade overflow-y-auto rounded-[var(--radius-surface)] border border-line-strong bg-surface p-4 shadow-[var(--shadow-overlay)]">
-              <div className="mb-3 flex items-center justify-between">
-                <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">Filters</span>
-                {filterCount > 0 && (
-                  <button type="button" onClick={clearFilters} className="text-[12px] text-brand hover:underline">
-                    Clear all
-                  </button>
-                )}
-              </div>
-              {FACETS.filter(({ key }) => (key !== "college" || several) && options[key].length > 0).map(({ key, label }) => (
-                <fieldset key={key} className="mb-4 last:mb-0">
-                  <legend className="mb-1.5 text-[12px] font-medium text-ink-muted">{label}</legend>
-                  <div className="space-y-0.5">
-                    {options[key].map((option) => (
-                      <label key={option} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-[13px] text-ink hover:bg-hover">
-                        <Checkbox checked={picked[key].has(option)} onCheckedChange={() => toggle(key, option)} />
-                        <span className="min-w-0 truncate">{option}</span>
-                      </label>
-                    ))}
-                  </div>
-                </fieldset>
-              ))}
-            </Popover.Content>
-          </Popover.Portal>
-        </Popover.Root>
-
-        <div className="flex items-center gap-1">
-          <Select aria-label="Sort by" size="sm" className="w-36" value={sort} onValueChange={(value) => setSort(value as "roll" | "name")}>
-            <option value="roll">Roll number</option>
-            <option value="name">Name</option>
-          </Select>
-          <Button variant="ghost" size="icon" aria-label={descending ? "Sorted descending" : "Sorted ascending"} onClick={() => setDescending((current) => !current)}>
-            {descending ? <SortDescending /> : <SortAscending />}
-          </Button>
-        </div>
-
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          <Button variant="secondary" size="sm" onClick={exportCsv} disabled={shown.length === 0}>
-            <DownloadSimple />
-            Export
-          </Button>
-          {actions}
-        </div>
-      </div>
-
-      <div aria-live="polite" className="empty:hidden">
-        {notice && <p role={notice.error ? "alert" : "status"} className={cn("rounded-[var(--radius-control)] px-3 py-2 text-sm", notice.error ? "bg-danger-soft text-danger" : "bg-success-soft text-success")}>{notice.text}</p>}
-      </div>
-      {issued && issued.length > 0 && <CredentialsTable filename="student-passwords.csv" rows={issued.map((account) => ({ username: account.username ?? "", name: account.display_name, password: account.password }))} />}
-
-      {shown.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-[var(--radius-surface)] border border-dashed border-line-strong px-6 py-16 text-center">
-          <span aria-hidden className="grid size-11 place-items-center rounded-full bg-hover text-ink-subtle"><UserMinus className="size-5" /></span>
-          {rows.length === 0 ? (
-            <>
-              <p className="text-[15px] font-medium text-ink">No students yet</p>
-              <p className="max-w-sm text-sm text-ink-muted">Import a spreadsheet of roll numbers and names, or enrol one student. Each gets a username and a one-time password.</p>
-              <div className="flex flex-wrap justify-center gap-2">{actions}</div>
-            </>
-          ) : (
-            <>
-              <p className="text-[15px] font-medium text-ink">No student matches</p>
-              <p className="max-w-sm text-sm text-ink-muted">Try another batch, or clear the filters and search.</p>
-              <Button variant="secondary" size="sm" onClick={() => { clearFilters(); setQuery(""); setDebounced(""); }}>Clear filters</Button>
-            </>
-          )}
-        </div>
-      ) : (
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] text-ink-muted">
-            <label className="inline-flex cursor-pointer items-center gap-2">
-              <Checkbox checked={allOnPage} onCheckedChange={() => setSelected((current) => { const next = new Set(current); for (const id of pageIds) { if (allOnPage) next.delete(id); else next.add(id); } return next; })} />
-              Select the {pageIds.length} on this page
-            </label>
-            {shown.length > pageIds.length && (
-              <button type="button" onClick={() => setSelected(new Set(shown.map((row) => row.id)))} className="text-brand hover:underline">
-                Select all {shown.length}{onlyBatch ? ` in ${onlyBatch}` : " matching the filters"}
-              </button>
-            )}
+      <section className={cn(panel, "md:col-span-6 xl:col-span-12")}>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">Roster</h2>
+            <p className="mt-1 text-[12.5px] text-ink-muted">Filter by batch, department or placement. Search by roll, name, email or phone.</p>
           </div>
-          {several && colleges.length > 0
-            ? colleges.map((college) => {
-                const group = paged.rows.filter((row) => row.college === college);
-                return (
-                  <section key={college} aria-label={college}>
-                    <h3 className="mb-2 flex items-baseline gap-2 text-[14px] font-semibold text-ink">
-                      {college}
-                      <span className="font-mono text-[11px] font-normal text-ink-subtle">{shown.filter((row) => row.college === college).length} students</span>
-                    </h3>
-                    {table(group)}
-                  </section>
-                );
-              })
-            : table(paged.rows)}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="secondary" size="sm" onClick={exportCsv} disabled={shown.length === 0}>
+              <DownloadSimple />
+              Export
+            </Button>
+            {actions}
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {quick("batch", "Batch", "All batches")}
+          {quick("department", "Department", "All departments")}
+          {quick("placement", "Placement department", "All placements")}
+          <div className="relative min-w-52 flex-1 sm:max-w-xs">
+            <MagnifyingGlass aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-subtle" />
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search roll number, name, email or phone"
+              aria-label="Search students"
+              className="h-9 w-full rounded-control border border-line bg-surface pl-9 pr-3 text-[13px] text-ink outline-none transition-[border-color,box-shadow] placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15"
+            />
+          </div>
+
+          <Popover.Root>
+            <Popover.Trigger asChild>
+              <Button variant="secondary" size="sm">
+                <FunnelSimple />
+                More filters
+                {filterCount > 0 && <span className="rounded-pill bg-brand-soft px-1.5 font-mono text-[11px] text-brand">{filterCount}</span>}
+              </Button>
+            </Popover.Trigger>
+            <Popover.Portal>
+              <Popover.Content align="start" sideOffset={6} className="z-50 max-h-[min(70dvh,480px)] w-80 animate-fade overflow-y-auto rounded-surface border border-line-strong bg-surface p-4 shadow-[var(--shadow-overlay)]">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">Filters</span>
+                  {filterCount > 0 && (
+                    <button type="button" onClick={clearFilters} className="text-[12px] text-brand hover:underline">
+                      Clear all
+                    </button>
+                  )}
+                </div>
+                {FACETS.filter(({ key }) => (key !== "college" || several) && options[key].length > 0).map(({ key, label }) => (
+                  <fieldset key={key} className="mb-4 last:mb-0">
+                    <legend className="mb-1.5 text-[12px] font-medium text-ink-muted">{label}</legend>
+                    <div className="space-y-0.5">
+                      {options[key].map((option) => (
+                        <label key={option} className="flex cursor-pointer items-center gap-2 rounded-control px-2 py-1.5 text-[13px] text-ink hover:bg-hover">
+                          <Checkbox checked={picked[key].has(option)} onCheckedChange={() => toggle(key, option)} />
+                          <span className="min-w-0 truncate">{option}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                ))}
+              </Popover.Content>
+            </Popover.Portal>
+          </Popover.Root>
+
+          <div className="flex items-center gap-1">
+            <Select aria-label="Sort by" size="sm" className="w-36" value={sort} onValueChange={(value) => setSort(value as "roll" | "name")}>
+              <option value="roll">Roll number</option>
+              <option value="name">Name</option>
+            </Select>
+            <Button variant="ghost" size="icon" aria-label={descending ? "Sorted descending" : "Sorted ascending"} onClick={() => setDescending((current) => !current)}>
+              {descending ? <SortDescending /> : <SortAscending />}
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      <div aria-live="polite" className="empty:hidden md:col-span-6 xl:col-span-12">
+        {notice && <p role={notice.error ? "alert" : "status"} className={cn("rounded-control px-3 py-2 text-sm", notice.error ? "bg-danger-soft text-danger" : "bg-success-soft text-success")}>{notice.text}</p>}
+      </div>
+      {issued && issued.length > 0 && (
+        <div className="md:col-span-6 xl:col-span-12">
+          <CredentialsTable filename="student-passwords.csv" rows={issued.map((account) => ({ username: account.username ?? "", name: account.display_name, password: account.password }))} />
         </div>
       )}
-      <LocalPager meta={paged} onPage={setPage} noun="students" />
+
+      <section aria-label="Students" className={cn(panel, "md:col-span-6 xl:col-span-12")}>
+        {shown.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 px-6 py-12 text-center">
+            <span aria-hidden className="grid size-11 place-items-center rounded-control bg-hover text-ink-subtle"><UserMinus className="size-5" /></span>
+            {rows.length === 0 ? (
+              <>
+                <p className="text-[15px] font-medium text-ink">No students yet</p>
+                <p className="max-w-sm text-sm text-ink-muted">Import a spreadsheet of roll numbers and names, or enrol one student. Each gets a username and a one-time password.</p>
+                <div className="flex flex-wrap justify-center gap-2">{actions}</div>
+              </>
+            ) : (
+              <>
+                <p className="text-[15px] font-medium text-ink">No student matches</p>
+                <p className="max-w-sm text-sm text-ink-muted">Try another batch, or clear the filters and search.</p>
+                <Button variant="secondary" size="sm" onClick={() => { clearFilters(); setQuery(""); setDebounced(""); }}>Clear filters</Button>
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] text-ink-muted">
+              <label className="inline-flex cursor-pointer items-center gap-2">
+                <Checkbox checked={allOnPage} onCheckedChange={() => setSelected((current) => { const next = new Set(current); for (const id of pageIds) { if (allOnPage) next.delete(id); else next.add(id); } return next; })} />
+                Select the {pageIds.length} on this page
+              </label>
+              {shown.length > pageIds.length && (
+                <button type="button" onClick={() => setSelected(new Set(shown.map((row) => row.id)))} className="text-brand hover:underline">
+                  Select all {shown.length}{onlyBatch ? ` in ${onlyBatch}` : " matching the filters"}
+                </button>
+              )}
+            </div>
+            {several && colleges.length > 0
+              ? colleges.map((college) => {
+                  const group = paged.rows.filter((row) => row.college === college);
+                  return (
+                    <section key={college} aria-label={college}>
+                      <h3 className="mb-2 flex items-baseline gap-2 text-[14px] font-semibold text-ink">
+                        {college}
+                        <span className="font-mono text-[11px] font-normal text-ink-subtle">{shown.filter((row) => row.college === college).length} students</span>
+                      </h3>
+                      {table(group)}
+                    </section>
+                  );
+                })
+              : table(paged.rows)}
+            <LocalPager meta={paged} onPage={setPage} noun="students" />
+          </div>
+        )}
+      </section>
 
       {selected.size > 0 && (
         <div className="pointer-events-none fixed inset-x-0 bottom-6 z-40 flex justify-center px-4">
-          <div role="region" aria-label="Selected students" className="liquid-glass pointer-events-auto flex max-w-full animate-enter flex-wrap items-center gap-2 rounded-[var(--radius-surface)] px-4 py-2.5 shadow-[var(--shadow-overlay)]">
+          <div role="region" aria-label="Selected students" className="liquid-glass pointer-events-auto flex max-w-full animate-enter flex-wrap items-center gap-2 rounded-surface px-4 py-2.5 shadow-[var(--shadow-overlay)]">
             <span className="mr-2 font-mono text-[13px] tabular-nums text-ink">
               {selected.size} selected
               {hiddenSelected > 0 && <span className="ml-1 text-ink-muted">({hiddenSelected} outside the filters)</span>}
@@ -439,16 +465,34 @@ export function Roster({ rows, several, actions }: { rows: StudentRow[]; several
       )}
 
       <Dialog open={confirmReset} onOpenChange={setConfirmReset}>
-        <DialogContent title={`Reset ${chosen.length} password${chosen.length === 1 ? "" : "s"}?`} description="Each student gets a new one-time password. Their current passwords stop working and they are signed out." className="w-[min(92vw,460px)]">
-          <div className="flex justify-end gap-2 p-6">
+        <DialogContent
+          eyebrow="Bulk action"
+          title={`Reset ${chosen.length} password${chosen.length === 1 ? "" : "s"}?`}
+          description="Each student gets a new one-time password. Their current passwords stop working and they are signed out."
+          icon={<Key className="size-5" />}
+          className="w-[min(92vw,460px)]"
+        >
+          <div className="px-6 py-5 text-[13.5px] text-ink-muted">
+            {chosen.length} account{chosen.length === 1 ? "" : "s"} selected. New passwords are shown once after reset.
+          </div>
+          <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-line bg-sidebar/60 px-6 py-3">
             <DialogClose asChild>
-              <Button type="button" variant="ghost">Cancel</Button>
+              <Button type="button" variant="ghost" size="sm">
+                Cancel
+              </Button>
             </DialogClose>
-            <Button type="button" onClick={() => { setConfirmReset(false); run(() => bulkResetPasswords(targets())); }}>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                setConfirmReset(false);
+                run(() => bulkResetPasswords(targets()));
+              }}
+            >
               <Key />
               Reset passwords
             </Button>
-          </div>
+          </footer>
         </DialogContent>
       </Dialog>
     </div>

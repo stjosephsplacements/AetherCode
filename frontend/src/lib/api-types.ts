@@ -212,6 +212,8 @@ export type QuestionVersion = {
   category_id?: string;
   category?: CategoryRef;
   tags?: { id: string; name: string }[];
+  /** Principal who created this version (ADR-0090). */
+  created_by?: string;
 };
 
 export type Audience = "test" | "practice";
@@ -296,7 +298,7 @@ export type PracticeProgress = {
   active_days: string[];
 };
 
-export type Exam = { id: string; tenant_id: string; external_reference?: string; lifecycle_state: string; version: number; created_at: string };
+export type Exam = { id: string; tenant_id: string; external_reference?: string; lifecycle_state: string; version: number; created_at: string; created_by?: string };
 
 export type ExamVersion = {
   id: string;
@@ -310,6 +312,7 @@ export type ExamVersion = {
   duration_seconds: number;
   proctor_policy_version_id: string;
   status: "draft" | "published" | "retired";
+  created_by?: string;
 };
 
 export type ExamVersionContent = {
@@ -366,7 +369,7 @@ export type ExamResult = {
 };
 
 /** A message staff post to everyone sitting an exam (ADR-0027). */
-export type Announcement = { id: string; body: string; created_at: string };
+export type Announcement = { id: string; body: string; created_at: string; created_by?: string };
 
 /** One assigned candidate on the live monitor; attempt fields are null until they start. */
 export type MonitorCandidate = {
@@ -567,7 +570,7 @@ export type InterviewExperience = {
   review_note: string | null;
   mine: boolean;
   created_at: string;
-  /** Only staff see who wrote it. */
+  /** Staff/moderators only; peers never see who wrote it (ADR-0090). */
   author_id: string | null;
 };
 
@@ -580,6 +583,7 @@ export type CommunityPost = {
   updated_at: string;
   excerpt: string;
   body_markdown?: string;
+  author_id?: string;
 };
 
 export type FeedKind = "contest" | "hackathon" | "opensource";
@@ -596,6 +600,7 @@ export type FeedItem = {
   tags: string[];
   bookmarked: boolean;
   phase: "upcoming" | "live" | "ended";
+  created_by?: string;
 };
 
 export type PlatformName = "leetcode" | "github" | "codeforces" | "codechef" | "hackerrank" | "atcoder" | "skillrack";

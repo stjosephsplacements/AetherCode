@@ -16,7 +16,7 @@ export function TotpEnroll() {
     return (
       <div className="space-y-3" data-testid="recovery-codes">
         <p className="text-sm text-ink">Two-factor sign-in is on. Save these recovery codes now; each works once and they are not shown again.</p>
-        <ul className="grid grid-cols-2 gap-2 rounded-md border border-line bg-surface p-3 font-mono text-sm text-ink">
+        <ul className="grid grid-cols-2 gap-2 rounded-control border border-line bg-surface p-3 font-mono text-sm text-ink">
           {activated.recoveryCodes.map((code) => (
             <li key={code}>{code}</li>
           ))}
@@ -44,7 +44,7 @@ export function TotpEnroll() {
       <p className="text-sm text-ink-muted">
         In your authenticator app choose to add an account with a key, and enter this key. Then type the 6-digit code it shows.
       </p>
-      <p className="break-all rounded-md border border-line bg-surface p-3 font-mono text-sm text-ink" data-testid="totp-secret">{pending.secret}</p>
+      <p className="break-all rounded-control border border-line bg-surface p-3 font-mono text-sm text-ink" data-testid="totp-secret">{pending.secret}</p>
       <Field label="6-digit code" htmlFor="totp-code">
         <TextInput id="totp-code" name="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required />
       </Field>

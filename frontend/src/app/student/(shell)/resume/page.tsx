@@ -37,7 +37,7 @@ export default async function ResumePage() {
       </div>
 
       {/* Printable Sheet */}
-      <div className="rounded-[var(--radius-card)] border border-line bg-surface p-6 sm:p-8 space-y-8 shadow-sm print:border-none print:shadow-none print:p-0">
+      <div className="rounded-surface border border-line bg-surface p-6 sm:p-8 space-y-8 shadow-sm print:border-none print:shadow-none print:p-0">
         {/* Identity Section */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 border-b border-line pb-6">
           <div className="space-y-1.5">
@@ -56,7 +56,7 @@ export default async function ResumePage() {
           </div>
 
           {/* Quick Metrics */}
-          <div className="flex items-center gap-4 rounded-[var(--radius-control)] bg-canvas/60 p-3 sm:gap-6 border border-line">
+          <div className="flex items-center gap-4 rounded-control bg-canvas/60 p-3 sm:gap-6 border border-line">
             <div className="text-center">
               <p className="text-2xl font-bold text-brand">{progress?.solved ?? 0}</p>
               <p className="text-[10px] uppercase font-bold tracking-wider text-ink-muted">Aether Solved</p>
@@ -109,7 +109,7 @@ export default async function ResumePage() {
             <GraduationCap className="size-4 text-brand" />
             <h3 className="text-xs font-bold uppercase tracking-wider text-ink">Education & Academics</h3>
           </div>
-          <div className="rounded-[var(--radius-control)] border border-line p-4 space-y-2 bg-canvas/20">
+          <div className="rounded-control border border-line p-4 space-y-2 bg-canvas/20">
             <p className="font-medium text-sm text-ink">{institutionName}</p>
           </div>
         </div>

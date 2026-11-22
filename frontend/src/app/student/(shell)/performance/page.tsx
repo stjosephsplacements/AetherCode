@@ -19,10 +19,10 @@ const DAY = new Intl.DateTimeFormat("en-CA", { timeZone: TIME_ZONE });
 
 function Tile({ icon, label, value, note }: { icon: ReactNode; label: string; value: string; note?: string }) {
   return (
-    <div className="rounded-3xl border border-line bg-surface shadow-[var(--shadow-panel)] p-5">
+    <div className="rounded-panel border border-line bg-surface shadow-[var(--shadow-panel)] p-5">
       <div className="flex items-center justify-between">
         <span className="font-[family-name:var(--font-eyebrow)] text-[10.5px] uppercase tracking-[0.14em] text-ink-subtle">{label}</span>
-        <span aria-hidden className="grid size-8 place-items-center rounded-[var(--radius-control)] bg-hover text-ink-muted">
+        <span aria-hidden className="grid size-8 place-items-center rounded-control bg-hover text-ink-muted">
           {icon}
         </span>
       </div>
@@ -77,7 +77,7 @@ export default async function PerformancePage() {
         <section aria-label="Practice" className="mt-8">
           <h2 className="mb-2.5 text-[15px] font-semibold tracking-[-0.01em] text-ink">Practice</h2>
           {practice.available > 0 ? <SolvedBars progress={practice} /> : <EmptyState>No practice problems yet. Your faculty adds them.</EmptyState>}
-          <div className="mt-3 rounded-3xl border border-line bg-surface shadow-[var(--shadow-panel)] p-5">
+          <div className="mt-3 rounded-panel border border-line bg-surface shadow-[var(--shadow-panel)] p-5">
             <p className="text-[13px] text-ink-muted">
               Practised on <span className="font-medium text-ink">{recentDays}</span> day{recentDays === 1 ? "" : "s"} in the last six months
             </p>
@@ -85,7 +85,7 @@ export default async function PerformancePage() {
               {grid.map((column) => (
                 <div key={column[0]!.day} className="flex flex-none flex-col gap-[3px]">
                   {column.map((cell) => (
-                    <span key={cell.day} title={cell.day} className={cn("size-3 rounded-[3px]", cell.future ? "bg-transparent" : cell.active ? "bg-brand" : "bg-line-strong")} />
+                    <span key={cell.day} title={cell.day} className={cn("size-3 rounded-chip", cell.future ? "bg-transparent" : cell.active ? "bg-brand" : "bg-line-strong")} />
                   ))}
                 </div>
               ))}
@@ -99,7 +99,7 @@ export default async function PerformancePage() {
         {results.length === 0 ? (
           <EmptyState>Exams you finish appear here with their scores.</EmptyState>
         ) : (
-          <ul className="divide-y divide-line overflow-hidden rounded-3xl border border-line bg-surface shadow-[var(--shadow-panel)]">
+          <ul className="divide-y divide-line overflow-hidden rounded-panel border border-line bg-surface shadow-[var(--shadow-panel)]">
             {results.map(({ attempt, result }) => {
               const share = result?.released && result.maximum_score > 0 ? Math.round((result.score / result.maximum_score) * 100) : null;
               return (
@@ -110,8 +110,8 @@ export default async function PerformancePage() {
                       <p className="mt-0.5 text-[12.5px] text-ink-muted">{formatDateTime(attempt.submitted_at ?? attempt.submission_deadline)}</p>
                     </div>
                     {share !== null && (
-                      <span className="hidden h-1.5 w-32 overflow-hidden rounded-full bg-line sm:block" aria-hidden>
-                        <span className="block h-full rounded-full bg-brand" style={{ width: `${share}%` }} />
+                      <span className="hidden h-1.5 w-32 overflow-hidden rounded-pill bg-line sm:block" aria-hidden>
+                        <span className="block h-full rounded-pill bg-brand" style={{ width: `${share}%` }} />
                       </span>
                     )}
                     <span className="w-24 text-right font-mono text-sm tabular-nums text-ink">

@@ -194,9 +194,9 @@ func (repository *Postgres) CreateExam(ctx context.Context, transaction pgx.Tx, 
 		INSERT INTO assessment.exams (id, tenant_id, external_reference, created_by)
 		VALUES ($1, $2, NULLIF($3, ''), authz.current_context_actor_id())
 		RETURNING id::text, tenant_id::text, COALESCE(external_reference, ''), lifecycle_state,
-		          version, created_at, updated_at
+		          version, created_by::text, created_at, updated_at
 	`, command.ID, command.TenantID, command.ExternalReference).Scan(
-		&exam.ID, &exam.TenantID, &exam.ExternalRef, &exam.LifecycleState, &exam.Version, &exam.CreatedAt, &exam.UpdatedAt,
+		&exam.ID, &exam.TenantID, &exam.ExternalRef, &exam.LifecycleState, &exam.Version, &exam.CreatedBy, &exam.CreatedAt, &exam.UpdatedAt,
 	)
 	if err != nil {
 		return app.Exam{}, mapWriteError(err, "exam could not be created")
@@ -564,13 +564,13 @@ func selectExamVersion(ctx context.Context, transaction pgx.Tx, id, tenantID str
 	err := transaction.QueryRow(ctx, `
 		SELECT id::text, tenant_id::text, exam_id::text, version_number, content_version, attempt_limit,
 		       title, instructions_markdown, opens_at, closes_at, duration_seconds,
-		       proctor_policy_version_id::text, status, published_at, created_at
+		       proctor_policy_version_id::text, status, published_at, created_by::text, created_at
 		FROM assessment.exam_versions
 		WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
 	`, id, tenantID).Scan(
 		&result.ID, &result.TenantID, &result.ExamID, &result.VersionNumber, &result.ContentVersion, &result.AttemptLimit,
 		&result.Title, &result.InstructionsMarkdown, &result.OpensAt, &result.ClosesAt, &result.DurationSeconds,
-		&result.ProctorPolicyVersionID, &result.Status, &result.PublishedAt, &result.CreatedAt,
+		&result.ProctorPolicyVersionID, &result.Status, &result.PublishedAt, &result.CreatedBy, &result.CreatedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return app.ExamVersion{}, apperrors.New(apperrors.CodeNotFound, "exam version was not found")
@@ -696,12 +696,12 @@ func (repository *Postgres) GetExam(ctx context.Context, transaction pgx.Tx, id,
 	var exam app.Exam
 	err := transaction.QueryRow(ctx, `
 		SELECT id::text, tenant_id::text, COALESCE(external_reference, ''), lifecycle_state,
-		       version, created_at, updated_at, deleted_at, deleted_by::text, deletion_reason
+		       version, created_by::text, created_at, updated_at, deleted_at, deleted_by::text, deletion_reason
 		FROM assessment.exams
 		WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
 	`, id, tenantID).Scan(
 		&exam.ID, &exam.TenantID, &exam.ExternalRef, &exam.LifecycleState,
-		&exam.Version, &exam.CreatedAt, &exam.UpdatedAt, &exam.DeletedAt, &exam.DeletedBy, &exam.DeletionReason,
+		&exam.Version, &exam.CreatedBy, &exam.CreatedAt, &exam.UpdatedAt, &exam.DeletedAt, &exam.DeletedBy, &exam.DeletionReason,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return app.Exam{}, apperrors.New(apperrors.CodeNotFound, "exam was not found")
@@ -716,12 +716,12 @@ func (repository *Postgres) GetExamIncludeDeleted(ctx context.Context, transacti
 	var exam app.Exam
 	err := transaction.QueryRow(ctx, `
 		SELECT id::text, tenant_id::text, COALESCE(external_reference, ''), lifecycle_state,
-		       version, created_at, updated_at, deleted_at, deleted_by::text, deletion_reason
+		       version, created_by::text, created_at, updated_at, deleted_at, deleted_by::text, deletion_reason
 		FROM assessment.exams
 		WHERE id = $1 AND tenant_id = $2
 	`, id, tenantID).Scan(
 		&exam.ID, &exam.TenantID, &exam.ExternalRef, &exam.LifecycleState,
-		&exam.Version, &exam.CreatedAt, &exam.UpdatedAt, &exam.DeletedAt, &exam.DeletedBy, &exam.DeletionReason,
+		&exam.Version, &exam.CreatedBy, &exam.CreatedAt, &exam.UpdatedAt, &exam.DeletedAt, &exam.DeletedBy, &exam.DeletionReason,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return app.Exam{}, apperrors.New(apperrors.CodeNotFound, "exam was not found")
@@ -744,9 +744,9 @@ func (repository *Postgres) UpdateExam(ctx context.Context, transaction pgx.Tx, 
 		  AND version = $4
 		  AND deleted_at IS NULL
 		RETURNING id::text, tenant_id::text, COALESCE(external_reference, ''), lifecycle_state,
-		          version, created_at, updated_at
+		          version, created_by::text, created_at, updated_at
 	`, command.ID, command.TenantID, command.ExternalReference, command.ExpectedVersion).Scan(
-		&exam.ID, &exam.TenantID, &exam.ExternalRef, &exam.LifecycleState, &exam.Version, &exam.CreatedAt, &exam.UpdatedAt,
+		&exam.ID, &exam.TenantID, &exam.ExternalRef, &exam.LifecycleState, &exam.Version, &exam.CreatedBy, &exam.CreatedAt, &exam.UpdatedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return app.Exam{}, apperrors.New(apperrors.CodeConflict, "exam version is stale or exam is no longer a draft")
@@ -837,7 +837,7 @@ func (repository *Postgres) ListCandidateAssignments(ctx context.Context, transa
 func (repository *Postgres) ListExams(ctx context.Context, transaction pgx.Tx, command app.ListExams) ([]app.Exam, error) {
 	rows, err := transaction.Query(ctx, `
 		SELECT id::text, tenant_id::text, COALESCE(external_reference, ''), lifecycle_state,
-		       version, created_at, updated_at
+		       version, created_by::text, created_at, updated_at
 		FROM assessment.exams
 		WHERE tenant_id = $1
 		  AND deleted_at IS NULL
@@ -859,7 +859,7 @@ func (repository *Postgres) ListExams(ctx context.Context, transaction pgx.Tx, c
 	for rows.Next() {
 		var exam app.Exam
 		if err := rows.Scan(&exam.ID, &exam.TenantID, &exam.ExternalRef, &exam.LifecycleState,
-			&exam.Version, &exam.CreatedAt, &exam.UpdatedAt); err != nil {
+			&exam.Version, &exam.CreatedBy, &exam.CreatedAt, &exam.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan exam row: %w", err)
 		}
 		exams = append(exams, exam)
@@ -877,7 +877,7 @@ func (repository *Postgres) ListExamVersions(ctx context.Context, transaction pg
 	rows, err := transaction.Query(ctx, `
 		SELECT id::text, tenant_id::text, exam_id::text, version_number, content_version, attempt_limit,
 		       title, instructions_markdown, opens_at, closes_at, duration_seconds,
-		       proctor_policy_version_id::text, status, published_at, created_at
+		       proctor_policy_version_id::text, status, published_at, created_by::text, created_at
 		FROM assessment.exam_versions
 		WHERE tenant_id = $1
 		  AND exam_id = $2::uuid
@@ -904,7 +904,7 @@ func (repository *Postgres) ListExamVersions(ctx context.Context, transaction pg
 			&version.ContentVersion, &version.AttemptLimit, &version.Title,
 			&version.InstructionsMarkdown, &version.OpensAt, &version.ClosesAt,
 			&version.DurationSeconds, &version.ProctorPolicyVersionID, &version.Status,
-			&version.PublishedAt, &version.CreatedAt,
+			&version.PublishedAt, &version.CreatedBy, &version.CreatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan exam version row: %w", err)
 		}
@@ -1001,7 +1001,7 @@ func attachLatestVersions(ctx context.Context, transaction pgx.Tx, tenantID stri
 	rows, err := transaction.Query(ctx, `
 		SELECT out_id::text, out_exam_id::text, out_version_number, out_content_version, out_attempt_limit,
 		       out_title, out_instructions_markdown, out_opens_at, out_closes_at, out_duration_seconds,
-		       out_proctor_policy_version_id::text, out_status, out_published_at, out_created_at
+		       out_proctor_policy_version_id::text, out_status, out_published_at, out_created_at, out_created_by::text
 		FROM assessment.latest_exam_versions($1, $2::uuid[])
 	`, tenantID, ids)
 	if err != nil {
@@ -1014,7 +1014,7 @@ func attachLatestVersions(ctx context.Context, transaction pgx.Tx, tenantID stri
 			&version.ID, &version.ExamID, &version.VersionNumber, &version.ContentVersion, &version.AttemptLimit,
 			&version.Title, &version.InstructionsMarkdown, &version.OpensAt, &version.ClosesAt,
 			&version.DurationSeconds, &version.ProctorPolicyVersionID, &version.Status,
-			&version.PublishedAt, &version.CreatedAt,
+			&version.PublishedAt, &version.CreatedAt, &version.CreatedBy,
 		); err != nil {
 			return fmt.Errorf("scan latest exam version: %w", err)
 		}

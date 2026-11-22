@@ -169,8 +169,29 @@ func TestPlacementAssignmentRequiresCurrentStaffAndTargetMembership(t *testing.T
 	if !assignmentApplies(assignment, request, false, targetScopes, map[string]struct{}{testPlacement: {}}, nil) {
 		t.Fatal("placement assignment did not apply with both target and staff membership")
 	}
-	if assignmentApplies(assignment, request, false, nil, map[string]struct{}{testPlacement: {}}, nil) {
-		t.Fatal("placement assignment applied to a student outside the placement department")
+	otherTrack := map[string]struct{}{"018f4b0d-08f8-7c09-9ba7-efdf9c229999": {}}
+	if assignmentApplies(assignment, request, false, otherTrack, map[string]struct{}{testPlacement: {}}, nil) {
+		t.Fatal("placement assignment applied to a student on another placement department")
+	}
+	if !assignmentApplies(assignment, request, false, nil, map[string]struct{}{testPlacement: {}}, nil) {
+		t.Fatal("placement assignment did not apply to an unplaced student in the pool")
+	}
+	collection := request
+	collection.ResourceID = testTenant
+	if !assignmentApplies(assignment, collection, false, nil, map[string]struct{}{testPlacement: {}}, nil) {
+		t.Fatal("placement assignment did not apply to a college roster collection read")
+	}
+	bank := Request{
+		PrincipalID: testPrincipal, Action: "write", ResourceType: "questions", ResourceID: "q1",
+	}
+	if !assignmentApplies(assignment, bank, true, nil, map[string]struct{}{testPlacement: {}}, nil) {
+		t.Fatal("placement assignment did not apply to global question-bank authoring")
+	}
+	exam := Request{
+		PrincipalID: testPrincipal, TenantID: testTenant, Action: "write", ResourceType: "exams", ResourceID: "e1",
+	}
+	if !assignmentApplies(assignment, exam, false, nil, map[string]struct{}{testPlacement: {}}, nil) {
+		t.Fatal("placement assignment did not apply to college exam authoring")
 	}
 }
 

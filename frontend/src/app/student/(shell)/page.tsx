@@ -20,7 +20,7 @@ const LEVELS = [
 ] as const;
 const WEEKDAYS = ["M", "T", "W", "T", "F", "S", "S"];
 const DAY = new Intl.DateTimeFormat("en-CA", { timeZone: TIME_ZONE }); // YYYY-MM-DD
-const card = "rounded-3xl border border-line bg-surface shadow-[var(--shadow-panel)]";
+const card = "rounded-panel border border-line bg-surface shadow-[var(--shadow-panel)]";
 
 export default async function StudentDashboard() {
   const viewer = await requireViewer();
@@ -54,17 +54,16 @@ export default async function StudentDashboard() {
     <div className="animate-enter space-y-6">
       <LiveRefresh topics={["attempts", "grading"]} />
       {/* Hero */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1b1640] via-[#5a210d] to-[#b84a0d] p-6 text-white shadow-[var(--shadow-panel)] sm:p-9">
-        <div aria-hidden className="pointer-events-none absolute -right-16 -top-20 size-72 rounded-full bg-white/15 blur-2xl" />
-        <div aria-hidden className="pointer-events-none absolute -bottom-24 left-1/3 size-72 rounded-full bg-black/10 blur-3xl" />
-        <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.12] [background-image:radial-gradient(circle_at_1px_1px,white_1px,transparent_0)] [background-size:22px_22px]" />
+      <section className="relative overflow-hidden rounded-panel p-6 text-[var(--poster-ink)] shadow-[var(--shadow-panel)] sm:p-9" style={{ background: "var(--poster-sky)" }}>
+        <div aria-hidden className="pointer-events-none absolute -right-16 -top-20 size-72 rounded-pill bg-[var(--poster-ink)]/10 blur-2xl" />
+        <div aria-hidden className="pointer-events-none absolute -bottom-24 left-1/3 size-72 rounded-pill bg-canvas/20 blur-3xl" />
         <div className="relative grid gap-8 lg:grid-cols-[1fr_minmax(0,420px)] lg:items-center">
           <div>
-            <span className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-[12.5px] font-medium backdrop-blur">{dateLine}</span>
+            <span className="inline-flex items-center gap-2 rounded-pill bg-[var(--poster-ink)]/15 px-3 py-1 text-[12.5px] font-medium backdrop-blur">{dateLine}</span>
             <h1 className="mt-4 text-[2rem] font-semibold leading-[1.1] tracking-[-0.03em] sm:text-[2.8rem]">
               {greeting}, {firstName}
             </h1>
-            <p className="mt-3 max-w-[52ch] text-[15.5px] leading-relaxed text-white/90">
+            <p className="mt-3 max-w-[52ch] text-[15.5px] leading-relaxed text-[var(--poster-ink)]/85">
               {live.length > 0
                 ? live.length === 1
                   ? "You have an exam open right now. Good luck."
@@ -77,33 +76,33 @@ export default async function StudentDashboard() {
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               {live[0] ? (
-                <Link href={`/student/exams/${live[0].id}`} className="inline-flex h-11 items-center gap-2 rounded-full bg-white px-6 text-[15px] font-semibold text-[#1b1640] shadow-lg transition-transform hover:-translate-y-0.5">
+                <Link href={`/student/exams/${live[0].id}`} className="inline-flex h-11 items-center gap-2 rounded-pill bg-[var(--poster-ink)] px-6 text-[15px] font-semibold text-[var(--poster-on-ink)] shadow-[var(--shadow-overlay)] transition-transform hover:-translate-y-0.5">
                   {resume ? "Resume exam" : "Start exam"}
                   <ArrowRight className="size-4" />
                 </Link>
               ) : (
-                <Link href="/student/practice" className="inline-flex h-11 items-center gap-2 rounded-full bg-white px-6 text-[15px] font-semibold text-[#1b1640] shadow-lg transition-transform hover:-translate-y-0.5">
+                <Link href="/student/practice" className="inline-flex h-11 items-center gap-2 rounded-pill bg-[var(--poster-ink)] px-6 text-[15px] font-semibold text-[var(--poster-on-ink)] shadow-[var(--shadow-overlay)] transition-transform hover:-translate-y-0.5">
                   <CodeBlock className="size-4" />
                   Practice now
                 </Link>
               )}
-              <Link href="/student/exams" className="inline-flex h-11 items-center rounded-full bg-white/15 px-6 text-[15px] font-medium text-white backdrop-blur transition-colors hover:bg-white/25">
+              <Link href="/student/exams" className="inline-flex h-11 items-center rounded-pill bg-[var(--poster-ink)]/15 px-6 text-[15px] font-medium text-[var(--poster-ink)] backdrop-blur transition-colors hover:bg-[var(--poster-ink)]/25">
                 All my exams
               </Link>
             </div>
           </div>
 
-          <div className="rounded-3xl border border-white/25 bg-white/15 p-5 backdrop-blur-md">
+          <div className="rounded-panel border border-[var(--poster-ink)]/25 bg-[var(--poster-ink)]/10 p-5 backdrop-blur-md">
             {next ? (
               <>
                 <div className="flex items-center justify-between gap-2 text-[12.5px]">
-                  <span className="rounded-full bg-white px-2.5 py-0.5 font-semibold text-[#1b1640]">{live[0] ? "Open now" : "Next exam"}</span>
-                  <span className="text-white/85">{formatDuration(next.duration_seconds)} limit</span>
+                  <span className="rounded-pill bg-[var(--poster-ink)] px-2.5 py-0.5 font-semibold text-[var(--poster-on-ink)]">{live[0] ? "Open now" : "Next exam"}</span>
+                  <span className="text-[var(--poster-ink)]/85">{formatDuration(next.duration_seconds)} limit</span>
                 </div>
                 <h2 className="mt-3 line-clamp-2 text-[19px] font-semibold leading-snug">{next.title}</h2>
-                <p className="mt-1 text-[13px] text-white/85">{formatWindow(next.available_from, next.available_until)}</p>
-                <div className="mt-5 flex items-end justify-between border-t border-white/25 pt-4">
-                  <span className="text-[12.5px] text-white/85">{live[0] ? "Closes in" : "Opens in"}</span>
+                <p className="mt-1 text-[13px] text-[var(--poster-ink)]/85">{formatWindow(next.available_from, next.available_until)}</p>
+                <div className="mt-5 flex items-end justify-between border-t border-[var(--poster-ink)]/25 pt-4">
+                  <span className="text-[12.5px] text-[var(--poster-ink)]/85">{live[0] ? "Closes in" : "Opens in"}</span>
                   <Countdown to={live[0] ? next.available_until : next.available_from} className="font-mono text-[34px] font-semibold tabular-nums leading-none" />
                 </div>
               </>
@@ -113,18 +112,18 @@ export default async function StudentDashboard() {
                   <span className="font-mono text-[22px] font-semibold">{solvedShare}%</span>
                 </Ring>
                 <div>
-                  <p className="text-[13px] text-white/85">Practice set</p>
+                  <p className="text-[13px] text-[var(--poster-ink)]/85">Practice set</p>
                   <p className="mt-0.5 text-[22px] font-semibold">
                     {progress.solved}/{progress.available} solved
                   </p>
-                  <p className="mt-1 text-[13px] text-white/85">No exams scheduled yet.</p>
+                  <p className="mt-1 text-[13px] text-[var(--poster-ink)]/85">No exams scheduled yet.</p>
                 </div>
               </div>
             ) : (
               <div className="py-6 text-center">
                 <CalendarDots className="mx-auto size-7" />
                 <p className="mt-2 font-semibold">No exams scheduled</p>
-                <p className="mt-0.5 text-[13px] text-white/85">New ones appear here as soon as faculty assign them.</p>
+                <p className="mt-0.5 text-[13px] text-[var(--poster-ink)]/85">New ones appear here as soon as faculty assign them.</p>
               </div>
             )}
           </div>
@@ -134,7 +133,7 @@ export default async function StudentDashboard() {
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <div className={cn(card, "p-5")}>
-          <span className="grid size-11 place-items-center rounded-2xl bg-brand-soft text-brand">
+          <span className="grid size-11 place-items-center rounded-panel bg-brand-soft text-brand">
             <CalendarDots className="size-5" />
           </span>
           <p className="mt-4 text-[13px] text-ink-muted">Exams ahead</p>
@@ -142,7 +141,7 @@ export default async function StudentDashboard() {
           <p className="mt-1.5 text-[12.5px] text-ink-subtle">{live.length ? `${live.length} open now` : "assigned by faculty"}</p>
         </div>
         <div className={cn(card, "p-5")}>
-          <span className="grid size-11 place-items-center rounded-2xl bg-success-soft text-success">
+          <span className="grid size-11 place-items-center rounded-panel bg-success-soft text-success">
             <BookOpenText className="size-5" />
           </span>
           <p className="mt-4 text-[13px] text-ink-muted">Completed</p>
@@ -151,7 +150,7 @@ export default async function StudentDashboard() {
         </div>
         <div className={cn(card, "flex items-center justify-between gap-3 p-5")}>
           <div>
-            <span className="grid size-11 place-items-center rounded-2xl bg-warning-soft text-warning">
+            <span className="grid size-11 place-items-center rounded-panel bg-warning-soft text-warning">
               <Trophy className="size-5" />
             </span>
             <p className="mt-4 text-[13px] text-ink-muted">Practice solved</p>
@@ -166,13 +165,13 @@ export default async function StudentDashboard() {
         </div>
         <div className={cn(card, "p-5")}>
           <div className="flex items-start justify-between">
-            <span className="grid size-11 place-items-center rounded-2xl bg-danger-soft text-danger">
+            <span className="grid size-11 place-items-center rounded-panel bg-danger-soft text-danger">
               <Fire className="size-5" />
             </span>
             <div className="flex gap-1.5" aria-label="This week">
               {week.map((cell, index) => (
                 <span key={cell.day} title={cell.day} className="flex flex-col items-center gap-1">
-                  <span className={cn("size-5 rounded-full", cell.active ? "bg-danger" : cell.day === today ? "border-2 border-danger/60" : "bg-hover")} />
+                  <span className={cn("size-5 rounded-pill", cell.active ? "bg-danger" : cell.day === today ? "border-2 border-danger/60" : "bg-hover")} />
                   <span className="text-[10px] text-ink-subtle">{WEEKDAYS[index]}</span>
                 </span>
               ))}
@@ -196,19 +195,19 @@ export default async function StudentDashboard() {
             </div>
             <div className="grid grid-cols-7 gap-2">
               {week.map((cell, index) => (
-                <div key={cell.day} className={cn("flex flex-col items-center gap-1.5 rounded-2xl py-3", cell.day === today ? "bg-brand text-brand-ink" : "bg-hover/70")}>
+                <div key={cell.day} className={cn("flex flex-col items-center gap-1.5 rounded-panel py-3", cell.day === today ? "bg-brand text-brand-ink" : "bg-hover/70")}>
                   <span className={cn("text-[11px] font-medium", cell.day === today ? "text-white/85" : "text-ink-subtle")}>{WEEKDAYS[index]}</span>
                   <span className="font-mono text-[15px] font-semibold">{Number(cell.day.slice(8))}</span>
                   <span className="flex h-2 items-center gap-1">
-                    {examDays.has(cell.day) && <span className={cn("size-1.5 rounded-full", cell.day === today ? "bg-white" : "bg-brand")} />}
-                    {cell.active && <span className={cn("size-1.5 rounded-full", cell.day === today ? "bg-white/70" : "bg-success")} />}
+                    {examDays.has(cell.day) && <span className={cn("size-1.5 rounded-pill", cell.day === today ? "bg-white" : "bg-brand")} />}
+                    {cell.active && <span className={cn("size-1.5 rounded-pill", cell.day === today ? "bg-white/70" : "bg-success")} />}
                   </span>
                 </div>
               ))}
             </div>
             <p className="mt-3 flex flex-wrap items-center gap-4 text-[12px] text-ink-subtle">
-              <span className="inline-flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-brand" /> exam</span>
-              <span className="inline-flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-success" /> practised</span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-1.5 rounded-pill bg-brand" /> exam</span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-1.5 rounded-pill bg-success" /> practised</span>
             </p>
           </section>
 
@@ -234,7 +233,7 @@ export default async function StudentDashboard() {
                   return (
                     <li key={assignment.id} className={cn(card, "flex flex-col p-5 transition-shadow hover:shadow-[var(--shadow-overlay)]", open && "border-brand/40")}>
                       <div className="flex items-start gap-4">
-                        <div className={cn("grid size-14 shrink-0 place-items-center rounded-2xl text-center leading-tight", open ? "bg-brand text-brand-ink" : "bg-hover text-ink")}>
+                        <div className={cn("grid size-14 shrink-0 place-items-center rounded-panel text-center leading-tight", open ? "bg-brand text-brand-ink" : "bg-hover text-ink")}>
                           <span>
                             <span className="block text-[18px] font-semibold">{new Intl.DateTimeFormat("en-IN", { timeZone: TIME_ZONE, day: "numeric" }).format(date)}</span>
                             <span className="block text-[10px] uppercase tracking-wider opacity-70">{new Intl.DateTimeFormat("en-IN", { timeZone: TIME_ZONE, month: "short" }).format(date)}</span>
@@ -252,7 +251,7 @@ export default async function StudentDashboard() {
                         </div>
                         <Link
                           href={`/student/exams/${assignment.id}`}
-                          className={cn("inline-flex h-9 items-center rounded-full px-4 text-[13px] font-semibold transition-colors", open ? "bg-brand text-brand-ink hover:bg-brand-hover" : "bg-hover text-ink hover:bg-line")}
+                          className={cn("inline-flex h-9 items-center rounded-pill px-4 text-[13px] font-semibold transition-colors", open ? "bg-brand text-brand-ink hover:bg-brand-hover" : "bg-hover text-ink hover:bg-line")}
                         >
                           {open ? (attemptOf.get(assignment.id)?.lifecycle_state === "active" ? "Resume" : "Start") : "Details"}
                         </Link>
@@ -281,7 +280,7 @@ export default async function StudentDashboard() {
                   const unfinished = attempt && (attempt.lifecycle_state === "created" || attempt.lifecycle_state === "active");
                   return (
                     <li key={assignment.id} className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-hover/60">
-                      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-success-soft text-success">
+                      <span className="grid size-10 shrink-0 place-items-center rounded-surface bg-success-soft text-success">
                         <BookOpenText className="size-4" />
                       </span>
                       <div className="min-w-0 flex-1">
@@ -289,7 +288,7 @@ export default async function StudentDashboard() {
                         <p className="text-[12.5px] text-ink-muted">Finished {formatDateTime(assignment.available_until)}</p>
                       </div>
                       {attempt ? (
-                        <Link href={unfinished ? `/student/attempts/${attempt.id}` : `/student/results/${attempt.id}`} className="rounded-full bg-hover px-3.5 py-1.5 text-[12.5px] font-semibold text-ink transition-colors hover:bg-line">
+                        <Link href={unfinished ? `/student/attempts/${attempt.id}` : `/student/results/${attempt.id}`} className="rounded-pill bg-hover px-3.5 py-1.5 text-[12.5px] font-semibold text-ink transition-colors hover:bg-line">
                           {unfinished ? "Resume" : "View result"}
                         </Link>
                       ) : (
@@ -317,7 +316,7 @@ export default async function StudentDashboard() {
                   {LEVELS.map((level) => {
                     const row = progress.by_difficulty[level.key];
                     return (
-                      <div key={level.key} className="flex flex-col items-center gap-2 rounded-2xl bg-hover/60 py-4">
+                      <div key={level.key} className="flex flex-col items-center gap-2 rounded-panel bg-hover/60 py-4">
                         <Ring value={row?.solved ?? 0} max={row?.available ?? 0} size={64} stroke={7} barClass={level.bar}>
                           <span className="font-mono text-[13px] font-semibold text-ink">{row?.solved ?? 0}</span>
                         </Ring>
@@ -332,7 +331,7 @@ export default async function StudentDashboard() {
                   {grid.map((column) => (
                     <div key={column[0]!.day} className="flex flex-1 flex-col gap-[3px]">
                       {column.map((cell) => (
-                        <span key={cell.day} title={cell.day} className={cn("aspect-square rounded-[4px]", cell.future ? "bg-transparent" : cell.active ? "bg-brand" : "bg-line-strong")} />
+                        <span key={cell.day} title={cell.day} className={cn("aspect-square rounded-chip", cell.future ? "bg-transparent" : cell.active ? "bg-brand" : "bg-line-strong")} />
                       ))}
                     </div>
                   ))}
@@ -351,7 +350,7 @@ export default async function StudentDashboard() {
               { href: "/student/tasks", label: "My tasks", note: "Your to-do list", icon: ListChecks, tone: "bg-danger-soft text-danger" },
             ].map(({ href, label, note, icon: Icon, tone }) => (
               <Link key={href} href={href} className={cn(card, "group p-4 transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-overlay)]")}>
-                <span className={cn("grid size-10 place-items-center rounded-xl", tone)}>
+                <span className={cn("grid size-10 place-items-center rounded-surface", tone)}>
                   <Icon className="size-[18px]" />
                 </span>
                 <p className="mt-3 text-[14px] font-semibold text-ink">{label}</p>

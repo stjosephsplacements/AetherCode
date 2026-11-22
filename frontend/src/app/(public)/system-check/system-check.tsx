@@ -186,13 +186,13 @@ export function SystemCheck() {
         </Button>
       </div>
 
-      <ul className="mt-6 divide-y divide-line overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface">
+      <ul className="mt-6 divide-y divide-line overflow-hidden rounded-surface border border-line bg-surface">
         {CHECKS.map((check) => {
           const result = results[check.id];
           return (
             <li key={check.id} className="px-5 py-4">
               <div className="flex items-center gap-3">
-                <span className="grid size-7 shrink-0 place-items-center rounded-full bg-surface-2">{result ? ICONS[result.state] : ICONS.running}</span>
+                <span className="grid size-7 shrink-0 place-items-center rounded-pill bg-surface-2">{result ? ICONS[result.state] : ICONS.running}</span>
                 <span className="flex-1 text-[15px] text-ink">{check.title}</span>
                 <span className={cn("font-mono text-[13px]", result?.state === "fail" ? "text-danger" : "text-ink-muted")}>{result?.value ?? "Waiting"}</span>
               </div>

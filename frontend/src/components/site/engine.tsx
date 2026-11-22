@@ -69,8 +69,8 @@ export function Engine() {
       </p>
 
       <div className="relative mt-12">
-      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 mx-auto h-[80%] max-w-5xl rounded-[40px] bg-brand/8 blur-[60px]" />
-      <LiquidGlass strong className="relative overflow-hidden rounded-3xl shadow-[var(--shadow-overlay)]">
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 mx-auto h-[80%] max-w-5xl rounded-panel bg-brand/8 blur-[60px]" />
+      <LiquidGlass strong className="relative overflow-hidden rounded-panel shadow-[var(--shadow-overlay)]">
         <div className="flex border-b border-line font-mono text-[13px]">
           <p className="px-4 py-2.5 text-ink">aethercode-execution-engine</p>
           <p className="ml-auto hidden px-4 py-2.5 text-ink-subtle sm:block">Go · sandboxed</p>

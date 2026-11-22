@@ -40,7 +40,7 @@ export default async function BlogsPage({ searchParams }: { searchParams: Promis
         {posts.length === 0 ? (
           <EmptyState>{tag ? `No posts tagged “${tag}”.` : "No posts yet."}</EmptyState>
         ) : (
-          <ul className="overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface">
+          <ul className="overflow-hidden rounded-surface border border-line bg-surface">
             {posts.map((post, index) => (
               <li key={post.id} className={cn("px-5 py-4", index > 0 && "border-t border-line")}>
                 <Link href={`/student/blogs/${post.id}`} className="text-[16px] font-medium text-ink hover:text-brand">
@@ -51,7 +51,7 @@ export default async function BlogsPage({ searchParams }: { searchParams: Promis
                 {post.tags.length > 0 && (
                   <p className="mt-2 flex flex-wrap gap-1.5">
                     {post.tags.map((name) => (
-                      <Link key={name} href={`/student/blogs?tag=${encodeURIComponent(name)}`} className="rounded-full bg-hover px-2.5 py-0.5 text-[12px] text-ink-muted hover:text-ink">
+                      <Link key={name} href={`/student/blogs?tag=${encodeURIComponent(name)}`} className="rounded-pill bg-hover px-2.5 py-0.5 text-[12px] text-ink-muted hover:text-ink">
                         {name}
                       </Link>
                     ))}

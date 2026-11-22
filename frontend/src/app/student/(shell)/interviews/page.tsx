@@ -32,7 +32,7 @@ export default async function InterviewsPage({ searchParams }: { searchParams: P
 
       <form className="mt-6 flex max-w-[420px] gap-2" role="search">
         <TextInput name="company" defaultValue={company} placeholder="Filter by company" aria-label="Filter by company" />
-        <button type="submit" className="rounded-[var(--radius-control)] bg-hover px-3 text-sm text-ink hover:bg-line">Search</button>
+        <button type="submit" className="rounded-control bg-hover px-3 text-sm text-ink hover:bg-line">Search</button>
       </form>
 
       <div className="mt-6 space-y-4">

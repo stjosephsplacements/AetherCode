@@ -1,6 +1,6 @@
 "use client";
 
-import { CaretUpDown, Key, Moon, ShieldCheck, SignOut, Sun } from "@phosphor-icons/react/ssr";
+import { CaretUpDown, Key, Moon, SignOut, Sun } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { DropdownMenu } from "radix-ui";
 import { useTransition } from "react";
@@ -18,12 +18,12 @@ export function AccountMenu({ viewer, compact = false }: { viewer: Viewer; compa
     <DropdownMenu.Root>
       <DropdownMenu.Trigger
         className={cn(
-          "flex items-center gap-2.5 rounded-[var(--radius-control)] text-left outline-none transition-colors hover:bg-hover data-[state=open]:bg-hover",
-          compact ? "p-1" : "w-full p-2",
+          "flex items-center gap-2.5 text-left outline-none transition-colors hover:bg-hover data-[state=open]:bg-hover",
+          compact ? "rounded-pill p-1" : "w-full rounded-control p-2",
         )}
         aria-label="Account"
       >
-        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-ink text-[13px] font-semibold text-canvas">{initial}</span>
+        <span className="grid size-8 shrink-0 place-items-center rounded-pill bg-ink text-[13px] font-semibold text-canvas">{initial}</span>
         {!compact && (
           <>
             <span className="min-w-0 flex-1">
@@ -36,10 +36,12 @@ export function AccountMenu({ viewer, compact = false }: { viewer: Viewer; compa
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content
+          // Collapsed rail sits at the bottom-left: open beside the avatar, not below the viewport.
           align={compact ? "end" : "start"}
-          side={compact ? "bottom" : "top"}
-          sideOffset={6}
-          className="z-50 min-w-[220px] animate-fade rounded-[var(--radius-control)] border border-line bg-surface p-1 shadow-[var(--shadow-overlay)]"
+          side={compact ? "right" : "top"}
+          sideOffset={compact ? 10 : 6}
+          collisionPadding={12}
+          className="z-50 min-w-[220px] animate-fade rounded-control border border-line bg-surface p-1 shadow-[var(--shadow-overlay)]"
         >
           <div className="px-2.5 py-2">
             <p className="truncate text-sm font-medium text-ink">{name}</p>
@@ -52,7 +54,7 @@ export function AccountMenu({ viewer, compact = false }: { viewer: Viewer; compa
               event.preventDefault();
               setTheme(theme === "dark" ? "light" : "dark");
             }}
-            className="flex w-full cursor-default items-center gap-2 rounded-md px-2.5 py-2 text-sm text-ink outline-none data-[highlighted]:bg-hover"
+            className="flex w-full cursor-default items-center gap-2 rounded-control px-2.5 py-2 text-sm text-ink outline-none data-[highlighted]:bg-hover"
           >
             {theme === "dark" ? (
               <Sun className="size-4 text-ink-muted" />
@@ -62,22 +64,16 @@ export function AccountMenu({ viewer, compact = false }: { viewer: Viewer; compa
             {theme === "dark" ? "Light theme" : "Dark theme"}
           </DropdownMenu.Item>
           <DropdownMenu.Item asChild>
-            <Link href="/account/password" className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm text-ink outline-none data-[highlighted]:bg-hover">
+            <Link href="/account/password" className="flex w-full items-center gap-2 rounded-control px-2.5 py-2 text-sm text-ink outline-none data-[highlighted]:bg-hover">
               <Key className="size-4 text-ink-muted" />
               Change password
-            </Link>
-          </DropdownMenu.Item>
-          <DropdownMenu.Item asChild>
-            <Link href="/account/security" className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm text-ink outline-none data-[highlighted]:bg-hover">
-              <ShieldCheck className="size-4 text-ink-muted" />
-              Two-factor sign-in
             </Link>
           </DropdownMenu.Item>
           {/* Called directly: a form inside the menu unmounts with it before it can submit. */}
           <DropdownMenu.Item
             disabled={signingOut}
             onSelect={() => startSignOut(() => logout())}
-            className="flex w-full cursor-default items-center gap-2 rounded-md px-2.5 py-2 text-sm text-ink outline-none data-[disabled]:opacity-60 data-[highlighted]:bg-hover"
+            className="flex w-full cursor-default items-center gap-2 rounded-control px-2.5 py-2 text-sm text-ink outline-none data-[disabled]:opacity-60 data-[highlighted]:bg-hover"
           >
             <SignOut className="size-4 text-ink-muted" />
             {signingOut ? "Signing out" : "Sign out"}

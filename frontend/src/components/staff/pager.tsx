@@ -19,7 +19,7 @@ export function Pager({ meta, param = "page", noun = "rows" }: { meta: Meta; par
     const qs = next.toString();
     return qs ? `${pathname}?${qs}` : pathname;
   };
-  const btn = "rounded-md border border-line px-3 py-1.5 text-xs transition-colors";
+  const btn = "rounded-control border border-line px-3 py-1.5 text-xs transition-colors";
 
   return (
     <nav aria-label="Pagination" className="mt-3 flex items-center justify-between gap-3 text-xs text-ink-subtle">
@@ -46,7 +46,7 @@ export function Pager({ meta, param = "page", noun = "rows" }: { meta: Meta; par
 /** Same footer for lists paged in memory (client components, modals). */
 export function LocalPager({ meta, onPage, noun = "rows" }: { meta: Meta; onPage: (page: number) => void; noun?: string }) {
   if (meta.pages <= 1) return null;
-  const btn = "rounded-md border border-line px-3 py-1.5 text-xs text-ink transition-colors hover:bg-hover disabled:opacity-40 disabled:hover:bg-transparent";
+  const btn = "rounded-control border border-line px-3 py-1.5 text-xs text-ink transition-colors hover:bg-hover disabled:opacity-40 disabled:hover:bg-transparent";
   return (
     <nav aria-label="Pagination" className="mt-3 flex items-center justify-between gap-3 text-xs text-ink-subtle">
       <span className="tabular-nums">

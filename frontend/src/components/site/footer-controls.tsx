@@ -11,7 +11,7 @@ export function ThemeSwitch() {
     <button
       type="button"
       onClick={() => setTheme(next)}
-      className="inline-flex h-8 items-center gap-2 rounded-full border border-line-strong px-3 text-[13px] text-ink-muted transition-colors hover:bg-hover hover:text-ink"
+      className="inline-flex h-8 items-center gap-2 rounded-pill border border-line-strong px-3 text-[13px] text-ink-muted transition-colors hover:bg-hover hover:text-ink"
     >
       {theme === "dark" ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}
       {theme === "dark" ? "Light theme" : "Dark theme"}
@@ -36,7 +36,7 @@ export function ThemeIcon() {
       type="button"
       onClick={() => setTheme(next)}
       aria-label={`Switch to ${next} theme`}
-      className="grid size-8 place-items-center rounded-full text-ink-muted transition-colors hover:bg-hover hover:text-ink"
+      className="grid size-8 place-items-center rounded-pill text-ink-muted transition-colors hover:bg-hover hover:text-ink"
     >
       {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
     </button>

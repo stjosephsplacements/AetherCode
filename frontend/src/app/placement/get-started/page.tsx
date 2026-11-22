@@ -1,4 +1,4 @@
-import { ArrowRight, Briefcase, ChartBar, Question, Stack, Users } from "@phosphor-icons/react/ssr";
+import { ArrowRight, Briefcase, ChartBar, NotePencil, Question, Users } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requirePlacement } from "@/lib/server/placement";
@@ -7,90 +7,80 @@ export const metadata: Metadata = { title: "Get started" };
 
 const STEPS = [
   {
-    icon: Stack,
-    title: "Set up placement departments",
-    text: "Create your placement organisation (e.g. SJPTC), then add tracks like ELITE, HOPE, PEP under it.",
-    href: "/placement/departments",
-    cta: "Departments",
-  },
-  {
     icon: Users,
-    title: "Assign placement officers",
-    text: "Pick existing staff members and assign them to placement departments.",
-    href: "/placement/staff",
-    cta: "Officers",
+    title: "Assign students to your track",
+    text: "Select students already enrolled in a college and map them into your placement department. You do not create accounts.",
+    href: "/placement/students",
+    cta: "Students",
   },
   {
     icon: Briefcase,
-    title: "View student placements",
-    text: "See which students are in each track, filter by college or batch, and export to CSV.",
+    title: "Review placements",
+    text: "See who is in each track you manage, filter by college or batch, and export to CSV.",
     href: "/placement",
     cta: "Placements",
   },
   {
     icon: Question,
-    title: "Browse the question bank",
-    text: "All questions shared across colleges. See what's available for placement exams.",
-    href: "/placement/questions",
-    cta: "Questions",
+    title: "Author questions",
+    text: "Write drafts in the shared bank for placement exams.",
+    href: "/placement/questions/new",
+    cta: "New question",
+  },
+  {
+    icon: NotePencil,
+    title: "Run placement exams",
+    text: "Create an exam under a host college, then assign it to your tracks.",
+    href: "/placement/exams/new",
+    cta: "New exam",
   },
   {
     icon: ChartBar,
-    title: "Check exams across colleges",
-    text: "Published and draft exams from every college in one view.",
-    href: "/placement/exams",
-    cta: "Exams",
+    title: "Check analytics",
+    text: "How many students sit in each track across the colleges you reach.",
+    href: "/placement/analytics",
+    cta: "Analytics",
   },
 ];
 
 export default async function PlacementGetStarted() {
   const placement = await requirePlacement();
   const firstName = placement.viewer.displayName.split(" ")[0] || placement.viewer.username;
+  const tracks =
+    placement.departmentIds.length === 0
+      ? "Ask a platform administrator to assign you a placement department."
+      : placement.departmentIds.length === 1
+        ? "You work in one assigned placement department."
+        : `You work across ${placement.departmentIds.length} assigned placement departments.`;
 
   return (
     <div className="mx-auto max-w-2xl animate-enter">
-      {/* Hero */}
-      <div className="mb-10 overflow-hidden rounded-3xl" style={{ background: "var(--poster-sky)" }}>
+      <div className="mb-10 overflow-hidden rounded-panel" style={{ background: "var(--poster-sky)" }}>
         <div className="px-7 py-8" style={{ background: "var(--horizon)" }}>
           <p className="font-[family-name:var(--font-eyebrow)] text-[10px] uppercase tracking-[0.18em] text-white/60">Placement console</p>
-          <h1 className="mt-2 text-[28px] font-semibold leading-tight tracking-[-0.025em] text-white">
-            Hey {firstName}
-          </h1>
-          <p className="mt-1.5 text-[14px] leading-relaxed text-white/70">
-            Manage organisations, assign officers, and track students across every college.
-          </p>
+          <h1 className="mt-2 text-[28px] font-semibold leading-tight tracking-[-0.025em] text-white">Hey {firstName}</h1>
+          <p className="mt-1.5 text-[14px] leading-relaxed text-white/70">{tracks}</p>
         </div>
       </div>
 
-      {/* Vertical timeline */}
       <ol className="relative space-y-0">
         {STEPS.map((step, i) => {
           const Icon = step.icon;
           const last = i === STEPS.length - 1;
           return (
-            <li
-              key={step.href}
-              className="animate-enter flex gap-5"
-              style={{ animationDelay: `${i * 60}ms` }}
-            >
-              {/* Spine */}
+            <li key={step.href} className="animate-enter flex gap-5" style={{ animationDelay: `${i * 60}ms` }}>
               <div className="flex flex-col items-center">
-                <div className="grid size-10 shrink-0 place-items-center rounded-full border border-line bg-surface shadow-[var(--shadow-hairline)]">
+                <div className="grid size-10 shrink-0 place-items-center rounded-pill border border-line bg-surface shadow-[var(--shadow-hairline)]">
                   <Icon className="size-4 text-brand" />
                 </div>
-                {!last && <div className="my-1 w-px flex-1 border-l border-dashed border-line" />}
+                {!last && <div className="my-1 w-px flex-1 bg-line" />}
               </div>
-
-              {/* Content */}
-              <div className="min-w-0 flex-1 pb-8">
-                <p className="font-[family-name:var(--font-eyebrow)] text-[10px] tracking-[0.12em] text-ink-subtle opacity-50">
-                  {String(i + 1).padStart(2, "0")}
-                </p>
-                <p className="mt-0.5 text-[15px] font-semibold text-ink">{step.title}</p>
-                <p className="mt-1 text-[13px] leading-relaxed text-ink-muted">{step.text}</p>
+              <div className={`min-w-0 flex-1 ${last ? "pb-0" : "pb-8"}`}>
+                <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">{step.title}</h2>
+                <p className="mt-1 text-[13.5px] leading-relaxed text-ink-muted">{step.text}</p>
                 <Link
                   href={step.href}
-                  className="mt-2.5 inline-flex items-center gap-1.5 text-[13px] font-medium text-brand transition-opacity hover:opacity-75"
+                  className="mt-3 inline-flex items-center gap-1.5 text-[13px] font-medium text-brand hover:underline"
                 >
                   {step.cta}
                   <ArrowRight className="size-3.5" />

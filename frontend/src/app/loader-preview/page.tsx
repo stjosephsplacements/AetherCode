@@ -11,7 +11,7 @@ export default function LoaderPreviewPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-2xl">
         {/* Light Theme Panel */}
-        <div className="flex flex-col items-center justify-center p-10 rounded-2xl border border-line bg-[#fbfbfd] shadow-sm space-y-4">
+        <div className="flex flex-col items-center justify-center p-10 rounded-panel border border-line bg-[#fbfbfd] shadow-sm space-y-4">
           <span className="text-xs font-mono font-medium text-neutral-500 uppercase">Light Theme (4.png)</span>
           <div className="p-8">
             <LogoLoader size={80} theme="light" />
@@ -19,7 +19,7 @@ export default function LoaderPreviewPage() {
         </div>
 
         {/* Dark Theme Panel */}
-        <div className="flex flex-col items-center justify-center p-10 rounded-2xl border border-neutral-800 bg-[#141419] shadow-sm space-y-4">
+        <div className="flex flex-col items-center justify-center p-10 rounded-panel border border-neutral-800 bg-[#141419] shadow-sm space-y-4">
           <span className="text-xs font-mono font-medium text-neutral-400 uppercase">Dark Theme (3.png)</span>
           <div className="p-8">
             <LogoLoader size={80} theme="dark" />
@@ -29,7 +29,7 @@ export default function LoaderPreviewPage() {
 
       <div className="flex flex-col items-center gap-3">
         <span className="text-xs font-mono text-ink-subtle uppercase">Auto-switching System Theme</span>
-        <div className="p-6 rounded-xl border border-line bg-surface">
+        <div className="p-6 rounded-surface border border-line bg-surface">
           <LogoLoader size={64} theme="auto" />
         </div>
       </div>

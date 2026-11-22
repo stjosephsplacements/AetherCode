@@ -33,7 +33,7 @@ export default async function CompletedPage() {
           Exams you finish appear here.
         </EmptyState>
       ) : (
-        <ul className="divide-y divide-line overflow-hidden rounded-3xl border border-line bg-surface shadow-[var(--shadow-panel)]">
+        <ul className="divide-y divide-line overflow-hidden rounded-panel border border-line bg-surface shadow-[var(--shadow-panel)]">
           {finished.map((attempt) => {
             const [label, tone] = STATE[attempt.lifecycle_state as keyof typeof STATE];
             return (

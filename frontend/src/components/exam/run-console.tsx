@@ -77,7 +77,7 @@ export function RunConsole({ state, idleText }: { state: RunState; idleText?: st
     return (
       <div className="h-full overflow-auto px-4 pb-4">
         <p className="mb-2 text-[13px] font-medium text-danger">Compilation error</p>
-        <pre className="whitespace-pre-wrap rounded-[var(--radius-control)] bg-danger-soft p-3 font-mono text-xs leading-relaxed text-danger">
+        <pre className="whitespace-pre-wrap rounded-control bg-danger-soft p-3 font-mono text-xs leading-relaxed text-danger">
           {compileOutput}
         </pre>
       </div>
@@ -98,7 +98,7 @@ export function RunConsole({ state, idleText }: { state: RunState; idleText?: st
               aria-selected={index === selected}
               onClick={() => setSelected(index)}
               className={cn(
-                "flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-[13px] transition-colors",
+                "flex h-7 shrink-0 items-center gap-1.5 rounded-pill px-3 text-[13px] transition-colors",
                 index === selected ? "bg-surface font-medium text-ink shadow-[var(--shadow-hairline)] ring-1 ring-line" : "text-ink-muted hover:bg-hover",
               )}
             >
@@ -164,7 +164,7 @@ function Block({ label, value, tone }: { label: string; value: string | null; to
       <p className="mb-1.5 text-xs text-ink-muted">{label}</p>
       <pre
         className={cn(
-          "max-h-36 overflow-auto whitespace-pre-wrap rounded-[var(--radius-control)] border border-line bg-surface px-3 py-2 font-mono text-xs leading-relaxed text-ink",
+          "max-h-36 overflow-auto whitespace-pre-wrap rounded-control border border-line bg-surface px-3 py-2 font-mono text-xs leading-relaxed text-ink",
           tone === "danger" && "border-danger/30",
         )}
       >

@@ -59,7 +59,7 @@ export default async function StatusPage() {
         </div>
       </div>
 
-      <ul className="mt-6 divide-y divide-line overflow-hidden rounded-[var(--radius-surface)] overflow-hidden border border-line-strong bg-surface shadow-[var(--shadow-panel)]">
+      <ul className="mt-6 divide-y divide-line overflow-hidden rounded-surface overflow-hidden border border-line-strong bg-surface shadow-[var(--shadow-panel)]">
         {checks.map((check) => (
           <li key={check.name} className="flex items-start justify-between gap-6 px-6 py-5">
             <div>

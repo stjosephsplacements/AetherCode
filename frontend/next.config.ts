@@ -53,6 +53,9 @@ const nextConfig: NextConfig = {
       { source: "/staff/colleges", destination: "/admin/colleges", permanent: false },
       { source: "/staff/analytics/platform", destination: "/admin/analytics", permanent: false },
       { source: "/staff/placements", destination: "/placement", permanent: false },
+      // Placement setup moved under /admin (ADR-0089).
+      { source: "/placement/departments", destination: "/admin/placement/departments", permanent: false },
+      { source: "/placement/staff", destination: "/admin/placement/officers", permanent: false },
     ];
   },
   async headers() {

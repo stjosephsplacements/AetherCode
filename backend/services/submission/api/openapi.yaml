@@ -1472,6 +1472,7 @@ components:
         id: {$ref: '#/components/schemas/UUID'}
         body: {type: string, maxLength: 1000}
         created_at: {type: string, format: date-time, maxLength: 35}
+        created_by: {$ref: '#/components/schemas/UUID'}
     UUID:
       type: string
       format: uuid

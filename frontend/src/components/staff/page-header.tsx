@@ -30,21 +30,14 @@ export function Section({ title, description, children, actions }: { title: stri
 }
 
 export function EmptyState({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="rounded-[var(--radius-surface)] border border-dashed border-line-strong px-6 py-12 text-center text-sm text-ink-muted">
-      <p aria-hidden className="mb-2 font-mono text-[12px] text-ink-subtle">
-        [ empty ]
-      </p>
-      {children}
-    </div>
-  );
+  return <div className="rounded-surface border border-dashed border-line-strong px-6 py-10 text-center text-sm text-ink-muted">{children}</div>;
 }
 
 /** Shown when a request fails, typically because the role may not read this. */
 export function LoadError({ error }: { error: unknown }) {
   const status = (error as GatewayError | undefined)?.status;
   return (
-    <div role="alert" className="flex items-start gap-3 rounded-[var(--radius-surface)] border border-line bg-surface px-5 py-4 text-sm text-ink-muted">
+    <div role="alert" className="flex items-start gap-3 rounded-surface border border-line bg-surface px-5 py-4 text-sm text-ink-muted shadow-[var(--shadow-panel)]">
       <WarningCircle className="mt-0.5 size-4 shrink-0 text-danger" />
       <p>
         {status === 403
@@ -58,7 +51,7 @@ export function LoadError({ error }: { error: unknown }) {
 /** A ruled ledger for staff lists: mono column heads, rows that light up on hover. */
 export function Table({ head, children }: { head: string[]; children: React.ReactNode }) {
   return (
-    <div className="overflow-x-auto rounded-[var(--radius-surface)] border border-line bg-surface">
+    <div className="overflow-x-auto rounded-surface border border-line bg-surface shadow-[var(--shadow-panel)]">
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b border-line bg-sidebar">

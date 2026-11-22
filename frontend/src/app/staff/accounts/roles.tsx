@@ -43,22 +43,22 @@ export function RoleEditor({
     <div className="space-y-2">
       <div className="flex flex-wrap gap-1.5">
         {roles.map((chip) => (
-          <form key={chip.id} action={revokeAction} className="inline-flex items-center gap-1 rounded-full bg-hover py-0.5 pl-2.5 pr-1 text-xs text-ink">
+          <form key={chip.id} action={revokeAction} className="inline-flex items-center gap-1 rounded-pill bg-hover py-0.5 pl-2.5 pr-1 text-xs text-ink">
             {chip.label}
             <input type="hidden" name="role_assignment_id" value={chip.id} />
             <input type="hidden" name="college_id" value={collegeId} />
-            <button type="submit" aria-label={`Remove ${chip.label}`} className="grid size-5 place-items-center rounded-full text-ink-muted hover:bg-surface hover:text-danger">
+            <button type="submit" aria-label={`Remove ${chip.label}`} className="grid size-5 place-items-center rounded-pill text-ink-muted hover:bg-surface hover:text-danger">
               <X className="size-3" />
             </button>
           </form>
         ))}
-        <button type="button" onClick={() => setOpen((value) => !value)} className="rounded-full px-2.5 py-0.5 text-xs text-brand hover:bg-brand-soft">
+        <button type="button" onClick={() => setOpen((value) => !value)} className="rounded-pill px-2.5 py-0.5 text-xs text-brand hover:bg-brand-soft">
           {open ? "Cancel" : "+ Add role"}
         </button>
       </div>
       <FormMessage state={revoked} />
       {open && (
-        <form action={grantAction} className="space-y-2 rounded-[var(--radius-control)] border border-line bg-canvas/40 p-3">
+        <form action={grantAction} className="space-y-2 rounded-control border border-line bg-canvas/40 p-3">
           <input type="hidden" name="principal_id" value={principalId} />
           <input type="hidden" name="college_id" value={collegeId} />
           <Select name="role" aria-label="Role" size="sm" className="w-full" value={role} onValueChange={(value) => setRole(value as keyof typeof ROLE_LABELS)}>

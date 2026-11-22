@@ -113,7 +113,7 @@ export function MFAGate({
               placeholder="000000"
               value={totpCode}
               onChange={(e) => { setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6)); setStepUpError(null); }}
-              className="w-full rounded-[var(--radius-control)] border border-line-strong bg-surface px-3 py-2 text-center text-lg font-mono tracking-[0.3em] text-ink shadow-[var(--shadow-hairline)] outline-none transition-[border-color,box-shadow] focus:border-brand focus:ring-4 focus:ring-brand/15"
+              className="w-full rounded-control border border-line-strong bg-surface px-3 py-2 text-center text-lg font-mono tracking-[0.3em] text-ink shadow-[var(--shadow-hairline)] outline-none transition-[border-color,box-shadow] focus:border-brand focus:ring-4 focus:ring-brand/15"
               autoFocus
             />
             {stepUpError && (

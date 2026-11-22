@@ -48,7 +48,7 @@ export async function requireAdmin(): Promise<StaffContext> {
 /** requireStaff, for pages that need a college. */
 export async function requireCollege(): Promise<StaffContext & { tenantId: string }> {
   const staff = await requireStaff();
-  if (!staff.tenantId) redirect("/admin");
+  if (!staff.tenantId) redirect("/admin/explore");
   return staff as StaffContext & { tenantId: string };
 }
 
@@ -61,6 +61,6 @@ export function collegesFor(staff: StaffContext): CollegeRef[] {
 
 /** The college a change targets: always the one the member works in, whatever is sent. */
 export function collegeFor(staff: StaffContext): string {
-  if (!staff.tenantId) redirect("/admin");
+  if (!staff.tenantId) redirect("/admin/explore");
   return staff.tenantId;
 }

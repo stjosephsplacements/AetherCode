@@ -27,7 +27,7 @@ export function ExamPeek({ exam, now, className, children, label }: { exam: { ex
       </DialogTrigger>
       <DialogContent title={version.title} description={formatWindow(version.opens_at, version.closes_at)}>
         <div className="space-y-5 p-6">
-          <dl className="grid grid-cols-3 gap-px overflow-hidden rounded-[var(--radius-control)] border border-line bg-line">
+          <dl className="grid grid-cols-3 gap-px overflow-hidden rounded-control border border-line bg-line">
             {[
               ["State", STATE_LABEL[state]],
               ["Duration", formatDuration(version.duration_seconds)],

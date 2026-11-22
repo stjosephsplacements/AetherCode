@@ -99,13 +99,13 @@ function Toggle({ checked, disabled, onChange, label }: { checked: boolean; disa
       disabled={disabled}
       onClick={() => onChange?.(!checked)}
       className={cn(
-        "relative h-6 w-10 shrink-0 rounded-full transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-60",
+        "relative h-6 w-10 shrink-0 rounded-pill transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-60",
         checked ? "bg-brand" : "bg-line-strong",
       )}
     >
       <span
         className={cn(
-          "absolute top-1 size-4 rounded-full bg-surface shadow-sm transition-[left] duration-200 ease-[cubic-bezier(0.2,0,0,1)]",
+          "absolute top-1 size-4 rounded-pill bg-surface shadow-sm transition-[left] duration-200 ease-[cubic-bezier(0.2,0,0,1)]",
           checked ? "left-5" : "left-1",
         )}
       />
@@ -144,9 +144,9 @@ export function ConsentManager() {
           aria-label="Cookie choices"
           className="fixed inset-x-3 bottom-3 z-40 animate-pop sm:inset-x-auto sm:bottom-5 sm:left-5 sm:w-[420px]"
         >
-          <div className="liquid-glass rounded-[22px] p-5 shadow-[var(--shadow-panel)]">
+          <div className="liquid-glass rounded-surface p-5 shadow-[var(--shadow-panel)]">
             <div className="flex items-start gap-3.5">
-              <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-full bg-brand-soft text-brand">
+              <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-pill bg-brand-soft text-brand">
                 <Cookie className="size-[18px]" />
               </span>
               <div>
@@ -160,16 +160,16 @@ export function ConsentManager() {
               </div>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-2">
-              <Button size="sm" className="rounded-full" onClick={() => saveConsent({ functional: true, analytics: true })}>
+              <Button size="sm" className="rounded-pill" onClick={() => saveConsent({ functional: true, analytics: true })}>
                 Accept all
               </Button>
-              <Button size="sm" variant="secondary" className="rounded-full" onClick={() => saveConsent({ functional: false, analytics: false })}>
+              <Button size="sm" variant="secondary" className="rounded-pill" onClick={() => saveConsent({ functional: false, analytics: false })}>
                 Essential only
               </Button>
             </div>
             <button
               type="button"
-              className="mt-2 w-full rounded-full py-1.5 text-[13px] text-ink-muted transition-colors hover:bg-hover hover:text-ink"
+              className="mt-2 w-full rounded-pill py-1.5 text-[13px] text-ink-muted transition-colors hover:bg-hover hover:text-ink"
               onClick={() => {
                 setDraft({ functional: false, analytics: false });
                 setOpen(true);
@@ -188,7 +188,7 @@ export function ConsentManager() {
               const essential = category.key === "essential";
               const checked = essential ? true : draft[category.key];
               return (
-                <div key={category.key} className="flex items-start justify-between gap-6 rounded-[var(--radius-surface)] border border-line bg-surface-2 p-4">
+                <div key={category.key} className="flex items-start justify-between gap-6 rounded-surface border border-line bg-surface-2 p-4">
                   <div>
                     <p className="text-sm font-medium text-ink">{category.title}</p>
                     <p className="mt-0.5 text-[13px] leading-relaxed text-ink-muted">{category.body}</p>
@@ -206,7 +206,7 @@ export function ConsentManager() {
           <footer className="flex justify-end gap-2 border-t border-line px-6 py-3.5">
             <Button
               variant="secondary"
-              className="rounded-full"
+              className="rounded-pill"
               onClick={() => {
                 saveConsent({ functional: true, analytics: true });
                 setOpen(false);
@@ -215,7 +215,7 @@ export function ConsentManager() {
               Accept all
             </Button>
             <Button
-              className="rounded-full"
+              className="rounded-pill"
               onClick={() => {
                 saveConsent(draft);
                 setOpen(false);

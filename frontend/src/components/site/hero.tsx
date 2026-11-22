@@ -32,17 +32,17 @@ export function Hero() {
       </p>
 
       <div data-reveal className="mt-10 flex flex-wrap justify-center gap-3 text-[15px] font-medium">
-        <Link href="/login" className="rounded-full bg-brand px-6 py-3 text-brand-ink shadow-[var(--shadow-panel)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5">
+        <Link href="/login" className="rounded-pill bg-brand px-6 py-3 text-brand-ink shadow-[var(--shadow-panel)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5">
           Sign in
         </Link>
-        <Link href="/help" className="rounded-full border border-line-strong bg-canvas px-6 py-3 text-ink shadow-[var(--shadow-panel)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5">
+        <Link href="/help" className="rounded-pill border border-line-strong bg-canvas px-6 py-3 text-ink shadow-[var(--shadow-panel)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5">
           How it works
         </Link>
       </div>
 
       <nav data-reveal aria-label="Before your exam" className="mt-10 flex flex-wrap justify-center gap-x-6 gap-y-2 font-mono text-[13px]">
         {SHORTCUTS.map(({ href, glyph, label }) => (
-          <Link key={href} href={href} className="liquid-glass rounded-full px-3 py-1 text-ink-muted transition-colors hover:bg-hover hover:text-ink">
+          <Link key={href} href={href} className="liquid-glass rounded-pill px-3 py-1 text-ink-muted transition-colors hover:bg-hover hover:text-ink">
             <span className="text-brand">{glyph}</span> {label}
           </Link>
         ))}

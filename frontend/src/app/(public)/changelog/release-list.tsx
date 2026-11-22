@@ -21,7 +21,7 @@ export function ReleaseList() {
             aria-pressed={tag === value}
             onClick={() => setTag(value)}
             className={cn(
-              "h-8 rounded-full border px-3.5 text-[13px] transition-colors",
+              "h-8 rounded-pill border px-3.5 text-[13px] transition-colors",
               tag === value ? "border-line-strong bg-ink text-canvas" : "border-line-strong text-ink-muted hover:text-ink",
             )}
           >
@@ -32,14 +32,14 @@ export function ReleaseList() {
       <ol className="mt-12 space-y-12 border-l border-line pl-8">
         {shown.map((release) => (
           <li key={release.date} className="relative">
-            <span aria-hidden className="absolute -left-[37px] top-2 size-2.5 rounded-full border-2 border-canvas bg-accent ring-1 ring-line-strong" />
+            <span aria-hidden className="absolute -left-[37px] top-2 size-2.5 rounded-pill border-2 border-canvas bg-accent ring-1 ring-line-strong" />
             <time dateTime={release.date} className="text-[13px] text-ink-subtle">
               {dateFormat.format(new Date(release.date))}
             </time>
             <h2 className="mt-1 font-serif text-[1.6rem] leading-tight text-ink">{release.title}</h2>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {release.tags.map((value) => (
-                <span key={value} className="rounded-full bg-brand-soft px-2.5 py-0.5 text-[12px] text-brand-soft-ink">
+                <span key={value} className="rounded-pill bg-brand-soft px-2.5 py-0.5 text-[12px] text-brand-soft-ink">
                   {value}
                 </span>
               ))}

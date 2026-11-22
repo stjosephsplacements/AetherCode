@@ -4,6 +4,7 @@ import { SkulletBoundary } from "@/components/skullet-suspense";
 import { departmentLabel, listBatches, listDepartments, listPlacement } from "@/lib/server/directory";
 import { inColleges } from "@/lib/server/colleges";
 import { type PlacementContext, requirePlacement } from "@/lib/server/placement";
+import { primaryPlacementOrganization } from "@/lib/server/placement-org";
 import { listRoster } from "@/lib/server/students";
 import { PlacementsBoard } from "./placements-filter";
 import type { CandidateRow, OrgRow } from "./stats";
@@ -16,7 +17,7 @@ export default async function PlacementsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Placements"
-        description="See which students are in each placement track. Filter by college, department or batch."
+        description="Global tracks shared by every college. Filter by college, department or batch."
       />
       <SkulletBoundary id="placements" label="Loading placements">
         <PlacementsContent placement={placement} />
@@ -66,19 +67,37 @@ async function PlacementsContent({ placement: access }: { placement: PlacementCo
     (value?.departments ?? []).filter((department) => department.department_type === "college").map((department) => ({ id: department.id, label: departmentLabel(department) + suffix(entry.name) })),
   );
   const batches = perCollege.flatMap(({ college: entry, value }) => (value?.batches ?? []).map((batch) => ({ id: batch.id, label: `${batch.name} (${batch.academic_year})${suffix(entry.name)}` })));
-  const orgs: OrgRow[] = placement.organizations.map((org) => ({
-    id: org.id,
-    name: org.legal_name,
-    code: org.code,
-    status: org.status,
-    tracks: org.departments.map((department) => ({ id: department.id, label: department.name })),
-  }));
+  const organization = primaryPlacementOrganization(placement);
+  const managed = new Set(access.departmentIds);
+  const scopedRows = rows.filter((row) => !row.placementId || managed.has(row.placementId));
+  const orgs: OrgRow[] = organization
+    ? [
+        {
+          id: organization.id,
+          name: organization.legal_name,
+          code: organization.code,
+          status: organization.status,
+          tracks: organization.departments
+            .filter((department) => managed.has(department.id))
+            .map((department) => ({ id: department.id, label: department.name })),
+        },
+      ]
+    : [];
   const unreachable = perCollege.filter((entry) => entry.failed).map((entry) => entry.college.name);
 
   return (
     <>
       {unreachable.length > 0 && <p role="alert" className="text-sm text-warning">Could not load: {unreachable.join(", ")}.</p>}
-      <PlacementsBoard rows={rows} orgs={orgs} readable={placement.readable} batches={batches} departments={departments} several={several} truncated={rows.length >= 5000} canViewPII={access.canViewPII} />
+      <PlacementsBoard
+        rows={scopedRows}
+        orgs={orgs}
+        readable={placement.readable}
+        batches={batches}
+        departments={departments}
+        several={several}
+        truncated={rows.length >= 5000}
+        canViewPII={access.canViewPII}
+      />
     </>
   );
 }

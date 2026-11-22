@@ -288,6 +288,44 @@ paths:
           $ref: '#/components/responses/Problem500'
         '429':
           $ref: '#/components/responses/Problem429'
+  /v1/tenants/{tenant_id}/students/{student_id}/placement:
+    parameters:
+    - $ref: '#/components/parameters/TenantID'
+    - $ref: '#/components/parameters/StudentID'
+    put:
+      summary: Assign or clear a student's placement department
+      description: >-
+        Placement officers map an existing college student into one of their
+        tracks, or clear the membership. Rejects students already on another
+        placement department (ADR-0089). Empty placement_department_id clears.
+      security: [bearerAuth: []]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                placement_department_id: {$ref: '#/components/schemas/UUID'}
+      responses:
+        '200':
+          description: Updated placement membership
+          headers:
+            RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}
+            RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}
+            RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}
+            Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/StudentPlacement'}
+        '400': {$ref: '#/components/responses/Problem400'}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '404': {$ref: '#/components/responses/Problem404'}
+        '409': {$ref: '#/components/responses/Problem409'}
+        '500': {$ref: '#/components/responses/Problem500'}
+        '429': {$ref: '#/components/responses/Problem429'}
   /v1/tenants/{tenant_id}/students/{student_id}/hard:
     parameters:
     - $ref: '#/components/parameters/TenantID'
@@ -1479,6 +1517,15 @@ components:
               type: array
               maxItems: 12
               items: {type: object, properties: {platform: {type: string, maxLength: 1000}, handle: {type: string, maxLength: 1000}, url: {type: string, maxLength: 1000}}}
+    StudentPlacement:
+      type: object
+      additionalProperties: false
+      required: [student_id, tenant_id]
+      properties:
+        student_id: {$ref: '#/components/schemas/UUID'}
+        tenant_id: {$ref: '#/components/schemas/UUID'}
+        placement_department_id: {$ref: '#/components/schemas/UUID'}
+        placement_membership_id: {$ref: '#/components/schemas/UUID'}
     SetPlacementStaffMembership:
       type: object
       additionalProperties: false

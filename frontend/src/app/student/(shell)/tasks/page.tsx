@@ -45,7 +45,7 @@ export default async function TasksPage() {
         {tasks.length === 0 ? (
           <EmptyState>Nothing to do. Add something above.</EmptyState>
         ) : (
-          <ul className="overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface">
+          <ul className="overflow-hidden rounded-surface border border-line bg-surface">
             {tasks.map((task, index) => {
               const late = isOverdue(task.due_at, task.done);
               return (

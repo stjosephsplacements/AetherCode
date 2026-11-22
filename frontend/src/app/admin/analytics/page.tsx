@@ -18,16 +18,19 @@ export default async function PlatformAnalyticsPage({ searchParams }: { searchPa
     snapshot = await loadSnapshot(isRange(requested) ? requested : "1h");
   } catch (error) {
     return (
-      <>
-        <PageHeader title="Platform" description="Live health and load of every service, from Prometheus." />
+      <div className="animate-enter">
+        <PageHeader title="Platform analytics" description="Live health and load of every service, from Prometheus." />
         <LoadError error={error} />
-      </>
+      </div>
     );
   }
   return (
-    <>
-      <PageHeader title="Platform" description="Live health and load of every service, from Prometheus. Updates every ten seconds while this page is open." />
+    <div className="animate-enter space-y-6">
+      <PageHeader
+        title="Platform analytics"
+        description="Live health and load of every service, from Prometheus. Updates every ten seconds while this page is open."
+      />
       <PlatformLive initial={snapshot} />
-    </>
+    </div>
   );
 }

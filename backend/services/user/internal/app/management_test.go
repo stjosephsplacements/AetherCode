@@ -101,6 +101,10 @@ func (uncalledManagementStore) ListStaffAudit(context.Context, pgx.Tx, string, *
 	panic("unexpected store call")
 }
 
+func (uncalledManagementStore) SetStudentPlacement(context.Context, pgx.Tx, SetStudentPlacement) (StudentPlacement, error) {
+	panic("unexpected persistence call")
+}
+
 func (uncalledManagementStore) SetPlacementStaffMembership(context.Context, pgx.Tx, SetPlacementStaffMembership) (PlacementStaffMembership, error) {
 	panic("unexpected persistence call")
 }

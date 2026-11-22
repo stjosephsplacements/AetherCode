@@ -60,7 +60,7 @@ function Submission({ item }: { item: ItemSubmission }) {
   const failures = failureSummary(item.verdict_counts);
 
   return (
-    <div className="rounded-[var(--radius-control)] border border-line bg-surface px-3.5 py-3">
+    <div className="rounded-control border border-line bg-surface px-3.5 py-3">
       <div className="flex items-center gap-2.5">
         {judging ? (
           <CircleNotch className="size-4 animate-spin text-ink-muted" />
@@ -81,7 +81,7 @@ function Submission({ item }: { item: ItemSubmission }) {
                   : `${passed} of ${total} test cases passed`}
         </p>
         {item.score !== null && item.maximum_score && (
-          <span className="ml-auto rounded-full bg-hover px-2.5 py-0.5 font-mono text-xs font-medium tabular-nums text-ink">
+          <span className="ml-auto rounded-pill bg-hover px-2.5 py-0.5 font-mono text-xs font-medium tabular-nums text-ink">
             {formatScore(Number(item.score))} / {formatScore(Number(item.maximum_score))}
           </span>
         )}

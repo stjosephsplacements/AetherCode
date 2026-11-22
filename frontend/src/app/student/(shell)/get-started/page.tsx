@@ -58,7 +58,7 @@ export default async function StudentGetStarted() {
   return (
     <div className="mx-auto max-w-4xl">
       {/* Hero */}
-      <div className="mb-10 overflow-hidden rounded-3xl bg-gradient-to-br from-[#1b1640] via-[#5a210d] to-[#b84a0d] px-8 py-10 animate-enter">
+      <div className="mb-10 overflow-hidden rounded-panel bg-gradient-to-br from-[#1b1640] via-[#5a210d] to-[#b84a0d] px-8 py-10 animate-enter">
         <p className="font-[family-name:var(--font-eyebrow)] text-[10px] uppercase tracking-[0.18em] text-white/60">
           Welcome
         </p>
@@ -86,11 +86,11 @@ export default async function StudentGetStarted() {
                   style={{ animationDelay: `${i * 60}ms`, animation: "var(--animate-enter)" }}
                 >
                   {/* Numbered circle */}
-                  <div className="relative z-10 mb-4 grid size-10 place-items-center rounded-full border-2 border-line bg-surface text-[13px] font-semibold tabular-nums text-ink-muted transition-all duration-200 group-hover:border-brand group-hover:bg-brand group-hover:text-brand-ink">
+                  <div className="relative z-10 mb-4 grid size-10 place-items-center rounded-pill border-2 border-line bg-surface text-[13px] font-semibold tabular-nums text-ink-muted transition-all duration-200 group-hover:border-brand group-hover:bg-brand group-hover:text-brand-ink">
                     {i + 1}
                   </div>
                   {/* Icon box */}
-                  <div className="mb-3 grid size-10 place-items-center rounded-xl bg-hover text-ink-muted transition-colors group-hover:bg-brand-soft group-hover:text-brand">
+                  <div className="mb-3 grid size-10 place-items-center rounded-surface bg-hover text-ink-muted transition-colors group-hover:bg-brand-soft group-hover:text-brand">
                     <Icon className="size-5" />
                   </div>
                   <p className="text-[13px] font-semibold leading-snug text-ink">{step.title}</p>
@@ -117,14 +117,14 @@ export default async function StudentGetStarted() {
                 <Link
                   key={step.href}
                   href={step.href}
-                  className="group relative flex items-start gap-4 rounded-2xl border border-line bg-surface px-4 py-3.5 transition-all hover:border-brand/30 hover:bg-hover"
+                  className="group relative flex items-start gap-4 rounded-panel border border-line bg-surface px-4 py-3.5 transition-all hover:border-brand/30 hover:bg-hover"
                   style={{ animationDelay: `${i * 60}ms`, animation: "var(--animate-enter)" }}
                 >
                   {/* Step number bubble — sits on the vertical line */}
-                  <div className="absolute -left-[18px] top-4 z-10 grid size-8 place-items-center rounded-full border-2 border-line bg-surface text-[11px] font-semibold tabular-nums text-ink-muted transition-colors group-hover:border-brand group-hover:text-brand">
+                  <div className="absolute -left-[18px] top-4 z-10 grid size-8 place-items-center rounded-pill border-2 border-line bg-surface text-[11px] font-semibold tabular-nums text-ink-muted transition-colors group-hover:border-brand group-hover:text-brand">
                     {i + 1}
                   </div>
-                  <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-hover text-ink-muted transition-colors group-hover:bg-brand-soft group-hover:text-brand">
+                  <div className="grid size-9 shrink-0 place-items-center rounded-surface bg-hover text-ink-muted transition-colors group-hover:bg-brand-soft group-hover:text-brand">
                     <Icon className="size-5" />
                   </div>
                   <div className="min-w-0 flex-1">

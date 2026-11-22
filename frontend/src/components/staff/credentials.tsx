@@ -26,7 +26,7 @@ export function CredentialsTable({ rows, filename }: { rows: Credential[]; filen
     URL.revokeObjectURL(url);
   }
   return (
-    <div className="mt-4 rounded-[var(--radius-surface)] border border-warning/40 bg-warning-soft/40 p-4">
+    <div className="mt-4 rounded-surface border border-warning/40 bg-warning-soft/40 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
         <p className="text-sm text-ink">
           <span className="font-semibold">Save these now.</span> Passwords are shown only once.
@@ -46,7 +46,7 @@ export function CredentialsTable({ rows, filename }: { rows: Credential[]; filen
         {rows.map((row) => (
           <div
             key={row.username}
-            className="break-inside-avoid rounded-[var(--radius-control)] border border-line bg-surface px-3 py-2.5 print:rounded-none print:border-dashed"
+            className="break-inside-avoid rounded-control border border-line bg-surface px-3 py-2.5 print:rounded-panel print:border-dashed"
           >
             {row.name && <p className="truncate text-sm font-medium text-ink">{row.name}</p>}
             <p className="font-mono text-xs text-ink-muted">

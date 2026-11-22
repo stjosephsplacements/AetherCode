@@ -152,23 +152,23 @@ export function WorkspaceTools({ storageKey, timer: withTimer = true }: { storag
           type="button"
           onClick={() => show("timer")}
           aria-label="Open the timer"
-          className={cn("inline-flex h-8 items-center gap-1.5 rounded-full px-3 font-mono text-[12.5px] tabular-nums transition-colors", timer.running ? "bg-brand-soft text-brand-soft-ink" : "bg-hover text-ink-muted hover:text-ink")}
+          className={cn("inline-flex h-8 items-center gap-1.5 rounded-pill px-3 font-mono text-[12.5px] tabular-nums transition-colors", timer.running ? "bg-brand-soft text-brand-soft-ink" : "bg-hover text-ink-muted hover:text-ink")}
         >
           <Timer className="size-3.5" />
           {clock(timer.seconds)}
         </button>
         )}
-        <button type="button" onClick={() => show("notes")} aria-label="Sticky notes" className="relative grid size-8 place-items-center rounded-full text-ink-muted transition-colors hover:bg-hover hover:text-ink">
+        <button type="button" onClick={() => show("notes")} aria-label="Sticky notes" className="relative grid size-8 place-items-center rounded-pill text-ink-muted transition-colors hover:bg-hover hover:text-ink">
           <Note className="size-4" />
-          {notes.length > 0 && <span className="absolute -right-0.5 -top-0.5 grid size-4 place-items-center rounded-full bg-brand text-[10px] font-semibold text-brand-ink">{notes.length}</span>}
+          {notes.length > 0 && <span className="absolute -right-0.5 -top-0.5 grid size-4 place-items-center rounded-pill bg-brand text-[10px] font-semibold text-brand-ink">{notes.length}</span>}
         </button>
-        <button type="button" onClick={() => show("scratch")} aria-label="Scratch pad" className="grid size-8 place-items-center rounded-full text-ink-muted transition-colors hover:bg-hover hover:text-ink">
+        <button type="button" onClick={() => show("scratch")} aria-label="Scratch pad" className="grid size-8 place-items-center rounded-pill text-ink-muted transition-colors hover:bg-hover hover:text-ink">
           <NotePencil className="size-4" />
         </button>
       </div>
 
       {open && geometry && (
-        <div role="dialog" aria-label="Workspace tools" className="fixed z-40 flex flex-col overflow-hidden rounded-3xl border border-line-strong bg-surface shadow-[var(--shadow-overlay)]" style={{ left: geometry.x, top: geometry.y, width: geometry.w, height: geometry.h }}>
+        <div role="dialog" aria-label="Workspace tools" className="fixed z-40 flex flex-col overflow-hidden rounded-panel border border-line-strong bg-surface shadow-[var(--shadow-overlay)]" style={{ left: geometry.x, top: geometry.y, width: geometry.w, height: geometry.h }}>
           <div
             className="flex shrink-0 cursor-grab touch-none items-center gap-2 border-b border-line px-3 py-2 active:cursor-grabbing"
             onPointerDown={(event) => {
@@ -192,12 +192,12 @@ export function WorkspaceTools({ storageKey, timer: withTimer = true }: { storag
                   ["scratch", "Scratch"],
                 ] as const
               ).map(([value, label]) => (
-                <button key={value} role="tab" aria-selected={tab === value} onClick={() => setTab(value)} className={cn("rounded-full px-3 py-1 text-[12.5px] font-medium transition-colors", tab === value ? "bg-hover text-ink" : "text-ink-muted hover:text-ink")}>
+                <button key={value} role="tab" aria-selected={tab === value} onClick={() => setTab(value)} className={cn("rounded-pill px-3 py-1 text-[12.5px] font-medium transition-colors", tab === value ? "bg-hover text-ink" : "text-ink-muted hover:text-ink")}>
                   {label}
                 </button>
               ))}
             </div>
-            <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={() => setOpen(false)} aria-label="Close" className="grid size-7 place-items-center rounded-full text-ink-muted hover:bg-hover hover:text-ink">
+            <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={() => setOpen(false)} aria-label="Close" className="grid size-7 place-items-center rounded-pill text-ink-muted hover:bg-hover hover:text-ink">
               <X className="size-4" />
             </button>
           </div>
@@ -209,11 +209,11 @@ export function WorkspaceTools({ storageKey, timer: withTimer = true }: { storag
                 <p className={cn("mt-2 text-center text-[12.5px]", timer.seconds >= timer.goal ? "font-medium text-danger" : "text-ink-muted")}>{timer.seconds >= timer.goal ? "Your goal time is up" : `${clock(timer.goal - timer.seconds)} left of your ${Math.round(timer.goal / 60)} min goal`}</p>
               )}
               <div className="mt-4 flex justify-center gap-2">
-                <button type="button" onClick={timer.running ? timer.pause : timer.start} className="inline-flex h-10 items-center gap-2 rounded-full bg-brand px-5 text-sm font-semibold text-brand-ink hover:bg-brand-hover">
+                <button type="button" onClick={timer.running ? timer.pause : timer.start} className="inline-flex h-10 items-center gap-2 rounded-pill bg-brand px-5 text-sm font-semibold text-brand-ink hover:bg-brand-hover">
                   {timer.running ? <Pause className="size-4" /> : <Play className="size-4" />}
                   {timer.running ? "Pause" : timer.seconds > 0 ? "Resume" : "Start"}
                 </button>
-                <button type="button" onClick={timer.reset} aria-label="Reset the timer" className="grid size-10 place-items-center rounded-full border border-line text-ink-muted hover:bg-hover hover:text-ink">
+                <button type="button" onClick={timer.reset} aria-label="Reset the timer" className="grid size-10 place-items-center rounded-pill border border-line text-ink-muted hover:bg-hover hover:text-ink">
                   <ArrowCounterClockwise className="size-4" />
                 </button>
               </div>
@@ -221,7 +221,7 @@ export function WorkspaceTools({ storageKey, timer: withTimer = true }: { storag
                 <p className="mb-2 text-[12px] text-ink-muted">Goal for this problem</p>
                 <div className="flex flex-wrap gap-1.5">
                   {[0, 15, 30, 45, 60].map((minutes) => (
-                    <button key={minutes} type="button" onClick={() => timer.setGoal(minutes * 60)} aria-pressed={timer.goal === minutes * 60} className={cn("rounded-full px-3 py-1 text-[12.5px] font-medium transition-colors", timer.goal === minutes * 60 ? "bg-brand-soft text-brand-soft-ink" : "bg-hover text-ink-muted hover:text-ink")}>
+                    <button key={minutes} type="button" onClick={() => timer.setGoal(minutes * 60)} aria-pressed={timer.goal === minutes * 60} className={cn("rounded-pill px-3 py-1 text-[12.5px] font-medium transition-colors", timer.goal === minutes * 60 ? "bg-brand-soft text-brand-soft-ink" : "bg-hover text-ink-muted hover:text-ink")}>
                       {minutes === 0 ? "None" : `${minutes} min`}
                     </button>
                   ))}
@@ -236,7 +236,7 @@ export function WorkspaceTools({ storageKey, timer: withTimer = true }: { storag
               {notes.map((note) => {
                 const color = COLORS[note.color % COLORS.length]!;
                 return (
-                  <div key={note.id} className={cn("rounded-2xl p-3 shadow-sm", color.bg)}>
+                  <div key={note.id} className={cn("rounded-panel p-3 shadow-sm", color.bg)}>
                     <textarea
                       value={note.text}
                       onChange={(event) => saveNotes(notes.map((entry) => (entry.id === note.id ? { ...entry, text: event.target.value } : entry)))}
@@ -249,17 +249,17 @@ export function WorkspaceTools({ storageKey, timer: withTimer = true }: { storag
                     <div className="mt-1 flex items-center justify-between">
                       <div className="flex gap-1.5">
                         {COLORS.map((option, index) => (
-                          <button key={option.name} type="button" aria-label={`Colour it ${option.name}`} onClick={() => saveNotes(notes.map((entry) => (entry.id === note.id ? { ...entry, color: index } : entry)))} className={cn("size-4 rounded-full border border-black/20", option.bg, note.color === index && "ring-2 ring-ink/60")} />
+                          <button key={option.name} type="button" aria-label={`Colour it ${option.name}`} onClick={() => saveNotes(notes.map((entry) => (entry.id === note.id ? { ...entry, color: index } : entry)))} className={cn("size-4 rounded-pill border border-black/20", option.bg, note.color === index && "ring-2 ring-ink/60")} />
                         ))}
                       </div>
-                      <button type="button" aria-label="Delete the note" onClick={() => saveNotes(notes.filter((entry) => entry.id !== note.id))} className={cn("rounded-full p-1 opacity-70 hover:opacity-100", color.ink)}>
+                      <button type="button" aria-label="Delete the note" onClick={() => saveNotes(notes.filter((entry) => entry.id !== note.id))} className={cn("rounded-pill p-1 opacity-70 hover:opacity-100", color.ink)}>
                         <Trash className="size-3.5" />
                       </button>
                     </div>
                   </div>
                 );
               })}
-              <button type="button" disabled={notes.length >= 12} onClick={() => saveNotes([...notes, { id: uuid(), color: notes.length % COLORS.length, text: "" }])} className="flex w-full items-center justify-center gap-1.5 rounded-2xl border border-dashed border-line-strong py-2.5 text-[13px] font-medium text-ink-muted transition-colors hover:border-brand hover:text-brand disabled:opacity-50">
+              <button type="button" disabled={notes.length >= 12} onClick={() => saveNotes([...notes, { id: uuid(), color: notes.length % COLORS.length, text: "" }])} className="flex w-full items-center justify-center gap-1.5 rounded-panel border border-dashed border-line-strong py-2.5 text-[13px] font-medium text-ink-muted transition-colors hover:border-brand hover:text-brand disabled:opacity-50">
                 <Plus className="size-4" />
                 Add a note
               </button>
@@ -268,7 +268,7 @@ export function WorkspaceTools({ storageKey, timer: withTimer = true }: { storag
 
           {tab === "scratch" && (
             <div className="flex min-h-0 flex-1 flex-col p-3">
-              <textarea value={scratch} onChange={(event) => setScratch(event.target.value)} spellCheck={false} aria-label="Scratch pad" maxLength={20000} placeholder="Work things out here: pseudocode, small examples, arithmetic. It is never submitted." className="min-h-0 w-full flex-1 resize-none rounded-2xl border border-line bg-canvas p-3 font-mono text-[12.5px] leading-relaxed text-ink outline-none placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15" />
+              <textarea value={scratch} onChange={(event) => setScratch(event.target.value)} spellCheck={false} aria-label="Scratch pad" maxLength={20000} placeholder="Work things out here: pseudocode, small examples, arithmetic. It is never submitted." className="min-h-0 w-full flex-1 resize-none rounded-panel border border-line bg-canvas p-3 font-mono text-[12.5px] leading-relaxed text-ink outline-none placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15" />
               <div className="mt-2 flex items-center justify-between text-[12px] text-ink-subtle">
                 <span>{scratch.length} characters. Never submitted.</span>
                 <button type="button" onClick={() => setScratch("")} disabled={!scratch} className="inline-flex items-center gap-1 text-ink-muted hover:text-ink disabled:opacity-40">

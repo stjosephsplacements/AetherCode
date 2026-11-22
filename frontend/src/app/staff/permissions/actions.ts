@@ -10,7 +10,12 @@ import { collegeFor, requireStaff } from "@/lib/server/staff";
  * Replaces the extra permissions one person holds, in this college or, for a root
  * administrator, across the platform (ADR-0055). The backend checks the ceiling again.
  */
-export async function savePermissions(principalId: string, scope: "college" | "platform", permissions: string[]): Promise<ActionState> {
+export async function savePermissions(
+  principalId: string,
+  scope: "college" | "platform",
+  permissions: string[],
+  basePath: "/staff/permissions" | "/admin/permissions" = "/staff/permissions",
+): Promise<ActionState> {
   const staff = await requireStaff();
   const tenantId = collegeFor(staff);
   if (!staff.canManageAccounts) return { error: "Only administrators change permissions." };
@@ -21,6 +26,8 @@ export async function savePermissions(principalId: string, scope: "college" | "p
   } catch (error) {
     return { error: actionError(error) };
   }
+  revalidatePath(basePath);
   revalidatePath("/staff/permissions");
+  revalidatePath("/admin/permissions");
   return { error: null, message: "Permissions saved. They apply from the person's next request." };
 }

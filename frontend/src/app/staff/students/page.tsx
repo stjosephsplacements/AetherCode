@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { panel } from "@/app/admin/_dashboard/panel";
 import { EmptyState, LoadError, PageHeader } from "@/components/staff/page-header";
 import { SkulletBoundary } from "@/components/skullet-suspense";
-import { departmentLabel, listBatches, listDepartments, listPlacement } from "@/lib/server/directory";
 import { inColleges } from "@/lib/server/colleges";
+import { departmentLabel, listBatches, listDepartments, listPlacement } from "@/lib/server/directory";
 import { describeAccounts } from "@/lib/server/people";
+import { placementDepartmentOptions } from "@/lib/server/placement-org";
 import { collegesFor, requireStaff } from "@/lib/server/staff";
 import { listRoster } from "@/lib/server/students";
+import { cn } from "@/lib/utils";
 import { EnrolDialog, ImportDialog } from "./panels";
 import { Roster, type StudentRow } from "./roster";
 
@@ -17,7 +20,7 @@ export default async function StudentsPage() {
   const staff = await requireStaff();
   if (!staff.canManageAccounts) redirect("/staff");
   return (
-    <>
+    <div className="animate-enter">
       <PageHeader
         title="Students"
         description="Add students one by one or import a spreadsheet. Manage passwords and accounts."
@@ -25,7 +28,7 @@ export default async function StudentsPage() {
       <SkulletBoundary id="students" label="Loading students">
         <StudentsContent staff={staff} />
       </SkulletBoundary>
-    </>
+    </div>
   );
 }
 
@@ -47,9 +50,7 @@ async function StudentsContent({ staff }: { staff: Awaited<ReturnType<typeof req
     return <LoadError error={error} />;
   }
   const { perCollege, placement } = data;
-  const placements = placement.organizations.flatMap((organization) =>
-    organization.departments.map((department) => ({ id: department.id, label: `${departmentLabel(department)}, ${organization.legal_name}` })),
-  );
+  const placements = placementDepartmentOptions(placement);
   const placementName = new Map(placements.map((option) => [option.id, option.label]));
   const batches = perCollege.flatMap(({ college, value }) => (value?.batches ?? []).map((batch) => ({ ...batch, collegeName: college.name })));
   const departments = perCollege.flatMap(({ value }) => value?.departments ?? []);
@@ -99,16 +100,22 @@ async function StudentsContent({ staff }: { staff: Awaited<ReturnType<typeof req
 
   return (
     <>
-      {unreachable.length > 0 && <p role="alert" className="mb-4 text-sm text-warning">Could not load: {unreachable.join(", ")}.</p>}
+      {unreachable.length > 0 && (
+        <p role="alert" className="mb-4 text-sm text-warning">
+          Could not load: {unreachable.join(", ")}.
+        </p>
+      )}
       {batches.length === 0 ? (
-        <EmptyState>
-          <p className="mb-3 text-[15px] font-medium text-ink">No batches yet</p>
-          Students belong to a batch. Create one in{" "}
-          <Link href="/staff/departments" className="text-brand hover:underline">
-            Departments
-          </Link>{" "}
-          first, then come back to import them.
-        </EmptyState>
+        <section className={cn(panel)}>
+          <EmptyState>
+            <p className="mb-3 text-[15px] font-medium text-ink">No batches yet</p>
+            Students belong to a batch. Create one in{" "}
+            <Link href="/staff/departments" className="text-brand hover:underline">
+              Departments
+            </Link>{" "}
+            first, then come back to import them.
+          </EmptyState>
+        </section>
       ) : (
         <Roster rows={rows} several={false} actions={dialogs} />
       )}

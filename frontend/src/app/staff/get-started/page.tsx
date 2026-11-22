@@ -1,10 +1,10 @@
 import type { Icon } from "@phosphor-icons/react";
-import { ArrowRight, BookOpen, Briefcase, Buildings, ChartBar, Check, Confetti, Lock, NotePencil, Stack, Users } from "@phosphor-icons/react/ssr";
+import { ArrowRight, BookOpen, Briefcase, Buildings, ChartBar, CheckCircle, Confetti, Lock, NotePencil, Question, Rocket, Stack, Users } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { panel } from "@/app/admin/_dashboard/panel";
 import { Button } from "@/components/ui/button";
 import { LoadError, PageHeader } from "@/components/staff/page-header";
-import { Ring } from "@/components/student/ring";
 import { type SetupKey, setupSteps } from "@/lib/server/setup";
 import { requireStaff } from "@/lib/server/staff";
 import { cn } from "@/lib/utils";
@@ -26,7 +26,25 @@ const FACULTY_STEPS = [
   { icon: NotePencil, title: "Create an exam", text: "Pick questions, set a window and assign to a batch.", href: "/staff/exams/new", cta: "New exam" },
   { icon: ChartBar, title: "Analytics", text: "Scores and student performance.", href: "/staff/analytics", cta: "Open" },
   { icon: Users, title: "Students", text: "Enrol, import and manage accounts.", href: "/staff/students", cta: "Open" },
-];
+] as const;
+
+const DAY_TO_DAY = [
+  { icon: ChartBar, title: "Dashboard", text: "Live exams, queue health and recent activity.", href: "/staff", cta: "Open" },
+  { icon: Question, title: "Help", text: "Guides for enrolment, exams and results.", href: "/staff/help", cta: "Read guides" },
+] as const;
+
+type Row = {
+  key: string;
+  title: string;
+  text: string;
+  href: string;
+  cta: string;
+  done: boolean;
+  blocked?: boolean;
+  next?: boolean;
+  meta?: string;
+  Icon: Icon;
+};
 
 export default async function GetStartedPage() {
   const staff = await requireStaff();
@@ -45,53 +63,105 @@ export default async function GetStartedPage() {
   const firstName = staff.viewer.displayName.split(" ")[0] || staff.viewer.username;
 
   if (!staff.canManageAccounts || steps.length === 0) {
+    const next = FACULTY_STEPS[0]!;
     return (
-      <div className="mx-auto max-w-3xl animate-enter">
-        {/* Poster-sky hero */}
-        <div className="mb-8 overflow-hidden rounded-3xl p-8" style={{ background: "var(--poster-sky)" }}>
-          <p className="font-[family-name:var(--font-eyebrow)] text-[10.5px] uppercase tracking-[0.16em] text-white/60">Welcome back</p>
-          <h1 className="mt-2 text-[32px] font-semibold leading-tight tracking-[-0.03em] text-white">{firstName}</h1>
-          <p className="mt-1.5 text-[14px] text-white/70">Here is what you can do today.</p>
-        </div>
+      <div className="animate-enter">
+        <PageHeader
+          title={`Get started, ${firstName}`}
+          description="Shortcuts for the work you do most — questions, exams, analytics and students."
+          actions={
+            <Button asChild>
+              <Link href={next.href}>
+                {next.cta}
+                <ArrowRight />
+              </Link>
+            </Button>
+          }
+        />
 
-        {/* Numbered vertical list */}
-        <ol className="space-y-0">
-          {FACULTY_STEPS.map((step, i) => {
-            const Icon = step.icon;
-            const num = String(i + 1).padStart(2, "0");
-            const last = i === FACULTY_STEPS.length - 1;
-            return (
-              <li key={step.href} className="flex gap-5" style={{ animationDelay: `${i * 60}ms`, animation: "var(--animate-enter)" }}>
-                {/* Number + connector */}
-                <div className="flex flex-col items-center">
-                  <div className="grid size-10 shrink-0 place-items-center rounded-full border-2 border-line bg-surface">
-                    <span className="font-[family-name:var(--font-eyebrow)] text-[11px] font-bold text-ink-muted">{num}</span>
-                  </div>
-                  {!last && <div className="my-1 w-px flex-1 border-l border-dashed border-line" />}
-                </div>
-                {/* Card */}
-                <Link href={step.href} className="group mb-4 min-w-0 flex-1">
-                  <div className="flex items-center gap-4 rounded-2xl border border-line bg-surface px-5 py-4 transition-all duration-150 group-hover:border-brand/30 group-hover:bg-hover">
-                    <div className="liquid-glass grid size-10 shrink-0 place-items-center rounded-xl transition-colors group-hover:bg-brand-soft">
-                      <Icon className="size-5 text-ink-muted transition-colors group-hover:text-brand" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[14.5px] font-medium text-ink">{step.title}</p>
-                      <p className="text-[12.5px] text-ink-subtle">{step.text}</p>
-                    </div>
-                    <span className="shrink-0 text-[12.5px] font-medium text-brand opacity-0 transition-opacity group-hover:opacity-100">{step.cta}</span>
-                    <ArrowRight className="size-4 shrink-0 text-ink-subtle transition-all group-hover:translate-x-0.5 group-hover:text-brand" />
-                  </div>
+        <div className="grid gap-3 md:grid-cols-6 xl:grid-cols-12">
+          <section className={cn(panel, "md:col-span-6 xl:col-span-5")}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">Faculty console</p>
+                <p className="mt-3 text-[18px] font-semibold tracking-[-0.02em] text-ink">Ready when you are</p>
+                <p className="mt-2 text-[13px] leading-relaxed text-ink-muted">
+                  No setup checklist for your role — jump straight into authoring and monitoring.
+                </p>
+              </div>
+              <span className="grid size-10 place-items-center rounded-control bg-brand/15 text-brand">
+                <Rocket className="size-5" weight="fill" />
+              </span>
+            </div>
+          </section>
+
+          <section className={cn(panel, "md:col-span-6 xl:col-span-7")}>
+            <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">Up next</p>
+            <div className="mt-4 flex flex-1 flex-col justify-between gap-5 sm:flex-row sm:items-end">
+              <div className="min-w-0">
+                <p className="flex items-center gap-2 text-[18px] font-semibold tracking-[-0.02em] text-ink">
+                  <next.icon className="size-5 shrink-0 text-brand" />
+                  {next.title}
+                </p>
+                <p className="mt-2 max-w-[48ch] text-[13.5px] leading-relaxed text-ink-muted">{next.text}</p>
+              </div>
+              <Button asChild className="shrink-0">
+                <Link href={next.href}>
+                  {next.cta}
+                  <ArrowRight />
                 </Link>
-              </li>
-            );
-          })}
-        </ol>
+              </Button>
+            </div>
+          </section>
 
-        <Link href="/staff/help" className="mt-2 inline-flex items-center gap-2 text-[13px] text-ink-muted transition-colors hover:text-ink">
-          <span>Read the guides</span>
-          <ArrowRight className="size-3.5" />
-        </Link>
+          <section className={cn(panel, "md:col-span-6 xl:col-span-7")}>
+            <div className="mb-4 flex items-baseline justify-between gap-3">
+              <h2 className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">What you can do</h2>
+              <p className="text-[12.5px] text-ink-muted">{FACULTY_STEPS.length} shortcuts</p>
+            </div>
+            <ol className="space-y-2">
+              {FACULTY_STEPS.map((step, index) => (
+                <StepRow
+                  key={step.href}
+                  step={{
+                    key: step.href,
+                    title: step.title,
+                    text: step.text,
+                    href: step.href,
+                    cta: step.cta,
+                    done: false,
+                    Icon: step.icon,
+                  }}
+                  index={index}
+                />
+              ))}
+            </ol>
+          </section>
+
+          <section className={cn(panel, "md:col-span-6 xl:col-span-5")}>
+            <div className="mb-4 flex items-baseline justify-between gap-3">
+              <h2 className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">Day to day</h2>
+              <p className="text-[12.5px] text-ink-muted">Always available</p>
+            </div>
+            <ul className="space-y-2">
+              {DAY_TO_DAY.map((step, index) => (
+                <StepRow
+                  key={step.href}
+                  step={{
+                    key: step.href,
+                    title: step.title,
+                    text: step.text,
+                    href: step.href,
+                    cta: step.cta,
+                    done: false,
+                    Icon: step.icon,
+                  }}
+                  index={index}
+                />
+              ))}
+            </ul>
+          </section>
+        </div>
       </div>
     );
   }
@@ -100,103 +170,177 @@ export default async function GetStartedPage() {
   const complete = done === steps.length;
   const current = steps.find((step) => !step.done && !step.blocked);
   const percent = steps.length ? Math.round((done / steps.length) * 100) : 0;
+  const nextMeta = current ? META[current.key] : null;
+  const rows: Row[] = steps.map((step) => {
+    const meta = META[step.key];
+    return {
+      key: step.key,
+      title: step.title,
+      text: step.blocked ?? step.text,
+      href: step.href,
+      cta: step.done ? "Open" : meta.cta,
+      done: step.done,
+      blocked: Boolean(step.blocked),
+      next: step === current,
+      meta: meta.minutes,
+      Icon: meta.icon,
+    };
+  });
 
   return (
-    <div className="mx-auto max-w-3xl animate-enter">
-      {/* Poster-sky hero with Ring */}
-      <div className="mb-8 overflow-hidden rounded-3xl p-8" style={{ background: "var(--poster-sky)" }}>
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-8">
-          <Ring value={done} max={steps.length} size={88} stroke={8} barClass="stroke-white" trackClass="stroke-white/20">
-            <span className="font-[family-name:var(--font-eyebrow)] text-[16px] font-bold text-white">{percent}<span className="text-[10px] text-white/70">%</span></span>
-          </Ring>
-          <div className="min-w-0 flex-1">
-            <p className="font-[family-name:var(--font-eyebrow)] text-[10.5px] uppercase tracking-[0.16em] text-white/60">
-              {complete ? "Complete" : `${done} of ${steps.length} done`}
-            </p>
-            <h1 className="mt-1.5 text-[28px] font-semibold leading-tight tracking-[-0.025em] text-white">
-              {complete ? `All set, ${firstName}` : `Setting up, ${firstName}`}
-            </h1>
-            <p className="mt-1 text-[13.5px] text-white/70">
-              {complete ? "Everything is in place. Go run some exams." : "Work through these in order — each one unlocks the next."}
-            </p>
-            {current && (
-              <Button asChild size="sm" variant="secondary" className="mt-4 border-white/20 bg-white/15 text-white hover:bg-white/25">
-                <Link href={current.href}>
-                  {META[current.key].cta}
-                  <ArrowRight />
-                </Link>
-              </Button>
-            )}
+    <div className="animate-enter">
+      <PageHeader
+        title={complete ? `All set, ${firstName}` : `Get started, ${firstName}`}
+        description={
+          complete
+            ? "Everything is in place. Run exams from the dashboard or invite staff from Staff accounts."
+            : "Work through these in order — each step unlocks the next."
+        }
+        actions={
+          <Button asChild>
+            <Link href={current?.href ?? "/staff"}>
+              {complete ? "Open dashboard" : nextMeta?.cta ?? "Continue"}
+              <ArrowRight />
+            </Link>
+          </Button>
+        }
+      />
+
+      <div className="grid gap-3 md:grid-cols-6 xl:grid-cols-12">
+        <section className={cn(panel, "md:col-span-6 xl:col-span-5")}>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">Setup progress</p>
+              <p className="mt-3 font-mono text-[2.5rem] font-semibold leading-none tracking-[-0.03em] tabular-nums text-ink">
+                {percent}
+                <span className="text-[1rem] text-ink-muted">%</span>
+              </p>
+              <p className="mt-2 text-[13px] text-ink-muted">
+                {done} of {steps.length} steps done
+              </p>
+            </div>
+            <span className={cn("grid size-10 place-items-center rounded-control", complete ? "bg-success/15 text-success" : "bg-brand/15 text-brand")}>
+              {complete ? <CheckCircle className="size-5" weight="fill" /> : <Rocket className="size-5" weight="fill" />}
+            </span>
           </div>
-        </div>
-      </div>
+          <div className="mt-5 h-2.5 overflow-hidden rounded-pill bg-hover" role="img" aria-label={`${percent} percent complete`}>
+            <span className={cn("block h-full rounded-pill", complete ? "bg-success" : "bg-brand")} style={{ width: `${percent}%` }} />
+          </div>
+          {complete && (
+            <p className="mt-4 flex items-center gap-2 text-[13px] text-ink-muted">
+              <Confetti className="size-4 text-brand" />
+              College basics are ready.
+            </p>
+          )}
+        </section>
 
-      {/* Vertical timeline */}
-      <ol className="space-y-0">
-        {steps.map((step, i) => {
-          const { icon: Icon, cta } = META[step.key];
-          const now = step === current;
-          const last = i === steps.length - 1;
-          return (
-            <li key={step.key} className="flex gap-4" style={{ animationDelay: `${i * 50}ms`, animation: "var(--animate-enter)" }}>
-              {/* Timeline spine */}
-              <div className="flex flex-col items-center">
-                <div className={cn(
-                  "grid size-9 shrink-0 place-items-center rounded-full border-2 transition-colors",
-                  step.done ? "border-brand bg-brand text-brand-ink" : now ? "border-brand bg-brand-soft" : "border-line bg-surface",
-                )}>
-                  {step.done ? (
-                    <Check className="size-4" />
-                  ) : step.blocked ? (
-                    <Lock className="size-3.5 text-ink-subtle" />
-                  ) : (
-                    <Icon className={cn("size-4", now ? "text-brand" : "text-ink-muted")} />
-                  )}
-                </div>
-                {!last && <div className="my-1 w-px flex-1 border-l border-dashed border-line" />}
-              </div>
-              {/* Step card */}
-              <Link
-                href={step.href}
-                className={cn("group mb-4 min-w-0 flex-1", step.blocked && "pointer-events-none")}
-              >
-                <div className={cn(
-                  "liquid-glass flex h-full items-start gap-4 rounded-2xl border px-5 py-4 transition-all duration-150",
-                  now ? "border-brand/40 group-hover:bg-brand-soft/10" : "border-line group-hover:border-brand/20",
-                  step.blocked && "opacity-40",
-                )}>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="text-[14.5px] font-semibold text-ink">{step.title}</p>
-                      {step.done && (
-                        <span className="rounded-full bg-brand px-2.5 py-0.5 font-[family-name:var(--font-eyebrow)] text-[9px] uppercase tracking-wider text-brand-ink">Done</span>
-                      )}
-                      {now && !step.done && (
-                        <span className="rounded-full bg-brand/15 px-2.5 py-0.5 font-[family-name:var(--font-eyebrow)] text-[9px] uppercase tracking-wider text-brand">Next</span>
-                      )}
-                    </div>
-                    <p className="mt-0.5 text-[12.5px] text-ink-subtle">{step.text}</p>
-                    {!step.blocked && (
-                      <span className="mt-2 inline-flex items-center gap-1 text-[12.5px] font-medium text-brand">
-                        {step.done ? "Open" : cta}
-                        <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
-                      </span>
-                    )}
-                  </div>
-                  <span className="shrink-0 font-[family-name:var(--font-eyebrow)] text-[10px] text-ink-subtle">{META[step.key].minutes}</span>
-                </div>
+        <section className={cn(panel, "md:col-span-6 xl:col-span-7")}>
+          <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">{complete ? "Ready" : "Up next"}</p>
+          <div className="mt-4 flex flex-1 flex-col justify-between gap-5 sm:flex-row sm:items-end">
+            <div className="min-w-0">
+              <p className="flex items-center gap-2 text-[18px] font-semibold tracking-[-0.02em] text-ink">
+                {complete ? (
+                  <CheckCircle className="size-5 shrink-0 text-success" weight="fill" />
+                ) : nextMeta ? (
+                  <nextMeta.icon className="size-5 shrink-0 text-brand" />
+                ) : null}
+                {complete ? "College is ready to run" : current?.title}
+              </p>
+              <p className="mt-2 max-w-[48ch] text-[13.5px] leading-relaxed text-ink-muted">
+                {complete
+                  ? "Open the dashboard to watch exams live, or invite staff from Staff accounts."
+                  : current?.text}
+              </p>
+            </div>
+            <Button asChild variant={complete ? "secondary" : "primary"} className="shrink-0">
+              <Link href={current?.href ?? "/staff"}>
+                {complete ? "Open dashboard" : nextMeta?.cta ?? "Continue"}
+                <ArrowRight />
               </Link>
-            </li>
-          );
-        })}
-      </ol>
+            </Button>
+          </div>
+        </section>
 
-      {complete && (
-        <p className="mt-2 flex items-center gap-2 text-[13px] text-ink-muted">
-          <Confetti className="size-4 text-brand" />
-          Go to Dashboard to watch exams live, or invite staff from Staff accounts.
-        </p>
-      )}
+        <section className={cn(panel, "md:col-span-6 xl:col-span-7")}>
+          <div className="mb-4 flex items-baseline justify-between gap-3">
+            <h2 className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">Setup checklist</h2>
+            <p className="text-[12.5px] text-ink-muted">
+              {done}/{steps.length} complete
+            </p>
+          </div>
+          <ol className="space-y-2">
+            {rows.map((step, index) => (
+              <StepRow key={step.key} step={step} index={index} />
+            ))}
+          </ol>
+        </section>
+
+        <section className={cn(panel, "md:col-span-6 xl:col-span-5")}>
+          <div className="mb-4 flex items-baseline justify-between gap-3">
+            <h2 className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">Day to day</h2>
+            <p className="text-[12.5px] text-ink-muted">Always available</p>
+          </div>
+          <ul className="space-y-2">
+            {DAY_TO_DAY.map((step, index) => (
+              <StepRow
+                key={step.href}
+                step={{
+                  key: step.href,
+                  title: step.title,
+                  text: step.text,
+                  href: step.href,
+                  cta: step.cta,
+                  done: false,
+                  Icon: step.icon,
+                }}
+                index={index}
+              />
+            ))}
+          </ul>
+        </section>
+      </div>
     </div>
+  );
+}
+
+function StepRow({ step, index }: { step: Row; index: number }) {
+  const Icon = step.Icon;
+  return (
+    <li>
+      <Link
+        href={step.href}
+        className={cn(
+          "group flex items-start gap-3 rounded-control border border-line bg-hover/30 px-3 py-3 transition-colors hover:bg-hover sm:gap-3.5 sm:px-3.5",
+          step.blocked && "pointer-events-none opacity-40",
+          step.next && "border-brand/40 bg-brand-soft/20",
+        )}
+      >
+        <span
+          className={cn(
+            "mt-0.5 grid size-8 shrink-0 place-items-center rounded-control",
+            step.done ? "bg-success/15 text-success" : step.next ? "bg-brand/15 text-brand" : "bg-surface text-ink-muted ring-1 ring-line-strong",
+          )}
+          aria-hidden
+        >
+          {step.done ? <CheckCircle className="size-4" weight="fill" /> : step.blocked ? <Lock className="size-3.5" /> : <Icon className="size-4" />}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="font-mono text-[10.5px] tabular-nums text-ink-subtle">{String(index + 1).padStart(2, "0")}</span>
+            <span className="text-[14px] font-semibold text-ink">{step.title}</span>
+            {step.done && <span className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-success">Done</span>}
+            {step.next && !step.done && <span className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-brand">Next</span>}
+            {step.meta && <span className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-ink-subtle">{step.meta}</span>}
+          </span>
+          <span className="mt-1 block text-[12.5px] leading-snug text-ink-muted">{step.text}</span>
+        </span>
+        {!step.blocked && (
+          <span className="mt-1 inline-flex shrink-0 items-center gap-1 text-[13px] font-medium text-brand">
+            {step.cta}
+            <ArrowRight className="size-3.5 opacity-70 transition-transform group-hover:translate-x-0.5" />
+          </span>
+        )}
+      </Link>
+    </li>
   );
 }

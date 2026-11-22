@@ -61,7 +61,7 @@ export function HonorCode({
               <ul className="space-y-2.5">
                 {PLEDGES.map((pledge, index) => (
                   <li key={pledge}>
-                    <label className="flex cursor-pointer items-start gap-3 rounded-[var(--radius-control)] border border-line px-3.5 py-3 transition-colors hover:bg-hover has-[:checked]:border-accent/40 has-[:checked]:bg-brand-soft">
+                    <label className="flex cursor-pointer items-start gap-3 rounded-control border border-line px-3.5 py-3 transition-colors hover:bg-hover has-[:checked]:border-accent/40 has-[:checked]:bg-brand-soft">
                       <input
                         type="checkbox"
                         checked={ticked[index]}
@@ -87,7 +87,7 @@ export function HonorCode({
                 autoCapitalize="none"
                 spellCheck={false}
                 aria-invalid={typed !== "" && !signed}
-                className="mt-2 h-11 w-full rounded-[var(--radius-control)] border border-line-strong bg-surface px-3.5 font-mono text-[15px] text-ink outline-none transition-[border-color,box-shadow] focus:border-ink focus:ring-4 focus:ring-ink/10 aria-[invalid=true]:border-danger"
+                className="mt-2 h-11 w-full rounded-control border border-line-strong bg-surface px-3.5 font-mono text-[15px] text-ink outline-none transition-[border-color,box-shadow] focus:border-ink focus:ring-4 focus:ring-ink/10 aria-[invalid=true]:border-danger"
               />
               {typed !== "" && !signed && <p className="mt-1.5 text-[13px] text-danger">That doesn&apos;t match your roll number.</p>}
             </div>

@@ -143,13 +143,13 @@ export function ImportStaffDialog({
                 void loadFile(event.dataTransfer.files[0]);
               }}
               className={cn(
-                "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-[var(--radius-surface)] border-2 border-dashed px-6 py-7 text-center transition-all",
+                "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-surface border-2 border-dashed px-6 py-7 text-center transition-all",
                 dragging
                   ? "border-brand bg-brand-soft/50 ring-4 ring-brand/15"
                   : "border-line-strong hover:border-brand/60 hover:bg-hover/40"
               )}
             >
-              <div className="grid size-10 place-items-center rounded-full bg-surface shadow-[var(--shadow-hairline)] border border-line">
+              <div className="grid size-10 place-items-center rounded-pill bg-surface shadow-[var(--shadow-hairline)] border border-line">
                 <UploadSimple className="size-5 text-brand" />
               </div>
               <div className="space-y-1">
@@ -179,7 +179,7 @@ export function ImportStaffDialog({
 
             {/* Validation & Status summary */}
             {text && (
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-control)] border border-line bg-surface p-2.5 text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-control border border-line bg-surface p-2.5 text-xs">
                 <div className="flex items-center gap-2">
                   <Badge tone={rows.length > 0 && problems.length === 0 ? "success" : "neutral"}>
                     {rows.length} valid {rows.length === 1 ? "staff" : "staff"}
@@ -228,7 +228,7 @@ export function ImportStaffDialog({
 
             {/* Parsing validation problems */}
             {problems.length > 0 && (
-              <ul className="max-h-36 space-y-1 overflow-y-auto rounded-[var(--radius-control)] border border-danger/20 bg-danger-soft/40 p-3 text-xs text-danger">
+              <ul className="max-h-36 space-y-1 overflow-y-auto rounded-control border border-danger/20 bg-danger-soft/40 p-3 text-xs text-danger">
                 {problems.map((problem) => (
                   <li key={problem}>{problem}</li>
                 ))}
@@ -243,7 +243,7 @@ export function ImportStaffDialog({
           </SubmitButton>
 
           {state.failed && state.failed.length > 0 && (
-            <ul className="space-y-1 rounded-md border border-danger/20 bg-danger/5 p-3 text-[13px] text-danger">
+            <ul className="space-y-1 rounded-control border border-danger/20 bg-danger/5 p-3 text-[13px] text-danger">
               {state.failed.map((line) => (
                 <li key={line}>{line}</li>
               ))}

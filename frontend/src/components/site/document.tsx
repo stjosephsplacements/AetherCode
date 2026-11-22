@@ -13,12 +13,12 @@ export function DocumentPage({ title, intro, updated, sections }: { title: strin
       </header>
       <div className="mt-14 grid gap-12 lg:grid-cols-[240px_minmax(0,1fr)]">
         <nav aria-label="On this page" className="hidden lg:block">
-          <div className="sticky top-24 rounded-[var(--radius-surface)] overflow-hidden border border-line-strong bg-surface font-mono text-[12.5px] shadow-[var(--shadow-panel)]">
+          <div className="sticky top-24 rounded-surface overflow-hidden border border-line-strong bg-surface font-mono text-[12.5px] shadow-[var(--shadow-panel)]">
             <p className="border-b border-line-strong px-4 py-2 text-ink-subtle">Contents</p>
             <ol className="py-1">
               {sections.map((section, index) => (
                 <li key={section.id}>
-                  <a href={`#${section.id}`} className="mx-1 flex gap-2 rounded-full px-3 py-1.5 text-ink-muted transition-colors hover:bg-hover hover:text-ink">
+                  <a href={`#${section.id}`} className="mx-1 flex gap-2 rounded-pill px-3 py-1.5 text-ink-muted transition-colors hover:bg-hover hover:text-ink">
                     <span aria-hidden className="text-ink-subtle">{String(index + 1).padStart(2, "0")}</span>
                     <span>{section.title}</span>
                   </a>

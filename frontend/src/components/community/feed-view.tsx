@@ -24,7 +24,7 @@ export function FeedView({ kind, items, path, saved }: { kind: FeedKind; items: 
           { href: path, label: "Open", active: !saved },
           { href: `${path}?saved=1`, label: "Saved", active: saved },
         ].map((tab) => (
-          <Link key={tab.href} href={tab.href} aria-current={tab.active ? "page" : undefined} className={cn("rounded-full px-3 py-1 text-[13px]", tab.active ? "bg-ink text-canvas" : "bg-hover text-ink-muted hover:text-ink")}>
+          <Link key={tab.href} href={tab.href} aria-current={tab.active ? "page" : undefined} className={cn("rounded-pill px-3 py-1 text-[13px]", tab.active ? "bg-ink text-canvas" : "bg-hover text-ink-muted hover:text-ink")}>
             {tab.label}
           </Link>
         ))}
@@ -33,7 +33,7 @@ export function FeedView({ kind, items, path, saved }: { kind: FeedKind; items: 
         {items.length === 0 ? (
           <EmptyState>{saved ? "Nothing saved yet." : empty}</EmptyState>
         ) : (
-          <ul className="overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface">
+          <ul className="overflow-hidden rounded-surface border border-line bg-surface">
             {items.map((item, index) => (
               <li key={item.id} className={cn("flex items-start gap-4 px-5 py-4", index > 0 && "border-t border-line")}>
                 <div className="min-w-0 flex-1">

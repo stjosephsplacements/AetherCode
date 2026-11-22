@@ -24,7 +24,7 @@ export function PublicProfileForm({ profile, origin, suggestion }: { profile: Pu
   const savedUrl = `${origin}/u/${encodeURIComponent(profile.slug)}`;
   const content = profile.content;
   return (
-    <div className="rounded-3xl border border-line bg-surface shadow-[var(--shadow-panel)] p-5">
+    <div className="rounded-panel border border-line bg-surface shadow-[var(--shadow-panel)] p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Public profile</h2>
         <span className={`text-[12.5px] font-medium ${profile.enabled ? "text-success" : "text-ink-subtle"}`}>{profile.enabled ? "Public" : "Hidden"}</span>
@@ -35,7 +35,7 @@ export function PublicProfileForm({ profile, origin, suggestion }: { profile: Pu
         <Field label="Address" hint="3 to 31 lowercase letters, digits or dashes" htmlFor="public-slug">
           <TextInput id="public-slug" name="slug" value={slug} onChange={(event) => setSlug(event.target.value.toLowerCase())} pattern="[a-z0-9][a-z0-9\-]{2,30}" required />
         </Field>
-        <div className="flex flex-wrap items-center gap-2 rounded-[var(--radius-control)] border border-line bg-canvas px-3 py-2 font-mono text-[12.5px] text-ink-muted">
+        <div className="flex flex-wrap items-center gap-2 rounded-control border border-line bg-canvas px-3 py-2 font-mono text-[12.5px] text-ink-muted">
           <span className="min-w-0 flex-1 truncate">{url}</span>
           <button
             type="button"

@@ -54,7 +54,7 @@ export function ManageCategories({ categories }: { categories: Category[] }) {
       </DialogTrigger>
       <DialogContent title="Manage categories" description="Rename a category, or delete one and move its questions into another. Uncategorised is built in." className="w-[min(94vw,640px)]">
         <div className="min-h-0 space-y-5 overflow-y-auto p-6">
-          <ul className="divide-y divide-line overflow-hidden rounded-[var(--radius-control)] border border-line">
+          <ul className="divide-y divide-line overflow-hidden rounded-control border border-line">
             {inFolderOrder(categories).map(({ category, depth }) => {
               const builtIn = category.id === UNCATEGORISED;
               const children = categories.filter((child) => child.parent_id === category.id).length;
@@ -110,7 +110,7 @@ export function ManageCategories({ categories }: { categories: Category[] }) {
                     </div>
                   )}
                   {removing === category.id && (
-                    <div className={cn("mt-3 space-y-3 rounded-[var(--radius-control)] bg-danger-soft p-4")}>
+                    <div className={cn("mt-3 space-y-3 rounded-control bg-danger-soft p-4")}>
                       <p className="text-[13px] text-ink">
                         {children > 0 ? "Move or delete its sub-categories first." : category.question_count > 0 ? `Its ${category.question_count} ${category.question_count === 1 ? "question moves" : "questions move"} to the category you choose.` : "It has no questions."}{children === 0 && " This cannot be undone."}
                       </p>

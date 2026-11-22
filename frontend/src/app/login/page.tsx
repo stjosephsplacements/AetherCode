@@ -26,17 +26,17 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
 
       {/* Gradient mesh — vivid aurora that glass refracts */}
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        <div className="login-orb absolute -left-[20%] -top-[10%] h-[70%] w-[60%] rounded-full bg-[radial-gradient(closest-side,var(--hero-aurora-1),transparent)] opacity-50" />
-        <div className="login-orb absolute -bottom-[15%] -right-[15%] h-[65%] w-[55%] rounded-full bg-[radial-gradient(closest-side,var(--glow-2),transparent)] opacity-40 [animation-delay:-7s]" />
-        <div className="login-orb absolute bottom-[10%] left-[20%] h-[45%] w-[40%] rounded-full bg-[radial-gradient(closest-side,var(--hero-aurora-1),transparent)] opacity-25 [animation-delay:-14s]" />
+        <div className="login-orb absolute -left-[20%] -top-[10%] h-[70%] w-[60%] rounded-pill bg-[radial-gradient(closest-side,var(--hero-aurora-1),transparent)] opacity-50" />
+        <div className="login-orb absolute -bottom-[15%] -right-[15%] h-[65%] w-[55%] rounded-pill bg-[radial-gradient(closest-side,var(--glow-2),transparent)] opacity-40 [animation-delay:-7s]" />
+        <div className="login-orb absolute bottom-[10%] left-[20%] h-[45%] w-[40%] rounded-pill bg-[radial-gradient(closest-side,var(--hero-aurora-1),transparent)] opacity-25 [animation-delay:-14s]" />
       </div>
 
       {/* Glow ring behind the card */}
-      <div aria-hidden className="pointer-events-none absolute h-[560px] w-[520px] rounded-[40px] bg-brand/10 blur-[80px]" />
+      <div aria-hidden className="pointer-events-none absolute h-[560px] w-[520px] rounded-panel bg-brand/10 blur-[80px]" />
 
       <LiquidGlass
         strong
-        className="relative w-full max-w-[460px] overflow-hidden rounded-[32px] shadow-[var(--shadow-overlay)]"
+        className="relative w-full max-w-[460px] overflow-hidden rounded-panel shadow-[var(--shadow-overlay)]"
       >
         {/* Top bar with logo and home link */}
         <div className="flex items-center justify-between px-7 pt-7 sm:px-9 sm:pt-9">
@@ -45,7 +45,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
             <Image src="/3.png" alt="" width={22} height={22} priority className="logo-dark object-contain" />
             <span className="font-mono text-[15px] font-semibold tracking-tight text-ink">AetherCode</span>
           </Link>
-          <Link href="/" className="rounded-full border border-line px-3 py-1 font-mono text-[12px] text-ink-muted transition-colors hover:bg-hover hover:text-ink">
+          <Link href="/" className="rounded-pill border border-line px-3 py-1 font-mono text-[12px] text-ink-muted transition-colors hover:bg-hover hover:text-ink">
             &larr; Home
           </Link>
         </div>
@@ -58,7 +58,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
 
           <div className="mt-8">
             {ssoError && (
-              <p role="alert" className="mb-6 rounded-2xl border border-danger bg-danger-soft px-4 py-3 font-mono text-[13px] text-danger">
+              <p role="alert" className="mb-6 rounded-panel border border-danger bg-danger-soft px-4 py-3 font-mono text-[13px] text-danger">
                 [!] {ssoError}
               </p>
             )}
@@ -66,7 +66,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
               <>
                 <a
                   href={`/auth/sso${next ? `?next=${encodeURIComponent(next)}` : ""}`}
-                  className="flex w-full items-center justify-center gap-2.5 rounded-full border border-line-strong bg-surface/40 py-3.5 text-[14px] font-medium text-ink backdrop-blur transition-colors hover:bg-hover"
+                  className="flex w-full items-center justify-center gap-2.5 rounded-pill border border-line-strong bg-surface/40 py-3.5 text-[14px] font-medium text-ink backdrop-blur transition-colors hover:bg-hover"
                 >
                   Sign in with your college account
                 </a>

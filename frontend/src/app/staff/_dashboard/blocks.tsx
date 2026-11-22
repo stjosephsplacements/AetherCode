@@ -36,7 +36,7 @@ function Tip({ label, children, className, style }: { label: string; children: R
       {children}
       <span
         role="tooltip"
-        className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 translate-y-1 whitespace-nowrap rounded-md border border-line-strong bg-surface px-2 py-1 text-[12px] font-medium text-ink opacity-0 shadow-[var(--shadow-overlay)] transition-[opacity,transform] duration-150 group-hover/tip:translate-y-0 group-hover/tip:opacity-100 group-focus-within/tip:translate-y-0 group-focus-within/tip:opacity-100"
+        className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 translate-y-1 whitespace-nowrap rounded-control border border-line-strong bg-surface px-2 py-1 text-[12px] font-medium text-ink opacity-0 shadow-[var(--shadow-overlay)] transition-[opacity,transform] duration-150 group-hover/tip:translate-y-0 group-hover/tip:opacity-100 group-focus-within/tip:translate-y-0 group-focus-within/tip:opacity-100"
       >
         {label}
       </span>
@@ -51,7 +51,7 @@ export function FigureTile({ label, value, note, tone, expand, className }: { la
   return (
     <Tile label={label} expand={expand} className={className}>
       <p className="mt-auto flex items-center gap-2.5 text-[30px] font-semibold leading-none tracking-[-0.03em] tabular-nums text-ink">
-        {tone && <span aria-hidden className={cn("size-2 rounded-full", DOT[tone])} />}
+        {tone && <span aria-hidden className={cn("size-2 rounded-pill", DOT[tone])} />}
         {value}
       </p>
       <p className="mt-2 truncate text-[12.5px] text-ink-muted">{note}</p>
@@ -72,14 +72,14 @@ function FloorBar({ floor }: { floor: Floor }) {
           .filter((segment) => segment.count > 0)
           .map((segment) => (
             <Tip key={segment.key} label={`${segment.count} ${segment.label.toLowerCase()}`} className="relative h-full min-w-1" style={{ flex: `${segment.count} 1 0` }}>
-              <span className={cn("block h-full w-full rounded-[4px]", segment.fill)} />
+              <span className={cn("block h-full w-full rounded-chip", segment.fill)} />
             </Tip>
           ))}
       </div>
       <ul className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-ink-muted">
         {segments.map((segment) => (
           <li key={segment.key} className="flex items-center gap-1.5">
-            <span aria-hidden className={cn("size-2 rounded-[2px]", segment.fill)} />
+            <span aria-hidden className={cn("size-2 rounded-chip", segment.fill)} />
             {segment.label}
             <span className="font-mono tabular-nums text-ink">{segment.count}</span>
           </li>
@@ -130,7 +130,7 @@ export function LiveTile({ floors, next, now, className }: { floors: Floor[]; ne
         {live ? (
           <FloorList floors={floors.slice(0, 3)} now={now} />
         ) : next ? (
-          <ExamPeek exam={next} now={now} className="block w-full rounded-[var(--radius-control)] border border-line px-4 py-3 transition-colors hover:border-line-strong hover:bg-hover">
+          <ExamPeek exam={next} now={now} className="block w-full rounded-control border border-line px-4 py-3 transition-colors hover:border-line-strong hover:bg-hover">
             <span className="block font-mono text-[10.5px] uppercase tracking-[0.08em] text-ink-subtle">Next to open</span>
             <span className="mt-1 block truncate text-[15px] font-semibold text-ink">{next.version.title}</span>
             <span className="mt-0.5 block text-[13px] text-ink-muted">{formatDateTime(next.version.opens_at)}</span>
@@ -146,66 +146,81 @@ export function LiveTile({ floors, next, now, className }: { floors: Floor[]; ne
 function TimelineChart({ start, now, exams }: { start: number; now: number; exams: Scheduled[] }) {
   const span = DAYS * DAY;
   const at = (time: number) => Math.min(100, Math.max(0, ((time - start) / span) * 100));
+  const nowAt = at(now);
+  // Flip the chip to the left of the line when it would collide with the right edge.
+  const chipRight = nowAt > 88;
   const days = Array.from({ length: DAYS }, (_, index) => new Date(start + index * DAY + DAY / 2));
   return (
     <div className="relative [--label:108px] sm:[--label:180px]">
-      <div aria-hidden className="pointer-events-none absolute inset-y-0 left-[var(--label)] right-0 grid grid-cols-7">
-        {days.map((day, index) => (
-          <div key={index} className={cn("border-l border-line", index === 0 && "bg-hover/50")} />
-        ))}
-        <div className="absolute inset-y-0 w-px bg-brand" style={{ left: `${at(now)}%` }}>
-          <span className="absolute -top-px left-1 rounded-sm bg-brand px-1 font-mono text-[10px] leading-4 text-brand-ink">now</span>
-        </div>
-      </div>
-      <div className="relative grid grid-cols-[var(--label)_1fr] border-b border-line">
+      <div className="relative grid grid-cols-[var(--label)_1fr] border-b border-line pb-2">
         <span />
         <div className="grid grid-cols-7">
           {days.map((day, index) => (
-            <div key={index} className={cn("px-2 pb-2 font-mono text-[11px] uppercase", index === 0 ? "text-ink" : "text-ink-subtle")}>
-              {weekday.format(day)} <span className="hidden sm:inline">{dayOfMonth.format(day)}</span>
+            <div key={index} className={cn("border-l border-line px-2 font-mono text-[11px] uppercase", index === 0 ? "bg-hover/40 text-ink" : "text-ink-subtle")}>
+              <span className="block leading-tight">{weekday.format(day)}</span>
+              <span className="mt-0.5 block text-[10px] tracking-normal text-ink-subtle">{dayOfMonth.format(day)}</span>
             </div>
           ))}
         </div>
       </div>
-      {exams.length === 0 ? (
-        <p className="relative py-10 text-center text-sm text-ink-muted">No exam windows this week.</p>
-      ) : (
-        <ul className="relative">
-          {exams.map((entry, index) => {
-            const { version } = entry;
-            const state = examState(version, now);
-            const left = at(Date.parse(version.opens_at));
-            return (
-              <li key={entry.exam.id} className={cn("grid h-11 grid-cols-[var(--label)_1fr] items-center", index > 0 && "border-t border-line")}>
-                <ExamPeek exam={entry} now={now} className="truncate pr-3 text-[13.5px] font-medium text-ink transition-colors hover:text-brand">
-                  {version.title}
-                </ExamPeek>
-                <div className="relative h-full">
-                  <Tip
-                    label={`${formatDateTime(version.opens_at)} to ${formatTime(version.closes_at)}`}
-                    className="absolute top-1/2 h-5 min-w-[6px] -translate-y-1/2"
-                    style={{ left: `${left}%`, width: `${Math.max(at(Date.parse(version.closes_at)) - left, 0.8)}%` }}
-                  >
-                    <ExamPeek
-                      exam={entry}
-                      now={now}
-                      label={`${version.title}, ${state === "live" ? "live now" : state === "closed" ? "closed" : "opens"} ${formatDateTime(version.opens_at)}`}
-                      className={cn(
-                        "block h-full w-full rounded-[4px] transition-[filter] hover:brightness-110",
-                        state === "live" && "bg-brand",
-                        state === "next" && "border border-line-strong bg-surface-2",
-                        state === "closed" && "bg-line",
-                      )}
+      <div className="relative">
+        <div aria-hidden className="pointer-events-none absolute inset-y-0 left-[var(--label)] right-0">
+          <div className="absolute inset-y-0 grid w-full grid-cols-7">
+            {days.map((_, index) => (
+              <div key={index} className={cn("border-l border-line", index === 0 && "bg-hover/30")} />
+            ))}
+          </div>
+          <div className="absolute inset-y-0 w-px bg-brand" style={{ left: `${nowAt}%` }}>
+            <span
+              className={cn(
+                "absolute top-1.5 rounded-chip bg-brand px-1.5 font-mono text-[10px] leading-4 text-brand-ink",
+                chipRight ? "right-1" : "left-1",
+              )}
+            >
+              now
+            </span>
+          </div>
+        </div>
+        {exams.length === 0 ? (
+          <p className="relative py-10 text-center text-sm text-ink-muted">No exam windows this week.</p>
+        ) : (
+          <ul className="relative pt-7">
+            {exams.map((entry, index) => {
+              const { version } = entry;
+              const state = examState(version, now);
+              const left = at(Date.parse(version.opens_at));
+              return (
+                <li key={entry.exam.id} className={cn("grid h-11 grid-cols-[var(--label)_1fr] items-center", index > 0 && "border-t border-line")}>
+                  <ExamPeek exam={entry} now={now} className="truncate pr-3 text-[13.5px] font-medium text-ink transition-colors hover:text-brand">
+                    {version.title}
+                  </ExamPeek>
+                  <div className="relative h-full">
+                    <Tip
+                      label={`${formatDateTime(version.opens_at)} to ${formatTime(version.closes_at)}`}
+                      className="absolute top-1/2 h-5 min-w-[6px] -translate-y-1/2"
+                      style={{ left: `${left}%`, width: `${Math.max(at(Date.parse(version.closes_at)) - left, 0.8)}%` }}
                     >
-                      <span className="sr-only">{version.title}</span>
-                    </ExamPeek>
-                  </Tip>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+                      <ExamPeek
+                        exam={entry}
+                        now={now}
+                        label={`${version.title}, ${state === "live" ? "live now" : state === "closed" ? "closed" : "opens"} ${formatDateTime(version.opens_at)}`}
+                        className={cn(
+                          "block h-full w-full rounded-chip transition-[filter] hover:brightness-110",
+                          state === "live" && "bg-brand",
+                          state === "next" && "border border-line-strong bg-surface-2",
+                          state === "closed" && "bg-line",
+                        )}
+                      >
+                        <span className="sr-only">{version.title}</span>
+                      </ExamPeek>
+                    </Tip>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
@@ -238,8 +253,8 @@ function ResultBars({ outcomes, now }: { outcomes: Outcome[]; now: number }) {
             <span className="ml-2 text-ink-subtle">{percent(pass)} pass</span>
           </span>
           <Tip label={`${percent(average)} average, ${percent(pass)} passed, ${attempts} graded`} className="relative col-span-2 block h-2.5">
-            <span tabIndex={0} aria-label={`${exam.version.title}: ${percent(average)} average`} className="absolute inset-0 rounded-[4px] bg-hover outline-none">
-              <span className="absolute inset-y-0 left-0 rounded-[4px] bg-brand" style={{ width: `${Math.max(average * 100, 1)}%` }} />
+            <span tabIndex={0} aria-label={`${exam.version.title}: ${percent(average)} average`} className="absolute inset-0 rounded-chip bg-hover outline-none">
+              <span className="absolute inset-y-0 left-0 rounded-chip bg-brand" style={{ width: `${Math.max(average * 100, 1)}%` }} />
               <span aria-hidden className="absolute -inset-y-1 border-l border-dashed border-ink-muted" style={{ left: `${PASS_SHARE * 100}%` }} />
             </span>
           </Tip>
@@ -301,7 +316,7 @@ function UpcomingList({ exams, now }: { exams: Scheduled[]; now: number }) {
     <ul className="-mx-2 space-y-0.5">
       {exams.map((entry) => (
         <li key={entry.exam.id}>
-          <ExamPeek exam={entry} now={now} className="flex w-full items-center gap-3 rounded-[var(--radius-control)] px-2 py-2 transition-colors hover:bg-hover">
+          <ExamPeek exam={entry} now={now} className="flex w-full items-center gap-3 rounded-control px-2 py-2 transition-colors hover:bg-hover">
             <span className="grid w-9 shrink-0 text-center font-mono leading-tight">
               <span className="text-[10px] uppercase text-ink-subtle">{weekday.format(new Date(entry.version.opens_at))}</span>
               <span className="text-[16px] text-ink">{dayOfMonth.format(new Date(entry.version.opens_at))}</span>

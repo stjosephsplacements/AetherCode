@@ -5,18 +5,18 @@ import { Popover } from "radix-ui";
 import { cn } from "@/lib/utils";
 import { DEFAULT_LAYOUT, updateLayout, useLayout } from "./layout-settings";
 
-const choice = (on: boolean) => cn("flex flex-1 flex-col items-center gap-1.5 rounded-xl border p-2.5 text-[11.5px] font-medium transition-colors", on ? "border-brand bg-brand-soft text-brand-soft-ink" : "border-line text-ink-muted hover:border-line-strong hover:text-ink");
+const choice = (on: boolean) => cn("flex flex-1 flex-col items-center gap-1.5 rounded-surface border p-2.5 text-[11.5px] font-medium transition-colors", on ? "border-brand bg-brand-soft text-brand-soft-ink" : "border-line text-ink-muted hover:border-line-strong hover:text-ink");
 
 /** Rearrange the workspace: which side the problem is on, where the console goes, or hide the problem. */
 export function LayoutMenu() {
   const layout = useLayout();
   return (
     <Popover.Root>
-      <Popover.Trigger aria-label="Layout" className="grid size-8 place-items-center rounded-[var(--radius-control)] text-ink-muted outline-none transition-colors hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-brand data-[state=open]:bg-hover">
+      <Popover.Trigger aria-label="Layout" className="grid size-8 place-items-center rounded-control text-ink-muted outline-none transition-colors hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-brand data-[state=open]:bg-hover">
         <SidebarSimple className="size-4" />
       </Popover.Trigger>
       <Popover.Portal>
-        <Popover.Content align="end" sideOffset={6} className="z-50 w-[300px] animate-fade space-y-4 rounded-2xl border border-line bg-surface p-4 shadow-[var(--shadow-overlay)]">
+        <Popover.Content align="end" sideOffset={6} className="z-50 w-[300px] animate-fade space-y-4 rounded-panel border border-line bg-surface p-4 shadow-[var(--shadow-overlay)]">
           <p className="text-[13px] font-semibold text-ink">Layout</p>
           <div className="space-y-1.5">
             <p className="text-xs text-ink-muted">Problem</p>

@@ -1476,6 +1476,7 @@ components:
         assigned_reviewer_id: {type: string, format: uuid, maxLength: 36}
         published_at: {type: [string, 'null'], format: date-time, maxLength: 35}
         created_at: {type: string, format: date-time, maxLength: 35}
+        created_by: {$ref: '#/components/schemas/UUID'}
         version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
         tags: {type: array, items: {$ref: '#/components/schemas/Tag'}, maxItems: 200}
         sample_test_case_count: {type: integer, minimum: 0, format: int64, maximum: 2147483647}

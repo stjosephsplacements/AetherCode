@@ -2,6 +2,7 @@
 
 import { Pause, Play } from "@phosphor-icons/react/ssr";
 import { useEffect, useState } from "react";
+import { panel } from "@/app/admin/_dashboard/panel";
 import { cn } from "@/lib/utils";
 
 type Flow = { id: string; title: string; steps: { page: string; title: string; text: string; fields: string[]; action: string }[] };
@@ -53,7 +54,7 @@ export function FlowPlayer() {
   }, [playing, index, flow]);
 
   return (
-    <div className="overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface">
+    <div className={cn(panel, "overflow-hidden p-0")}>
       <div role="tablist" aria-label="Walkthroughs" className="flex gap-1 border-b border-line p-2">
         {FLOWS.map((f) => (
           <button
@@ -64,7 +65,7 @@ export function FlowPlayer() {
               setFlowId(f.id);
               setIndex(0);
             }}
-            className={cn("rounded-full px-3.5 py-1.5 text-[13px] transition-colors", f.id === flowId ? "bg-hover font-medium text-ink" : "text-ink-muted hover:text-ink")}
+            className={cn("rounded-pill px-3.5 py-1.5 text-[13px] transition-colors", f.id === flowId ? "bg-hover font-medium text-ink" : "text-ink-muted hover:text-ink")}
           >
             {f.title}
           </button>
@@ -81,20 +82,20 @@ export function FlowPlayer() {
         </div>
 
         {/* A miniature of the form the step uses; fields fill in one by one, then the button is pressed. */}
-        <div key={`${flowId}-${index}-scene`} aria-hidden className="rounded-[var(--radius-control)] border border-line-strong bg-canvas p-4">
+        <div key={`${flowId}-${index}-scene`} aria-hidden className="rounded-control border border-line-strong bg-canvas p-4">
           <p className="mb-3 text-xs font-medium text-ink-muted">{step.page}</p>
           <div className="space-y-2.5">
             {step.fields.map((field, i) => (
               <div key={field}>
                 <p className="mb-1 text-[11px] text-ink-subtle">{field}</p>
-                <div className="h-7 overflow-hidden rounded-md border border-line bg-surface">
-                  <div className="h-full rounded-md bg-hover motion-safe:animate-[flow-fill_700ms_ease-out_both]" style={{ animationDelay: `${300 + i * 500}ms`, width: `${55 + ((i * 17) % 35)}%` }} />
+                <div className="h-7 overflow-hidden rounded-control border border-line bg-surface">
+                  <div className="h-full rounded-control bg-hover motion-safe:animate-[flow-fill_700ms_ease-out_both]" style={{ animationDelay: `${300 + i * 500}ms`, width: `${55 + ((i * 17) % 35)}%` }} />
                 </div>
               </div>
             ))}
           </div>
           <div
-            className="mt-4 inline-block rounded-full bg-brand px-4 py-1.5 text-xs font-medium text-brand-ink motion-safe:animate-[flow-press_600ms_ease-out_both]"
+            className="mt-4 inline-block rounded-pill bg-brand px-4 py-1.5 text-xs font-medium text-brand-ink motion-safe:animate-[flow-press_600ms_ease-out_both]"
             style={{ animationDelay: `${400 + step.fields.length * 500}ms` }}
           >
             {step.action}
@@ -103,16 +104,16 @@ export function FlowPlayer() {
       </div>
 
       <div className="flex items-center gap-3 border-t border-line px-4 py-2.5">
-        <button type="button" onClick={() => setPlaying((p) => !p)} aria-label={playing ? "Pause" : "Play"} className="grid size-8 place-items-center rounded-full text-ink-muted hover:bg-hover hover:text-ink">
+        <button type="button" onClick={() => setPlaying((p) => !p)} aria-label={playing ? "Pause" : "Play"} className="grid size-8 place-items-center rounded-pill text-ink-muted hover:bg-hover hover:text-ink">
           {playing ? <Pause className="size-4" /> : <Play className="size-4" />}
         </button>
         <div className="flex flex-1 gap-1.5">
           {flow.steps.map((s, i) => (
             <button key={s.title} type="button" aria-label={`Step ${i + 1}: ${s.title}`} onClick={() => setIndex(i)} className="group h-5 flex-1">
-              <span className="relative block h-1 overflow-hidden rounded-full bg-line">
+              <span className="relative block h-1 overflow-hidden rounded-pill bg-line">
                 <span
                   key={`${index}-${playing}`}
-                  className={cn("absolute inset-y-0 left-0 rounded-full bg-brand", i < index && "w-full", i > index && "w-0")}
+                  className={cn("absolute inset-y-0 left-0 rounded-pill bg-brand", i < index && "w-full", i > index && "w-0")}
                   style={i === index ? { animation: playing ? `flow-bar ${STEP_MS}ms linear both` : undefined, width: playing ? undefined : "100%" } : undefined}
                 />
               </span>

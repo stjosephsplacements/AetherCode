@@ -115,13 +115,13 @@ export default async function AnalyticsPage() {
 
   return (
     <>
-    <LiveRefresh topics={["grading"]} />
-    <AnalyticsView
-      several={several}
-      scope="the college"
-      notice={unreachable.length > 0 ? <p role="alert" className="mb-4 text-sm text-warning">Could not load: {unreachable.join(", ")}.</p> : undefined}
-      data={{ attempts, points, recent, overall, change, departmentRows, batchRows, students: students_, needAttention }}
-    />
+      <LiveRefresh topics={["grading"]} />
+      <AnalyticsView
+        several={several}
+        scope="the college"
+        notice={unreachable.length > 0 ? <p role="alert" className="mb-4 text-sm text-warning">Could not load: {unreachable.join(", ")}.</p> : undefined}
+        data={{ attempts, points, recent, overall, change, departmentRows, batchRows, students: students_, needAttention }}
+      />
     </>
   );
 }

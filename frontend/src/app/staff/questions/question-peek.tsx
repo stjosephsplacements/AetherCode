@@ -38,7 +38,7 @@ export function QuestionPeek({ row, languages, className, children }: { row: Que
             {row.audience === "practice" && <Badge tone="brand">Practice</Badge>}
             {row.kind === "coding" && row.status === "draft" && row.sample + row.hidden === 0 && <Badge tone="warning">No tests</Badge>}
           </div>
-          <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-[var(--radius-control)] border border-line bg-line sm:grid-cols-4">
+          <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-control border border-line bg-line sm:grid-cols-4">
             {facts.map(([term, value]) => (
               <div key={term} className="bg-surface px-4 py-3">
                 <dt className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-ink-subtle">{term}</dt>
@@ -49,13 +49,13 @@ export function QuestionPeek({ row, languages, className, children }: { row: Que
           {row.tags.length > 0 && (
             <ul className="flex flex-wrap gap-1.5" aria-label="Tags">
               {row.tags.map((entry) => (
-                <li key={entry} className="rounded-full bg-hover px-2.5 py-0.5 text-[12.5px] text-ink-muted">
+                <li key={entry} className="rounded-pill bg-hover px-2.5 py-0.5 text-[12.5px] text-ink-muted">
                   {entry}
                 </li>
               ))}
             </ul>
           )}
-          <div className="max-h-72 overflow-y-auto rounded-[var(--radius-control)] border border-line p-5">
+          <div className="max-h-72 overflow-y-auto rounded-control border border-line p-5">
             <Markdown>{row.prompt}</Markdown>
           </div>
         </div>

@@ -132,11 +132,11 @@ export function LiveIndicator() {
   return (
     <span
       role="status"
-      className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line px-2.5 font-mono text-[11px] uppercase tracking-[0.06em] text-ink-muted"
+      className="inline-flex h-7 items-center gap-1.5 rounded-pill border border-line px-2.5 font-mono text-[11px] uppercase tracking-[0.06em] text-ink-muted"
     >
       <span
         aria-hidden
-        className={status === "live" ? "size-1.5 rounded-full bg-success" : status === "connecting" ? "size-1.5 animate-pulse rounded-full bg-warning" : "size-1.5 rounded-full bg-ink-subtle"}
+        className={status === "live" ? "size-1.5 rounded-pill bg-success" : status === "connecting" ? "size-1.5 animate-pulse rounded-pill bg-warning" : "size-1.5 rounded-pill bg-ink-subtle"}
       />
       {LABEL[status]}
     </span>

@@ -13,7 +13,7 @@ export function EditorSettingsMenu() {
     <Popover.Root>
       <Popover.Trigger
         aria-label="Editor settings"
-        className="grid size-8 place-items-center rounded-[var(--radius-control)] text-ink-muted outline-none transition-colors hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-brand data-[state=open]:bg-hover"
+        className="grid size-8 place-items-center rounded-control text-ink-muted outline-none transition-colors hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-brand data-[state=open]:bg-hover"
       >
         <SlidersHorizontal className="size-4" />
       </Popover.Trigger>
@@ -21,7 +21,7 @@ export function EditorSettingsMenu() {
         <Popover.Content
           align="end"
           sideOffset={6}
-          className="z-50 w-[300px] max-h-[80vh] overflow-y-auto animate-fade space-y-4 rounded-[var(--radius-control)] border border-line bg-surface p-4 shadow-[var(--shadow-overlay)]"
+          className="z-50 w-[300px] max-h-[80vh] overflow-y-auto animate-fade space-y-4 rounded-control border border-line bg-surface p-4 shadow-[var(--shadow-overlay)]"
         >
           <p className="text-[13px] font-semibold text-ink">Editor settings</p>
           <Row label="Font size">
@@ -43,9 +43,9 @@ export function EditorSettingsMenu() {
                   role="radio"
                   aria-checked={settings.theme === theme.value}
                   onClick={() => updateEditorSettings({ theme: theme.value })}
-                  className={cn("flex flex-col items-center gap-1.5 rounded-xl border p-1.5 text-[10.5px] font-medium transition-colors", settings.theme === theme.value ? "border-brand text-ink" : "border-line text-ink-muted hover:border-line-strong hover:text-ink")}
+                  className={cn("flex flex-col items-center gap-1.5 rounded-surface border p-1.5 text-[10.5px] font-medium transition-colors", settings.theme === theme.value ? "border-brand text-ink" : "border-line text-ink-muted hover:border-line-strong hover:text-ink")}
                 >
-                  <span className="grid h-8 w-full place-items-center rounded-lg font-mono text-[11px]" style={{ background: theme.bg, color: theme.fg }}>
+                  <span className="grid h-8 w-full place-items-center rounded-control font-mono text-[11px]" style={{ background: theme.bg, color: theme.fg }}>
                     {"{ }"}
                   </span>
                   {theme.label}
@@ -66,9 +66,9 @@ export function EditorSettingsMenu() {
               <Switch.Root
                 checked={settings[key]}
                 onCheckedChange={(value) => updateEditorSettings({ [key]: value })}
-                className="relative h-5 w-9 rounded-full bg-line-strong outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand data-[state=checked]:bg-brand"
+                className="relative h-5 w-9 rounded-pill bg-line-strong outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand data-[state=checked]:bg-brand"
               >
-                <Switch.Thumb className="block size-4 translate-x-0.5 rounded-full bg-surface shadow-[var(--shadow-hairline)] transition-transform data-[state=checked]:translate-x-[18px]" />
+                <Switch.Thumb className="block size-4 translate-x-0.5 rounded-pill bg-surface shadow-[var(--shadow-hairline)] transition-transform data-[state=checked]:translate-x-[18px]" />
               </Switch.Root>
             </label>
           ))}
@@ -100,7 +100,7 @@ function Segmented<T extends string | number>({
   onChange: (value: T) => void;
 }) {
   return (
-    <div className="flex rounded-[var(--radius-control)] bg-hover p-0.5" role="radiogroup">
+    <div className="flex rounded-control bg-hover p-0.5" role="radiogroup">
       {options.map((option) => (
         <button
           key={option.value}
@@ -108,7 +108,7 @@ function Segmented<T extends string | number>({
           aria-checked={option.value === value}
           onClick={() => onChange(option.value)}
           className={cn(
-            "h-7 flex-1 rounded-[8px] text-xs font-medium tabular-nums transition-colors",
+            "h-7 flex-1 rounded-chip text-xs font-medium tabular-nums transition-colors",
             option.value === value ? "bg-surface text-ink shadow-[var(--shadow-hairline)]" : "text-ink-muted hover:text-ink",
           )}
         >

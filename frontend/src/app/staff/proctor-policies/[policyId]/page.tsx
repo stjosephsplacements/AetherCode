@@ -1,14 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { panel } from "@/app/admin/_dashboard/panel";
 import { notFound } from "next/navigation";
 import { ActionForm } from "@/components/staff/form";
 import { LoadError, PageHeader, Section } from "@/components/staff/page-header";
-import { Badge, Panel } from "@/components/ui/card";
+import { Badge } from "@/components/ui/card";
 import type { ProctorPolicy, ProctorPolicyVersion } from "@/lib/api-types";
 import { violationKindLabel } from "@/lib/proctor-kinds";
 import { GatewayError, gateway } from "@/lib/server/gateway";
 import { listProctorPolicyVersions } from "@/lib/server/proctor-policies";
 import { requireCollege } from "@/lib/server/staff";
+import { cn } from "@/lib/utils";
 import { addDraftVersion, publishVersion } from "../actions";
 import { PolicyBodyFields } from "../policy-fields";
 
@@ -47,17 +49,17 @@ export default async function ProctorPolicyDetailPage({ params }: { params: Prom
   } catch (error) {
     if (error instanceof GatewayError && error.status === 404) notFound();
     return (
-      <>
+      <div className="animate-enter">
         <PageHeader title="Proctor policy" />
         <LoadError error={error} />
-      </>
+      </div>
     );
   }
 
   const draftSeed = versions[0]?.policy ?? {};
 
   return (
-    <>
+    <div className="animate-enter">
       <Link href="/staff/proctor-policies" className="mb-6 inline-block text-sm text-ink-muted hover:text-ink">
         ← Proctor policies
       </Link>
@@ -66,7 +68,7 @@ export default async function ProctorPolicyDetailPage({ params }: { params: Prom
         <ul className="space-y-2">
           {versions.map((version) => (
             <li key={version.id}>
-              <Panel className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
+              <div className={cn(panel, "flex-row flex-wrap items-center justify-between gap-3 p-4 text-sm")}>
                 <div>
                   <p className="font-medium text-ink">
                     Version {version.version_number}{" "}
@@ -80,20 +82,20 @@ export default async function ProctorPolicyDetailPage({ params }: { params: Prom
                     <input type="hidden" name="version_id" value={version.id} />
                   </ActionForm>
                 ) : null}
-              </Panel>
+              </div>
             </li>
           ))}
         </ul>
       </Section>
       <Section title="New draft">
-        <Panel className="p-5 sm:p-6">
+        <div className={cn(panel, "sm:p-6")}>
           <ActionForm action={addDraftVersion} submitLabel="Save draft">
             <input type="hidden" name="policy_id" value={policy.id} />
             <input type="hidden" name="expected_policy_version" value={policy.version} />
             <PolicyBodyFields idPrefix="draft" seed={draftSeed} publishLabel="Publish after saving" />
           </ActionForm>
-        </Panel>
+        </div>
       </Section>
-    </>
+    </div>
   );
 }

@@ -6,7 +6,7 @@ import { ConfirmDelete } from "@/components/staff/confirm-delete";
 import { ActionForm, type ActionState, Field, Select } from "@/components/staff/form";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { removeOfficerById } from "./actions";
+import { removePlacementOfficer } from "../actions";
 
 export function AssignOfficer({
   candidates,
@@ -32,14 +32,18 @@ export function AssignOfficer({
             <Field label="Staff member" htmlFor="officer-person">
               <Select id="officer-person" name="principal_id" required>
                 {candidates.map((person) => (
-                  <option key={person.id} value={person.id}>{person.name}</option>
+                  <option key={person.id} value={person.id}>
+                    {person.name}
+                  </option>
                 ))}
               </Select>
             </Field>
             <Field label="Placement department" htmlFor="officer-department">
               <Select id="officer-department" name="placement_department_id" required>
                 {departments.map((dep) => (
-                  <option key={dep.id} value={dep.id}>{dep.name}</option>
+                  <option key={dep.id} value={dep.id}>
+                    {dep.name}
+                  </option>
                 ))}
               </Select>
             </Field>
@@ -57,7 +61,7 @@ export function RemoveOfficerButton({ assignmentId, name }: { assignmentId: stri
       title={`Remove ${name}?`}
       description="They will lose access to this placement area. The students they managed are not changed."
       askReason={false}
-      onConfirm={() => removeOfficerById(assignmentId)}
+      onConfirm={async () => removePlacementOfficer(assignmentId)}
     />
   );
 }

@@ -1,10 +1,8 @@
-import { ArrowLeft } from "@phosphor-icons/react/ssr";
-import Link from "next/link";
 import { type NavGroup } from "@/components/staff/staff-nav";
 import { StaffShell } from "@/components/staff/staff-shell";
 import { requirePlacement } from "@/lib/server/placement";
 
-/** The placement area: students of every college a placement department reaches. Separate from /staff, which is one college. */
+/** Placement staff console: assigned tracks only (ADR-0089). Setup lives under /admin/placement. */
 export default async function PlacementLayout({ children }: { children: React.ReactNode }) {
   const placement = await requirePlacement();
   const groups: NavGroup[] = [
@@ -16,11 +14,8 @@ export default async function PlacementLayout({ children }: { children: React.Re
       ],
     },
     {
-      label: "Manage",
-      items: [
-        { href: "/placement/departments", label: "Departments", icon: "organisation" },
-        { href: "/placement/staff", label: "Officers", icon: "accounts" },
-      ],
+      label: "Students",
+      items: [{ href: "/placement/students", label: "Students", icon: "accounts" }],
     },
     {
       label: "Assess",
@@ -30,6 +25,10 @@ export default async function PlacementLayout({ children }: { children: React.Re
         { href: "/placement/analytics", label: "Analytics", icon: "analytics" },
       ],
     },
+    {
+      label: "Community",
+      items: [{ href: "/placement/community", label: "Blogs", icon: "blogs" }],
+    },
   ];
   return (
     <StaffShell
@@ -37,14 +36,7 @@ export default async function PlacementLayout({ children }: { children: React.Re
       tenantId={placement.colleges[0]?.id ?? null}
       groups={groups}
       home="/placement"
-      college={
-        placement.isPlatformAdmin ? (
-          <Link href="/admin" className="flex items-center gap-2 rounded-[var(--radius-control)] border border-line px-2.5 py-1.5 text-[13px] text-ink-muted transition-colors hover:bg-hover hover:text-ink">
-            <ArrowLeft className="size-3.5" />
-            Back to admin
-          </Link>
-        ) : undefined
-      }
+      consoleLabel="Placement"
     >
       {children}
     </StaffShell>

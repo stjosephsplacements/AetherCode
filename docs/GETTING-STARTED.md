@@ -39,8 +39,8 @@ Mentors have read access in their scope (students, progress and results) and do 
 ## Placement officer
 1. Sign in at `/login`; you land on `/placement`.
 2. Set up placement departments and their staff.
-3. Use the shared questions and exams for drives (the placement question bank is read-only; authoring needs a separate
-   permission), and read the placement analytics.
+3. Map students into your track, author questions and placement-targeted exams under `/placement`, publish blogs
+   into a college community feed, and read placement analytics.
 
 ## Platform administrator (owner)
 1. Complete the first-administrator steps in the deployment guide; sign in and enrol an authenticator app.

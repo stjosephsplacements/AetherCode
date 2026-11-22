@@ -8,6 +8,8 @@ export type Viewer = {
   /** The college the viewer acts in; null for platform-wide staff. */
   tenantId: string | null;
   roles: RoleName[];
+  /** Placement departments this viewer is an officer of (role assignment scopes). */
+  placementDepartmentIds: string[];
 };
 
 export function buildViewer(me: Me, principal: Principal): Viewer {
@@ -18,6 +20,13 @@ export function buildViewer(me: Me, principal: Principal): Viewer {
     username: principal.username ?? principal.email ?? "",
     tenantId,
     roles: [...new Set(me.roles.map((role) => role.role_name))],
+    placementDepartmentIds: [
+      ...new Set(
+        me.roles
+          .filter((role) => role.role_name === "placement_user" && role.scope_kind === "placement_department" && role.scope_id)
+          .map((role) => role.scope_id as string),
+      ),
+    ],
   };
 }
 
