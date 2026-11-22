@@ -26,6 +26,8 @@ type Handler struct {
 	publicProfiles *app.PublicProfiles
 	// roles is optional: without it the role and overwrite routes are not served.
 	roles *app.RolesService
+	// platformProfiles is optional: without it the platform profile routes are not served.
+	platformProfiles *app.PlatformProfiles
 }
 
 // SelfReader returns the verified caller's own access (app.Service.Self).
@@ -82,6 +84,9 @@ func NewHandler(serviceName string, service *app.ManagementService, accounts *ap
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/students/{student_id}/batch-affiliation/revoke", handler.endStudentBatchAffiliation)
 	if handler.roles != nil {
 		handler.registerRoles(mux)
+	}
+	if handler.platformProfiles != nil {
+		handler.registerPlatformProfiles(mux)
 	}
 	return mux, nil
 }

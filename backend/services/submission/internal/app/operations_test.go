@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
@@ -157,6 +158,23 @@ func TestRegradeItemRejectsInvalidItemID(t *testing.T) {
 	service := newValidationService(t)
 	base := ExamVersionCommand{TenantID: validSubmissionTestUUID, ExamVersionID: validSubmissionTestUUID}
 	_, err := service.RegradeItem(context.Background(), centralauthz.Capability{}, base, "not-a-uuid")
+	assertInvalidArgument(t, err)
+}
+
+func TestDismissFailedGradingJobRejectsEmptyReason(t *testing.T) {
+	t.Parallel()
+	service := newValidationService(t)
+	_, err := service.DismissFailedGradingJob(context.Background(), centralauthz.Capability{}, validSubmissionTestUUID, validSubmissionTestUUID, "  ")
+	assertInvalidArgument(t, err)
+}
+
+func TestListFailedGradingJobsRejectsSplitCursor(t *testing.T) {
+	t.Parallel()
+	service := newValidationService(t)
+	when := time.Now()
+	_, err := service.ListFailedGradingJobs(context.Background(), centralauthz.Capability{}, ListFailedGradingJobs{
+		TenantID: validSubmissionTestUUID, CursorSort: &when,
+	})
 	assertInvalidArgument(t, err)
 }
 

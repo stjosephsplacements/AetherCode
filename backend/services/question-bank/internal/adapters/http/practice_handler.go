@@ -95,6 +95,7 @@ type practiceRequest struct {
 	Mode     string  `json:"mode"`
 	Source   string  `json:"source"`
 	Input    *string `json:"input"`
+	Selected []int   `json:"selected"`
 }
 
 func (handler *Handler) startPractice(writer http.ResponseWriter, request *http.Request) {
@@ -114,7 +115,7 @@ func (handler *Handler) startPractice(writer http.ResponseWriter, request *http.
 		return
 	}
 	id, err := handler.service.StartPractice(request.Context(), decision.Capability, app.StartPractice{
-		QuestionID: questionID, Language: body.Language, Mode: body.Mode, Source: body.Source, Input: body.Input,
+		QuestionID: questionID, Language: body.Language, Mode: body.Mode, Source: body.Source, Input: body.Input, Selected: body.Selected,
 	})
 	handler.writePractice(writer, http.StatusAccepted, map[string]string{"id": id}, err)
 }

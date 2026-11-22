@@ -194,7 +194,8 @@ func (handler *Handler) ServeHTTP(writer http.ResponseWriter, request *http.Requ
 	public := (matched.service == "identity" && isPublicIdentityRoute(request.Method, matched.forwardedPath)) ||
 		(matched.service == "user" && isPublicProfileRoute(request.Method, matched.forwardedPath)) ||
 		(matched.service == "analytics" && isPublicTalentCardRoute(request.Method, matched.forwardedPath)) ||
-		(matched.service == "seb" && isPublicLaunchFileRoute(request.Method, matched.forwardedPath, request.URL.Query().Get("ticket")))
+		(matched.service == "seb" && isPublicLaunchFileRoute(request.Method, matched.forwardedPath, request.URL.Query().Get("ticket"))) ||
+		(matched.service == "tenant" && isPublicBrandingRoute(request.Method, matched.forwardedPath))
 	assertion := ""
 	principalID := ""
 	if !public {
@@ -298,6 +299,15 @@ var publicProfilePattern = regexp.MustCompile(`^/v1/public/profiles/[a-z0-9][a-z
 
 func isPublicProfileRoute(method, forwardedPath string) bool {
 	return method == http.MethodGet && publicProfilePattern.MatchString(forwardedPath)
+}
+
+var (
+	publicBrandingPattern     = regexp.MustCompile(`^/v1/branding$`)
+	publicBrandingLogoPattern = regexp.MustCompile(`^/v1/branding/logos/[0-9a-fA-F-]{36}$`)
+)
+
+func isPublicBrandingRoute(method, forwardedPath string) bool {
+	return method == http.MethodGet && (publicBrandingPattern.MatchString(forwardedPath) || publicBrandingLogoPattern.MatchString(forwardedPath))
 }
 
 // publicTalentCardPattern is the other anonymous read: a recruiter verifying a talent

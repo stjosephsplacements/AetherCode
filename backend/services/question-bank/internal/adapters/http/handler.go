@@ -62,6 +62,10 @@ func NewHandler(serviceName string, service *app.Service, readiness httpx.Readin
 	mux.HandleFunc("POST /v1/tenants/{tenant_id}/practice/questions/{question_id}/submissions", handler.startPractice)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/practice/submissions/{submission_id}", handler.getPracticeSubmission)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/practice/progress", handler.getPracticeProgress)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/contests", handler.listCollegeContests)
+	mux.HandleFunc("POST /v1/tenants/{tenant_id}/contests", handler.createCollegeContest)
+	mux.HandleFunc("POST /v1/tenants/{tenant_id}/contests/{contest_id}/register", handler.registerCollegeContest)
+	mux.HandleFunc("GET /v1/tenants/{tenant_id}/contests/{contest_id}/leaderboard", handler.collegeContestLeaderboard)
 	return mux, nil
 }
 

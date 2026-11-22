@@ -17,6 +17,8 @@ import (
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/httpx"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/logging"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/messaging"
+	"github.com/stjosephsplacements/AetherCode/libs/pkg/storage"
+	minioclient "github.com/stjosephsplacements/AetherCode/libs/pkg/storage/minio"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry/dbmetrics"
 	httpadapter "github.com/stjosephsplacements/AetherCode/services/tenant/internal/adapters/http"
@@ -181,6 +183,17 @@ func run(contextValue context.Context) error {
 	tenantService, err := app.NewService(pool, store)
 	if err != nil {
 		return err
+	}
+	if os.Getenv("TENANT_STORAGE_ENDPOINT") != "" {
+		storageCfg, storageErr := minioclient.LoadConfig("TENANT_STORAGE")
+		if storageErr != nil {
+			return storageErr
+		}
+		storageClient, storageErr := minioclient.New(storageCfg)
+		if storageErr != nil {
+			return storageErr
+		}
+		tenantService.Storage(storageClient)
 	}
 	handler, err := httpadapter.NewHandler(serviceConfig.Name, tenantService, readiness, authorizer)
 	if err != nil {

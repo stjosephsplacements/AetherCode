@@ -85,6 +85,18 @@ func (validationStore) ListCodeRuns(context.Context, pgx.Tx, ListCodeRuns) ([]Co
 func (validationStore) GetGradingQueue(context.Context, pgx.Tx, string) (json.RawMessage, error) {
 	panic("unexpected store call")
 }
+func (validationStore) ListFailedGradingJobs(context.Context, pgx.Tx, ListFailedGradingJobs) (json.RawMessage, error) {
+	panic("unexpected store call")
+}
+func (validationStore) RetryFailedGradingJob(context.Context, pgx.Tx, string, string) (json.RawMessage, error) {
+	panic("unexpected store call")
+}
+func (validationStore) RetryAllFailedGradingJobs(context.Context, pgx.Tx, string, int) (json.RawMessage, error) {
+	panic("unexpected store call")
+}
+func (validationStore) DismissFailedGradingJob(context.Context, pgx.Tx, string, string, string) (json.RawMessage, error) {
+	panic("unexpected store call")
+}
 
 func (validationStore) GetExamMonitor(context.Context, pgx.Tx, ExamVersionCommand) (json.RawMessage, error) {
 	return nil, nil

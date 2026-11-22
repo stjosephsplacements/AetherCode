@@ -40,6 +40,7 @@ type StartPractice struct {
 	Mode       string
 	Source     string
 	Input      *string
+	Selected   []int
 }
 
 // PracticeSample is one sample test shown with a practice problem.
@@ -52,6 +53,7 @@ type PracticeSample struct {
 type PracticeQuestion struct {
 	QuestionID        string           `json:"question_id"`
 	QuestionVersionID string           `json:"question_version_id"`
+	Kind              string           `json:"kind"`
 	Title             string           `json:"title"`
 	PromptMarkdown    string           `json:"prompt_markdown"`
 	Difficulty        string           `json:"difficulty"`
@@ -60,6 +62,8 @@ type PracticeQuestion struct {
 	MemoryLimitKiB    int              `json:"memory_limit_kib"`
 	Tags              []string         `json:"tags"`
 	Samples           []PracticeSample `json:"samples"`
+	Choices           []string         `json:"choices,omitempty"`
+	MultipleChoice    bool             `json:"multiple_choice,omitempty"`
 	// Starters are the stubs students start from, by language (ADR-0063).
 	Starters map[string]string `json:"starters,omitempty"`
 }
@@ -167,6 +171,9 @@ func (service *Service) GetPracticeSubmission(contextValue context.Context, capa
 	if err := json.Unmarshal(raw, &submission); err != nil {
 		return nil, fmt.Errorf("decode practice run: %w", err)
 	}
+	if kind, ok := submission["kind"]; ok && string(kind) == `"mcq"` {
+		return raw, nil
+	}
 	var reference BundleReference
 	if err := json.Unmarshal(submission["source"], &reference); err != nil {
 		return nil, fmt.Errorf("decode practice source reference: %w", err)
@@ -183,7 +190,18 @@ func (service *Service) GetPracticeSubmission(contextValue context.Context, capa
 
 // StartPractice stores the student's code (and own input), records the run
 // and sends it to Judge. It returns the run's id, which the student polls.
+// Multiple-choice problems grade synchronously and return explanations on poll.
 func (service *Service) StartPractice(contextValue context.Context, capability centralauthz.Capability, command StartPractice) (string, error) {
+	if !isUUID(command.QuestionID) || command.Mode != "run" && command.Mode != "submit" {
+		return "", apperrors.New(apperrors.CodeInvalidArgument, "a practice run needs a problem and run or submit")
+	}
+	kind, err := service.practiceKind(contextValue, capability, command.QuestionID)
+	if err != nil {
+		return "", err
+	}
+	if kind == "mcq" {
+		return service.startPracticeMcq(contextValue, capability, command)
+	}
 	if service.modelChecks == nil {
 		return "", apperrors.New(apperrors.CodeUnavailable, "practice is not available: the judge is not configured")
 	}
@@ -270,6 +288,42 @@ func (service *Service) StartPractice(contextValue context.Context, capability c
 			service.logger.Warn("mark practice run failed", "run_id", id, "error", failErr)
 		}
 		return "", apperrors.New(apperrors.CodeUnavailable, "the judge is busy; try again shortly")
+	}
+	return id, nil
+}
+
+func (service *Service) practiceKind(contextValue context.Context, capability centralauthz.Capability, questionID string) (string, error) {
+	raw, err := service.practiceJSON(contextValue, capability, func(transaction pgx.Tx) (json.RawMessage, error) {
+		return service.store.GetPracticeQuestion(contextValue, transaction, questionID)
+	})
+	if err != nil {
+		return "", err
+	}
+	var question struct {
+		Kind string `json:"kind"`
+	}
+	if err := json.Unmarshal(raw, &question); err != nil {
+		return "", fmt.Errorf("decode practice kind: %w", err)
+	}
+	if question.Kind == "" {
+		return "coding", nil
+	}
+	return question.Kind, nil
+}
+
+func (service *Service) startPracticeMcq(contextValue context.Context, capability centralauthz.Capability, command StartPractice) (string, error) {
+	if command.Mode != "submit" || len(command.Selected) == 0 {
+		return "", apperrors.New(apperrors.CodeInvalidArgument, "pick at least one option, then submit")
+	}
+	id, err := database.NewUUIDv7()
+	if err != nil {
+		return "", err
+	}
+	_, err = service.practiceJSON(contextValue, capability, func(transaction pgx.Tx) (json.RawMessage, error) {
+		return service.store.StartPracticeMcq(contextValue, transaction, id, command.QuestionID, command.Selected)
+	})
+	if err != nil {
+		return "", err
 	}
 	return id, nil
 }

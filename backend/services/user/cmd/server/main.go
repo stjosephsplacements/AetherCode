@@ -22,6 +22,7 @@ import (
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/messaging"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry/dbmetrics"
+	"github.com/jackc/pgx/v5/pgxpool"
 	authzv1 "github.com/stjosephsplacements/AetherCode/libs/proto/gen/go/aethercode/authz/v1"
 	authnadapter "github.com/stjosephsplacements/AetherCode/services/user/internal/adapters/authn"
 	grpcadapter "github.com/stjosephsplacements/AetherCode/services/user/internal/adapters/grpc"
@@ -30,6 +31,7 @@ import (
 	"github.com/stjosephsplacements/AetherCode/services/user/internal/adapters/repo"
 	"github.com/stjosephsplacements/AetherCode/services/user/internal/app"
 	authzconfig "github.com/stjosephsplacements/AetherCode/services/user/internal/config"
+	"github.com/stjosephsplacements/AetherCode/services/user/internal/platformstats"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	grpcHealth "google.golang.org/grpc/health"
@@ -151,11 +153,56 @@ func run(contextValue context.Context) error {
 		grpcServer.Stop()
 		return err
 	}
+	var platformStatsRunner *platformstats.Runner
+	platformStatsRuntime, platformStatsRuntimeErr := platformstats.LoadRuntime(serviceConfig.Environment)
+	if platformStatsRuntimeErr != nil {
+		return platformStatsRuntimeErr
+	}
+	if platformStatsRuntime.Enabled {
+		workerDatabaseConfig, workerConfigErr := config.LoadDatabase("USER_PLATFORM_STATS")
+		if workerConfigErr != nil {
+			return workerConfigErr
+		}
+		workerPool, workerPoolErr := database.Open(contextValue, workerDatabaseConfig)
+		if workerPoolErr != nil {
+			return workerPoolErr
+		}
+		defer workerPool.Close()
+		var notificationPool *pgxpool.Pool
+		if notificationConfig, notificationConfigErr := config.LoadDatabase("NOTIFICATION_PLATFORM_STATS"); notificationConfigErr == nil {
+			if pool, notificationPoolErr := database.Open(contextValue, notificationConfig); notificationPoolErr == nil {
+				notificationPool = pool
+				defer pool.Close()
+			} else {
+				logger.Warn("notification platform-stats reader unavailable; link sync disabled", "error", notificationPoolErr)
+			}
+		}
+		platformStatsStore, storeErr := platformstats.NewStore(workerPool, notificationPool)
+		if storeErr != nil {
+			return storeErr
+		}
+		var runnerErr error
+		platformStatsRunner, runnerErr = platformstats.NewRunner(platformStatsStore, platformStatsRuntime, logger)
+		if runnerErr != nil {
+			return runnerErr
+		}
+		if processErr := platformStatsRunner.ProcessOnce(contextValue); processErr != nil {
+			logger.Warn("initial platform stats refresh", "error", processErr)
+		}
+		go platformStatsRunner.Run(contextValue)
+	}
+
 	readiness := func(readinessContext context.Context) error {
 		if err := authzStore.Ping(readinessContext); err != nil {
 			return err
 		}
-		return managementStore.Ping(readinessContext)
+		if err := managementStore.Ping(readinessContext); err != nil {
+			return err
+		}
+		if platformStatsRunner != nil {
+			return platformStatsRunner.Ready(readinessContext)
+		}
+		return nil
 	}
 	messagingRuntime, err := messaging.LoadRuntime(serviceConfig.Environment)
 	if err != nil {
@@ -360,7 +407,13 @@ func run(contextValue context.Context) error {
 		grpcServer.Stop()
 		return err
 	}
-	handler, err := httpadapter.NewHandler(serviceConfig.Name, managementService, accountService, authorizationService, readiness, authorizer, publicProfiles, httpadapter.WithRoles(rolesService))
+	platformProfiles, err := app.NewPlatformProfiles(userPool)
+	if err != nil {
+		grpcServer.Stop()
+		return err
+	}
+	handler, err := httpadapter.NewHandler(serviceConfig.Name, managementService, accountService, authorizationService, readiness, authorizer, publicProfiles,
+		httpadapter.WithRoles(rolesService), httpadapter.WithPlatformProfiles(platformProfiles))
 	if err != nil {
 		grpcServer.Stop()
 		return err

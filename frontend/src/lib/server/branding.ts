@@ -1,10 +1,17 @@
 import "server-only";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { type BrandingConfig, logoFiles, parseBranding, pickBrand } from "@/lib/branding";
+import { type BrandingConfig, logoFiles, parseBranding, pickBrand, usableAccent } from "@/lib/branding";
+import { gateway } from "@/lib/server/gateway";
 
 const EMPTY: BrandingConfig = { default: {}, tenants: {} };
 let cached: { file: string; content: string; config: BrandingConfig } | null = null;
+
+type BrandingView = {
+  app_name?: string | null;
+  accent_color?: string | null;
+  logos?: { id: string; url?: string; content_type: string; position: number; alt_text: string }[];
+};
 
 /** The branding file, re-read when it changes, so a new logo needs no restart. */
 async function loadConfig(): Promise<{ file: string; config: BrandingConfig } | null> {
@@ -26,8 +33,37 @@ async function loadConfig(): Promise<{ file: string; config: BrandingConfig } | 
 
 export type Brand = { name: string | null; color: string | null; logoURLs: string[] };
 
+function gatewayLogoURL(rawURL: string | undefined, logoID: string, tenantId: string | null): string {
+  if (rawURL?.startsWith("http://") || rawURL?.startsWith("https://")) return rawURL;
+  const query = tenantId ? `?tenant_id=${encodeURIComponent(tenantId)}` : "";
+  return `/api/tenant/v1/branding/logos/${encodeURIComponent(logoID)}${query}`;
+}
+
+async function brandFromGateway(tenantId: string | null): Promise<Brand | null> {
+  const query = tenantId ? `?tenant_id=${encodeURIComponent(tenantId)}` : "";
+  try {
+    const view = await gateway<BrandingView>(`/tenant/v1/branding${query}`, { anonymous: true });
+    const hasData =
+      Boolean(view.app_name?.trim()) ||
+      Boolean(view.accent_color && usableAccent(view.accent_color)) ||
+      Boolean(view.logos?.length);
+    if (!hasData) return null;
+    return {
+      name: view.app_name?.trim() || null,
+      color: view.accent_color && usableAccent(view.accent_color) ? view.accent_color.toLowerCase() : null,
+      logoURLs: (view.logos ?? [])
+        .sort((left, right) => left.position - right.position)
+        .map((logo) => gatewayLogoURL(logo.url, logo.id, tenantId)),
+    };
+  } catch {
+    return null;
+  }
+}
+
 /** The brand to show a viewer in a college; the AetherCode defaults when none is set. */
 export async function brandFor(tenantId: string | null): Promise<Brand> {
+  const fromGateway = await brandFromGateway(tenantId);
+  if (fromGateway) return fromGateway;
   const loaded = await loadConfig();
   const brand = loaded ? pickBrand(loaded.config, tenantId) : {};
   return {

@@ -618,6 +618,27 @@ func (repository *Postgres) GetGradingQueue(contextValue context.Context, transa
 	return queryJSON(contextValue, transaction, "get grading queue", `SELECT submission.get_grading_queue($1)`, tenantID)
 }
 
+func (repository *Postgres) ListFailedGradingJobs(contextValue context.Context, transaction pgx.Tx, command app.ListFailedGradingJobs) (json.RawMessage, error) {
+	return queryJSON(contextValue, transaction, "list failed grading jobs",
+		`SELECT submission.list_failed_grading_jobs($1, $2, $3, $4)`,
+		command.TenantID, command.Limit, nullableTimestamp(command.CursorSort), nullableUUID(command.CursorID))
+}
+
+func (repository *Postgres) RetryFailedGradingJob(contextValue context.Context, transaction pgx.Tx, tenantID, jobID string) (json.RawMessage, error) {
+	return queryJSON(contextValue, transaction, "retry failed grading job",
+		`SELECT submission.retry_failed_grading_job($1, $2)`, tenantID, jobID)
+}
+
+func (repository *Postgres) RetryAllFailedGradingJobs(contextValue context.Context, transaction pgx.Tx, tenantID string, limit int) (json.RawMessage, error) {
+	return queryJSON(contextValue, transaction, "retry all failed grading jobs",
+		`SELECT submission.retry_all_failed_grading_jobs($1, $2)`, tenantID, limit)
+}
+
+func (repository *Postgres) DismissFailedGradingJob(contextValue context.Context, transaction pgx.Tx, tenantID, jobID, reason string) (json.RawMessage, error) {
+	return queryJSON(contextValue, transaction, "dismiss failed grading job",
+		`SELECT submission.dismiss_failed_grading_job($1, $2, $3)`, tenantID, jobID, reason)
+}
+
 func (repository *Postgres) ReleaseResults(contextValue context.Context, transaction pgx.Tx, command app.ReleaseResults) (json.RawMessage, error) {
 	return queryJSON(contextValue, transaction, "release results",
 		`SELECT jsonb_build_object('results_released_at', submission.set_exam_results_release($1, $2, $3))`,

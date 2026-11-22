@@ -1168,6 +1168,125 @@ paths:
           $ref: '#/components/responses/Problem500'
         '429':
           $ref: '#/components/responses/Problem429'
+  /v1/tenants/{tenant_id}/grading-queue/failed:
+    get:
+      summary: List failed grading dispatch jobs for staff (ADR-0059)
+      description: Requires read on score_summaries. Error summaries never include candidate source or Judge output.
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - in: query
+        name: limit
+        schema: {type: integer, minimum: 1, maximum: 200, default: 50}
+      - in: query
+        name: before
+        schema: {type: string, format: date-time}
+      - in: query
+        name: before_id
+        schema: {type: string, format: uuid, maxLength: 36}
+      responses:
+        '200':
+          description: Failed jobs, newest first.
+          content:
+            application/json:
+              schema: {type: object}
+          headers:
+            RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}
+            RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}
+            RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}
+            Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '500': {$ref: '#/components/responses/Problem500'}
+        '429': {$ref: '#/components/responses/Problem429'}
+  /v1/tenants/{tenant_id}/grading-queue/failed/retry-all:
+    post:
+      summary: Requeue up to 500 open failed jobs (ADR-0059)
+      description: Requires write on score_summaries. Already-completed jobs are left unchanged.
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/TenantID'
+      responses:
+        '200':
+          description: Bulk retry result.
+          content:
+            application/json:
+              schema: {type: object, properties: {retried: {type: integer, minimum: 0}}}
+          headers:
+            RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}
+            RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}
+            RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}
+            Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '500': {$ref: '#/components/responses/Problem500'}
+        '429': {$ref: '#/components/responses/Problem429'}
+  /v1/tenants/{tenant_id}/grading-queue/failed/{job_id}/retry:
+    post:
+      summary: Requeue one failed job (ADR-0059)
+      description: Requires write on score_summaries. Idempotent when the job already completed.
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - in: path
+        name: job_id
+        required: true
+        schema: {type: string, format: uuid, maxLength: 36}
+      responses:
+        '200':
+          description: Retry result.
+          content:
+            application/json:
+              schema: {type: object, properties: {retried: {type: boolean}}}
+          headers:
+            RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}
+            RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}
+            RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}
+            Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '500': {$ref: '#/components/responses/Problem500'}
+        '429': {$ref: '#/components/responses/Problem429'}
+  /v1/tenants/{tenant_id}/grading-queue/failed/{job_id}:
+    delete:
+      summary: Dismiss a failed job from the staff queue (ADR-0059, ADR-0053)
+      description: Requires delete on score_summaries. Requires a reason up to 500 characters.
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - in: path
+        name: job_id
+        required: true
+        schema: {type: string, format: uuid, maxLength: 36}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: {type: string, minLength: 1, maxLength: 500}
+      responses:
+        '200':
+          description: Dismiss result.
+          content:
+            application/json:
+              schema: {type: object, properties: {dismissed: {type: boolean}}}
+          headers:
+            RateLimit-Limit: {$ref: '#/components/headers/RateLimit-Limit'}
+            RateLimit-Remaining: {$ref: '#/components/headers/RateLimit-Remaining'}
+            RateLimit-Reset: {$ref: '#/components/headers/RateLimit-Reset'}
+            Access-Control-Allow-Origin: {$ref: '#/components/headers/Access-Control-Allow-Origin'}
+        '403': {$ref: '#/components/responses/Problem403'}
+        '401': {$ref: '#/components/responses/Problem401'}
+        '500': {$ref: '#/components/responses/Problem500'}
+        '429': {$ref: '#/components/responses/Problem429'}
   /v1/tenants/{tenant_id}/exam-versions/{exam_version_id}/items/{exam_item_id}/regrade:
     post:
       summary: Re-evaluate all answers to one item on its current tests (ADR-0039)

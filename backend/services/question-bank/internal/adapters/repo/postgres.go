@@ -591,6 +591,11 @@ func (repository *Postgres) StartPractice(contextValue context.Context, transact
 		source.ObjectKey, source.Checksum, source.EncryptionKeyReference)
 }
 
+func (repository *Postgres) StartPracticeMcq(contextValue context.Context, transaction pgx.Tx, id, questionID string, selected []int) (json.RawMessage, error) {
+	return callJSON(contextValue, transaction, "start mcq practice submit", `SELECT qbank.start_practice_mcq_submission($1, $2, $3)`,
+		id, questionID, selected)
+}
+
 func (repository *Postgres) ListPracticeSubmissions(contextValue context.Context, transaction pgx.Tx, questionID string) (json.RawMessage, error) {
 	return callJSON(contextValue, transaction, "list practice runs", `SELECT qbank.list_practice_submissions($1)`, questionID)
 }

@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
-import { requireViewer } from "@/lib/session";
+import { authorizeStaff } from "@/lib/authorize.ts";
 
 /**
  * Every saved question in the platform's own shape (topic path, slug, fields of a question version, tests, model solutions,
  * templates), for the import into the question bank. Staff only.
  */
-export async function GET() {
-  await requireViewer();
+export async function GET(request: Request) {
+  const auth = await authorizeStaff(request);
+  if (auth instanceof NextResponse) return auth;
   const categories = await sql`SELECT c.id, c.name, p.name AS parent FROM categories c LEFT JOIN categories p ON p.id = c.parent_id`;
   const questions = await sql`SELECT * FROM questions ORDER BY created_at`;
   const tests = await sql`SELECT question_id, position, input, expected_output, is_sample, weight FROM question_tests ORDER BY question_id, position`;

@@ -93,3 +93,5 @@ Each decision is a numbered file; new ones start from [the template](0000-templa
 | [0089](0089-placement-admin-setup-staff-console.md) | Placement org is admin setup; placement staff use the staff console (accepted) |
 | [0090](0090-staff-content-attribution.md) | Staff content attribution (accepted) |
 | [0091](0091-password-reset-email.md) | Password-reset email through Microsoft Graph, sent by the Identity service (accepted) |
+| [0092](0092-college-contests.md) | College-scoped practice contests and live leaderboards (accepted) |
+| [0093](0093-mcq-practice.md) | Multiple-choice practice with explanations after submit (accepted) |
