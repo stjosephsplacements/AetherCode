@@ -23,6 +23,8 @@ export type Me = {
     scope_id?: string;
   }[];
   student: { tenant_id: string } | null;
+  /** Named permission flags held on any of the caller's roles (union of role bits). */
+  permissions: string[];
 };
 
 /** GET /identity/v1/principals/{self} */

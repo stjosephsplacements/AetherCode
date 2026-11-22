@@ -143,6 +143,21 @@ always keeps working, so exams never depend on it. To turn it on:
 Every existing account is then copied to ZITADEL within minutes. Accounts
 the provider already has are linked, not duplicated.
 
+## Password reset by email
+
+Off by default. Users whose account has an email address can then reset their own password from the sign-in page through a
+one-time link sent by the identity service through Microsoft Graph (ADR-0091). In Microsoft Entra, create an app registration
+with the Microsoft Graph application permission `Mail.Send`, grant admin consent, create a client secret, and add an Exchange
+application access policy that restricts the app to the sender mailbox. Then, in `.env`, set all of:
+
+- `IDENTITY_MAIL_TENANT_ID` (the directory's GUID), `IDENTITY_MAIL_CLIENT_ID`, `IDENTITY_MAIL_CLIENT_SECRET`
+- `IDENTITY_MAIL_SENDER` (the mailbox, e.g. `no-reply@college.edu`)
+- `IDENTITY_PUBLIC_BASE_URL` (the site's origin, which must be `https://...`, the same as `PUBLIC_ORIGIN`)
+- `PASSWORD_RESET_EMAIL=on` (shows "Forgot password?" and the reset pages)
+
+All five identity values empty means mail is off; some set and some empty stops identity at startup with a message naming
+what is missing. Then `docker compose up -d identity frontend`. Without it, staff reset passwords.
+
 ## Question review
 
 Set `QBANK_REQUIRE_REVIEW=true` in `.env` to make publishing a question need

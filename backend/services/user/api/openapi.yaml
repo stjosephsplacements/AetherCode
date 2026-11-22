@@ -46,7 +46,7 @@ paths:
               schema:
                 type: object
                 additionalProperties: false
-                required: [principal_id, roles, student]
+                required: [principal_id, roles, student, permissions]
                 properties:
                   principal_id: {type: string, format: uuid, maxLength: 36}
                   roles:
@@ -69,6 +69,11 @@ paths:
                       required: [tenant_id]
                       properties:
                         tenant_id: {type: string, format: uuid, maxLength: 36}
+                  permissions:
+                    type: array
+                    description: Named permission flags held on any of the caller's roles (union of role bits).
+                    items: {type: string, maxLength: 1000}
+                    maxItems: 200
           headers:
             RateLimit-Limit:
               $ref: '#/components/headers/RateLimit-Limit'

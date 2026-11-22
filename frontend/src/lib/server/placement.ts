@@ -1,7 +1,7 @@
 import "server-only";
 import { redirect } from "next/navigation";
 import type { Page, Tenant } from "@/lib/api-types";
-import { type Viewer, homeFor } from "@/lib/viewer";
+import { type Viewer, canViewStudentPII, homeFor } from "@/lib/viewer";
 import { gateway } from "./gateway";
 import type { CollegeRef } from "./staff";
 import { requireViewer } from "./session";
@@ -12,7 +12,7 @@ export type PlacementContext = {
   departmentIds: string[];
   /** Colleges the officer may pull students from (every college for scoped officers). */
   colleges: CollegeRef[];
-  /** Whether the viewer may see student names and roll numbers. */
+  /** Whether the viewer may see student names and roll numbers (VIEW_STUDENT_PII). */
   canViewPII: boolean;
 };
 
@@ -28,6 +28,5 @@ export async function requirePlacement(): Promise<PlacementContext> {
   const departmentIds = viewer.placementDepartmentIds;
   const tenants = (await gateway<Page<Tenant>>("/tenant/v1/tenants?limit=100").catch(() => ({ items: [] as Tenant[] }))).items;
   const colleges = tenants.map((tenant) => ({ id: tenant.id, name: tenant.display_name }));
-  const canViewPII = true;
-  return { viewer, departmentIds, colleges, canViewPII };
+  return { viewer, departmentIds, colleges, canViewPII: canViewStudentPII(viewer) };
 }

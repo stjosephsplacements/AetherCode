@@ -26,7 +26,8 @@ type Store interface {
 	Authenticate(context.Context, Login) (Session, error)
 	RotateRefresh(context.Context, RefreshRotation) (Session, error)
 	RevokeRefresh(context.Context, []byte, string) error
-	RequestPasswordReset(context.Context, PasswordResetRequest) error
+	// RequestPasswordReset reports whether a live account matched; an unknown address records an event and returns false.
+	RequestPasswordReset(context.Context, PasswordResetRequest) (bool, error)
 	ResetPassword(context.Context, PasswordReset) error
 	ChangePassword(context.Context, PasswordChange) error
 	ValidateAccessToken(context.Context, string, string) error
@@ -247,6 +248,30 @@ type Service struct {
 	newID                     func() (string, error)
 	newOpaqueToken            func() (string, error)
 	deriveDeliveryToken       func(string, string) (string, error)
+	// mail is set by UseMailer when email delivery is configured.
+	mail *mailQueue
+}
+
+// Mailer delivers the reset link. It is optional: without one the reset token is only available to operators.
+type Mailer interface {
+	SendPasswordReset(ctx context.Context, to, token string, validFor time.Duration) error
+}
+
+// UseMailer turns on emailing reset links through a bounded queue and a few workers (ADR-0091). Call CloseMail on
+// shutdown to drain it.
+func (service *Service) UseMailer(mailer Mailer) {
+	if mailer != nil {
+		service.mail = newMailQueue(mailer)
+	}
+}
+
+// CloseMail stops accepting reset emails and waits for the queued ones to go out, or for ctx to end. A mail still
+// queued when the process dies is lost; the user can request a new link.
+func (service *Service) CloseMail(ctx context.Context) error {
+	if service.mail == nil {
+		return nil
+	}
+	return service.mail.close(ctx)
 }
 
 // Options supplies validated runtime values to the identity use cases.
@@ -537,11 +562,17 @@ func (service *Service) RequestPasswordReset(contextValue context.Context, email
 		return "", err
 	}
 	hash := domain.HashToken(token)
-	if err := service.store.RequestPasswordReset(contextValue, PasswordResetRequest{
+	matched, err := service.store.RequestPasswordReset(contextValue, PasswordResetRequest{
 		TokenID: id, Email: email, TokenHash: hash[:], ExpiresAt: service.now().UTC().Add(service.passwordResetLifetime),
 		RequestIP: strings.TrimSpace(requestIP), RequestID: strings.TrimSpace(requestID),
-	}); err != nil {
+	})
+	if err != nil {
 		return "", err
+	}
+	if matched && service.mail != nil {
+		// Queued, not sent inline, so a mail outage cannot fail or stall the request; the operator path
+		// (cmd/deliver-reset) still works.
+		service.mail.enqueue(resetMail{to: email, token: token, validFor: service.passwordResetLifetime, requestID: requestID})
 	}
 	return token, nil
 }

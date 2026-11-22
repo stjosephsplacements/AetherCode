@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RoleName } from "@/lib/api-types";
-import { type Viewer, homeFor, isPlacementOnly } from "./viewer";
+import { type Viewer, canViewStudentPII, homeFor, isPlacementOnly } from "./viewer";
 
 const viewer = (...roles: RoleName[]): Viewer => ({
   principalId: "p",
@@ -9,6 +9,15 @@ const viewer = (...roles: RoleName[]): Viewer => ({
   tenantId: null,
   roles,
   placementDepartmentIds: [],
+  permissions: [],
+});
+
+describe("canViewStudentPII", () => {
+  it("follows VIEW_STUDENT_PII and ADMINISTRATOR flags", () => {
+    expect(canViewStudentPII(viewer("placement_user"))).toBe(false);
+    expect(canViewStudentPII({ ...viewer("placement_user"), permissions: ["VIEW_STUDENT_PII"] })).toBe(true);
+    expect(canViewStudentPII({ ...viewer("super_admin"), permissions: ["ADMINISTRATOR"] })).toBe(true);
+  });
 });
 
 describe("homeFor", () => {

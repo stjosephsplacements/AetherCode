@@ -90,3 +90,6 @@ Each decision is a numbered file; new ones start from [the template](0000-templa
 | [0084](0084-launch-ticket-redownload.md) | The SEB launch ticket opens the launch file again after its first download (accepted) |
 | [0087](0087-proprietary-licence.md) | Proprietary licence (accepted) |
 | [0088](0088-proctor-staff-editor-snapshot-paging-redis.md) | Staff proctor policy editor, snapshot keyset paging, Redis cooldown (accepted) |
+| [0089](0089-placement-admin-setup-staff-console.md) | Placement org is admin setup; placement staff use the staff console (accepted) |
+| [0090](0090-staff-content-attribution.md) | Staff content attribution (accepted) |
+| [0091](0091-password-reset-email.md) | Password-reset email through Microsoft Graph, sent by the Identity service (accepted) |

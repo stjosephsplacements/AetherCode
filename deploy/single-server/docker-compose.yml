@@ -236,6 +236,13 @@ services:
       IDENTITY_SSO_ADMIN_TOKEN_FILE: ${IDENTITY_SSO_ADMIN_TOKEN_FILE:-}
       IDENTITY_SSO_ORGANIZATION_ID: ${IDENTITY_SSO_ORGANIZATION_ID:-}
       IDENTITY_SSO_EMAIL_DOMAIN: ${IDENTITY_SSO_EMAIL_DOMAIN:-}
+      # Password-reset email through Microsoft Graph (ADR-0091). All five empty = off; some but not all set stops
+      # identity at startup. IDENTITY_PUBLIC_BASE_URL is the site's https origin (the link's address).
+      IDENTITY_MAIL_TENANT_ID: ${IDENTITY_MAIL_TENANT_ID:-}
+      IDENTITY_MAIL_CLIENT_ID: ${IDENTITY_MAIL_CLIENT_ID:-}
+      IDENTITY_MAIL_CLIENT_SECRET: ${IDENTITY_MAIL_CLIENT_SECRET:-}
+      IDENTITY_MAIL_SENDER: ${IDENTITY_MAIL_SENDER:-}
+      IDENTITY_PUBLIC_BASE_URL: ${IDENTITY_PUBLIC_BASE_URL:-}
     build: { context: ../../backend, dockerfile: services/identity/Dockerfile }
 
   user:
@@ -524,6 +531,8 @@ services:
       GATEWAY_URL: http://gateway:8080
       # "on" shows "Sign in with your St. Joseph's account" (ADR-0042).
       AETHERCODE_SSO: ${AETHERCODE_SSO:-off}
+      # "on" shows "Forgot password?" and the email reset pages; set it with the IDENTITY_MAIL_* values (ADR-0091).
+      PASSWORD_RESET_EMAIL: ${PASSWORD_RESET_EMAIL:-off}
       PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?PUBLIC_ORIGIN is not set; see setup.sh}
       # College names, colours and logos (ADR-0045); absent file, default look.
       BRANDING_FILE: /branding/branding.json

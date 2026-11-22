@@ -22,6 +22,8 @@ export async function proxy(request: NextRequest) {
   const isLogin =
     pathname === "/login" ||
     pathname.startsWith("/auth/sso") ||
+    pathname === "/auth/forgot-password" ||
+    pathname === "/auth/reset-password" ||
     pathname.startsWith("/loader-preview") ||
     isPublic(pathname);
   const isAPI = pathname.startsWith("/api/");

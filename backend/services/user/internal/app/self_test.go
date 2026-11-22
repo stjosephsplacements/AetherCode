@@ -2,6 +2,7 @@ package app
 
 import (
 	"errors"
+	"slices"
 	"testing"
 
 	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
@@ -52,7 +53,25 @@ func TestSelfOfAPrincipalWithoutRoles(t *testing.T) {
 	t.Parallel()
 	service := &Service{store: fakeStore{}, identityAssertionVerifier: fakeIdentityAssertionVerifier{identity: VerifiedIdentity{PrincipalID: testPrincipal}}}
 	self, err := service.Self(t.Context(), "assertion")
-	if err != nil || self.Roles == nil || len(self.Roles) != 0 || self.Student != nil {
+	if err != nil || self.Roles == nil || len(self.Roles) != 0 || self.Student != nil || self.Permissions == nil || len(self.Permissions) != 0 {
 		t.Fatalf("self = %+v, err = %v", self, err)
+	}
+}
+
+func TestSelfReportsHeldPermissionFlags(t *testing.T) {
+	t.Parallel()
+	store := fakeStore{snapshot: withBits(Snapshot{Assignments: []Assignment{
+		{Role: centralauthz.Role("placement_user"), ScopeKind: "placement_department", ScopeID: testPlacement},
+	}}, "VIEW_STUDENT_PII")}
+	service, err := NewService(store, testKeyring(t), fakeIdentityAssertionVerifier{identity: VerifiedIdentity{PrincipalID: testPrincipal}}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	self, err := service.Self(t.Context(), "assertion")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(self.Permissions, "VIEW_STUDENT_PII") || !slices.Contains(self.Permissions, "VIEW_SCOPE") {
+		t.Fatalf("permissions = %v, want VIEW_SCOPE and VIEW_STUDENT_PII", self.Permissions)
 	}
 }
