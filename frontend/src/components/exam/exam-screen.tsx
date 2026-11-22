@@ -62,15 +62,14 @@ export function ExamScreen({ tenantId, attemptId }: { tenantId: string; attemptI
         setLoaded({ attempt, paper });
         const storageKey = `ac_seb_quit_issued_${attemptId}`;
         if (sessionStorage.getItem(storageKey)) return;
-        const idempotencyKey = crypto.randomUUID();
         void api<{ quit_token: string }>(`/seb/v1/tenants/${tenantId}/attempts/${attemptId}/lockdown-quit-session`, {
           method: "POST",
-          headers: { "Idempotency-Key": idempotencyKey },
-          body: JSON.stringify({
+          idempotencyKey: crypto.randomUUID(),
+          body: {
             exam_id: attempt.exam_id,
             exam_version_id: attempt.exam_version_id,
             expires_at: attempt.submission_deadline,
-          }),
+          },
         })
           .then((issued) => {
             storeSebQuitToken(issued.quit_token);
