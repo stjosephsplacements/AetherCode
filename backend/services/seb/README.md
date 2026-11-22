@@ -20,6 +20,10 @@ snapshot before a signed RLS transaction begins.
 - Rotate or revoke an active configuration through narrow database procedures.
 - Issue an attempt-bound session with a 256-bit quit token; the raw token is
   returned only once in the issuance response with `Cache-Control: no-store`.
+- Lockdown quit self-service (ADR-0094): candidates
+  `POST .../attempts/{attempt_id}/lockdown-quit-session` once per attempt; after
+  hand-in they redeem with `POST .../quit-self` to receive the launch password
+  when safe. Launch files quit at `/student?seb=quit`.
 - Read or optimistic-close an active session.
 - List sessions for the authenticated candidate with keyset pagination (`GET
   /v1/tenants/{tenant_id}/sessions`). Candidate-scoped; a SECURITY DEFINER

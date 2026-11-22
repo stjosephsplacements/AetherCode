@@ -1,4 +1,4 @@
-# ADR-0092: SEB quit-token self-service after hand-in
+# ADR-0094: SEB quit-token self-service after hand-in
 
 - Status: accepted
 - Date: 2026-11-22

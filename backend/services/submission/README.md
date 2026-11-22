@@ -354,6 +354,17 @@ than blocking each other. For each attempt, in one transaction:
   `submission.attempt_expired.v1` event carries `attempt_id`, `tenant_id`,
   `exam_id`, `exam_version_id`, `candidate_id`, and `expired_at`.
 
+## Code-run retention worker
+
+Ephemeral `submission.code_runs` rows carry a `purge_after` timestamp (ADR-0021).
+A background worker runs as `aether_submission_retention_worker`, calling
+`submission.purge_expired_code_runs(limit)` on `SUBMISSION_RETENTION_POLL_INTERVAL`
+when `SUBMISSION_RETENTION_ENABLED=true`. Staff may also
+`POST .../attempts/{attempt_id}/code-runs/purge` with a reason; the database writes
+`app.hard_delete_audit_log`. Platform administrators use the existing
+`DELETE .../attempts/{attempt_id}/hard` route for permanent attempt removal (legal
+hold aware).
+
 The worker runs as `aether_submission_expiry_worker`, a dedicated least-privilege
 login role provisioned in `deploy/database/platform/dev-init.sh`. It can execute
 exactly two functions, `expire_overdue_attempts` and

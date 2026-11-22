@@ -75,7 +75,7 @@ in the same directory. The sign-in page keeps the AetherCode mark.
   server-side fetch would not carry SEB's per-request hash.
 - **SEB entry.** The `.seb` launch file starts at `/exam/<exam id>`, which sends
   the student (after sign-in) to that exam's lobby. SEB quits at `/student?seb=quit`
-  after hand-in; quit-token self-service is ADR-0092.
+  after hand-in; quit-token self-service is ADR-0094.
 - **Campus SSO (ADR-0042).** Set `AETHERCODE_SSO=on` and the identity service's
   `IDENTITY_SSO_*` values (see `deploy/single-server/README.md`, "Single sign-on").
   IdP secrets are never committed; the login page shows "Sign in with your

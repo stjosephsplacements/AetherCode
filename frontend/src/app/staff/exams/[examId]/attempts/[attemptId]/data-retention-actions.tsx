@@ -1,5 +1,6 @@
 "use client";
 
+import type { ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -126,7 +127,7 @@ function ReasonDialog({
       <DialogContent title={title} description={description} className="p-6">
         <TextInput
           value={reason}
-          onChange={(event: React.ChangeEvent<HTMLInputElement>) => onReason(event.target.value)}
+          onChange={(event: ChangeEvent<HTMLInputElement>) => onReason(event.target.value)}
           placeholder="Reason for audit log"
           maxLength={500}
           className="mt-3 w-full"

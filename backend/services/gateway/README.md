@@ -80,7 +80,7 @@ SEB hashed.
 The SEB headers are not forwarded to the target service, preventing a backend
 from treating caller-controlled headers as an authorization signal.
 
-Quit-token self-service (ADR-0092) uses the same protected prefixes:
+Quit-token self-service (ADR-0094) uses the same protected prefixes:
 `POST /api/seb/v1/tenants/{tenant_id}/attempts/{attempt_id}/lockdown-quit-session`
 and `POST /api/seb/v1/tenants/{tenant_id}/quit-self` require a valid bearer and
 pass the request check while the candidate sits a locked exam.
