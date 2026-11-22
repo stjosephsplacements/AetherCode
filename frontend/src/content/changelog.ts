@@ -5,6 +5,14 @@ export type Release = { date: string; title: string; tags: ChangeTag[]; changes:
 /** Newest first. Written for students and staff, from the merged changes on GitHub. */
 export const RELEASES: Release[] = [
   {
+    date: "2026-11-22",
+    title: "Pear and Rich Black",
+    tags: ["UI"],
+    changes: [
+      "Fresh brand palette: Pear accent on Rich Black, with Laurel Leaf, Celeste and Ceiling White neutrals in light and dark themes.",
+    ],
+  },
+  {
     date: "2026-11-19",
     title: "A calmer look, and a new licence",
     tags: ["UI", "Platform"],
