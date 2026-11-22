@@ -12,15 +12,15 @@ import (
 )
 
 type IssueLockdownQuitSession struct {
-	ID              string
-	EventID         string
-	TenantID        string
-	AttemptID       string
-	ExamID          string
-	ExamVersionID   string
-	ExpiresAt       time.Time
-	IdempotencyKey  string
-	RequestHash     string
+	ID             string
+	EventID        string
+	TenantID       string
+	AttemptID      string
+	ExamID         string
+	ExamVersionID  string
+	ExpiresAt      time.Time
+	IdempotencyKey string
+	RequestHash    string
 }
 
 type RedeemQuitToken struct {

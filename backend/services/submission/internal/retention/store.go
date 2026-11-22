@@ -12,7 +12,7 @@ const retentionRole = "aether_submission_retention_worker"
 // Result reports bounded work performed by one call to the database-owned
 // purge procedure. Counts are operational metrics, never submission content.
 type Result struct {
-	PurgedRuns    int64
+	PurgedRuns  int64
 	PurgedUnits int64
 }
 

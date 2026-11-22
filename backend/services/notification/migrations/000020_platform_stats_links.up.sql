@@ -1,13 +1,7 @@
 -- Read-only profile-link export for the user platform-stats worker (ADR-0059 §3).
+-- Role aether_notification_platform_stats_reader is created by platform bootstrap
+-- (deploy/database/platform/dev-init.sh); migrations only grant.
 SET ROLE aether_notification_owner;
-
-DO $role$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'aether_notification_platform_stats_reader') THEN
-        CREATE ROLE aether_notification_platform_stats_reader NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
-    END IF;
-END
-$role$;
 
 CREATE FUNCTION notification.worker_profile_links(p_tenant_id uuid)
 RETURNS TABLE (member_id uuid, platform text, handle text)
@@ -21,6 +15,13 @@ AS $function$
 $function$;
 
 REVOKE ALL ON FUNCTION notification.worker_profile_links(uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION notification.worker_profile_links(uuid) TO aether_notification_platform_stats_reader;
+
+DO $grant$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'aether_notification_platform_stats_reader') THEN
+        GRANT EXECUTE ON FUNCTION notification.worker_profile_links(uuid) TO aether_notification_platform_stats_reader;
+    END IF;
+END
+$grant$;
 
 RESET ROLE;

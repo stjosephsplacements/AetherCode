@@ -44,7 +44,6 @@ FROM (
 CREATE OR REPLACE VIEW analytics_silver.student_affiliation AS
 SELECT
     projection.*,
-    projection.source_event_id,
     projection.source_event_id AS bronze_fact_id,
     1 AS pipeline_version,
     projection.updated_at AS processed_at
@@ -53,7 +52,6 @@ FROM analytics.student_affiliation_projections AS projection;
 CREATE OR REPLACE VIEW analytics_silver.attempt AS
 SELECT
     projection.*,
-    projection.source_event_id,
     projection.source_event_id AS bronze_fact_id,
     1 AS pipeline_version,
     projection.updated_at AS processed_at

@@ -1,7 +1,7 @@
 SET ROLE aether_tenant_owner;
 
 CREATE TABLE tenant.branding (
-    tenant_id uuid UNIQUE REFERENCES tenant.tenants (id) ON DELETE CASCADE,
+    tenant_id uuid REFERENCES tenant.tenants (id) ON DELETE CASCADE,
     app_name text NOT NULL DEFAULT '' CHECK (char_length(app_name) <= 60),
     accent_color text CHECK (
         accent_color IS NULL

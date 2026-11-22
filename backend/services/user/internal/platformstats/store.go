@@ -24,8 +24,8 @@ type WorkItem struct {
 }
 
 type Store struct {
-	userPool           *pgxpool.Pool
-	notificationPool   *pgxpool.Pool
+	userPool         *pgxpool.Pool
+	notificationPool *pgxpool.Pool
 }
 
 func NewStore(userPool, notificationPool *pgxpool.Pool) (*Store, error) {

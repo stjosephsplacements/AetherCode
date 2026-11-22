@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	centralauthz "github.com/stjosephsplacements/AetherCode/libs/pkg/authz"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/authzprojection"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/buildinfo"
@@ -22,7 +23,6 @@ import (
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/messaging"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry"
 	"github.com/stjosephsplacements/AetherCode/libs/pkg/telemetry/dbmetrics"
-	"github.com/jackc/pgx/v5/pgxpool"
 	authzv1 "github.com/stjosephsplacements/AetherCode/libs/proto/gen/go/aethercode/authz/v1"
 	authnadapter "github.com/stjosephsplacements/AetherCode/services/user/internal/adapters/authn"
 	grpcadapter "github.com/stjosephsplacements/AetherCode/services/user/internal/adapters/grpc"

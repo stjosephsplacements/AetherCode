@@ -118,3 +118,16 @@ psql --set=ON_ERROR_STOP=1 --dbname="aether_submission" \
   --set=database="aether_submission" --set=retention_worker="aether_submission_retention_worker" <<'SQL'
 GRANT CONNECT ON DATABASE :"database" TO :"retention_worker";
 SQL
+
+# Platform-stats worker (user) reads community profile links via a separate
+# NOLOGIN reader on notification; grants land in service migrations.
+create_group_role_if_missing "aether_user_platform_stats_worker"
+create_group_role_if_missing "aether_notification_platform_stats_reader"
+psql --set=ON_ERROR_STOP=1 --dbname="aether_users" \
+  --set=database="aether_users" --set=worker="aether_user_platform_stats_worker" <<'SQL'
+GRANT CONNECT ON DATABASE :"database" TO :"worker";
+SQL
+psql --set=ON_ERROR_STOP=1 --dbname="aether_notification" \
+  --set=database="aether_notification" --set=reader="aether_notification_platform_stats_reader" <<'SQL'
+GRANT CONNECT ON DATABASE :"database" TO :"reader";
+SQL
