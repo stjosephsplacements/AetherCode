@@ -27,7 +27,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
 
   return (
     <div className="mx-auto max-w-3xl px-6 pb-24 pt-14 sm:pt-20">
-      <article className="rounded-[var(--radius-surface)] overflow-hidden border border-line-strong bg-surface shadow-[var(--shadow-panel)]">
+      <article className="rounded-surface overflow-hidden border border-line-strong bg-surface shadow-[var(--shadow-panel)]">
         <header className="flex flex-wrap items-center gap-5 border-b border-line-strong p-6 sm:p-8">
           <span aria-hidden className="grid size-20 shrink-0 place-items-center bg-brand font-mono text-[26px] font-semibold text-brand-ink">
             {lettermark(name)}
@@ -52,7 +52,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
             <h2 className="mb-3 font-mono text-[13px] text-ink-muted">Skills</h2>
             <ul className="flex flex-wrap gap-2">
               {skills.map((skill) => (
-                <li key={skill} className="rounded-full border border-line-strong bg-canvas px-3 py-1 font-mono text-[12.5px] text-ink">
+                <li key={skill} className="rounded-pill border border-line-strong bg-canvas px-3 py-1 font-mono text-[12.5px] text-ink">
                   {skill}
                 </li>
               ))}
@@ -75,7 +75,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
                       <ArrowSquareOut className="size-4" />
                     </a>
                   ) : (
-                    <div className="rounded-full border border-line-strong bg-canvas px-4 py-3">
+                    <div className="rounded-pill border border-line-strong bg-canvas px-4 py-3">
                       <span className="block text-[14px] font-medium">{link.platform}</span>
                       <span className="block font-mono text-[12px] text-ink-muted">{link.handle}</span>
                     </div>

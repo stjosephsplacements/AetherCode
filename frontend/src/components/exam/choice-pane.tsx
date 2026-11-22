@@ -52,7 +52,7 @@ export function ChoicePane({
   return (
     <section
       aria-label="Your answer"
-      className="flex min-h-[320px] flex-1 flex-col overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface shadow-[var(--shadow-panel)]"
+      className="flex min-h-[320px] flex-1 flex-col overflow-hidden rounded-surface border border-line bg-surface shadow-[var(--shadow-panel)]"
     >
       <div className="flex h-12 shrink-0 items-center gap-2 border-b px-4 text-[13px]">
         <span className="font-medium text-ink">{item.multiple_choice ? "Choose every correct option" : "Choose one option"}</span>
@@ -84,7 +84,7 @@ export function ChoicePane({
                 disabled={readOnly}
                 onClick={() => choose(choice.index)}
                 className={cn(
-                  "flex w-full items-start gap-3 rounded-[var(--radius-control)] border px-4 py-3 text-left text-sm transition-colors",
+                  "flex w-full items-start gap-3 rounded-control border px-4 py-3 text-left text-sm transition-colors",
                   checked ? "border-brand bg-brand-soft" : "border-line hover:border-line-strong hover:bg-hover",
                   readOnly && "cursor-not-allowed opacity-70",
                 )}
@@ -92,7 +92,7 @@ export function ChoicePane({
                 <span
                   className={cn(
                     "mt-0.5 grid size-5 shrink-0 place-items-center border text-[11px] font-semibold",
-                    item.multiple_choice ? "rounded-[5px]" : "rounded-full",
+                    item.multiple_choice ? "rounded-chip" : "rounded-pill",
                     checked ? "border-brand bg-brand text-brand-ink" : "border-line-strong text-ink-muted",
                   )}
                 >

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { FigureCard } from "@/app/admin/_dashboard/charts";
 import { Tile } from "@/components/staff/tile";
 import { EmptyState, PageHeader, Table } from "@/components/staff/page-header";
 import { type Attempt, type ExamPoint, histogram, passes, percent, spread, type Summary } from "@/lib/analytics";
@@ -26,7 +27,7 @@ export function AnalyticsView({ data, several, actions, notice, scope, tabs }: {
   const { attempts, points, recent, overall, change, departmentRows, batchRows, students, needAttention } = data;
   const spreadOf = spread(attempts.map((attempt) => attempt.share));
   return (
-    <>
+    <div className="animate-enter">
       {tabs}
       <PageHeader
         title="Analytics"
@@ -57,10 +58,10 @@ export function AnalyticsView({ data, several, actions, notice, scope, tabs }: {
             <ExamTrend points={points} />
           </Tile>
 
-          <Figure label="Pass rate" value={percent(overall.pass)} note={`${Math.round(overall.pass * overall.attempts)} of ${overall.attempts} attempts`} tone={overall.pass >= 0.5 ? "success" : "danger"} className="xl:col-span-3" />
-          <Figure label="Graded attempts" value={String(overall.attempts)} note="every graded run of an exam" className="xl:col-span-3" />
-          <Figure label="Students" value={String(overall.students)} note="with at least one graded exam" className="xl:col-span-3" />
-          <Figure label="Exams held" value={String(points.length)} note={recent[0] ? `latest: ${recent[0].title}` : ""} className="xl:col-span-3" />
+          <FigureCard label="Pass rate" value={percent(overall.pass)} note={`${Math.round(overall.pass * overall.attempts)} of ${overall.attempts} attempts`} tone={overall.pass >= 0.5 ? "good" : "bad"} className="xl:col-span-3" />
+          <FigureCard label="Graded attempts" value={String(overall.attempts)} note="every graded run of an exam" className="xl:col-span-3" />
+          <FigureCard label="Students" value={String(overall.students)} note="with at least one graded exam" className="xl:col-span-3" />
+          <FigureCard label="Exams held" value={String(points.length)} note={recent[0] ? `latest: ${recent[0].title}` : ""} className="xl:col-span-3" />
 
           <Tile label="Score distribution" className="md:col-span-1 xl:col-span-5">
             <p className="text-[13px] text-ink-muted">How many attempts landed in each tenth of the marks. Red bars are under the pass mark.</p>
@@ -109,22 +110,7 @@ export function AnalyticsView({ data, several, actions, notice, scope, tabs }: {
           </Tile>
         </div>
       )}
-    </>
-  );
-}
-
-type Tone = "success" | "danger";
-const DOT: Record<Tone, string> = { success: "bg-success", danger: "bg-danger" };
-
-function Figure({ label, value, note, tone, className }: { label: string; value: string; note: string; tone?: Tone; className?: string }) {
-  return (
-    <Tile label={label} className={className}>
-      <p className="mt-auto flex items-center gap-2.5 text-[30px] font-semibold leading-none tracking-[-0.03em] tabular-nums text-ink">
-        {tone && <span aria-hidden className={cn("size-2 rounded-full", DOT[tone])} />}
-        {value}
-      </p>
-      <p className="mt-2 truncate text-[12.5px] text-ink-muted">{note}</p>
-    </Tile>
+    </div>
   );
 }
 
@@ -141,8 +127,8 @@ function RankBars({ rows, empty }: { rows: Rank[]; empty: string }) {
             <span className="min-w-0 truncate text-[13.5px] text-ink">{row.name}</span>
             <span className="font-mono text-[13px] tabular-nums text-ink">{percent(row.average)}</span>
           </div>
-          <div className="relative mt-1.5 h-1.5 rounded-full bg-hover">
-            <span className={cn("block h-full rounded-full", passes(row.average) ? "bg-ink/55" : "bg-danger/70")} style={{ width: percent(Math.min(row.average, 1)) }} />
+          <div className="relative mt-1.5 h-1.5 rounded-pill bg-hover">
+            <span className={cn("block h-full rounded-pill", passes(row.average) ? "bg-ink/55" : "bg-danger/70")} style={{ width: percent(Math.min(row.average, 1)) }} />
             <span aria-hidden className="absolute -top-0.5 h-2.5 border-l border-dashed border-ink-muted" style={{ left: percent(PASS_SHARE) }} />
           </div>
           <p className="mt-1 font-mono text-[11px] text-ink-subtle">
@@ -205,8 +191,8 @@ function ExamRows({ points }: { points: ExamPoint[] }) {
               {formatDateTime(point.at)}, {point.graded} graded
             </p>
           </div>
-          <div className="relative h-1.5 rounded-full bg-hover" aria-hidden>
-            <span className={cn("block h-full rounded-full", passes(point.average) ? "bg-ink/55" : "bg-danger/70")} style={{ width: percent(Math.min(point.average, 1)) }} />
+          <div className="relative h-1.5 rounded-pill bg-hover" aria-hidden>
+            <span className={cn("block h-full rounded-pill", passes(point.average) ? "bg-ink/55" : "bg-danger/70")} style={{ width: percent(Math.min(point.average, 1)) }} />
             <span className="absolute -top-0.5 h-2.5 border-l border-dashed border-ink-muted" style={{ left: percent(PASS_SHARE) }} />
           </div>
           <span className={cn("text-right font-mono text-[13px] tabular-nums", passes(point.average) ? "text-ink" : "text-danger")}>{percent(point.average)}</span>

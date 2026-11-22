@@ -18,7 +18,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
         <AsciiField />
         <a
           href="#content"
-          className="fixed left-4 top-4 z-50 -translate-y-24 rounded-full bg-brand px-4 py-2 text-[14px] font-medium text-brand-ink transition-transform focus:translate-y-0"
+          className="fixed left-4 top-4 z-50 -translate-y-24 rounded-pill bg-brand px-4 py-2 text-[14px] font-medium text-brand-ink transition-transform focus:translate-y-0"
         >
           Skip to content
         </a>

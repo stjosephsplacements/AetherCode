@@ -41,7 +41,7 @@ function Chip({ entry, state, now }: { entry: Entry; state: State; now: number }
       exam={{ exam: { id: entry.examId }, version: entry.version, college: entry.college }}
       now={now}
       label={`${entry.version.title}, ${STATE_NAME[state].toLowerCase()}, ${formatDateTime(entry.opensAt)}`}
-      className={cn("flex h-6 w-full items-center gap-1.5 rounded-[6px] px-1.5 text-[12px] font-medium transition-[filter] hover:brightness-110", CHIP[state])}
+      className={cn("flex h-6 w-full items-center gap-1.5 rounded-chip px-1.5 text-[12px] font-medium transition-[filter] hover:brightness-110", CHIP[state])}
     >
       <span className="shrink-0 font-mono text-[10.5px] opacity-80">{entry.first ? formatTime(entry.opensAt) : "cont."}</span>
       <span className="truncate">{entry.version.title}</span>
@@ -53,7 +53,7 @@ function Chip({ entry, state, now }: { entry: Entry; state: State; now: number }
 function DayDialog({ dayKey, entries, now }: { dayKey: string; entries: Entry[]; now: number }) {
   return (
     <Dialog>
-      <DialogTrigger className="w-full rounded-[6px] px-1.5 py-0.5 text-left font-mono text-[11px] text-ink-muted transition-colors hover:bg-hover hover:text-ink">
+      <DialogTrigger className="w-full rounded-chip px-1.5 py-0.5 text-left font-mono text-[11px] text-ink-muted transition-colors hover:bg-hover hover:text-ink">
         + {entries.length - CHIPS} more
       </DialogTrigger>
       <DialogContent title={dayName.format(new Date(`${dayKey}T00:00:00Z`))} description={`${entries.length} exams touch this day.`}>
@@ -148,7 +148,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
       <div className="mt-7 grid gap-3 xl:grid-cols-12">
         <div className="min-w-0 xl:col-span-9">
           <div className="overflow-x-auto">
-            <div className="min-w-[760px] overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface">
+            <div className="min-w-[760px] overflow-hidden rounded-surface border border-line bg-surface shadow-[var(--shadow-panel)]">
               <div className="grid grid-cols-7 bg-sidebar">
                 {WEEKDAYS.map((weekday, index) => (
                   <div key={weekday} className={cn("px-3 py-2 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle", index > 0 && "border-l border-line")}>
@@ -169,7 +169,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
                         <div className="mb-1 flex items-center justify-between">
                           <span
                             className={cn(
-                              "grid size-6 place-items-center rounded-full font-mono text-[12px] tabular-nums",
+                              "grid size-6 place-items-center rounded-pill font-mono text-[12px] tabular-nums",
                               isToday ? "bg-brand font-semibold text-brand-ink" : day.inMonth ? "text-ink-muted" : "text-ink-subtle/60",
                             )}
                           >
@@ -204,7 +204,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
           <ul className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 px-1 text-[12px] text-ink-muted">
             {(["live", "next", "closed", "draft"] as const).map((state) => (
               <li key={state} className="flex items-center gap-2">
-                <span aria-hidden className={cn("h-3.5 w-6 rounded-[4px]", CHIP[state])} />
+                <span aria-hidden className={cn("h-3.5 w-6 rounded-chip", CHIP[state])} />
                 {STATE_NAME[state]}
               </li>
             ))}
@@ -213,11 +213,11 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
 
         <div className="space-y-3 xl:col-span-3">
           <Tile label="This month">
-            <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-[var(--radius-control)] border border-line bg-line">
+            <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-control border border-line bg-line">
               {counts.map(({ state, count }) => (
                 <div key={state} className="bg-surface px-3 py-2.5">
                   <dt className="flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-[0.06em] text-ink-subtle">
-                    {state === "live" && count > 0 && <span aria-hidden className="size-1.5 animate-pulse rounded-full bg-brand" />}
+                    {state === "live" && count > 0 && <span aria-hidden className="size-1.5 animate-pulse rounded-pill bg-brand" />}
                     {STATE_NAME[state]}
                   </dt>
                   <dd className={cn("mt-1 text-[24px] font-semibold leading-none tracking-[-0.03em] tabular-nums", state === "live" && count > 0 ? "text-brand" : "text-ink")}>{count}</dd>

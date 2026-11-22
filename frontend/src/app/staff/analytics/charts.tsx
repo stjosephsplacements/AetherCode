@@ -5,7 +5,7 @@ import { type Bucket, type ExamPoint, percent } from "@/lib/analytics";
 import { PASS_SHARE } from "@/lib/results";
 import { cn, formatDateTime } from "@/lib/utils";
 
-const TIP = "z-50 animate-fade rounded-md border border-line-strong bg-surface px-2.5 py-1.5 text-[12.5px] text-ink shadow-[var(--shadow-overlay)]";
+const TIP = "z-50 animate-fade rounded-control border border-line-strong bg-surface px-2.5 py-1.5 text-[12.5px] text-ink shadow-[var(--shadow-overlay)]";
 
 /** The dashed line at the pass mark, drawn across a chart plot whose height is 0 to 100%. */
 function PassLine() {

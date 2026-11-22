@@ -34,6 +34,7 @@ export type QuestionRow = {
   status: "published" | "draft";
   inReview: boolean;
   forYou: boolean;
+  authorName: string;
 };
 
 export type Lists = { tests: QuestionRow[]; practice: QuestionRow[]; drafts: QuestionRow[]; review: QuestionRow[] };
@@ -95,7 +96,7 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
   const empty = TABS.find((entry) => entry.key === tab)!.empty;
 
   return (
-    <>
+    <div className="grid gap-3">
       <div role="group" aria-label="Question lists" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {TABS.map(({ key, label }) => {
           const active = key === tab;
@@ -106,10 +107,13 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
               type="button"
               aria-pressed={active}
               onClick={() => setTab(key)}
-              className={cn("flex flex-col items-start rounded-[var(--radius-surface)] border bg-surface px-5 py-4 text-left transition-[border-color,background-color,transform] active:scale-[0.98]", active ? "border-ink/60 bg-surface-2" : "border-line hover:border-line-strong")}
+              className={cn(
+                "flex flex-col items-start rounded-surface border bg-surface px-5 py-4 text-left shadow-[var(--shadow-panel)] transition-[border-color,background-color,transform] active:scale-[0.98]",
+                active ? "border-brand/40 bg-brand-soft/15" : "border-line hover:border-line-strong",
+              )}
             >
               <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">
-                {urgent && <span aria-hidden className="size-1.5 animate-pulse rounded-full bg-brand" />}
+                {urgent && <span aria-hidden className="size-1.5 animate-pulse rounded-pill bg-brand" />}
                 {label}
               </span>
               <span className={cn("mt-2 text-[30px] font-semibold leading-none tracking-[-0.03em] tabular-nums", urgent ? "text-brand" : "text-ink")}>
@@ -121,7 +125,7 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
         })}
       </div>
 
-      <div className="mt-6 flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3 rounded-surface border border-line bg-surface p-3 shadow-[var(--shadow-panel)]">
         <div className="relative w-full max-w-md">
           <MagnifyingGlass aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-subtle" />
           <input
@@ -130,10 +134,10 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search by title or slug"
             aria-label="Search questions"
-            className="h-10 w-full rounded-[var(--radius-control)] border border-line-strong bg-surface pl-9 pr-9 text-sm text-ink outline-none transition-[border-color,box-shadow] placeholder:text-ink-subtle hover:border-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15 [&::-webkit-search-cancel-button]:appearance-none"
+            className="h-10 w-full rounded-control border border-line bg-surface pl-9 pr-9 text-sm text-ink outline-none transition-[border-color,box-shadow] placeholder:text-ink-subtle hover:border-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15 [&::-webkit-search-cancel-button]:appearance-none"
           />
           {query && (
-            <button type="button" aria-label="Clear search" onClick={() => setQuery("")} className="absolute right-2 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-md text-ink-subtle transition-colors hover:bg-hover hover:text-ink">
+            <button type="button" aria-label="Clear search" onClick={() => setQuery("")} className="absolute right-2 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-control text-ink-subtle transition-colors hover:bg-hover hover:text-ink">
               <X className="size-3.5" />
             </button>
           )}
@@ -169,14 +173,14 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
         </p>
       </div>
 
-      <div className="mt-4 grid gap-x-6 gap-y-6 xl:grid-cols-12">
-        <div className="min-w-0 xl:col-span-9">
+      <div className="grid gap-3 xl:grid-cols-12">
+        <div className="min-w-0 rounded-surface border border-line bg-surface p-5 shadow-[var(--shadow-panel)] xl:col-span-9">
           {open ? (
             <>
               <nav aria-label="Folder path" className="mb-4 flex flex-wrap items-center gap-1.5">
                 {[{ id: null, name: "Folders" }, ...(parentOfOpen ? [parentOfOpen] : [])].map((crumb) => (
                   <span key={crumb.id ?? "root"} className="inline-flex items-center gap-1.5">
-                    <button type="button" onClick={() => openFolder(crumb.id)} className="inline-flex h-8 items-center rounded-[var(--radius-control)] text-sm text-ink-muted transition-colors hover:text-ink">
+                    <button type="button" onClick={() => openFolder(crumb.id)} className="inline-flex h-8 items-center rounded-control text-sm text-ink-muted transition-colors hover:text-ink">
                       {crumb.name}
                     </button>
                     <CaretRight aria-hidden className="size-3.5 text-ink-subtle" />
@@ -195,7 +199,7 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
                 </ul>
               )}
               {open.rows.length === 0 && subFolders.length === 0 ? (
-                <div className="rounded-[var(--radius-surface)] border border-dashed border-line-strong px-6 py-14 text-center text-sm text-ink-muted">
+                <div className="rounded-surface border border-dashed border-line-strong px-6 py-14 text-center text-sm text-ink-muted">
                   {lists[tab].length === 0 ? empty : filtering ? "Nothing in this folder matches those filters." : "This folder is empty in this list."}
                 </div>
               ) : (
@@ -205,11 +209,11 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
                   return (
                     <section key={level} aria-label={level} className="mb-5 last:mb-0">
                       <h3 className="mb-1.5 flex items-center gap-2 px-1 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">
-                        <span aria-hidden className={cn("size-1.5 rounded-full", level === "easy" ? "bg-success" : level === "medium" ? "bg-warning" : "bg-danger")} />
+                        <span aria-hidden className={cn("size-1.5 rounded-pill", level === "easy" ? "bg-success" : level === "medium" ? "bg-warning" : "bg-danger")} />
                         {level}
                         <span className="tabular-nums text-ink-muted">{inLevel.length}</span>
                       </h3>
-                      <ul className="divide-y divide-line overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface">
+                      <ul className="divide-y divide-line overflow-hidden rounded-surface border border-line bg-surface">
                         {inLevel.map((row) => (
                           <li key={row.versionId}>
                             <QuestionPeek row={row} languages={languages} className="group flex w-full items-center gap-4 px-5 py-3 transition-colors hover:bg-hover">
@@ -217,8 +221,9 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
                                 <span className="block truncate text-[14.5px] font-medium text-ink">{row.title}</span>
                                 <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
                                   <span className="font-mono text-[11.5px] text-ink-subtle">{row.slug}</span>
+                                  <span className="text-[11.5px] text-ink-muted">by {row.authorName}</span>
                                   {row.tags.slice(0, 4).map((entry) => (
-                                    <span key={entry} className="rounded-full bg-hover px-2 py-px text-[11.5px] text-ink-muted">
+                                    <span key={entry} className="rounded-pill bg-hover px-2 py-px text-[11.5px] text-ink-muted">
                                       {entry}
                                     </span>
                                   ))}
@@ -242,7 +247,7 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
               )}
             </>
           ) : shown.length === 0 ? (
-            <div className="rounded-[var(--radius-surface)] border border-dashed border-line-strong px-6 py-14 text-center text-sm text-ink-muted">
+            <div className="rounded-surface border border-dashed border-line-strong px-6 py-14 text-center text-sm text-ink-muted">
               {lists[tab].length === 0 ? empty : needle ? `Nothing matches "${query.trim()}".` : "No question matches those filters."}
             </div>
           ) : (
@@ -261,7 +266,7 @@ export function QuestionBoard({ lists, languages, categories, capped, initial }:
           <Attention lists={lists} languages={languages} onOpen={setTab} />
         </div>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -287,13 +292,13 @@ function Mix({ label, rows, languages }: { label: string; rows: QuestionRow[]; l
           <div>
             <div className="flex h-2.5 gap-[2px]" role="img" aria-label={counts.map(({ key, count }) => `${count} ${key}`).join(", ")}>
               {counts.filter(({ count }) => count > 0).map(({ key, fill, count }) => (
-                <span key={key} className={cn("h-full rounded-[4px]", fill)} style={{ flex: `${count} 1 0`, minWidth: 4 }} />
+                <span key={key} className={cn("h-full rounded-chip", fill)} style={{ flex: `${count} 1 0`, minWidth: 4 }} />
               ))}
             </div>
             <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-[12.5px] text-ink-muted">
               {counts.map(({ key, fill, count }) => (
                 <li key={key} className="flex items-center gap-1.5 capitalize">
-                  <span aria-hidden className={cn("size-2 rounded-[2px]", fill)} />
+                  <span aria-hidden className={cn("size-2 rounded-chip", fill)} />
                   {key}
                   <span className="font-mono tabular-nums text-ink">{count}</span>
                 </li>
@@ -307,8 +312,8 @@ function Mix({ label, rows, languages }: { label: string; rows: QuestionRow[]; l
                 {top.map(([key, count]) => (
                   <li key={key} className="grid grid-cols-[88px_minmax(0,1fr)_28px] items-center gap-3 text-[12.5px]">
                     <span className="truncate text-ink-muted">{nameOf(languages, key)}</span>
-                    <span className="h-1.5 overflow-hidden rounded-full bg-hover">
-                      <span className="block h-full rounded-full bg-brand" style={{ width: `${(count / coding.length) * 100}%` }} />
+                    <span className="h-1.5 overflow-hidden rounded-pill bg-hover">
+                      <span className="block h-full rounded-pill bg-brand" style={{ width: `${(count / coding.length) * 100}%` }} />
                     </span>
                     <span className="text-right font-mono tabular-nums text-ink">{count}</span>
                   </li>
@@ -338,7 +343,7 @@ function Attention({ lists, languages, onOpen }: { lists: Lists; languages: Lang
         <ul className="-mx-2 space-y-0.5">
           {items.map(({ row, why }) => (
             <li key={`${row.versionId}-${why}`}>
-              <QuestionPeek row={row} languages={languages} className="flex w-full flex-col rounded-[var(--radius-control)] px-2 py-2 transition-colors hover:bg-hover">
+              <QuestionPeek row={row} languages={languages} className="flex w-full flex-col rounded-control px-2 py-2 transition-colors hover:bg-hover">
                 <span className="truncate text-[13.5px] font-medium text-ink">{row.title}</span>
                 <span className="text-[12px] text-warning">{why}</span>
               </QuestionPeek>

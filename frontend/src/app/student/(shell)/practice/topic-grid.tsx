@@ -26,19 +26,19 @@ export function TopicGrid({ topics }: { topics: Topic[] }) {
           <label className="relative">
             <span className="sr-only">Search topics</span>
             <MagnifyingGlass className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-subtle" />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search topics" className="h-10 w-56 rounded-xl border border-line bg-surface pl-9 pr-3 text-sm text-ink outline-none placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15" />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search topics" className="h-10 w-56 rounded-surface border border-line bg-surface pl-9 pr-3 text-sm text-ink outline-none placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15" />
           </label>
         </div>
       </div>
       {shown.length === 0 ? (
-        <p className="rounded-3xl border border-dashed border-line-strong px-6 py-14 text-center text-sm text-ink-muted">{topics.length === 0 ? "No practice problems yet. Your faculty adds them here." : "No topic matches."}</p>
+        <p className="rounded-panel border border-dashed border-line-strong px-6 py-14 text-center text-sm text-ink-muted">{topics.length === 0 ? "No practice problems yet. Your faculty adds them here." : "No topic matches."}</p>
       ) : (
         <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {shown.map((topic, index) => (
             <li key={topic.name}>
-              <Link href={`/student/practice/topics/${encodeURIComponent(topic.name)}`} className="group flex h-full flex-col rounded-3xl border border-line bg-surface p-5 shadow-[var(--shadow-panel)] transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-overlay)]">
+              <Link href={`/student/practice/topics/${encodeURIComponent(topic.name)}`} className="group flex h-full flex-col rounded-panel border border-line bg-surface p-5 shadow-[var(--shadow-panel)] transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-overlay)]">
                 <div className="flex items-start justify-between gap-3">
-                  <span className={cn("grid size-12 place-items-center rounded-2xl font-mono text-[17px] font-semibold", TONES[index % TONES.length])}>{label(topic.name).slice(0, 2)}</span>
+                  <span className={cn("grid size-12 place-items-center rounded-panel font-mono text-[17px] font-semibold", TONES[index % TONES.length])}>{label(topic.name).slice(0, 2)}</span>
                   <Ring value={topic.solved} max={topic.total} size={48} stroke={5}>
                     <span className="font-mono text-[11px] font-semibold text-ink">{topic.total ? Math.round((topic.solved / topic.total) * 100) : 0}%</span>
                   </Ring>
@@ -48,9 +48,9 @@ export function TopicGrid({ topics }: { topics: Topic[] }) {
                   {topic.solved} of {topic.total} solved{topic.attempted ? ` · ${topic.attempted} in progress` : ""}
                 </p>
                 <div className="mt-auto flex gap-1.5 pt-4 text-[11.5px] font-medium">
-                  {topic.easy > 0 && <span className="rounded-full bg-success-soft px-2 py-0.5 text-success">{topic.easy} easy</span>}
-                  {topic.medium > 0 && <span className="rounded-full bg-warning-soft px-2 py-0.5 text-warning">{topic.medium} med</span>}
-                  {topic.hard > 0 && <span className="rounded-full bg-danger-soft px-2 py-0.5 text-danger">{topic.hard} hard</span>}
+                  {topic.easy > 0 && <span className="rounded-pill bg-success-soft px-2 py-0.5 text-success">{topic.easy} easy</span>}
+                  {topic.medium > 0 && <span className="rounded-pill bg-warning-soft px-2 py-0.5 text-warning">{topic.medium} med</span>}
+                  {topic.hard > 0 && <span className="rounded-pill bg-danger-soft px-2 py-0.5 text-danger">{topic.hard} hard</span>}
                 </div>
               </Link>
             </li>

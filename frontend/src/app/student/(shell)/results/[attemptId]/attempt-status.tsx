@@ -59,7 +59,7 @@ export function AttemptStatus({ tenantId, attemptId }: { tenantId: string; attem
 
   return (
     <div className="mx-auto max-w-md animate-enter pt-6 text-center">
-      <div className="mx-auto grid size-12 place-items-center rounded-full bg-success-soft text-success">
+      <div className="mx-auto grid size-12 place-items-center rounded-pill bg-success-soft text-success">
         {pending ? <CircleNotch className="size-5 animate-spin" /> : <Check className="size-5" />}
       </div>
       <h1 className="display mt-6 text-[2.2rem] text-ink">{pending ? "Handing in your work" : "Exam submitted"}</h1>
@@ -90,7 +90,7 @@ function ReleasedResult({ result }: { result: Extract<AttemptResult, { released:
         {formatScoreText(Number(result.score))}
         <span className="text-[1.75rem] text-ink-muted"> / {formatScoreText(Number(result.maximum_score))}</span>
       </p>
-      <ul className="mt-9 overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface">
+      <ul className="mt-9 overflow-hidden rounded-surface border border-line bg-surface">
         {result.items.map((item, index) => (
           <li key={item.exam_item_id} className={index > 0 ? "border-t border-line px-5 py-3" : "px-5 py-3"}>
             <div className="flex items-center gap-4">
@@ -121,8 +121,8 @@ function ReleasedResult({ result }: { result: Extract<AttemptResult, { released:
                     title={test.verdict.replaceAll("_", " ")}
                     className={
                       test.verdict === "accepted"
-                        ? "rounded-md bg-success-soft px-2 py-0.5 font-mono text-[11px] text-success"
-                        : "rounded-md bg-danger-soft px-2 py-0.5 font-mono text-[11px] text-danger"
+                        ? "rounded-control bg-success-soft px-2 py-0.5 font-mono text-[11px] text-success"
+                        : "rounded-control bg-danger-soft px-2 py-0.5 font-mono text-[11px] text-danger"
                     }
                   >
                     Test {test.number} {test.verdict === "accepted" ? "passed" : test.verdict.replaceAll("_", " ")}

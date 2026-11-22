@@ -44,7 +44,7 @@ export function PracticeList({ problems, hideTopic = false }: { problems: Practi
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search by title or topic"
-            className="h-9 w-full rounded-[var(--radius-control)] border border-line bg-surface pl-9 pr-3 text-sm text-ink outline-none placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15"
+            className="h-9 w-full rounded-control border border-line bg-surface pl-9 pr-3 text-sm text-ink outline-none placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15"
           />
         </label>
         <Select label="Difficulty" value={difficulty} onChange={(value) => setDifficulty(value as typeof difficulty)}
@@ -58,7 +58,7 @@ export function PracticeList({ problems, hideTopic = false }: { problems: Practi
             type="button"
             aria-pressed={status === option.value}
             onClick={() => setStatus(option.value)}
-            className={cn("rounded-full px-3 py-1 text-[13px]", status === option.value ? "bg-ink text-canvas" : "bg-hover text-ink-muted hover:text-ink")}
+            className={cn("rounded-pill px-3 py-1 text-[13px]", status === option.value ? "bg-ink text-canvas" : "bg-hover text-ink-muted hover:text-ink")}
           >
             {option.label}
           </button>
@@ -66,11 +66,11 @@ export function PracticeList({ problems, hideTopic = false }: { problems: Practi
       </nav>
 
       {shown.length === 0 ? (
-        <p className="mt-6 rounded-3xl border border-dashed border-line-strong px-6 py-12 text-center text-sm text-ink-muted">
+        <p className="mt-6 rounded-panel border border-dashed border-line-strong px-6 py-12 text-center text-sm text-ink-muted">
           {problems.length === 0 ? "No practice problems yet. Your faculty adds them here." : "No problems match these filters."}
         </p>
       ) : (
-        <ul className="mt-4 overflow-hidden rounded-3xl border border-line bg-surface shadow-[var(--shadow-panel)]">
+        <ul className="mt-4 overflow-hidden rounded-panel border border-line bg-surface shadow-[var(--shadow-panel)]">
           {shown.map((problem, index) => (
             <li key={problem.question_id} className={cn(index > 0 && "border-t border-line")}>
               <Link href={`/student/practice/${problem.question_id}`} className="flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-hover">

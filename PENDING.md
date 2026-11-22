@@ -562,6 +562,13 @@ Ask-first areas under AGENTS.md apply. In priority order:
     Redis pods, NATS+GPU proof). Campus SSH from this workstation timed out 2026-11-21 — owner must
     run cutover on-box. Then: SEB + similarity against real SEB; judge capacity for the slot;
     placement read model / analytics medallion; external HA/KMS/backup gates in `docs/roadmap.md`.
+14. ~~**Staff content attribution (ADR-0090).**~~ Done in code: APIs expose `created_by` /
+    `author_id`; staff/placement/admin UIs resolve names via `accounts/describe`. Interview
+    experiences stay anonymous to students. Apply migrations on campus: question-bank `000032`,
+    assessment `000042`, notification `000019`, submission `000051`.
+15. **Owner-only ops (not doable from this workstation):** campus proctor cutover, SEB+similarity
+    live proof, judge capacity for the next big slot, `development` → `production`, off-server
+    backups / monitoring / HA/KMS.
 
 ## 5. Verification commands
 

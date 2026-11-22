@@ -1,19 +1,21 @@
 import { ArrowLeft, ChartBar, DownloadSimple, Eye, Pulse } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { panel } from "@/app/admin/_dashboard/panel";
 import { ActionForm, Checkbox, Field, Select, TextArea, TextInput } from "@/components/staff/form";
 import { QuestionPicker } from "./question-picker";
 import { EmptyState, LoadError, PageHeader, Section, Table } from "@/components/staff/page-header";
 import { ConfirmDelete } from "@/components/staff/confirm-delete";
 import { EditDialog } from "@/components/staff/edit-dialog";
 import { Button } from "@/components/ui/button";
-import { Badge, Panel } from "@/components/ui/card";
+import { Badge } from "@/components/ui/card";
 import type { ExamVersionContent, Page, QuestionDetail, QuestionVersion, SebPolicy } from "@/lib/api-types";
 import { departmentLabel, listBatches, listDepartments, listPlacement } from "@/lib/server/directory";
+import { placementDepartmentOptions } from "@/lib/server/placement-org";
 import { latestVersion } from "@/lib/server/exams";
 import { GatewayError, gateway } from "@/lib/server/gateway";
 import { requireCollege } from "@/lib/server/staff";
-import { formatDuration, formatScoreText, formatWindow, isoToCollegeTime } from "@/lib/utils";
+import { cn, formatDuration, formatScoreText, formatWindow, isoToCollegeTime } from "@/lib/utils";
 import { addPool, addQuestion, deleteExam, duplicateExam, publishExam, regradeItem, removeExamItem, removeExamSection, saveSebPolicy, tryExam, updateExamDetails, updateExamItemMarks, updateExamSection } from "../actions";
 import { AssignForm } from "./assign-form";
 import { MoveWindow } from "./move-window";
@@ -69,10 +71,10 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
     data = { version, content, questions: questions.items.filter(({ question }) => question.audience !== "practice"), batches, departments, placement, seb, regradable };
   } catch (error) {
     return (
-      <>
+      <div className="animate-enter">
         <PageHeader title="Exam" />
         <LoadError error={error} />
-      </>
+      </div>
     );
   }
   const { version, content, questions, batches, departments, placement, seb, regradable } = data;
@@ -91,11 +93,11 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
   const targetName = new Map<string, string>([
     ...batches.map((batch) => [batch.id, batch.name] as const),
     ...departments.map((department) => [department.id, departmentLabel(department)] as const),
-    ...placement.organizations.flatMap((organization) => organization.departments.map((department) => [department.id, departmentLabel(department)] as const)),
+    ...placementDepartmentOptions(placement).map((department) => [department.id, department.label] as const),
   ]);
 
   return (
-    <>
+    <div className="animate-enter">
       <Link href="/staff/exams" className="mb-6 inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink">
         <ArrowLeft className="size-4" />
         Exams
@@ -168,7 +170,7 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
         {items.length === 0 && sections.length < 2 ? (
           <EmptyState>No questions yet.</EmptyState>
         ) : (
-          <div className="space-y-4">
+          <div className={cn(panel, "gap-4 p-5")}>
             {sections.map((section) => (
               <div key={section.id}>
                 {(sections.length > 1 || draft) && (
@@ -194,7 +196,7 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
                   </div>
                 )}
                 {section.items.length === 0 ? (
-                  <div className="flex items-center justify-between gap-3 rounded-[var(--radius-surface)] border border-dashed border-line-strong px-6 py-8 text-sm text-ink-muted">
+                  <div className="flex items-center justify-between gap-3 rounded-surface border border-dashed border-line-strong px-6 py-8 text-sm text-ink-muted">
                     <span>No questions in this {section.draw_count !== null ? "pool" : "section"} yet.</span>
                     {draft && sections.length > 1 && (
                       <RemoveFromExam
@@ -243,8 +245,8 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
         )}
         {draft && (
           <div className="mt-4 grid gap-4 md:grid-cols-[1.4fr_1fr]">
-            <Panel className="p-5">
-              <h3 className="mb-4 text-sm font-semibold text-ink">Add a question</h3>
+            <div className={cn(panel)}>
+              <h3 className="mb-4 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">Add a question</h3>
               {questions.length === 0 ? (
                 <p className="text-sm text-ink-muted">
                   Publish a question first, in <Link href="/staff/questions" className="text-brand hover:underline">Questions</Link>.
@@ -280,9 +282,9 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
                   </div>
                 </ActionForm>
               )}
-            </Panel>
-            <Panel className="p-5">
-              <h3 className="mb-2 text-sm font-semibold text-ink">Publish</h3>
+            </div>
+            <div className={cn(panel)}>
+              <h3 className="mb-2 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">Publish</h3>
               <p className="mb-4 text-[13px] text-ink-muted">A published exam cannot change. Check the questions and marks first.</p>
               {items.length > 0 ? (
                 <ActionForm action={publishExam} submitLabel="Publish exam">
@@ -292,9 +294,9 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
               ) : (
                 <p className="text-[13px] text-ink-muted">Add at least one question.</p>
               )}
-            </Panel>
-            <Panel className="p-5 md:col-span-2">
-              <h3 className="mb-2 text-sm font-semibold text-ink">Add a question pool</h3>
+            </div>
+            <div className={cn(panel, "md:col-span-2")}>
+              <h3 className="mb-2 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">Add a question pool</h3>
               <p className="mb-4 text-[13px] text-ink-muted">
                 Each student gets a different random set of the pool&apos;s questions, the same set every time they open the exam. Give the pool&apos;s questions the same marks.
               </p>
@@ -310,7 +312,7 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
                   </Field>
                 </div>
               </ActionForm>
-            </Panel>
+            </div>
           </div>
         )}
       </Section>
@@ -335,7 +337,7 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
               </Table>
             </div>
           )}
-          <Panel className="p-5">
+          <div className={cn(panel)}>
             <AssignForm
               examId={examId}
               versionId={version.id}
@@ -344,12 +346,10 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
               targets={{
                 batch: batches.map((batch) => ({ id: batch.id, label: `${batch.name} (${batch.academic_year})` })),
                 department: departments.filter((department) => department.department_type === "college").map((department) => ({ id: department.id, label: departmentLabel(department) })),
-                placement_department: placement.organizations.flatMap((organization) =>
-                  organization.departments.map((department) => ({ id: department.id, label: `${departmentLabel(department)}, ${organization.legal_name}` })),
-                ),
+                placement_department: placementDepartmentOptions(placement),
               }}
             />
-          </Panel>
+          </div>
         </Section>
       )}
 
@@ -360,7 +360,7 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
         >
           <div className="space-y-3">
             {regradable.map(({ item, pinned, newer }) => (
-              <Panel key={item.id} className="p-4">
+              <div key={item.id} className={cn(panel, "p-4")}>
                 <ActionForm action={regradeItem} submitLabel="Use it and regrade">
                   <input type="hidden" name="exam_id" value={examId} />
                   <input type="hidden" name="version_id" value={version.id} />
@@ -377,7 +377,7 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
                     </Select>
                   </Field>
                 </ActionForm>
-              </Panel>
+              </div>
             ))}
           </div>
         </Section>
@@ -388,16 +388,16 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
           title="Try as a student"
           description="Sit this exam yourself in a private copy, open for its duration plus ten minutes. Its answers and marks never reach this exam's results or the college statistics."
         >
-          <Panel className="p-5">
+          <div className={cn(panel)}>
             <ActionForm action={tryExam} submitLabel="Try this exam">
               <input type="hidden" name="version_id" value={version.id} />
             </ActionForm>
-          </Panel>
+          </div>
         </Section>
       )}
 
       <Section title="Duplicate" description="A new draft with these questions, marks, instructions and duration, for another sitting. Assignments and lab lock are not copied.">
-        <Panel className="p-5">
+        <div className={cn(panel)}>
           <ActionForm action={duplicateExam} submitLabel="Duplicate exam">
             <input type="hidden" name="version_id" value={version.id} />
             <Field label="Title" htmlFor="copy-title">
@@ -412,11 +412,11 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
               </Field>
             </div>
           </ActionForm>
-        </Panel>
+        </div>
       </Section>
 
       <Section title="Lab lockdown" description="Limit the exam to the lab's Safe Exam Browser, its network, or both. Checked on every request while the exam is open.">
-        <Panel className="p-5">
+        <div className={cn(panel)}>
           <ActionForm action={saveSebPolicy} submitLabel="Save lockdown">
             <input type="hidden" name="exam_id" value={examId} />
             <input type="hidden" name="title" value={version.title} />
@@ -439,8 +439,8 @@ export default async function ExamPage({ params }: { params: Promise<{ examId: s
               </a>
             </Button>
           )}
-        </Panel>
+        </div>
       </Section>
-    </>
+    </div>
   );
 }

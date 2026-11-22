@@ -36,9 +36,15 @@ export function AddDialog({
           {label}
         </Button>
       </DialogTrigger>
-      <DialogContent title={title} description={description} className="w-[min(92vw,520px)]">
-        <div className="min-h-0 overflow-y-auto p-6">
-          <ActionForm action={action} submitLabel={submitLabel} onSuccess={() => setOpen(false)}>
+      <DialogContent title={title} description={description} className="w-[min(92vw,560px)]">
+        <div className="min-h-0 overflow-y-auto px-6 py-5">
+          <ActionForm
+            action={action}
+            submitLabel={submitLabel}
+            className="[&>button[type=submit]]:flex [&>button[type=submit]]:w-full"
+            submitClassName="flex w-full"
+            onSuccess={() => setOpen(false)}
+          >
             {children}
           </ActionForm>
         </div>

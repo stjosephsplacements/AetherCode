@@ -9,10 +9,10 @@ export function PathBar() {
   if (pathname === "/") return null;
   return (
     <div className="mx-auto mt-4 flex max-w-6xl items-center gap-2 px-6 font-mono text-[12.5px]">
-      <Link href="/" className="rounded-full border border-line bg-surface px-3 py-1 text-ink-muted transition-colors hover:bg-hover hover:text-ink">
+      <Link href="/" className="rounded-pill border border-line bg-surface px-3 py-1 text-ink-muted transition-colors hover:bg-hover hover:text-ink">
         &larr; Home
       </Link>
-      <p className="rounded-full border border-line bg-surface px-3 py-1 text-ink-muted">~{pathname}</p>
+      <p className="rounded-pill border border-line bg-surface px-3 py-1 text-ink-muted">~{pathname}</p>
     </div>
   );
 }

@@ -29,7 +29,7 @@ export default async function PracticePage() {
       <LiveRefresh topics={["grading"]} />
       <PageHeader title="Practice" description="Practice problems by topic. Run your code, submit it, and see how you did. Nothing here counts for exams." />
       <section className="mb-8 grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="flex flex-wrap items-center gap-6 rounded-3xl border border-line bg-surface p-6 shadow-[var(--shadow-panel)]">
+        <div className="flex flex-wrap items-center gap-6 rounded-panel border border-line bg-surface p-6 shadow-[var(--shadow-panel)]">
           <Ring value={solved} max={problems.length} size={112} stroke={11}>
             <span className="font-mono text-[22px] font-semibold text-ink">{share}%</span>
           </Ring>
@@ -43,7 +43,7 @@ export default async function PracticePage() {
               {(["easy", "medium", "hard"] as const).map((level) => {
                 const row = progress?.by_difficulty[level];
                 return (
-                  <span key={level} className={cn("rounded-full px-3 py-1 font-medium capitalize", level === "easy" ? "bg-success-soft text-success" : level === "medium" ? "bg-warning-soft text-warning" : "bg-danger-soft text-danger")}>
+                  <span key={level} className={cn("rounded-pill px-3 py-1 font-medium capitalize", level === "easy" ? "bg-success-soft text-success" : level === "medium" ? "bg-warning-soft text-warning" : "bg-danger-soft text-danger")}>
                     {level} {row?.solved ?? 0}/{row?.available ?? 0}
                   </span>
                 );
@@ -51,13 +51,13 @@ export default async function PracticePage() {
             </div>
           </div>
         </div>
-        <div className="flex flex-col justify-between rounded-3xl bg-gradient-to-br from-[#1b1640] via-[#5a210d] to-[#b84a0d] p-6 text-white shadow-[var(--shadow-panel)]">
+        <div className="flex flex-col justify-between rounded-panel bg-gradient-to-br from-[#1b1640] via-[#5a210d] to-[#b84a0d] p-6 text-white shadow-[var(--shadow-panel)]">
           <div>
             <p className="text-[13px] text-white/85">{next ? (next.attempted ? "Pick up where you left off" : "Start with") : "All caught up"}</p>
             <p className="mt-1 line-clamp-2 text-[20px] font-semibold leading-snug">{next ? next.title : problems.length ? "You have solved every problem." : "No problems yet."}</p>
           </div>
           {next && (
-            <Link href={`/student/practice/${next.question_id}`} className="mt-5 inline-flex h-11 w-fit items-center gap-2 rounded-full bg-white px-6 text-[15px] font-semibold text-[#1b1640] shadow-lg transition-transform hover:-translate-y-0.5">
+            <Link href={`/student/practice/${next.question_id}`} className="mt-5 inline-flex h-11 w-fit items-center gap-2 rounded-pill bg-white px-6 text-[15px] font-semibold text-[#1b1640] shadow-lg transition-transform hover:-translate-y-0.5">
               <CodeBlock className="size-4" />
               Solve it
               <ArrowRight className="size-4" />

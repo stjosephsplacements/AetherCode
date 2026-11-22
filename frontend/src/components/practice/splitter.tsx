@@ -44,7 +44,7 @@ export function Splitter({ direction, container, onChange, onReset, label }: { d
       }}
       className={cn("group relative z-10 shrink-0 touch-none outline-none", horizontal ? "hidden w-2 cursor-col-resize lg:block" : "h-2 cursor-row-resize")}
     >
-      <span className={cn("absolute rounded-full bg-line-strong transition-colors group-hover:bg-brand group-focus-visible:bg-brand group-active:bg-brand", horizontal ? "inset-y-2 left-1/2 w-[3px] -translate-x-1/2" : "inset-x-2 top-1/2 h-[3px] -translate-y-1/2")} />
+      <span className={cn("absolute rounded-pill bg-line-strong transition-colors group-hover:bg-brand group-focus-visible:bg-brand group-active:bg-brand", horizontal ? "inset-y-2 left-1/2 w-[3px] -translate-x-1/2" : "inset-x-2 top-1/2 h-[3px] -translate-y-1/2")} />
     </div>
   );
 }

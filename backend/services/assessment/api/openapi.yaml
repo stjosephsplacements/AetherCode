@@ -1237,6 +1237,7 @@ components:
         external_reference: {type: string, maxLength: 1000}
         lifecycle_state: {enum: [draft, published, archived]}
         version: {type: integer, minimum: 1, format: int64, maximum: 2147483647}
+        created_by: {$ref: '#/components/schemas/UUID'}
         created_at: {$ref: '#/components/schemas/Timestamp'}
         updated_at: {$ref: '#/components/schemas/Timestamp'}
     CreateExamVersion:
@@ -1269,6 +1270,7 @@ components:
         proctor_policy_version_id: {$ref: '#/components/schemas/UUID'}
         status: {enum: [draft, published, retired]}
         published_at: {$ref: '#/components/schemas/Timestamp'}
+        created_by: {$ref: '#/components/schemas/UUID'}
         created_at: {$ref: '#/components/schemas/Timestamp'}
     AddExamSection:
       type: object

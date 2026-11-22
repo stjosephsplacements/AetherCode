@@ -350,6 +350,38 @@ func (repository *Postgres) RevokeRole(contextValue context.Context, transaction
 	return assignment, nil
 }
 
+func (repository *Postgres) SetStudentPlacement(contextValue context.Context, transaction pgx.Tx, command app.SetStudentPlacement) (app.StudentPlacement, error) {
+	var result app.StudentPlacement
+	var placementDepartmentID *string
+	var membershipID *string
+	err := transaction.QueryRow(contextValue, `
+		SELECT student_id::text, tenant_id::text,
+		       placement_department_id::text, placement_membership_id::text
+		FROM users.set_student_placement_department($1, $2, NULLIF($3, '')::uuid, NULLIF($4, '')::uuid)
+	`, command.TenantID, command.StudentID, command.PlacementDepartmentID, command.MembershipID).Scan(
+		&result.StudentID, &result.TenantID, &placementDepartmentID, &membershipID,
+	)
+	if err != nil {
+		return app.StudentPlacement{}, mapWriteError(err, "student placement could not be updated")
+	}
+	result.PlacementDepartmentID = placementDepartmentID
+	result.PlacementMembershipID = membershipID
+	affiliation, affErr := repository.GetStudentBatchAffiliation(contextValue, transaction, app.GetStudentBatchAffiliation{
+		TenantID: command.TenantID, StudentID: command.StudentID,
+	})
+	if affErr == nil {
+		if err := repository.enqueueStudentBatchAffiliationSnapshot(contextValue, transaction, affiliation); err != nil {
+			return app.StudentPlacement{}, err
+		}
+		return result, nil
+	}
+	var appErr *apperrors.Error
+	if errors.As(affErr, &appErr) && appErr.Code == apperrors.CodeNotFound {
+		return result, nil
+	}
+	return app.StudentPlacement{}, affErr
+}
+
 func (repository *Postgres) SetPlacementStaffMembership(contextValue context.Context, transaction pgx.Tx, command app.SetPlacementStaffMembership) (app.PlacementStaffMembership, error) {
 	if err := repository.requirePlacementDepartment(contextValue, transaction, command.PlacementDepartmentID); err != nil {
 		return app.PlacementStaffMembership{}, err

@@ -4,7 +4,7 @@ import { ArrowLeft, ArrowRight, CaretRight, Check, CircleNotch } from "@phosphor
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
-import { createDraft } from "@/app/staff/questions/actions";
+import { createDraft as staffCreateDraft, type CreatedDraft, type NewQuestion } from "@/app/staff/questions/actions";
 import { Markdown } from "@/components/markdown";
 import { Checkbox, Field, Radio, RadioGroup, Select, TextArea, TextInput } from "@/components/staff/form";
 import { CategoryPicker } from "@/components/staff/category-picker";
@@ -33,7 +33,19 @@ const KINDS = [
  * coding question is then verified with a model solution before it can be
  * published, so nothing here can reach students untested.
  */
-export function QuestionWizard({ languages, categories: initialCategories, tagSuggestions }: { languages: Language[]; categories: CategoryRef[]; tagSuggestions: TagSuggestion[] }) {
+export function QuestionWizard({
+  languages,
+  categories: initialCategories,
+  tagSuggestions,
+  createDraft = staffCreateDraft,
+  afterSaveHref = (versionId: string) => `/staff/questions/${versionId}`,
+}: {
+  languages: Language[];
+  categories: CategoryRef[];
+  tagSuggestions: TagSuggestion[];
+  createDraft?: (input: NewQuestion) => Promise<CreatedDraft>;
+  afterSaveHref?: (versionId: string) => string;
+}) {
   const router = useRouter();
   const [categories, setCategories] = useState(initialCategories);
   const [details, setDetails] = useState<Details>(() => blankDetails(languages.map((language) => language.key)));
@@ -82,7 +94,7 @@ export function QuestionWizard({ languages, categories: initialCategories, tagSu
       if (result.versionId) setSavedId(result.versionId);
       if (result.error) return setError(result.error);
       setDone(true);
-      router.push(`/staff/questions/${result.versionId}`);
+      router.push(afterSaveHref(result.versionId!));
     });
   }
 
@@ -98,7 +110,7 @@ export function QuestionWizard({ languages, categories: initialCategories, tagSu
               {KINDS.map((kind) => (
                 <label
                   key={kind.value}
-                  className="flex cursor-pointer items-start gap-3 rounded-[var(--radius-control)] border border-line bg-surface px-4 py-3 transition-colors hover:border-line-strong has-[[data-state=checked]]:border-brand has-[[data-state=checked]]:bg-brand-soft"
+                  className="flex cursor-pointer items-start gap-3 rounded-control border border-line bg-surface px-4 py-3 transition-colors hover:border-line-strong has-[[data-state=checked]]:border-brand has-[[data-state=checked]]:bg-brand-soft"
                 >
                   <Radio value={kind.value} className="mt-0.5" />
                   <span>
@@ -164,7 +176,7 @@ export function QuestionWizard({ languages, categories: initialCategories, tagSu
                   {languages.map((language) => (
                     <label
                       key={language.key}
-                      className="flex cursor-pointer items-center gap-2 rounded-[var(--radius-control)] border border-line bg-surface px-3 py-2 text-sm transition-colors hover:border-line-strong has-[[data-state=checked]]:border-brand has-[[data-state=checked]]:bg-brand-soft"
+                      className="flex cursor-pointer items-center gap-2 rounded-control border border-line bg-surface px-3 py-2 text-sm transition-colors hover:border-line-strong has-[[data-state=checked]]:border-brand has-[[data-state=checked]]:bg-brand-soft"
                     >
                       <Checkbox
                         checked={details.languages.includes(language.key)}
@@ -186,7 +198,7 @@ export function QuestionWizard({ languages, categories: initialCategories, tagSu
             </div>
           )}
 
-          <div className="rounded-[var(--radius-control)] border border-line bg-surface">
+          <div className="rounded-control border border-line bg-surface">
             <button
               type="button"
               aria-expanded={advanced}
@@ -225,10 +237,10 @@ export function QuestionWizard({ languages, categories: initialCategories, tagSu
       {step === "review" && <Review details={details} tests={tests} choices={choices} languages={languages} categories={categories} />}
 
       {error && (
-        <p role="alert" className="rounded-[var(--radius-control)] bg-danger-soft px-4 py-3 text-sm text-danger">
+        <p role="alert" className="rounded-control bg-danger-soft px-4 py-3 text-sm text-danger">
           {error}{" "}
           {savedId && (
-            <Link href={`/staff/questions/${savedId}`} className="font-medium underline underline-offset-4">
+            <Link href={afterSaveHref(savedId)} className="font-medium underline underline-offset-4">
               Open the draft
             </Link>
           )}

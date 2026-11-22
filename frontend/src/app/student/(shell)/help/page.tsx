@@ -11,7 +11,7 @@ export default function HelpPage() {
       {STUDENT_HELP.map((section) => (
         <section key={section.title} className="mt-10">
           <h2 className="mb-3 text-sm font-medium text-ink-muted">{section.title}</h2>
-          <div className="overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface">
+          <div className="overflow-hidden rounded-surface border border-line bg-surface">
             {section.entries.map((entry, index) => (
               <details key={entry.question} name={section.title} className={index > 0 ? "group border-t border-line" : "group"}>
                 <summary className="cursor-pointer list-none px-5 py-3.5 text-[15px] font-medium text-ink transition-colors hover:bg-hover">{entry.question}</summary>

@@ -72,8 +72,8 @@ export function Navbar() {
   return (
     <header className="relative sticky top-0 z-40 px-3 pt-3 font-mono" onMouseLeave={leave}>
       {/* Floating pill bar — liquid glass */}
-      <LiquidGlass className="mx-auto flex h-12 max-w-6xl items-center gap-0.5 rounded-full px-2 text-[13px]" style={{ boxShadow: "var(--shadow-panel)" }}>
-        <Link href="/" className={cn(ease, "flex h-9 items-center gap-2.5 rounded-full pl-3 pr-4 text-ink hover:bg-hover")}>
+      <LiquidGlass className="mx-auto flex h-12 max-w-6xl items-center gap-0.5 rounded-pill px-2 text-[13px]" style={{ boxShadow: "var(--shadow-panel)" }}>
+        <Link href="/" className={cn(ease, "flex h-9 items-center gap-2.5 rounded-pill pl-3 pr-4 text-ink hover:bg-hover")}>
           <Image src="/4.png" alt="" width={16} height={16} priority className="logo-light object-contain" />
           <Image src="/3.png" alt="" width={16} height={16} priority className="logo-dark object-contain" />
           <span className="font-semibold tracking-tight">AetherCode</span>
@@ -85,7 +85,7 @@ export function Navbar() {
               <button
                 type="button"
                 className={cn(
-                  ease, "flex h-9 items-center rounded-full px-4 text-[13.5px]",
+                  ease, "flex h-9 items-center rounded-pill px-4 text-[13.5px]",
                   activeGroup === g.label ? "bg-hover text-ink" : "text-ink-muted hover:bg-hover hover:text-ink",
                 )}
               >
@@ -97,7 +97,7 @@ export function Navbar() {
             href="/about"
             onMouseEnter={close}
             className={cn(
-              ease, "flex h-9 items-center rounded-full px-4 text-[13.5px]",
+              ease, "flex h-9 items-center rounded-pill px-4 text-[13.5px]",
               pathname.startsWith("/about") ? "bg-hover text-ink" : "text-ink-muted hover:bg-hover hover:text-ink",
             )}
           >
@@ -106,12 +106,12 @@ export function Navbar() {
         </nav>
 
         <div className="ml-auto flex items-center gap-1">
-          <div className={cn(ease, "hidden h-9 items-center rounded-full px-2 text-ink-muted hover:bg-hover hover:text-ink sm:flex")}>
+          <div className={cn(ease, "hidden h-9 items-center rounded-pill px-2 text-ink-muted hover:bg-hover hover:text-ink sm:flex")}>
             <ThemeIcon />
           </div>
           <Link
             href="/login"
-            className={cn(ease, "flex h-8 items-center rounded-full bg-brand px-4 text-[13px] font-medium text-brand-ink hover:opacity-90")}
+            className={cn(ease, "flex h-8 items-center rounded-pill bg-brand px-4 text-[13px] font-medium text-brand-ink hover:opacity-90")}
           >
             Sign in
           </Link>
@@ -119,7 +119,7 @@ export function Navbar() {
             type="button"
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label={mobileOpen ? "Close menu" : "Open menu"}
-            className={cn(ease, "grid size-9 place-items-center rounded-full text-ink-muted hover:bg-hover hover:text-ink md:hidden")}
+            className={cn(ease, "grid size-9 place-items-center rounded-pill text-ink-muted hover:bg-hover hover:text-ink md:hidden")}
           >
             {mobileOpen ? <X className="size-4" /> : <List className="size-4" />}
           </button>
@@ -132,7 +132,7 @@ export function Navbar() {
           strong
           onMouseEnter={() => enter(group.label)}
           onMouseLeave={leave}
-          className="absolute inset-x-3 top-full z-50 mx-auto mt-1 max-w-5xl rounded-2xl p-6"
+          className="absolute inset-x-3 top-full z-50 mx-auto mt-1 max-w-5xl rounded-panel p-6"
           style={{ boxShadow: "var(--shadow-overlay)" }}
         >
           <div className="flex gap-8">
@@ -144,7 +144,7 @@ export function Navbar() {
                     key={item.href}
                     href={item.href}
                     onClick={close}
-                    className={cn(ease, "group flex items-center gap-3.5 rounded-xl px-3 py-2.5 hover:bg-hover")}
+                    className={cn(ease, "group flex items-center gap-3.5 rounded-surface px-3 py-2.5 hover:bg-hover")}
                   >
                     <item.icon className="size-5 shrink-0 text-ink-muted group-hover:text-brand" />
                     <div>
@@ -159,7 +159,7 @@ export function Navbar() {
               <Link
                 href={group.featured.href}
                 onClick={close}
-                className={cn(ease, "hidden w-56 shrink-0 rounded-xl bg-hover/50 p-4 hover:bg-hover lg:block")}
+                className={cn(ease, "hidden w-56 shrink-0 rounded-surface bg-hover/50 p-4 hover:bg-hover lg:block")}
               >
                 <p className="text-[14px] font-semibold text-ink">{group.featured.title}</p>
                 <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-muted">{group.featured.desc}</p>
@@ -176,14 +176,14 @@ export function Navbar() {
       {mobileOpen && (
         <nav
           aria-label="Main"
-          className="liquid-glass mx-auto mt-2 max-w-6xl overflow-hidden rounded-2xl px-3 py-2 shadow-[var(--shadow-panel)] md:hidden"
+          className="liquid-glass mx-auto mt-2 max-w-6xl overflow-hidden rounded-panel px-3 py-2 shadow-[var(--shadow-panel)] md:hidden"
         >
           {NAV_GROUPS.map((g) => (
             <div key={g.label}>
               <button
                 type="button"
                 onClick={() => setMobileExpanded(mobileExpanded === g.label ? null : g.label)}
-                className={cn(ease, "flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-[14px] text-ink-muted hover:bg-hover hover:text-ink")}
+                className={cn(ease, "flex w-full items-center justify-between rounded-control px-3 py-2.5 text-[14px] text-ink-muted hover:bg-hover hover:text-ink")}
               >
                 {g.label}
                 <span className={cn("text-[12px] transition-transform", mobileExpanded === g.label && "rotate-90")}>▸</span>
@@ -195,7 +195,7 @@ export function Navbar() {
                       key={item.href}
                       href={item.href}
                       onClick={() => setMobileOpen(false)}
-                      className="block rounded-lg px-3 py-2 text-[13px] text-ink-muted hover:text-ink"
+                      className="block rounded-control px-3 py-2 text-[13px] text-ink-muted hover:text-ink"
                     >
                       {item.label}
                     </Link>
@@ -207,7 +207,7 @@ export function Navbar() {
           <Link
             href="/about"
             onClick={() => setMobileOpen(false)}
-            className="block rounded-lg px-3 py-2.5 text-[14px] text-ink-muted hover:bg-hover hover:text-ink"
+            className="block rounded-control px-3 py-2.5 text-[14px] text-ink-muted hover:bg-hover hover:text-ink"
           >
             About
           </Link>
@@ -215,7 +215,7 @@ export function Navbar() {
             <Link
               href="/login"
               onClick={() => setMobileOpen(false)}
-              className="block rounded-full bg-brand px-4 py-2.5 text-center text-[14px] font-medium text-brand-ink"
+              className="block rounded-pill bg-brand px-4 py-2.5 text-center text-[14px] font-medium text-brand-ink"
             >
               Sign in
             </Link>

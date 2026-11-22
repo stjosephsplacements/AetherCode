@@ -10,7 +10,7 @@ const LEVELS = [
 /** Practice problems solved, overall and by difficulty. */
 export function SolvedBars({ progress, className }: { progress: PracticeProgress; className?: string }) {
   return (
-    <div className={cn("grid gap-6 rounded-3xl border border-line bg-surface shadow-[var(--shadow-panel)] p-5 sm:grid-cols-[auto_1fr] sm:items-center", className)}>
+    <div className={cn("grid gap-6 rounded-panel border border-line bg-surface shadow-[var(--shadow-panel)] p-5 sm:grid-cols-[auto_1fr] sm:items-center", className)}>
       <div>
         <p className="font-mono text-[2rem] font-medium leading-none tabular-nums text-ink">
           {progress.solved}
@@ -25,8 +25,8 @@ export function SolvedBars({ progress, className }: { progress: PracticeProgress
           return (
             <div key={level.key} className="grid grid-cols-[64px_1fr_56px] items-center gap-3 text-[13px]">
               <span className="text-ink-muted">{level.label}</span>
-              <span className="h-1.5 overflow-hidden rounded-full bg-hover">
-                <span className={cn("block h-full rounded-full", level.bar)} style={{ width: `${(counts.solved / Math.max(counts.available, 1)) * 100}%` }} />
+              <span className="h-1.5 overflow-hidden rounded-pill bg-hover">
+                <span className={cn("block h-full rounded-pill", level.bar)} style={{ width: `${(counts.solved / Math.max(counts.available, 1)) * 100}%` }} />
               </span>
               <span className="text-right font-mono tabular-nums text-ink">
                 {counts.solved}/{counts.available}

@@ -62,7 +62,7 @@ export function ExamGuides() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const button = "grid size-8 place-items-center rounded-full text-ink-muted transition-colors hover:bg-hover hover:text-ink";
+  const button = "grid size-8 place-items-center rounded-pill text-ink-muted transition-colors hover:bg-hover hover:text-ink";
 
   return (
     <>
@@ -85,7 +85,7 @@ export function ExamGuides() {
                       <dt className="text-[14px] text-ink">{action}</dt>
                       <dd className="flex shrink-0 gap-1">
                         {combo.split(" ").map((key, index) => (
-                          <kbd key={`${key}-${index}`} className="min-w-6 rounded-md border border-line-strong bg-surface-2 px-1.5 py-0.5 text-center font-mono text-[12px] text-ink">
+                          <kbd key={`${key}-${index}`} className="min-w-6 rounded-control border border-line-strong bg-surface-2 px-1.5 py-0.5 text-center font-mono text-[12px] text-ink">
                             {key}
                           </kbd>
                         ))}

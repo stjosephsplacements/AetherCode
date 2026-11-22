@@ -527,12 +527,41 @@ func assignmentApplies(
 		}
 		return request.TenantID != "" && assignment.TenantID == request.TenantID
 	case "placement_department":
-		if (request.ResourceType != "students" && request.ResourceType != "student_batch_affiliations") || request.TenantID == "" {
+		_, staffApplies := staffScopes[assignment.ScopeID]
+		if !staffApplies {
 			return false
 		}
-		_, targetApplies := placementScopes[assignment.ScopeID]
-		_, staffApplies := staffScopes[assignment.ScopeID]
-		return targetApplies && staffApplies
+		// Global question-bank authoring (ADR-0020 / ADR-0089).
+		if staffAuthoring && request.TenantID == "" {
+			return true
+		}
+		if request.TenantID == "" {
+			return false
+		}
+		switch request.ResourceType {
+		case "students", "student_batch_affiliations", "student_department_memberships":
+			// Collection reads authorize with the college id as the resource id.
+			if request.ResourceID == request.TenantID {
+				return true
+			}
+			// Assign/clear: resource id is the placement department being written.
+			if request.ResourceType == "student_department_memberships" && request.ResourceID == assignment.ScopeID {
+				return true
+			}
+			_, targetApplies := placementScopes[assignment.ScopeID]
+			if targetApplies {
+				return true
+			}
+			// Unplaced pool: student has no active placement membership.
+			return len(placementScopes) == 0
+		case "exams", "exam_versions", "exam_sections", "exam_items", "assignment_rules",
+			"candidate_assignments", "proctor_policies", "proctor_policy_versions", "exam_events",
+			"community", "community_moderation":
+			// Placement officers author placement-targeted exams and blogs in any college.
+			return true
+		default:
+			return false
+		}
 	case "self":
 		if assignment.ScopeID != request.PrincipalID || assignment.TenantID != request.TenantID {
 			return false

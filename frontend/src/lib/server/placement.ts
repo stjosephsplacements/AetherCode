@@ -8,23 +8,26 @@ import { requireViewer } from "./session";
 
 export type PlacementContext = {
   viewer: Viewer;
-  isPlatformAdmin: boolean;
-  /** The colleges this member's placement departments reach. A platform administrator reaches all of them. */
+  /** Placement departments this officer is assigned to. */
+  departmentIds: string[];
+  /** Colleges the officer may pull students from (every college for scoped officers). */
   colleges: CollegeRef[];
-  /** Whether the viewer may see student names and roll numbers. False for future read-only dashboard viewers. */
+  /** Whether the viewer may see student names and roll numbers. */
   canViewPII: boolean;
 };
 
-/** The placement area: placement staff and platform administrators. Everyone else goes back to their own area. */
+/**
+ * The placement staff console. Platform administrators set up org/tracks under
+ * `/admin/placement` (ADR-0089); only `placement_user` works here.
+ */
 export async function requirePlacement(): Promise<PlacementContext> {
   const viewer = await requireViewer();
-  const isPlatformAdmin = viewer.roles.includes("super_admin");
-  if (!isPlatformAdmin && !viewer.roles.includes("placement_user")) redirect(homeFor(viewer));
-  const colleges = isPlatformAdmin
-    ? (await gateway<Page<Tenant>>("/tenant/v1/tenants?limit=100")).items.map((tenant) => ({ id: tenant.id, name: tenant.display_name }))
-    : viewer.tenantId
-      ? [{ id: viewer.tenantId, name: "" }]
-      : [];
-  const canViewPII = isPlatformAdmin || viewer.roles.includes("placement_user") || viewer.roles.includes("college_admin");
-  return { viewer, isPlatformAdmin, colleges, canViewPII };
+  if (viewer.roles.includes("super_admin")) redirect("/admin/placement");
+  if (!viewer.roles.includes("placement_user")) redirect(homeFor(viewer));
+
+  const departmentIds = viewer.placementDepartmentIds;
+  const tenants = (await gateway<Page<Tenant>>("/tenant/v1/tenants?limit=100").catch(() => ({ items: [] as Tenant[] }))).items;
+  const colleges = tenants.map((tenant) => ({ id: tenant.id, name: tenant.display_name }));
+  const canViewPII = true;
+  return { viewer, departmentIds, colleges, canViewPII };
 }

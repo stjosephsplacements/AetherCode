@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { type CodeTemplates, saveTemplates } from "../actions";
 
-const area = "min-h-[140px] w-full resize-y rounded-[var(--radius-control)] border border-line bg-surface p-3 font-mono text-xs leading-relaxed text-ink outline-none placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15";
+const area = "min-h-[140px] w-full resize-y rounded-control border border-line bg-surface p-3 font-mono text-xs leading-relaxed text-ink outline-none placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15";
 
 /**
  * Function-only questions: per language, the stub the student starts from, and the code that wraps their
@@ -54,9 +54,9 @@ export function TemplatesEditor({ versionId, languages, initial }: { versionId: 
             {languages.map((key) => {
               const done = Boolean(templates[key]?.starter.trim());
               return (
-                <button key={key} role="tab" aria-selected={language === key} type="button" onClick={() => setLanguage(key)} className={cn("inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors", language === key ? "bg-brand-soft text-brand-soft-ink" : "bg-hover text-ink-muted hover:text-ink")}>
+                <button key={key} role="tab" aria-selected={language === key} type="button" onClick={() => setLanguage(key)} className={cn("inline-flex items-center gap-2 rounded-pill px-3 py-1.5 text-[13px] font-medium transition-colors", language === key ? "bg-brand-soft text-brand-soft-ink" : "bg-hover text-ink-muted hover:text-ink")}>
                   <LanguageLabel language={key} />
-                  {done && <span className="size-1.5 rounded-full bg-success" aria-label="has a stub" />}
+                  {done && <span className="size-1.5 rounded-pill bg-success" aria-label="has a stub" />}
                 </button>
               );
             })}

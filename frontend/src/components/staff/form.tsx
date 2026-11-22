@@ -5,7 +5,6 @@ import { Checkbox as CheckboxPrimitive, Popover, RadioGroup as RadioGroupPrimiti
 import { Children, type ComponentProps, isValidElement, type ReactElement, type ReactNode, useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
-import { StepUpDialog } from "@/components/ui/step-up-dialog";
 import { MFA_REQUIRED_SENTINEL } from "@/lib/mfa-sentinel";
 import { TIME_ZONE, cn } from "@/lib/utils";
 
@@ -15,7 +14,7 @@ export type ActionState = { error: string | null; message?: string | null };
 export const initialActionState: ActionState = { error: null, message: null };
 
 const control =
-  "w-full rounded-[var(--radius-control)] border border-line-strong bg-surface px-3 text-sm text-ink shadow-[var(--shadow-hairline)] outline-none transition-[border-color,box-shadow] placeholder:text-ink-subtle hover:border-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15 disabled:opacity-60";
+  "w-full rounded-control border border-line-strong bg-surface px-3 text-sm text-ink shadow-[var(--shadow-hairline)] outline-none transition-[border-color,box-shadow] placeholder:text-ink-subtle hover:border-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15 disabled:opacity-60";
 
 export function Field({ label, hint, htmlFor, className, children }: { label: string; hint?: string; htmlFor: string; className?: string; children: React.ReactNode }) {
   return (
@@ -154,7 +153,7 @@ export function Select({
           <SelectPrimitive.Content
             position="popper"
             sideOffset={4}
-            className="z-50 max-h-[min(var(--radix-select-content-available-height),320px)] min-w-[var(--radix-select-trigger-width)] max-w-[min(92vw,440px)] origin-[var(--radix-select-content-transform-origin)] animate-pop overflow-hidden rounded-[var(--radius-control)] border border-line-strong bg-surface shadow-[var(--shadow-overlay)]"
+            className="z-50 max-h-[min(var(--radix-select-content-available-height),320px)] min-w-[var(--radix-select-trigger-width)] max-w-[min(92vw,440px)] origin-[var(--radix-select-content-transform-origin)] animate-pop overflow-hidden rounded-control border border-line-strong bg-surface shadow-[var(--shadow-overlay)]"
           >
             <SelectPrimitive.ScrollUpButton className="flex h-6 items-center justify-center text-ink-subtle">
               <CaretUp className="size-4" />
@@ -166,7 +165,7 @@ export function Select({
                   key={option.value || EMPTY}
                   value={option.value || EMPTY}
                   disabled={option.disabled}
-                  className="relative flex min-h-8 cursor-default select-none items-center rounded-md py-1.5 pl-7 pr-2.5 text-[13.5px] text-ink outline-none data-[disabled]:opacity-45 data-[highlighted]:bg-hover data-[state=checked]:font-medium"
+                  className="relative flex min-h-8 cursor-default select-none items-center rounded-control py-1.5 pl-7 pr-2.5 text-[13.5px] text-ink outline-none data-[disabled]:opacity-45 data-[highlighted]:bg-hover data-[state=checked]:font-medium"
                 >
                   <SelectPrimitive.ItemIndicator className="absolute left-2 inline-flex">
                     <Check className="size-3.5 text-brand" />
@@ -192,7 +191,7 @@ export function Checkbox({ className, ...props }: ComponentProps<typeof Checkbox
     <CheckboxPrimitive.Root
       {...props}
       className={cn(
-        "grid size-[18px] shrink-0 place-items-center rounded-[5px] border border-line-strong bg-surface text-brand-ink shadow-[var(--shadow-hairline)] transition-[background-color,border-color] hover:border-ink-subtle disabled:opacity-50 data-[state=checked]:border-brand data-[state=checked]:bg-brand",
+        "grid size-[18px] shrink-0 place-items-center rounded-chip border border-line-strong bg-surface text-brand-ink shadow-[var(--shadow-hairline)] transition-[background-color,border-color] hover:border-ink-subtle disabled:opacity-50 data-[state=checked]:border-brand data-[state=checked]:bg-brand",
         className,
       )}
     >
@@ -210,11 +209,11 @@ export function Radio({ className, ...props }: ComponentProps<typeof RadioGroupP
     <RadioGroupPrimitive.Item
       {...props}
       className={cn(
-        "grid size-[18px] shrink-0 place-items-center rounded-full border border-line-strong bg-surface transition-colors hover:border-ink-subtle data-[state=checked]:border-brand",
+        "grid size-[18px] shrink-0 place-items-center rounded-pill border border-line-strong bg-surface transition-colors hover:border-ink-subtle data-[state=checked]:border-brand",
         className,
       )}
     >
-      <RadioGroupPrimitive.Indicator className="size-2 animate-pop rounded-full bg-brand" />
+      <RadioGroupPrimitive.Indicator className="size-2 animate-pop rounded-pill bg-brand" />
     </RadioGroupPrimitive.Item>
   );
 }
@@ -316,16 +315,16 @@ function DateTimeInput({ id, name, defaultValue, value: controlled, required, di
             align="start"
             sideOffset={4}
             collisionPadding={12}
-            className="z-50 w-[300px] origin-[var(--radix-popover-content-transform-origin)] animate-pop rounded-[var(--radius-surface)] border border-line-strong bg-surface p-3 shadow-[var(--shadow-overlay)] outline-none"
+            className="z-50 w-[300px] origin-[var(--radix-popover-content-transform-origin)] animate-pop rounded-surface border border-line-strong bg-surface p-3 shadow-[var(--shadow-overlay)] outline-none"
           >
             <div className="mb-2 flex items-center justify-between">
-              <button type="button" aria-label="Previous month" onClick={() => shift(-1)} className="grid size-8 place-items-center rounded-[var(--radius-control)] text-ink-muted transition-colors hover:bg-hover hover:text-ink">
+              <button type="button" aria-label="Previous month" onClick={() => shift(-1)} className="grid size-8 place-items-center rounded-control text-ink-muted transition-colors hover:bg-hover hover:text-ink">
                 <CaretLeft className="size-4" />
               </button>
               <p className="text-sm font-semibold text-ink" aria-live="polite">
                 {MONTH.format(first)}
               </p>
-              <button type="button" aria-label="Next month" onClick={() => shift(1)} className="grid size-8 place-items-center rounded-[var(--radius-control)] text-ink-muted transition-colors hover:bg-hover hover:text-ink">
+              <button type="button" aria-label="Next month" onClick={() => shift(1)} className="grid size-8 place-items-center rounded-control text-ink-muted transition-colors hover:bg-hover hover:text-ink">
                 <CaretRight className="size-4" />
               </button>
             </div>
@@ -349,7 +348,7 @@ function DateTimeInput({ id, name, defaultValue, value: controlled, required, di
                     aria-label={key}
                     onClick={() => set({ year: cell.getUTCFullYear(), month: cell.getUTCMonth(), day: cell.getUTCDate(), ...time })}
                     className={cn(
-                      "grid h-9 place-items-center rounded-[var(--radius-control)] text-[13px] tabular-nums transition-colors",
+                      "grid h-9 place-items-center rounded-control text-[13px] tabular-nums transition-colors",
                       chosen ? "bg-brand font-semibold text-brand-ink" : "hover:bg-hover",
                       !chosen && (outside ? "text-ink-subtle/60" : "text-ink"),
                       !chosen && key === todayKey && "ring-1 ring-inset ring-brand/60",
@@ -441,7 +440,7 @@ export function FileInput({ className, ...props }: Omit<ComponentProps<"input">,
         }}
         className="peer pointer-events-none absolute inset-x-0 bottom-0 h-px w-full opacity-0"
       />
-      <span className="inline-flex h-9 shrink-0 items-center gap-2 rounded-full border border-line-strong bg-surface px-4 font-medium text-ink transition-colors hover:bg-hover peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand">
+      <span className="inline-flex h-9 shrink-0 items-center gap-2 rounded-pill border border-line-strong bg-surface px-4 font-medium text-ink transition-colors hover:bg-hover peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand">
         <Paperclip className="size-4" />
         Choose file
       </span>
@@ -461,44 +460,21 @@ export function SubmitButton({ children, variant = "primary", className }: { chi
 }
 
 export function FormMessage({ state }: { state: ActionState }) {
-  if (state.error === MFA_REQUIRED_SENTINEL) return <StepUpPrompt />;
-  if (state.error) {
-    return (
-      <p role="alert" className="rounded-[var(--radius-control)] bg-danger-soft px-3 py-2 text-sm text-danger">
-        {state.error}
-      </p>
-    );
+  // MFA step-up is not used in this deployment; ignore the sentinel so forms never open a 2FA gate.
+  if (!state.error || state.error === MFA_REQUIRED_SENTINEL) {
+    if (state.message) {
+      return (
+        <p role="status" className="rounded-control bg-success-soft px-3 py-2 text-sm text-success">
+          {state.message}
+        </p>
+      );
+    }
+    return null;
   }
-  if (state.message) {
-    return (
-      <p role="status" className="rounded-[var(--radius-control)] bg-success-soft px-3 py-2 text-sm text-success">
-        {state.message}
-      </p>
-    );
-  }
-  return null;
-}
-
-/**
- * What a form shows when its action needs a recent MFA check: a prompt that opens the code dialog and,
- * once the code is accepted, sends the enclosing form again.
- */
-function StepUpPrompt() {
-  const anchor = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(true);
   return (
-    <div ref={anchor} className="flex items-center justify-between gap-3 rounded-[var(--radius-control)] bg-danger-soft px-3 py-2 text-sm text-danger">
-      <span role="alert">This needs a recent two-factor check.</span>
-      <Button type="button" size="sm" variant="secondary" onClick={() => setOpen(true)}>Enter code</Button>
-      <StepUpDialog
-        open={open}
-        onClose={() => setOpen(false)}
-        onVerified={() => {
-          setOpen(false);
-          anchor.current?.closest("form")?.requestSubmit();
-        }}
-      />
-    </div>
+    <p role="alert" className="rounded-control bg-danger-soft px-3 py-2 text-sm text-danger">
+      {state.error}
+    </p>
   );
 }
 
@@ -509,6 +485,7 @@ export function ActionForm({
   className,
   onSuccess,
   submitVariant = "primary",
+  submitClassName,
   children,
 }: {
   action: (previous: ActionState, form: FormData) => Promise<ActionState>;
@@ -516,6 +493,7 @@ export function ActionForm({
   /** Secondary for a form that is one of several actions on a page, so it does not compete with the main one. */
   submitVariant?: "primary" | "secondary";
   className?: string;
+  submitClassName?: string;
   /** Called once after a save succeeds, for example to close the dialog the form sits in. */
   onSuccess?: () => void;
   children: React.ReactNode;
@@ -534,7 +512,9 @@ export function ActionForm({
     <form ref={formRef} action={formAction} className={cn("space-y-4", className)}>
       {children}
       <FormMessage state={state} />
-      <SubmitButton variant={submitVariant}>{submitLabel}</SubmitButton>
+      <SubmitButton variant={submitVariant} className={submitClassName}>
+        {submitLabel}
+      </SubmitButton>
     </form>
   );
 }

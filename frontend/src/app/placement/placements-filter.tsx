@@ -1,7 +1,6 @@
 "use client";
 
 import { ArrowDown, ArrowUp, Buildings, DownloadSimple, MagnifyingGlass, UserCheck, UserFocus, Users, X } from "@phosphor-icons/react/ssr";
-import Link from "next/link";
 import { Popover } from "radix-ui";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { Select } from "@/components/staff/form";
@@ -85,7 +84,7 @@ export function PlacementsBoard({
   };
 
   const kpi = (label: string, value: number | string, note: string, icon: ReactNode) => (
-    <div className="min-w-0 rounded-[var(--radius-surface)] border border-line bg-surface p-4">
+    <div className="min-w-0 rounded-surface border border-line bg-surface p-4">
       <div className="flex items-center justify-between gap-2 text-ink-muted">
         <span className="truncate font-mono text-[11px] uppercase tracking-[0.08em]">{label}</span>
         <span aria-hidden className="shrink-0 text-brand">{icon}</span>
@@ -124,7 +123,7 @@ export function PlacementsBoard({
                 placeholder={canViewPII ? "Search roll number or name" : "Search by department or batch"}
                 aria-label="Search students"
                 disabled={!canViewPII && !batch && picked.size === 0}
-                className="h-8 w-full rounded-full border border-line-strong bg-surface pl-9 pr-3 text-[13px] text-ink outline-none transition-[border-color,box-shadow] placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15 disabled:opacity-50"
+                className="h-8 w-full rounded-pill border border-line-strong bg-surface pl-9 pr-3 text-[13px] text-ink outline-none transition-[border-color,box-shadow] placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15 disabled:opacity-50"
               />
             </div>
             <Select aria-label="Batch" size="sm" className="w-full" value={batch} onValueChange={(value) => { setBatch(value); setPage(1); }}>
@@ -145,7 +144,7 @@ export function PlacementsBoard({
                     aria-pressed={picked.has(entry.id)}
                     onClick={() => togglePicked(entry.id)}
                     className={cn(
-                      "h-7 max-w-full truncate rounded-full border px-3 text-[12.5px] transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15 sm:max-w-[14rem]",
+                      "h-7 max-w-full truncate rounded-pill border px-3 text-[12.5px] transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/15 sm:max-w-[14rem]",
                       picked.has(entry.id) ? "border-brand bg-brand-soft text-brand-soft-ink" : "border-line-strong bg-surface text-ink-muted hover:text-ink",
                     )}
                   >
@@ -200,16 +199,12 @@ export function PlacementsBoard({
         </aside>
 
         <div className="min-w-0 space-y-6 lg:col-span-8">
-          <Block title="Placement organisations" description="Each organisation's placement departments, and how many of the students in view are assigned to them.">
+          <Block title="Placement tracks" description="Departments under the single placement organisation, and how many students in view are assigned to them.">
             {!readable ? (
-              <EmptyState>Only a platform administrator can view placement organisations.</EmptyState>
+              <EmptyState>Could not load placement departments.</EmptyState>
             ) : orgs.length === 0 ? (
               <EmptyState>
-                No placement organisations yet. Add one in{" "}
-                <Link href="/placement/departments" className="text-brand hover:underline">
-                  Departments
-                </Link>
-                .
+                No placement organisation yet. A platform administrator creates it under Placement setup.
               </EmptyState>
             ) : (
               <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -217,7 +212,7 @@ export function PlacementsBoard({
                   <li key={org.id} className="min-w-0">
                     <Panel className="flex h-full flex-col gap-3 p-4">
                       <div className="flex items-center gap-3">
-                        <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-[var(--radius-control)] bg-brand-soft font-mono text-[13px] font-semibold text-brand-soft-ink">{lettermark(org.name)}</span>
+                        <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-control bg-brand-soft font-mono text-[13px] font-semibold text-brand-soft-ink">{lettermark(org.name)}</span>
                         <div className="min-w-0 flex-1">
                           <h3 className="truncate text-sm font-semibold text-ink" title={org.name}>{org.name}</h3>
                           <p className="truncate font-mono text-[11.5px] text-ink-subtle">{org.code}</p>
@@ -238,14 +233,14 @@ export function PlacementsBoard({
                         ))}
                         {perTrack.length > 2 && (
                           <Popover.Root>
-                            <Popover.Trigger className="h-6 shrink-0 rounded-full border border-line-strong px-2.5 text-xs font-medium text-ink-muted outline-none hover:text-ink focus-visible:ring-4 focus-visible:ring-brand/15">
+                            <Popover.Trigger className="h-6 shrink-0 rounded-pill border border-line-strong px-2.5 text-xs font-medium text-ink-muted outline-none hover:text-ink focus-visible:ring-4 focus-visible:ring-brand/15">
                               +{perTrack.length - 2} more
                             </Popover.Trigger>
                             <Popover.Portal>
-                              <Popover.Content align="start" sideOffset={6} className="z-50 max-h-72 w-64 animate-fade overflow-y-auto rounded-[var(--radius-surface)] border border-line-strong bg-surface p-2 shadow-[var(--shadow-overlay)]">
+                              <Popover.Content align="start" sideOffset={6} className="z-50 max-h-72 w-64 animate-fade overflow-y-auto rounded-surface border border-line-strong bg-surface p-2 shadow-[var(--shadow-overlay)]">
                                 <ul>
                                   {perTrack.map(({ track, assigned: count }) => (
-                                    <li key={track.id} className="flex items-center justify-between gap-3 rounded-md px-2 py-1.5 text-[13px] text-ink">
+                                    <li key={track.id} className="flex items-center justify-between gap-3 rounded-control px-2 py-1.5 text-[13px] text-ink">
                                       <span className="min-w-0 truncate">{track.label}</span>
                                       <span className="font-mono text-xs tabular-nums text-ink-muted">{count}</span>
                                     </li>
@@ -270,9 +265,6 @@ export function PlacementsBoard({
                         >
                           <DownloadSimple />
                           Export
-                        </Button>
-                        <Button asChild variant="ghost" size="sm">
-                          <Link href="/placement/departments">Manage</Link>
                         </Button>
                       </div>
                     </Panel>
@@ -349,9 +341,9 @@ function Block({ title, description, actions, children }: { title: string; descr
 
 function Chip({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
-    <li className="inline-flex h-6 items-center gap-1 rounded-full bg-brand-soft pl-2.5 pr-1 text-xs text-brand-soft-ink">
+    <li className="inline-flex h-6 items-center gap-1 rounded-pill bg-brand-soft pl-2.5 pr-1 text-xs text-brand-soft-ink">
       {label}
-      <button type="button" aria-label={`Remove ${label}`} onClick={onRemove} className="grid size-4 place-items-center rounded-full hover:bg-brand/15">
+      <button type="button" aria-label={`Remove ${label}`} onClick={onRemove} className="grid size-4 place-items-center rounded-pill hover:bg-brand/15">
         <X className="size-3" />
       </button>
     </li>
@@ -360,8 +352,8 @@ function Chip({ label, onRemove }: { label: string; onRemove: () => void }) {
 
 function Bar({ value, label, className }: { value: number; label: string; className?: string }) {
   return (
-    <div role="progressbar" aria-valuenow={value} aria-valuemin={0} aria-valuemax={100} aria-label={label} className={cn("h-2 overflow-hidden rounded-full bg-hover", className)}>
-      <div className="h-full rounded-full bg-brand transition-[width] duration-300 motion-reduce:transition-none" style={{ width: `${value}%` }} />
+    <div role="progressbar" aria-valuenow={value} aria-valuemin={0} aria-valuemax={100} aria-label={label} className={cn("h-2 overflow-hidden rounded-pill bg-hover", className)}>
+      <div className="h-full rounded-pill bg-brand transition-[width] duration-300 motion-reduce:transition-none" style={{ width: `${value}%` }} />
     </div>
   );
 }

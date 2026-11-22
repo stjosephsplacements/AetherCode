@@ -11,11 +11,11 @@ export function Terminal({ title, commands }: { title: string; commands: string[
   useEffect(() => setMounted(true), []);
 
   return (
-    <LiquidGlass strong className="overflow-hidden rounded-3xl shadow-[var(--shadow-overlay)]">
+    <LiquidGlass strong className="overflow-hidden rounded-panel shadow-[var(--shadow-overlay)]">
       <div className="flex items-center gap-1.5 border-b border-line px-4 py-3" aria-hidden>
-        <span className="size-2.5 rounded-full bg-line-strong" />
-        <span className="size-2.5 rounded-full bg-line-strong" />
-        <span className="size-2.5 rounded-full bg-line-strong" />
+        <span className="size-2.5 rounded-pill bg-line-strong" />
+        <span className="size-2.5 rounded-pill bg-line-strong" />
+        <span className="size-2.5 rounded-pill bg-line-strong" />
         <span className="ml-3 text-[12.5px] text-ink-subtle">{title}</span>
       </div>
       {mounted ? (

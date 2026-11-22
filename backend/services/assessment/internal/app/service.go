@@ -197,6 +197,7 @@ type Exam struct {
 	ExternalRef    string     `json:"external_reference,omitempty"`
 	LifecycleState string     `json:"lifecycle_state"`
 	Version        int64      `json:"version"`
+	CreatedBy      string     `json:"created_by,omitempty"`
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at"`
 	DeletedAt      *time.Time `json:"deleted_at,omitempty"`
@@ -242,6 +243,7 @@ type ExamVersion struct {
 	ProctorPolicyVersionID string     `json:"proctor_policy_version_id"`
 	Status                 string     `json:"status"`
 	PublishedAt            *time.Time `json:"published_at,omitempty"`
+	CreatedBy              string     `json:"created_by,omitempty"`
 	CreatedAt              time.Time  `json:"created_at"`
 }
 

@@ -2,10 +2,11 @@
 
 import { CaretDown } from "@phosphor-icons/react/ssr";
 import { Accordion } from "radix-ui";
+import { cn } from "@/lib/utils";
 
 export const FAQ = [
   { q: "Why is a page in the sidebar greyed out?", a: "Pages unlock in the order things depend on each other. Departments need a college, students need a batch, and exams need questions and a batch. Hover the lock to see what to do first." },
-  { q: "What is the difference between a department, a batch and a placement department?", a: "A department (for example Computer Science) belongs to a college. A batch is one year of it. Placement departments are the hiring teams students are tracked under." },
+  { q: "What is the difference between a department, a batch and a placement department?", a: "A department (for example Computer Science) belongs to a college. A batch is one year of it. Placement departments are global tracks (ELITE, HOPE, PEP, …) under the one placement organisation — every college assigns students to the same list." },
   { q: "How do I add many students at once?", a: "Open Students, choose Import, and drop a CSV on the panel. Download the template there to see the columns." },
   { q: "A student cannot sign in.", a: "Open Students, find them, and reset their password. They are shown a one-time password to hand over. Check that the account is not disabled." },
   { q: "Who can see what?", a: "Platform administrators see every college. College administrators manage their own college. Faculty, mentors and placement staff see only their area. Permissions shows the exact roles." },
@@ -16,7 +17,7 @@ export const FAQ = [
 
 export function FaqList() {
   return (
-    <Accordion.Root type="single" collapsible className="divide-y divide-line rounded-[var(--radius-surface)] border border-line bg-surface">
+    <Accordion.Root type="single" collapsible className={cn("divide-y divide-line")}>
       {FAQ.map((item) => (
         <Accordion.Item key={item.q} value={item.q}>
           <Accordion.Header>

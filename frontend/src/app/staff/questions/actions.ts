@@ -4,78 +4,45 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ActionState } from "@/components/staff/form";
 import type { Audience, CategoryRef, QuestionDetail, QuestionVersion } from "@/lib/api-types";
-import { listCategories } from "@/lib/server/categories";
 import { actionError } from "@/lib/server/actions";
 import { gateway } from "@/lib/server/gateway";
+import { type CreatedDraft, type NewQuestion, writeNewQuestionDraft } from "@/lib/server/question-drafts";
+import { requireQuestionAuthor } from "@/lib/server/question-author";
 import { requireStaff } from "@/lib/server/staff";
-import { type Choices, type Details, type TestDraft, choicesProblem, cleanTags, detailsProblem, explanationsBody, prepareTests, slugOf, testsProblem } from "@/components/staff/question-wizard/model";
+import { isPlacementOnly } from "@/lib/viewer";
+import { type TestDraft, cleanTags, prepareTests, testsProblem } from "@/components/staff/question-wizard/model";
 
-/** What a new question needs: its details, plus its tests (coding) or its options (multiple choice). */
-export type NewQuestion = { details: Details; tests?: TestDraft[]; choices?: Choices };
-/** versionId is set once the draft exists, even when a later step failed, so the author can carry on there. */
-export type CreatedDraft = ActionState & { versionId?: string };
+export type { CreatedDraft, NewQuestion };
+
+function refreshQuestions(versionId?: string) {
+  revalidatePath("/staff/questions");
+  revalidatePath("/placement/questions");
+  if (versionId) {
+    revalidatePath(`/staff/questions/${versionId}`);
+    revalidatePath(`/placement/questions/${versionId}`);
+  }
+}
+
+function questionDetailPath(versionId: string, viewer: Parameters<typeof isPlacementOnly>[0]) {
+  return isPlacementOnly(viewer) ? `/placement/questions/${versionId}` : `/staff/questions/${versionId}`;
+}
 
 /**
  * Saves a question as a draft in one go: the details first, then the tests or
  * the options. Everything was already checked in the browser; this checks it again.
  */
 export async function createDraft(input: NewQuestion): Promise<CreatedDraft> {
-  await requireStaff();
-  const { details } = input;
-  const mcq = details.kind === "mcq";
-  // A question bank from before categories has none to choose, and rejects the field.
-  const categorised = (await listCategories()).length > 0;
-  const problem = detailsProblem(details, { categories: categorised }) ?? (mcq ? choicesProblem(input.choices ?? { options: [], correct: [], multiple: false, explanations: [] }) : testsProblem(input.tests ?? []));
-  if (problem) return { error: problem };
-
-  let created: QuestionDetail;
-  try {
-    created = await gateway<QuestionDetail>("/question-bank/v1/questions", {
-      method: "POST",
-      body: {
-        slug: slugOf(details),
-        title: details.title.trim(),
-        prompt_markdown: details.prompt,
-        difficulty: details.difficulty,
-        // A multiple-choice question has no languages (ADR-0035); its draft is
-        // recognised by that until its options are saved.
-        supported_languages: mcq ? [] : details.languages,
-        time_limit_ms: mcq ? 2000 : Math.round(details.timeSeconds * 1000),
-        memory_limit_kib: mcq ? 256 * 1024 : Math.round(details.memoryMb * 1024),
-        tags: cleanTags(details.tags),
-        ...(categorised ? { category_id: details.categoryId } : {}),
-      },
-    });
-  } catch (error) {
-    return { error: actionError(error) };
-  }
-  const version = created.question_version;
-  try {
-    if (mcq) {
-      const choices = input.choices!;
-      await gateway<QuestionVersion>(`/question-bank/v1/question-versions/${version.id}/choices`, {
-        method: "PUT",
-        body: { expected_question_version: version.version, choices: choices.options.map((option) => option.trim()), correct_choices: choices.correct, multiple_choice: choices.multiple, explanations: explanationsBody(choices) },
-      });
-    } else {
-      await gateway<QuestionVersion>(`/question-bank/v1/question-versions/${version.id}/tests`, {
-        method: "PUT",
-        body: { expected_question_version: version.version, tests: prepareTests(input.tests!) },
-      });
-    }
-  } catch (error) {
-    revalidatePath("/staff/questions");
-    return { error: `The draft was created, but its ${mcq ? "options were" : "tests were"} not saved: ${actionError(error)}`, versionId: version.id };
-  }
-  revalidatePath("/staff/questions");
-  return { error: null, versionId: version.id };
+  await requireQuestionAuthor();
+  const result = await writeNewQuestionDraft(input);
+  refreshQuestions(result.versionId);
+  return result;
 }
 
 export type Test = TestDraft;
 
 /** Replaces every test of a draft; the old ones are encrypted and cannot be read back. */
 export async function saveTests(versionId: string, expectedVersion: number, tests: Test[]): Promise<ActionState> {
-  await requireStaff();
+  await requireQuestionAuthor();
   const problem = testsProblem(tests);
   if (problem) return { error: problem };
   try {
@@ -86,12 +53,12 @@ export async function saveTests(versionId: string, expectedVersion: number, test
   } catch (error) {
     return { error: actionError(error) };
   }
-  revalidatePath(`/staff/questions/${versionId}`);
+  refreshQuestions(versionId);
   return { error: null, message: `${tests.length} tests saved. Run your solution again to verify them.` };
 }
 
 export async function publishQuestion(_previous: ActionState, form: FormData): Promise<ActionState> {
-  await requireStaff();
+  await requireQuestionAuthor();
   const versionId = String(form.get("version_id"));
   try {
     await gateway(`/question-bank/v1/question-versions/${versionId}/publish`, {
@@ -101,13 +68,12 @@ export async function publishQuestion(_previous: ActionState, form: FormData): P
   } catch (error) {
     return { error: actionError(error) };
   }
-  revalidatePath(`/staff/questions/${versionId}`);
-  revalidatePath("/staff/questions");
+  refreshQuestions(versionId);
   return { error: null, message: "Published. Faculty in every college can now add it to exams." };
 }
 
 export async function requestReview(_previous: ActionState, form: FormData): Promise<ActionState> {
-  await requireStaff();
+  await requireQuestionAuthor();
   const versionId = String(form.get("version_id"));
   try {
     await gateway(`/question-bank/v1/question-versions/${versionId}/request-review`, {
@@ -117,14 +83,13 @@ export async function requestReview(_previous: ActionState, form: FormData): Pro
   } catch (error) {
     return { error: actionError(error) };
   }
-  revalidatePath(`/staff/questions/${versionId}`);
-  revalidatePath("/staff/questions");
+  refreshQuestions(versionId);
   return { error: null, message: "Sent for review. Another member of staff can now approve it." };
 }
 
 /** Starts an editable draft from a published question, copying its content. */
 export async function draftNewVersion(_previous: ActionState, form: FormData): Promise<ActionState> {
-  await requireStaff();
+  const viewer = await requireQuestionAuthor();
   const questionId = String(form.get("question_id"));
   let created: QuestionDetail;
   try {
@@ -146,7 +111,7 @@ export async function draftNewVersion(_previous: ActionState, form: FormData): P
   } catch (error) {
     return { error: actionError(error) };
   }
-  redirect(`/staff/questions/${created.question_version.id}`);
+  redirect(questionDetailPath(created.question_version.id, viewer));
 }
 
 const EXPORT_FORMAT = "aethercode.question.v1";
@@ -168,7 +133,7 @@ type QuestionFile = {
  * then checked and published as usual.
  */
 export async function importQuestion(_previous: ActionState, form: FormData): Promise<ActionState> {
-  await requireStaff();
+  const viewer = await requireQuestionAuthor();
   const file = form.get("file");
   if (!(file instanceof File) || file.size === 0) return { error: "Choose an exported question file." };
   if (file.size > 250 * 1024 * 1024) return { error: "The file is larger than any exported question." };
@@ -206,14 +171,13 @@ export async function importQuestion(_previous: ActionState, form: FormData): Pr
   } catch (error) {
     return { error: actionError(error) };
   }
-  revalidatePath("/staff/questions");
-  redirect(`/staff/questions/${created.question_version.id}`);
+  refreshQuestions(created.question_version.id);
+  redirect(questionDetailPath(created.question_version.id, viewer));
 }
 
-/** Run an author's reference solution on every test of a version (ADR-0033). */
 /** Runs a reference solution on every test of a draft, hidden ones included (ADR-0033). */
 export async function runModelCheck(versionId: string, language: string, source: string): Promise<ActionState> {
-  await requireStaff();
+  await requireQuestionAuthor();
   if (!source.trim()) return { error: "Write a solution first." };
   if (new TextEncoder().encode(source).length > 64 * 1024) return { error: "A solution can be at most 64 KB." };
   try {
@@ -221,13 +185,13 @@ export async function runModelCheck(versionId: string, language: string, source:
   } catch (error) {
     return { error: actionError(error) };
   }
-  revalidatePath(`/staff/questions/${versionId}`);
+  refreshQuestions(versionId);
   return { error: null, message: "Running on every test." };
 }
 
 /** Options and answer of a multiple-choice draft (ADR-0035). */
 export async function saveChoices(versionId: string, expectedVersion: number, choices: string[], correct: number[], multiple: boolean, explanations?: (string | null)[]): Promise<ActionState> {
-  await requireStaff();
+  await requireQuestionAuthor();
   const options = choices.map((choice) => choice.trim());
   if (options.length < 2 || options.some((option) => !option)) return { error: "Give at least two options, none empty." };
   if (correct.length === 0) return { error: "Mark the correct answer." };
@@ -240,7 +204,7 @@ export async function saveChoices(versionId: string, expectedVersion: number, ch
   } catch (error) {
     return { error: actionError(error) };
   }
-  revalidatePath(`/staff/questions/${versionId}`);
+  refreshQuestions(versionId);
   return { error: null, message: "Options saved." };
 }
 
@@ -304,7 +268,7 @@ async function importV1Questions(file: V1File): Promise<ActionState> {
       failed.push(`${question.title} (${actionError(error)})`);
     }
   }
-  revalidatePath("/staff/questions");
+  refreshQuestions();
   const imported = file.questions.length - failed.length;
   if (failed.length) return { error: `Imported ${imported} of ${file.questions.length}. Not imported: ${failed.join("; ")}` };
   return { error: null, message: `Imported ${imported} question${imported === 1 ? "" : "s"} as drafts. Check each and publish it from My drafts.` };
@@ -312,14 +276,13 @@ async function importV1Questions(file: V1File): Promise<ActionState> {
 
 /** Moves a question between tests and practice (ADR-0041). */
 export async function setAudience(questionId: string, versionId: string, audience: Audience): Promise<ActionState> {
-  await requireStaff();
+  await requireQuestionAuthor();
   try {
     await gateway(`/question-bank/v1/questions/${questionId}/audience`, { method: "PUT", body: { audience } });
   } catch (error) {
     return { error: actionError(error) };
   }
-  revalidatePath(`/staff/questions/${versionId}`);
-  revalidatePath("/staff/questions");
+  refreshQuestions(versionId);
   return {
     error: null,
     message: audience === "practice" ? "Now a practice problem: students can see and solve it." : "Now a test question: hidden from practice.",
@@ -328,10 +291,10 @@ export async function setAudience(questionId: string, versionId: string, audienc
 
 /** Adds a category, or finds the one with that name among its siblings (ADR-0052). `parentId` files it as a sub-category (ADR-0058). Open to every author. */
 export async function createCategory(name: string, parentId?: string): Promise<ActionState & { category?: CategoryRef }> {
-  await requireStaff();
+  await requireQuestionAuthor();
   try {
     const result = await gateway<CategoryRef>("/question-bank/v1/categories", { method: "POST", body: { name, ...(parentId ? { parent_id: parentId } : {}) } });
-    revalidatePath("/staff/questions");
+    refreshQuestions();
     return { error: null, category: { id: result.id, name: result.name, parent_id: result.parent_id ?? null } };
   } catch (error) {
     return { error: actionError(error) };
@@ -356,7 +319,7 @@ export async function updateCategory(id: string, changes: { name?: string; paren
   } catch (error) {
     return { error: actionError(error) };
   }
-  revalidatePath("/staff/questions");
+  refreshQuestions();
   return { error: null, message: "Saved." };
 }
 
@@ -366,7 +329,7 @@ export async function deleteCategory(id: string, moveTo: string): Promise<Action
   if (refused) return refused;
   try {
     const result = await gateway<{ moved: number }>(`/question-bank/v1/categories/${id}${moveTo ? `?move_to=${encodeURIComponent(moveTo)}` : ""}`, { method: "DELETE" });
-    revalidatePath("/staff/questions");
+    refreshQuestions();
     return { error: null, message: result.moved === 1 ? "Deleted. 1 question moved." : `Deleted. ${result.moved} questions moved.` };
   } catch (error) {
     return { error: actionError(error) };
@@ -375,15 +338,14 @@ export async function deleteCategory(id: string, moveTo: string): Promise<Action
 
 /** Files a question under a category and sets its tags, on any version state (ADR-0052). */
 export async function saveOrganisation(questionId: string, versionId: string, categoryId: string, tags: string[]): Promise<ActionState> {
-  await requireStaff();
+  await requireQuestionAuthor();
   try {
     await gateway(`/question-bank/v1/questions/${questionId}/category`, { method: "PUT", body: { category_id: categoryId } });
     await gateway(`/question-bank/v1/questions/${questionId}/tags`, { method: "PUT", body: { tags: cleanTags(tags) } });
   } catch (error) {
     return { error: actionError(error) };
   }
-  revalidatePath(`/staff/questions/${versionId}`);
-  revalidatePath("/staff/questions");
+  refreshQuestions(versionId);
   return { error: null, message: "Saved." };
 }
 
@@ -391,33 +353,33 @@ const REASON = "A reason is needed to delete anything.";
 
 /** Deletes a question that was never published. The database refuses one that was, because exams pin it (ADR-0053). */
 export async function deleteQuestion(questionId: string, reason: string): Promise<ActionState> {
-  await requireStaff();
+  await requireQuestionAuthor();
   if (!reason.trim()) return { error: REASON };
   try {
     await gateway(`/question-bank/v1/questions/${questionId}`, { method: "DELETE", body: { reason: reason.trim() } });
   } catch (error) {
     return { error: actionError(error) };
   }
-  revalidatePath("/staff/questions");
+  refreshQuestions();
   return { error: null, message: "Deleted." };
 }
 
 /** Deletes one draft version; a published one is refused. The question goes with its last version. */
 export async function deleteDraftVersion(versionId: string, reason: string): Promise<ActionState> {
-  await requireStaff();
+  await requireQuestionAuthor();
   if (!reason.trim()) return { error: REASON };
   try {
     await gateway(`/question-bank/v1/question-versions/${versionId}`, { method: "DELETE", body: { reason: reason.trim() } });
   } catch (error) {
     return { error: actionError(error) };
   }
-  revalidatePath("/staff/questions");
+  refreshQuestions();
   return { error: null, message: "Deleted." };
 }
 
 /** Edits a draft's title, statement, difficulty or limits. A published version is refused (ADR-0054). */
 export async function updateQuestionDetails(versionId: string, expectedVersion: number, changes: Record<string, string>): Promise<ActionState> {
-  await requireStaff();
+  await requireQuestionAuthor();
   const body: Record<string, string | number> = { expected_question_version: expectedVersion };
   if ("title" in changes) body.title = changes.title!.trim();
   if ("prompt" in changes) body.prompt_markdown = changes.prompt!.trim();
@@ -429,8 +391,7 @@ export async function updateQuestionDetails(versionId: string, expectedVersion: 
   } catch (error) {
     return { error: actionError(error) };
   }
-  revalidatePath("/staff/questions");
-  revalidatePath(`/staff/questions/${versionId}`);
+  refreshQuestions(versionId);
   return { error: null, message: "Saved." };
 }
 
@@ -438,12 +399,12 @@ export type CodeTemplates = Record<string, { starter: string; prefix: string; su
 
 /** Stubs and wrappers of a draft (ADR-0063): students write the function, the wrapper runs it. */
 export async function saveTemplates(versionId: string, templates: CodeTemplates): Promise<ActionState> {
-  await requireStaff();
+  await requireQuestionAuthor();
   try {
     await gateway(`/question-bank/v1/question-versions/${versionId}/templates`, { method: "PUT", body: { templates } });
   } catch (error) {
     return { error: actionError(error) };
   }
-  revalidatePath(`/staff/questions/${versionId}`);
+  refreshQuestions(versionId);
   return { error: null, message: "Stubs saved. Run your solution again, as the function only, to verify them." };
 }

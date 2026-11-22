@@ -35,7 +35,7 @@ export default async function Landing() {
         <div className="mx-auto max-w-6xl px-6">
           <h2 className="heading text-[2.2rem] text-ink sm:text-[2.8rem]">The exam screen, as students see it</h2>
           <div className="relative mt-10 [perspective:1800px]">
-            <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 mx-auto h-[90%] max-w-5xl rounded-[40px] bg-brand/8 blur-[60px]" />
+            <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 mx-auto h-[90%] max-w-5xl rounded-panel bg-brand/8 blur-[60px]" />
             <div data-tilt className="relative origin-top">
               <ExamPreview />
             </div>
@@ -56,10 +56,10 @@ export default async function Landing() {
       <section className="mx-auto max-w-6xl px-6 py-28 text-center">
         <h2 className="heading mx-auto max-w-[18ch] text-[2.4rem] text-ink sm:text-[3.2rem]">Sign in with the account your college gave you.</h2>
         <div data-reveal className="mt-9 flex flex-wrap justify-center gap-3 text-[15px] font-medium">
-          <Link href="/login" className="rounded-full bg-brand px-6 py-3 text-brand-ink shadow-[var(--shadow-panel)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5">
+          <Link href="/login" className="rounded-pill bg-brand px-6 py-3 text-brand-ink shadow-[var(--shadow-panel)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5">
             Sign in
           </Link>
-          <Link href="/help" className="rounded-full border border-line-strong bg-canvas px-6 py-3 text-ink shadow-[var(--shadow-panel)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5">
+          <Link href="/help" className="rounded-pill border border-line-strong bg-canvas px-6 py-3 text-ink shadow-[var(--shadow-panel)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5">
             Read the help center
           </Link>
         </div>

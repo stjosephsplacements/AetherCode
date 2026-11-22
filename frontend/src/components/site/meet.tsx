@@ -95,8 +95,8 @@ export function Meet() {
       </div>
 
       <div className="relative pt-10">
-      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-10 mx-auto h-[80%] max-w-5xl rounded-[40px] bg-brand/8 blur-[60px]" />
-      <LiquidGlass strong className="relative overflow-hidden rounded-3xl shadow-[var(--shadow-overlay)]">
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-10 mx-auto h-[80%] max-w-5xl rounded-panel bg-brand/8 blur-[60px]" />
+      <LiquidGlass strong className="relative overflow-hidden rounded-panel shadow-[var(--shadow-overlay)]">
         <div className="flex border-b border-line-strong font-mono text-[13px]">
         <div role="tablist" aria-label="Parts of an exam day" className="flex flex-wrap">
           {TABS.map((item, index) => (

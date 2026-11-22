@@ -1,7 +1,9 @@
 import { ArrowLeft } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { panel } from "@/app/admin/_dashboard/panel";
 import { EmptyState, LoadError, PageHeader, Section, Table } from "@/components/staff/page-header";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/card";
 import type { QuestionSimilarity } from "@/lib/api-types";
 import { latestVersion } from "@/lib/server/exams";
@@ -26,10 +28,10 @@ export default async function SimilarityPage({ params }: { params: Promise<{ exa
     data = { version, report, roll: new Map(students.map((student) => [student.principal_id, student.enrollment_number])) };
   } catch (error) {
     return (
-      <>
+      <div className="animate-enter">
         <PageHeader title="Similarity" />
         <LoadError error={error} />
-      </>
+      </div>
     );
   }
   const { version, report, roll } = data;
@@ -40,7 +42,7 @@ export default async function SimilarityPage({ params }: { params: Promise<{ exa
   );
 
   return (
-    <>
+    <div className="animate-enter">
       <Link href={`/staff/exams/${examId}/results`} className="mb-6 inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink">
         <ArrowLeft className="size-4" />
         {version.title} results
@@ -63,6 +65,7 @@ export default async function SimilarityPage({ params }: { params: Promise<{ exa
               {question.pairs.length === 0 ? (
                 <EmptyState>No similar pairs.</EmptyState>
               ) : (
+                <section className={cn(panel, "p-0 gap-0")}>
                 <Table head={["Similarity", "Student", "Student", "Languages"]}>
                   {question.pairs.map((pair) => (
                     <tr key={`${pair.a.attempt_id}-${pair.b.attempt_id}`}>
@@ -78,10 +81,11 @@ export default async function SimilarityPage({ params }: { params: Promise<{ exa
                     </tr>
                   ))}
                 </Table>
+                </section>
               )}
             </Section>
           ))
       )}
-    </>
+    </div>
   );
 }

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import { panel } from "@/app/admin/_dashboard/panel";
 import { ActionForm, Field, TextArea, TextInput } from "@/components/staff/form";
 import { LoadError, PageHeader } from "@/components/staff/page-header";
-import { Panel } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { listPublishedPolicyVersions } from "@/lib/server/proctor-policies";
 import { requireCollege } from "@/lib/server/staff";
 import { TIME_ZONE } from "@/lib/utils";
@@ -17,16 +18,17 @@ export default async function NewExamPage() {
     policies = await listPublishedPolicyVersions(tenantId);
   } catch (error) {
     return (
-      <>
+      <div className="animate-enter">
         <PageHeader title="New exam" />
         <LoadError error={error} />
-      </>
+      </div>
     );
   }
   return (
-    <>
+    <div className="animate-enter">
       <PageHeader title="New exam" description="Set the window and duration. You add questions on the next page." />
-      <Panel className="p-5 sm:p-6">
+      <section className={cn(panel, "mt-8 sm:p-6")}>
+        <p className="mb-4 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">Schedule</p>
         <ActionForm action={createExam} submitLabel="Create exam">
           <Field label="Title" htmlFor="exam-title">
             <TextInput id="exam-title" name="title" required maxLength={300} placeholder="Data Structures, Lab Test 2" />
@@ -47,7 +49,7 @@ export default async function NewExamPage() {
             <TextArea id="exam-instructions" name="instructions_markdown" placeholder={"- Two questions, 90 minutes.\n- Run checks the sample tests; hidden tests decide marks."} />
           </Field>
         </ActionForm>
-      </Panel>
-    </>
+      </section>
+    </div>
   );
 }

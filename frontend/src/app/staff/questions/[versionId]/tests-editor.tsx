@@ -53,7 +53,7 @@ export function TestsEditor({ versionId, expectedVersion, existing }: { versionI
       <DialogContent title={existing > 0 ? "Replace the tests" : "Add the tests"} description="Sample tests are shown to students when they run. Hidden tests decide the marks." className="w-[min(94vw,1040px)]">
         <div className="min-h-0 space-y-4 overflow-y-auto p-6">
           {existing > 0 && (
-            <p className="rounded-[var(--radius-control)] bg-warning-soft px-4 py-3 text-[13px] text-warning">
+            <p className="rounded-control bg-warning-soft px-4 py-3 text-[13px] text-warning">
               {existing} tests are saved. They are encrypted and cannot be shown again, so this starts empty. Saving replaces all of them, and your model solution has to be checked again.
             </p>
           )}

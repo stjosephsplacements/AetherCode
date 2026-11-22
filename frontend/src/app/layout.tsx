@@ -39,8 +39,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fbf8f4" },
-    { media: "(prefers-color-scheme: dark)", color: "#0f0b1e" },
+    { media: "(prefers-color-scheme: light)", color: "#eef5f4" },
+    { media: "(prefers-color-scheme: dark)", color: "#050505" },
   ],
 };
 
@@ -86,7 +86,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <Toaster
           position="bottom-center"
           toastOptions={{
-            className: "!rounded-[10px] !border-line !bg-surface !text-ink !shadow-[var(--shadow-overlay)] !font-sans",
+            className: "!rounded-control !border-line !bg-surface !text-ink !shadow-[var(--shadow-overlay)] !font-sans",
           }}
         />
       </body>

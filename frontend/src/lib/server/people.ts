@@ -1,4 +1,5 @@
 import "server-only";
+import { asAccountSummaries } from "@/lib/account-summaries";
 import type { AccountSummary, Page, RoleAssignment } from "@/lib/api-types";
 import { gateway } from "./gateway";
 
@@ -8,11 +9,11 @@ export async function describeAccounts(tenantId: string, principalIds: string[])
   const named = new Map<string, AccountSummary>();
   for (let start = 0; start < unique.length; start += 500) {
     const chunk = unique.slice(start, start + 500);
-    const summaries = await gateway<AccountSummary[]>(`/user/v1/tenants/${tenantId}/accounts/describe`, {
+    const body = await gateway<unknown>(`/user/v1/tenants/${tenantId}/accounts/describe`, {
       method: "POST",
       body: { principal_ids: chunk },
     });
-    for (const summary of summaries) named.set(summary.principal_id, summary);
+    for (const summary of asAccountSummaries(body)) named.set(summary.principal_id, summary);
   }
   return named;
 }

@@ -44,11 +44,11 @@ export default async function ExamLobby({ params }: { params: Promise<{ assignme
 
       <h1 className="display mt-8 text-[2.1rem] text-ink sm:text-[2.4rem]">{assignment.title}</h1>
       <div className="mt-4 flex flex-wrap gap-2">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1 text-[13px] text-ink-muted">
+        <span className="inline-flex items-center gap-1.5 rounded-pill border border-line px-3 py-1 text-[13px] text-ink-muted">
           <CalendarDots className="size-3.5" />
           {formatWindow(assignment.available_from, assignment.available_until)}
         </span>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1 text-[13px] text-ink-muted">
+        <span className="inline-flex items-center gap-1.5 rounded-pill border border-line px-3 py-1 text-[13px] text-ink-muted">
           <Clock className="size-3.5" />
           {formatDuration(assignment.duration_seconds)}
         </span>
@@ -59,7 +59,7 @@ export default async function ExamLobby({ params }: { params: Promise<{ assignme
         <Markdown>{assignment.instructions_markdown}</Markdown>
       </section>
 
-      <section aria-label="Before you start" className="mt-10 rounded-[var(--radius-surface)] bg-sidebar p-5 sm:p-6">
+      <section aria-label="Before you start" className="mt-10 rounded-surface bg-sidebar p-5 sm:p-6">
         <ul className="space-y-3.5">
           {FACTS.map(({ icon: Icon, text }) => (
             <li key={text} className="flex gap-3 text-sm leading-relaxed text-ink">

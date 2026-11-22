@@ -27,13 +27,13 @@ export function StudentList({ rows, several }: { rows: StudentRow[]; several: bo
           onChange={(event) => { setQuery(event.target.value); setPage(1); }}
           placeholder="Search by roll number"
           aria-label="Search students"
-          className="h-9 w-full rounded-[var(--radius-control)] border border-line-strong bg-surface pl-9 pr-3 text-sm text-ink outline-none transition-[border-color,box-shadow] placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15"
+          className="h-9 w-full rounded-control border border-line-strong bg-surface pl-9 pr-3 text-sm text-ink outline-none transition-[border-color,box-shadow] placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15"
         />
       </div>
       <p className="mb-2 font-mono text-[12px] text-ink-subtle" aria-live="polite">
         {shown.length} of {rows.length}
       </p>
-      <ol className="divide-y divide-line overflow-hidden rounded-[var(--radius-surface)] border border-line">
+      <ol className="divide-y divide-line overflow-hidden rounded-surface border border-line">
         {paged.rows.map((row, index) => (
           <li key={row.candidate} className="grid grid-cols-[2.5rem_minmax(0,1fr)_auto_5rem] items-center gap-3 px-4 py-2 text-[13.5px]">
             <span className="font-mono tabular-nums text-ink-subtle">{paged.from + index}</span>

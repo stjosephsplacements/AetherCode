@@ -49,7 +49,7 @@ export default async function MyExams({ searchParams }: { searchParams: Promise<
     <div className="animate-enter">
       <LiveRefresh topics={["attempts", "grading"]} />
       <PageHeader title="My exams" description="Your exams, with their time windows and duration." />
-      <nav aria-label="Exam groups" className="mb-5 inline-flex max-w-full gap-1 overflow-x-auto rounded-[var(--radius-control)] border border-line bg-sidebar p-1">
+      <nav aria-label="Exam groups" className="mb-5 inline-flex max-w-full gap-1 overflow-x-auto rounded-control border border-line bg-sidebar p-1">
         {TABS.map((entry) => (
           <Link
             key={entry.key}
@@ -75,7 +75,7 @@ export default async function MyExams({ searchParams }: { searchParams: Promise<
             const attempt = attemptOf.get(assignment.id);
             const unfinished = attempt && (attempt.lifecycle_state === "created" || attempt.lifecycle_state === "active");
             return (
-              <li key={assignment.id} className={cn("flex flex-col rounded-3xl border bg-surface shadow-[var(--shadow-panel)] p-5", tab === "live" ? "border-brand/40" : "border-line")}>
+              <li key={assignment.id} className={cn("flex flex-col rounded-panel border bg-surface shadow-[var(--shadow-panel)] p-5", tab === "live" ? "border-brand/40" : "border-line")}>
                 <div className="flex items-center justify-between gap-2">
                   {tab === "live" ? <Badge tone="brand">Open now</Badge> : tab === "upcoming" ? <Badge tone="neutral">Upcoming</Badge> : <Badge tone="neutral">{assignment.lifecycle_state === "expired" ? "Missed" : "Ended"}</Badge>}
                   <span className="inline-flex items-center gap-1.5 font-mono text-xs text-ink-subtle">

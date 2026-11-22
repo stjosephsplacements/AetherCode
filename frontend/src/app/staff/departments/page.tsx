@@ -1,30 +1,25 @@
-import { Buildings, GraduationCap } from "@phosphor-icons/react/ssr";
+import { ArrowRight, Buildings } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import type { ReactNode } from "react";
+import { FigureCard } from "@/app/admin/_dashboard/charts";
+import { panel } from "@/app/admin/_dashboard/panel";
 import { ConfirmDelete } from "@/components/staff/confirm-delete";
 import { EditDialog } from "@/components/staff/edit-dialog";
 import { Field, Select, TextInput } from "@/components/staff/form";
-import { EmptyState, LoadError, PageHeader, Table } from "@/components/staff/page-header";
+import { EmptyState, LoadError, PageHeader } from "@/components/staff/page-header";
 import { Pager } from "@/components/staff/pager";
 import { Badge } from "@/components/ui/card";
+import { lettermark } from "@/lib/lettermark";
 import { paginate } from "@/lib/paginate";
 import { inColleges } from "@/lib/server/colleges";
-import { departmentLabel, listBatches, listDepartments } from "@/lib/server/directory";
+import { listBatches, listDepartments } from "@/lib/server/directory";
 import { collegesFor, requireStaff } from "@/lib/server/staff";
 import { cn } from "@/lib/utils";
-import { lettermark } from "@/lib/lettermark";
 import { AddDialog } from "./add-dialog";
-import { createBatch, createDepartment, deleteBatch, deleteDepartment, updateBatch, updateDepartment } from "./actions";
+import { createDepartment, deleteDepartment, updateDepartment } from "./actions";
 
 export const metadata: Metadata = { title: "Departments" };
-
-const TABS = [
-  { key: "academic", label: "Academic departments" },
-  { key: "batches", label: "Batches" },
-] as const;
-type Tab = (typeof TABS)[number]["key"];
 
 /** A cell that keeps long names on one line, with the whole name on hover. */
 const Clip = ({ children, className }: { children: string; className?: string }) => (
@@ -33,36 +28,22 @@ const Clip = ({ children, className }: { children: string; className?: string })
   </span>
 );
 
-const Avatar = ({ name }: { name: string }) => (
-  <span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-[var(--radius-control)] bg-brand-soft font-mono text-[12px] font-semibold text-brand-soft-ink">
-    {lettermark(name)}
-  </span>
-);
-
-const Named = ({ name, note }: { name: string; note?: string }) => (
-  <div className="flex min-w-0 items-center gap-3">
-    <Avatar name={name} />
-    <div className="min-w-0">
-      <Clip className="font-medium text-ink">{name}</Clip>
-      {note && <Clip className="text-[11.5px] text-ink-subtle">{note}</Clip>}
-    </div>
-  </div>
-);
-
 /** The first few labels as badges, and how many more there are. */
 function Few({ labels, empty }: { labels: string[]; empty: string }) {
-  if (labels.length === 0) return <span className="text-xs text-ink-subtle">{empty}</span>;
+  if (labels.length === 0) return <span className="text-[12px] text-ink-subtle">{empty}</span>;
   return (
-    <div className="flex min-w-0 items-center gap-1" title={labels.join(", ")}>
+    <div className="flex min-w-0 flex-wrap items-center gap-1" title={labels.join(", ")}>
       {labels.slice(0, 3).map((label) => (
-        <Badge key={label} tone="neutral" className="max-w-[7rem]"><span className="truncate">{label}</span></Badge>
+        <Badge key={label} tone="neutral" className="max-w-[7rem]">
+          <span className="truncate">{label}</span>
+        </Badge>
       ))}
-      {labels.length > 3 && <span className="shrink-0 text-xs text-ink-subtle">+{labels.length - 3}</span>}
+      {labels.length > 3 && <span className="shrink-0 text-[12px] text-ink-subtle">+{labels.length - 3}</span>}
     </div>
   );
 }
 
-export default async function OrganisationPage({ searchParams }: { searchParams: Promise<{ college?: string; tab?: string; dp?: string; bp?: string; op?: string; pp?: string }> }) {
+export default async function OrganisationPage({ searchParams }: { searchParams: Promise<{ college?: string; dp?: string }> }) {
   const staff = await requireStaff();
   if (!staff.canManageAccounts) redirect("/staff");
   let data;
@@ -71,42 +52,29 @@ export default async function OrganisationPage({ searchParams }: { searchParams:
     const colleges = collegesFor(staff);
     const perCollege = await inColleges(colleges, async (collegeId) => ({ departments: await listDepartments(collegeId), batches: await listBatches(collegeId) }));
     data = {
-      departments: perCollege.flatMap(({ college, value }) => (value?.departments ?? []).filter((department) => department.department_type === "college").map((department) => ({ ...department, collegeId: college.id, collegeName: college.name }))),
+      departments: perCollege.flatMap(({ college, value }) =>
+        (value?.departments ?? [])
+          .filter((department) => department.department_type === "college")
+          .map((department) => ({ ...department, collegeId: college.id, collegeName: college.name })),
+      ),
       batches: perCollege.flatMap(({ college, value }) => (value?.batches ?? []).map((batch) => ({ ...batch, collegeId: college.id, collegeName: college.name }))),
       unreachable: perCollege.filter((entry) => entry.failed).map((entry) => entry.college.name),
       query,
     };
   } catch (error) {
     return (
-      <>
+      <div className="animate-enter">
         <PageHeader title="Departments" />
         <LoadError error={error} />
-      </>
+      </div>
     );
   }
   const { departments, batches, unreachable, query } = data;
-  const several = false; // /staff is one college (cross-college lists live in /admin), so no college picker or column
-  const tab: Tab = TABS.find((entry) => entry.key === query.tab)?.key ?? "academic";
+  const several = false;
   const pagedDepartments = paginate(departments, query.dp);
-  const pagedBatches = paginate(batches, query.bp);
-  const departmentName = new Map(departments.map((department) => [department.id, departmentLabel(department)]));
   const batchesIn = (departmentId: string) => batches.filter((batch) => batch.department_id === departmentId);
-
-  // A tab link keeps the college but starts that tab at its first page.
-  const tabHref = (key: Tab) => {
-    const next = new URLSearchParams();
-    if (query.college) next.set("college", query.college);
-    if (key !== "academic") next.set("tab", key);
-    const text = next.toString();
-    return text ? `/staff/departments?${text}` : "/staff/departments";
-  };
-  const chip = (icon: ReactNode, label: string, value: number) => (
-    <li className="inline-flex items-center gap-2 rounded-full border border-line bg-surface py-1 pl-2.5 pr-3 text-[13px] text-ink-muted">
-      <span aria-hidden className="text-brand">{icon}</span>
-      {label}
-      <span className="font-mono tabular-nums text-ink">{value}</span>
-    </li>
-  );
+  const emptyDepartments = departments.filter((department) => batchesIn(department.id).length === 0).length;
+  const years = new Set(batches.map((batch) => batch.academic_year)).size;
 
   const collegePicker = several && (
     <Field label="College" htmlFor="department-college">
@@ -121,39 +89,46 @@ export default async function OrganisationPage({ searchParams }: { searchParams:
   );
 
   return (
-    <>
+    <div className="animate-enter">
       <PageHeader
         title="Departments"
-        description="Departments and batches for this college. Students are enrolled into a batch."
+        description="Academic departments for this college. Manage batches under Departments → Batches."
       />
-      {unreachable.length > 0 && <p role="alert" className="mb-4 text-sm text-warning">Could not load: {unreachable.join(", ")}.</p>}
+      {unreachable.length > 0 && (
+        <p role="alert" className="mb-4 text-sm text-warning">
+          Could not load: {unreachable.join(", ")}.
+        </p>
+      )}
 
-      <ul className="mb-5 flex flex-wrap gap-2" aria-label="Summary">
-        {chip(<Buildings className="size-3.5" />, "Departments", departments.length)}
-        {chip(<GraduationCap className="size-3.5" />, "Batches", batches.length)}
-      </ul>
+      <div className="grid auto-rows-[minmax(120px,auto)] gap-3 md:grid-cols-6 xl:grid-cols-12">
+        <FigureCard label="Departments" value={String(departments.length)} note="academic units" className="md:col-span-2 xl:col-span-3" />
+        <FigureCard label="Batches" value={String(batches.length)} note="across all departments" className="md:col-span-2 xl:col-span-3" />
+        <FigureCard
+          label="Empty"
+          value={String(emptyDepartments)}
+          note="departments with no batch"
+          tone={emptyDepartments ? "warn" : "good"}
+          className="md:col-span-2 xl:col-span-3"
+        />
+        <FigureCard label="Years" value={String(years)} note="distinct academic years" className="md:col-span-6 xl:col-span-3" />
 
-      <nav aria-label="Sections" className="mb-5 inline-flex max-w-full gap-1 overflow-x-auto rounded-[var(--radius-control)] border border-line bg-sidebar p-1">
-        {TABS.map((entry) => (
-          <Link
-            key={entry.key}
-            href={tabHref(entry.key)}
-            scroll={false}
-            aria-current={entry.key === tab ? "page" : undefined}
-            className={cn(
-              "shrink-0 rounded-[calc(var(--radius-control)-2px)] px-3.5 py-1.5 text-[13px] font-medium outline-none transition-colors focus-visible:ring-4 focus-visible:ring-brand/15",
-              entry.key === tab ? "bg-surface text-ink shadow-[var(--shadow-hairline)]" : "text-ink-muted hover:text-ink",
-            )}
-          >
-            {entry.label}
-          </Link>
-        ))}
-      </nav>
-
-      {tab === "academic" && (
-        <section aria-label="Academic departments" className="space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-[13px] text-ink-muted">College departments and the batches inside each.</p>
+        <section aria-label="Academic departments" className={cn(panel, "md:col-span-6 xl:col-span-12")}>
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="grid size-8 place-items-center rounded-control bg-brand/15 text-brand">
+                <Buildings className="size-4" />
+              </span>
+              <div>
+                <h2 className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">Academic departments</h2>
+                <p className="mt-0.5 text-[12.5px] text-ink-muted">
+                  Add departments here. Batches live under{" "}
+                  <Link href="/staff/departments/batches" className="text-brand hover:underline">
+                    Batches
+                  </Link>
+                  .
+                </p>
+              </div>
+            </div>
             <AddDialog label="Add department" title="New department" description="Students and batches are filed under it." submitLabel="Create department" action={createDepartment}>
               {collegePicker}
               <div className="grid grid-cols-3 gap-3">
@@ -166,136 +141,72 @@ export default async function OrganisationPage({ searchParams }: { searchParams:
               </div>
             </AddDialog>
           </div>
+
           {departments.length === 0 ? (
-            <EmptyState>No departments yet. Add the first one.</EmptyState>
+            <EmptyState>
+              <p className="mb-2 text-[15px] font-medium text-ink">No departments yet</p>
+              Add the first academic department, then open it to create batches.
+            </EmptyState>
           ) : (
             <>
-              <Table head={several ? ["Department", "College", "Code", "Batches", ""] : ["Department", "Code", "Batches", ""]}>
+              <ul className="space-y-2">
                 {pagedDepartments.rows.map((department) => {
                   const inside = batchesIn(department.id);
+                  const batchesHref = `/staff/departments/batches?department=${department.id}`;
                   return (
-                    <tr key={department.id}>
-                      <td className="px-4 py-3"><Named name={department.name} /></td>
-                      {several && <td className="px-4 py-3"><Badge tone="neutral" className="max-w-[12rem]"><span className="truncate">{department.collegeName}</span></Badge></td>}
-                      <td className="px-4 py-3 font-mono text-xs text-ink-muted">{department.code}</td>
-                      <td className="px-4 py-3"><Few labels={inside.map((batch) => batch.code)} empty="No batches" /></td>
-                      <td className="px-4 py-2">
-                        <div className="flex items-center justify-end gap-1">
-                          <EditDialog
-                            title={`Edit ${department.name}`}
-                            fields={[
-                              { name: "name", label: "Name", value: department.name },
-                              { name: "code", label: "Code", value: department.code, hint: "Unique within the college." },
-                            ]}
-                            onSave={async (changes) => {
+                    <li key={department.id} className="flex flex-wrap items-center gap-3 rounded-control border border-line bg-hover/30 px-3.5 py-3 transition-colors hover:bg-hover sm:flex-nowrap">
+                      <Link href={batchesHref} className="flex min-w-0 flex-1 items-center gap-3 outline-none focus-visible:ring-4 focus-visible:ring-brand/15">
+                        <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-control bg-brand-soft font-mono text-[12px] font-semibold text-brand-soft-ink">
+                          {lettermark(department.name)}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex flex-wrap items-center gap-2">
+                            <Clip className="text-[14px] font-semibold text-ink">{department.name}</Clip>
+                            <span className="font-mono text-[11.5px] text-ink-subtle">{department.code}</span>
+                          </span>
+                          <span className="mt-1.5 block">
+                            <Few labels={inside.map((batch) => batch.code)} empty="No batches yet" />
+                          </span>
+                        </span>
+                        <span className="hidden shrink-0 font-mono text-[11.5px] tabular-nums text-ink-subtle sm:inline">
+                          {inside.length} batch{inside.length === 1 ? "" : "es"}
+                        </span>
+                        <ArrowRight className="size-4 shrink-0 text-ink-subtle" />
+                      </Link>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <EditDialog
+                          title={`Edit ${department.name}`}
+                          fields={[
+                            { name: "name", label: "Name", value: department.name },
+                            { name: "code", label: "Code", value: department.code, hint: "Unique within the college." },
+                          ]}
+                          onSave={async (changes) => {
+                            "use server";
+                            return updateDepartment(department.collegeId, department.id, changes);
+                          }}
+                        />
+                        {inside.length > 0 ? (
+                          <span className="whitespace-nowrap text-[12px] text-ink-subtle">Delete batches first</span>
+                        ) : (
+                          <ConfirmDelete
+                            title={`Delete ${department.name}?`}
+                            description="It has no batches. Students and staff already filed under it are not changed."
+                            onConfirm={async (reason) => {
                               "use server";
-                              return updateDepartment(department.collegeId, department.id, changes);
+                              return deleteDepartment(department.collegeId, department.id, reason);
                             }}
                           />
-                          {inside.length > 0 ? (
-                            <span className="whitespace-nowrap text-xs text-ink-subtle">Delete its batches first</span>
-                          ) : (
-                            <ConfirmDelete
-                              title={`Delete ${department.name}?`}
-                              description="It has no batches. Students and staff already filed under it are not changed."
-                              onConfirm={async (reason) => {
-                                "use server";
-                                return deleteDepartment(department.collegeId, department.id, reason);
-                              }}
-                            />
-                          )}
-                        </div>
-                      </td>
-                    </tr>
+                        )}
+                      </div>
+                    </li>
                   );
                 })}
-              </Table>
+              </ul>
               <Pager meta={pagedDepartments} param="dp" noun="departments" />
             </>
           )}
         </section>
-      )}
-
-      {tab === "batches" && (
-        <section aria-label="Batches" className="space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-[13px] text-ink-muted">A batch is one intake of a department, for example CSE A, 2026-2030.</p>
-            <AddDialog
-              label="Add batch"
-              title="New batch"
-              description="Students are enrolled into a batch."
-              submitLabel="Create batch"
-              action={createBatch}
-              disabledReason={departments.length === 0 ? "Create a department first" : undefined}
-            >
-              <Field label="Department" htmlFor="batch-department">
-                <Select id="batch-department" name="department_id" required>
-                  {departments.map((department) => (
-                    <option key={department.id} value={`${department.collegeId}:${department.id}`}>
-                      {several ? `${department.collegeName}, ` : ""}
-                      {departmentLabel(department)}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <div className="grid grid-cols-3 gap-3">
-                <Field label="Code" htmlFor="batch-code">
-                  <TextInput id="batch-code" name="code" required placeholder="CSE-A" />
-                </Field>
-                <Field label="Name" htmlFor="batch-name">
-                  <TextInput id="batch-name" name="name" required placeholder="CSE A" />
-                </Field>
-                <Field label="Year" htmlFor="batch-year">
-                  <TextInput id="batch-year" name="academic_year" required placeholder="2026-2027" pattern="\d{4}-\d{4}" />
-                </Field>
-              </div>
-            </AddDialog>
-          </div>
-          {batches.length === 0 ? (
-            <EmptyState>No batches yet. Create a department, then a batch in it.</EmptyState>
-          ) : (
-            <>
-              <Table head={several ? ["Batch", "College", "Code", "Department", "Academic year", ""] : ["Batch", "Code", "Department", "Academic year", ""]}>
-                {pagedBatches.rows.map((batch) => (
-                  <tr key={batch.id}>
-                    <td className="px-4 py-3"><Named name={batch.name} /></td>
-                    {several && <td className="px-4 py-3"><Badge tone="neutral" className="max-w-[12rem]"><span className="truncate">{batch.collegeName}</span></Badge></td>}
-                    <td className="px-4 py-3 font-mono text-xs text-ink-muted">{batch.code}</td>
-                    <td className="px-4 py-3 text-ink-muted"><Clip>{departmentName.get(batch.department_id) ?? "Unknown"}</Clip></td>
-                    <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-ink-muted">{batch.academic_year}</td>
-                    <td className="px-4 py-2">
-                      <div className="flex items-center justify-end gap-1">
-                        <EditDialog
-                          title={`Edit ${batch.name}`}
-                          fields={[
-                            { name: "name", label: "Name", value: batch.name },
-                            { name: "code", label: "Code", value: batch.code },
-                            { name: "academic_year", label: "Academic year", value: batch.academic_year, hint: "Like 2026-2030." },
-                          ]}
-                          onSave={async (changes) => {
-                            "use server";
-                            return updateBatch(batch.collegeId, batch.id, changes);
-                          }}
-                        />
-                        <ConfirmDelete
-                          title={`Delete ${batch.name}?`}
-                          description="A batch that still has students cannot be deleted: move them first."
-                          onConfirm={async (reason) => {
-                            "use server";
-                            return deleteBatch(batch.collegeId, batch.id, reason);
-                          }}
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </Table>
-              <Pager meta={pagedBatches} param="bp" noun="batches" />
-            </>
-          )}
-        </section>
-      )}
-
-    </>
+      </div>
+    </div>
   );
 }

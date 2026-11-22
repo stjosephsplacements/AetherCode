@@ -6,7 +6,7 @@ export function Panel({ className, glass = false, ...props }: ComponentProps<"di
   return (
     <div
       className={cn(
-        "rounded-[var(--radius-surface)] border border-line shadow-[var(--shadow-panel)]",
+        "rounded-surface border border-line shadow-[var(--shadow-panel)]",
         glass ? "liquid-glass" : "bg-surface",
         className,
       )}
@@ -27,7 +27,7 @@ export function Badge({ className, tone = "neutral", ...props }: ComponentProps<
   return (
     <span
       className={cn(
-        "inline-flex h-6 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-xs font-medium",
+        "inline-flex h-6 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-pill px-2.5 text-xs font-medium",
         TONES[tone],
         className,
       )}

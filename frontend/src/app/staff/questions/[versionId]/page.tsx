@@ -1,6 +1,7 @@
 import { ArrowLeft, DownloadSimple } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { panel } from "@/app/admin/_dashboard/panel";
 import { ConfirmDelete } from "@/components/staff/confirm-delete";
 import { EditDialog } from "@/components/staff/edit-dialog";
 import { ActionForm } from "@/components/staff/form";
@@ -8,13 +9,15 @@ import { LoadError, PageHeader } from "@/components/staff/page-header";
 import { type Step, Stepper } from "@/components/staff/stepper";
 import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
-import { Badge, Panel } from "@/components/ui/card";
-import type { ModelCheck, QuestionVersion } from "@/lib/api-types";
+import { Badge } from "@/components/ui/card";
+import type { AccountSummary, ModelCheck, QuestionVersion } from "@/lib/api-types";
+import { authorName } from "@/lib/author-name";
 import { nameOf } from "@/lib/languages";
 import { type CheckStatus, checkStatus, isVerified } from "@/lib/model-checks";
 import { gateway } from "@/lib/server/gateway";
 import { listCategories, listTagSuggestions } from "@/lib/server/categories";
 import { listLanguages } from "@/lib/server/languages";
+import { describeAccounts } from "@/lib/server/people";
 import { reviewerChoices } from "@/lib/server/reviewers";
 import { requireStaff } from "@/lib/server/staff";
 import { cn } from "@/lib/utils";
@@ -74,15 +77,19 @@ export default async function QuestionPage({ params }: { params: Promise<{ versi
     ]);
   } catch (error) {
     return (
-      <>
+      <div className="animate-enter">
         <PageHeader title="Question" />
         <LoadError error={error} />
-      </>
+      </div>
     );
   }
   const [{ languages }, categories, tagSuggestions] = await Promise.all([listLanguages(), listCategories(), listTagSuggestions()]);
+  const named = version.created_by && staff.tenantId
+    ? await describeAccounts(staff.tenantId, [version.created_by]).catch(() => new Map<string, AccountSummary>())
+    : new Map<string, AccountSummary>();
+  const byline = authorName(named, version.created_by);
   const filing = categories.length > 0 && (
-    <Panel className="mt-6 p-5">
+    <section className={cn(panel, "mt-6")}>
       <h2 className="mb-4 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">Filing</h2>
       <Organise
         questionId={version.question_id}
@@ -91,7 +98,7 @@ export default async function QuestionPage({ params }: { params: Promise<{ versi
         tagSuggestions={tagSuggestions}
         initial={{ categoryId: version.category_id ?? categories[0]!.id, tags: (version.tags ?? []).map((tag) => tag.name) }}
       />
-    </Panel>
+    </section>
   );
 
   const draft = version.status === "draft";
@@ -116,14 +123,18 @@ export default async function QuestionPage({ params }: { params: Promise<{ versi
   ];
 
   return (
-    <>
+    <div className="animate-enter">
       <Link href="/staff/questions" className="mb-6 inline-flex items-center gap-1.5 text-sm text-ink-muted transition-colors hover:text-ink">
         <ArrowLeft className="size-4" />
         Questions
       </Link>
       <PageHeader
         title={version.title}
-        description={mcq ? `Version ${version.version_number}, ${version.difficulty}, multiple choice` : `Version ${version.version_number}, ${version.difficulty}, ${limits}, ${version.supported_languages.map((key) => nameOf(languages, key)).join(", ")}`}
+        description={
+          (mcq
+            ? `Version ${version.version_number}, ${version.difficulty}, multiple choice`
+            : `Version ${version.version_number}, ${version.difficulty}, ${limits}, ${version.supported_languages.map((key) => nameOf(languages, key)).join(", ")}`) + ` · by ${byline}`
+        }
         actions={
           <>
             {!mcq && <AudienceSwitch questionId={version.question_id} versionId={version.id} initial={version.audience ?? "test"} />}
@@ -191,9 +202,9 @@ export default async function QuestionPage({ params }: { params: Promise<{ versi
         <div className="mt-8 grid gap-x-8 gap-y-10 xl:grid-cols-12">
           <div className="min-w-0 space-y-10 xl:col-span-5">
             <Section number={1} title="Statement">
-              <Panel className="p-5">
+              <div className={cn(panel)}>
                 <Markdown>{version.prompt_markdown}</Markdown>
-              </Panel>
+              </div>
               <p className="mt-2 text-xs text-ink-muted">A saved draft&apos;s statement and limits are fixed. To change them, write the question again.</p>
             </Section>
 
@@ -220,24 +231,24 @@ export default async function QuestionPage({ params }: { params: Promise<{ versi
                 {ready ? (
                   <ModelCheckPanel versionId={version.id} languages={languages} supported={version.supported_languages} checks={checks} tests={tests} />
                 ) : (
-                  <p className="rounded-[var(--radius-surface)] border border-dashed border-line-strong px-6 py-10 text-center text-sm text-ink-muted">Save at least one sample and one hidden test to unlock the editor.</p>
+                  <p className="rounded-surface border border-dashed border-line-strong px-6 py-10 text-center text-sm text-ink-muted">Save at least one sample and one hidden test to unlock the editor.</p>
                 )}
               </Section>
             )}
             <Section number={choice ? 3 : 4} title="Publish">
-              <Panel className={cn("p-5", blocker && "border-dashed")}>
+              <div className={cn(panel, blocker && "border-dashed")}>
                 <PublishPanel version={version} blocker={blocker} requireReview={requireReview} reviewers={reviewers} viewerId={staff.viewer.principalId} />
-              </Panel>
+              </div>
             </Section>
           </div>
         </div>
       ) : (
         <div className="mt-8 grid gap-6 lg:grid-cols-[1.1fr_1fr]">
-          <Panel className="p-5">
-            <h2 className="mb-3 text-sm font-semibold text-ink">Statement</h2>
+          <div className={cn(panel)}>
+            <h2 className="mb-3 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">Statement</h2>
             <Markdown>{version.prompt_markdown}</Markdown>
-          </Panel>
-          <Panel className="h-fit p-5">
+          </div>
+          <div className={cn(panel, "h-fit")}>
             {mcq && (
               <ol className="mb-4 space-y-1.5 text-sm">
                 {(version.choices ?? []).map((option, index) => (
@@ -259,9 +270,9 @@ export default async function QuestionPage({ params }: { params: Promise<{ versi
             <ActionForm action={draftNewVersion} submitLabel="Edit as a new draft" className="mt-4">
               <input type="hidden" name="question_id" value={version.question_id} />
             </ActionForm>
-          </Panel>
+          </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

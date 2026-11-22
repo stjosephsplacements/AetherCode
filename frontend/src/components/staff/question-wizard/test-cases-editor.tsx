@@ -53,7 +53,7 @@ export function TestCasesEditor({ tests, onChange }: { tests: TestDraft[]; onCha
 
   return (
     <div className="space-y-3">
-      <div className="grid overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface md:grid-cols-[260px_minmax(0,1fr)]">
+      <div className="grid overflow-hidden rounded-surface border border-line bg-surface md:grid-cols-[260px_minmax(0,1fr)]">
         <div className="flex flex-col border-b border-line md:border-b-0 md:border-r">
           <ul className="max-h-72 flex-1 divide-y divide-line overflow-y-auto md:max-h-[26rem]" aria-label="Tests">
             {tests.map((test, position) => (
@@ -68,7 +68,7 @@ export function TestCasesEditor({ tests, onChange }: { tests: TestDraft[]; onCha
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-2 text-[13.5px] font-medium text-ink">
                       Test {position + 1}
-                      <span className={cn("rounded-full px-2 py-px font-mono text-[10.5px] uppercase tracking-[0.04em]", test.sample ? "bg-brand-soft text-brand-soft-ink" : "bg-hover text-ink-muted")}>
+                      <span className={cn("rounded-pill px-2 py-px font-mono text-[10.5px] uppercase tracking-[0.04em]", test.sample ? "bg-brand-soft text-brand-soft-ink" : "bg-hover text-ink-muted")}>
                         {test.sample ? "Sample" : "Hidden"}
                       </span>
                     </span>
@@ -128,7 +128,7 @@ export function TestCasesEditor({ tests, onChange }: { tests: TestDraft[]; onCha
                   type="button"
                   aria-label={`Duplicate test ${index + 1}`}
                   onClick={() => add({ ...current })}
-                  className="grid size-8 place-items-center rounded-[var(--radius-control)] text-ink-muted transition-colors hover:bg-hover hover:text-ink"
+                  className="grid size-8 place-items-center rounded-control text-ink-muted transition-colors hover:bg-hover hover:text-ink"
                 >
                   <Copy className="size-4" />
                 </button>
@@ -137,7 +137,7 @@ export function TestCasesEditor({ tests, onChange }: { tests: TestDraft[]; onCha
                   aria-label={`Remove test ${index + 1}`}
                   onClick={remove}
                   disabled={tests.length <= 1}
-                  className="grid size-8 place-items-center rounded-[var(--radius-control)] text-ink-muted transition-colors hover:bg-danger-soft hover:text-danger disabled:pointer-events-none disabled:opacity-30"
+                  className="grid size-8 place-items-center rounded-control text-ink-muted transition-colors hover:bg-danger-soft hover:text-danger disabled:pointer-events-none disabled:opacity-30"
                 >
                   <Trash className="size-4" />
                 </button>

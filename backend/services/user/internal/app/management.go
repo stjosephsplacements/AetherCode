@@ -33,6 +33,7 @@ type ManagementStore interface {
 	AssignRole(context.Context, pgx.Tx, AssignRole) (RoleAssignment, error)
 	RevokeRole(context.Context, pgx.Tx, RevokeRole) (RoleAssignment, error)
 	SetPlacementStaffMembership(context.Context, pgx.Tx, SetPlacementStaffMembership) (PlacementStaffMembership, error)
+	SetStudentPlacement(context.Context, pgx.Tx, SetStudentPlacement) (StudentPlacement, error)
 	AssignMentorBatch(context.Context, pgx.Tx, AssignMentorBatch) (MentorBatchAssignment, error)
 	GetStudentBatchAffiliation(context.Context, pgx.Tx, GetStudentBatchAffiliation) (StudentBatchAffiliation, error)
 	SetStudentBatchAffiliation(context.Context, pgx.Tx, SetStudentBatchAffiliation) (StudentBatchAffiliation, error)
@@ -159,6 +160,22 @@ type SetPlacementStaffMembership struct {
 	PrincipalID           string
 	PlacementDepartmentID string
 	ExpiresAt             *time.Time
+}
+
+// SetStudentPlacement assigns or clears a student's placement department (ADR-0089).
+// An empty PlacementDepartmentID clears the membership. MembershipID is used when assigning.
+type SetStudentPlacement struct {
+	TenantID              string
+	StudentID             string
+	PlacementDepartmentID string
+	MembershipID          string
+}
+
+type StudentPlacement struct {
+	StudentID               string  `json:"student_id"`
+	TenantID                string  `json:"tenant_id"`
+	PlacementDepartmentID   *string `json:"placement_department_id"`
+	PlacementMembershipID   *string `json:"placement_membership_id"`
 }
 
 type AssignMentorBatch struct {
@@ -344,6 +361,26 @@ func (service *ManagementService) SetPlacementStaffMembership(contextValue conte
 		return err
 	})
 	return membership, err
+}
+
+func (service *ManagementService) SetStudentPlacement(contextValue context.Context, capability centralauthz.Capability, command SetStudentPlacement) (StudentPlacement, error) {
+	command.TenantID = strings.ToLower(strings.TrimSpace(command.TenantID))
+	command.StudentID = strings.ToLower(strings.TrimSpace(command.StudentID))
+	command.PlacementDepartmentID = strings.ToLower(strings.TrimSpace(command.PlacementDepartmentID))
+	command.MembershipID = strings.ToLower(strings.TrimSpace(command.MembershipID))
+	if !isUUID(command.TenantID) || !isUUID(command.StudentID) {
+		return StudentPlacement{}, apperrors.New(apperrors.CodeInvalidArgument, "student placement fields are invalid")
+	}
+	if command.PlacementDepartmentID != "" && (!isUUID(command.PlacementDepartmentID) || !isUUID(command.MembershipID)) {
+		return StudentPlacement{}, apperrors.New(apperrors.CodeInvalidArgument, "student placement fields are invalid")
+	}
+	var result StudentPlacement
+	err := database.WithTenantTx(contextValue, service.pool, capability, func(transaction pgx.Tx) error {
+		var err error
+		result, err = service.store.SetStudentPlacement(contextValue, transaction, command)
+		return err
+	})
+	return result, err
 }
 
 func (service *ManagementService) AssignMentorBatch(contextValue context.Context, capability centralauthz.Capability, command AssignMentorBatch) (MentorBatchAssignment, error) {

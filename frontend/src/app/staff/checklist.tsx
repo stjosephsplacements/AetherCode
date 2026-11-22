@@ -15,7 +15,7 @@ export function Checklist({ steps, onNavigate }: { steps: ChecklistStep[]; onNav
           <>
             <span
               className={cn(
-                "grid size-7 shrink-0 place-items-center rounded-full border text-xs font-medium",
+                "grid size-7 shrink-0 place-items-center rounded-pill border text-xs font-medium",
                 step.done ? "border-transparent bg-brand text-brand-ink" : now ? "border-brand text-brand" : "border-line-strong text-ink-subtle",
               )}
             >
@@ -25,10 +25,10 @@ export function Checklist({ steps, onNavigate }: { steps: ChecklistStep[]; onNav
               <span className={cn("block text-sm font-medium", step.blocked ? "text-ink-subtle" : "text-ink")}>{step.title}</span>
               <span className="block text-[13px] text-ink-muted">{step.blocked ?? step.text}</span>
             </span>
-            {now && <span className="rounded-full bg-brand px-2.5 py-0.5 text-xs font-medium text-brand-ink">Do this next</span>}
+            {now && <span className="rounded-pill bg-brand px-2.5 py-0.5 text-xs font-medium text-brand-ink">Do this next</span>}
           </>
         );
-        const box = cn("flex items-center gap-3 rounded-[var(--radius-control)] border px-3 py-2.5", now ? "border-brand/50 bg-hover" : "border-line");
+        const box = cn("flex items-center gap-3 rounded-control border px-3 py-2.5", now ? "border-brand/50 bg-hover" : "border-line");
         return (
           <li key={step.key}>
             {step.blocked ? (

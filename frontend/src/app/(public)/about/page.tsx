@@ -31,7 +31,7 @@ export default function AboutPage() {
         </p>
       </div>
 
-      <dl className="mt-16 grid gap-px overflow-hidden rounded-[var(--radius-surface)] border border-line bg-line sm:grid-cols-3">
+      <dl className="mt-16 grid gap-px overflow-hidden rounded-surface border border-line bg-line sm:grid-cols-3">
         {STATS.map((stat) => (
           <div key={stat.label} className="bg-surface px-8 py-8">
             <dt className="text-[14px] text-ink-muted">{stat.label}</dt>

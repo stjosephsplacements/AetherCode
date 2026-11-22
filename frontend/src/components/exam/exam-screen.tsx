@@ -90,7 +90,7 @@ function ExamSkeleton() {
       <div className="flex flex-1 gap-3 p-3">
         <div className="hidden w-14 space-y-2 lg:block">
           {[0, 1, 2].map((index) => (
-            <div key={index} className="size-10 animate-pulse rounded-[var(--radius-control)] bg-hover" />
+            <div key={index} className="size-10 animate-pulse rounded-control bg-hover" />
           ))}
         </div>
         <div className="hidden flex-[0.8] space-y-4 px-5 py-6 lg:block">
@@ -99,7 +99,7 @@ function ExamSkeleton() {
           <div className="h-3 w-full animate-pulse rounded bg-hover" />
           <div className="h-3 w-5/6 animate-pulse rounded bg-hover" />
         </div>
-        <div className="flex-1 animate-pulse rounded-[var(--radius-surface)] bg-hover/60" />
+        <div className="flex-1 animate-pulse rounded-surface bg-hover/60" />
       </div>
     </div>
   );
@@ -283,7 +283,7 @@ function ExamWorkspace({ attemptPath, attemptId, tenantId, attempt, paper }: Loa
         <WorkspaceTools storageKey={`exam-${paper.title}-${currentId}`} timer={false} />
         <ExamGuides />
         {layout.hideClock ? (
-          <button type="button" onClick={() => updateLayout({ hideClock: false })} aria-label="Show the exam clock" className="flex items-center gap-1.5 rounded-full bg-hover px-3 py-1 text-[13px] font-medium text-ink-muted transition-colors hover:text-ink">
+          <button type="button" onClick={() => updateLayout({ hideClock: false })} aria-label="Show the exam clock" className="flex items-center gap-1.5 rounded-pill bg-hover px-3 py-1 text-[13px] font-medium text-ink-muted transition-colors hover:text-ink">
             <EyeSlash className="size-3.5" />
             Clock hidden
           </button>
@@ -292,13 +292,13 @@ function ExamWorkspace({ attemptPath, attemptId, tenantId, attempt, paper }: Loa
             role="timer"
             aria-label="Time remaining"
             className={cn(
-              "flex items-center gap-1.5 rounded-full py-1 pl-3 pr-1.5 font-mono text-[13px] font-medium tabular-nums transition-colors",
+              "flex items-center gap-1.5 rounded-pill py-1 pl-3 pr-1.5 font-mono text-[13px] font-medium tabular-nums transition-colors",
               minutesLeft !== null && minutesLeft <= 5 ? "bg-danger-soft text-danger" : minutesLeft !== null && minutesLeft <= 10 ? "bg-warning-soft text-warning" : "bg-hover text-ink",
             )}
           >
             <Clock className="size-3.5" />
             {remaining === null ? "--:--" : formatCountdown(remaining)}
-            <button type="button" onClick={() => updateLayout({ hideClock: true })} aria-label="Hide the exam clock" title="Hide the clock. The exam still ends on time and you are warned as it nears." className="grid size-5 place-items-center rounded-full opacity-70 hover:bg-black/10 hover:opacity-100">
+            <button type="button" onClick={() => updateLayout({ hideClock: true })} aria-label="Hide the exam clock" title="Hide the clock. The exam still ends on time and you are warned as it nears." className="grid size-5 place-items-center rounded-pill opacity-70 hover:bg-black/10 hover:opacity-100">
               <Eye className="size-3.5" />
             </button>
           </span>
@@ -384,19 +384,19 @@ function ExamWorkspace({ attemptPath, attemptId, tenantId, attempt, paper }: Loa
         <div ref={row} inert={cameraBlocked || integrity.needsFullscreen || (live.integrity.webcamRequired && !webcamConsentGiven)} className={cn("flex min-h-0 min-w-0 flex-1 flex-col gap-3 lg:flex-row", layout.swap && "lg:flex-row-reverse")}>
         {statementOpen && !layout.focus && (
           <>
-          <section aria-label="Question" className="flex min-h-[260px] min-w-0 flex-col overflow-hidden rounded-3xl border border-line bg-surface shadow-[var(--shadow-panel)] lg:min-h-0" style={{ flexBasis: `${layout.problemPct}%` }}>
+          <section aria-label="Question" className="flex min-h-[260px] min-w-0 flex-col overflow-hidden rounded-panel border border-line bg-surface shadow-[var(--shadow-panel)] lg:min-h-0" style={{ flexBasis: `${layout.problemPct}%` }}>
             <article className="min-h-0 flex-1 overflow-y-auto px-5 pb-8 pt-4">
               <p className="text-[13px] text-ink-muted">
                 Question {index + 1} of {items.length}
               </p>
               <h2 className="display mt-1.5 text-[1.75rem] text-ink">{item.title}</h2>
               <p className="mt-3 flex flex-wrap gap-2 text-[13px] text-ink-muted">
-                <span className="rounded-full bg-brand-soft px-2.5 py-0.5 font-medium text-brand-soft-ink">
+                <span className="rounded-pill bg-brand-soft px-2.5 py-0.5 font-medium text-brand-soft-ink">
                   {formatScore(Number(item.maximum_score))} marks
                 </span>
                 <BestScore status={statuses[currentId]} />
-                {item.time_limit_ms > 0 && <span className="rounded-full bg-hover px-2.5 py-0.5">Time limit {item.time_limit_ms / 1000} s</span>}
-                {item.memory_limit_kib > 0 && <span className="rounded-full bg-hover px-2.5 py-0.5">Memory {Math.round(item.memory_limit_kib / 1024)} MB</span>}
+                {item.time_limit_ms > 0 && <span className="rounded-pill bg-hover px-2.5 py-0.5">Time limit {item.time_limit_ms / 1000} s</span>}
+                {item.memory_limit_kib > 0 && <span className="rounded-pill bg-hover px-2.5 py-0.5">Memory {Math.round(item.memory_limit_kib / 1024)} MB</span>}
               </p>
               {item.prompt_markdown ? (
                 <Markdown className="mt-6">{item.prompt_markdown}</Markdown>
@@ -421,7 +421,7 @@ function ExamWorkspace({ attemptPath, attemptId, tenantId, attempt, paper }: Loa
         ) : (
         <section
           aria-label="Your code"
-          className="flex min-h-[520px] min-w-0 flex-1 flex-col overflow-hidden rounded-3xl border border-line bg-surface shadow-[var(--shadow-panel)] lg:min-h-0"
+          className="flex min-h-[520px] min-w-0 flex-1 flex-col overflow-hidden rounded-panel border border-line bg-surface shadow-[var(--shadow-panel)] lg:min-h-0"
         >
           <div className="flex h-12 shrink-0 items-center gap-1 border-b px-2.5">
             <Select aria-label="Language" size="sm" className="w-40" value={draft.language} onValueChange={(language) => answers.update(currentId, { language })} disabled={readOnly}>
@@ -508,7 +508,7 @@ function ExamWorkspace({ attemptPath, attemptId, tenantId, attempt, paper }: Loa
                       onChange={(event) => setCustomInputs((all) => ({ ...all, [currentId]: event.target.value }))}
                       spellCheck={false}
                       placeholder="Type the input your program reads"
-                      className="min-h-0 flex-1 resize-none rounded-[var(--radius-control)] border border-line bg-surface p-3 font-mono text-xs leading-relaxed text-ink outline-none placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15"
+                      className="min-h-0 flex-1 resize-none rounded-control border border-line bg-surface p-3 font-mono text-xs leading-relaxed text-ink outline-none placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15"
                     />
                   </label>
                   <div className="min-h-[120px] flex-1">
@@ -535,7 +535,7 @@ function ExamWorkspace({ attemptPath, attemptId, tenantId, attempt, paper }: Loa
                     setConsoleTab("input");
                   } else if (consoleTab === "input") setConsoleTab("results");
                 }}
-                className="grid size-4 place-items-center rounded-[4px] border border-line-strong bg-surface outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand data-[state=checked]:border-brand data-[state=checked]:bg-brand"
+                className="grid size-4 place-items-center rounded-chip border border-line-strong bg-surface outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand data-[state=checked]:border-brand data-[state=checked]:bg-brand"
               >
                 <Checkbox.Indicator>
                   <Check className="size-3 text-brand-ink" />
@@ -565,7 +565,7 @@ function ExamWorkspace({ attemptPath, attemptId, tenantId, attempt, paper }: Loa
 function BestScore({ status }: { status: QuestionStatus | undefined }) {
   if (!status || (status.kind !== "submitted" && status.kind !== "judging") || status.best === null) return null;
   return (
-    <span className="rounded-full bg-success-soft px-2.5 py-0.5 font-medium text-success">
+    <span className="rounded-pill bg-success-soft px-2.5 py-0.5 font-medium text-success">
       Best {formatScore(status.best)} of {formatScore(status.maximum)}
     </span>
   );
@@ -576,7 +576,7 @@ function ConsoleTabTrigger({ value, active, children }: { value: ConsoleTab; act
     <Tabs.Trigger
       value={value}
       className={cn(
-        "flex h-8 items-center rounded-[var(--radius-control)] px-3 text-[13px] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand",
+        "flex h-8 items-center rounded-control px-3 text-[13px] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand",
         active ? "bg-surface font-medium text-ink shadow-[var(--shadow-hairline)] ring-1 ring-line" : "text-ink-muted hover:bg-hover hover:text-ink",
       )}
     >
@@ -593,7 +593,7 @@ function IconButton({ label, onClick, className, children }: { label: string; on
       title={label}
       onClick={onClick}
       className={cn(
-        "grid size-8 place-items-center rounded-[var(--radius-control)] text-ink-muted outline-none transition-colors hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-brand",
+        "grid size-8 place-items-center rounded-control text-ink-muted outline-none transition-colors hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-brand",
         className,
       )}
     >
@@ -609,13 +609,13 @@ function ResetCode({ disabled, onReset }: { disabled: boolean; onReset: () => vo
         disabled={disabled}
         aria-label="Reset code"
         title="Reset code"
-        className="grid size-8 place-items-center rounded-[var(--radius-control)] text-ink-muted outline-none transition-colors hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-40"
+        className="grid size-8 place-items-center rounded-control text-ink-muted outline-none transition-colors hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-40"
       >
         <ArrowCounterClockwise className="size-4" />
       </AlertDialog.Trigger>
       <AlertDialog.Portal>
         <AlertDialog.Overlay className="fixed inset-0 z-50 animate-fade bg-[rgb(20_20_19/0.45)]" />
-        <AlertDialog.Content className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-[380px] -translate-x-1/2 -translate-y-1/2 animate-enter rounded-[var(--radius-surface)] border border-line bg-surface p-6 shadow-[var(--shadow-overlay)]">
+        <AlertDialog.Content className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-[380px] -translate-x-1/2 -translate-y-1/2 animate-enter rounded-surface border border-line bg-surface p-6 shadow-[var(--shadow-overlay)]">
           <AlertDialog.Title className="display text-[1.4rem] text-ink">Clear your code?</AlertDialog.Title>
           <AlertDialog.Description className="mt-2 text-sm leading-relaxed text-ink-muted">
             The editor for this question is emptied. Code you already submitted keeps its score.

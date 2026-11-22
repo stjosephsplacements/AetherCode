@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { LoadError, PageHeader } from "@/components/staff/page-header";
+import { Button } from "@/components/ui/button";
 import { inColleges } from "@/lib/server/colleges";
 import { describeAccounts, listRoleAssignments, listSuperAdmins } from "@/lib/server/people";
 import { STAFF_ROLES } from "@/lib/rbac";
@@ -25,18 +27,33 @@ export default async function AdminsPage() {
     data = { superAdmins, perCollege };
   } catch (error) {
     return (
-      <>
+      <div className="animate-enter">
         <PageHeader title="Administrators" />
         <LoadError error={error} />
-      </>
+      </div>
     );
   }
   const { superAdmins, perCollege } = data;
   const candidates = perCollege.flatMap(({ college, value }) => (value ?? []).map((person) => ({ id: person.id, label: `${person.name} (${college.name})` })));
+  const rootCount = superAdmins.filter((admin) => admin.root).length;
+  const superCount = superAdmins.length - rootCount;
+
   return (
-    <>
-      <PageHeader title="Administrators" description="People with access to every college. Manage their permissions from here." />
-      <PlatformAdmins admins={superAdmins} candidates={candidates} viewerIsRoot={superAdmins.some((admin) => admin.root && admin.principalId === staff.viewer.principalId)} workspace={staff.tenants[0]?.id} />
-    </>
+    <div className="animate-enter space-y-6">
+      <PageHeader
+        title="Administrators"
+        description={`${superAdmins.length} total · ${rootCount} root · ${superCount} super. Narrow what they can do under Permissions.`}
+        actions={
+          <Button asChild variant="secondary" size="sm">
+            <Link href="/admin/permissions">Permissions</Link>
+          </Button>
+        }
+      />
+      <PlatformAdmins
+        admins={superAdmins}
+        candidates={candidates}
+        viewerIsRoot={superAdmins.some((admin) => admin.root && admin.principalId === staff.viewer.principalId)}
+      />
+    </div>
   );
 }

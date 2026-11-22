@@ -2,7 +2,14 @@ import { describe, expect, it } from "vitest";
 import type { RoleName } from "@/lib/api-types";
 import { type Viewer, homeFor, isPlacementOnly } from "./viewer";
 
-const viewer = (...roles: RoleName[]): Viewer => ({ principalId: "p", displayName: "P", username: "p", tenantId: null, roles });
+const viewer = (...roles: RoleName[]): Viewer => ({
+  principalId: "p",
+  displayName: "P",
+  username: "p",
+  tenantId: null,
+  roles,
+  placementDepartmentIds: [],
+});
 
 describe("homeFor", () => {
   it("sends each kind of account to its own area", () => {

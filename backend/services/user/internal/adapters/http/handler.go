@@ -74,6 +74,7 @@ func NewHandler(serviceName string, service *app.ManagementService, accounts *ap
 	mux.HandleFunc("GET /v1/role-assignments", handler.listRoleAssignments)
 	mux.HandleFunc("POST /v1/role-assignments/{role_assignment_id}/revoke", handler.revokeRole)
 	mux.HandleFunc("PUT /v1/placement-departments/{placement_department_id}/staff/{principal_id}", handler.setPlacementStaffMembership)
+	mux.HandleFunc("PUT /v1/tenants/{tenant_id}/students/{student_id}/placement", handler.setStudentPlacement)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/batches/{batch_id}/mentors", handler.listMentorBatchAssignments)
 	mux.HandleFunc("PUT /v1/tenants/{tenant_id}/batches/{batch_id}/mentors/{principal_id}", handler.assignMentorBatch)
 	mux.HandleFunc("GET /v1/tenants/{tenant_id}/students/{student_id}/batch-affiliation", handler.getStudentBatchAffiliation)
@@ -247,6 +248,62 @@ func (handler *Handler) getStudent(writer http.ResponseWriter, request *http.Req
 type placementStaffRequest struct {
 	TenantID  string `json:"tenant_id"`
 	ExpiresAt string `json:"expires_at"`
+}
+
+type setStudentPlacementRequest struct {
+	PlacementDepartmentID string `json:"placement_department_id"`
+}
+
+func (handler *Handler) setStudentPlacement(writer http.ResponseWriter, request *http.Request) {
+	tenantID, err := httpx.ParseUUIDPathValue(request, "tenant_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	studentID, err := httpx.ParseUUIDPathValue(request, "student_id")
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	var body setStudentPlacementRequest
+	if err := httpx.DecodeJSON(request, &body); err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	placementDepartmentID := strings.TrimSpace(body.PlacementDepartmentID)
+	if placementDepartmentID != "" {
+		if placementDepartmentID, err = httpx.ParseUUIDValue(placementDepartmentID, "placement_department_id"); err != nil {
+			httpx.WriteError(writer, err)
+			return
+		}
+	}
+	membershipID := ""
+	if placementDepartmentID != "" {
+		membershipID, err = database.NewUUIDv7()
+		if err != nil {
+			httpx.WriteError(writer, err)
+			return
+		}
+	}
+	var decision httpauth.Decision
+	if placementDepartmentID == "" {
+		// Clear: authorize against the student already on the officer's track.
+		decision, err = handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "students", studentID, tenantID)
+	} else {
+		decision, err = handler.authorizer.AuthorizeHTTP(request.Context(), request, "write", "student_department_memberships", placementDepartmentID, tenantID)
+	}
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	result, err := handler.service.SetStudentPlacement(request.Context(), decision.Capability, app.SetStudentPlacement{
+		TenantID: tenantID, StudentID: studentID, PlacementDepartmentID: placementDepartmentID, MembershipID: membershipID,
+	})
+	if err != nil {
+		httpx.WriteError(writer, err)
+		return
+	}
+	httpx.WriteJSON(writer, http.StatusOK, result)
 }
 
 func (handler *Handler) setPlacementStaffMembership(writer http.ResponseWriter, request *http.Request) {

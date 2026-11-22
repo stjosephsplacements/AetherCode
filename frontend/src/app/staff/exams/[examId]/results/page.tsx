@@ -3,16 +3,18 @@ import { Pager } from "@/components/staff/pager";
 import { paginate } from "@/lib/paginate";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { FigureCard } from "@/app/admin/_dashboard/charts";
+import { panel } from "@/app/admin/_dashboard/panel";
 import { EmptyState, LoadError, PageHeader, Table } from "@/components/staff/page-header";
 import { Button } from "@/components/ui/button";
-import { Badge, Panel } from "@/components/ui/card";
+import { Badge } from "@/components/ui/card";
 import type { ExamResult, ExamVersionContent } from "@/lib/api-types";
 import { LiveRefresh } from "@/lib/client/realtime";
 import { latestVersion } from "@/lib/server/exams";
 import { gateway } from "@/lib/server/gateway";
 import { requireCollege } from "@/lib/server/staff";
 import { listAllStudents } from "@/lib/server/students";
-import { formatDateTime, formatScoreText } from "@/lib/utils";
+import { cn, formatDateTime, formatScoreText } from "@/lib/utils";
 import { ExportButton } from "./export-button";
 
 export const metadata: Metadata = { title: "Results" };
@@ -32,10 +34,10 @@ export default async function ResultsPage({ params, searchParams }: { params: Pr
     data = { version, results, content, students };
   } catch (error) {
     return (
-      <>
+      <div className="animate-enter">
         <PageHeader title="Results" />
         <LoadError error={error} />
-      </>
+      </div>
     );
   }
   const { version, results, content, students } = data;
@@ -48,15 +50,8 @@ export default async function ResultsPage({ params, searchParams }: { params: Pr
   const scores = rows.map((row) => Number(row.score));
   const maximum = rows[0] ? Number(rows[0].maximum_score) : 0;
   const average = scores.length ? scores.reduce((sum, score) => sum + score, 0) / scores.length : 0;
-  const stats = [
-    { label: "Assigned", value: String(assigned) },
-    { label: "Graded", value: String(rows.length) },
-    { label: "Average", value: scores.length ? `${formatScoreText(average)} / ${formatScoreText(maximum)}` : "-" },
-    { label: "Highest", value: scores.length ? `${formatScoreText(Math.max(...scores))} / ${formatScoreText(maximum)}` : "-" },
-  ];
-
   return (
-    <>
+    <div className="animate-enter">
       <LiveRefresh topics={["grading"]} />
       <Link href={`/staff/exams/${examId}`} className="mb-6 inline-flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink">
         <ArrowLeft className="size-4" />
@@ -85,17 +80,26 @@ export default async function ResultsPage({ params, searchParams }: { params: Pr
           )
         }
       />
-      <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4">
-        {stats.map((stat) => (
-          <Panel key={stat.label} className="px-4 py-3.5">
-            <p className="text-xs text-ink-muted">{stat.label}</p>
-            <p className="mt-1 font-mono text-lg font-semibold tabular-nums text-ink">{stat.value}</p>
-          </Panel>
-        ))}
+      <div className="mb-8 grid auto-rows-[minmax(120px,auto)] gap-3 md:grid-cols-6 xl:grid-cols-12">
+        <FigureCard label="Assigned" value={String(assigned)} note="students with this exam" className="md:col-span-3 xl:col-span-3" />
+        <FigureCard label="Graded" value={String(rows.length)} note="submitted attempts" className="md:col-span-3 xl:col-span-3" />
+        <FigureCard
+          label="Average"
+          value={scores.length ? `${formatScoreText(average)} / ${formatScoreText(maximum)}` : "—"}
+          note="across graded attempts"
+          className="md:col-span-3 xl:col-span-3"
+        />
+        <FigureCard
+          label="Highest"
+          value={scores.length ? `${formatScoreText(Math.max(...scores))} / ${formatScoreText(maximum)}` : "—"}
+          note="top score"
+          className="md:col-span-3 xl:col-span-3"
+        />
       </div>
       {rows.length === 0 ? (
         <EmptyState>No graded attempts yet.</EmptyState>
       ) : (
+        <section aria-label="Exam results" className={cn(panel, "gap-3 p-0")}>
         <Table head={["Roll number", "Score", "Status", "Submitted"]}>
           {paged.rows.map((row) => (
             <tr key={row.attempt_id}>
@@ -110,8 +114,9 @@ export default async function ResultsPage({ params, searchParams }: { params: Pr
             </tr>
           ))}
         </Table>
+        </section>
       )}
       <Pager meta={paged} noun="attempts" />
-    </>
+    </div>
   );
 }

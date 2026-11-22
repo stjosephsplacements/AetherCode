@@ -272,5 +272,5 @@ func (handler *Handler) describeAccounts(writer http.ResponseWriter, request *ht
 		return
 	}
 	writer.Header().Set("Cache-Control", "no-store")
-	httpx.WriteJSON(writer, http.StatusOK, summaries)
+	httpx.WriteJSON(writer, http.StatusOK, map[string]any{"accounts": summaries})
 }

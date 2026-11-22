@@ -27,7 +27,7 @@ export function RemoveFromExam({ label, remove }: { label: string; remove: () =>
             router.refresh();
           })
         }
-        className="grid size-7 place-items-center rounded-[var(--radius-control)] text-ink-subtle transition-colors hover:bg-danger-soft hover:text-danger disabled:opacity-50"
+        className="grid size-7 place-items-center rounded-control text-ink-subtle transition-colors hover:bg-danger-soft hover:text-danger disabled:opacity-50"
       >
         {pending ? <CircleNotch className="size-3.5 animate-spin" /> : <X className="size-4" />}
       </button>

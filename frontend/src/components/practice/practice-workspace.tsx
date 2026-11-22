@@ -202,15 +202,15 @@ export function PracticeWorkspace({ tenantId, question }: { tenantId: string; qu
   const side = layout.console === "right";
 
   const problemPane = (
-    <section aria-label="Problem" className="flex min-h-[260px] min-w-0 flex-col overflow-hidden rounded-3xl border border-line bg-surface shadow-[var(--shadow-panel)] lg:min-h-0" style={{ flexBasis: `${layout.problemPct}%` }}>
+    <section aria-label="Problem" className="flex min-h-[260px] min-w-0 flex-col overflow-hidden rounded-panel border border-line bg-surface shadow-[var(--shadow-panel)] lg:min-h-0" style={{ flexBasis: `${layout.problemPct}%` }}>
           <article className="min-h-0 flex-1 overflow-y-auto px-5 pb-8 pt-4">
             <h2 className="display text-[1.75rem] text-ink">{question.title}</h2>
             <p className="mt-3 flex flex-wrap gap-2 text-[13px] text-ink-muted">
               <Badge tone={DIFFICULTY_TONE[question.difficulty]}>{question.difficulty}</Badge>
-              <span className="rounded-full bg-hover px-2.5 py-0.5">Time limit {question.time_limit_ms / 1000} s</span>
-              <span className="rounded-full bg-hover px-2.5 py-0.5">Memory {Math.round(question.memory_limit_kib / 1024)} MB</span>
+              <span className="rounded-pill bg-hover px-2.5 py-0.5">Time limit {question.time_limit_ms / 1000} s</span>
+              <span className="rounded-pill bg-hover px-2.5 py-0.5">Memory {Math.round(question.memory_limit_kib / 1024)} MB</span>
               {question.tags.map((tag) => (
-                <span key={tag} className="rounded-full bg-hover px-2.5 py-0.5">
+                <span key={tag} className="rounded-pill bg-hover px-2.5 py-0.5">
                   {tag}
                 </span>
               ))}
@@ -257,7 +257,7 @@ export function PracticeWorkspace({ tenantId, question }: { tenantId: string; qu
                   onChange={(event) => setInput(event.target.value)}
                   spellCheck={false}
                   placeholder="Type the input your program reads"
-                  className="min-h-0 flex-1 resize-none rounded-[var(--radius-control)] border border-line bg-surface p-3 font-mono text-xs leading-relaxed text-ink outline-none placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15"
+                  className="min-h-0 flex-1 resize-none rounded-control border border-line bg-surface p-3 font-mono text-xs leading-relaxed text-ink outline-none placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15"
                 />
               </label>
               <div className="min-h-[120px] flex-1">
@@ -277,7 +277,7 @@ export function PracticeWorkspace({ tenantId, question }: { tenantId: string; qu
   );
 
   const editorPane = (
-    <section aria-label="Your code" className="flex min-h-[520px] min-w-0 flex-1 flex-col overflow-hidden rounded-3xl border border-line bg-surface shadow-[var(--shadow-panel)] lg:min-h-0">
+    <section aria-label="Your code" className="flex min-h-[520px] min-w-0 flex-1 flex-col overflow-hidden rounded-panel border border-line bg-surface shadow-[var(--shadow-panel)] lg:min-h-0">
       <div className="flex h-12 shrink-0 items-center gap-1 border-b px-2.5">
         <Select aria-label="Language" size="sm" className="w-40" value={language} onValueChange={setLanguage}>
           {languages.map((key) => (
@@ -313,7 +313,7 @@ export function PracticeWorkspace({ tenantId, question }: { tenantId: string; qu
                   setUseCustomInput(on);
                   setConsoleTab(on ? "input" : "results");
                 }}
-                className="grid size-4 place-items-center rounded-[4px] border border-line-strong bg-surface outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand data-[state=checked]:border-brand data-[state=checked]:bg-brand"
+                className="grid size-4 place-items-center rounded-chip border border-line-strong bg-surface outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand data-[state=checked]:border-brand data-[state=checked]:bg-brand"
               >
                 <Checkbox.Indicator>
                   <Check className="size-3 text-brand-ink" />
@@ -364,7 +364,7 @@ function Sample({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
       <p className="mb-1.5 text-xs text-ink-muted">{label}</p>
-      <pre className="overflow-auto whitespace-pre-wrap rounded-[var(--radius-control)] border border-line bg-surface px-3 py-2 font-mono text-xs leading-relaxed text-ink">
+      <pre className="overflow-auto whitespace-pre-wrap rounded-control border border-line bg-surface px-3 py-2 font-mono text-xs leading-relaxed text-ink">
         {value || <span className="text-ink-subtle">(empty)</span>}
       </pre>
     </div>
@@ -376,7 +376,7 @@ function TabTrigger({ value, active, children }: { value: ConsoleTab; active: bo
     <Tabs.Trigger
       value={value}
       className={cn(
-        "flex h-8 items-center rounded-[var(--radius-control)] px-3 text-[13px] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand",
+        "flex h-8 items-center rounded-control px-3 text-[13px] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand",
         active ? "bg-surface font-medium text-ink shadow-[var(--shadow-hairline)] ring-1 ring-line" : "text-ink-muted hover:bg-hover hover:text-ink",
       )}
     >
@@ -401,7 +401,7 @@ function SubmitResult({ state }: { state: SubmitState }) {
   const accepted = run.verdict === "accepted";
   const compile = run.units.find((unit) => unit.compile_output)?.compile_output;
   return (
-    <div className="mb-3 rounded-[var(--radius-control)] border border-line bg-surface px-3.5 py-3">
+    <div className="mb-3 rounded-control border border-line bg-surface px-3.5 py-3">
       <p className={cn("text-[15px] font-medium", accepted ? "text-success" : "text-danger")}>
         {run.lifecycle_state === "failed" ? "The judge could not evaluate this. Submit again." : (VERDICTS[run.verdict ?? ""] ?? run.verdict)}
         {run.total_units > 0 && (
@@ -419,7 +419,7 @@ function SubmitResult({ state }: { state: SubmitState }) {
               key={unit.unit_number}
               title={VERDICTS[unit.verdict] ?? unit.verdict}
               className={cn(
-                "flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs",
+                "flex items-center gap-1 rounded-pill px-2.5 py-0.5 text-xs",
                 unit.verdict === "accepted" ? "bg-success-soft text-success" : "bg-danger-soft text-danger",
               )}
             >
@@ -444,7 +444,7 @@ function History({ runs, onOpen }: { runs: PracticeRun[] | undefined; onOpen: (i
     );
   }
   return (
-    <ul className="divide-y divide-line rounded-[var(--radius-control)] border border-line bg-surface">
+    <ul className="divide-y divide-line rounded-control border border-line bg-surface">
       {runs.map((entry) => (
         <li key={entry.id} className="flex items-center gap-3 px-3.5 py-2.5 text-[13px]">
           {entry.lifecycle_state === "queued" ? (

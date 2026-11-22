@@ -43,7 +43,7 @@ export function ChoicesFields({ value, onChange }: { value: Choices; onChange: (
           <li key={index} className="space-y-1.5">
             <div className="flex items-center gap-3">
               {/* One correct option reads as a radio: round. */}
-              <Checkbox checked={correct.includes(index)} onCheckedChange={() => toggle(index)} aria-label={`Option ${index + 1} is correct`} className={multiple ? undefined : "rounded-full"} />
+              <Checkbox checked={correct.includes(index)} onCheckedChange={() => toggle(index)} aria-label={`Option ${index + 1} is correct`} className={multiple ? undefined : "rounded-pill"} />
               <TextInput
                 value={option}
                 onChange={(event) => onChange({ ...value, options: options.map((entry, position) => (position === index ? event.target.value : entry)) })}
@@ -57,7 +57,7 @@ export function ChoicesFields({ value, onChange }: { value: Choices; onChange: (
                   type="button"
                   onClick={() => remove(index)}
                   aria-label={`Remove option ${index + 1}`}
-                  className="grid size-8 place-items-center rounded-[var(--radius-control)] text-ink-muted transition-colors hover:bg-hover hover:text-ink"
+                  className="grid size-8 place-items-center rounded-control text-ink-muted transition-colors hover:bg-hover hover:text-ink"
                 >
                   <X className="size-4" />
                 </button>

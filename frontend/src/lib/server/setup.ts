@@ -16,6 +16,9 @@ const count = async (path: string) => {
   }
 };
 
+/** Dev/preview unlock so every staff page is reachable while designing. Production keeps progressive locks. */
+export const setupUnlocked = () => process.env.NODE_ENV !== "production";
+
 /** The order things must be created in: each step needs the one before it. Cached per request. */
 export const setupSteps = cache(async (staff: StaffContext): Promise<SetupStep[]> => {
   const id = staff.tenantId;
@@ -33,12 +36,13 @@ export const setupSteps = cache(async (staff: StaffContext): Promise<SetupStep[]
   const steps: SetupStep[] = [
     { key: "college", title: "Create a college", text: "Every department, student and exam belongs to a college.", href: "/admin/colleges", done: college },
     { key: "department", title: "Add a department", text: "Departments group the batches and staff of a college.", href: "/staff/departments", done: departments },
-    { key: "batch", title: "Add a batch", text: "A batch is a year of a department. Students are enrolled into one.", href: "/staff/departments", done: batches },
-    { key: "placement", title: "Add a placement department", text: "Every student is enrolled under one. Add the hiring organisation, then its department.", href: "/placement/departments", done: placement },
+    { key: "batch", title: "Add a batch", text: "A batch is a year of a department. Students are enrolled into one.", href: "/staff/departments/batches", done: batches },
+    { key: "placement", title: "Add a placement department", text: "Every student is enrolled under one. Add the hiring organisation, then its department.", href: "/admin/placement/departments", done: placement },
     { key: "students", title: "Enrol students", text: "Add them one by one or import a spreadsheet.", href: "/staff/students", done: students },
     { key: "questions", title: "Write questions", text: "Build the question bank that exams draw from.", href: "/staff/questions", done: questions },
     { key: "exam", title: "Schedule an exam", text: "Pick questions, a batch and a time window.", href: "/staff/exams", done: exams },
   ];
+  if (setupUnlocked()) return steps;
   // A step is blocked while any earlier step it depends on is not done. Questions only need a college.
   const needs: Record<SetupKey, SetupKey[]> = { college: [], department: ["college"], batch: ["department"], placement: ["college"], students: ["batch", "placement"], questions: ["college"], exam: ["questions", "batch"] };
   const done = new Set(steps.filter((s) => s.done).map((s) => s.key));
@@ -52,6 +56,7 @@ export const setupSteps = cache(async (staff: StaffContext): Promise<SetupStep[]
 
 /** Which sidebar pages to lock, and why. */
 export function lockedPages(steps: SetupStep[]): Record<string, string> {
+  if (setupUnlocked()) return {};
   const by = new Map(steps.map((s) => [s.key, s]));
   const locks: Record<string, string> = {};
   const lock = (href: string, key: SetupKey) => {
@@ -59,9 +64,12 @@ export function lockedPages(steps: SetupStep[]): Record<string, string> {
     if (reason) locks[href] = reason;
   };
   lock("/staff/departments", "department");
+  lock("/staff/departments/batches", "batch");
   lock("/staff/accounts", "department");
   lock("/staff/students", "students");
   lock("/staff/questions", "questions");
   lock("/staff/exams", "exam");
+  lock("/staff/proctor-policies", "exam");
+  lock("/staff/calendar", "exam");
   return locks;
 }

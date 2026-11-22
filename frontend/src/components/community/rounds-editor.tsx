@@ -12,7 +12,7 @@ export function RoundsEditor() {
   return (
     <div className="space-y-4">
       {keys.map((key, position) => (
-        <div key={key} className="rounded-[var(--radius-control)] border border-line p-3">
+        <div key={key} className="rounded-control border border-line p-3">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-[13px] font-medium text-ink">Round {position + 1}</span>
             {keys.length > 1 && (

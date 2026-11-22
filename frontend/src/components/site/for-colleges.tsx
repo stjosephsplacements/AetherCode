@@ -17,14 +17,14 @@ export function ForColleges() {
         </p>
         <ul className="mt-12 grid gap-5 sm:grid-cols-3">
           {POINTS.map((point) => (
-            <li key={point.title} data-reveal className="rounded-2xl border border-line bg-surface p-6 shadow-[var(--shadow-panel)]">
+            <li key={point.title} data-reveal className="rounded-panel border border-line bg-surface p-6 shadow-[var(--shadow-panel)]">
               <h3 className="text-[17px] font-semibold text-ink">{point.title}</h3>
               <p className="mt-2 text-[15px] leading-relaxed text-ink-muted">{point.body}</p>
             </li>
           ))}
         </ul>
         <div data-reveal className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-3">
-          <Link href="/about" className="rounded-full bg-brand px-5 py-2.5 text-[14px] text-brand-ink shadow-[var(--shadow-panel)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5">
+          <Link href="/about" className="rounded-pill bg-brand px-5 py-2.5 text-[14px] text-brand-ink shadow-[var(--shadow-panel)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5">
             Talk to us about a licence
           </Link>
           <Link href="/architecture" className="text-[14px] text-ink-muted transition-colors hover:text-brand">

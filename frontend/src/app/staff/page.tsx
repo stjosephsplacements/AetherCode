@@ -1,23 +1,24 @@
 import { ROLE_NAMES } from "@/lib/rbac";
-import { Plus, UploadSimple } from "@phosphor-icons/react/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { JudgeMetrics } from "@/components/staff/judge-metrics";
+import { EmptyState, PageHeader } from "@/components/staff/page-header";
 import { Button } from "@/components/ui/button";
-import type { AuditEntry, ExamMonitor, ExamResult, GradingQueue, Page, QuestionDetail, QueueStats } from "@/lib/api-types";
+import type { ExamMonitor, ExamResult, GradingQueue, Page, QuestionDetail, QueueStats } from "@/lib/api-types";
+import { asAuditEntries } from "@/lib/audit-entries";
+import { LiveRefresh } from "@/lib/client/realtime";
 import { brandFor } from "@/lib/server/branding";
+import { inColleges } from "@/lib/server/colleges";
 import { listExams, mapLimit } from "@/lib/server/exams";
 import { gateway } from "@/lib/server/gateway";
 import { describeAccounts } from "@/lib/server/people";
-import { inColleges } from "@/lib/server/colleges";
 import { collegesFor, requireStaff } from "@/lib/server/staff";
 import { serviceHealth } from "@/lib/server/status";
-import { LiveRefresh } from "@/lib/client/realtime";
-import { ServicesTile } from "./_dashboard/services-tile";
 import { PASS_SHARE } from "@/lib/results";
 import { TIME_ZONE, formatDateTime } from "@/lib/utils";
-import { Clock } from "./_dashboard/live";
 import { ActivityTile, DAY, DAYS, FigureTile, type Floor, LiveTile, type Outcome, ResultsTile, type Scheduled, TimelineTile, UpcomingTile, WeekDetail } from "./_dashboard/blocks";
+import { Clock } from "./_dashboard/live";
+import { ServicesTile } from "./_dashboard/services-tile";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -73,8 +74,9 @@ export default async function Dashboard() {
   const { hour, midnight: start } = clock(now);
   const end = start + DAYS * DAY;
   const firstName = staff.viewer.displayName.split(" ")[0] || staff.viewer.username;
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const roles = [...new Set(staff.viewer.roles)].map((role) => ROLE_NAMES[role] ?? role).join(", ");
 
-  // A root administrator sees every college together; anyone else sees their own.
   const colleges = collegesFor(staff);
   const [exams, questions, queue, health, auditEntries, brand] = await Promise.all([
     tenantId ? settle(listExams(tenantId)) : Promise.resolve(null),
@@ -84,7 +86,7 @@ export default async function Dashboard() {
     admin
       ? settle(
           inColleges(colleges, async (collegeId) => {
-            const found = await gateway<AuditEntry[]>(`/user/v1/tenants/${collegeId}/staff-audit`);
+            const found = asAuditEntries(await gateway<unknown>(`/user/v1/tenants/${collegeId}/staff-audit`));
             const people = found.length ? await describeAccounts(collegeId, found.map((entry) => entry.principal_id)).catch(() => new Map()) : new Map();
             return { found, people };
           }),
@@ -103,9 +105,8 @@ export default async function Dashboard() {
   const upcoming = published.filter((entry) => opens(entry) > now.getTime()).sort((a, b) => opens(a) - opens(b));
   const recent = published.filter((entry) => closes(entry) <= now.getTime()).sort((a, b) => closes(b) - closes(a)).slice(0, RECENT);
   const drafts = (exams ?? []).filter(({ version }) => version?.status === "draft").length;
-  const activity = (audit ?? []).slice(0, 20);
+  const activity = audit.slice(0, 20);
 
-  // Second wave: each live exam's monitor, each recent exam's results, and the names behind the activity.
   const [floors, outcomes, names] = tenantId
     ? await Promise.all([
         mapLimit(live, 4, async (entry): Promise<Floor | null> => {
@@ -121,10 +122,18 @@ export default async function Dashboard() {
           };
         }),
         mapLimit(recent, 6, async (entry): Promise<Outcome | null> => {
-          const rows = (await settle(gateway<ExamResult[]>(`/analytics/v1/tenants/${entry.college?.id ?? tenantId}/exam-results?exam_version_id=${entry.version.id}&limit=5000`))) ?? [];
+          const rows =
+            (await settle(
+              gateway<ExamResult[]>(`/analytics/v1/tenants/${entry.college?.id ?? tenantId}/exam-results?exam_version_id=${entry.version.id}&limit=5000`),
+            )) ?? [];
           const shares = rows.filter((row) => Number(row.maximum_score) > 0).map((row) => Number(row.score) / Number(row.maximum_score));
           if (shares.length === 0) return null;
-          return { exam: entry, attempts: shares.length, average: shares.reduce((sum, share) => sum + share, 0) / shares.length, pass: shares.filter((share) => share >= PASS_SHARE).length / shares.length };
+          return {
+            exam: entry,
+            attempts: shares.length,
+            average: shares.reduce((sum, share) => sum + share, 0) / shares.length,
+            pass: shares.filter((share) => share >= PASS_SHARE).length / shares.length,
+          };
         }),
         Promise.resolve(knownNames),
       ])
@@ -136,60 +145,68 @@ export default async function Dashboard() {
   const average = attempts ? graded.reduce((sum, entry) => sum + entry.average * entry.attempts, 0) / attempts : null;
   const passed = attempts ? graded.reduce((sum, entry) => sum + entry.pass * entry.attempts, 0) / attempts : null;
   const waiting = queue ? queue.evaluations.queued + queue.evaluations.dispatched + queue.runs.queued + queue.runs.dispatched : null;
+  const writingNow = floor.reduce((sum, entry) => sum + entry.writing, 0);
 
   return (
     <div className="animate-enter">
       <LiveRefresh topics={["attempts", "grading", "activity"]} />
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div className="min-w-0">
-          <p className="font-mono text-[12px] text-ink-subtle">
-            <Clock initial={now.toISOString()} />
-            {brand.name && <span className="text-ink-muted"> / {brand.name}</span>}
-          </p>
-          <h1 className="mt-2 text-[28px] font-semibold leading-tight tracking-[-0.03em] text-ink">Dashboard</h1>
-          <p className="mt-1 text-sm text-ink-muted">
-            {hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening"}, {firstName}. {[...new Set(staff.viewer.roles)].map((role) => ROLE_NAMES[role] ?? role).join(", ")}.
-          </p>
-        </div>
-        {tenantId && (
-          <div className="flex shrink-0 gap-2">
-            {admin && (
+      <PageHeader
+        title="Dashboard"
+        description={`${greeting}, ${firstName}. ${roles}${brand.name ? ` · ${brand.name}` : ""}`}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="mr-1 font-mono text-[12px] tabular-nums text-ink-subtle">
+              <Clock initial={now.toISOString()} />
+            </p>
+            {tenantId && admin && (
               <Button asChild variant="secondary">
-                <Link href="/staff/students">
-                  <UploadSimple />
-                  Import students
-                </Link>
+                <Link href="/staff/students">Import students</Link>
               </Button>
             )}
-            <Button asChild>
-              <Link href={staff.isPlatformAdmin ? "/staff/exams" : "/staff/exams/new"}>
-                <Plus />
-                New exam
-              </Link>
-            </Button>
+            {tenantId && (
+              <Button asChild>
+                <Link href={staff.isPlatformAdmin ? "/staff/exams" : "/staff/exams/new"}>New exam</Link>
+              </Button>
+            )}
           </div>
-        )}
-      </header>
+        }
+      />
 
       {!tenantId ? (
-        <p className="mt-8 rounded-[var(--radius-surface)] border border-dashed border-line-strong px-5 py-4 text-sm text-ink-muted">
-          No college exists yet. Provision one through the platform API, then choose it in the sidebar.
-        </p>
+        <EmptyState>
+          <p className="mb-2 text-[15px] font-medium text-ink">No college context</p>
+          {staff.isPlatformAdmin ? (
+            <>
+              Open a college from{" "}
+              <Link href="/admin/explore" className="text-brand hover:underline">
+                Explore
+              </Link>{" "}
+              to see its dashboard.
+            </>
+          ) : (
+            "Your account is not tied to a college yet."
+          )}
+        </EmptyState>
       ) : (
-        <div className="mt-7 grid auto-rows-[minmax(152px,auto)] gap-3 md:grid-cols-6 xl:grid-cols-12">
-          <LiveTile floors={floor} next={upcoming[0]} now={now.getTime()} className="md:col-span-6 xl:col-span-4 xl:row-span-2" />
+        <div className="grid auto-rows-[minmax(120px,auto)] gap-3 md:grid-cols-6 xl:grid-cols-12">
           <FigureTile
             label="This week"
             value={String(week.length)}
             note={upcoming[0] ? `next ${formatDateTime(upcoming[0].version.opens_at)}` : "Nothing scheduled"}
             expand={{ title: "This week", description: `Published exams over the next ${DAYS} days.`, content: <WeekDetail exams={week} now={now.getTime()} /> }}
-            className="md:col-span-3 xl:col-span-2"
+            className="md:col-span-3 xl:col-span-3"
+          />
+          <FigureTile
+            label="Writing now"
+            value={String(writingNow)}
+            note={floor.length ? `in ${floor.length} live exam${floor.length === 1 ? "" : "s"}` : "no exam open"}
+            className="md:col-span-3 xl:col-span-3"
           />
           <FigureTile
             label="Average score"
-            value={average === null ? "-" : `${Math.round(average * 100)}%`}
-            note={passed === null ? "No graded exams yet" : `${Math.round(passed * 100)}% pass, last ${graded.length} exams`}
-            className="md:col-span-3 xl:col-span-2"
+            value={average === null ? "—" : `${Math.round(average * 100)}%`}
+            note={passed === null ? "No graded exams yet" : `${Math.round(passed * 100)}% pass, last ${graded.length}`}
+            className="md:col-span-3 xl:col-span-3"
           />
           {admin && queue ? (
             <FigureTile
@@ -198,20 +215,30 @@ export default async function Dashboard() {
               note={waiting ? "submissions waiting" : `${queue.evaluations.completed_last_hour} graded in the last hour`}
               tone={waiting ? "warn" : "good"}
               expand={{ title: "Judge queue", description: "Code waiting for the judge in this college, and how fast verdicts came back in the last hour.", content: <JudgeMetrics queue={queue} /> }}
-              className="md:col-span-3 xl:col-span-2"
+              className="md:col-span-3 xl:col-span-3"
             />
           ) : (
-            <FigureTile label="Drafts" value={String(drafts)} note="exams not yet published" className="md:col-span-3 xl:col-span-2" />
+            <FigureTile label="Drafts" value={String(drafts)} note="exams not yet published" className="md:col-span-3 xl:col-span-3" />
           )}
+
           {admin ? (
-            <ServicesTile initial={health} queue={queue} className="md:col-span-3 xl:col-span-2" />
+            <ServicesTile initial={health} queue={queue} className="md:col-span-3 xl:col-span-3" />
           ) : (
-            <FigureTile label="Questions" value={questions ? `${questions.items.length}${questions.next_cursor ? "+" : ""}` : "-"} note="in the shared bank" className="md:col-span-3 xl:col-span-2" />
+            <FigureTile
+              label="Questions"
+              value={questions ? `${questions.items.length}${questions.next_cursor ? "+" : ""}` : "—"}
+              note="in the shared bank"
+              className="md:col-span-3 xl:col-span-3"
+            />
           )}
-          <TimelineTile start={start} now={now.getTime()} exams={week} className="md:col-span-6 xl:col-span-8" />
-          <ResultsTile outcomes={graded} now={now.getTime()} className={admin ? "md:col-span-6 xl:col-span-5" : "md:col-span-6 xl:col-span-7"} />
-          <UpcomingTile exams={upcoming.slice(0, 20)} now={now.getTime()} className={admin ? "md:col-span-3 xl:col-span-3" : "md:col-span-6 xl:col-span-5"} />
-          {admin && <ActivityTile entries={activity} names={names} now={now.getTime()} className="md:col-span-3 xl:col-span-4" />}
+
+          <LiveTile floors={floor} next={upcoming[0]} now={now.getTime()} className="md:col-span-6 xl:col-span-9 min-h-[280px]" />
+          <UpcomingTile exams={upcoming.slice(0, 20)} now={now.getTime()} className="md:col-span-6 xl:col-span-5" />
+          <ResultsTile outcomes={graded} now={now.getTime()} className="md:col-span-6 xl:col-span-7" />
+
+          <TimelineTile start={start} now={now.getTime()} exams={week} className="md:col-span-6 xl:col-span-12" />
+
+          {admin && <ActivityTile entries={activity} names={names} now={now.getTime()} className="md:col-span-6 xl:col-span-12" />}
         </div>
       )}
     </div>

@@ -33,10 +33,10 @@ export function HelpCenter() {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="> search, for example “Safe Exam Browser” or “timer”"
-            className="h-12 w-full rounded-full border border-line-strong bg-surface pl-11 pr-4 font-mono text-[14px] text-ink shadow-[var(--shadow-panel)] outline-none transition-shadow placeholder:text-ink-subtle focus:shadow-[3px_3px_0_var(--brand)]"
+            className="h-12 w-full rounded-pill border border-line-strong bg-surface pl-11 pr-4 font-mono text-[14px] text-ink shadow-[var(--shadow-panel)] outline-none transition-shadow placeholder:text-ink-subtle focus:shadow-[3px_3px_0_var(--brand)]"
           />
         </label>
-        <div role="group" aria-label="Who is asking" className="flex overflow-hidden rounded-full border border-line-strong text-[13.5px]">
+        <div role="group" aria-label="Who is asking" className="flex overflow-hidden rounded-pill border border-line-strong text-[13.5px]">
           {(["students", "staff"] as const).map((value) => (
             <button
               key={value}
@@ -58,7 +58,7 @@ export function HelpCenter() {
       </p>
 
       {sections.length === 0 ? (
-        <div className="mt-8 rounded-[var(--radius-surface)] border border-dashed border-line-strong px-6 py-12 text-center font-mono">
+        <div className="mt-8 rounded-surface border border-dashed border-line-strong px-6 py-12 text-center font-mono">
           <p className="text-[15px] text-ink">(o_o)? no answers match that.</p>
           <p className="mt-1 text-sm text-ink-muted">Try a shorter word, or ask your invigilator or exam administrator.</p>
         </div>
@@ -66,7 +66,7 @@ export function HelpCenter() {
         sections.map((section) => (
           <section key={section.title} className="mt-8">
             <h2 className="mb-3 font-mono text-[12.5px] text-ink-subtle">{section.title}</h2>
-            <div className="overflow-hidden rounded-[var(--radius-surface)] overflow-hidden border border-line-strong bg-surface shadow-[var(--shadow-panel)]">
+            <div className="overflow-hidden rounded-surface overflow-hidden border border-line-strong bg-surface shadow-[var(--shadow-panel)]">
               {section.entries.map((entry, index) => (
                 <details key={entry.question} name={section.title} open={Boolean(deferred)} className={cn("group", index > 0 && "border-t border-line")}>
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-[15px] font-medium text-ink transition-colors hover:text-brand [&::-webkit-details-marker]:hidden">

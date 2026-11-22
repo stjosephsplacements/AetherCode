@@ -56,7 +56,7 @@ export function QuestionRail({
                   aria-current={current ? "step" : undefined}
                   aria-label={`Question ${index + 1}: ${statusLabel(status)}`}
                   className={cn(
-                    "relative grid size-10 shrink-0 place-items-center rounded-[var(--radius-control)] text-sm font-semibold tabular-nums transition-colors",
+                    "relative grid size-10 shrink-0 place-items-center rounded-control text-sm font-semibold tabular-nums transition-colors",
                     current ? "bg-ink text-canvas" : "text-ink-muted hover:bg-hover hover:text-ink",
                     !current && (status.kind === "submitted" || (status.kind === "judging" && status.best !== null)) && "bg-success-soft text-success",
                     !current && status.kind === "saved" && "bg-hover text-ink",
@@ -70,7 +70,7 @@ export function QuestionRail({
                 <Tooltip.Content
                   side="right"
                   sideOffset={8}
-                  className="z-50 max-w-[240px] animate-fade rounded-md bg-ink px-2.5 py-1.5 text-xs text-canvas shadow-[var(--shadow-overlay)]"
+                  className="z-50 max-w-[240px] animate-fade rounded-control bg-ink px-2.5 py-1.5 text-xs text-canvas shadow-[var(--shadow-overlay)]"
                 >
                   <span className="font-medium">{item.title}</span>
                   <br />
@@ -91,7 +91,7 @@ function StatusMark({ status, current }: { status: QuestionStatus; current: bool
     <span
       aria-hidden
       className={cn(
-        "absolute right-1 top-1 size-1.5 rounded-full",
+        "absolute right-1 top-1 size-1.5 rounded-pill",
         status.kind === "submitted" && "bg-success",
         status.kind === "saved" && (current ? "bg-canvas/70" : "bg-ink-subtle"),
         status.kind === "judging" && "animate-pulse bg-warning",

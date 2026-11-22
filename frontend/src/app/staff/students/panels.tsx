@@ -6,7 +6,7 @@ import { useActionState, useMemo, useState, useTransition } from "react";
 import { CredentialsTable } from "@/components/staff/credentials";
 import { Field, FormMessage, Select, SubmitButton, TextArea, TextInput, initialActionState } from "@/components/staff/form";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogClose, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/card";
 import type { Batch, Department } from "@/lib/api-types";
 import { cn } from "@/lib/utils";
@@ -21,6 +21,22 @@ import {
 import { IMPORT_TEMPLATE, MAX_IMPORT_ROWS, importText, parseImport } from "./format";
 
 type PlacementOption = { id: string; label: string };
+
+function ModalSection({ label, note, children }: { label: string; note?: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-control border border-line bg-hover/25 p-4">
+      <div className="mb-3">
+        <h3 className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-ink-subtle">{label}</h3>
+        {note && <p className="mt-1 text-[12.5px] text-ink-muted">{note}</p>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function ModalFooter({ children }: { children: React.ReactNode }) {
+  return <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-line bg-sidebar/60 px-6 py-3">{children}</footer>;
+}
 
 export function ImportPanel({ batches, placements, departments }: { batches: Batch[]; placements: PlacementOption[]; departments: Department[] }) {
   const [state, action] = useActionState<ImportState, FormData>(importStudents, initialActionState);
@@ -52,134 +68,167 @@ export function ImportPanel({ batches, placements, departments }: { batches: Bat
 
   if (state.result && state.result.imported.length > 0) {
     return (
-      <div className="space-y-4">
-        <FormMessage state={state} />
-        <CredentialsTable filename="student-passwords.csv" rows={state.result.imported.map((student) => ({ username: student.username, name: student.name, password: student.password }))} />
+      <div className="space-y-4 px-6 py-5">
+        <ModalSection label="Imported" note="Share these one-time passwords once. They are not shown again.">
+          <FormMessage state={state} />
+          <div className="mt-3">
+            <CredentialsTable filename="student-passwords.csv" rows={state.result.imported.map((student) => ({ username: student.username, name: student.name, password: student.password }))} />
+          </div>
+        </ModalSection>
       </div>
     );
   }
 
   return (
-    <form action={action} className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Batch" htmlFor="import-batch" hint="The college department comes from the batch.">
-          <Select id="import-batch" name="batch_id" required>
-            {batches.map((batch) => (
-              <option key={batch.id} value={`${batch.tenant_id}:${batch.id}`}>
-                {batch.name} ({departmentName.get(batch.department_id) ?? "?"}, {batch.academic_year})
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label="Placement department" htmlFor="import-placement">
-          <Select id="import-placement" name="placement_department_id">
-            <option value="">None</option>
-            {placements.map((placement) => (
-              <option key={placement.id} value={placement.id}>
-                {placement.label}
-              </option>
-            ))}
-          </Select>
-        </Field>
-      </div>
-      <input type="hidden" name="csv" value={importText(lines)} />
-
-      {reviewing ? (
-        <section aria-label="Preview" className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2 text-[13px]">
-            <Badge tone="success">{ready} ready</Badge>
-            {problems > 0 && <Badge tone="danger">{problems} to fix</Badge>}
-            {tooMany && <Badge tone="danger">Over {MAX_IMPORT_ROWS}: split the file</Badge>}
-            <button type="button" onClick={() => setReviewing(false)} className="ml-auto inline-flex items-center gap-1 text-brand hover:underline">
-              <ArrowLeft className="size-3.5" />
-              Edit
-            </button>
-          </div>
-          <div className="max-h-72 overflow-auto rounded-[var(--radius-control)] border border-line">
-            <table className="w-full text-left text-[13px]">
-              <thead className="sticky top-0 bg-sidebar">
-                <tr className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">
-                  <th scope="col" className="px-3 py-2 font-normal">Line</th>
-                  <th scope="col" className="px-3 py-2 font-normal">Roll number</th>
-                  <th scope="col" className="px-3 py-2 font-normal">Name</th>
-                  <th scope="col" className="px-3 py-2 font-normal">Email</th>
-                </tr>
-              </thead>
-              <tbody className="[&_tr+tr]:border-t [&_tr+tr]:border-line">
-                {lines.map((entry) => (
-                  <tr key={entry.line} className={entry.problem ? "bg-danger-soft/60" : undefined}>
-                    <td className="px-3 py-1.5 font-mono text-ink-subtle">{entry.line}</td>
-                    <td className="px-3 py-1.5 font-mono">{entry.roll || "-"}</td>
-                    <td className="px-3 py-1.5">
-                      {entry.name || "-"}
-                      {entry.problem && (
-                        <span role="alert" className="mt-0.5 flex items-center gap-1 text-[12px] text-danger">
-                          <Warning className="size-3.5 shrink-0" />
-                          {entry.problem}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-3 py-1.5 text-ink-muted">{entry.email}</td>
-                  </tr>
+    <form action={action} className="flex min-h-0 flex-1 flex-col">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
+        <ModalSection label="Destination" note="The college department comes from the batch.">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Batch" htmlFor="import-batch">
+              <Select id="import-batch" name="batch_id" required>
+                {batches.map((batch) => (
+                  <option key={batch.id} value={`${batch.tenant_id}:${batch.id}`}>
+                    {batch.name} ({departmentName.get(batch.department_id) ?? "?"}, {batch.academic_year})
+                  </option>
                 ))}
-              </tbody>
-            </table>
+              </Select>
+            </Field>
+            <Field label="Placement department" htmlFor="import-placement">
+              <Select id="import-placement" name="placement_department_id">
+                <option value="">None</option>
+                {placements.map((placement) => (
+                  <option key={placement.id} value={placement.id}>
+                    {placement.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
           </div>
-          {problems > 0 && (
-            <button type="button" onClick={() => setText(importText(lines))} className="text-[13px] text-brand hover:underline">
-              Remove the {problems} line{problems === 1 ? "" : "s"} with problems
-            </button>
-          )}
-        </section>
-      ) : (
-        <div className="space-y-3">
-          <label
-            onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={(event) => { event.preventDefault(); setDragging(false); void load(event.dataTransfer.files[0]); }}
-            className={cn(
-              "flex cursor-pointer flex-col items-center gap-1.5 rounded-[var(--radius-surface)] border border-dashed px-6 py-8 text-center transition-colors focus-within:border-brand focus-within:ring-4 focus-within:ring-brand/15",
-              dragging ? "border-brand bg-brand-soft/40" : "border-line-strong hover:bg-hover",
-            )}
-          >
-            <UploadSimple aria-hidden className="size-5 text-ink-subtle" />
-            <span className="text-sm font-medium text-ink">{fileName || "Drop a CSV here, or choose one"}</span>
-            <span className="text-[12.5px] text-ink-muted">roll number, name, and optionally email. Up to {MAX_IMPORT_ROWS} students.</span>
-            <input type="file" accept=".csv,text/csv,text/plain" className="sr-only" onChange={(event) => void load(event.target.files?.[0])} />
-          </label>
-          {fileError && <p role="alert" className="text-[13px] text-danger">{fileError}</p>}
-          <div className="rounded-[var(--radius-control)] border border-line bg-sidebar px-4 py-3 text-[12.5px] text-ink-muted">
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">File format</span>
-              <button type="button" onClick={downloadTemplate} className="inline-flex items-center gap-1.5 font-medium text-brand hover:underline">
-                <DownloadSimple className="size-3.5" />
-                Download template
+        </ModalSection>
+        <input type="hidden" name="csv" value={importText(lines)} />
+
+        {reviewing ? (
+          <ModalSection label="Preview" note={`${ready} ready${problems > 0 ? `, ${problems} to fix` : ""}.`}>
+            <div className="mb-3 flex flex-wrap items-center gap-2 text-[13px]">
+              <Badge tone="success">{ready} ready</Badge>
+              {problems > 0 && <Badge tone="danger">{problems} to fix</Badge>}
+              {tooMany && <Badge tone="danger">Over {MAX_IMPORT_ROWS}: split the file</Badge>}
+              <button type="button" onClick={() => setReviewing(false)} className="ml-auto inline-flex items-center gap-1 text-brand hover:underline">
+                <ArrowLeft className="size-3.5" />
+                Edit
               </button>
             </div>
-            <pre className="overflow-x-auto rounded-md bg-surface px-3 py-2 font-mono text-[12px] text-ink">{IMPORT_TEMPLATE}</pre>
-            <ul className="mt-2 list-disc space-y-0.5 pl-4">
-              <li><span className="font-mono text-ink">roll_number</span>: required, no spaces, up to 40 characters, unique in the college. It becomes the username in lowercase.</li>
-              <li><span className="font-mono text-ink">name</span>: required, up to 120 characters, no commas.</li>
-              <li><span className="font-mono text-ink">email</span>: optional. Leave it empty or leave the column out.</li>
-              <li>The header row is optional. Up to {MAX_IMPORT_ROWS} students per import. Batch and placement department are chosen above, not in the file.</li>
-            </ul>
-          </div>
-          <Field label="Or paste the list" htmlFor="import-csv" hint="A header row is skipped.">
-            <TextArea
-              id="import-csv"
-              value={text}
-              onChange={(event) => { setText(event.target.value); setFileName(""); }}
-              spellCheck={false}
-              placeholder={"roll_number,name,email\n21CS001,Asha Raman,asha@example.edu\n21CS002,Vikram Iyer"}
-              className="min-h-32 font-mono text-xs"
-            />
-          </Field>
-        </div>
-      )}
+            <div className="max-h-72 overflow-auto rounded-control border border-line bg-surface">
+              <table className="w-full text-left text-[13px]">
+                <thead className="sticky top-0 bg-sidebar">
+                  <tr className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">
+                    <th scope="col" className="px-3 py-2 font-normal">Line</th>
+                    <th scope="col" className="px-3 py-2 font-normal">Roll number</th>
+                    <th scope="col" className="px-3 py-2 font-normal">Name</th>
+                    <th scope="col" className="px-3 py-2 font-normal">Email</th>
+                  </tr>
+                </thead>
+                <tbody className="[&_tr+tr]:border-t [&_tr+tr]:border-line">
+                  {lines.map((entry) => (
+                    <tr key={entry.line} className={entry.problem ? "bg-danger-soft/60" : undefined}>
+                      <td className="px-3 py-1.5 font-mono text-ink-subtle">{entry.line}</td>
+                      <td className="px-3 py-1.5 font-mono">{entry.roll || "-"}</td>
+                      <td className="px-3 py-1.5">
+                        {entry.name || "-"}
+                        {entry.problem && (
+                          <span role="alert" className="mt-0.5 flex items-center gap-1 text-[12px] text-danger">
+                            <Warning className="size-3.5 shrink-0" />
+                            {entry.problem}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-1.5 text-ink-muted">{entry.email}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {problems > 0 && (
+              <button type="button" onClick={() => setText(importText(lines))} className="mt-3 text-[13px] text-brand hover:underline">
+                Remove the {problems} line{problems === 1 ? "" : "s"} with problems
+              </button>
+            )}
+          </ModalSection>
+        ) : (
+          <ModalSection label="Spreadsheet" note={`Roll number, name, and optionally email. Up to ${MAX_IMPORT_ROWS} students.`}>
+            <label
+              onDragOver={(event) => {
+                event.preventDefault();
+                setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(event) => {
+                event.preventDefault();
+                setDragging(false);
+                void load(event.dataTransfer.files[0]);
+              }}
+              className={cn(
+                "flex cursor-pointer flex-col items-center gap-1.5 rounded-control border border-dashed px-6 py-8 text-center transition-colors focus-within:border-brand focus-within:ring-4 focus-within:ring-brand/15",
+                dragging ? "border-brand bg-brand-soft/40" : "border-line-strong bg-surface hover:bg-hover",
+              )}
+            >
+              <span className="grid size-10 place-items-center rounded-control bg-brand/15 text-brand">
+                <UploadSimple aria-hidden className="size-5" />
+              </span>
+              <span className="text-sm font-medium text-ink">{fileName || "Drop a CSV here, or choose one"}</span>
+              <span className="text-[12.5px] text-ink-muted">Accepted: .csv · max 2 MB</span>
+              <input type="file" accept=".csv,text/csv,text/plain" className="sr-only" onChange={(event) => void load(event.target.files?.[0])} />
+            </label>
+            {fileError && (
+              <p role="alert" className="mt-2 text-[13px] text-danger">
+                {fileError}
+              </p>
+            )}
+            <div className="mt-3 rounded-control border border-line bg-surface px-4 py-3 text-[12.5px] text-ink-muted">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">File format</span>
+                <button type="button" onClick={downloadTemplate} className="inline-flex items-center gap-1.5 font-medium text-brand hover:underline">
+                  <DownloadSimple className="size-3.5" />
+                  Download template
+                </button>
+              </div>
+              <pre className="overflow-x-auto rounded-control bg-hover/50 px-3 py-2 font-mono text-[12px] text-ink">{IMPORT_TEMPLATE}</pre>
+              <ul className="mt-2 list-disc space-y-0.5 pl-4">
+                <li>
+                  <span className="font-mono text-ink">roll_number</span>: required, no spaces, up to 40 characters, unique in the college. It becomes the username in lowercase.
+                </li>
+                <li>
+                  <span className="font-mono text-ink">name</span>: required, up to 120 characters, no commas.
+                </li>
+                <li>
+                  <span className="font-mono text-ink">email</span>: optional. Leave it empty or leave the column out.
+                </li>
+                <li>The header row is optional. Batch and placement are chosen above, not in the file.</li>
+              </ul>
+            </div>
+            <div className="mt-3">
+              <Field label="Or paste the list" htmlFor="import-csv" hint="A header row is skipped.">
+                <TextArea
+                  id="import-csv"
+                  value={text}
+                  onChange={(event) => {
+                    setText(event.target.value);
+                    setFileName("");
+                  }}
+                  spellCheck={false}
+                  placeholder={"roll_number,name,email\n21CS001,Asha Raman,asha@example.edu\n21CS002,Vikram Iyer"}
+                  className="min-h-32 font-mono text-xs"
+                />
+              </Field>
+            </div>
+          </ModalSection>
+        )}
 
-      {!reviewing && <FormMessage state={state} />}
-      {reviewing && state.error && <FormMessage state={state} />}
-      <div className="flex justify-end gap-2">
+        {!reviewing && <FormMessage state={state} />}
+        {reviewing && state.error && <FormMessage state={state} />}
+      </div>
+
+      <ModalFooter>
         {reviewing ? (
           <SubmitButton className={ready === 0 || problems > 0 || tooMany ? "pointer-events-none opacity-50" : undefined}>
             Import {ready} student{ready === 1 ? "" : "s"}
@@ -189,7 +238,7 @@ export function ImportPanel({ batches, placements, departments }: { batches: Bat
             Review {lines.length || ""} student{lines.length === 1 ? "" : "s"}
           </Button>
         )}
-      </div>
+      </ModalFooter>
     </form>
   );
 }
@@ -226,7 +275,7 @@ export function StudentActions({ principalId, username, collegeId, status }: { p
   const [pending, start] = useTransition();
   const [result, setResult] = useState<{ title: string; error?: string; password?: string } | null>(null);
   const enabled = status === "active";
-  const item = "flex w-full items-center rounded-md px-2.5 py-2 text-left text-sm text-ink outline-none data-[highlighted]:bg-hover";
+  const item = "flex w-full items-center rounded-control px-2.5 py-2 text-left text-sm text-ink outline-none data-[highlighted]:bg-hover";
   const form = (extra: Record<string, string> = {}) => {
     const data = new FormData();
     data.set("principal_id", principalId);
@@ -249,11 +298,11 @@ export function StudentActions({ principalId, username, collegeId, status }: { p
   return (
     <>
       <DropdownMenu.Root>
-        <DropdownMenu.Trigger disabled={pending} aria-label={`Actions for ${username}`} className="grid size-8 place-items-center rounded-[var(--radius-control)] text-ink-muted hover:bg-hover hover:text-ink disabled:opacity-50">
+        <DropdownMenu.Trigger disabled={pending} aria-label={`Actions for ${username}`} className="grid size-8 place-items-center rounded-control text-ink-muted hover:bg-hover hover:text-ink disabled:opacity-50">
           <DotsThree className="size-4" />
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
-          <DropdownMenu.Content align="end" sideOffset={4} className="z-50 min-w-[190px] animate-fade rounded-[var(--radius-control)] border border-line bg-surface p-1 shadow-[var(--shadow-overlay)]">
+          <DropdownMenu.Content align="end" sideOffset={4} className="z-50 min-w-[190px] animate-fade rounded-control border border-line bg-surface p-1 shadow-[var(--shadow-overlay)]">
             <DropdownMenu.Item className={item} onSelect={reset}>
               Reset password
             </DropdownMenu.Item>
@@ -264,21 +313,32 @@ export function StudentActions({ principalId, username, collegeId, status }: { p
         </DropdownMenu.Portal>
       </DropdownMenu.Root>
       <Dialog open={result !== null} onOpenChange={(open) => !open && setResult(null)}>
-        <DialogContent title={result?.title || "Done"} className="w-[min(92vw,420px)]">
-          <div className="p-6 text-sm">
+        <DialogContent
+          eyebrow="Account"
+          title={result?.title || "Done"}
+          icon={<Key className="size-5" />}
+          className="w-[min(92vw,420px)]"
+        >
+          <div className="space-y-4 px-6 py-5">
             {result?.error ? (
-              <p role="alert" className="text-danger">
+              <p role="alert" className="rounded-control border border-danger/30 bg-danger-soft px-3 py-2.5 text-sm text-danger">
                 {result.error}
               </p>
             ) : result?.password ? (
-              <>
-                <p className="mb-2 text-ink-muted">Share this once. It is not shown again and the student must change it at first sign-in.</p>
-                <p className="select-all rounded-md bg-warning-soft px-3 py-2 font-mono text-base font-semibold text-ink">{result.password}</p>
-              </>
+              <ModalSection label="One-time password" note="Share this once. It is not shown again and the student must change it at first sign-in.">
+                <p className="select-all rounded-control border border-warning/30 bg-warning-soft px-3 py-2.5 font-mono text-base font-semibold text-ink">{result.password}</p>
+              </ModalSection>
             ) : (
-              <p className="text-ink-muted">The status badge in the row is updated.</p>
+              <p className="text-sm text-ink-muted">The status badge in the row is updated.</p>
             )}
           </div>
+          <ModalFooter>
+            <DialogClose asChild>
+              <Button variant="secondary" size="sm">
+                Done
+              </Button>
+            </DialogClose>
+          </ModalFooter>
         </DialogContent>
       </Dialog>
     </>
@@ -295,10 +355,14 @@ export function ImportDialog(props: { batches: Batch[]; placements: PlacementOpt
           Bulk import
         </Button>
       </DialogTrigger>
-      <DialogContent title="Import students" description="Each student gets a username (their roll number in lowercase) and a one-time password." className="w-[min(94vw,760px)]">
-        <div className="min-h-0 overflow-y-auto p-6">
-          <ImportPanel {...panel} />
-        </div>
+      <DialogContent
+        eyebrow="Students"
+        title="Import students"
+        description="Each student gets a username (their roll number in lowercase) and a one-time password."
+        icon={<UploadSimple className="size-5" />}
+        className="w-[min(94vw,760px)]"
+      >
+        <ImportPanel {...panel} />
       </DialogContent>
     </Dialog>
   );
@@ -312,6 +376,7 @@ export function EnrolDialog({ batches, placements, departments, disabledReason }
     form.set("csv", [cell("roll"), cell("name"), cell("email")].join(","));
     return importStudents(previous, form);
   }, initialActionState);
+  const done = state.result && state.result.imported.length > 0;
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -320,46 +385,77 @@ export function EnrolDialog({ batches, placements, departments, disabledReason }
           Enrol student
         </Button>
       </DialogTrigger>
-      <DialogContent title="Enrol a student" description="They get a username (their roll number in lowercase) and a one-time password.">
-        <form action={action} className="min-h-0 space-y-4 overflow-y-auto p-6">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Roll number" htmlFor="enrol-roll">
-              <TextInput id="enrol-roll" name="roll" required placeholder="21CS001" />
-            </Field>
-            <Field label="Full name" htmlFor="enrol-name">
-              <TextInput id="enrol-name" name="name" required placeholder="Asha Raman" />
-            </Field>
-          </div>
-          <Field label="Email" htmlFor="enrol-email" hint="Optional.">
-            <TextInput id="enrol-email" name="email" type="email" placeholder="asha@example.edu" />
-          </Field>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Batch" htmlFor="enrol-batch">
-              <Select id="enrol-batch" name="batch_id" required>
-                {batches.map((batch) => (
-                  <option key={batch.id} value={`${batch.tenant_id}:${batch.id}`}>
-                    {batch.name} ({code.get(batch.department_id) ?? "?"}, {batch.academic_year})
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field label="Placement department" htmlFor="enrol-placement">
-              <Select id="enrol-placement" name="placement_department_id">
-                <option value="">None</option>
-                {placements.map((placement) => (
-                  <option key={placement.id} value={placement.id}>
-                    {placement.label}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-          </div>
-          <FormMessage state={state} />
-          <SubmitButton>Enrol</SubmitButton>
-          {state.result && state.result.imported.length > 0 && (
-            <CredentialsTable filename="student-password.csv" rows={state.result.imported.map((student) => ({ username: student.username, name: student.name, password: student.password }))} />
-          )}
-        </form>
+      <DialogContent
+        eyebrow="Students"
+        title={done ? "Student enrolled" : "Enrol a student"}
+        description={done ? "Share the one-time password once. It is not shown again." : "They get a username (their roll number in lowercase) and a one-time password."}
+        icon={<UserPlus className="size-5" />}
+        className="w-[min(92vw,560px)]"
+      >
+        {done ? (
+          <>
+            <div className="space-y-4 px-6 py-5">
+              <FormMessage state={state} />
+              <ModalSection label="Credentials">
+                <CredentialsTable filename="student-password.csv" rows={state.result!.imported.map((student) => ({ username: student.username, name: student.name, password: student.password }))} />
+              </ModalSection>
+            </div>
+            <ModalFooter>
+              <DialogClose asChild>
+                <Button variant="secondary" size="sm">
+                  Done
+                </Button>
+              </DialogClose>
+            </ModalFooter>
+          </>
+        ) : (
+          <form action={action} className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
+              <ModalSection label="Student" note="Roll number becomes the username in lowercase.">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label="Roll number" htmlFor="enrol-roll">
+                    <TextInput id="enrol-roll" name="roll" required placeholder="21CS001" />
+                  </Field>
+                  <Field label="Full name" htmlFor="enrol-name">
+                    <TextInput id="enrol-name" name="name" required placeholder="Asha Raman" />
+                  </Field>
+                </div>
+                <div className="mt-3">
+                  <Field label="Email" htmlFor="enrol-email" hint="Optional.">
+                    <TextInput id="enrol-email" name="email" type="email" placeholder="asha@example.edu" />
+                  </Field>
+                </div>
+              </ModalSection>
+              <ModalSection label="Placement" note="Department comes from the batch.">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label="Batch" htmlFor="enrol-batch">
+                    <Select id="enrol-batch" name="batch_id" required>
+                      {batches.map((batch) => (
+                        <option key={batch.id} value={`${batch.tenant_id}:${batch.id}`}>
+                          {batch.name} ({code.get(batch.department_id) ?? "?"}, {batch.academic_year})
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                  <Field label="Placement department" htmlFor="enrol-placement">
+                    <Select id="enrol-placement" name="placement_department_id">
+                      <option value="">None</option>
+                      {placements.map((placement) => (
+                        <option key={placement.id} value={placement.id}>
+                          {placement.label}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                </div>
+              </ModalSection>
+              <FormMessage state={state} />
+            </div>
+            <ModalFooter>
+              <SubmitButton>Enrol</SubmitButton>
+            </ModalFooter>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );

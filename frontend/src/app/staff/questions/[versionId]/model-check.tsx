@@ -84,7 +84,7 @@ export function ModelCheckPanel({ versionId, languages, supported, checks, tests
   return (
     <div className="space-y-4">
       {running && <LiveRefresh topics={["grading"]} fallbackSeconds={2} />}
-      <div role="status" className={cn("flex items-start gap-3 rounded-[var(--radius-surface)] border px-5 py-4", banner.tone)}>
+      <div role="status" className={cn("flex items-start gap-3 rounded-surface border px-5 py-4", banner.tone)}>
         <span className="mt-0.5 shrink-0">{ICON[status]}</span>
         <div className="min-w-0">
           <p className="text-[15px] font-semibold tracking-[-0.01em] text-ink">{banner.title(checks, tests)}</p>
@@ -92,7 +92,7 @@ export function ModelCheckPanel({ versionId, languages, supported, checks, tests
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface">
+      <div className="overflow-hidden rounded-surface border border-line bg-surface">
         <div className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-2.5">
           <label htmlFor="check-language" className="sr-only">
             Language
@@ -119,7 +119,7 @@ export function ModelCheckPanel({ versionId, languages, supported, checks, tests
       </div>
 
       {error && (
-        <p role="alert" className="rounded-[var(--radius-control)] bg-danger-soft px-4 py-3 text-sm text-danger">
+        <p role="alert" className="rounded-control bg-danger-soft px-4 py-3 text-sm text-danger">
           {error}
         </p>
       )}
@@ -133,7 +133,7 @@ export function ModelCheckPanel({ versionId, languages, supported, checks, tests
           </p>
           <ol className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
             {latest.units.map((unit) => (
-              <li key={unit.unit_number} className={cn("rounded-[var(--radius-control)] border px-3 py-2", UNIT_TONE[unit.verdict] ?? "border-line bg-hover text-ink-muted")}>
+              <li key={unit.unit_number} className={cn("rounded-control border px-3 py-2", UNIT_TONE[unit.verdict] ?? "border-line bg-hover text-ink-muted")}>
                 <p className="font-mono text-[11px] uppercase tracking-[0.06em] opacity-80">Test {unit.unit_number + 1}</p>
                 <p className="mt-0.5 flex items-baseline justify-between gap-2 text-[13px] font-medium">
                   <span className="truncate capitalize">{verdictLabel(unit.verdict)}</span>
@@ -152,7 +152,7 @@ export function ModelCheckPanel({ versionId, languages, supported, checks, tests
             Earlier checks ({sorted.length - 1})
           </button>
           {earlier && (
-            <ul className="mt-2 divide-y divide-line overflow-hidden rounded-[var(--radius-control)] border border-line bg-surface">
+            <ul className="mt-2 divide-y divide-line overflow-hidden rounded-control border border-line bg-surface">
               {sorted.slice(1, 11).map((check) => (
                 <li key={check.id} className="flex items-center gap-4 px-4 py-2 text-[13px]">
                   <span className="font-mono tabular-nums text-ink-muted">{formatTime(check.requested_at)}</span>

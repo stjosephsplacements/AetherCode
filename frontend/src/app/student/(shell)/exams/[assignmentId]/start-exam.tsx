@@ -76,7 +76,7 @@ export function StartExam({ assignment, signature }: { assignment: CandidateAssi
 
   if (status.kind === "seb") {
     return (
-      <div className="mt-8 rounded-[var(--radius-surface)] border border-line bg-surface p-5 shadow-[var(--shadow-panel)] sm:p-6">
+      <div className="mt-8 rounded-surface border border-line bg-surface p-5 shadow-[var(--shadow-panel)] sm:p-6">
         <div className="flex gap-3.5">
           <ShieldCheck className="mt-0.5 size-5 shrink-0 text-brand" />
           <div>

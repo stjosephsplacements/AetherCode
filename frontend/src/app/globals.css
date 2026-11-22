@@ -8,9 +8,17 @@
 /*
  * ═══════════════════════════════════════════════════════════════════════
  * AetherCode Design System
- * "Dusk": violet-navy night, amber actions, coral and lavender glow, on a
- * Sarvam-style system of hairline cards, pill actions and a serif display.
- * Dark is the default; the warm "Day" light theme is opt-in via data-theme.
+ * Product chrome is text-first with floating rounded panels and bento grids.
+ * Dark mode is true black with teal accents — never blue-slate canvases.
+ *
+ * Tokens only: colours, radii (chip/control/surface/panel/pill), shadows and
+ * shell geometry (--shell-gap, --sidebar-*) live in this file. Components use
+ * semantic utilities (bg-canvas, rounded-surface, shadow-[var(--shadow-panel)])
+ * — never raw hex or ad-hoc rounded-[Npx] in product UI.
+ *
+ * Icon policy: labels carry navigation and actions. Glyphs only when they
+ * carry meaning (collapse, loading, destructive confirm) or when the rail
+ * is collapsed. Do not decorate dashboard stats or nav items with icons.
  *
  * Typography:
  *   --font-sans: Satoshi (Primary Body / UI)
@@ -19,6 +27,8 @@
  *
  * Color tokens live in @layer base below; components only use the semantic
  * names (canvas, surface, ink, line, brand, success, danger, warning).
+ * Spacing: page gutters via shell padding; section gaps ~1.5–2rem; denser
+ * table rows over padded card grids.
  * ═══════════════════════════════════════════════════════════════════════
  */
 
@@ -88,12 +98,28 @@
   --color-warning: var(--warning);
   --color-warning-soft: var(--warning-soft);
 
-  --radius-control: 8px;
-  --radius-surface: 14px;
+  /* Radii — components use rounded-control / rounded-surface / rounded-panel / rounded-pill. */
+  --radius-chip: 8px;
+  --radius-control: 12px;
+  --radius-surface: 20px;
+  --radius-panel: 24px;
+  --radius-pill: 9999px;
+
+  /* Console shell geometry (floating sidebar). */
+  --shell-gap: 0.75rem;
+  --shell-header: 3rem;
+  --sidebar-expanded: 16rem;
+  --sidebar-collapsed: 4.25rem;
+
+  /* Liquid glass blur depths (dialog scrim + glass surfaces). */
+  --glass-blur: 24px;
+  --glass-blur-strong: 40px;
 
   --shadow-hairline: var(--shadow-hairline-v);
   --shadow-panel: var(--shadow-panel-v);
   --shadow-overlay: var(--shadow-overlay-v);
+  --shadow-nav-active: 0 0 0 1px color-mix(in srgb, var(--brand) 38%, transparent),
+    0 10px 28px -14px color-mix(in srgb, var(--brand) 55%, transparent);
 
   --animate-enter: enter 360ms cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-fade: fade 200ms ease-out both;
@@ -117,32 +143,38 @@
   }
 }
 
+/* Prefer token radii over Tailwind's default rounded-* scale in product UI. */
+@utility rounded-chip { border-radius: var(--radius-chip); }
+@utility rounded-control { border-radius: var(--radius-control); }
+@utility rounded-surface { border-radius: var(--radius-surface); }
+@utility rounded-panel { border-radius: var(--radius-panel); }
+@utility rounded-pill { border-radius: var(--radius-pill); }
+
 @layer base {
-  /* Dusk is the default (no attribute, or data-theme="dark"); Day is the
-     light twin. Deep teal-slate night with aqua actions and a soft lavender
-     glow; Day is cool mist with deep teal ink and calm teal accents.
-     Every text/background pair below meets WCAG AA (4.5:1). */
+  /* Dark is the default (no attribute, or data-theme="dark"): true black
+     surfaces with teal brand accents — not blue-slate. Day is cool mist with
+     deep teal ink. Every text/background pair meets WCAG AA (4.5:1). */
   :root, [data-theme="dark"] {
     color-scheme: dark;
-    --canvas: #0b1519;
-    --surface: #101c21;
-    --surface-2: #16252b;
+    --canvas: #050505;
+    --surface: #111111;
+    --surface-2: #1a1a1a;
     /* Chart series, one per busy service. Validated with the dataviz checks against this theme. */
-    --series-1: #3d94d6;
+    --series-1: #4fd1c5;
     --series-2: #c47a00;
     --series-3: #c06aa9;
     --series-4: #1aa57d;
     --series-5: #8f7cf0;
     --series-6: #e0662a;
-    --series-7: #2f9fc9;
+    --series-7: #6ec8ff;
     --series-8: #b08a2e;
-    --sidebar: #091215;
-    --hover: #1a2c33;
-    --ink: #e8f1f0;
-    --ink-muted: #a7bcbc;
-    --ink-subtle: #86a0a2;
-    --line: rgb(190 230 225 / 0.09);
-    --line-strong: rgb(190 230 225 / 0.17);
+    --sidebar: #0a0a0a;
+    --hover: #1c1c1c;
+    --ink: #f4f4f5;
+    --ink-muted: #a1a1aa;
+    --ink-subtle: #71717a;
+    --line: rgb(255 255 255 / 0.08);
+    --line-strong: rgb(255 255 255 / 0.14);
 
     --brand: #4fd1c5;
     --brand-hover: #7be0d6;
@@ -152,13 +184,13 @@
     --accent: #5fd6cc;
     --coral: #ff7a95;
     --lavender: #b3b0ff;
-    --glow: rgb(255 255 255 / 0.05);
+    --glow: rgb(255 255 255 / 0.04);
     --glow-2: rgb(79 209 197 / 0.08);
     --hero-aurora-1: var(--brand-soft);
-    --poster-sky: linear-gradient(to bottom, #0b1519 0%, #0f2a30 45%, #2a8f95 100%);
-    --poster-ink: #e8f1f0;
+    --poster-sky: linear-gradient(to bottom, #050505 0%, #111111 40%, #0f2f2c 100%);
+    --poster-ink: #f4f4f5;
     --poster-on-ink: #04201f;
-    --horizon: linear-gradient(to top, rgb(79 209 197 / 0.16), rgb(255 255 255 / 0.03) 45%, transparent);
+    --horizon: linear-gradient(to top, rgb(79 209 197 / 0.14), rgb(255 255 255 / 0.03) 45%, transparent);
 
     --success: #34d399;
     --success-soft: rgb(52 211 153 / 0.12);
@@ -167,9 +199,9 @@
     --warning: #ffc24b;
     --warning-soft: rgb(255 194 75 / 0.12);
 
-    --shadow-hairline-v: 0 1px 0 rgb(255 255 255 / 0.03) inset;
-    --shadow-panel-v: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 12px 32px -12px rgb(0 0 0 / 0.55);
-    --shadow-overlay-v: 0 1px 0 rgb(255 255 255 / 0.06) inset, 0 32px 80px -16px rgb(0 0 0 / 0.7);
+    --shadow-hairline-v: 0 1px 0 rgb(255 255 255 / 0.04) inset;
+    --shadow-panel-v: 0 1px 0 rgb(255 255 255 / 0.05) inset, 0 16px 40px -16px rgb(0 0 0 / 0.75);
+    --shadow-overlay-v: 0 1px 0 rgb(255 255 255 / 0.06) inset, 0 32px 80px -16px rgb(0 0 0 / 0.85);
   }
 
   /* Day: cool mist, deep teal ink, calm teal accents. Not white. */
@@ -487,8 +519,8 @@
 .glass,
 .liquid-glass {
   background: rgb(255 255 255 / 0.45);
-  backdrop-filter: blur(24px) saturate(1.6);
-  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.6);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.6);
   border: 1px solid rgb(0 0 0 / 0.06);
   box-shadow:
     inset 0 0.5px 0 0 rgb(255 255 255 / 0.60),
@@ -509,8 +541,8 @@
 .glass-strong,
 .liquid-glass-strong {
   background: rgb(255 255 255 / 0.55);
-  backdrop-filter: blur(40px) saturate(1.8);
-  -webkit-backdrop-filter: blur(40px) saturate(1.8);
+  backdrop-filter: blur(var(--glass-blur-strong)) saturate(1.8);
+  -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(1.8);
   border: 1px solid rgb(0 0 0 / 0.05);
   box-shadow:
     inset 0 1px 0 0 rgb(255 255 255 / 0.70),
@@ -527,6 +559,16 @@
     inset 0 -1px 0 0 rgb(0 0 0 / 0.40),
     0 2px 4px rgb(0 0 0 / 0.12),
     0 12px 40px -12px rgb(0 0 0 / 0.60);
+}
+
+/* Modal / sheet scrim: liquid-glass frost over the page behind the dialog. */
+.dialog-scrim {
+  background: color-mix(in srgb, var(--canvas) 42%, transparent);
+  backdrop-filter: blur(var(--glass-blur-strong)) saturate(1.8);
+  -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(1.8);
+}
+[data-theme="dark"] .dialog-scrim {
+  background: color-mix(in srgb, var(--canvas) 55%, transparent);
 }
 
 /* The public and sign-in pages scroll without a visible scrollbar; the app keeps its scrollbars. */

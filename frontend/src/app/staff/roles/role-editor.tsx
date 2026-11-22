@@ -1,11 +1,14 @@
 "use client";
 
+import { CaretDown, CaretUp, Pencil, Plus, ShieldCheck, Trash } from "@phosphor-icons/react/ssr";
 import { useActionState, useState } from "react";
-import { Pencil, Trash, Plus, ShieldCheck, CaretDown, CaretUp } from "@phosphor-icons/react/ssr";
+import { panel } from "@/app/admin/_dashboard/panel";
 import { Checkbox, FormMessage, initialActionState } from "@/components/staff/form";
+import { Badge } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { type Resource, isLockedRead, addPermission, removePermission, sameSet } from "@/lib/permissions";
-import { createRole, updateRole, deleteRole } from "./actions";
+import { type Resource, addPermission, isLockedRead, removePermission, sameSet } from "@/lib/permissions";
+import { cn } from "@/lib/utils";
+import { createRole, deleteRole, updateRole } from "./actions";
 
 type RoleData = {
   id: string;
@@ -21,6 +24,10 @@ type RoleData = {
 type Group = { area: string; resources: Resource[] };
 
 const TIER_LABELS: Record<number, string> = { 3: "Gold", 2: "Silver", 1: "Bronze" };
+const TIER_TONE: Record<number, "brand" | "warning" | "neutral"> = { 3: "warning", 2: "brand", 1: "neutral" };
+
+const fieldClass =
+  "h-10 w-full rounded-control border border-line bg-surface px-3 text-sm text-ink outline-none transition-[border-color,box-shadow] placeholder:text-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15";
 
 export function RoleList({
   roles,
@@ -33,49 +40,72 @@ export function RoleList({
 }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
-  const role = roles.find((r) => r.id === selected);
+  const role = roles.find((entry) => entry.id === selected);
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)]">
-      <div className="space-y-2">
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-ink-muted">Roles</h2>
-        <ul className="space-y-0.5">
-          {roles.map((r) => (
-            <li key={r.id}>
-              <button
-                type="button"
-                onClick={() => { setSelected(r.id); setCreating(false); }}
-                className={`flex w-full items-center gap-2 rounded-[var(--radius-control)] px-3 py-2 text-left text-sm transition-colors ${selected === r.id ? "bg-brand-soft text-brand-soft-ink font-medium" : "text-ink hover:bg-hover"}`}
-              >
-                <ShieldCheck className="size-4 shrink-0" />
-                <span className="truncate">{r.name}</span>
-                <span className="ml-auto text-[11px] text-ink-subtle">{TIER_LABELS[r.tier] ?? `T${r.tier}`}</span>
-                {r.managed && <span className="text-[10px] text-ink-subtle">(system)</span>}
-              </button>
-            </li>
-          ))}
+    <div className="grid gap-3 xl:grid-cols-12">
+      <section className={cn(panel, "xl:col-span-4")}>
+        <div className="mb-3 flex items-end justify-between gap-3">
+          <div>
+            <h2 className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">Roles</h2>
+            <p className="mt-1 text-[12.5px] text-ink-muted">Pick a role to inspect or edit its grants.</p>
+          </div>
+          {canManage && (
+            <Button type="button" size="sm" variant="secondary" onClick={() => { setCreating(true); setSelected(null); }}>
+              <Plus className="size-3.5" />
+              New
+            </Button>
+          )}
+        </div>
+        <ul className="max-h-[68vh] space-y-1.5 overflow-y-auto" aria-label="Roles">
+          {roles.map((entry) => {
+            const current = selected === entry.id && !creating;
+            return (
+              <li key={entry.id}>
+                <button
+                  type="button"
+                  onClick={() => { setSelected(entry.id); setCreating(false); }}
+                  aria-current={current ? "true" : undefined}
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-control border px-3 py-2.5 text-left transition-[color,background-color,box-shadow]",
+                    current
+                      ? "border-brand/40 bg-brand-soft/20 font-medium text-ink"
+                      : "border-line bg-hover/30 text-ink-muted hover:bg-hover hover:text-ink",
+                  )}
+                >
+                  <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-control bg-brand-soft text-brand-soft-ink">
+                    <ShieldCheck className="size-4" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className={cn("block truncate text-[14px]", current ? "font-semibold text-ink" : "font-medium")}>{entry.name}</span>
+                    <span className="mt-1 flex flex-wrap items-center gap-1">
+                      <Badge tone={TIER_TONE[entry.tier] ?? "neutral"}>{TIER_LABELS[entry.tier] ?? `Tier ${entry.tier}`}</Badge>
+                      {entry.managed && <Badge tone="warning">System</Badge>}
+                      <span className="text-[11px] text-ink-subtle">{entry.permissions.length} grants</span>
+                    </span>
+                  </span>
+                </button>
+              </li>
+            );
+          })}
         </ul>
-        {canManage && (
-          <button
-            type="button"
-            onClick={() => { setCreating(true); setSelected(null); }}
-            className="flex w-full items-center gap-2 rounded-[var(--radius-control)] px-3 py-2 text-left text-sm text-brand hover:bg-brand-soft"
-          >
-            <Plus className="size-4" />
-            New role
-          </button>
-        )}
-      </div>
+      </section>
 
-      <div className="min-w-0">
+      <div className="flex min-w-0 flex-col gap-3 xl:col-span-8">
         {creating ? (
           <CreateRoleForm groups={groups} onDone={() => setCreating(false)} />
         ) : role ? (
           <RoleDetail role={role} groups={groups} canManage={canManage} />
         ) : (
-          <div className="rounded-[var(--radius-surface)] border border-line bg-surface p-8 text-center text-sm text-ink-muted">
-            Choose a role to see its permissions, or create a new one.
-          </div>
+          <section className={cn(panel, "flex flex-1 flex-col justify-center")}>
+            <div className="mx-auto max-w-sm px-4 py-10 text-center text-sm text-ink-muted">
+              <span className="mx-auto mb-3 grid size-11 place-items-center rounded-control bg-brand/15 text-brand">
+                <ShieldCheck className="size-5" />
+              </span>
+              <p className="mb-2 text-[15px] font-medium text-ink">Select a role</p>
+              Choose one on the left to see its permissions{canManage ? ", or create a custom role" : ""}.
+            </div>
+          </section>
         )}
       </div>
     </div>
@@ -96,31 +126,32 @@ function PermissionGrid({
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const toggle = (area: string) => {
     const next = new Set(collapsed);
-    if (next.has(area)) { next.delete(area); } else { next.add(area); }
+    if (next.has(area)) next.delete(area);
+    else next.add(area);
     setCollapsed(next);
   };
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-2">
       {groups.map((group) => {
         const open = !collapsed.has(group.area);
-        const count = group.resources.reduce((sum, r) => sum + r.verbs.filter((v) => held.has(`${r.id}.${v}`)).length, 0);
+        const count = group.resources.reduce((sum, resource) => sum + resource.verbs.filter((verb) => held.has(`${resource.id}.${verb}`)).length, 0);
         return (
-          <div key={group.area}>
+          <div key={group.area} className="overflow-hidden rounded-control border border-line bg-surface">
             <button
               type="button"
               onClick={() => toggle(group.area)}
-              className="flex w-full items-center gap-2 px-1 py-1.5 text-left text-xs font-semibold uppercase tracking-widest text-ink-muted hover:text-ink"
+              className="flex w-full items-center gap-2 bg-hover/40 px-3.5 py-2.5 text-left font-mono text-[10.5px] uppercase tracking-[0.08em] text-ink-subtle hover:text-ink"
             >
               {open ? <CaretDown className="size-3" /> : <CaretUp className="size-3" />}
               {group.area}
-              {count > 0 && <span className="ml-1 font-mono text-[10px] text-brand">{count}</span>}
+              {count > 0 && <span className="ml-auto font-mono text-[11px] normal-case tracking-normal text-brand">{count}</span>}
             </button>
             {open && (
-              <div className="mb-2 grid gap-x-4 gap-y-0.5 pl-5" style={{ gridTemplateColumns: "minmax(0,1fr) repeat(3, 60px)" }}>
+              <div className="grid gap-x-3 gap-y-1 border-t border-line px-3.5 py-2.5" style={{ gridTemplateColumns: "minmax(0,1fr) repeat(3, 52px)" }}>
                 <span />
-                <span className="text-center text-[10px] font-medium uppercase tracking-wider text-ink-subtle">Read</span>
-                <span className="text-center text-[10px] font-medium uppercase tracking-wider text-ink-subtle">Write</span>
+                <span className="text-center text-[10px] font-medium uppercase tracking-wider text-ink-subtle">See</span>
+                <span className="text-center text-[10px] font-medium uppercase tracking-wider text-ink-subtle">Change</span>
                 <span className="text-center text-[10px] font-medium uppercase tracking-wider text-ink-subtle">Delete</span>
                 {group.resources.map((resource) => (
                   <PermissionRow key={resource.id} resource={resource} held={held} onChange={onChange} readOnly={readOnly} />
@@ -157,7 +188,7 @@ function PermissionRow({
           <span key={verb} className="flex justify-center">
             {available ? (
               readOnly ? (
-                <span className={`size-3.5 rounded-sm ${checked ? "bg-brand" : "bg-line"}`} />
+                <span className={cn("size-3.5 rounded-chip", checked ? "bg-brand" : "bg-line")} />
               ) : (
                 <Checkbox
                   checked={checked}
@@ -187,52 +218,78 @@ function RoleDetail({ role, groups, canManage }: { role: RoleData; groups: Group
   const dirty = name !== role.name || !sameSet(permissions, new Set(role.permissions));
 
   return (
-    <div className="space-y-4" key={role.id}>
-      <div className="flex items-center gap-3">
-        <h2 className="text-lg font-semibold text-ink">{role.name}</h2>
-        <span className="rounded-full bg-hover px-2.5 py-0.5 text-xs text-ink-muted">{TIER_LABELS[role.tier] ?? `Tier ${role.tier}`}</span>
-        {role.managed && <span className="rounded-full bg-warning/10 px-2.5 py-0.5 text-xs text-warning">System-managed</span>}
-        {canManage && !role.managed && (
-          <div className="ml-auto flex gap-2">
-            <button type="button" onClick={() => setEditing(!editing)} className="inline-flex items-center gap-1.5 text-xs text-brand hover:underline">
+    <div className="flex flex-col gap-3" key={role.id}>
+      <section className={cn(panel)}>
+        <div className="flex flex-wrap items-center gap-3">
+          <span aria-hidden className="grid size-11 shrink-0 place-items-center rounded-control bg-brand-soft text-brand-soft-ink">
+            <ShieldCheck className="size-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-ink-subtle">Selected</p>
+            <h2 className="mt-0.5 truncate text-[17px] font-semibold tracking-[-0.02em] text-ink">{role.name}</h2>
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              <Badge tone={TIER_TONE[role.tier] ?? "neutral"}>{TIER_LABELS[role.tier] ?? `Tier ${role.tier}`}</Badge>
+              {role.managed && <Badge tone="warning">System-managed</Badge>}
+              <span className="text-[12px] text-ink-subtle">
+                {role.permissions.length} permission{role.permissions.length === 1 ? "" : "s"}
+              </span>
+            </div>
+          </div>
+          {canManage && !role.managed && (
+            <Button type="button" size="sm" variant={editing ? "ghost" : "secondary"} onClick={() => setEditing(!editing)}>
               <Pencil className="size-3.5" />
               {editing ? "Cancel" : "Edit"}
-            </button>
-          </div>
-        )}
-      </div>
-
-      {editing && !role.managed ? (
-        <>
-          <form action={saveAction} className="space-y-4 rounded-[var(--radius-surface)] border border-line bg-surface p-4">
-            <input type="hidden" name="role_id" value={role.id} />
-            <label className="block text-sm">
-              <span className="mb-1 block font-medium text-ink">Name</span>
-              <input name="name" value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded-[var(--radius-control)] border border-line bg-canvas px-3 py-2 text-sm text-ink" />
-            </label>
-            <input type="hidden" name="position" value={role.position} />
-            <PermissionGrid groups={groups} held={permissions} onChange={(next) => setPermissions(next)} />
-            {[...permissions].map((p) => <input key={p} type="hidden" name="permission" value={p} />)}
-            <FormMessage state={updated} />
-            <div className="flex gap-2">
-              <Button type="submit" size="sm" disabled={!dirty}>Save changes</Button>
-            </div>
-          </form>
-          <form action={deleteAction} className="mt-2">
-            <input type="hidden" name="role_id" value={role.id} />
-            <Button type="submit" size="sm" variant="ghost" className="text-danger hover:text-danger">
-              <Trash className="size-3.5" />
-              Delete role
             </Button>
-            <FormMessage state={deleted} />
-          </form>
-        </>
-      ) : (
-        <div className="rounded-[var(--radius-surface)] border border-line bg-surface p-4">
-          <p className="mb-3 text-xs text-ink-muted">{role.permissions.length} permission{role.permissions.length !== 1 ? "s" : ""}</p>
-          <PermissionGrid groups={groups} held={new Set(role.permissions)} readOnly />
+          )}
         </div>
-      )}
+      </section>
+
+      <section className={cn(panel, "flex-1")}>
+        {editing && !role.managed ? (
+          <>
+            <div className="mb-3">
+              <h3 className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-ink-subtle">Edit role</h3>
+              <p className="mt-1 text-[12.5px] text-ink-muted">Rename and adjust grants. Writes imply See.</p>
+            </div>
+            <form action={saveAction} className="space-y-4">
+              <input type="hidden" name="role_id" value={role.id} />
+              <label className="block text-sm">
+                <span className="mb-1.5 block font-mono text-[10.5px] uppercase tracking-[0.08em] text-ink-subtle">Name</span>
+                <input name="name" value={name} onChange={(event) => setName(event.target.value)} className={fieldClass} />
+              </label>
+              <input type="hidden" name="position" value={role.position} />
+              <PermissionGrid groups={groups} held={permissions} onChange={(next) => setPermissions(next)} />
+              {[...permissions].map((permission) => (
+                <input key={permission} type="hidden" name="permission" value={permission} />
+              ))}
+              <FormMessage state={updated} />
+              <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
+                <Button type="submit" size="sm" disabled={!dirty}>
+                  Save changes
+                </Button>
+              </div>
+            </form>
+            <form action={deleteAction} className="mt-4 border-t border-line pt-3">
+              <input type="hidden" name="role_id" value={role.id} />
+              <Button type="submit" size="sm" variant="ghost" className="text-danger hover:text-danger">
+                <Trash className="size-3.5" />
+                Delete role
+              </Button>
+              <FormMessage state={deleted} />
+            </form>
+          </>
+        ) : (
+          <>
+            <div className="mb-3">
+              <h3 className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-ink-subtle">Permissions</h3>
+              <p className="mt-1 text-[12.5px] text-ink-muted">
+                {role.managed ? "System roles are fixed; grants below are read-only." : "What this role allows across the platform."}
+              </p>
+            </div>
+            <PermissionGrid groups={groups} held={new Set(role.permissions)} readOnly />
+          </>
+        )}
+      </section>
     </div>
   );
 }
@@ -245,28 +302,40 @@ function CreateRoleForm({ groups, onDone }: { groups: Group[]; onDone: () => voi
   if (state?.message) onDone();
 
   return (
-    <form action={formAction} className="space-y-4 rounded-[var(--radius-surface)] border border-line bg-surface p-4">
-      <h2 className="text-lg font-semibold text-ink">New role</h2>
-      <label className="block text-sm">
-        <span className="mb-1 block font-medium text-ink">Name</span>
-        <input name="name" required className="w-full rounded-[var(--radius-control)] border border-line bg-canvas px-3 py-2 text-sm text-ink" placeholder="e.g. Exam coordinator" />
-      </label>
-      <label className="block text-sm">
-        <span className="mb-1 block font-medium text-ink">Tier</span>
-        <select name="tier" value={tier} onChange={(e) => setTier(Number(e.target.value))} className="w-full rounded-[var(--radius-control)] border border-line bg-canvas px-3 py-2 text-sm text-ink">
-          <option value={3}>Gold (spans colleges)</option>
-          <option value={2}>Silver (one college)</option>
-          <option value={1}>Bronze (batch or person)</option>
-        </select>
-      </label>
-      <input type="hidden" name="position" value="0" />
-      <PermissionGrid groups={groups} held={permissions} onChange={(next) => setPermissions(next)} />
-      {[...permissions].map((p) => <input key={p} type="hidden" name="permission" value={p} />)}
-      <FormMessage state={state} />
-      <div className="flex gap-2">
-        <Button type="submit" size="sm">Create role</Button>
-        <Button type="button" size="sm" variant="ghost" onClick={onDone}>Cancel</Button>
+    <section className={cn(panel)}>
+      <div className="mb-4">
+        <h2 className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-ink-subtle">New role</h2>
+        <p className="mt-1 text-[15px] font-medium text-ink">Create a custom college role</p>
+        <p className="mt-1 text-[12.5px] text-ink-muted">Name it, pick a tier, then tick the grants it should include.</p>
       </div>
-    </form>
+      <form action={formAction} className="space-y-4">
+        <label className="block text-sm">
+          <span className="mb-1.5 block font-mono text-[10.5px] uppercase tracking-[0.08em] text-ink-subtle">Name</span>
+          <input name="name" required className={fieldClass} placeholder="e.g. Exam coordinator" />
+        </label>
+        <label className="block text-sm">
+          <span className="mb-1.5 block font-mono text-[10.5px] uppercase tracking-[0.08em] text-ink-subtle">Tier</span>
+          <select name="tier" value={tier} onChange={(event) => setTier(Number(event.target.value))} className={fieldClass}>
+            <option value={3}>Gold (spans colleges)</option>
+            <option value={2}>Silver (one college)</option>
+            <option value={1}>Bronze (batch or person)</option>
+          </select>
+        </label>
+        <input type="hidden" name="position" value="0" />
+        <PermissionGrid groups={groups} held={permissions} onChange={(next) => setPermissions(next)} />
+        {[...permissions].map((permission) => (
+          <input key={permission} type="hidden" name="permission" value={permission} />
+        ))}
+        <FormMessage state={state} />
+        <div className="flex flex-wrap gap-2 border-t border-line pt-3">
+          <Button type="submit" size="sm">
+            Create role
+          </Button>
+          <Button type="button" size="sm" variant="ghost" onClick={onDone}>
+            Cancel
+          </Button>
+        </div>
+      </form>
+    </section>
   );
 }

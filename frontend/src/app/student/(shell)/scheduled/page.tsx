@@ -35,8 +35,8 @@ export default async function ScheduledPage() {
             const open = live.includes(assignment);
             const date = new Date(assignment.available_from);
             return (
-              <li key={assignment.id} className={`flex flex-wrap items-center gap-4 rounded-3xl border bg-surface shadow-[var(--shadow-panel)] p-4 ${open ? "border-brand/40" : "border-line"}`}>
-                <div aria-hidden className={`grid size-14 shrink-0 place-items-center rounded-[var(--radius-control)] text-center leading-tight ${open ? "bg-brand text-brand-ink" : "bg-hover text-ink"}`}>
+              <li key={assignment.id} className={`flex flex-wrap items-center gap-4 rounded-panel border bg-surface shadow-[var(--shadow-panel)] p-4 ${open ? "border-brand/40" : "border-line"}`}>
+                <div aria-hidden className={`grid size-14 shrink-0 place-items-center rounded-control text-center leading-tight ${open ? "bg-brand text-brand-ink" : "bg-hover text-ink"}`}>
                   <span>
                     <span className="block text-[18px] font-semibold">{day.format(date)}</span>
                     <span className="block text-[10.5px] uppercase tracking-wider opacity-80">{month.format(date)}</span>

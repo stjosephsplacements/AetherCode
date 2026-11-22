@@ -10,7 +10,7 @@ import { collegeHref } from "@/lib/links";
 import { cn, formatDuration, formatWindow } from "@/lib/utils";
 import { CollegeLink } from "@/components/college-link";
 
-export type BoardExam = { exam: { id: string; created_at: string }; version: ExamVersion | null; college?: { id: string; name: string } };
+export type BoardExam = { exam: { id: string; created_at: string }; version: ExamVersion | null; college?: { id: string; name: string }; authorName?: string };
 
 type State = "live" | "next" | "draft" | "closed";
 type Filter = "all" | State;
@@ -62,7 +62,7 @@ export function ExamBoard({ exams, renderedAt }: { exams: BoardExam[]; renderedA
   const tiles: { key: Filter; label: string; count: number }[] = [{ key: "all", label: "All exams", count: exams.length }, ...GROUPS.map(({ state, label }) => ({ key: state, label, count: counts[state] }))];
 
   return (
-    <>
+    <div className="grid gap-3">
       <div role="group" aria-label="Filter by state" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {tiles.map((tile) => {
           const active = filter === tile.key;
@@ -74,13 +74,13 @@ export function ExamBoard({ exams, renderedAt }: { exams: BoardExam[]; renderedA
               aria-pressed={active}
               onClick={() => setFilter(tile.key)}
               className={cn(
-                "flex flex-col items-start rounded-[var(--radius-surface)] border bg-surface px-5 py-4 text-left transition-[border-color,background-color,transform] active:scale-[0.98]",
-                active ? "border-ink/60 bg-surface-2" : "border-line hover:border-line-strong",
+                "flex flex-col items-start rounded-surface border bg-surface px-5 py-4 text-left shadow-[var(--shadow-panel)] transition-[border-color,background-color,transform] active:scale-[0.98]",
+                active ? "border-brand/40 bg-brand-soft/15" : "border-line hover:border-line-strong",
                 tile.key === "all" && "col-span-2 sm:col-span-1",
               )}
             >
               <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">
-                {live && <span aria-hidden className="size-1.5 animate-pulse rounded-full bg-brand" />}
+                {live && <span aria-hidden className="size-1.5 animate-pulse rounded-pill bg-brand" />}
                 {tile.label}
               </span>
               <span className={cn("mt-2 text-[30px] font-semibold leading-none tracking-[-0.03em] tabular-nums", live ? "text-brand" : "text-ink")}>{tile.count}</span>
@@ -89,7 +89,7 @@ export function ExamBoard({ exams, renderedAt }: { exams: BoardExam[]; renderedA
         })}
       </div>
 
-      <div className="mt-6 flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3 rounded-surface border border-line bg-surface p-3 shadow-[var(--shadow-panel)]">
         <div className="relative w-full max-w-md">
           <MagnifyingGlass aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-subtle" />
           <input
@@ -98,10 +98,10 @@ export function ExamBoard({ exams, renderedAt }: { exams: BoardExam[]; renderedA
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search by title or exam ID"
             aria-label="Search exams"
-            className="h-10 w-full rounded-[var(--radius-control)] border border-line-strong bg-surface pl-9 pr-9 text-sm text-ink outline-none transition-[border-color,box-shadow] placeholder:text-ink-subtle hover:border-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15 [&::-webkit-search-cancel-button]:appearance-none"
+            className="h-10 w-full rounded-control border border-line bg-surface pl-9 pr-9 text-sm text-ink outline-none transition-[border-color,box-shadow] placeholder:text-ink-subtle hover:border-ink-subtle focus:border-brand focus:ring-4 focus:ring-brand/15 [&::-webkit-search-cancel-button]:appearance-none"
           />
           {query && (
-            <button type="button" aria-label="Clear search" onClick={() => setQuery("")} className="absolute right-2 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-md text-ink-subtle transition-colors hover:bg-hover hover:text-ink">
+            <button type="button" aria-label="Clear search" onClick={() => setQuery("")} className="absolute right-2 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-control text-ink-subtle transition-colors hover:bg-hover hover:text-ink">
               <X className="size-3.5" />
             </button>
           )}
@@ -122,20 +122,20 @@ export function ExamBoard({ exams, renderedAt }: { exams: BoardExam[]; renderedA
       </div>
 
       {shown.length === 0 ? (
-        <div className="mt-4 rounded-[var(--radius-surface)] border border-dashed border-line-strong px-6 py-14 text-center text-sm text-ink-muted">
+        <div className="rounded-surface border border-dashed border-line-strong bg-surface px-6 py-14 text-center text-sm text-ink-muted shadow-[var(--shadow-panel)]">
           {exams.length === 0 ? "No exams yet. Create one to get started." : needle ? `Nothing matches "${query.trim()}".` : "No exams in this state."}
         </div>
       ) : (
-        <div className="mt-4 space-y-6">
+        <div className="space-y-4">
           {shown.map(({ state, label }) => (
-            <section key={state} aria-label={label}>
+            <section key={state} aria-label={label} className="rounded-surface border border-line bg-surface p-4 shadow-[var(--shadow-panel)]">
               {filter === "all" && (
                 <h2 className="mb-2 flex items-center gap-2 px-1 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-subtle">
                   {label}
                   <span className="tabular-nums text-ink-muted">{grouped[state].length}</span>
                 </h2>
               )}
-              <ul className="divide-y divide-line overflow-hidden rounded-[var(--radius-surface)] border border-line bg-surface">
+              <ul className="divide-y divide-line overflow-hidden rounded-control border border-line">
                 {grouped[state].map((entry) => (
                   <li key={entry.exam.id}>
                     <Row entry={entry} state={state} now={now} />
@@ -146,7 +146,7 @@ export function ExamBoard({ exams, renderedAt }: { exams: BoardExam[]; renderedA
           ))}
         </div>
       )}
-    </>
+    </div>
   );
 }
 
@@ -163,6 +163,7 @@ function Row({ entry, state, now }: { entry: BoardExam; state: State; now: numbe
           {entry.college && `${entry.college.name} / `}
           {entry.exam.id.slice(0, 8)}
           {version && ` / v${version.version_number} / ${formatDuration(version.duration_seconds)}`}
+          {entry.authorName ? ` · by ${entry.authorName}` : ""}
         </span>
       </span>
       <span className="hidden truncate text-[13px] text-ink-muted md:block">{version ? formatWindow(version.opens_at, version.closes_at) : "No window yet"}</span>
@@ -194,8 +195,8 @@ function When({ version, state, now, createdAt }: { version: ExamVersion | null;
     return (
       <span className="block">
         <span className="block font-mono text-[12px] text-brand">closes {relative(closes, now)}</span>
-        <span className="mt-1.5 block h-1 overflow-hidden rounded-full bg-hover" role="img" aria-label={`${Math.round(share * 100)}% of the window has passed`}>
-          <span className="block h-full rounded-full bg-brand" style={{ width: `${share * 100}%` }} />
+        <span className="mt-1.5 block h-1 overflow-hidden rounded-pill bg-hover" role="img" aria-label={`${Math.round(share * 100)}% of the window has passed`}>
+          <span className="block h-full rounded-pill bg-brand" style={{ width: `${share * 100}%` }} />
         </span>
       </span>
     );

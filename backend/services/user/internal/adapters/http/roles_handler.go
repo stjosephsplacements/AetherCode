@@ -83,6 +83,9 @@ func (handler *Handler) listRoles(writer http.ResponseWriter, request *http.Requ
 		httpx.WriteError(writer, err)
 		return
 	}
+	if roles == nil {
+		roles = []app.Role{}
+	}
 	httpx.WriteJSON(writer, http.StatusOK, map[string]any{"roles": roles})
 }
 

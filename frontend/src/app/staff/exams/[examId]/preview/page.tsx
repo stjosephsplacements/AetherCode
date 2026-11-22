@@ -43,15 +43,15 @@ export default async function PreviewPage({ params }: { params: Promise<{ examId
         <ArrowLeft className="size-4" />
         Back to the exam
       </Link>
-      <p className="rounded-[var(--radius-control)] bg-brand-soft px-4 py-2 text-sm text-brand-soft-ink">Preview: this is what students read. Nothing here is saved.</p>
+      <p className="rounded-control bg-brand-soft px-4 py-2 text-sm text-brand-soft-ink">Preview: this is what students read. Nothing here is saved.</p>
 
       <h1 className="display mt-8 text-[2.1rem] text-ink">{version.title}</h1>
       <div className="mt-4 flex flex-wrap gap-2 text-[13px] text-ink-muted">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1">
+        <span className="inline-flex items-center gap-1.5 rounded-pill border border-line px-3 py-1">
           <CalendarDots className="size-3.5" />
           {formatWindow(version.opens_at, version.closes_at)}
         </span>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1">
+        <span className="inline-flex items-center gap-1.5 rounded-pill border border-line px-3 py-1">
           <Clock className="size-3.5" />
           {formatDuration(version.duration_seconds)}
         </span>
@@ -68,16 +68,16 @@ export default async function PreviewPage({ params }: { params: Promise<{ examId
           </p>
           <h2 className="display mt-1.5 text-[1.75rem] text-ink">{question.title}</h2>
           <p className="mt-3 flex flex-wrap gap-2 text-[13px] text-ink-muted">
-            <span className="rounded-full bg-brand-soft px-2.5 py-0.5 font-medium text-brand-soft-ink">{formatScoreText(Number(items[index]!.maximum_score))} marks</span>
+            <span className="rounded-pill bg-brand-soft px-2.5 py-0.5 font-medium text-brand-soft-ink">{formatScoreText(Number(items[index]!.maximum_score))} marks</span>
             {question.kind !== "mcq" && (
               <>
-                <span className="rounded-full bg-hover px-2.5 py-0.5">Time limit {question.time_limit_ms / 1000} s</span>
-                <span className="rounded-full bg-hover px-2.5 py-0.5">Memory {Math.round(question.memory_limit_kib / 1024)} MB</span>
-                <span className="rounded-full bg-hover px-2.5 py-0.5">{question.supported_languages.map(languageName).join(", ")}</span>
+                <span className="rounded-pill bg-hover px-2.5 py-0.5">Time limit {question.time_limit_ms / 1000} s</span>
+                <span className="rounded-pill bg-hover px-2.5 py-0.5">Memory {Math.round(question.memory_limit_kib / 1024)} MB</span>
+                <span className="rounded-pill bg-hover px-2.5 py-0.5">{question.supported_languages.map(languageName).join(", ")}</span>
               </>
             )}
             {items[index]!.pool && (
-              <span className="rounded-full bg-warning-soft px-2.5 py-0.5 text-warning">
+              <span className="rounded-pill bg-warning-soft px-2.5 py-0.5 text-warning">
                 {items[index]!.pool!.title}: each student gets {items[index]!.pool!.draw} of {items[index]!.pool!.of}
               </span>
             )}
@@ -86,7 +86,7 @@ export default async function PreviewPage({ params }: { params: Promise<{ examId
           {question.kind === "mcq" ? (
             <ol className="mt-4 space-y-1.5 text-sm">
               {(question.choices ?? []).map((option, optionIndex) => (
-                <li key={optionIndex} className="rounded-[var(--radius-control)] border border-line px-3 py-2 text-ink">
+                <li key={optionIndex} className="rounded-control border border-line px-3 py-2 text-ink">
                   {String.fromCharCode(65 + optionIndex)}. {option}
                 </li>
               ))}

@@ -59,7 +59,7 @@ export function ExamPreview() {
   );
 
   return (
-    <LiquidGlass ref={root} strong aria-hidden className="overflow-hidden rounded-3xl text-left text-ink shadow-[0_40px_120px_-40px_rgb(0_0_0/0.45)]">
+    <LiquidGlass ref={root} strong aria-hidden className="overflow-hidden rounded-panel text-left text-ink shadow-[0_40px_120px_-40px_rgb(0_0_0/0.45)]">
       <div className="flex items-center gap-3 border-b border-line bg-surface px-4 py-2.5 text-[13px]">
         <span className="font-semibold">AetherCode</span>
         <span className="text-ink-subtle">/</span>
@@ -68,7 +68,7 @@ export function ExamPreview() {
           <Clock className="size-3.5 text-ink-subtle" />
           42:17
         </span>
-        <span className="rounded-[7px] border border-line-strong px-2.5 py-1 text-[12.5px]">End test</span>
+        <span className="rounded-chip border border-line-strong px-2.5 py-1 text-[12.5px]">End test</span>
       </div>
 
       <div className="grid md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.3fr)]">
@@ -79,14 +79,14 @@ export function ExamPreview() {
             Read n, then n integers. Print the second largest distinct value. The input always holds at least two distinct numbers.
           </p>
           <p className="mt-5 text-[12.5px] font-medium">Sample input</p>
-          <pre className="mt-1.5 rounded-[8px] bg-surface-2 px-3 py-2 font-mono text-[12.5px] leading-6">{"3\n5 5 4"}</pre>
+          <pre className="mt-1.5 rounded-chip bg-surface-2 px-3 py-2 font-mono text-[12.5px] leading-6">{"3\n5 5 4"}</pre>
           <p className="mt-3 text-[12.5px] font-medium">Sample output</p>
-          <pre className="mt-1.5 rounded-[8px] bg-surface-2 px-3 py-2 font-mono text-[12.5px] leading-6">4</pre>
+          <pre className="mt-1.5 rounded-chip bg-surface-2 px-3 py-2 font-mono text-[12.5px] leading-6">4</pre>
         </article>
 
         <div className="flex min-w-0 flex-col">
           <div className="flex items-center gap-3 border-b border-line px-4 py-2 text-[12.5px]">
-            <span className="rounded-[7px] border border-line-strong px-2.5 py-1">Python 3</span>
+            <span className="rounded-chip border border-line-strong px-2.5 py-1">Python 3</span>
             <span className="ml-auto inline-flex items-center gap-1 text-ink-subtle">
               <Check className="size-3.5" />
               Saved
@@ -121,7 +121,7 @@ export function ExamPreview() {
                   <div key={sample.name} data-row={index} className="relative flex items-center gap-2.5">
                     <span className="relative grid size-5 place-items-center">
                       <CircleNotch data-state="running" className="absolute size-4 animate-spin text-ink-subtle" />
-                      <span data-state="passed" className="absolute grid size-5 place-items-center rounded-full bg-success-soft text-success">
+                      <span data-state="passed" className="absolute grid size-5 place-items-center rounded-pill bg-success-soft text-success">
                         <Check className="size-3" />
                       </span>
                     </span>
@@ -139,10 +139,10 @@ export function ExamPreview() {
               <span data-state="summary" className="text-[13px] font-medium text-success">
                 2 of 2 sample tests passed
               </span>
-              <span data-run className="ml-auto rounded-[8px] border border-line-strong px-3 py-1.5 text-[13px] font-medium">
+              <span data-run className="ml-auto rounded-chip border border-line-strong px-3 py-1.5 text-[13px] font-medium">
                 Run code
               </span>
-              <span className="rounded-[8px] bg-brand px-3 py-1.5 text-[13px] font-medium text-brand-ink">Submit code</span>
+              <span className="rounded-chip bg-brand px-3 py-1.5 text-[13px] font-medium text-brand-ink">Submit code</span>
             </div>
           </div>
         </div>

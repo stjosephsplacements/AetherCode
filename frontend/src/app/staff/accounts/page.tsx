@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { LoadError, PageHeader } from "@/components/staff/page-header";
-import { listBatches, listDepartments, listPlacement, departmentLabel } from "@/lib/server/directory";
-import { describeAccounts, listRoleAssignments } from "@/lib/server/people";
-import { inColleges } from "@/lib/server/colleges";
 import { STAFF_ROLES } from "@/lib/rbac";
+import { inColleges } from "@/lib/server/colleges";
+import { listBatches, listDepartments, listPlacement } from "@/lib/server/directory";
+import { describeAccounts, listRoleAssignments } from "@/lib/server/people";
+import { placementDepartmentOptions } from "@/lib/server/placement-org";
 import { collegesFor, requireStaff } from "@/lib/server/staff";
 import { CreateStaffDialog } from "./create-staff-form";
 import { ImportStaffDialog } from "./import-staff-dialog";
-import { StaffFilter, type StaffRow } from "./staff-filter";
 import type { RoleChip } from "./roles";
+import { StaffFilter, type StaffRow } from "./staff-filter";
 
 export const metadata: Metadata = { title: "Staff accounts" };
 
@@ -47,24 +48,25 @@ export default async function StaffAccountsPage({
     data = { perCollege, placement, page: query.page };
   } catch (error) {
     return (
-      <>
+      <div className="animate-enter">
         <PageHeader title="Staff accounts" />
         <LoadError error={error} />
-      </>
+      </div>
     );
   }
 
   const { perCollege, placement, page } = data;
   const several = false; // /staff is one college (cross-college lists live in /admin), so no college picker or column
 
-  const placementList = placement.organizations.flatMap((org) =>
-    org.departments.map((dep) => ({ id: dep.id, name: `${departmentLabel(dep)}, ${org.legal_name}` }))
-  );
+  const placementList = placementDepartmentOptions(placement).map((department) => ({
+    id: department.id,
+    name: department.label,
+  }));
 
   const unreachable = perCollege.filter((entry) => entry.failed).map((entry) => entry.college.name);
   const loaded = perCollege.flatMap(({ college, value }) => (value ? [{ college, ...value }] : []));
   const departments = loaded.flatMap((entry) =>
-    entry.departments.map((department) => ({ ...department, collegeId: entry.college.id, collegeName: entry.college.name }))
+    entry.departments.map((department) => ({ ...department, collegeId: entry.college.id, collegeName: entry.college.name })),
   );
 
   // One row per person per college, with that college's roles and scopes.
@@ -72,7 +74,7 @@ export default async function StaffAccountsPage({
     const scopeName = new Map<string, string>([
       ...entry.departments.map((department) => [department.id, department.name] as const),
       ...entry.batches.map((batch) => [batch.id, batch.name] as const),
-      ...placementList.map((p) => [p.id, p.name] as const),
+      ...placementList.map((option) => [option.id, option.name] as const),
     ]);
 
     const label = (role: string, scope?: string) =>
@@ -103,7 +105,9 @@ export default async function StaffAccountsPage({
         roles,
         roleTypes: [...roleTypes],
         departments: entry.departments.map((department) => ({ id: department.id, name: department.name })),
-        batches: entry.batches.filter((batch) => batch.status === "active").map((batch) => ({ id: batch.id, name: `${batch.name} (${batch.academic_year})`, departmentId: batch.department_id })),
+        batches: entry.batches
+          .filter((batch) => batch.status === "active")
+          .map((batch) => ({ id: batch.id, name: `${batch.name} (${batch.academic_year})`, departmentId: batch.department_id })),
       };
     });
   });
@@ -111,7 +115,7 @@ export default async function StaffAccountsPage({
   staffRows.sort((a, b) => a.displayName.localeCompare(b.displayName));
 
   return (
-    <>
+    <div className="animate-enter">
       <PageHeader
         title="Staff accounts"
         description="Create and manage staff accounts. Give them roles to control what they can do."
@@ -129,12 +133,7 @@ export default async function StaffAccountsPage({
         </p>
       )}
 
-      <StaffFilter
-        staffRows={staffRows}
-        placementList={placementList}
-        severalColleges={several}
-        currentPage={page}
-      />
-    </>
+      <StaffFilter staffRows={staffRows} placementList={placementList} severalColleges={several} currentPage={page} />
+    </div>
   );
 }

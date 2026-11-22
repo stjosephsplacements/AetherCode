@@ -34,7 +34,7 @@ export default async function TryExamPage({ params }: { params: Promise<{ examId
         <ArrowLeft className="size-4" />
         This private copy
       </Link>
-      <p className="mt-6 rounded-[var(--radius-control)] bg-brand-soft px-4 py-2 text-sm text-brand-soft-ink">
+      <p className="mt-6 rounded-control bg-brand-soft px-4 py-2 text-sm text-brand-soft-ink">
         You are trying a private copy. Your marks are in its results, not in the real exam&apos;s. When you finish you return to the staff area; your result is under{" "}
         <Link href={`/staff/exams/${examId}/results`} className="underline">
           this copy&apos;s results
@@ -43,11 +43,11 @@ export default async function TryExamPage({ params }: { params: Promise<{ examId
       </p>
       <h1 className="display mt-8 text-[2.1rem] text-ink">{assignment.title}</h1>
       <div className="mt-4 flex flex-wrap gap-2 text-[13px] text-ink-muted">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1">
+        <span className="inline-flex items-center gap-1.5 rounded-pill border border-line px-3 py-1">
           <CalendarDots className="size-3.5" />
           {formatWindow(assignment.available_from, assignment.available_until)}
         </span>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1">
+        <span className="inline-flex items-center gap-1.5 rounded-pill border border-line px-3 py-1">
           <Clock className="size-3.5" />
           {formatDuration(assignment.duration_seconds)}
         </span>

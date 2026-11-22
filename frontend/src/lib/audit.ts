@@ -34,6 +34,15 @@ const singular = (name: string) => name.replace(/ies$/, "y").replace(/(ch|sh|x|s
 
 /** A staff change in words: the known resource, or a plain fallback. */
 export function auditAction(entry: Pick<AuditEntry, "service" | "resource_type"> & { action?: AuditEntry["action"] }): string {
-  if (entry.action === "delete") return `Deleted ${singular(entry.resource_type.replaceAll("_", " "))} (${entry.service})`;
-  return ACTIONS[`${entry.service}/${entry.resource_type}`] ?? `Changed ${entry.resource_type.replaceAll("_", " ")} (${entry.service})`;
+  const service = entry.service?.trim() || "";
+  const resource = entry.resource_type?.trim() || "";
+  const where = service ? ` (${service})` : "";
+  if (entry.action === "delete") {
+    return `Deleted ${singular((resource || "something").replaceAll("_", " "))}${where}`;
+  }
+  if (service && resource) {
+    const known = ACTIONS[`${service}/${resource}`];
+    if (known) return known;
+  }
+  return `Changed ${(resource || "something").replaceAll("_", " ")}${where}`;
 }

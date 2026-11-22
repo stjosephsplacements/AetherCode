@@ -1,10 +1,9 @@
 "use client";
 
-import { Sidebar, SidebarSimple } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AccountMenu } from "@/components/account-menu";
-import { type NavGroup, StaffNav } from "@/components/staff/staff-nav";
+import { type NavGroup, SidebarCollapse, StaffNav } from "@/components/staff/staff-nav";
 import { SIDEBAR_COOKIE } from "@/lib/sidebar";
 import type { Viewer } from "@/lib/viewer";
 import { cn } from "@/lib/utils";
@@ -19,8 +18,27 @@ function remember(collapsed: boolean) {
   document.cookie = `${SIDEBAR_COOKIE}=${collapsed ? "collapsed" : "expanded"}; path=/; max-age=31536000; samesite=lax`;
 }
 
-/** The console sidebar, folding to an icon rail. Ctrl or Cmd + B toggles it. */
-export function StaffSidebar({ viewer, groups, brand, college, initiallyCollapsed, home = "/staff" }: { home?: string; viewer: Viewer; groups: NavGroup[]; brand: React.ReactNode; college?: React.ReactNode; initiallyCollapsed: boolean }) {
+/**
+ * Floating console sidebar: rounded panel inset from the canvas edge.
+ * Text labels when expanded; glyph rail when collapsed. Ctrl/Cmd+B toggles width.
+ */
+export function StaffSidebar({
+  viewer,
+  groups,
+  brand,
+  college,
+  initiallyCollapsed,
+  home = "/staff",
+  consoleLabel,
+}: {
+  home?: string;
+  consoleLabel?: string;
+  viewer: Viewer;
+  groups: NavGroup[];
+  brand: React.ReactNode;
+  college?: React.ReactNode;
+  initiallyCollapsed: boolean;
+}) {
   const [collapsed, setCollapsed] = useState(initiallyCollapsed);
   const toggle = () =>
     setCollapsed((current) => {
@@ -43,37 +61,36 @@ export function StaffSidebar({ viewer, groups, brand, college, initiallyCollapse
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const Toggle = collapsed ? Sidebar : SidebarSimple;
   return (
     <aside
       data-collapsed={collapsed || undefined}
       className={cn(
-        "sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-line bg-canvas transition-[width] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] lg:flex print:hidden",
-        collapsed ? "w-[60px]" : "w-[232px]",
+        "z-30 hidden h-full shrink-0 flex-col overflow-hidden rounded-panel border border-line bg-sidebar shadow-[var(--shadow-panel)] transition-[width] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] lg:flex print:hidden",
+        collapsed ? "w-[var(--sidebar-collapsed)]" : "w-[var(--sidebar-expanded)]",
       )}
     >
-      <div className={cn("flex h-12 shrink-0 items-center border-b border-line", collapsed ? "justify-center" : "justify-between pl-4 pr-2")}>
+      <div className={cn("flex h-[var(--shell-header)] shrink-0 items-center border-b border-line", collapsed ? "justify-center px-1" : "gap-2 pl-4 pr-2")}>
         {!collapsed && (
-          <Link href={home} className="min-w-0 truncate">
+          <Link href={home} className="min-w-0 flex-1 truncate">
             {brand}
           </Link>
         )}
-        <button
-          type="button"
-          onClick={toggle}
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          aria-expanded={!collapsed}
-          title={`${collapsed ? "Expand" : "Collapse"} sidebar (Ctrl+B)`}
-          className="grid size-8 place-items-center rounded-[var(--radius-control)] text-ink-subtle transition-colors hover:bg-hover hover:text-ink"
-        >
-          <Toggle className="size-4" />
-        </button>
+        <SidebarCollapse collapsed={collapsed} onToggle={toggle} />
       </div>
+
+      {!collapsed && consoleLabel && (
+        <div className="border-b border-line px-4 py-2.5">
+          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-subtle">{consoleLabel}</p>
+        </div>
+      )}
+
       {college && !collapsed && <div className="border-b border-line px-3 py-3">{college}</div>}
-      <nav aria-label="Main" className={cn("flex-1 overflow-y-auto overflow-x-hidden py-4", collapsed ? "px-2.5" : "px-2")}>
+
+      <nav aria-label="Main" className={cn("flex-1 overflow-y-auto overflow-x-hidden py-4", collapsed ? "px-2" : "px-2.5")}>
         <StaffNav groups={groups} collapsed={collapsed} />
       </nav>
-      <div className={cn("border-t border-line p-2", collapsed && "flex justify-center")}>
+
+      <div className={cn("mt-auto border-t border-line", collapsed ? "flex justify-center p-2" : "p-2.5")}>
         <AccountMenu viewer={viewer} compact={collapsed} />
       </div>
     </aside>
