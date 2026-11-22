@@ -129,11 +129,7 @@ export function AuditLog({ rows, several }: { rows: AuditRow[]; several: boolean
           ))}
         </div>
       )}
-<<<<<<< HEAD
-    </div>
-=======
       <LocalPager meta={paged} onPage={(page) => setPageState({ key: filterKey, page })} noun="entries" />
-    </>
->>>>>>> 9e21b61 (feat(web): paginate analytics tables, audit log, changelog; document list conventions)
+    </div>
   );
 }
