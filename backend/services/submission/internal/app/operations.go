@@ -401,8 +401,13 @@ func (service *Service) ListFailedGradingJobs(contextValue context.Context, capa
 	if command.CursorID != "" && !isUUID(command.CursorID) {
 		return nil, apperrors.New(apperrors.CodeInvalidArgument, "cursor job ID must be a UUID")
 	}
-	if (command.CursorSort == nil) != (command.CursorID == "") {
+	if (command.CursorSort == "") != (command.CursorID == "") {
 		return nil, apperrors.New(apperrors.CodeInvalidArgument, "cursor must include both timestamp and job ID")
+	}
+	if command.CursorSort != "" {
+		if _, err := time.Parse(time.RFC3339Nano, command.CursorSort); err != nil {
+			return nil, apperrors.New(apperrors.CodeInvalidArgument, "before must be an RFC3339 timestamp")
+		}
 	}
 	if command.Limit <= 0 {
 		command.Limit = 50

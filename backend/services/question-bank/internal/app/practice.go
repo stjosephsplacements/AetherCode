@@ -140,6 +140,9 @@ func (service *Service) GetPracticeQuestion(contextValue context.Context, capabi
 		return PracticeQuestion{}, fmt.Errorf("decode practice question: %w", err)
 	}
 	question := stored.PracticeQuestion
+	if question.Kind == "" {
+		question.Kind = "coding"
+	}
 	if templates, err := service.loadTemplates(contextValue, question.QuestionVersionID); err == nil {
 		question.Starters = templates.starters()
 	}

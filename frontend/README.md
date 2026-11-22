@@ -94,6 +94,7 @@ in the same directory. The sign-in page keeps the AetherCode mark.
 | `/staff/exams/<exam>/monitor` | Live monitor with WebSocket updates, announcements, extend time |
 | `/staff/exams/<exam>/results` | Results, CSV export, result release |
 | `/staff/exams/<exam>/similarity` | Similarity report |
+| `/staff/exams/<exam>/similarity/compare` | Side-by-side code compare for a pair |
 | `/staff/questions` | Question bank, authoring, model-solution checks |
 | `/staff/students` | Student roster, bulk import, individual detail |
 | `/staff/roles` | College role management with permission grids |

@@ -33,6 +33,10 @@ DECLARE
     v_candidate uuid;
     v_recent timestamptz;
 BEGIN
+    IF NOT authz.current_context_allows(p_tenant_id, 'submission.write', 'submission.attempts') THEN
+        RAISE EXCEPTION 'signed authorization context does not allow recording client proctor hints'
+            USING ERRCODE = '42501';
+    END IF;
     IF p_tenant_id IS NULL OR p_attempt_id IS NULL OR p_confidence IS NULL
        OR p_kind IS NULL OR p_kind NOT IN ('face_missing', 'multiple_faces', 'phone_detected')
        OR p_confidence < 0 OR p_confidence > 1 THEN

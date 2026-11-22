@@ -171,9 +171,8 @@ func TestDismissFailedGradingJobRejectsEmptyReason(t *testing.T) {
 func TestListFailedGradingJobsRejectsSplitCursor(t *testing.T) {
 	t.Parallel()
 	service := newValidationService(t)
-	when := time.Now()
 	_, err := service.ListFailedGradingJobs(context.Background(), centralauthz.Capability{}, ListFailedGradingJobs{
-		TenantID: validSubmissionTestUUID, CursorSort: &when,
+		TenantID: validSubmissionTestUUID, CursorSort: time.Now().Format(time.RFC3339Nano),
 	})
 	assertInvalidArgument(t, err)
 }

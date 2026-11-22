@@ -292,13 +292,6 @@ func (service *Service) validateBrandingScope(tenantID *string) error {
 	return nil
 }
 
-func valueOrEmpty(value *string) string {
-	if value == nil {
-		return ""
-	}
-	return *value
-}
-
 func brandingObjectKey(tenantID *string, logoID string) string {
 	scope := "platform"
 	if tenantID != nil {

@@ -11,14 +11,24 @@ import { listAllStudents } from "@/lib/server/students";
 import { type Attempt, type ExamPoint, latestChange, mean, passes, shareOf, summarize } from "@/lib/analytics";
 import { type StudentRow } from "./student-list";
 import { AnalyticsView } from "./view";
+import { AnalyticsTabs } from "./tabs";
+import { ProfilesView } from "./profiles-view";
 
 export const metadata: Metadata = { title: "Analytics" };
 
-
-
 /** Exam results across the college, by exam, department, batch and student. */
-export default async function AnalyticsPage() {
+export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const staff = await requireStaff();
+  const tab = (await searchParams).tab === "profiles" ? "profiles" : "overview";
+  const collegeId = collegeFor(staff);
+  if (tab === "profiles") {
+    return (
+      <div className="animate-enter">
+        <AnalyticsTabs tab="profiles" />
+        <ProfilesView collegeId={collegeId} />
+      </div>
+    );
+  }
   let data;
   try {
     const perCollege = await inColleges(collegesFor(staff), async (collegeId) => {

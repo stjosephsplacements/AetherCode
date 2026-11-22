@@ -386,19 +386,11 @@ func (handler *Handler) listFailedGradingJobs(writer http.ResponseWriter, reques
 		}
 		limit = parsed
 	}
-	var before *time.Time
+	cursorSort := strings.TrimSpace(request.URL.Query().Get("before"))
 	cursorID := strings.TrimSpace(request.URL.Query().Get("before_id"))
-	if rawBefore := strings.TrimSpace(request.URL.Query().Get("before")); rawBefore != "" {
-		parsed, parseErr := time.Parse(time.RFC3339Nano, rawBefore)
-		if parseErr != nil {
-			httpx.WriteError(writer, apperrors.New(apperrors.CodeInvalidArgument, "before must be an RFC3339 timestamp"))
-			return
-		}
-		before = &parsed
-	}
 	writer.Header().Set("Cache-Control", "no-store")
 	list, err := handler.service.ListFailedGradingJobs(request.Context(), decision.Capability, app.ListFailedGradingJobs{
-		TenantID: tenantID, Limit: limit, CursorSort: before, CursorID: cursorID,
+		TenantID: tenantID, Limit: limit, CursorSort: cursorSort, CursorID: cursorID,
 	})
 	writeRaw(writer, http.StatusOK, list, err)
 }

@@ -31,7 +31,7 @@ export async function saveBranding(_prev: ActionState, formData: FormData): Prom
   }
 }
 
-export async function uploadLogo(_prev: BrandingActionState, formData: FormData): Promise<BrandingActionState> {
+export async function uploadLogo(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const { tenantId } = await requireCollege();
   const file = formData.get("logo");
   if (!(file instanceof File) || file.size === 0) {
@@ -60,7 +60,7 @@ export async function uploadLogo(_prev: BrandingActionState, formData: FormData)
   }
 }
 
-export async function deleteLogo(_prev: BrandingActionState, formData: FormData): Promise<BrandingActionState> {
+export async function deleteLogo(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const { tenantId } = await requireCollege();
   const logoId = String(formData.get("logo_id") ?? "");
   if (!logoId) return { error: "Missing logo" };

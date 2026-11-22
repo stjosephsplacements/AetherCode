@@ -8,6 +8,8 @@ import { actionError } from "@/lib/server/actions";
 import { gateway } from "@/lib/server/gateway";
 import { type CreatedDraft, type NewQuestion, writeNewQuestionDraft } from "@/lib/server/question-drafts";
 import { requireQuestionAuthor } from "@/lib/server/question-author";
+import { exportIntakeTopic, listIntakeTopics } from "@/lib/server/intake";
+import { importIntakeTopicBundle } from "@/lib/server/intake-import";
 import { requireStaff } from "@/lib/server/staff";
 import { isPlacementOnly } from "@/lib/viewer";
 import { type TestDraft, cleanTags, prepareTests, testsProblem } from "@/components/staff/question-wizard/model";
@@ -31,6 +33,38 @@ function questionDetailPath(versionId: string, viewer: Parameters<typeof isPlace
  * Saves a question as a draft in one go: the details first, then the tests or
  * the options. Everything was already checked in the browser; this checks it again.
  */
+export type IntakeTopicOption = { id: string; name: string; parentName: string | null; questionCount: number };
+
+export async function loadIntakeTopics(): Promise<IntakeTopicOption[]> {
+  await requireQuestionAuthor();
+  const topics = await listIntakeTopics();
+  return topics.map((topic) => ({ id: topic.id, name: topic.name, parentName: topic.parent_name, questionCount: topic.question_count }));
+}
+
+/** Imports every question in an intake topic as bank drafts, idempotent per question, with model checks before publish. */
+export async function importIntakeTopic(_previous: ActionState, form: FormData): Promise<ActionState> {
+  await requireQuestionAuthor();
+  const topicId = String(form.get("topic_id") ?? "").trim();
+  if (!topicId) return { error: "Choose a topic from question intake." };
+  let bundle;
+  try {
+    bundle = await exportIntakeTopic(topicId);
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+  const key = `intake:${topicId}:${crypto.randomUUID()}`;
+  const result = await importIntakeTopicBundle(bundle.topic.name, bundle.topic.parent_name, bundle.questions, key);
+  refreshQuestions();
+  const parts = [
+    result.imported ? `Imported ${result.imported} question${result.imported === 1 ? "" : "s"} as drafts.` : null,
+    result.skipped ? `${result.skipped} already linked and left unchanged.` : null,
+    result.unverified.length ? `Still need model-check pass before publish: ${result.unverified.join("; ")}.` : null,
+    result.errors.length ? `Not imported: ${result.errors.join("; ")}.` : null,
+  ].filter(Boolean);
+  if (!result.imported && !result.skipped && result.errors.length) return { error: parts.join(" ") || "Nothing was imported." };
+  return { error: null, message: parts.join(" ") || "Nothing new to import." };
+}
+
 export async function createDraft(input: NewQuestion): Promise<CreatedDraft> {
   await requireQuestionAuthor();
   const result = await writeNewQuestionDraft(input);

@@ -2,6 +2,7 @@ package repo
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 
@@ -21,7 +22,7 @@ func (repository *Postgres) GetBranding(contextValue context.Context, transactio
 	var appName string
 	var accent *string
 	var updatedBy *string
-	var updatedAt pgx.NullTime
+	var updatedAt sql.NullTime
 	if err := row.Scan(&rowTenantID, &appName, &accent, &updatedBy, &updatedAt); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			view.TenantID = tenantID
