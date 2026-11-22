@@ -25,7 +25,7 @@ export async function saveBranding(_prev: ActionState, formData: FormData): Prom
       },
     });
     revalidatePath("/staff/branding");
-    return { ok: true };
+    return { error: null, message: "Saved." };
   } catch (error) {
     return { error: error instanceof GatewayError ? error.message : "Branding could not be saved" };
   }
@@ -54,7 +54,7 @@ export async function uploadLogo(_prev: ActionState, formData: FormData): Promis
       return { error: payload?.message ?? `Upload failed (${response.status})` };
     }
     revalidatePath("/staff/branding");
-    return { ok: true };
+    return { error: null, message: "Saved." };
   } catch {
     return { error: "Logo upload failed" };
   }
@@ -67,7 +67,7 @@ export async function deleteLogo(_prev: ActionState, formData: FormData): Promis
   try {
     await gateway<BrandingView>(`/tenant/v1/tenants/${tenantId}/branding/logos/${logoId}`, { method: "DELETE" });
     revalidatePath("/staff/branding");
-    return { ok: true };
+    return { error: null, message: "Saved." };
   } catch (error) {
     return { error: error instanceof GatewayError ? error.message : "Logo could not be removed" };
   }

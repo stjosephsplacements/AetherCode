@@ -97,3 +97,4 @@ Each decision is a numbered file; new ones start from [the template](0000-templa
 | [0091](0091-password-reset-email.md) | Password-reset email through Microsoft Graph, sent by the Identity service (accepted) |
 | [0092](0092-college-contests.md) | College-scoped practice contests and live leaderboards (accepted) |
 | [0093](0093-mcq-practice.md) | Multiple-choice practice with explanations after submit (accepted) |
+| [0094](0094-seb-quit-self-service.md) | SEB quit-token self-service after hand-in (accepted) |

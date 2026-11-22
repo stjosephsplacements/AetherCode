@@ -6,7 +6,7 @@ import { listBatches, listDepartments } from "@/lib/server/directory";
 import { listExams, mapLimit } from "@/lib/server/exams";
 import { gateway } from "@/lib/server/gateway";
 import { inColleges } from "@/lib/server/colleges";
-import { collegesFor, requireStaff } from "@/lib/server/staff";
+import { collegeFor, collegesFor, requireStaff } from "@/lib/server/staff";
 import { listAllStudents } from "@/lib/server/students";
 import { type Attempt, type ExamPoint, latestChange, mean, passes, shareOf, summarize } from "@/lib/analytics";
 import { type StudentRow } from "./student-list";

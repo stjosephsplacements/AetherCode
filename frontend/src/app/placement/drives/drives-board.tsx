@@ -20,16 +20,15 @@ export function ConsortiumDrives({ tracks, tenantId }: { tracks: { id: string; n
   }, [trackId, tenantId]);
 
   useEffect(() => {
-    if (!selected || !trackId) {
-      setBoard([]);
-      return;
-    }
+    if (!selected || !trackId) return;
     void api<ConsortiumLeaderboardEntry[]>(
       `/analytics/v1/tenants/${tenantId}/placement-departments/${trackId}/consortium-drives/${selected}/leaderboard`,
     )
       .then(setBoard)
       .catch(() => setBoard([]));
   }, [selected, trackId, tenantId]);
+
+  const leaderboard = selected && trackId ? board : [];
 
   async function createDrive() {
     const title = window.prompt("Drive title?");
@@ -81,7 +80,7 @@ export function ConsortiumDrives({ tracks, tenantId }: { tracks: { id: string; n
         <section className="rounded-panel border border-line bg-surface p-4">
           <h2 className="text-[15px] font-semibold text-ink">Leaderboard</h2>
           <ol className="mt-3 space-y-1 font-mono text-[13px]">
-            {board.map((entry, index) => (
+            {leaderboard.map((entry, index) => (
               <li key={`${entry.tenant_id}-${entry.student_id}`}>
                 {index + 1}. {entry.student_id.slice(0, 8)} · score {entry.score ?? "-"}
               </li>

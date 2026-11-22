@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { actionError, type ActionState } from "@/lib/server/actions";
+import type { ActionState } from "@/components/staff/form";
+import { actionError } from "@/lib/server/actions";
 import { gateway } from "@/lib/server/gateway";
 import { collegeFor, requireStaff } from "@/lib/server/staff";
 

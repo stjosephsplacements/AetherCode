@@ -44,7 +44,7 @@ async function resolveCategory(topicName: string, parentName: string | null): Pr
   if (target) return target.id;
   if (parentName && !parent) {
     const parentCategory = await createCategoryByName(parentName);
-    return createCategoryByName(topicName, parentCategory.id);
+    return createCategoryByName(topicName, parentCategory);
   }
   return createCategoryByName(topicName, parent?.id);
 }
