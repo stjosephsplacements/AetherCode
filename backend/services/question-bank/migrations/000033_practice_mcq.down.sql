@@ -1,3 +1,5 @@
+SET ROLE aether_question_bank_owner;
+
 DROP FUNCTION qbank.start_practice_mcq_submission(uuid, uuid, integer[]);
 
 DELETE FROM qbank.practice_submissions WHERE selected_choices IS NOT NULL;
@@ -184,3 +186,5 @@ BEGIN
         'encryption_key_reference', found_row.source_key_reference));
 END
 $function$;
+
+RESET ROLE;

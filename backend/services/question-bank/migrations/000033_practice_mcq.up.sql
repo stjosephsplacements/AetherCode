@@ -1,5 +1,6 @@
 -- Multiple-choice practice (Wave C): practise audience mcq without Judge; show
 -- choice explanations after submit (ADR-0058).
+SET ROLE aether_question_bank_owner;
 
 ALTER TABLE qbank.practice_submissions
     ALTER COLUMN language_key DROP NOT NULL,
@@ -276,3 +277,5 @@ $function$;
 
 REVOKE ALL ON FUNCTION qbank.start_practice_mcq_submission(uuid, uuid, integer[]) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION qbank.start_practice_mcq_submission(uuid, uuid, integer[]) TO aether_question_bank_app;
+
+RESET ROLE;

@@ -1,6 +1,6 @@
 SET ROLE aether_user_owner;
 
-INSERT INTO users.permission_flags (key, bit_index, kind, platform_only, student_managed)
+INSERT INTO users.permission_flags (key, bit_index, kind, elevated, platform_only)
 VALUES
     ('user.platform_profiles.read', 220, 'resource', false, false),
     ('user.platform_profiles.write', 221, 'resource', false, false),

@@ -1,6 +1,6 @@
 SET ROLE aether_user_owner;
 
-INSERT INTO users.permission_flags (key, bit_index, kind, platform_only, student_managed)
+INSERT INTO users.permission_flags (key, bit_index, kind, elevated, platform_only)
 VALUES
     ('question-bank.college_contests.read', 223, 'resource', false, false),
     ('question-bank.college_contests.write', 224, 'resource', false, false),
