@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { panel } from "@/app/admin/_dashboard/panel";
 import { LoadError, PageHeader } from "@/components/staff/page-header";
 import { gateway } from "@/lib/server/gateway";
-import { describeAccounts } from "@/lib/server/people";
 import { requireStudent } from "@/lib/server/student";
 import { cn, formatDateTime } from "@/lib/utils";
 
@@ -11,11 +10,11 @@ export const metadata: Metadata = { title: "Contest leaderboard" };
 type Row = { actor_id: string; problems: number; last_solve: string };
 
 export default async function ContestLeaderboardPage({ params }: { params: Promise<{ contestId: string }> }) {
-  const student = await requireStudent();
+  const { viewer, tenantId } = await requireStudent();
   const { contestId } = await params;
   let rows: Row[];
   try {
-    rows = await gateway<Row[]>(`/question-bank/v1/tenants/${student.tenantId}/contests/${contestId}/leaderboard`);
+    rows = await gateway<Row[]>(`/question-bank/v1/tenants/${tenantId}/contests/${contestId}/leaderboard`);
   } catch (error) {
     return (
       <>
@@ -24,9 +23,7 @@ export default async function ContestLeaderboardPage({ params }: { params: Promi
       </>
     );
   }
-  const people = rows.length
-    ? await describeAccounts(student.tenantId, rows.map((row) => row.actor_id)).catch(() => new Map())
-    : new Map();
+  const selfName = viewer.displayName.trim() || viewer.username.trim();
   return (
     <div className="animate-enter space-y-4">
       <PageHeader title="Live leaderboard" description="Accepted practice submits during the contest window." />
@@ -42,11 +39,10 @@ export default async function ContestLeaderboardPage({ params }: { params: Promi
           </thead>
           <tbody>
             {rows.map((row, index) => {
-              const person = people.get(row.actor_id);
               const label =
-                person?.display_name?.trim() ||
-                person?.username?.trim() ||
-                row.actor_id.slice(0, 8);
+                row.actor_id === viewer.principalId
+                  ? selfName || "You"
+                  : `Participant ${index + 1}`;
               return (
               <tr key={row.actor_id} className="border-t border-line/60">
                 <td className="px-3 py-2 tabular-nums">{index + 1}</td>

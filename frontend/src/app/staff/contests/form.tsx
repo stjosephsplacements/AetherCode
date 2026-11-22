@@ -13,14 +13,17 @@ export type ContestQuestionOption = {
   tags: string[];
 };
 
+const MAX_CONTEST_QUESTIONS = 20;
+
 export function CreateContestForm({ collegeId, questions }: { collegeId: string; questions: ContestQuestionOption[] }) {
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const questionIds = useMemo(() => [...selected].join(","), [selected]);
+  const atMax = selected.size >= MAX_CONTEST_QUESTIONS;
   const toggle = (id: string) => {
     setSelected((current) => {
       const next = new Set(current);
       if (next.has(id)) next.delete(id);
-      else next.add(id);
+      else if (next.size < MAX_CONTEST_QUESTIONS) next.add(id);
       return next;
     });
   };
@@ -30,17 +33,31 @@ export function CreateContestForm({ collegeId, questions }: { collegeId: string;
       <TextInput name="title" placeholder="Title" required className="md:col-span-2" />
       <input type="hidden" name="question_ids" value={questionIds} />
       <fieldset className="md:col-span-2 space-y-2">
-        <legend className="text-sm font-medium text-ink">Practice problems</legend>
+        <legend className="text-sm font-medium text-ink">
+          Practice problems {atMax ? `(max ${MAX_CONTEST_QUESTIONS})` : ""}
+        </legend>
         {questions.length === 0 ? (
           <p className="text-sm text-ink-muted">No practice problems in the catalogue yet.</p>
         ) : (
           <ul className="max-h-64 space-y-2 overflow-y-auto rounded border border-line p-2">
             {questions.map((question) => {
               const checked = selected.has(question.id);
+              const disabled = !checked && atMax;
               return (
                 <li key={question.id}>
-                  <label className={cn("flex cursor-pointer items-start gap-3 rounded p-2 text-sm hover:bg-canvas", checked && "bg-canvas")}>
-                    <Checkbox checked={checked} onCheckedChange={() => toggle(question.id)} aria-label={question.title} />
+                  <label
+                    className={cn(
+                      "flex items-start gap-3 rounded p-2 text-sm",
+                      disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-canvas",
+                      checked && "bg-canvas",
+                    )}
+                  >
+                    <Checkbox
+                      checked={checked}
+                      disabled={disabled}
+                      onCheckedChange={() => toggle(question.id)}
+                      aria-label={question.title}
+                    />
                     <span className="min-w-0 flex-1">
                       <span className="font-medium text-ink">{question.title}</span>
                       <span className="mt-0.5 block text-xs text-ink-muted">

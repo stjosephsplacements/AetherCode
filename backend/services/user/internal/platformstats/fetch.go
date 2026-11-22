@@ -193,9 +193,13 @@ func skillrack(ctx context.Context, client *http.Client, handle string) ([]strin
 	if err != nil {
 		return nil, staleOnRateLimit(err), err
 	}
+	return skillrackFromHTML(html)
+}
+
+func skillrackFromHTML(html string) ([]string, string, error) {
 	lines := parseSkillrackProgramsSolved(html)
 	if len(lines) == 0 {
-		return nil, "fresh", nil
+		return nil, "failed", fmt.Errorf("skillrack programs solved not found")
 	}
 	return lines, "fresh", nil
 }

@@ -64,6 +64,14 @@ func TestGetHTML(t *testing.T) {
 	}
 }
 
+func TestSkillrackUnparseableIsFailed(t *testing.T) {
+	t.Parallel()
+	lines, status, err := skillrackFromHTML(`<p>Nothing here</p>`)
+	if err == nil || status != "failed" || lines != nil {
+		t.Fatalf("lines=%v status=%q err=%v", lines, status, err)
+	}
+}
+
 func TestStaleOnRateLimit(t *testing.T) {
 	t.Parallel()
 	if staleOnRateLimit(nil) != "failed" {

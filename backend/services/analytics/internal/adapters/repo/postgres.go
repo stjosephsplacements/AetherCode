@@ -211,17 +211,25 @@ type placementProgressRow struct {
 }
 
 func (repository *Postgres) ListPlacementProgress(ctx context.Context, tx *database.GormDB, tenantID, placementDepartmentID string, limit int) ([]app.PlacementProgress, error) {
-	// Prefer medallion gold (ADR-0067); fall back to the legacy rollup until campus rebuilds gold.
+	// Prefer medallion gold (ADR-0067); fall back to legacy rollups when gold is empty or unavailable.
+	const goldSavepoint = "placement_progress_gold"
+	if err := tx.SavePoint(goldSavepoint).Error; err != nil {
+		return nil, mapError(err, "begin placement gold savepoint")
+	}
 	rows, err := repository.listPlacementProgressTable(ctx, tx, "analytics_gold.gold_placement_student", tenantID, placementDepartmentID, limit)
-	if err != nil || len(rows) == 0 {
-		legacy, legacyErr := repository.listPlacementProgressTable(ctx, tx, "analytics.placement_student_rollups", tenantID, placementDepartmentID, limit)
-		if legacyErr != nil {
-			if err != nil {
-				return nil, err
-			}
-			return nil, legacyErr
+	if err != nil {
+		if rbErr := tx.RollbackTo(goldSavepoint).Error; rbErr != nil {
+			return nil, mapError(err, "list placement progress")
 		}
-		rows = legacy
+		rows, err = repository.listPlacementProgressTable(ctx, tx, "analytics.placement_student_rollups", tenantID, placementDepartmentID, limit)
+		if err != nil {
+			return nil, err
+		}
+	} else if len(rows) == 0 {
+		rows, err = repository.listPlacementProgressTable(ctx, tx, "analytics.placement_student_rollups", tenantID, placementDepartmentID, limit)
+		if err != nil {
+			return nil, err
+		}
 	}
 	placementProgress := make([]app.PlacementProgress, 0, len(rows))
 	for _, row := range rows {
