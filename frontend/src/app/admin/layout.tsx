@@ -1,6 +1,10 @@
+import { cookies } from "next/headers";
+import { CollegePicker } from "@/components/staff/college-picker";
+import { staffNavGroups } from "@/components/staff/staff-nav-groups";
 import { type NavGroup } from "@/components/staff/staff-nav";
 import { StaffShell } from "@/components/staff/staff-shell";
-import { requireAdmin } from "@/lib/server/staff";
+import { collegeHref } from "@/lib/links";
+import { TENANT_COOKIE, requireAdmin } from "@/lib/server/staff";
 
 /** The admin console: platform administrators only, across every college. */
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -42,9 +46,24 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       ],
     },
   ];
+  // The college workspace: the same pages a college administrator sees, for the college opened last.
+  const picked = (await cookies()).get(TENANT_COOKIE)?.value;
+  const selected = staff.tenants.find((tenant) => tenant.id === picked);
+  groups.push(
+    ...(selected
+      ? staffNavGroups({ canManageAccounts: true, link: (path) => collegeHref(path, selected.id), prefix: "College" })
+      : [{ label: "College workspace", items: [{ href: "/admin/colleges", label: "Choose a college", icon: "organisation" as const }] }]),
+  );
   const realtimeTenant = staff.tenantId ?? staff.tenants[0]?.id ?? null;
   return (
-    <StaffShell viewer={staff.viewer} tenantId={realtimeTenant} groups={groups} home="/admin" consoleLabel="Admin console">
+    <StaffShell
+      viewer={staff.viewer}
+      tenantId={realtimeTenant}
+      groups={groups}
+      home="/admin"
+      consoleLabel="Admin console"
+      college={<CollegePicker colleges={staff.tenants.map((tenant) => ({ id: tenant.id, name: tenant.display_name }))} selected={selected?.id ?? ""} />}
+    >
       {children}
     </StaffShell>
   );

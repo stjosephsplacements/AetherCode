@@ -1,20 +1,38 @@
 import "server-only";
 import { redirect } from "next/navigation";
 import type { Page, Tenant } from "@/lib/api-types";
-import { type Viewer, canViewStudentPII, homeFor } from "@/lib/viewer";
+import { type Viewer, canViewStudentPII, homeFor, reachesAllColleges } from "@/lib/viewer";
 import { gateway } from "./gateway";
 import type { CollegeRef } from "./staff";
 import { requireViewer } from "./session";
 
 export type PlacementContext = {
   viewer: Viewer;
+  isPlatformAdmin: boolean;
   /** Placement departments this officer is assigned to. */
   departmentIds: string[];
-  /** Colleges the officer may pull students from (every college for scoped officers). */
+  /** The colleges this member reaches: all for a platform administrator or a platform-scoped officer, otherwise their own. */
   colleges: CollegeRef[];
+  /** Whether the viewer's reach is every college (also gates managing placement departments and officers). */
+  allColleges: boolean;
   /** Whether the viewer may see student names and roll numbers (VIEW_STUDENT_PII). */
   canViewPII: boolean;
 };
+
+const MAX_COLLEGE_PAGES = 100;
+
+/** Every college, following the cursor so a deployment with more than one page of colleges loses none. */
+async function listAllColleges(): Promise<CollegeRef[]> {
+  const colleges: CollegeRef[] = [];
+  let cursor: string | undefined;
+  for (let page = 0; page < MAX_COLLEGE_PAGES; page++) {
+    const result = await gateway<Page<Tenant>>(`/tenant/v1/tenants?limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`);
+    colleges.push(...result.items.map((tenant) => ({ id: tenant.id, name: tenant.display_name })));
+    if (!result.next_cursor) return colleges;
+    cursor = result.next_cursor;
+  }
+  throw new Error(`more than ${MAX_COLLEGE_PAGES} pages of colleges`);
+}
 
 /**
  * The placement staff console. Platform administrators set up org/tracks under
@@ -22,11 +40,26 @@ export type PlacementContext = {
  */
 export async function requirePlacement(): Promise<PlacementContext> {
   const viewer = await requireViewer();
-  if (viewer.roles.includes("super_admin")) redirect("/admin/placement");
+  const isPlatformAdmin = viewer.roles.includes("super_admin");
+  if (isPlatformAdmin) redirect("/admin/placement");
   if (!viewer.roles.includes("placement_user")) redirect(homeFor(viewer));
 
   const departmentIds = viewer.placementDepartmentIds;
-  const tenants = (await gateway<Page<Tenant>>("/tenant/v1/tenants?limit=100").catch(() => ({ items: [] as Tenant[] }))).items;
-  const colleges = tenants.map((tenant) => ({ id: tenant.id, name: tenant.display_name }));
-  return { viewer, departmentIds, colleges, canViewPII: canViewStudentPII(viewer) };
+  let allColleges = reachesAllColleges(viewer);
+  let colleges: CollegeRef[] = viewer.tenantId ? [{ id: viewer.tenantId, name: "" }] : [];
+  if (allColleges) {
+    try {
+      colleges = await listAllColleges();
+    } catch (error) {
+      // An officer whose role may not list colleges keeps their own, and the context says so (allColleges false)
+      // so the UI does not claim a scope the pages are not loading.
+      if (isPlatformAdmin) throw error;
+      console.error("could not list colleges for placement:", error);
+      allColleges = false;
+    }
+  } else {
+    const tenants = (await gateway<Page<Tenant>>("/tenant/v1/tenants?limit=100").catch(() => ({ items: [] as Tenant[] }))).items;
+    colleges = tenants.map((tenant) => ({ id: tenant.id, name: tenant.display_name }));
+  }
+  return { viewer, isPlatformAdmin, departmentIds, colleges, allColleges, canViewPII: canViewStudentPII(viewer) };
 }

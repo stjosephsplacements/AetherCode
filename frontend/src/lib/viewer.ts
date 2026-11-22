@@ -12,6 +12,8 @@ export type Viewer = {
   placementDepartmentIds: string[];
   /** Named permission flags from /v1/me (role bits). */
   permissions: string[];
+  /** Roles held with platform scope (not tied to one college or placement department). Absent in sessions stored before it existed. */
+  platformRoles?: RoleName[];
 };
 
 export function buildViewer(me: Me, principal: Principal): Viewer {
@@ -30,6 +32,7 @@ export function buildViewer(me: Me, principal: Principal): Viewer {
       ),
     ],
     permissions: me.permissions ?? [],
+    platformRoles: [...new Set(me.roles.filter((role) => role.scope_kind === "platform").map((role) => role.role_name))],
   };
 }
 
@@ -37,6 +40,14 @@ export function buildViewer(me: Me, principal: Principal): Viewer {
 export function canViewStudentPII(viewer: Viewer): boolean {
   const permissions = viewer.permissions ?? [];
   return permissions.includes("VIEW_STUDENT_PII") || permissions.includes("ADMINISTRATOR");
+}
+
+/**
+ * Whether the viewer's placement reach spans every college: a platform administrator, or an officer holding a
+ * platform-scoped placement assignment. An officer scoped to placement departments reaches only those students.
+ */
+export function reachesAllColleges(viewer: Viewer): boolean {
+  return viewer.roles.includes("super_admin") || (viewer.platformRoles ?? []).includes("placement_user");
 }
 
 /** Placement staff who hold no college role: they work across colleges in /placement, never in /staff. */
