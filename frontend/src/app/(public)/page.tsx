@@ -4,7 +4,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ExamPreview } from "@/components/site/exam-preview";
 import { Engine } from "@/components/site/engine";
-import { ForceLandingDark } from "@/components/site/force-landing-dark";
 import { Hero } from "@/components/site/hero";
 import { Meet } from "@/components/site/meet";
 import { Numbers } from "@/components/site/numbers";
@@ -23,27 +22,18 @@ export default async function Landing() {
   if (jar.get(ACCESS_COOKIE) || jar.get(REFRESH_COOKIE)) redirect(homeFor(await requireViewer()));
 
   return (
-    <div className="relative bg-canvas">
-      <ForceLandingDark />
+    // Rules between sections stop at the page frame (drawn by the public layout).
+    <div className="relative">
       <Hero />
-
-      <section className="mx-auto max-w-6xl px-6 py-20 sm:py-24">
-        <p className="inline-flex rounded-pill border border-line px-3 py-1 text-[11.5px] font-semibold uppercase tracking-[0.12em] text-ink-subtle">
-          Why AetherCode
-        </p>
-        <div className="mt-2">
-          <Statement />
-        </div>
-      </section>
-
+      <Rule />
+      <Statement />
+      <Rule />
       <Meet />
 
-      <section className="py-20 sm:py-24">
+      <Rule />
+      <section className="py-24">
         <div className="mx-auto max-w-6xl px-6">
-          <p className="inline-flex rounded-pill border border-line px-3 py-1 text-[11.5px] font-semibold uppercase tracking-[0.12em] text-ink-subtle">
-            Product
-          </p>
-          <h2 className="heading mt-5 max-w-[18ch] text-[2.2rem] text-ink sm:text-[2.8rem]">The exam screen, as students see it</h2>
+          <h2 className="heading text-[2.2rem] text-ink sm:text-[2.8rem]">The exam screen, as students see it</h2>
           <div className="relative mt-10 [perspective:1800px]">
             <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 mx-auto h-[90%] max-w-5xl rounded-panel bg-brand/8 blur-[60px]" />
             <div data-tilt className="relative origin-top">
@@ -53,28 +43,32 @@ export default async function Landing() {
         </div>
       </section>
 
+      <Rule />
       <Platform />
+      <Rule />
       <Engine />
+      <Rule />
       <Numbers />
+      <Rule />
       <ForColleges />
 
-      <section className="mx-auto max-w-6xl px-6 py-24 text-center sm:py-28">
+      <Rule />
+      <section className="mx-auto max-w-6xl px-6 py-28 text-center">
         <h2 className="heading mx-auto max-w-[18ch] text-[2.4rem] text-ink sm:text-[3.2rem]">Sign in with the account your college gave you.</h2>
         <div data-reveal className="mt-9 flex flex-wrap justify-center gap-3 text-[15px] font-medium">
-          <Link
-            href="/login"
-            className="rounded-[10px] bg-brand px-6 py-3 text-brand-ink shadow-[var(--shadow-panel)] transition-opacity hover:opacity-90"
-          >
+          <Link href="/login" className="rounded-pill bg-brand px-6 py-3 text-brand-ink shadow-[var(--shadow-panel)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5">
             Sign in
           </Link>
-          <Link
-            href="/help"
-            className="rounded-[10px] border border-line-strong bg-surface px-6 py-3 text-ink shadow-[var(--shadow-panel)] transition-colors hover:bg-hover"
-          >
+          <Link href="/help" className="rounded-pill border border-line-strong bg-canvas px-6 py-3 text-ink shadow-[var(--shadow-panel)] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5">
             Read the help center
           </Link>
         </div>
       </section>
     </div>
   );
+}
+
+/** A section break that stays inside the page frame instead of running to the screen edges. */
+function Rule() {
+  return <div aria-hidden className="mx-auto h-px max-w-6xl bg-line" />;
 }

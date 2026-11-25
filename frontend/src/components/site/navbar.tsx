@@ -69,18 +69,10 @@ export function Navbar() {
 
   const group = NAV_GROUPS.find((g) => g.label === activeGroup);
 
-  const landing = pathname === "/";
-
   return (
-    <header className={cn("relative sticky top-0 z-40 font-mono", landing ? "px-3 pt-3 sm:px-4" : "px-3 pt-3")} onMouseLeave={leave}>
-      {/* Floating pill bar — liquid glass; flatter on the dark landing shell */}
-      <LiquidGlass
-        className={cn(
-          "mx-auto flex h-12 max-w-6xl items-center gap-0.5 px-2 text-[13px]",
-          landing ? "rounded-[14px] border-line-strong/80 bg-[#0a0a0a]/80" : "rounded-pill",
-        )}
-        style={{ boxShadow: "var(--shadow-panel)" }}
-      >
+    <header className="relative sticky top-0 z-40 px-3 pt-3 font-mono" onMouseLeave={leave}>
+      {/* Floating pill bar — liquid glass */}
+      <LiquidGlass className="mx-auto flex h-12 max-w-6xl items-center gap-0.5 rounded-pill px-2 text-[13px]" style={{ boxShadow: "var(--shadow-panel)" }}>
         <Link href="/" className={cn(ease, "flex h-9 items-center gap-2.5 rounded-pill pl-3 pr-4 text-ink hover:bg-hover")}>
           <Image src="/4.png" alt="" width={16} height={16} priority className="logo-light object-contain" />
           <Image src="/3.png" alt="" width={16} height={16} priority className="logo-dark object-contain" />
@@ -114,14 +106,12 @@ export function Navbar() {
         </nav>
 
         <div className="ml-auto flex items-center gap-1">
-          {pathname !== "/" && (
-            <div className={cn(ease, "hidden h-9 items-center rounded-pill px-2 text-ink-muted hover:bg-hover hover:text-ink sm:flex")}>
-              <ThemeIcon />
-            </div>
-          )}
+          <div className={cn(ease, "hidden h-9 items-center rounded-pill px-2 text-ink-muted hover:bg-hover hover:text-ink sm:flex")}>
+            <ThemeIcon />
+          </div>
           <Link
             href="/login"
-            className={cn(ease, "flex h-8 items-center rounded-[10px] bg-brand px-4 text-[13px] font-medium text-brand-ink hover:opacity-90")}
+            className={cn(ease, "flex h-8 items-center rounded-pill bg-brand px-4 text-[13px] font-medium text-brand-ink hover:opacity-90")}
           >
             Sign in
           </Link>

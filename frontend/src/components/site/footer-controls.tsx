@@ -1,15 +1,12 @@
 "use client";
 
 import { Moon, Sun } from "@phosphor-icons/react/ssr";
-import { usePathname } from "next/navigation";
 import { setTheme, useTheme } from "@/lib/theme";
 import { openCookieSettings } from "./consent";
 
 export function ThemeSwitch() {
-  const pathname = usePathname();
   const theme = useTheme();
   const next = theme === "dark" ? "light" : "dark";
-  if (pathname === "/") return null;
   return (
     <button
       type="button"
