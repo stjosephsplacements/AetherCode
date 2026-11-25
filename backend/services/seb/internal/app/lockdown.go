@@ -329,7 +329,7 @@ func (service *Service) launchSettings(examID string) launchfile.Settings {
 	return launchfile.Settings{
 		StartURL: service.launch.BaseURL + "/exam/" + strings.ToLower(examID),
 		QuitURL:  service.launch.BaseURL + "/student?seb=quit",
-		Password: service.launch.Password,
+		QuitSecret: service.launch.Password,
 		AllowVM:  service.launch.AllowVM,
 	}
 }

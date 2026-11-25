@@ -557,7 +557,7 @@ func (service *Service) RequestPasswordReset(contextValue context.Context, email
 	if err != nil {
 		return "", err
 	}
-	token, err := service.deriveDeliveryToken("password-reset", id)
+	token, err := service.deriveDeliveryToken(domain.DeliveryPurposeAccountRecovery, id)
 	if err != nil {
 		return "", err
 	}

@@ -45,7 +45,7 @@ func TestDeriveDeliveryTokenIsPurposeBoundAndStable(t *testing.T) {
 	if err != nil || verification != again {
 		t.Fatalf("delivery token derivation was not stable: %q / %q / %v", verification, again, err)
 	}
-	reset, err := DeriveDeliveryToken(key, "password-reset", "019b11a0-0000-7000-8000-000000000001")
+	reset, err := DeriveDeliveryToken(key, DeliveryPurposeAccountRecovery, "019b11a0-0000-7000-8000-000000000001")
 	if err != nil || reset == verification {
 		t.Fatalf("delivery token purpose binding failed: %q / %q / %v", verification, reset, err)
 	}

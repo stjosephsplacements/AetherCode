@@ -57,7 +57,7 @@ func TestDeriveDeliveryTokenRejectsInvalidPurpose(t *testing.T) {
 
 func TestDeriveDeliveryTokenRejectsNonUUIDTokenID(t *testing.T) {
 	t.Parallel()
-	_, err := DeriveDeliveryToken(make([]byte, 32), "password-reset", "not-a-uuid")
+	_, err := DeriveDeliveryToken(make([]byte, 32), DeliveryPurposeAccountRecovery, "not-a-uuid")
 	if err == nil {
 		t.Fatal("DeriveDeliveryToken() accepted a non-UUID token ID")
 	}
@@ -84,11 +84,11 @@ func TestDeriveDeliveryTokenIsDeterministic(t *testing.T) {
 func TestDeriveDeliveryTokenFormatStartsWithAdt1(t *testing.T) {
 	t.Parallel()
 	key := make([]byte, 32)
-	token, err := DeriveDeliveryToken(key, "password-reset", "018f4b0d-08f8-7c09-9ba7-efdf9c220001")
+	token, err := DeriveDeliveryToken(key, DeliveryPurposeAccountRecovery, "018f4b0d-08f8-7c09-9ba7-efdf9c220001")
 	if err != nil {
 		t.Fatalf("DeriveDeliveryToken() error = %v", err)
 	}
-	if !strings.HasPrefix(token, "adt1.password-reset.") {
+	if !strings.HasPrefix(token, "adt1."+DeliveryPurposeAccountRecovery+".") {
 		t.Fatalf("DeriveDeliveryToken() format unexpected: %q", token)
 	}
 }
@@ -97,8 +97,8 @@ func TestDeriveDeliveryTokenDiffersAcrossPurposes(t *testing.T) {
 	t.Parallel()
 	key := make([]byte, 32)
 	const tokenID = "018f4b0d-08f8-7c09-9ba7-efdf9c220001"
-	a, _ := DeriveDeliveryToken(key, "email-verification", tokenID)
-	b, _ := DeriveDeliveryToken(key, "password-reset", tokenID)
+	a, _ := DeriveDeliveryToken(key, DeliveryPurposeEmailVerification, tokenID)
+	b, _ := DeriveDeliveryToken(key, DeliveryPurposeAccountRecovery, tokenID)
 	if a == b {
 		t.Fatal("DeriveDeliveryToken() produced the same token for different purposes")
 	}
@@ -122,7 +122,7 @@ func TestDeriveDeliveryTokenAcceptsBothValidPurposes(t *testing.T) {
 	t.Parallel()
 	key := make([]byte, 32)
 	const tokenID = "018f4b0d-08f8-7c09-9ba7-efdf9c220001"
-	for _, purpose := range []string{"email-verification", "password-reset"} {
+	for _, purpose := range []string{DeliveryPurposeEmailVerification, DeliveryPurposeAccountRecovery, deliveryPurposeLegacyReset} {
 		_, err := DeriveDeliveryToken(key, purpose, tokenID)
 		if err != nil {
 			t.Fatalf("DeriveDeliveryToken(%q) unexpected error: %v", purpose, err)

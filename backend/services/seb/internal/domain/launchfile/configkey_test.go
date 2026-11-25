@@ -27,7 +27,7 @@ func TestKeyOfIsSEBJSON(t *testing.T) {
 
 func TestConfigKeyDependsOnTheStartURL(t *testing.T) {
 	t.Parallel()
-	settings := Settings{StartURL: "https://x/exam/1", QuitURL: "https://x/student", Password: "p"}
+	settings := Settings{StartURL: "https://x/exam/1", QuitURL: "https://x/student", QuitSecret: "p"}
 	first, err := ConfigKey(settings)
 	if err != nil || len(first) != 64 {
 		t.Fatalf("ConfigKey() = %q, %v", first, err)
