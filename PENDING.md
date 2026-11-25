@@ -492,8 +492,8 @@ What the 2026-11-05/06 run fixed (each has a regression test where one can exist
 
 ## 1b. Where things run and how to test
 
-Server: use the `aethercode` SSH alias (configured in `~/.ssh/config`) or the IP from `DEV_SERVER_HOST`
-(never committed — stored only in GitHub Secrets as `DEV_SERVER_HOST`). Add `-o ProxyCommand=none` to bypass Cloudflare if the alias times out. Two namespaces on k3s:
+Server: use the `aethercode` SSH alias (configured in `~/.ssh/config`) or set `DEV_SERVER_HOST` in your
+local shell (never commit it). Add `-o ProxyCommand=none` to bypass Cloudflare if the alias times out. Two namespaces on k3s:
 - `aethercode`: the dev backend with the owner's accounts. No credentials in the repo; ask the owner.
 - `aether-test`: an isolated full copy for destructive tests, with its own administrator
   (`e2e-admin@test.local`, TOTP enrolled by `smoke.py`). It uses the dev images; the judge talks to the engine in
