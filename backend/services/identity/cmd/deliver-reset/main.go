@@ -54,7 +54,7 @@ func run(ctx context.Context, databaseURL, encodedKey, email string) (string, er
 	if err != nil {
 		return "", fmt.Errorf("find reset request: %w", err)
 	}
-	return domain.DeriveDeliveryToken(key, "password-reset", tokenID)
+	return domain.DeriveDeliveryToken(key, domain.DeliveryPurposeAccountRecovery, tokenID)
 }
 
 func main() {

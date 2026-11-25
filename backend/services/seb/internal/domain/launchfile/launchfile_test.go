@@ -20,7 +20,7 @@ func TestBuildDecodesToTheExamSettings(t *testing.T) {
 	file, err := Build(Settings{
 		StartURL: "https://exam.example/exam/42?a=1&b=2",
 		QuitURL:  "https://exam.example/student",
-		Password: "launch-secret",
+		QuitSecret: "launch-secret",
 	})
 	if err != nil {
 		t.Fatalf("Build() error = %v", err)
@@ -55,7 +55,7 @@ func TestBuildDecodesToTheExamSettings(t *testing.T) {
 
 func TestAllowVirtualMachineIsOffUnlessAsked(t *testing.T) {
 	t.Parallel()
-	base := Settings{StartURL: "https://exam.example/exam/1", QuitURL: "https://exam.example/student", Password: "launch-secret"}
+	base := Settings{StartURL: "https://exam.example/exam/1", QuitURL: "https://exam.example/student", QuitSecret: "launch-secret"}
 	off, err := render(base)
 	if err != nil {
 		t.Fatal(err)

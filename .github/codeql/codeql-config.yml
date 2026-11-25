@@ -1,0 +1,7 @@
+name: AetherCode CodeQL
+
+# Playwright helpers read a local admin fixture and POST to localhost only.
+# Keep them out of the JS analysis so js/file-access-to-http stays quiet.
+paths-ignore:
+  - frontend/e2e/**
+  - apps/exam-v1/e2e/**

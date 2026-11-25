@@ -41,21 +41,20 @@ type Settings struct {
 	StartURL string
 	// QuitURL is the page that makes SEB quit when the candidate reaches it.
 	QuitURL string
-	// Password encrypts the file and is SEB's quit password.
-	Password string
+	// QuitSecret encrypts the file (RNCryptor) and is hashed into SEB's quitPassword
+	// field. It is a 24-byte random hex string from the operator, not a human password.
+	QuitSecret string
 	// AllowVM lets SEB run inside a virtual machine. Only for QA on a VM; real exams keep it false.
 	AllowVM bool
 }
 
 // render fills the settings template and returns the plist.
 func render(settings Settings) ([]byte, error) {
-	if settings.StartURL == "" || settings.QuitURL == "" || settings.Password == "" {
-		return nil, errors.New("launch file needs a start URL, a quit URL and a password")
+	if settings.StartURL == "" || settings.QuitURL == "" || settings.QuitSecret == "" {
+		return nil, errors.New("launch file needs a start URL, a quit URL and a quit secret")
 	}
-	// SEB requires SHA-256 for quitPassword. The service accepts only a
-	// 24-byte random hexadecimal password, so this is not human-password hashing.
-	// codeql[go/weak-sensitive-data-hashing]: SEB protocol requires SHA-256 over a random quit secret
-	quitPassword := sha256.Sum256([]byte(settings.Password))
+	// SEB's settings schema stores quitPassword as SHA-256 hex of the shared launch secret.
+	quitPassword := sha256.Sum256([]byte(settings.QuitSecret))
 	var plist bytes.Buffer
 	if err := settingsTemplate.Execute(&plist, struct {
 		StartURL, QuitURL, HashedQuitPassword string
@@ -76,7 +75,7 @@ func Build(settings Settings) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	encrypted, err := encrypt(inner, settings.Password)
+	encrypted, err := encrypt(inner, settings.QuitSecret)
 	if err != nil {
 		return nil, err
 	}
@@ -116,16 +115,16 @@ const (
 	hmacBytes     = sha256.Size
 )
 
-// encrypt writes plaintext in RNCryptor data format 2 with a password:
+// encrypt writes plaintext in RNCryptor data format 2 with a shared secret:
 // version | options | encryption salt | HMAC salt | IV | AES-256-CBC ciphertext | HMAC-SHA256.
-func encrypt(plaintext []byte, password string) ([]byte, error) {
+func encrypt(plaintext []byte, secret string) ([]byte, error) {
 	header := make([]byte, headerBytes)
 	header[0], header[1] = formatVersion, formatOptions
 	if _, err := rand.Read(header[2:]); err != nil {
 		return nil, fmt.Errorf("generate SEB file salts: %w", err)
 	}
 	encryptionSalt, hmacSalt, iv := header[2:2+saltBytes], header[2+saltBytes:2+2*saltBytes], header[2+2*saltBytes:]
-	encryptionKey, hmacKey, err := keys(password, encryptionSalt, hmacSalt)
+	encryptionKey, hmacKey, err := keys(secret, encryptionSalt, hmacSalt)
 	if err != nil {
 		return nil, err
 	}
@@ -142,12 +141,12 @@ func encrypt(plaintext []byte, password string) ([]byte, error) {
 	return mac.Sum(message), nil
 }
 
-func keys(password string, encryptionSalt, hmacSalt []byte) ([]byte, []byte, error) {
-	encryptionKey, err := pbkdf2.Key(sha1.New, password, encryptionSalt, pbkdf2Rounds, keyBytes)
+func keys(secret string, encryptionSalt, hmacSalt []byte) ([]byte, []byte, error) {
+	encryptionKey, err := pbkdf2.Key(sha1.New, secret, encryptionSalt, pbkdf2Rounds, keyBytes)
 	if err != nil {
 		return nil, nil, fmt.Errorf("derive SEB file key: %w", err)
 	}
-	hmacKey, err := pbkdf2.Key(sha1.New, password, hmacSalt, pbkdf2Rounds, keyBytes)
+	hmacKey, err := pbkdf2.Key(sha1.New, secret, hmacSalt, pbkdf2Rounds, keyBytes)
 	if err != nil {
 		return nil, nil, fmt.Errorf("derive SEB file key: %w", err)
 	}

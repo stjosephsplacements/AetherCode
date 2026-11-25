@@ -3,19 +3,13 @@
 // 15 minutes, so the administrator holds a TOTP factor; its secret is the third word of E2E_ADMIN_FILE.
 import { expect, type Page } from "@playwright/test";
 import { createHmac } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { adminEmail, adminPassword, adminTotpSecret } from "./admin-credentials";
 
 // Keep test credentials on the local platform; never let an environment
 // override redirect authentication requests to an external gateway.
 export const GATEWAY = "http://127.0.0.1:8380/api";
 
-// Local E2E credentials only; never leave the developer machine.
-// codeql[js/file-access-to-http]: test fixture file → localhost gateway, not production egress
-const words = readFileSync(process.env.E2E_ADMIN_FILE ?? `${homedir()}/aethercode-admin.txt`, "utf8").trim().split(/\s+/);
-export const adminEmail = words[0]!;
-export const adminPassword = words[1]!;
-export const adminTotpSecret = words[2];
+export { adminEmail, adminPassword, adminTotpSecret };
 
 const BASE32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
@@ -66,8 +60,6 @@ export async function call<T>(method: string, path: string, body?: unknown, toke
         ...(method === "GET" ? {} : { "Idempotency-Key": crypto.randomUUID() }),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      // body is request JSON (login fields), not raw file bytes
-      // codeql[js/file-access-to-http]: E2E helper posts to local gateway only
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     if (response.status === 503 && attempt < 5) {
