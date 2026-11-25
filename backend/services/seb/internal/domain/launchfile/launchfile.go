@@ -16,7 +16,6 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	_ "embed"
-	"encoding/hex"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -53,13 +52,11 @@ func render(settings Settings) ([]byte, error) {
 	if settings.StartURL == "" || settings.QuitURL == "" || settings.QuitSecret == "" {
 		return nil, errors.New("launch file needs a start URL, a quit URL and a quit secret")
 	}
-	// SEB's settings schema stores quitPassword as SHA-256 hex of the shared launch secret.
-	quitPassword := sha256.Sum256([]byte(settings.QuitSecret))
 	var plist bytes.Buffer
 	if err := settingsTemplate.Execute(&plist, struct {
 		StartURL, QuitURL, HashedQuitPassword string
 		AllowVM                               bool
-	}{settings.StartURL, settings.QuitURL, hex.EncodeToString(quitPassword[:]), settings.AllowVM}); err != nil {
+	}{settings.StartURL, settings.QuitURL, quitPasswordHex(settings.QuitSecret), settings.AllowVM}); err != nil {
 		return nil, fmt.Errorf("render SEB settings: %w", err)
 	}
 	return plist.Bytes(), nil

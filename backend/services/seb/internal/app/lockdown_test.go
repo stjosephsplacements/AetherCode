@@ -58,7 +58,7 @@ func (store *ticketStore) ConsumeLaunchTicket(context.Context, Queryer, string, 
 }
 
 func launchService(store LockdownStore) *Service {
-	return &Service{lockdown: store, launch: LaunchSettings{BaseURL: "https://exam.example", Password: strings.Repeat("ab", 24)}}
+	return &Service{lockdown: store, launch: LaunchSettings{BaseURL: "https://exam.example", QuitSecret: strings.Repeat("ab", 24)}}
 }
 
 func TestTicketLaunchFileRefusesWithoutSpendingOnBadInput(t *testing.T) {

@@ -2,6 +2,10 @@ name: AetherCode CodeQL
 
 # Playwright helpers read a local admin fixture and POST to localhost only.
 # Keep them out of the JS analysis so js/file-access-to-http stays quiet.
+#
+# quitdigest.go is SEB's required SHA-256 of a random launch secret (not human
+# password hashing); excluding it stops go/weak-sensitive-data-hashing false positives.
 paths-ignore:
   - frontend/e2e/**
   - apps/exam-v1/e2e/**
+  - backend/services/seb/internal/domain/launchfile/quitdigest.go
