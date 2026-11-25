@@ -54,7 +54,7 @@ func render(settings Settings) ([]byte, error) {
 	}
 	// SEB requires SHA-256 for quitPassword. The service accepts only a
 	// 24-byte random hexadecimal password, so this is not human-password hashing.
-	// codeql[go/weak-sensitive-data-hashing] - SEB protocol requires SHA-256; input is a 24-byte random hex value
+	// codeql[go/weak-sensitive-data-hashing]: SEB protocol requires SHA-256 over a random quit secret
 	quitPassword := sha256.Sum256([]byte(settings.Password))
 	var plist bytes.Buffer
 	if err := settingsTemplate.Execute(&plist, struct {

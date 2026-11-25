@@ -7,7 +7,6 @@ import type { Exam, ExamVersion, ExamVersionContent, ProctorPolicy, ProctorPolic
 import { chosenPolicyVersionId } from "@/lib/proctor-policy-body";
 import { actionError } from "@/lib/server/actions";
 import { PREVIEW_PREFIX, copyExam } from "@/lib/server/exams";
-import { fetchAllPages } from "@/lib/server/fetch-all";
 import { gateway } from "@/lib/server/gateway";
 import { listAllProctorPolicies, listProctorPolicyVersions } from "@/lib/server/proctor-policies";
 import { requireCollege } from "@/lib/server/staff";

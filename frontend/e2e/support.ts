@@ -10,7 +10,8 @@ import { homedir } from "node:os";
 // override redirect authentication requests to an external gateway.
 export const GATEWAY = "http://127.0.0.1:8380/api";
 
-// codeql[js/file-access-to-http] - credentials file is test-local; data flows to localhost:8380 in the test environment only
+// Local E2E credentials only; never leave the developer machine.
+// codeql[js/file-access-to-http]: test fixture file → localhost gateway, not production egress
 const words = readFileSync(process.env.E2E_ADMIN_FILE ?? `${homedir()}/aethercode-admin.txt`, "utf8").trim().split(/\s+/);
 export const adminEmail = words[0]!;
 export const adminPassword = words[1]!;
@@ -65,7 +66,9 @@ export async function call<T>(method: string, path: string, body?: unknown, toke
         ...(method === "GET" ? {} : { "Idempotency-Key": crypto.randomUUID() }),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: body === undefined ? undefined : JSON.stringify(body), // codeql[js/file-access-to-http] - body is API request data, not file content; JSON.stringify produces a safe string
+      // body is request JSON (login fields), not raw file bytes
+      // codeql[js/file-access-to-http]: E2E helper posts to local gateway only
+      body: body === undefined ? undefined : JSON.stringify(body),
     });
     if (response.status === 503 && attempt < 5) {
       await new Promise((resolve) => setTimeout(resolve, 2000));

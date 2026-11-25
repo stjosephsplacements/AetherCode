@@ -14,11 +14,23 @@ permissions:
   contents: read
 
 jobs:
+  # Dependabot PRs still report the required check names (build-test, web) as
+  # green no-ops so rulesets + dependabot-auto-merge can finish without a full CI run.
   build-test:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7.0.0
+      - name: Dependabot gate
+        id: gate
+        run: |
+          if [ "${{ github.event.pull_request.user.login }}" = "dependabot[bot]" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.gate.outputs.skip != 'true'
+        uses: actions/checkout@v7
+      - if: steps.gate.outputs.skip != 'true'
+        uses: actions/setup-go@v7.0.0
         with:
           go-version: '1.26.11'
           cache-dependency-path: |
@@ -27,6 +39,7 @@ jobs:
       # Docker builds each service on its own, without go.work: a module whose
       # go.mod or go.sum drifted builds in the workspace and breaks the image.
       - name: Modules are tidy and build standalone
+        if: steps.gate.outputs.skip != 'true'
         run: |
           set -euo pipefail
           for dir in backend/libs/pkg backend/libs/proto backend/services/*/; do
@@ -36,12 +49,17 @@ jobs:
           done
           git diff --exit-code -- '*.mod' '*.sum'
       - name: Generated authz migrations match their template
+        if: steps.gate.outputs.skip != 'true'
         run: python3 backend/scripts/generate_authz_migration.py --verify
-      - run: (cd backend && go work sync)
-      - run: make build
-      - run: make test
+      - if: steps.gate.outputs.skip != 'true'
+        run: (cd backend && go work sync)
+      - if: steps.gate.outputs.skip != 'true'
+        run: make build
+      - if: steps.gate.outputs.skip != 'true'
+        run: make test
 
   proctor:
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -53,15 +71,29 @@ jobs:
   web:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - name: Dependabot gate
+        id: gate
+        run: |
+          if [ "${{ github.event.pull_request.user.login }}" = "dependabot[bot]" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.gate.outputs.skip != 'true'
+        uses: actions/checkout@v7
+      - if: steps.gate.outputs.skip != 'true'
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
-      - run: npm install -g pnpm@12.6.0
-      - run: make web-check
-      - run: make web-build
+      - if: steps.gate.outputs.skip != 'true'
+        run: npm install -g pnpm@12.6.0
+      - if: steps.gate.outputs.skip != 'true'
+        run: make web-check
+      - if: steps.gate.outputs.skip != 'true'
+        run: make web-build
 
   exam-v1:
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -73,6 +105,7 @@ jobs:
       - run: make exam-build
 
   integration-test:
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -86,6 +119,7 @@ jobs:
       - run: make test-integration
 
   migration-verification:
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -98,6 +132,7 @@ jobs:
         run: ./backend/scripts/validate-soft-delete.sh
 
   lint-contracts:
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -113,6 +148,7 @@ jobs:
       - run: (cd backend/libs/proto && buf lint)
 
   vulnerability-scan:
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -215,6 +251,7 @@ jobs:
 
   helm-lint:
     needs: [build-test]
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
