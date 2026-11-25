@@ -3,10 +3,9 @@ name: codeql
 on:
   push:
     branches: [production, development]
-  pull_request:
-    branches: [production, development]
   schedule:
     - cron: "0 2 * * 1"  # Weekly Monday 02:00 UTC
+  # Not on pull_request: Analyze (go/js) was a required PR gate and slowed every merge.
 
 permissions:
   actions: read
