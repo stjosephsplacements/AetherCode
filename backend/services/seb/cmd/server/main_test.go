@@ -37,7 +37,7 @@ func TestLoadLaunchSettingsAcceptsGeneratedPasswordFormat(t *testing.T) {
 	if err != nil {
 		t.Fatalf("loadLaunchSettings() error = %v", err)
 	}
-	if settings.Password != password {
+	if settings.QuitSecret != password {
 		t.Fatal("loadLaunchSettings() returned a different password")
 	}
 }

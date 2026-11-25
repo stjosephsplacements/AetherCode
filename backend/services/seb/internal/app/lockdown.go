@@ -77,10 +77,12 @@ type CheckExamRequest struct {
 }
 
 // LaunchSettings are the deployment's values for .seb files: BaseURL is the
-// public origin of the web app, Password encrypts the file and quits SEB.
+// public origin of the web app, QuitSecret encrypts the file and quits SEB
+// (from SEB_LAUNCH_PASSWORD; a 24-byte random hex string, not a human password).
 type LaunchSettings struct {
-	BaseURL  string
-	Password string
+	BaseURL string
+	// QuitSecret is the shared launch secret (openssl rand -hex 24).
+	QuitSecret string
 	// AllowVM (SEB_ALLOW_VM) lets SEB start inside a virtual machine; false in production.
 	AllowVM bool
 }
@@ -119,7 +121,7 @@ func (service *Service) PutExamPolicy(ctx context.Context, capability centralaut
 			keys = append(keys, key)
 		}
 	}
-	if command.Enabled && service.launch.BaseURL != "" && service.launch.Password != "" {
+	if command.Enabled && service.launch.BaseURL != "" && service.launch.QuitSecret != "" {
 		// The exam's own launch file is always accepted, so staff need not
 		// copy a key out of SEB's config tool.
 		generated, err := launchfile.ConfigKey(service.launchSettings(command.ExamID))
@@ -161,7 +163,7 @@ func (service *Service) GetExamPolicy(ctx context.Context, capability centralaut
 		policy, err = service.lockdown.GetExamPolicy(ctx, transaction, tenantID, examID)
 		return err
 	})
-	if err == nil && service.launch.BaseURL != "" && service.launch.Password != "" {
+	if err == nil && service.launch.BaseURL != "" && service.launch.QuitSecret != "" {
 		policy.ConfigKey, err = launchfile.ConfigKey(service.launchSettings(examID))
 	}
 	return policy, err
@@ -243,7 +245,7 @@ func hashLaunchTicket(ticket string) ([]byte, bool) {
 }
 
 func (service *Service) launchConfigured() error {
-	if service.launch.BaseURL == "" || service.launch.Password == "" {
+	if service.launch.BaseURL == "" || service.launch.QuitSecret == "" {
 		return apperrors.New(apperrors.CodeUnavailable, "SEB launch files are not configured")
 	}
 	return nil
@@ -315,7 +317,7 @@ func (service *Service) StaffLaunchFile(ctx context.Context, capability centrala
 // launchFile mirrors the exam app: SEB starts on the exam page and quits on
 // the student home page.
 func (service *Service) launchFile(examID, title string) (LaunchFile, error) {
-	if service.launch.BaseURL == "" || service.launch.Password == "" {
+	if service.launch.BaseURL == "" || service.launch.QuitSecret == "" {
 		return LaunchFile{}, apperrors.New(apperrors.CodeUnavailable, "SEB launch files are not configured")
 	}
 	content, err := launchfile.Build(service.launchSettings(examID))
@@ -329,7 +331,7 @@ func (service *Service) launchSettings(examID string) launchfile.Settings {
 	return launchfile.Settings{
 		StartURL: service.launch.BaseURL + "/exam/" + strings.ToLower(examID),
 		QuitURL:  service.launch.BaseURL + "/student?seb=quit",
-		QuitSecret: service.launch.Password,
+		QuitSecret: service.launch.QuitSecret,
 		AllowVM:  service.launch.AllowVM,
 	}
 }

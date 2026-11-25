@@ -272,7 +272,7 @@ func run(contextValue context.Context) error {
 // neither is; without them the launch-file routes return 503.
 func loadLaunchSettings() (app.LaunchSettings, error) {
 	baseURL := strings.TrimSuffix(strings.TrimSpace(os.Getenv("SEB_LAUNCH_BASE_URL")), "/")
-	password := os.Getenv("SEB_LAUNCH_PASSWORD")
+	launchSecret := os.Getenv("SEB_LAUNCH_PASSWORD")
 	// Unset means false; a value that is not a boolean stops the service rather than guessing.
 	allowVM := false
 	if raw := strings.TrimSpace(os.Getenv("SEB_ALLOW_VM")); raw != "" {
@@ -286,7 +286,7 @@ func loadLaunchSettings() (app.LaunchSettings, error) {
 	if allowVM && strings.EqualFold(strings.TrimSpace(os.Getenv("AETHERCODE_ENV")), "production") {
 		return app.LaunchSettings{}, fmt.Errorf("SEB_ALLOW_VM=true is not allowed when AETHERCODE_ENV is production")
 	}
-	if baseURL == "" && password == "" {
+	if baseURL == "" && launchSecret == "" {
 		return app.LaunchSettings{}, nil
 	}
 	parsed, err := url.Parse(baseURL)
@@ -294,10 +294,10 @@ func loadLaunchSettings() (app.LaunchSettings, error) {
 		(parsed.Path != "" && parsed.Path != "/") || parsed.RawQuery != "" || parsed.Fragment != "" {
 		return app.LaunchSettings{}, fmt.Errorf("SEB_LAUNCH_BASE_URL must be the web app's origin, such as https://exam.example.edu")
 	}
-	if len(password) != 48 {
+	if len(launchSecret) != 48 {
 		return app.LaunchSettings{}, fmt.Errorf("SEB_LAUNCH_PASSWORD must be exactly 48 hexadecimal characters generated from 24 random bytes")
 	}
-	decoded, err := hex.DecodeString(password)
+	decoded, err := hex.DecodeString(launchSecret)
 	if err != nil {
 		return app.LaunchSettings{}, fmt.Errorf("SEB_LAUNCH_PASSWORD must be exactly 48 hexadecimal characters generated from 24 random bytes")
 	}
@@ -310,5 +310,5 @@ func loadLaunchSettings() (app.LaunchSettings, error) {
 	if len(distinct) < 16 {
 		return app.LaunchSettings{}, fmt.Errorf("SEB_LAUNCH_PASSWORD looks patterned; generate it with `openssl rand -hex 24`")
 	}
-	return app.LaunchSettings{BaseURL: baseURL, Password: password, AllowVM: allowVM}, nil
+	return app.LaunchSettings{BaseURL: baseURL, QuitSecret: launchSecret, AllowVM: allowVM}, nil
 }

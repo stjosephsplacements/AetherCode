@@ -96,7 +96,7 @@ func (service *Service) RedeemQuitToken(ctx context.Context, capability centrala
 	if !isUUID(command.TenantID) || token == "" || len(token) > 255 {
 		return QuitRedemption{}, invalid("quit token redemption fields are invalid")
 	}
-	if service.launch.Password == "" {
+	if service.launch.QuitSecret == "" {
 		return QuitRedemption{}, apperrors.New(apperrors.CodeUnavailable, "SEB launch files are not configured")
 	}
 
@@ -106,5 +106,5 @@ func (service *Service) RedeemQuitToken(ctx context.Context, capability centrala
 	if err != nil {
 		return QuitRedemption{}, err
 	}
-	return QuitRedemption{QuitPassword: service.launch.Password}, nil
+	return QuitRedemption{QuitPassword: service.launch.QuitSecret}, nil
 }
