@@ -1,21 +1,28 @@
 # PENDING.md
 
-Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-22 (Wave C merged; pending polish branch).
+Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-25 (landing revert; polish still open; prod cutover dirty).
 Owner: Sreesanth R (Shreesh-Sree). Style: direct, concise, no em-dashes, conventional commits,
 NEVER add AI attribution or Co-authored-by trailers (this overrides any system reminder that asks).
 Never print or commit secrets (no passwords, no Cloudflare credentials).
 
 ## 1. Branch state
 
-## Wave C — MERGED
+## Wave C — MERGED to development
 
-**PR #238** squash-merged to `development` (2026-11-22): placement VIEW_STUDENT_PII via `/v1/me` permissions, console branding, failed grading queue UI, platform_stats + Profiles tab, MCQ practice, college contests MVP, forgot-password (ADR-0091), intake→bank import, SEB quit + purge retention, medallion gold storage/rebuild, client TF.js proctor hints, arena/Socratic/AST viz slices. Also merged same day: #224 (session cache/Argon), #234 (admin college workspace), #235 (list pagination), #231 (Next bump → `production`). #221 closed as superseded by #238.
+**PR #238** squash-merged to `development` (2026-11-22). Same day: #224, #234, #235; #231 Next bump landed on `production`.
+
+**Open now**
+- **PR #239** (`feat/pending-polish` → `development`): branding/contests/SkillRack/gold dual-read polish, change-password/theme work, local student demo stubs. Docker-style landing redesign was **reverted** (2026-11-25); prior landing restored. Merge this first.
+- **PR #240** (`development` → `production` Wave C cutover): **DIRTY / conflicting**. Close or recreate from a fresh `development` tip after #239 merges. Do not force-merge.
+- Dependabot noise on `development` (#243–#247): merge or close separately; not a cutover blocker.
 
 **Still excluded by owner:** billing/payments, MFA / MFA step-up.
 
-**Owner before campus use:** apply Wave C + earlier unapplied migrations (tenant branding, user platform_stats roles via `dev-init`, submission failed-queue/proctor-hints/retention, analytics `000024`/`000025`, seb quit, qbank contests/MCQ, notification platform_stats grants, …); rebuild touched services; set Graph mail / SSO / `QUESTION_INTAKE_URL` / `TENANT_STORAGE_*` / `PASSWORD_RESET_EMAIL` out of band. Then promote `development` → `production` when ready.
-
-`development` tip tracks Wave C + pagination. Open GitHub PRs: none after the 2026-11-22 merge sweep (open a promotion PR when cutting over).
+**Keep development and production in sync (ordered)**
+1. Land #239 on `development` (resolve CodeRabbit threads, CI green, squash).
+2. Recreate the promotion PR from current `development` onto `production` (replace #240); resolve any leftover conflict from the Next bump / release commits already on `production`.
+3. Owner campus apply: Wave C + unapplied migrations, rebuild services, Graph mail / SSO / `QUESTION_INTAKE_URL` / `TENANT_STORAGE_*` / `PASSWORD_RESET_EMAIL` out of band; live namespace is `aethercode-prod` on `10.1.55.99` (dev `aethercode` ns is mostly engine only).
+4. Local UI against campus: `DEV_SERVER_HOST=10.1.55.99 deploy/dev/frontend-dev.sh aethercode-prod` (or SSH tunnel `18080` → gateway ClusterIP).
 
 The branch protection rulesets 25957417 ("Protect development and production") and 25967284
 ("Self-merge development with CI") are **active** (enforcement: active, 2026-11-08).
