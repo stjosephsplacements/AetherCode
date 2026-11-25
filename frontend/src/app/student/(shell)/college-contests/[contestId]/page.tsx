@@ -10,11 +10,11 @@ export const metadata: Metadata = { title: "Contest leaderboard" };
 type Row = { actor_id: string; problems: number; last_solve: string };
 
 export default async function ContestLeaderboardPage({ params }: { params: Promise<{ contestId: string }> }) {
-  const student = await requireStudent();
+  const { viewer, tenantId } = await requireStudent();
   const { contestId } = await params;
   let rows: Row[];
   try {
-    rows = await gateway<Row[]>(`/question-bank/v1/tenants/${student.tenantId}/contests/${contestId}/leaderboard`);
+    rows = await gateway<Row[]>(`/question-bank/v1/tenants/${tenantId}/contests/${contestId}/leaderboard`);
   } catch (error) {
     return (
       <>
@@ -23,6 +23,7 @@ export default async function ContestLeaderboardPage({ params }: { params: Promi
       </>
     );
   }
+  const selfName = viewer.displayName.trim() || viewer.username.trim();
   return (
     <div className="animate-enter space-y-4">
       <PageHeader title="Live leaderboard" description="Accepted practice submits during the contest window." />
@@ -37,14 +38,20 @@ export default async function ContestLeaderboardPage({ params }: { params: Promi
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, index) => (
+            {rows.map((row, index) => {
+              const label =
+                row.actor_id === viewer.principalId
+                  ? selfName || "You"
+                  : `Participant ${index + 1}`;
+              return (
               <tr key={row.actor_id} className="border-t border-line/60">
                 <td className="px-3 py-2 tabular-nums">{index + 1}</td>
-                <td className="px-3 py-2 font-mono text-[11px]">{row.actor_id.slice(0, 8)}</td>
+                <td className="px-3 py-2 text-sm">{label}</td>
                 <td className="px-3 py-2 tabular-nums font-semibold">{row.problems}</td>
                 <td className="px-3 py-2 text-ink-muted">{formatDateTime(row.last_solve)}</td>
               </tr>
-            ))}
+            );
+            })}
           </tbody>
         </table>
         {rows.length === 0 && <p className="p-4 text-sm text-ink-muted">No accepted submissions yet.</p>}

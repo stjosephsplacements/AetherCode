@@ -9,7 +9,7 @@
  * ═══════════════════════════════════════════════════════════════════════
  * AetherCode Design System
  * Product chrome is text-first with floating rounded panels and bento grids.
- * Dark mode is true black with teal accents — never blue-slate canvases.
+ * Dark mode is Rich Black with Pear accents — never blue-slate or purple canvases.
  *
  * Tokens only: colours, radii (chip/control/surface/panel/pill), shadows and
  * shell geometry (--shell-gap, --sidebar-*) live in this file. Components use
@@ -150,109 +150,141 @@
 @utility rounded-panel { border-radius: var(--radius-panel); }
 @utility rounded-pill { border-radius: var(--radius-pill); }
 
+/* Theme toggle: circular wipe from the control (View Transitions API). */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-old(root) {
+  z-index: 1;
+}
+::view-transition-new(root) {
+  z-index: 9999;
+  animation: theme-circle 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes theme-circle {
+  from {
+    clip-path: circle(0px at var(--theme-x, 50%) var(--theme-y, 50%));
+  }
+  to {
+    clip-path: circle(var(--theme-r, 100vmax) at var(--theme-x, 50%) var(--theme-y, 50%));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+  }
+}
+
 @layer base {
-  /* Dark is the default (no attribute, or data-theme="dark"): true black
-     surfaces with teal brand accents — not blue-slate. Day is cool mist with
-     deep teal ink. Every text/background pair meets WCAG AA (4.5:1). */
+  /* Dark is the default. Deck swatch "Rich Black" (#061414) is green-biased
+     (G/B > R); chrome uses neutral near-black instead. Pear (#bcff00) is
+     accent-only. Neutrals: Laurel #96998c, Celeste #d2d3ce, Ceiling #e9ebe6. */
   :root, [data-theme="dark"] {
     color-scheme: dark;
-    --canvas: #050505;
-    --surface: #111111;
-    --surface-2: #1a1a1a;
-    /* Chart series, one per busy service. Validated with the dataviz checks against this theme. */
-    --series-1: #4fd1c5;
+    --canvas: #0a0a0a;
+    --surface: #141414;
+    --surface-2: #1c1c1c;
+    /* Chart series: Pear leads; others stay distinct (not olive fills). */
+    --series-1: #bcff00;
     --series-2: #c47a00;
     --series-3: #c06aa9;
-    --series-4: #1aa57d;
+    --series-4: #6ec8ff;
     --series-5: #8f7cf0;
     --series-6: #e0662a;
-    --series-7: #6ec8ff;
+    --series-7: #d2d3ce;
     --series-8: #b08a2e;
-    --sidebar: #0a0a0a;
-    --hover: #1c1c1c;
-    --ink: #f4f4f5;
-    --ink-muted: #a1a1aa;
-    --ink-subtle: #71717a;
-    --line: rgb(255 255 255 / 0.08);
-    --line-strong: rgb(255 255 255 / 0.14);
+    --sidebar: #050505;
+    --hover: #222222;
+    --ink: #e9ebe6;
+    --ink-muted: #96998c;
+    --ink-subtle: #6f7268;
+    --line: rgb(233 235 230 / 0.1);
+    --line-strong: rgb(233 235 230 / 0.18);
 
-    --brand: #4fd1c5;
-    --brand-hover: #7be0d6;
-    --brand-ink: #04201f;
-    --brand-soft: rgb(79 209 197 / 0.14);
-    --brand-soft-ink: #8eeadf;
-    --accent: #5fd6cc;
+    --brand: #bcff00;
+    --brand-hover: #d4ff4d;
+    --brand-ink: #0a0a0a;
+    --brand-soft: rgb(188 255 0 / 0.1);
+    --brand-soft-ink: #e9ebe6;
+    --accent: #bcff00;
     --coral: #ff7a95;
     --lavender: #b3b0ff;
-    --glow: rgb(255 255 255 / 0.04);
-    --glow-2: rgb(79 209 197 / 0.08);
-    --hero-aurora-1: var(--brand-soft);
-    --poster-sky: linear-gradient(to bottom, #050505 0%, #111111 40%, #0f2f2c 100%);
-    --poster-ink: #f4f4f5;
-    --poster-on-ink: #04201f;
-    --horizon: linear-gradient(to top, rgb(79 209 197 / 0.14), rgb(255 255 255 / 0.03) 45%, transparent);
+    --glow: rgb(233 235 230 / 0.03);
+    --glow-2: rgb(188 255 0 / 0.04);
+    --hero-aurora-1: rgb(188 255 0 / 0.06);
+    --poster-sky: linear-gradient(to bottom, #0a0a0a 0%, #141414 55%, #1c1c1c 100%);
+    --poster-ink: #e9ebe6;
+    --poster-on-ink: #0a0a0a;
+    --horizon: linear-gradient(to top, rgb(10 10 10 / 0.95), rgb(233 235 230 / 0.03) 50%, transparent);
 
-    --success: #34d399;
-    --success-soft: rgb(52 211 153 / 0.12);
+    /* Success uses Pear — no emerald/teal leftover from the old theme. */
+    --success: #bcff00;
+    --success-soft: rgb(188 255 0 / 0.12);
     --danger: #ff6b7f;
     --danger-soft: rgb(255 107 127 / 0.12);
     --warning: #ffc24b;
     --warning-soft: rgb(255 194 75 / 0.12);
 
-    --shadow-hairline-v: 0 1px 0 rgb(255 255 255 / 0.04) inset;
-    --shadow-panel-v: 0 1px 0 rgb(255 255 255 / 0.05) inset, 0 16px 40px -16px rgb(0 0 0 / 0.75);
-    --shadow-overlay-v: 0 1px 0 rgb(255 255 255 / 0.06) inset, 0 32px 80px -16px rgb(0 0 0 / 0.85);
+    --shadow-hairline-v: 0 1px 0 rgb(233 235 230 / 0.04) inset;
+    --shadow-panel-v: 0 1px 0 rgb(233 235 230 / 0.05) inset, 0 16px 40px -16px rgb(0 0 0 / 0.75);
+    --shadow-overlay-v: 0 1px 0 rgb(233 235 230 / 0.06) inset, 0 32px 80px -16px rgb(0 0 0 / 0.85);
   }
 
-  /* Day: cool mist, deep teal ink, calm teal accents. Not white. */
+  /* Day: Laurel Leaf dominates chrome (no pure white). Rich Black ink. Darkened
+     Pear (#6b9000) for brand/accent — full Pear washes out on light. */
   [data-theme="light"] {
     color-scheme: light;
-    --canvas: #eef5f4;
-    --surface: #f7fbfa;
-    --surface-2: #e1eeec;
-    /* Chart series, one per busy service. Validated with the dataviz checks against this theme. */
-    --series-1: #0072B2;
+    --canvas: #96998c;
+    --surface: #a8aaa0;
+    --surface-2: #85887c;
+    --series-1: #6b9000;
     --series-2: #D98200;
     --series-3: #B34F9B;
-    --series-4: #009E73;
+    --series-4: #0072B2;
     --series-5: #6C5CE7;
     --series-6: #D55E00;
-    --series-7: #3FA7D6;
+    --series-7: #061414;
     --series-8: #8C6D1F;
-    --sidebar: #e6f0ee;
-    --hover: #dbe9e6;
-    --ink: #12303a;
-    --ink-muted: #3f5d66;
-    --ink-subtle: #4f6871;
-    --line: #cfe0dd;
-    --line-strong: #bcd2ce;
+    --sidebar: #85887c;
+    --hover: #7e8176;
+    --ink: #061414;
+    --ink-muted: #1a2222;
+    --ink-subtle: #2e3330;
+    --line: rgb(6 20 20 / 0.18);
+    --line-strong: rgb(6 20 20 / 0.28);
 
-    --brand: #0b7a75;
-    --brand-hover: #086460;
-    --brand-ink: #ffffff;
-    --brand-soft: #cfeceb;
-    --brand-soft-ink: #075a56;
-    --accent: #0b6f8a;
+    --brand: #6b9000;
+    --brand-hover: #557300;
+    --brand-ink: #e9ebe6;
+    --brand-soft: rgb(107 144 0 / 0.4);
+    --brand-soft-ink: #061414;
+    --accent: #6b9000;
     --coral: #c43d5e;
     --lavender: #5a4fd0;
-    --glow: rgb(11 122 117 / 0.16);
-    --glow-2: rgb(90 79 208 / 0.12);
-    --hero-aurora-1: rgb(11 122 117 / 0.16);
-    --poster-sky: linear-gradient(to bottom, #eef5f4 0%, #d3ece8 32%, #a9d8d6 60%, #8fb8e0 84%, #b7b3f0 100%);
-    --poster-ink: #12303a;
-    --poster-on-ink: #f7fbfa;
-    --horizon: linear-gradient(to top, rgb(11 122 117 / 0.22), rgb(143 184 224 / 0.18) 34%, rgb(90 79 208 / 0.06) 66%, transparent);
+    --glow: rgb(6 20 20 / 0.06);
+    --glow-2: rgb(107 144 0 / 0.12);
+    --hero-aurora-1: rgb(107 144 0 / 0.14);
+    --poster-sky: linear-gradient(to bottom, #96998c 0%, #85887c 45%, #061414 100%);
+    --poster-ink: #061414;
+    --poster-on-ink: #e9ebe6;
+    --horizon: linear-gradient(to top, rgb(107 144 0 / 0.18), rgb(6 20 20 / 0.1) 45%, transparent);
 
-    --success: #0d6b42;
-    --success-soft: #daf0e4;
+    --success: #6b9000;
+    --success-soft: rgb(107 144 0 / 0.2);
     --danger: #b52340;
     --danger-soft: #f8e0e6;
     --warning: #7a4207;
     --warning-soft: #f5ead4;
 
-    --shadow-hairline-v: 0 1px 2px rgb(18 48 58 / 0.06);
-    --shadow-panel-v: 0 1px 2px rgb(18 48 58 / 0.06), 0 8px 24px -12px rgb(18 48 58 / 0.14);
-    --shadow-overlay-v: 0 24px 64px -16px rgb(18 48 58 / 0.28);
+    --shadow-hairline-v: 0 1px 2px rgb(6 20 20 / 0.08);
+    --shadow-panel-v: 0 1px 2px rgb(6 20 20 / 0.08), 0 8px 24px -12px rgb(6 20 20 / 0.2);
+    --shadow-overlay-v: 0 24px 64px -16px rgb(6 20 20 / 0.35);
+    /* Active nav must read clearly on Laurel chrome — thicker Pear ring + fill. */
+    --shadow-nav-active: 0 0 0 2px var(--brand),
+      0 10px 28px -10px color-mix(in srgb, var(--brand) 75%, transparent);
   }
 
   .logo-light { display: none !important; }
@@ -580,11 +612,11 @@ html:has(.ascii)::-webkit-scrollbar {
   display: none;
 }
 
-/* An ASCII cursor on the public and sign-in pages: a teal + everywhere,
+/* An ASCII cursor on the public and sign-in pages: a Pear + everywhere,
    [>] over anything clickable, and the normal text cursor in fields. */
 .ascii,
 .ascii * {
-  cursor: url("data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2724%27%20height=%2724%27%3E%3Ctext%20x=%275%27%20y=%2718%27%20font-family=%27ui-monospace,Menlo,monospace%27%20font-size=%2722%27%20font-weight=%27700%27%20fill=%27%234fd1c5%27%20stroke=%27%230b1519%27%20stroke-width=%270.75%27%20paint-order=%27stroke%27%3E+%3C/text%3E%3C/svg%3E") 11 11, crosshair;
+  cursor: url("data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2724%27%20height=%2724%27%3E%3Ctext%20x=%275%27%20y=%2718%27%20font-family=%27ui-monospace,Menlo,monospace%27%20font-size=%2722%27%20font-weight=%27700%27%20fill=%27%23bcff00%27%20stroke=%27%23061414%27%20stroke-width=%270.75%27%20paint-order=%27stroke%27%3E+%3C/text%3E%3C/svg%3E") 11 11, crosshair;
 }
 .ascii a,
 .ascii a *,
@@ -592,14 +624,14 @@ html:has(.ascii)::-webkit-scrollbar {
 .ascii button *,
 .ascii summary,
 .ascii [role="tab"] {
-  cursor: url("data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2740%27%20height=%2724%27%3E%3Ctext%20x=%272%27%20y=%2717%27%20font-family=%27ui-monospace,Menlo,monospace%27%20font-size=%2715%27%20font-weight=%27700%27%20fill=%27%234fd1c5%27%20stroke=%27%230b1519%27%20stroke-width=%270.75%27%20paint-order=%27stroke%27%3E[&gt;]%3C/text%3E%3C/svg%3E") 2 12, pointer;
+  cursor: url("data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2740%27%20height=%2724%27%3E%3Ctext%20x=%272%27%20y=%2717%27%20font-family=%27ui-monospace,Menlo,monospace%27%20font-size=%2715%27%20font-weight=%27700%27%20fill=%27%23bcff00%27%20stroke=%27%23061414%27%20stroke-width=%270.75%27%20paint-order=%27stroke%27%3E[&gt;]%3C/text%3E%3C/svg%3E") 2 12, pointer;
 }
 .ascii input,
 .ascii textarea {
   cursor: text;
 }
 
-/* Long-form text on the public pages: dash bullets and teal underlines. */
+/* Long-form text on the public pages: dash bullets and Pear underlines. */
 .ascii .prose-doc ul { list-style: none; padding-left: 0; }
 .ascii .prose-doc ul > li { position: relative; padding-left: 1.4em; }
 .ascii .prose-doc ul > li::before { content: "-"; position: absolute; left: 0; font-family: var(--font-mono); color: var(--accent); }
@@ -628,7 +660,7 @@ html:has(.ascii)::-webkit-scrollbar {
   to { width: 100%; }
 }
 
-/* Scrollbars in the app: square, thin, hairline track and an ink thumb that turns teal on hover.
+/* Scrollbars in the app: square, thin, hairline track and an ink thumb that turns Pear on hover.
    The public pages keep theirs hidden (html:has(.ascii) above). */
 @supports not selector(::-webkit-scrollbar) {
   html:not(:has(.ascii)),

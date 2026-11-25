@@ -63,10 +63,23 @@ func run(contextValue context.Context) error {
 	if err != nil {
 		return err
 	}
+	publicLimiter := limiter
+	if runtime.PublicRateLimit != runtime.RateLimit {
+		publicLimiter, err = ratelimit.New(ratelimit.Config{
+			Capacity:        runtime.PublicRateLimit.Capacity,
+			RefillPerSecond: runtime.PublicRateLimit.RefillPerSecond,
+			MaxEntries:      runtime.PublicRateLimit.MaxEntries,
+			IdleTTL:         runtime.PublicRateLimit.IdleTTL,
+		})
+		if err != nil {
+			return err
+		}
+	}
 	handler, err := edge.New(edge.Config{
 		Upstreams:            runtime.Upstreams,
 		Verifier:             runtime.Verifier,
 		Limiter:              limiter,
+		PublicLimiter:        publicLimiter,
 		TrustedProxyCIDRs:    runtime.TrustedProxyCIDRs,
 		SEBProtectedPrefixes: runtime.SEBProtectedPrefixes,
 		SEBPublicOrigin:      runtime.SEBPublicOrigin,

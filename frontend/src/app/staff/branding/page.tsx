@@ -4,7 +4,8 @@ import { ActionForm, Field, TextInput } from "@/components/staff/form";
 import { LoadError, PageHeader } from "@/components/staff/page-header";
 import { gateway } from "@/lib/server/gateway";
 import { requireCollege } from "@/lib/server/staff";
-import { deleteLogo, saveBranding, uploadLogo } from "./actions";
+import { LogoReorderButtons, LogoReorderScope } from "@/components/staff/logo-reorder";
+import { deleteLogo, reorderLogos, saveBranding, uploadLogo } from "./actions";
 
 export const metadata: Metadata = { title: "Branding" };
 
@@ -29,6 +30,7 @@ export default async function BrandingPage() {
   }
 
   const logos = [...(view.logos ?? [])].sort((left, right) => left.position - right.position);
+  const logoIds = logos.map((logo) => logo.id);
 
   return (
     <div className="animate-enter max-w-2xl space-y-8">
@@ -55,21 +57,28 @@ export default async function BrandingPage() {
           </Field>
         </ActionForm>
 
-        <ul className="space-y-3">
-          {logos.map((logo) => (
-            <li key={logo.id} className="flex items-center gap-4 rounded border border-line p-3">
-              <div className="relative size-12 shrink-0 overflow-hidden rounded bg-canvas">
-                {logo.url ? (
-                  <Image src={logo.url.startsWith("http") ? logo.url : `/api/tenant${logo.url}`} alt={logo.alt_text || "Logo"} fill className="object-contain" unoptimized />
-                ) : null}
-              </div>
-              <div className="min-w-0 flex-1 text-sm text-ink-muted">{logo.alt_text || "Logo"}</div>
-              <ActionForm action={deleteLogo} submitLabel="Remove" submitVariant="secondary">
-                <input type="hidden" name="logo_id" value={logo.id} />
-              </ActionForm>
-            </li>
-          ))}
-        </ul>
+        <LogoReorderScope logoIds={logoIds} reorder={reorderLogos}>
+          <ul className="space-y-3">
+            {logos.map((logo, index) => (
+              <li key={logo.id} className="flex items-center gap-4 rounded border border-line p-3">
+                <div className="relative size-12 shrink-0 overflow-hidden rounded bg-canvas">
+                  <Image
+                    src={`/api/tenant/v1/branding/logos/${encodeURIComponent(logo.id)}?tenant_id=${encodeURIComponent(tenantId)}`}
+                    alt={logo.alt_text || "Logo"}
+                    fill
+                    className="object-contain"
+                    unoptimized
+                  />
+                </div>
+                <div className="min-w-0 flex-1 text-sm text-ink-muted">{logo.alt_text || "Logo"}</div>
+                <LogoReorderButtons index={index} />
+                <ActionForm action={deleteLogo} submitLabel="Remove" submitVariant="secondary">
+                  <input type="hidden" name="logo_id" value={logo.id} />
+                </ActionForm>
+              </li>
+            ))}
+          </ul>
+        </LogoReorderScope>
       </section>
     </div>
   );

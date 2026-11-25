@@ -96,6 +96,26 @@ func TestParsePublicOrigin(t *testing.T) {
 	}
 }
 
+func TestLoadPublicRateLimitFallsBackUnlessConfigured(t *testing.T) {
+	t.Setenv("GATEWAY_RATE_LIMIT_CAPACITY", "60")
+	t.Setenv("GATEWAY_RATE_LIMIT_REFILL_PER_SECOND", "10")
+	authenticated, err := loadRateLimit()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GATEWAY_PUBLIC_RATE_LIMIT_CAPACITY", "")
+	public, err := loadPublicRateLimit(authenticated)
+	if err != nil || public != authenticated {
+		t.Fatalf("unset public limit = %+v, err = %v; want %+v", public, err, authenticated)
+	}
+	t.Setenv("GATEWAY_PUBLIC_RATE_LIMIT_CAPACITY", "400")
+	t.Setenv("GATEWAY_PUBLIC_RATE_LIMIT_REFILL_PER_SECOND", "80")
+	public, err = loadPublicRateLimit(authenticated)
+	if err != nil || public.Capacity != 400 || public.RefillPerSecond != 80 {
+		t.Fatalf("public limit = %+v, err = %v", public, err)
+	}
+}
+
 func TestLoadRealtime(t *testing.T) {
 	upstreams := map[string]*url.URL{"user": {Scheme: "http", Host: "user.internal"}, "analytics": {Scheme: "http", Host: "analytics.internal"}}
 	t.Setenv("GATEWAY_REALTIME_ORIGINS", "https://exam.example.edu, http://localhost:3000")

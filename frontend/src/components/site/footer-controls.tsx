@@ -10,7 +10,7 @@ export function ThemeSwitch() {
   return (
     <button
       type="button"
-      onClick={() => setTheme(next)}
+      onClick={(event) => setTheme(next, event.nativeEvent)}
       className="inline-flex h-8 items-center gap-2 rounded-pill border border-line-strong px-3 text-[13px] text-ink-muted transition-colors hover:bg-hover hover:text-ink"
     >
       {theme === "dark" ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}
@@ -34,7 +34,7 @@ export function ThemeIcon() {
   return (
     <button
       type="button"
-      onClick={() => setTheme(next)}
+      onClick={(event) => setTheme(next, event.nativeEvent)}
       aria-label={`Switch to ${next} theme`}
       className="grid size-8 place-items-center rounded-pill text-ink-muted transition-colors hover:bg-hover hover:text-ink"
     >

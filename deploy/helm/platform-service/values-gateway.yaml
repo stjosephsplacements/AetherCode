@@ -25,10 +25,10 @@ config:
   SERVICE_NAME: "gateway"
   GATEWAY_IDENTITY_ASSERTION_ISSUER: "aethercode-identity"
   GATEWAY_IDENTITY_ASSERTION_AUDIENCE: "aethercode"
-  # Anonymous sign-in calls share one bucket per source IP, and a campus lab is one IP: the default 60 burst / 10 per
-  # second returned 429 to students signing in together (load test, 100 students). Signed-in users have their own bucket.
-  GATEWAY_RATE_LIMIT_CAPACITY: "400"
-  GATEWAY_RATE_LIMIT_REFILL_PER_SECOND: "80"
+  # Signed-in principals keep the default 60 burst / 10 per second. Anonymous Identity sign-in shares one IP bucket; a
+  # campus lab is one IP, so public Identity routes use a higher burst without raising per-principal limits.
+  GATEWAY_PUBLIC_RATE_LIMIT_CAPACITY: "400"
+  GATEWAY_PUBLIC_RATE_LIMIT_REFILL_PER_SECOND: "80"
   GATEWAY_SEB_PROTECTED_PREFIXES: "[\"/api/submission/v1/tenants\"]"
   GATEWAY_SEB_PUBLIC_ORIGIN: "{{ required \"global.publicOrigin is required\" .Values.global.publicOrigin }}"
   # Staff WebSocket and service health (ADR-0050).

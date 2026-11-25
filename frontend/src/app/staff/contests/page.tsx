@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { panel } from "@/app/admin/_dashboard/panel";
 import { PageHeader } from "@/components/staff/page-header";
+import type { PracticeProblem } from "@/lib/api-types";
 import { gateway } from "@/lib/server/gateway";
 import { collegeFor, requireStaff } from "@/lib/server/staff";
 import { cn, formatDateTime } from "@/lib/utils";
@@ -20,11 +21,24 @@ type Contest = {
 export default async function StaffContestsPage() {
   const staff = await requireStaff();
   const collegeId = collegeFor(staff);
-  const contests = await gateway<Contest[]>(`/question-bank/v1/tenants/${collegeId}/contests`).catch(() => [] as Contest[]);
+  const [contestsRaw, practiceRaw] = await Promise.all([
+    gateway<Contest[] | { items?: Contest[] }>(`/question-bank/v1/tenants/${collegeId}/contests`).catch(() => [] as Contest[]),
+    gateway<PracticeProblem[] | { items?: PracticeProblem[] }>(`/question-bank/v1/tenants/${collegeId}/practice/questions`).catch(
+      () => [] as PracticeProblem[],
+    ),
+  ]);
+  const contests = Array.isArray(contestsRaw) ? contestsRaw : Array.isArray(contestsRaw?.items) ? contestsRaw.items : [];
+  const practice = Array.isArray(practiceRaw) ? practiceRaw : Array.isArray(practiceRaw?.items) ? practiceRaw.items : [];
+  const questions = practice.map((row) => ({
+    id: row.question_id,
+    title: row.title,
+    kind: row.kind,
+    tags: row.tags,
+  }));
   return (
     <div className="animate-enter space-y-6">
       <PageHeader title="College contests" description="Schedule timed practice contests for students in your college." />
-      <CreateContestForm collegeId={collegeId} />
+      <CreateContestForm collegeId={collegeId} questions={questions} />
       <ul className="space-y-2">
         {contests.map((contest) => (
           <li key={contest.id} className={cn(panel, "p-4 text-sm")}>

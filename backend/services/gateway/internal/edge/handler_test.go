@@ -111,6 +111,62 @@ func TestHandlerVerifiesProtectedRouteAndStripsServicePrefix(t *testing.T) {
 	}
 }
 
+func TestHandlerPublicIdentityRateLimitIsSeparateFromAuthenticated(t *testing.T) {
+	authLimiter, err := ratelimit.New(ratelimit.Config{Capacity: 5, RefillPerSecond: 5, MaxEntries: 10, IdleTTL: time.Minute})
+	if err != nil {
+		t.Fatal(err)
+	}
+	publicLimiter, err := ratelimit.New(ratelimit.Config{Capacity: 1, RefillPerSecond: 1, MaxEntries: 10, IdleTTL: time.Minute})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var loginCalls atomic.Int32
+	login := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		loginCalls.Add(1)
+		writer.WriteHeader(http.StatusNoContent)
+	}))
+	defer login.Close()
+	var protectedCalls atomic.Int32
+	protected := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		protectedCalls.Add(1)
+		writer.WriteHeader(http.StatusNoContent)
+	}))
+	defer protected.Close()
+	verifier := &testVerifier{claims: authn.Claims{Subject: "11111111-1111-4111-8111-111111111111"}}
+	handler, err := New(Config{
+		Upstreams:     map[string]*url.URL{"identity": mustURL(t, login.URL), "submission": mustURL(t, protected.URL)},
+		Verifier:      verifier,
+		Limiter:       authLimiter,
+		PublicLimiter: publicLimiter,
+		RequestTimeout: time.Second, SEBValidationTimeout: time.Second,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, proxyRequest(http.MethodPost, "/api/identity/v1/auth/login"))
+	if recorder.Code != http.StatusNoContent || loginCalls.Load() != 1 {
+		t.Fatalf("first login status = %d, calls = %d", recorder.Code, loginCalls.Load())
+	}
+	recorder = httptest.NewRecorder()
+	handler.ServeHTTP(recorder, proxyRequest(http.MethodPost, "/api/identity/v1/auth/login"))
+	if recorder.Code != http.StatusTooManyRequests || loginCalls.Load() != 1 {
+		t.Fatalf("throttled login status = %d, calls = %d", recorder.Code, loginCalls.Load())
+	}
+	for range 3 {
+		recorder = httptest.NewRecorder()
+		request := proxyRequest(http.MethodPost, "/api/submission/v1/attempts")
+		request.Header.Set("Authorization", "Bearer assertion")
+		handler.ServeHTTP(recorder, request)
+		if recorder.Code != http.StatusNoContent {
+			t.Fatalf("authenticated status = %d", recorder.Code)
+		}
+	}
+	if protectedCalls.Load() != 3 {
+		t.Fatalf("protected calls = %d", protectedCalls.Load())
+	}
+}
+
 func TestHandlerOnlyAllowsExplicitIdentityPublicRoutes(t *testing.T) {
 	var calls atomic.Int32
 	upstream := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {

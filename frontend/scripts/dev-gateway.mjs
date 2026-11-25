@@ -24,7 +24,7 @@ const PRINCIPALS = {
   student: {
     id: "0190a0a0-0000-7000-8000-000000000020",
     username: "student",
-    display_name: "Dev Student",
+    display_name: "Aria Dev",
     roles: [{ role_name: "student", scope_kind: "college", tenant_id: TENANT, scope_id: TENANT }],
     student: { tenant_id: TENANT },
   },
@@ -117,11 +117,161 @@ const opens = new Date(now - 3600_000).toISOString();
 const closes = new Date(now + 7 * 86400_000).toISOString();
 const examId = "0190a0a0-0000-7000-8000-000000000100";
 const examVersionId = "0190a0a0-0000-7000-8000-000000000101";
+const assignmentId = "0190a0a0-0000-7000-8000-000000000200";
+const attemptId = "0190a0a0-0000-7000-8000-000000000210";
+const contestId = "0190a0a0-0000-7000-8000-000000000220";
+const practiceIds = {
+  twoSum: "0190a0a0-0000-7000-8000-000000000601",
+  reverse: "0190a0a0-0000-7000-8000-000000000602",
+  binary: "0190a0a0-0000-7000-8000-000000000603",
+  mcq: "0190a0a0-0000-7000-8000-000000000604",
+};
 const deptCse = "0190a0a0-0000-7000-8000-000000000301";
 const deptEce = "0190a0a0-0000-7000-8000-000000000302";
 const batchCseA = "0190a0a0-0000-7000-8000-000000000401";
 const batchCseB = "0190a0a0-0000-7000-8000-000000000402";
 const batchEceA = "0190a0a0-0000-7000-8000-000000000403";
+
+const practiceProblems = [
+  { question_id: practiceIds.twoSum, slug: "two-sum", title: "Two Sum", kind: "coding", difficulty: "easy", tags: ["arrays", "hash-map"], solved: true, attempted: true },
+  { question_id: practiceIds.reverse, slug: "reverse-linked-list", title: "Reverse Linked List", kind: "coding", difficulty: "easy", tags: ["linked-list"], solved: true, attempted: true },
+  { question_id: practiceIds.binary, slug: "binary-search", title: "Binary Search", kind: "coding", difficulty: "medium", tags: ["arrays", "binary-search"], solved: false, attempted: true },
+  { question_id: practiceIds.mcq, slug: "big-o-basics", title: "Big-O Basics", kind: "mcq", difficulty: "easy", tags: ["complexity"], solved: true, attempted: true },
+  { question_id: "0190a0a0-0000-7000-8000-000000000605", slug: "longest-substring", title: "Longest Substring Without Repeating", kind: "coding", difficulty: "medium", tags: ["strings", "sliding-window"], solved: false, attempted: false },
+  { question_id: "0190a0a0-0000-7000-8000-000000000606", slug: "merge-intervals", title: "Merge Intervals", kind: "coding", difficulty: "medium", tags: ["arrays", "intervals"], solved: false, attempted: false },
+  { question_id: "0190a0a0-0000-7000-8000-000000000607", slug: "word-break", title: "Word Break", kind: "coding", difficulty: "hard", tags: ["dp", "strings"], solved: false, attempted: false },
+  { question_id: "0190a0a0-0000-7000-8000-000000000608", slug: "graph-bfs", title: "Shortest Path in an Unweighted Graph", kind: "coding", difficulty: "hard", tags: ["graphs", "bfs"], solved: false, attempted: false },
+];
+
+function practiceDetail(id) {
+  const row = practiceProblems.find((problem) => problem.question_id === id);
+  if (!row) return null;
+  if (row.kind === "mcq") {
+    return {
+      question_id: row.question_id,
+      question_version_id: `${row.question_id.slice(0, -1)}9`,
+      kind: "mcq",
+      title: row.title,
+      prompt_markdown: "Which asymptotic bound best describes binary search on a sorted array?",
+      difficulty: row.difficulty,
+      languages: [],
+      time_limit_ms: 2000,
+      memory_limit_kib: 65536,
+      tags: row.tags,
+      samples: [],
+      choices: ["O(n)", "O(log n)", "O(n log n)", "O(1)"],
+      multiple_choice: false,
+    };
+  }
+  return {
+    question_id: row.question_id,
+    question_version_id: `${row.question_id.slice(0, -1)}9`,
+    kind: "coding",
+    title: row.title,
+    prompt_markdown: `## ${row.title}\n\nWrite a correct solution. Sample input is below.`,
+    difficulty: row.difficulty,
+    languages: ["python3", "cpp17", "c"],
+    time_limit_ms: 2000,
+    memory_limit_kib: 262144,
+    tags: row.tags,
+    samples: [{ input: "2\n1 2\n", expected_output: "3\n" }],
+    starters: { python3: "def solve():\n    pass\n" },
+  };
+}
+
+const collegeContests = [
+  {
+    id: contestId,
+    title: "Friday Practice Sprint",
+    description: "A short timed set of practice problems for CSE A.",
+    starts_at: opens,
+    ends_at: closes,
+    lifecycle: "live",
+    registered: true,
+    question_ids: [practiceIds.twoSum, practiceIds.binary, practiceIds.mcq],
+  },
+];
+
+const communityFeed = [
+  {
+    id: "0190a0a0-0000-7000-8000-000000000701",
+    kind: "contest",
+    title: "Codeforces Round (demo)",
+    description: "Div. 2 practice contest listed for redesign work.",
+    url: "https://codeforces.com",
+    platform: "codeforces",
+    starts_at: closes,
+    ends_at: new Date(now + 8 * 86400_000).toISOString(),
+    tags: ["cf", "div2"],
+    bookmarked: false,
+    phase: "upcoming",
+  },
+  {
+    id: "0190a0a0-0000-7000-8000-000000000702",
+    kind: "hackathon",
+    title: "Campus Hack Night",
+    description: "24-hour build challenge with mentors on site.",
+    url: "https://example.com/hack",
+    platform: null,
+    starts_at: opens,
+    ends_at: closes,
+    tags: ["campus"],
+    bookmarked: true,
+    phase: "live",
+  },
+  {
+    id: "0190a0a0-0000-7000-8000-000000000703",
+    kind: "opensource",
+    title: "Good first issues · AetherCode docs",
+    description: "Docs and example PRs for first-time contributors.",
+    url: "https://github.com",
+    platform: "github",
+    starts_at: null,
+    ends_at: null,
+    tags: ["docs", "beginner"],
+    bookmarked: false,
+    phase: "live",
+  },
+];
+
+const interviewItems = [
+  {
+    id: "0190a0a0-0000-7000-8000-000000000711",
+    company: "Example Soft",
+    role: "SDE Intern",
+    experience_level: "intern",
+    drive_type: "on-campus",
+    package_offered: "12 LPA",
+    year_of_interview: 2026,
+    preparation_resources: "LeetCode mediums + system design primers",
+    rounds: [{ title: "OA", description: "Two coding questions" }, { title: "Technical", description: "DSA + projects" }],
+    verdict: "selected",
+    tips: "Talk through trade-offs out loud.",
+    status: "approved",
+    review_note: null,
+    mine: false,
+    created_at: opens,
+    author_id: null,
+  },
+];
+
+const blogItems = [
+  {
+    id: "0190a0a0-0000-7000-8000-000000000721",
+    title: "How I prepared for campus drives",
+    tags: ["placement", "tips"],
+    status: "published",
+    published_at: opens,
+    updated_at: opens,
+    excerpt: "A short walkthrough of a weekly practice routine.",
+    body_markdown: "## Routine\n\n- Two easy problems before breakfast\n- One medium after labs\n",
+  },
+];
+
+const taskItems = [
+  { id: "0190a0a0-0000-7000-8000-000000000731", title: "Finish binary search practice set", due_at: closes, done: false },
+  { id: "0190a0a0-0000-7000-8000-000000000732", title: "Update resume with internship", due_at: null, done: true },
+];
 
 /** In-memory college structure so the staff sidebar tree has something to show. */
 const departments = [
@@ -198,7 +348,7 @@ const roles = [
   },
 ];
 
-function handle(pathname, method, body, sub) {
+function handle(pathname, method, body, sub, query = new URLSearchParams()) {
   if (pathname === "/api/readyz" || pathname === "/readyz" || pathname === "/api/healthz") {
     return { status: 200, body: { status: "ok", mode: "dev-gateway" } };
   }
@@ -404,7 +554,7 @@ function handle(pathname, method, body, sub) {
       status: 200,
       body: page([
         {
-          id: "0190a0a0-0000-7000-8000-000000000200",
+          id: assignmentId,
           tenant_id: TENANT,
           exam_id: examId,
           exam_version_id: examVersionId,
@@ -415,7 +565,112 @@ function handle(pathname, method, body, sub) {
           available_until: closes,
           lifecycle_state: "assigned",
         },
+        {
+          id: "0190a0a0-0000-7000-8000-000000000201",
+          tenant_id: TENANT,
+          exam_id: examId,
+          exam_version_id: examVersionId,
+          title: "Upcoming Mock Exam",
+          instructions_markdown: "Warm-up paper.",
+          duration_seconds: 3600,
+          available_from: closes,
+          available_until: new Date(now + 14 * 86400_000).toISOString(),
+          lifecycle_state: "assigned",
+        },
       ]),
+    };
+  }
+
+  const practiceOne = pathname.match(/^\/api\/question-bank\/v1\/tenants\/[^/]+\/practice\/questions\/([^/]+)$/);
+  if (practiceOne && method === "GET") {
+    const detail = practiceDetail(practiceOne[1]);
+    if (!detail) return { status: 404, body: { code: "not_found", message: "practice problem" } };
+    return { status: 200, body: detail };
+  }
+
+  if (pathname.match(/^\/api\/question-bank\/v1\/tenants\/[^/]+\/practice\/questions$/) && method === "GET") {
+    return { status: 200, body: practiceProblems };
+  }
+
+  if (pathname.match(/^\/api\/question-bank\/v1\/tenants\/[^/]+\/practice\/progress$/) && method === "GET") {
+    const solved = practiceProblems.filter((problem) => problem.solved).length;
+    return {
+      status: 200,
+      body: {
+        solved,
+        available: practiceProblems.length,
+        by_difficulty: {
+          easy: { solved: practiceProblems.filter((p) => p.difficulty === "easy" && p.solved).length, available: practiceProblems.filter((p) => p.difficulty === "easy").length },
+          medium: { solved: practiceProblems.filter((p) => p.difficulty === "medium" && p.solved).length, available: practiceProblems.filter((p) => p.difficulty === "medium").length },
+          hard: { solved: practiceProblems.filter((p) => p.difficulty === "hard" && p.solved).length, available: practiceProblems.filter((p) => p.difficulty === "hard").length },
+        },
+        submissions: 12,
+        accepted: solved,
+        active_days: [0, 1, 2, 3, 5, 6].map((daysAgo) => new Date(now - daysAgo * 86400_000).toISOString().slice(0, 10)),
+      },
+    };
+  }
+
+  const contestBoard = pathname.match(/^\/api\/question-bank\/v1\/tenants\/[^/]+\/contests\/([^/]+)\/leaderboard$/);
+  if (contestBoard && method === "GET") {
+    return {
+      status: 200,
+      body: [
+        { actor_id: PRINCIPALS.student.id, problems: 3, last_solve: opens },
+        { actor_id: "0190a0a0-0000-7000-8000-000000000021", problems: 2, last_solve: opens },
+      ],
+    };
+  }
+
+  if (pathname.match(/^\/api\/question-bank\/v1\/tenants\/[^/]+\/contests$/) && method === "GET") {
+    return { status: 200, body: collegeContests };
+  }
+
+  if (pathname.match(/^\/api\/question-bank\/v1\/tenants\/[^/]+\/contests\/[^/]+\/register$/) && method === "POST") {
+    return { status: 200, body: { ok: true } };
+  }
+
+  if (pathname.includes("/community/")) {
+    if (pathname.includes("/community/feed")) {
+      const kind = query.get("kind");
+      const bookmarked = query.get("bookmarked");
+      let items = communityFeed;
+      if (kind) items = items.filter((item) => item.kind === kind);
+      if (bookmarked === "true" || bookmarked === "1") items = items.filter((item) => item.bookmarked);
+      return { status: 200, body: page(items) };
+    }
+    if (pathname.includes("/community/interviews")) return { status: 200, body: page(interviewItems) };
+    if (pathname.includes("/community/posts")) return { status: 200, body: page(blogItems) };
+    if (pathname.includes("/community/tasks")) return { status: 200, body: page(taskItems) };
+    if (pathname.includes("/community/profile-links")) {
+      return {
+        status: 200,
+        body: page([
+          { platform: "leetcode", handle: "aria-dev" },
+          { platform: "github", handle: "aria-dev" },
+        ]),
+      };
+    }
+    return { status: 200, body: page([]) };
+  }
+
+  if (pathname.includes("/profiles/") && pathname.includes("/public")) {
+    return {
+      status: 200,
+      body: {
+        slug: "aria-dev",
+        enabled: true,
+        content: {
+          name: person.display_name,
+          headline: "CSE · Dev College",
+          bio: "Demo student profile for UI redesign.",
+          college: "Dev College",
+          batch: "CSE A",
+          skills: ["python", "cpp", "sql"],
+          links: [{ platform: "leetcode", handle: "aria-dev" }],
+        },
+        updated_at: opens,
+      },
     };
   }
 
@@ -438,6 +693,44 @@ function handle(pathname, method, body, sub) {
 
   if (pathname.includes("/proctor-policies")) {
     return { status: 200, body: page([]) };
+  }
+
+  if (pathname.includes("/attempts/") && pathname.endsWith("/result") && method === "GET") {
+    return {
+      status: 200,
+      body: {
+        released: true,
+        released_at: opens,
+        score: 18,
+        maximum_score: 20,
+        items: [
+          { exam_item_id: practiceIds.twoSum, position: 1, title: "Two Sum", score: 10, maximum_score: 10, kind: "coding", tests: [{ number: 1, verdict: "accepted" }, { number: 2, verdict: "accepted" }] },
+          { exam_item_id: practiceIds.binary, position: 2, title: "Binary Search", score: 8, maximum_score: 10, kind: "coding", tests: [{ number: 1, verdict: "accepted" }, { number: 2, verdict: "wrong_answer" }] },
+        ],
+      },
+    };
+  }
+
+  if (pathname.match(/^\/api\/submission\/v1\/tenants\/[^/]+\/attempts$/) && method === "GET") {
+    return {
+      status: 200,
+      body: page([
+        {
+          id: attemptId,
+          tenant_id: TENANT,
+          exam_id: examId,
+          exam_version_id: examVersionId,
+          candidate_assignment_id: assignmentId,
+          attempt_number: 1,
+          lifecycle_state: "submitted",
+          submission_deadline: closes,
+          started_at: opens,
+          submitted_at: opens,
+          completed_at: opens,
+          version: 1,
+        },
+      ]),
+    };
   }
 
   if (pathname.includes("/attempts") || pathname.includes("/questions") || pathname.includes("/students")) {
@@ -619,7 +912,7 @@ const server = http.createServer(async (req, res) => {
     return json(res, 400, { code: "invalid_argument", message: "bad json" });
   }
   const sub = subjectFromAuth(req);
-  const result = handle(url.pathname.replace(/\/+$/, "") || "/", req.method ?? "GET", body, sub);
+  const result = handle(url.pathname.replace(/\/+$/, "") || "/", req.method ?? "GET", body, sub, url.searchParams);
   if (result.status === 204) return json(res, 204);
   return json(res, result.status, result.body);
 });

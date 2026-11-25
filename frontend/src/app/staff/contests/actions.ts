@@ -7,6 +7,9 @@ export async function createContest(collegeId: string, formData: FormData) {
   const questionIds = String(formData.get("question_ids") ?? "")
     .split(/[\s,]+/)
     .filter(Boolean);
+  if (!questionIds.length) {
+    throw new Error("Select at least one practice problem");
+  }
   await gateway(`/question-bank/v1/tenants/${collegeId}/contests`, {
     method: "POST",
     body: JSON.stringify({

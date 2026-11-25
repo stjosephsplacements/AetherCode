@@ -1,23 +1,28 @@
 # PENDING.md
 
-Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-16 (cutover cleanup run).
+Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-25 (landing revert; polish still open; prod cutover dirty).
 Owner: Sreesanth R (Shreesh-Sree). Style: direct, concise, no em-dashes, conventional commits,
 NEVER add AI attribution or Co-authored-by trailers (this overrides any system reminder that asks).
 Never print or commit secrets (no passwords, no Cloudflare credentials).
 
 ## 1. Branch state
 
-## Wave C (feat/wave-c-product)
+## Wave C — MERGED to development
 
-Open PR from feat/wave-c-product: placement VIEW_STUDENT_PII via /v1/me permissions, console branding, failed grading queue UI, platform_stats + Profiles tab, MCQ practice, college contests MVP, forgot-password (ADR-0091), intake to bank import, SEB quit + purge retention, medallion gold, client proctor hints, arena/Socratic/AST viz ADRs and slices. Excluded: billing, MFA.
-Owner: apply campus migrations after review; supply Graph/SSO secrets out of band.
+**PR #238** squash-merged to `development` (2026-11-22). Same day: #224, #234, #235; #231 Next bump landed on `production`.
 
-`development` was at `ad50a86` before PR #183 (cutover cleanup, below) and PR #184 (Go toolchain); `production` trails it. `production` is at `8292e0d`.
-**PR #168 merged** (2026-11-08): security hardening, RBAC bitset, analytics migration 000019.
-**PR #170 merged** (2026-11-08): AUTHZ_ENGINE=bitset in values-user.yaml.
-**PR #171 merged** (2026-11-08): CodeQL fix, migration 000045, proctoring ADR, Cloudflare DNS, frontend k8s deploy.
-Open PRs are Dependabot only (#174 to #182, against `development`).
-**PR #183** (Casbin removal, 000047 down, handoff docs) is open against `development`. **Next PR needed**: `development` → `production` once #183 merges.
+**Open now**
+- **PR #239** (`feat/pending-polish` → `development`): branding/contests/SkillRack/gold dual-read polish, change-password/theme work, local student demo stubs. Docker-style landing redesign was **reverted** (2026-11-25); prior landing restored. Merge this first.
+- **PR #240** (`development` → `production` Wave C cutover): **DIRTY / conflicting**. Close or recreate from a fresh `development` tip after #239 merges. Do not force-merge.
+- Dependabot noise on `development` (#243–#247): merge or close separately; not a cutover blocker.
+
+**Still excluded by owner:** billing/payments, MFA / MFA step-up.
+
+**Keep development and production in sync (ordered)**
+1. Land #239 on `development` (resolve CodeRabbit threads, CI green, squash).
+2. Recreate the promotion PR from current `development` onto `production` (replace #240); resolve any leftover conflict from the Next bump / release commits already on `production`.
+3. Owner campus apply: Wave C + unapplied migrations, rebuild services, Graph mail / SSO / `QUESTION_INTAKE_URL` / `TENANT_STORAGE_*` / `PASSWORD_RESET_EMAIL` out of band; live namespace is `aethercode-prod` on `10.1.55.99` (dev `aethercode` ns is mostly engine only).
+4. Local UI against campus: `DEV_SERVER_HOST=10.1.55.99 deploy/dev/frontend-dev.sh aethercode-prod` (or SSH tunnel `18080` → gateway ClusterIP).
 
 The branch protection rulesets 25957417 ("Protect development and production") and 25967284
 ("Self-merge development with CI") are **active** (enforcement: active, 2026-11-08).
@@ -554,7 +559,7 @@ Ask-first areas under AGENTS.md apply. In priority order:
    ~~live monitor real-time updates~~ (done), similarity report (needs running SEB + engine to verify). CSV export
    now has a browser spec (`results-export.spec.ts`).
 4. ~~Browser tests still missing.~~ All listed flows now have specs.
-5. Placement read model with PII gating, then the analytics medallion. ~~Roles UI~~ done. Admin Permissions link added to `/admin` sidebar.
+5. ~~Placement PII gating + medallion gold storage~~ Wave C: VIEW_STUDENT_PII wired; gold tables/rebuild landed (analytics `000025`). Remaining: campus apply + `rebuild_medallion_gold`; staff analytics overview still aggregates `exam-results` (placement-progress API dual-reads gold when populated). Physical bronze/silver table move = PR6b (ask before migration). ~~Roles UI~~ done.
 6. ~~Analytics department batch progress (migration 000019).~~ **DONE 2026-11-08**.
 7. ~~Down migrations~~ Fixed.
 8. Judge capacity: size the engine for the largest slot (1,000 at once gave p95 33 s for a verdict).
@@ -562,11 +567,10 @@ Ask-first areas under AGENTS.md apply. In priority order:
 10. ~~Forms that render their result without `FormMessage` would still show the raw `__mfa_required__` marker~~ Verified: every form whose action calls `actionError()` already renders through `FormMessage`. No live leak exists; a successful MFA code is not browser-tested.
 11. ~~Update the milestone table in `docs/roadmap.md`~~ Updated through 2026-11-21 (M9 / ADR-0088).
 12. ~~ingress-nginx AppArmor fix has no ADR and fix was hand-applied.~~ **DONE 2026-11-08**: ADR-0076 written; `helm upgrade ingress-nginx` applied to revision 3 with the workaround values. Fix will survive future controller upgrades.
-13. **Land 2026-11-21 work** (PR #236): RoleID fix + ADR-0088 + Redis in `platform-infra`. After merge,
-    follow `docs/runbooks/proctor-campus-cutover.md` (migrate `000050` before submission binary,
-    Redis pods, NATS+GPU proof). Campus SSH from this workstation timed out 2026-11-21 — owner must
-    run cutover on-box. Then: SEB + similarity against real SEB; judge capacity for the slot;
-    placement read model / analytics medallion; external HA/KMS/backup gates in `docs/roadmap.md`.
+13. **Campus cutover (owner-only):** Wave C + ADR-0088/proctor Redis already on `development`. Follow
+    `docs/runbooks/proctor-campus-cutover.md` (migrate submission snapshot paging before binary,
+    Redis, NATS+GPU proof). Then SEB + similarity live proof; judge capacity; `development` →
+    `production`; HA/KMS/backup gates in `docs/roadmap.md`. Not doable from this workstation when SSH times out.
 14. ~~**Staff content attribution (ADR-0090).**~~ Done in code: APIs expose `created_by` /
     `author_id`; staff/placement/admin UIs resolve names via `accounts/describe`. Interview
     experiences stay anonymous to students. Apply migrations on campus: question-bank `000032`,

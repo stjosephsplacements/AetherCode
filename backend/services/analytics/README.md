@@ -96,7 +96,7 @@ five-second signed capability in the local transaction.
 | `GET` | `/v1/tenants/{tenant_id}/student-progress/{student_id}` | `student_progress_rollups` read |
 | `GET` | `/v1/tenants/{tenant_id}/exam-results?exam_version_id={uuid}` | `exam_result_rollups` read |
 | `GET` | `/v1/tenants/{tenant_id}/batch-progress/{batch_id}` | `batch_progress_rollups` read |
-| `GET` | `/v1/tenants/{tenant_id}/placement-progress/{placement_department_id}` | `placement_student_rollups` read |
+| `GET` | `/v1/tenants/{tenant_id}/placement-progress/{placement_department_id}` | `placement_student_rollups` read (gold-first: `analytics_gold.gold_placement_student` when populated, else legacy `placement_student_rollups`) |
 | `POST` | `/v1/tenants/{tenant_id}/report-exports` | `report_exports` write + `Idempotency-Key` |
 | `GET` | `/v1/tenants/{tenant_id}/report-exports/{export_id}` | `report_exports` read |
 

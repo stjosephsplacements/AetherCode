@@ -111,7 +111,7 @@ function NavLink({
         collapsed ? "h-9 justify-center" : "h-9 gap-2.5 px-3 text-[13.5px]",
         nested && !collapsed && "h-8 pr-3 text-[13px]",
         exact
-          ? "bg-hover font-medium text-ink shadow-[var(--shadow-nav-active)]"
+          ? "bg-brand-soft font-medium text-ink shadow-[var(--shadow-nav-active)]"
           : inBranch && depth === 0
             ? "font-medium text-ink"
             : "text-ink-muted hover:bg-hover/70 hover:text-ink",
@@ -317,7 +317,7 @@ function MobileNavLink({
       className={cn(
         "relative flex items-center gap-2.5 rounded-control py-2.5 pr-3 text-[15px] transition-[color,background-color,box-shadow]",
         nested ? "pl-2" : "px-3",
-        current ? "bg-hover font-medium text-ink shadow-[var(--shadow-nav-active)]" : "text-ink-muted active:bg-hover",
+        current ? "bg-brand-soft font-medium text-ink shadow-[var(--shadow-nav-active)]" : "text-ink-muted active:bg-hover",
       )}
     >
       <Icon className="size-4 shrink-0" />
@@ -333,7 +333,7 @@ export function ThemeToggle() {
   return (
     <button
       type="button"
-      onClick={() => setTheme(next)}
+      onClick={(event) => setTheme(next, event.nativeEvent)}
       aria-label={`Switch to ${next} theme`}
       title={`Switch to ${next} theme`}
       className="grid size-9 place-items-center rounded-control text-ink-muted transition-[color,background-color,transform] hover:bg-hover hover:text-ink active:scale-[0.97]"

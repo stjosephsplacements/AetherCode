@@ -52,7 +52,12 @@ export function AccountMenu({ viewer, compact = false }: { viewer: Viewer; compa
             onSelect={(event) => {
               // Keep the menu open so the switch is visible.
               event.preventDefault();
-              setTheme(theme === "dark" ? "light" : "dark");
+              const target = event.currentTarget as HTMLElement;
+              const box = target.getBoundingClientRect();
+              setTheme(theme === "dark" ? "light" : "dark", {
+                clientX: box.left + box.width / 2,
+                clientY: box.top + box.height / 2,
+              });
             }}
             className="flex w-full cursor-default items-center gap-2 rounded-control px-2.5 py-2 text-sm text-ink outline-none data-[highlighted]:bg-hover"
           >
