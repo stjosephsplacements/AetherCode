@@ -23,9 +23,10 @@ func NewOpaqueToken() (string, error) {
 }
 
 // HashToken returns the fixed-length database representation of an opaque
-// bearer token; token plaintext is never persisted.
-// codeql[go/weak-sensitive-data-hashing] - token is 32 bytes of crypto/rand output; SHA-256 as lookup hash, not password storage
+// bearer token; token plaintext is never persisted. SHA-256 is a lookup hash
+// over 32 bytes of crypto/rand output, not password storage.
 func HashToken(token string) [sha256.Size]byte { //nolint:gosec // 32-byte random token, not a password
+	// codeql[go/weak-sensitive-data-hashing]: opaque bearer lookup hash, not password hashing
 	return sha256.Sum256([]byte(token))
 }
 

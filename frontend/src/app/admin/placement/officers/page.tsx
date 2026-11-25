@@ -5,7 +5,6 @@ import { STAFF_ROLES } from "@/lib/rbac";
 import { fetchAllPages } from "@/lib/server/fetch-all";
 import { inColleges } from "@/lib/server/colleges";
 import { listPlacement } from "@/lib/server/directory";
-import { gateway } from "@/lib/server/gateway";
 import { describeAccounts, listRoleAssignments } from "@/lib/server/people";
 import { placementDepartmentOptions } from "@/lib/server/placement-org";
 import { requireAdmin } from "@/lib/server/staff";
