@@ -14,6 +14,8 @@ every production safety check applies.
 
 ## Host requirements
 
+- A checkout readable by other users (`chmod -R o+rX` if your umask is 007 or stricter):
+  PostgreSQL reads `deploy/database/platform/dev-init.sh` through a bind mount as its own user.
 - Docker Engine with Compose v2, 8+ cores, 16 GB RAM, about 20 GB of free disk.
 - The AetherCode Execution Engine installed on the host
   (github.com/stjosephsplacements/AetherCode-Execution-Engine) and listening on
@@ -29,7 +31,8 @@ cd deploy/single-server
 ./setup.sh https://exam.example.edu          # .env and certs/ (once)
 docker compose build
 docker compose up -d
-docker compose ps                            # every service "running"/"healthy"
+docker compose ps                            # every service "running"
+curl -s 127.0.0.1:${GATEWAY_PORT:-8080}/readyz   # "status":"ok" once every upstream is up
 ```
 
 `setup.sh` refuses to run when `.env` or `certs/` exist, so

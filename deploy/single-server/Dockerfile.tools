@@ -21,9 +21,10 @@ RUN mkdir -p /migrations \
  && for dir in /tmp/services/*/migrations; do \
       service="$(basename "$(dirname "$dir")")"; cp -r "$dir" "/migrations/$service"; \
     done \
- && rm -rf /tmp/services
-COPY deploy/single-server/migrate-all.sh /usr/local/bin/migrate-all
-COPY deploy/single-server/provision-keys.sh /usr/local/bin/provision-keys
+ && rm -rf /tmp/services \
+ && chmod -R a+rX /migrations
+COPY --chmod=0755 deploy/single-server/migrate-all.sh /usr/local/bin/migrate-all
+COPY --chmod=0755 deploy/single-server/provision-keys.sh /usr/local/bin/provision-keys
 USER postgres
 # Migrate every database, then install its authorization capability key.
 ENTRYPOINT ["/bin/sh", "-c", "migrate-all && provision-keys"]
