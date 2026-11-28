@@ -134,10 +134,10 @@ func TestHandlerPublicIdentityRateLimitIsSeparateFromAuthenticated(t *testing.T)
 	defer protected.Close()
 	verifier := &testVerifier{claims: authn.Claims{Subject: "11111111-1111-4111-8111-111111111111"}}
 	handler, err := New(Config{
-		Upstreams:     map[string]*url.URL{"identity": mustURL(t, login.URL), "submission": mustURL(t, protected.URL)},
-		Verifier:      verifier,
-		Limiter:       authLimiter,
-		PublicLimiter: publicLimiter,
+		Upstreams:      map[string]*url.URL{"identity": mustURL(t, login.URL), "submission": mustURL(t, protected.URL)},
+		Verifier:       verifier,
+		Limiter:        authLimiter,
+		PublicLimiter:  publicLimiter,
 		RequestTimeout: time.Second, SEBValidationTimeout: time.Second,
 	})
 	if err != nil {
