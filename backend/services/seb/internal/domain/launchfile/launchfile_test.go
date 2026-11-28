@@ -18,8 +18,8 @@ import (
 func TestBuildDecodesToTheExamSettings(t *testing.T) {
 	t.Parallel()
 	file, err := Build(Settings{
-		StartURL: "https://exam.example/exam/42?a=1&b=2",
-		QuitURL:  "https://exam.example/student",
+		StartURL:   "https://exam.example/exam/42?a=1&b=2",
+		QuitURL:    "https://exam.example/student",
 		QuitSecret: "launch-secret",
 	})
 	if err != nil {

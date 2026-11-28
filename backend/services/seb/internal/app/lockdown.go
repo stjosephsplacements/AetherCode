@@ -329,10 +329,10 @@ func (service *Service) launchFile(examID, title string) (LaunchFile, error) {
 
 func (service *Service) launchSettings(examID string) launchfile.Settings {
 	return launchfile.Settings{
-		StartURL: service.launch.BaseURL + "/exam/" + strings.ToLower(examID),
-		QuitURL:  service.launch.BaseURL + "/student?seb=quit",
+		StartURL:   service.launch.BaseURL + "/exam/" + strings.ToLower(examID),
+		QuitURL:    service.launch.BaseURL + "/student?seb=quit",
 		QuitSecret: service.launch.QuitSecret,
-		AllowVM:  service.launch.AllowVM,
+		AllowVM:    service.launch.AllowVM,
 	}
 }
 
