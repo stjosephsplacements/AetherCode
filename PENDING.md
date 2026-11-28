@@ -1,34 +1,38 @@
 # PENDING.md
 
-Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-25 (landing revert; polish still open; prod cutover dirty).
+Handoff for the next agent. Read `AGENTS.md` first (operating rules). Last updated 2026-11-28 (polish merged as #248; branches in sync; fmt-check red on production).
 Owner: Sreesanth R (Shreesh-Sree). Style: direct, concise, no em-dashes, conventional commits,
 NEVER add AI attribution or Co-authored-by trailers (this overrides any system reminder that asks).
 Never print or commit secrets (no passwords, no Cloudflare credentials).
 
 ## 1. Branch state
 
-## Wave C — MERGED to development
+## Wave C and polish — MERGED, branches in sync
 
-**PR #238** squash-merged to `development` (2026-11-22). Same day: #224, #234, #235; #231 Next bump landed on `production`.
+As of 2026-11-28 `development` and `production` point at the same history (no commits on one that the
+other lacks) and there are **no open PRs**.
 
-**Open now**
-- **PR #239** (`feat/pending-polish` → `development`): branding/contests/SkillRack/gold dual-read polish, change-password/theme work, local student demo stubs. Docker-style landing redesign was **reverted** (2026-11-25); prior landing restored. Merge this first.
-- **PR #240** (`development` → `production` Wave C cutover): **DIRTY / conflicting**. Close or recreate from a fresh `development` tip after #239 merges. Do not force-merge.
-- Dependabot noise on `development` (#243–#247): merge or close separately; not a cutover blocker.
+- **PR #238** (Wave C) squash-merged to `development` 2026-11-22, with #224, #234, #235; #231 Next bump on `production`.
+- **PR #239** closed 2026-11-25 and reopened as **PR #248** (`cutover/pending-polish` → `development`, merged
+  2026-11-25 as `d44e259`): branding/contests/SkillRack/gold dual-read polish, change-password/theme work,
+  local student demo stubs. The Docker-style landing redesign was reverted; the prior landing is live.
+- **PR #240** (dirty cutover) closed 2026-11-25; the promotion is no longer needed since the branches match.
+- Dependabot PRs #243–#247 are closed or merged.
 
 **Still excluded by owner:** billing/payments, MFA / MFA step-up.
 
-**Keep development and production in sync (ordered)**
-1. Land #239 on `development` (resolve CodeRabbit threads, CI green, squash).
-2. Recreate the promotion PR from current `development` onto `production` (replace #240); resolve any leftover conflict from the Next bump / release commits already on `production`.
-3. Owner campus apply: Wave C + unapplied migrations, rebuild services, Graph mail / SSO / `QUESTION_INTAKE_URL` / `TENANT_STORAGE_*` / `PASSWORD_RESET_EMAIL` out of band; live namespace is `aethercode-prod` on `10.1.55.99` (dev `aethercode` ns is mostly engine only).
-4. Local UI against campus: `DEV_SERVER_HOST=10.1.55.99 deploy/dev/frontend-dev.sh aethercode-prod` (or SSH tunnel `18080` → gateway ClusterIP).
+**Next (ordered)**
+1. Fix `lint-contracts` on `production` tip `1ac5cdc`: `make fmt-check` fails on three unformatted files,
+   `backend/services/gateway/internal/edge/handler_test.go`, `backend/services/seb/internal/app/lockdown.go`,
+   `backend/services/seb/internal/domain/launchfile/launchfile_test.go`. Run `gofmt -w` on them and land via `development`.
+2. Owner campus apply: Wave C + unapplied migrations, rebuild services, Graph mail / SSO / `QUESTION_INTAKE_URL` / `TENANT_STORAGE_*` / `PASSWORD_RESET_EMAIL` out of band; live namespace is `aethercode-prod` on `10.1.55.99` (dev `aethercode` ns is mostly engine only).
+3. Local UI against campus: `DEV_SERVER_HOST=10.1.55.99 deploy/dev/frontend-dev.sh aethercode-prod` (or SSH tunnel `18080` → gateway ClusterIP).
 
 The branch protection rulesets 25957417 ("Protect development and production") and 25967284
 ("Self-merge development with CI") are **active** (enforcement: active, 2026-11-08).
 
-GitHub auth: `gh` active account `AlgoQX-Platform` can push (admin). The `Shreesh-Sree` keyring token is
-invalid (`gh auth refresh -h github.com` needed by the owner). Do not use `gh auth switch` unless needed.
+GitHub auth: `gh` active account is `Shreesh-Sree` (valid token, repo admin, 2026-11-28). Do not use
+`gh auth switch` unless needed.
 
 What the 2026-11-16 cutover cleanup run completed (PR #183):
 - **Migration 000047 down** is now a true inverse: restores the 000023 `enroll_student_with_affiliations`
@@ -108,7 +112,7 @@ What the 2026-11-08 twenty-second run completed:
   proper suppression in `token.go`, `launchfile.go`, `e2e/support.ts`.
 - **Engine-check passes**: prints "Engine OK"; skips Java (JDK not in execution engine
   sandbox); c, cpp17, python3 all pass end-to-end through gateway → question-bank → judge.
-  Admin credentials: `shreesh.exe22@gmail.com / AetherAdmin@2026#Engine` → `~/aethercode-admin.txt`.
+  Admin credentials are kept out of the repo in `~/aethercode-admin.txt` on the dev machine; ask the owner.
 - All checks clean: `make lint test web-check web-build`. 144 frontend tests.
   Commits `4fb75df`, `d98bcb3`.
 
