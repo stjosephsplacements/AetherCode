@@ -153,3 +153,9 @@ each such item's options with whether each was correct and its explanation,
 only once staff release results. `get_attempt_paper_for_candidate` is
 unchanged, so an open attempt never carries them. Rollback restores both
 functions and drops the column.
+
+`000055_fix_code_run_purge_order` fixes `purge_expired_code_runs` from
+`000054`: it ordered by `purge_after`, which its batch subquery did not
+select, so every call failed (42703) and Submission would not start with
+retention enabled on a fresh database. The body is otherwise unchanged and
+`CREATE OR REPLACE` keeps the grants. Rollback restores the `000054` body.

@@ -25,13 +25,8 @@ x-service: &service
     nats:
       condition: service_healthy
 
-x-healthcheck: &healthcheck
-  healthcheck:
-    test: ["CMD-SHELL", "wget --spider -q http://localhost:8080/healthz"]
-    interval: 15s
-    timeout: 5s
-    retries: 5
-    start_period: 10s
+# The Go services run from scratch images (no shell, no wget), so Compose
+# cannot probe them; check them with `curl 127.0.0.1:$GATEWAY_PORT/readyz`.
 
 services:
   postgres:
@@ -209,7 +204,7 @@ services:
         condition: service_completed_successfully
 
   identity:
-    <<: [*service, *healthcheck]
+    <<: *service
     environment:
       <<: *common-env
       SERVICE_NAME: identity
@@ -246,7 +241,7 @@ services:
     build: { context: ../../backend, dockerfile: services/identity/Dockerfile }
 
   user:
-    <<: [*service, *healthcheck]
+    <<: *service
     environment:
       <<: [*common-env, *authz-client]
       SERVICE_NAME: user
@@ -257,7 +252,7 @@ services:
       USER_DB_MIN_CONNS: "4"
       USER_AUTHZ_DATABASE_URL: postgres://aether_user_authz_reader:${USERS_DB_PASSWORD}@postgres:5432/aether_users?sslmode=disable
       USER_PROJECTION_DATABASE_URL: postgres://aether_user_projection_worker:${USERS_DB_PASSWORD}@postgres:5432/aether_users?sslmode=disable
-      USER_PLATFORM_STATS_ENABLED: ${USER_PLATFORM_STATS_ENABLED:-false}
+      USER_PLATFORM_STATS_ENABLED: ${USER_PLATFORM_STATS_ENABLED:-true}
       USER_PLATFORM_STATS_DATABASE_URL: postgres://aether_user_platform_stats_worker:${USERS_DB_PASSWORD}@postgres:5432/aether_users?sslmode=disable
       NOTIFICATION_PLATFORM_STATS_DATABASE_URL: postgres://aether_notification_platform_stats_reader:${NOTIFICATION_DB_PASSWORD}@postgres:5432/aether_notification?sslmode=disable
       AUTHZ_GRPC_ADDR: 0.0.0.0:9443
@@ -277,7 +272,7 @@ services:
     build: { context: ../../backend, dockerfile: services/user/Dockerfile }
 
   tenant:
-    <<: [*service, *healthcheck]
+    <<: *service
     environment:
       <<: [*common-env, *authz-client]
       SERVICE_NAME: tenant
@@ -290,7 +285,7 @@ services:
     build: { context: ../../backend, dockerfile: services/tenant/Dockerfile }
 
   question-bank:
-    <<: [*service, *healthcheck]
+    <<: *service
     environment:
       <<: [*common-env, *authz-client]
       SERVICE_NAME: question-bank
@@ -318,7 +313,7 @@ services:
     build: { context: ../../backend, dockerfile: services/question-bank/Dockerfile }
 
   assessment:
-    <<: [*service, *healthcheck]
+    <<: *service
     environment:
       <<: [*common-env, *authz-client]
       SERVICE_NAME: assessment
@@ -334,7 +329,7 @@ services:
     build: { context: ../../backend, dockerfile: services/assessment/Dockerfile }
 
   submission:
-    <<: [*service, *healthcheck]
+    <<: *service
     environment:
       <<: [*common-env, *authz-client]
       SERVICE_NAME: submission
@@ -370,7 +365,7 @@ services:
     build: { context: ../../backend, dockerfile: services/submission/Dockerfile }
 
   seb:
-    <<: [*service, *healthcheck]
+    <<: *service
     environment:
       <<: [*common-env, *authz-client]
       SERVICE_NAME: seb
@@ -392,7 +387,7 @@ services:
     build: { context: ../../backend, dockerfile: services/seb/Dockerfile }
 
   notification:
-    <<: [*service, *healthcheck]
+    <<: *service
     environment:
       <<: [*common-env, *authz-client]
       SERVICE_NAME: notification
@@ -407,7 +402,7 @@ services:
     build: { context: ../../backend, dockerfile: services/notification/Dockerfile }
 
   analytics:
-    <<: [*service, *healthcheck]
+    <<: *service
     environment:
       <<: [*common-env, *authz-client]
       SERVICE_NAME: analytics
@@ -418,7 +413,7 @@ services:
     build: { context: ../../backend, dockerfile: services/analytics/Dockerfile }
 
   judge:
-    <<: [*service, *healthcheck]
+    <<: *service
     environment:
       <<: *common-env
       SERVICE_NAME: judge
@@ -490,7 +485,7 @@ services:
               capabilities: [gpu]
 
   gateway:
-    <<: [*service, *healthcheck]
+    <<: *service
     environment:
       <<: *common-env
       SERVICE_NAME: gateway
